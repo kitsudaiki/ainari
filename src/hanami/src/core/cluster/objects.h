@@ -270,10 +270,10 @@ struct Connection {
     SourceLocationPtr origin;
     float lowerBound = 0.0f;
     float potentialRange = std::numeric_limits<float>::max();
-    float tollerance = 0.49f;
     float splitValue = 0.0;
     float potential = 0.0f;
     float delta = 0.0f;
+    uint8_t padding[4];
 
     Connection()
     {

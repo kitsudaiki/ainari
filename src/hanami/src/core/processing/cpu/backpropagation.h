@@ -152,8 +152,8 @@ backpropagateOutput(Hexagon* hexagon)
     Neuron* neuron = nullptr;
     OutputNeuron* out = nullptr;
     OutputTargetLocationPtr* target = nullptr;
+    constexpr float learnValue = 0.05f;
     float totalDelta = 0.0f;
-    float learnValue = 0.1f;
     float delta = 0.0f;
     float update = 0.0f;
     uint64_t i = 0;
