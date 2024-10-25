@@ -41,6 +41,7 @@
 - made internal processing more generic, to have the same worker-workflow for all coming backends
 - use debug builds with ASan-check for tests of the CI (unit-, functional-, memory-leak-, sdk-api- and cli-api-tests)
 - default-values for initial admin-credentials and token-key were removed from the helm-chart and are now marked as required
+- synapse-tolerance was changed to static values
 
 ### Fixed
 

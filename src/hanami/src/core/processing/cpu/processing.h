@@ -95,6 +95,9 @@ synapseProcessingBackward(Cluster& cluster,
     Synapse* synapse = nullptr;
     Neuron* targetNeuron = nullptr;
     float halfPotential = 0.0f;
+    float condition = 0.0f;
+    constexpr float createBorder = 0.25f;
+    constexpr float adjustment = (1.0f / 1.5f) - 1.0f;
     const bool isAbleToCreate = connection->origin.isInput || cluster.enableCreation;
 
     if (potential > connection->potentialRange) {
@@ -106,32 +109,36 @@ synapseProcessingBackward(Cluster& cluster,
         synapse = &synapseSection->synapses[pos];
 
         if constexpr (doTrain) {
-            if (isAbleToCreate) {
-                // create new synapse if necesarry and training is active
-                if (synapse->targetNeuronId == UNINIT_STATE_8) {
-                    createNewSynapse(synapse, clusterSettings, potential, randomSeed);
-                    cluster.enableCreation = true;
-                }
-            }
-            if (isAbleToCreate && potential < (0.5f + connection->tollerance) * synapse->border
-                && potential > (0.5f - connection->tollerance) * synapse->border)
-            {
-                synapse->border /= 1.5f;
-                synapse->weight /= 1.5f;
-                connection->tollerance /= 1.2f;
+            // create new synapse if necesarry and training is active
+            if (isAbleToCreate & (synapse->targetNeuronId == UNINIT_STATE_8)) {
+                createNewSynapse(synapse, clusterSettings, potential, randomSeed);
                 cluster.enableCreation = true;
             }
         }
 
-        if (synapse->targetNeuronId != UNINIT_STATE_8) {
-            // update target-neuron
-            targetNeuron = &targetNeuronBlock->neurons[synapse->targetNeuronId];
-            val = synapse->weight;
-            if (potential < synapse->border) {
-                val *= ((1.0f / synapse->border) * potential);
+        // update target-neuron
+        targetNeuron
+            = &targetNeuronBlock->neurons[synapse->targetNeuronId % NEURONS_PER_NEURONBLOCK];
+        val = synapse->weight;
+        if (potential < synapse->border) {
+            val *= ((1.0f / synapse->border) * potential);
+            if constexpr (doTrain) {
+                condition = static_cast<float>(connection->origin.isInput)
+                            * (potential < (1.0f - createBorder) * synapse->border)
+                            * (potential > createBorder * synapse->border);
+                synapse->border = synapse->border * (1.0f + (condition * adjustment));
+                synapse->weight = synapse->weight * (1.0f + (condition * adjustment));
+                cluster.enableCreation = cluster.enableCreation || (condition != 0);
+
+                condition = static_cast<float>(connection->origin.isInput == false)
+                            * static_cast<float>(cluster.enableCreation)
+                            * (potential < synapse->border - createBorder) * (potential > 0.05f);
+                synapse->border = synapse->border * (1.0f + (condition * adjustment));
+                synapse->weight = synapse->weight * (1.0f + (condition * adjustment));
+                cluster.enableCreation = cluster.enableCreation || (condition != 0);
             }
-            targetNeuron->input += val;
         }
+        targetNeuron->input += val;
 
         // update loop-counter
         halfPotential
