@@ -144,7 +144,7 @@ generate-docs:
     COPY +compile-code/hanami/hanami /tmp/
 
     RUN apt-get update && \
-        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
+        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 libgbm-dev libasound2
     RUN chmod +x /tmp/hanami
     RUN /tmp/hanami --generate_docu
 
@@ -168,6 +168,10 @@ generate-docs:
     RUN cp ./db.md docs/backend/
     RUN cp ./config.md docs/backend/
     RUN cp ./open_api_docu.json docs/frontend/
+
+    RUN useradd -m ubuntu
+    RUN chown -R ubuntu:ubuntu .
+    USER ubuntu
 
     RUN mkdocs build --clean
 
