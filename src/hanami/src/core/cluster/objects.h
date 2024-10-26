@@ -23,6 +23,7 @@
 #ifndef HANAMI_CORE_SEGMENT_OBJECTS_H
 #define HANAMI_CORE_SEGMENT_OBJECTS_H
 
+#include <assert.h>
 #include <hanami_common/structs.h>
 #include <hanami_common/uuid.h>
 #include <stdint.h>
@@ -242,8 +243,10 @@ struct OutputInterface {
     std::vector<float> ioBuffer;
     OutputType type = PLAIN_OUTPUT;
 
-    void initBuffer(uint64_t expectedSize)
+    void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
+        assert(timeLength >= 1);
+        expectedSize += (timeLength - 1);
         ioBuffer.resize(expectedSize);
         if (type == FLOAT_OUTPUT) {
             expectedSize *= 32;
@@ -262,6 +265,15 @@ struct InputInterface {
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<InputNeuron> inputNeurons;
     std::vector<float> ioBuffer;
+
+    void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
+    {
+        assert(timeLength >= 1);
+        if (inputNeurons.size() < expectedSize) {
+            ioBuffer.resize(expectedSize);
+            inputNeurons.resize(expectedSize + (timeLength - 1));
+        }
+    }
 };
 
 //==================================================================================================

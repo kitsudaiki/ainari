@@ -121,9 +121,10 @@ HanamiRoot::init(Hanami::ErrorContainer& error)
     ThreadBinder::getInstance()->startThread();
 
     // start monitoring
-    PowerMeasuring::getInstance()->startThread();
-    SpeedMeasuring::getInstance()->startThread();
-    TemperatureMeasuring::getInstance()->startThread();
+    // TODO: re-enable measuring-threads
+    // PowerMeasuring::getInstance()->startThread();
+    // SpeedMeasuring::getInstance()->startThread();
+    // TemperatureMeasuring::getInstance()->startThread();
 
     return true;
 }

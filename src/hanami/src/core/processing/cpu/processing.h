@@ -96,7 +96,7 @@ synapseProcessingBackward(Cluster& cluster,
     Neuron* targetNeuron = nullptr;
     float halfPotential = 0.0f;
     float condition = 0.0f;
-    constexpr float createBorder = 0.25f;
+    constexpr float createBorder = 0.02f;
     constexpr float adjustment = (1.0f / 1.5f) - 1.0f;
     const bool isAbleToCreate = connection->origin.isInput || cluster.enableCreation;
 

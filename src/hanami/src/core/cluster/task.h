@@ -62,6 +62,7 @@ struct TrainInfo {
     uint64_t numberOfCycles = 0;
     uint64_t currentCycle = 0;
     uint64_t timeLength = 1;
+
     TrainInfo() {}
 
     TrainInfo(TrainInfo&& otherObf)
@@ -89,6 +90,7 @@ struct RequestInfo {
     uint64_t numberOfCycles = 0;
     uint64_t currentCycle = 0;
     uint64_t timeLength = 1;
+
     RequestInfo() {}
 
     RequestInfo(RequestInfo&& otherObf)
@@ -112,6 +114,7 @@ struct RequestInfo {
 
 struct CheckpointSaveInfo {
     std::string checkpointName = "";
+
     CheckpointSaveInfo() {}
 
     CheckpointSaveInfo(CheckpointSaveInfo&& otherObf)
@@ -129,6 +132,7 @@ struct CheckpointSaveInfo {
 
 struct CheckpointRestoreInfo {
     CheckpointTable::CheckpointDbEntry checkpointInfo;
+
     CheckpointRestoreInfo() {}
 
     CheckpointRestoreInfo(CheckpointRestoreInfo&& otherObf)

@@ -181,9 +181,22 @@ struct DataSetFileHandle {
         targetFile = otherObf.targetFile;
         otherObf.targetFile = nullptr;
 
-        readBuffer = otherObf.readBuffer;
+        readBuffer.clear();
+        readBuffer.blockSize = otherObf.readBuffer.blockSize;
+        readBuffer.data = otherObf.readBuffer.data;
+        readBuffer.inUse = otherObf.readBuffer.inUse;
+        readBuffer.numberOfBlocks = otherObf.readBuffer.numberOfBlocks;
+        readBuffer.totalBufferSize = otherObf.readBuffer.totalBufferSize;
+        readBuffer.usedBufferSize = otherObf.readBuffer.usedBufferSize;
         otherObf.readBuffer.data = nullptr;
-        writeBuffer = otherObf.writeBuffer;
+
+        writeBuffer.clear();
+        writeBuffer.blockSize = otherObf.writeBuffer.blockSize;
+        writeBuffer.data = otherObf.writeBuffer.data;
+        writeBuffer.inUse = otherObf.writeBuffer.inUse;
+        writeBuffer.numberOfBlocks = otherObf.writeBuffer.numberOfBlocks;
+        writeBuffer.totalBufferSize = otherObf.writeBuffer.totalBufferSize;
+        writeBuffer.usedBufferSize = otherObf.writeBuffer.usedBufferSize;
         otherObf.writeBuffer.data = nullptr;
 
         readSelector = otherObf.readSelector;
@@ -201,9 +214,22 @@ struct DataSetFileHandle {
         targetFile = otherObf.targetFile;
         otherObf.targetFile = nullptr;
 
-        readBuffer = otherObf.readBuffer;
+        readBuffer.clear();
+        readBuffer.blockSize = otherObf.readBuffer.blockSize;
+        readBuffer.data = otherObf.readBuffer.data;
+        readBuffer.inUse = otherObf.readBuffer.inUse;
+        readBuffer.numberOfBlocks = otherObf.readBuffer.numberOfBlocks;
+        readBuffer.totalBufferSize = otherObf.readBuffer.totalBufferSize;
+        readBuffer.usedBufferSize = otherObf.readBuffer.usedBufferSize;
         otherObf.readBuffer.data = nullptr;
-        writeBuffer = otherObf.writeBuffer;
+
+        writeBuffer.clear();
+        writeBuffer.blockSize = otherObf.writeBuffer.blockSize;
+        writeBuffer.data = otherObf.writeBuffer.data;
+        writeBuffer.inUse = otherObf.writeBuffer.inUse;
+        writeBuffer.numberOfBlocks = otherObf.writeBuffer.numberOfBlocks;
+        writeBuffer.totalBufferSize = otherObf.writeBuffer.totalBufferSize;
+        writeBuffer.usedBufferSize = otherObf.writeBuffer.usedBufferSize;
         otherObf.writeBuffer.data = nullptr;
 
         readSelector = otherObf.readSelector;
