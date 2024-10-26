@@ -49,6 +49,7 @@
 - some cases of invalid http-requests had returned an 200 reponse with empty body, which was fixed
 - changed token-key in helm-chart from configmap to secret
 - fixed memory-corruption in cluster-resize, because a pointer was used after free
+- fixed missing drawio-images in documentation when generating in CI
 
 ### Removed
 
