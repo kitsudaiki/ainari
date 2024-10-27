@@ -144,7 +144,7 @@ generate-docs:
     COPY +compile-code/hanami/hanami /tmp/
 
     RUN apt-get update && \
-        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 libgbm-dev libasound2
+        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 libgbm-dev libasound2 xvfb dbus
     RUN chmod +x /tmp/hanami
     RUN /tmp/hanami --generate_docu
 
@@ -169,11 +169,9 @@ generate-docs:
     RUN cp ./config.md docs/backend/
     RUN cp ./open_api_docu.json docs/frontend/
 
-    RUN useradd -m ubuntu
-    RUN chown -R ubuntu:ubuntu .
-    USER ubuntu
-
-    RUN mkdocs build --clean
+    # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
+    # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
+    RUN xvfb-run -a mkdocs build --clean
 
     SAVE ARTIFACT site AS LOCAL site
 
@@ -187,6 +185,10 @@ build-docs:
     COPY +generate-docs/site /openhanami_docs
 
     WORKDIR /openhanami_docs
+
+    RUN useradd -m ubuntu
+    RUN chown -R ubuntu:ubuntu .
+    USER ubuntu
 
     CMD python3 -m http.server 8000
 
