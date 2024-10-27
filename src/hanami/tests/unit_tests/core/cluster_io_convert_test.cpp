@@ -40,7 +40,7 @@ ClusterIOConvert_Test::convertPlain_test()
 {
     OutputInterface testInterface;
     testInterface.type = PLAIN_OUTPUT;
-    testInterface.initBuffer(4);
+    testInterface.initBuffer(4, 1);
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons.size(), 4);
@@ -75,7 +75,7 @@ ClusterIOConvert_Test::convertBool_test()
 {
     OutputInterface testInterface;
     testInterface.type = BOOL_OUTPUT;
-    testInterface.initBuffer(4);
+    testInterface.initBuffer(4, 1);
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons.size(), 4);
@@ -115,7 +115,7 @@ ClusterIOConvert_Test::convertFloat_test()
 {
     OutputInterface testInterface;
     testInterface.type = FLOAT_OUTPUT;
-    testInterface.initBuffer(2);
+    testInterface.initBuffer(2, 1);
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons.size(), 64);
@@ -146,7 +146,7 @@ ClusterIOConvert_Test::convertInt_test()
 {
     OutputInterface testInterface;
     testInterface.type = INT_OUTPUT;
-    testInterface.initBuffer(2);
+    testInterface.initBuffer(2, 1);
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons.size(), 128);

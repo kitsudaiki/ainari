@@ -168,6 +168,7 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
     newTask->progress.queuedTimeStamp = std::chrono::system_clock::now();
     newTask->info = TrainInfo();
     TrainInfo* info = &std::get<TrainInfo>(newTask->info);
+    info->timeLength = timeLength;
     uint64_t numberOfCycles = std::numeric_limits<uint64_t>::max();
 
     // prepare inputs
@@ -206,14 +207,11 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         InputInterface* inputInterface = &cluster->inputInterfaces[hexagonName];
         const uint64_t numberOfColumns
             = fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart;
-        if (inputInterface->inputNeurons.size() < numberOfColumns) {
-            inputInterface->inputNeurons.resize(numberOfColumns);
-        }
-        inputInterface->ioBuffer.resize(inputInterface->inputNeurons.size()
-                                        - (info->timeLength - 1));
+        inputInterface->initBuffer(numberOfColumns, info->timeLength);
 
         // resize the input-hexagon
-        const uint32_t numberOfNeuronBlocks = (numberOfColumns / NEURONS_PER_NEURONBLOCK) + 1;
+        const uint32_t numberOfNeuronBlocks
+            = (inputInterface->inputNeurons.size() / NEURONS_PER_NEURONBLOCK) + 1;
         cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
             numberOfNeuronBlocks);
 
@@ -255,9 +253,8 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         // resize number of output and size of io-buffer for the given data
         OutputInterface* outputInterface = &cluster->outputInterfaces[hexagonName];
         const uint64_t numberOfColumns
-            = (fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart)
-              - (info->timeLength - 1);
-        outputInterface->initBuffer(numberOfColumns);
+            = fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart;
+        outputInterface->initBuffer(numberOfColumns, 1);
 
         info->outputs.try_emplace(hexagonName, std::move(fileHandle));
     }
@@ -272,8 +269,7 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
 
     // set number of cycles
     newTask->progress.totalNumberOfCycles = numberOfCycles;
-    info->numberOfCycles = numberOfCycles - (timeLength - 1);
-    info->timeLength = timeLength;
+    info->numberOfCycles = numberOfCycles - (info->timeLength - 1);
 
     cluster->stateMachine->goToNextState(PROCESS_TASK);
 

@@ -167,6 +167,7 @@ CreateRequestTaskV1M0::runTask(BlossomIO& blossomIO,
     newTask->progress.queuedTimeStamp = std::chrono::system_clock::now();
     newTask->info = RequestInfo();
     RequestInfo* taskInfo = &std::get<RequestInfo>(newTask->info);
+    taskInfo->timeLength = timeLength;
     u_int64_t numberOfCycles = std::numeric_limits<uint64_t>::max();
 
     // prepare input
@@ -203,11 +204,12 @@ CreateRequestTaskV1M0::runTask(BlossomIO& blossomIO,
         InputInterface* inputInterface = &cluster->inputInterfaces[hexagonName];
         const uint64_t numberOfColumns
             = fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart;
-        if (inputInterface->inputNeurons.size() < numberOfColumns) {
-            inputInterface->inputNeurons.resize(numberOfColumns);
-        }
-        inputInterface->ioBuffer.resize(inputInterface->inputNeurons.size()
-                                        - (taskInfo->timeLength - 1));
+        inputInterface->initBuffer(numberOfColumns, taskInfo->timeLength);
+
+        // resize the input-hexagon
+        const uint32_t numberOfNeuronBlocks = (numberOfColumns / NEURONS_PER_NEURONBLOCK) + 1;
+        cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
+            numberOfNeuronBlocks);
 
         taskInfo->inputs.try_emplace(hexagonName, std::move(fileHandle));
     }

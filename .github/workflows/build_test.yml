@@ -511,6 +511,11 @@ jobs:
         run: |
           chmod +x /tmp/Hanami_debug_build_result/hanami_cluster_parser_memory_leak_tests
           /tmp/Hanami_debug_build_result/hanami_cluster_parser_memory_leak_tests
+      - 
+        name: "Run test: hanami"
+        run: |
+          chmod +x  /tmp/Hanami_debug_build_result/hanami_memory_leak_tests
+          /tmp/Hanami_debug_build_result/hanami_memory_leak_tests
 
 
 

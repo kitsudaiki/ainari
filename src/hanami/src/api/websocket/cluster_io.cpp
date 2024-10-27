@@ -220,7 +220,7 @@ recvClusterInputMessage(Cluster* cluster, const void* data, const uint64_t dataS
         }
 
         OutputInterface* outputInterface = &it->second;
-        outputInterface->initBuffer(msg.numberofvalues());
+        outputInterface->initBuffer(msg.numberofvalues(), 1);
         for (uint64_t i = 0; i < msg.numberofvalues(); i++) {
             outputInterface->ioBuffer[i] = msg.values(i);
         }

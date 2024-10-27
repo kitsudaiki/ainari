@@ -431,7 +431,7 @@ IO_Interface::deserialize(Hexagon& hexagon, uint64_t& positionPtr, Hanami::Error
         outputIf.name = outputEntry.name.getName();
         outputIf.type = outputEntry.type;
         outputIf.targetHexagonId = hexagon.header.hexagonId;
-        outputIf.initBuffer(outputEntry.numberOfOutputs);
+        outputIf.initBuffer(outputEntry.numberOfOutputs, 1);
         for (OutputNeuron& outputNeuron : outputIf.outputNeurons) {
             ret = getObjectFromLocalBuffer(positionPtr, &outputNeuron, error);
             if (ret != OK) {
