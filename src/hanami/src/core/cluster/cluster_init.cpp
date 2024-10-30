@@ -121,7 +121,6 @@ initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta)
         Hexagon* targetHexagon = &cluster->hexagons[inputInterface.targetHexagonId];
         targetHexagon->header.isInputHexagon = true;
         targetHexagon->header.isBinaryInput = inputMeta.binary;
-        targetHexagon->header.isMatchingInput = inputMeta.match;
         targetHexagon->inputInterface = &cluster->inputInterfaces[inputMeta.name];
     }
 }

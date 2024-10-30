@@ -9,6 +9,13 @@ from hanami_sdk import task
 import json
 import time
 import configparser
+import urllib3
+
+
+# the test use insecure connections, which is totally ok for the tests
+# and neaded for testings endpoints with self-signed certificastes,
+# but the warnings are anoying and have to be disabled by this line
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 matplotlib.use('Qt5Agg')
 
@@ -50,12 +57,13 @@ cluster_template = \
     "    1,1,1\n" \
     "    2,1,1\n" \
     "    3,1,1\n" \
+    "    4,1,1\n" \
     "    \n" \
     "inputs:\n" \
     "    test_input: 1,1,1\n" \
     "\n" \
     "outputs:\n" \
-    "    test_output: 3,1,1\n" \
+    "    test_output: 4,1,1\n" \
 
 cluster_name = "test_cluster"
 generic_task_name = "test_task"
@@ -63,22 +71,22 @@ template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 
-token = hanami_token.request_token(address, test_user_id, test_user_pw)
+token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-cluster_uuids = [""] * 10
-result_outputs = [0.0] * 10
+cluster_uuids = [""] * 20
+result_outputs = [0.0] * 20
 flattened_list = [0.0] * 1750
 
 delete_all_datasets()
 delete_all_cluster()
 
 for index in range(len(cluster_uuids)):
-    result = cluster.create_cluster(token, address, cluster_name + str(index), cluster_template)
+    result = cluster.create_cluster(token, address, cluster_name + str(index), cluster_template, False)
     cluster_uuids[index] = json.loads(result)["uuid"]
 
-train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs)
+train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs, False)
 request_dataset_uuid = dataset.upload_csv_files(
-    token, address, request_dataset_name, request_inputs)
+    token, address, request_dataset_name, request_inputs, False)
 
 
 inputs = [
@@ -102,15 +110,15 @@ outputs = [
 for i in range(0, 100):
     print("poi: ", i)
     for c in range(len(cluster_uuids)):
-        result = task.create_train_task(token, address, generic_task_name, cluster_uuids[c], inputs, outputs, 20)
+        result = task.create_train_task(token, address, generic_task_name, cluster_uuids[c], inputs, outputs, 20, False)
         task_uuid = json.loads(result)["uuid"]
         finished = False
         while not finished:
-            result = task.get_task(token, address, task_uuid, cluster_uuids[c])
+            result = task.get_task(token, address, task_uuid, cluster_uuids[c], False)
             finished = json.loads(result)["state"] == "finished"
-            print("wait for finish train-task")
+            # print("wait for finish train-task")
             time.sleep(0.01)
-        result = task.delete_task(token, address, task_uuid, cluster_uuids[c])
+        result = task.delete_task(token, address, task_uuid, cluster_uuids[c], False)
 
 
 inputs = [
@@ -130,16 +138,16 @@ results = [
 
 # te
 for c in range(len(cluster_uuids)):
-    result = task.create_request_task(token, address, generic_task_name, cluster_uuids[c], inputs, results, 20)
+    result = task.create_request_task(token, address, generic_task_name, cluster_uuids[c], inputs, results, 20, False)
     task_uuid = json.loads(result)["uuid"]
 
     finished = False
     while not finished:
-        result = task.get_task(token, address, task_uuid, cluster_uuids[c])
+        result = task.get_task(token, address, task_uuid, cluster_uuids[c], False)
         finished = json.loads(result)["state"] == "finished"
         print(result)
-        print("wait for finish request-task")
-        time.sleep(1)
+        # print("wait for finish request-task")
+        time.sleep(0.1)
         # result = task.delete_task(token, address, task_uuid, cluster_uuid)
 
     result = dataset.download_dataset_content(
@@ -158,13 +166,13 @@ for c in range(len(cluster_uuids)):
 # print(flattened_list)
 # print(json.dumps(json.loads(result), indent=4))
 
-dataset.delete_dataset(token, address, train_dataset_uuid)
-dataset.delete_dataset(token, address, request_dataset_uuid)
+dataset.delete_dataset(token, address, train_dataset_uuid, False)
+dataset.delete_dataset(token, address, request_dataset_uuid, False)
 for c in range(len(cluster_uuids)):
-    cluster.delete_cluster(token, address, cluster_uuids[c])
+    cluster.delete_cluster(token, address, cluster_uuids[c], False)
 
 for r in range(len(flattened_list)):
-    flattened_list[r] /= 10.0
+    flattened_list[r] /= 20.0
 
 # Open the file in write mode
 with open("out.txt", 'w') as file:

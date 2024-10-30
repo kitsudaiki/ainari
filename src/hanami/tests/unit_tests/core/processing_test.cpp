@@ -27,42 +27,4 @@
 #include <core/cluster/objects.h>
 #include <core/processing/cpu/processing.h>
 
-Processing_Test::Processing_Test() : Hanami::CompareTestHelper("Processing_Test")
-{
-    processingMatching_test();
-}
-
-void
-Processing_Test::processingMatching_test()
-{
-    Cluster cluster;
-    SynapseSection synapseSection;
-    Connection connection;
-    NeuronBlock targetNeuronBlock;
-    ClusterSettings clusterSettings;
-    uint32_t randomSeed = 42;
-
-    connection.potential = 5.0f;
-    synapseProcessingBackward_Matching<true>(
-        cluster, &synapseSection, &connection, &targetNeuronBlock, &clusterSettings, randomSeed);
-    TEST_EQUAL(synapseSection.synapses[1].border, float(5.0f));
-
-    connection.potential = 12.0f;
-    synapseProcessingBackward_Matching<true>(
-        cluster, &synapseSection, &connection, &targetNeuronBlock, &clusterSettings, randomSeed);
-    TEST_EQUAL(synapseSection.synapses[1].border, float(5.0f));
-    TEST_EQUAL(synapseSection.synapses[2].border, float(12.0f));
-
-    connection.potential = 8.0f;
-    synapseProcessingBackward_Matching<true>(
-        cluster, &synapseSection, &connection, &targetNeuronBlock, &clusterSettings, randomSeed);
-    TEST_EQUAL(synapseSection.synapses[1].border, float(5.0f));
-    TEST_EQUAL(synapseSection.synapses[2].border, float(8.0f));
-
-    connection.potential = 12.0f;
-    synapseProcessingBackward_Matching<true>(
-        cluster, &synapseSection, &connection, &targetNeuronBlock, &clusterSettings, randomSeed);
-    TEST_EQUAL(synapseSection.synapses[1].border, float(5.0f));
-    TEST_EQUAL(synapseSection.synapses[2].border, float(8.0f));
-    TEST_EQUAL(synapseSection.synapses[3].border, float(12.0f));
-}
+Processing_Test::Processing_Test() : Hanami::CompareTestHelper("Processing_Test") {}

@@ -242,6 +242,10 @@ IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
     for (uint64_t pos = 0; pos < hexagon.connectionBlocks.size(); pos++) {
         const ConnectionBlock* connectionBlock = &hexagon.connectionBlocks[pos];
         const uint64_t synapseSectionPos = hexagon.synapseBlockLinks[pos];
+        if (synapseSectionPos == UNINIT_STATE_64) {
+            error.addMessage("Synapse-block-position invalid");
+            return ERROR;
+        }
         if (addObjectToLocalBuffer(connectionBlock, error) == false) {
             return ERROR;
         }

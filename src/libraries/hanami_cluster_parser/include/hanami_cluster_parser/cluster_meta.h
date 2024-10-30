@@ -39,7 +39,6 @@ struct InputMeta {
     std::string name = "";
     uint32_t targetHexagonId = UNINTI_POINT_32;
     bool binary = false;
-    bool match = false;
 };
 
 struct OutputMeta {
