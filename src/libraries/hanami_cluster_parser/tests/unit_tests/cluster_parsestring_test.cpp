@@ -62,7 +62,7 @@ Cluster_ParseString_Test::parseString_test()
         "inputs:\n"
         "    input_hexagon: 1,1,1 (binary)\n"
         "    input_hexagon2: 2,1,1\n"
-        "    input_hexagon3: 3,1,1 (match)\n"
+        "    input_hexagon3: 3,1,1\n"
         "\n"
         "outputs:\n"
         "    output_hexagon: 6,1,1\n"
@@ -120,17 +120,14 @@ Cluster_ParseString_Test::parseString_test()
     TEST_EQUAL(result.inputs.at(0).name, "input_hexagon");
     TEST_EQUAL(result.inputs.at(0).targetHexagonId, 0);
     TEST_EQUAL(result.inputs.at(0).binary, true);
-    TEST_EQUAL(result.inputs.at(0).match, false);
 
     TEST_EQUAL(result.inputs.at(1).name, "input_hexagon2");
     TEST_EQUAL(result.inputs.at(1).targetHexagonId, 1);
     TEST_EQUAL(result.inputs.at(1).binary, false);
-    TEST_EQUAL(result.inputs.at(1).match, false);
 
     TEST_EQUAL(result.inputs.at(2).name, "input_hexagon3");
     TEST_EQUAL(result.inputs.at(2).targetHexagonId, 2);
     TEST_EQUAL(result.inputs.at(2).binary, false);
-    TEST_EQUAL(result.inputs.at(2).match, true);
 
     TEST_EQUAL(result.outputs.size(), 2);
     TEST_EQUAL(result.outputs.at(0).name, "output_hexagon");
@@ -330,7 +327,6 @@ Cluster_ParseString_Test::parseString_test()
           "inputs:\n"
           "    input_hexagon: 1,1,1 (binary)\n"
           "    input_hexagon2: 2,1,1\n"
-          "    input_hexagon3: 3,1,1 (match)\n"
           "\n"
           "outputs:\n"
           "    output_hexagon: 6,1,1\n"

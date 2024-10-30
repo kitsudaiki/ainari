@@ -55,19 +55,12 @@ searchTargetInHexagon(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>& synapseB
     for (i = 0; i < numberOfConnectionsBlocks; ++i) {
         ConnectionBlock* connectionBlock = &targetHexagon->connectionBlocks[pos];
         uint64_t synapseSectionPos = targetHexagon->synapseBlockLinks[pos];
+        if (synapseSectionPos == UNINIT_STATE_64) {
+            return nullptr;
+        }
 
         for (j = 0; j < NUMBER_OF_SYNAPSESECTION; ++j) {
             if (connectionBlock->connections[j].origin.blockId == UNINIT_STATE_16) {
-                // initialize a synapse-block if necessary
-                if (synapseSectionPos == UNINIT_STATE_64) {
-                    SynapseBlock block;
-                    synapseSectionPos = synapseBlockBuffer.addNewItem(block);
-                    if (synapseSectionPos == UNINIT_STATE_64) {
-                        return nullptr;
-                    }
-
-                    targetHexagon->synapseBlockLinks[pos] = synapseSectionPos;
-                }
                 return &connectionBlock->connections[j];
             }
         }
@@ -83,8 +76,14 @@ searchTargetInHexagon(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>& synapseB
  * @param targetHexagon hexagon to resize
  */
 inline void
-resizeBlocks(Hexagon* targetHexagon)
+resizeBlocks(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>* synapseBlockBuffer)
 {
+    SynapseBlock block;
+    const uint64_t synapseSectionPos = synapseBlockBuffer->addNewItem(block);
+    if (synapseSectionPos == UNINIT_STATE_64) {
+        return;
+    }
+
     targetHexagon->header.numberOfBlocks++;
 
     // resize list
@@ -97,7 +96,7 @@ resizeBlocks(Hexagon* targetHexagon)
 
     // update content of list for the new size
     targetHexagon->connectionBlocks[targetHexagon->header.numberOfBlocks - 1] = ConnectionBlock();
-    targetHexagon->synapseBlockLinks[targetHexagon->header.numberOfBlocks - 1] = UNINIT_STATE_64;
+    targetHexagon->synapseBlockLinks[targetHexagon->header.numberOfBlocks - 1] = synapseSectionPos;
     targetHexagon->neuronBlocks[targetHexagon->header.numberOfBlocks - 1] = NeuronBlock();
 
     targetHexagon->header.numberOfFreeSections += NUMBER_OF_SYNAPSESECTION;
@@ -185,7 +184,7 @@ createNewSection(Cluster& cluster,
 
     // get target-connection
     if (targetHexagon->header.numberOfFreeSections < NUMBER_OF_SYNAPSESECTION / 2) {
-        resizeBlocks(targetHexagon);
+        resizeBlocks(targetHexagon, synapseBlockBuffer);
     }
     Connection* targetConnection = searchTargetInHexagon(targetHexagon, *synapseBlockBuffer);
     if (targetConnection == nullptr) {
@@ -208,9 +207,6 @@ createNewSection(Cluster& cluster,
     if (hexagon->header.isBinaryInput) {
         targetConnection->origin.isInput = 2;
     }
-    if (hexagon->header.isMatchingInput) {
-        targetConnection->origin.isInput = 3;
-    }
     targetConnection->lowerBound = 0.0f;
     targetConnection->potentialRange = std::numeric_limits<float>::max();
 
@@ -231,6 +227,7 @@ createNewSection(Cluster& cluster,
 inline bool
 updateCluster(Cluster& cluster, Hexagon* hexagon)
 {
+    ItemBuffer<SynapseBlock>* synapseBlockBuffer = &hexagon->attachedHost->synapseBlocks;
     ConnectionBlock* connectionBlock = nullptr;
     Connection* connection = nullptr;
     bool found = false;
@@ -255,7 +252,7 @@ updateCluster(Cluster& cluster, Hexagon* hexagon)
         // IMPORTANT: this must be done at the end, because the resize change the target of the
         // pointer
         if (hexagon->header.numberOfFreeSections < NUMBER_OF_SYNAPSESECTION / 2) {
-            resizeBlocks(hexagon);
+            resizeBlocks(hexagon, synapseBlockBuffer);
         }
     }
     return found;

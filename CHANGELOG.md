@@ -51,6 +51,7 @@
 - changed token-key in helm-chart from configmap to secret
 - fixed memory-corruption in cluster-resize, because a pointer was used after free
 - fixed missing drawio-images in documentation when generating in CI
+- fixed random crash, which can appear while creating checkpoints
 
 ### Removed
 
