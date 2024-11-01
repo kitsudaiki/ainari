@@ -52,6 +52,7 @@
 - fixed memory-corruption in cluster-resize, because a pointer was used after free
 - fixed missing drawio-images in documentation when generating in CI
 - fixed random crash, which can appear while creating checkpoints
+- when making a request over direct-io but the output is empty, there was no response and the connection got stuck, which was fixed
 
 ### Removed
 

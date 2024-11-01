@@ -196,6 +196,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
         // handle special-case that there are no neuron-blocks to process
         if (hexagon->neuronBlocks.size() == 0) {
             if (task.hexagonId == task.cluster->hexagons.size() - 1) {
+                handleClientOutput(*task.cluster);
                 task.cluster->updateClusterState(task);
                 return;
             }
