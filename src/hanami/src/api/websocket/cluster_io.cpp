@@ -200,10 +200,13 @@ recvClusterInputMessage(Cluster* cluster, const void* data, const uint64_t dataS
         }
 
         InputInterface* inputInterface = &it->second;
-        if (inputInterface->inputNeurons.size() < msg.numberofvalues()) {
-            inputInterface->inputNeurons.resize(msg.numberofvalues());
-        }
-        inputInterface->ioBuffer.resize(msg.numberofvalues());
+        inputInterface->initBuffer(msg.numberofvalues(), 1);
+
+        // resize the input-hexagon
+        const uint32_t numberOfNeuronBlocks
+            = (inputInterface->inputNeurons.size() / NEURONS_PER_NEURONBLOCK) + 1;
+        cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
+            numberOfNeuronBlocks);
 
         for (uint64_t i = 0; i < msg.numberofvalues(); i++) {
             inputInterface->inputNeurons[i].value = msg.values(i);

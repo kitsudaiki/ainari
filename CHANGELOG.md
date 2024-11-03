@@ -53,6 +53,7 @@
 - fixed missing drawio-images in documentation when generating in CI
 - fixed random crash, which can appear while creating checkpoints
 - when making a request over direct-io but the output is empty, there was no response and the connection got stuck, which was fixed
+- when using direct-io right from the beginning to train a cluster, the cluster remained empty, which was fixed
 
 ### Removed
 
