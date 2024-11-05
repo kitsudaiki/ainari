@@ -88,11 +88,10 @@ synapseProcessingBackward_train(Cluster& cluster,
     Synapse* synapse = nullptr;
     Neuron* targetNeuron = nullptr;
     float halfPotential = 0.0f;
-    float condition = 0.0f;
-    constexpr float createBorder = 0.02f;
-    constexpr float adjustment = (1.0f / 1.5f) - 1.0f;
-    const float range = connection->potentialRange;
+    bool condition = false;
     const bool isAbleToCreate = connection->origin.isInput || cluster.enableCreation;
+    constexpr float createBorder = 0.05f;
+    const float range = connection->potentialRange;
     float potential = connection->potential - connection->lowerBound;
     potential = range * (potential > range) + potential * (potential <= range);
 
@@ -110,20 +109,14 @@ synapseProcessingBackward_train(Cluster& cluster,
         val = synapse->weight;
         if (potential < synapse->border) {
             val *= ((1.0f / synapse->border) * potential);
-            condition = static_cast<float>(connection->origin.isInput)
-                        * static_cast<float>(potential < (1.0f - createBorder) * synapse->border)
-                        * static_cast<float>(potential > createBorder * synapse->border);
-            synapse->border = synapse->border * (1.0f + (condition * adjustment));
-            synapse->weight = synapse->weight * (1.0f + (condition * adjustment));
+            condition = cluster.enableCreation
+                        && potential < (1.0f - createBorder) * synapse->border
+                        && potential > createBorder * synapse->border
+                        && potential < synapse->border - createBorder && potential > createBorder;
+            synapse->border = synapse->border * static_cast<float>(condition == false)
+                              + potential * static_cast<float>(condition);
 
-            cluster.enableCreation = cluster.enableCreation || (condition != 0);
-
-            condition = static_cast<float>(connection->origin.isInput == false)
-                        * static_cast<float>(cluster.enableCreation)
-                        * static_cast<float>(potential < synapse->border - createBorder)
-                        * static_cast<float>(potential > createBorder);
-            synapse->border = synapse->border * (1.0f + (condition * adjustment));
-            synapse->weight = synapse->weight * (1.0f + (condition * adjustment));
+            cluster.enableCreation = cluster.enableCreation || condition;
         }
         targetNeuron
             = &targetNeuronBlock->neurons[synapse->targetNeuronId % NEURONS_PER_NEURONBLOCK];
@@ -137,7 +130,7 @@ synapseProcessingBackward_train(Cluster& cluster,
     }
 
     connection->splitValue
-        = halfPotential * static_cast<float>(potential > 0.01f && isAbleToCreate);
+        = halfPotential * static_cast<float>(potential > 0.00001f && isAbleToCreate);
 }
 
 /**
