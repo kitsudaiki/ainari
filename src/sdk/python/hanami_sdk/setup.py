@@ -32,7 +32,7 @@ setup(
                       'protobuf==3.20.3',
                       'requests==2.32.3',
                       'simplejson==3.19.3',
-                      'websockets==14.0'],
+                      'websockets==14.1'],
     cmdclass={
         'install': GenerateProtobufMessages,
     },
