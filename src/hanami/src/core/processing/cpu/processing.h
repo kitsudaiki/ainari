@@ -375,12 +375,12 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
 
     for (OutputNeuron& out : hexagon->outputInterface->outputNeurons) {
         weightSum = 0.0f;
+        found = false;
 
         for (uint8_t j = 0; j < NUMBER_OF_OUTPUT_CONNECTIONS; ++j) {
             target = &out.targets[j];
 
             if constexpr (doTrain) {
-                found = false;
                 randomSeed = Hanami::pcg_hash(randomSeed);
                 if (found == false && target->blockId == UNINIT_STATE_16 && out.exprectedVal > 0.0
                     && randomSeed % 50 == 0)
