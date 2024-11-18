@@ -6,10 +6,12 @@ from hanami_sdk import hanami_token
 from hanami_sdk import cluster
 from hanami_sdk import dataset
 from hanami_sdk import task
+from hanami_sdk import direct_io
 import json
 import time
 import configparser
 import urllib3
+import asyncio
 
 
 # the test use insecure connections, which is totally ok for the tests
@@ -33,6 +35,24 @@ def delete_all_datasets():
 
     for entry in body:
         dataset.delete_dataset(token, address, entry[1], False)
+
+
+async def test_direct_io(token, address, cluster_uuid):
+    # check direct-mode
+    ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid, False)
+
+    input_block = [0.0] * 20
+    output_block = [0] * 20
+
+    print("init")
+    for step in range (100):
+        for x in range(len(input_block)):
+            input_block[x] += 1.0
+        await direct_io.send_train_input(ws, "test_input",  input_block,  True,  False, False)
+        await direct_io.send_train_input(ws, "test_output", output_block, False, True,  False)
+
+    await ws.close()
+    cluster.switch_to_task_mode(token, address, cluster_uuid, False)
 
 
 config = configparser.ConfigParser()
@@ -73,16 +93,15 @@ train_dataset_name = "train_test_dataset"
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-cluster_uuids = [""] * 20
 result_outputs = [0.0] * 20
 flattened_list = [0.0] * 1750
 
 delete_all_datasets()
 delete_all_cluster()
 
-for index in range(len(cluster_uuids)):
-    result = cluster.create_cluster(token, address, cluster_name + str(index), cluster_template, False)
-    cluster_uuids[index] = json.loads(result)["uuid"]
+result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
+cluster_uuid = json.loads(result)["uuid"]
+asyncio.run(test_direct_io(token, address, cluster_uuid))
 
 train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs, False)
 request_dataset_uuid = dataset.upload_csv_files(
@@ -109,16 +128,15 @@ outputs = [
 # train
 for i in range(0, 100):
     print("poi: ", i)
-    for c in range(len(cluster_uuids)):
-        result = task.create_train_task(token, address, generic_task_name, cluster_uuids[c], inputs, outputs, 20, False)
-        task_uuid = json.loads(result)["uuid"]
-        finished = False
-        while not finished:
-            result = task.get_task(token, address, task_uuid, cluster_uuids[c], False)
-            finished = json.loads(result)["state"] == "finished"
-            # print("wait for finish train-task")
-            time.sleep(0.01)
-        result = task.delete_task(token, address, task_uuid, cluster_uuids[c], False)
+    result = task.create_train_task(token, address, generic_task_name, cluster_uuid, inputs, outputs, 20, False)
+    task_uuid = json.loads(result)["uuid"]
+    finished = False
+    while not finished:
+        result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+        finished = json.loads(result)["state"] == "finished"
+        # print("wait for finish train-task")
+        time.sleep(0.01)
+    result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
 
 
 inputs = [
@@ -136,28 +154,27 @@ results = [
     }
 ]
 
-# te
-for c in range(len(cluster_uuids)):
-    result = task.create_request_task(token, address, generic_task_name, cluster_uuids[c], inputs, results, 20, False)
-    task_uuid = json.loads(result)["uuid"]
+# test
+result = task.create_request_task(token, address, generic_task_name, cluster_uuid, inputs, results, 20, False)
+task_uuid = json.loads(result)["uuid"]
 
-    finished = False
-    while not finished:
-        result = task.get_task(token, address, task_uuid, cluster_uuids[c], False)
-        finished = json.loads(result)["state"] == "finished"
-        print(result)
-        # print("wait for finish request-task")
-        time.sleep(0.1)
-        # result = task.delete_task(token, address, task_uuid, cluster_uuid)
+finished = False
+while not finished:
+    result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+    finished = json.loads(result)["state"] == "finished"
+    print(result)
+    # print("wait for finish request-task")
+    time.sleep(0.1)
+    # result = task.delete_task(token, address, task_uuid, cluster_uuid)
 
-    result = dataset.download_dataset_content(
-            token, address, task_uuid, "test_output", 1700, 0, False)
+result = dataset.download_dataset_content(
+        token, address, task_uuid, "test_output", 1700, 0, False)
 
-    data = json.loads(result)["data"]
-    #print(data)
-    temp_list = [item for sublist in data for item in sublist]
-    for r in range(len(temp_list)):
-        flattened_list[r] += temp_list[r]
+data = json.loads(result)["data"]
+#print(data)
+temp_list = [item for sublist in data for item in sublist]
+for r in range(len(temp_list)):
+    flattened_list[r] += temp_list[r]
 
 # result = cluster.get_cluster(token, address, cluster_uuid, False)
 # print(json.dumps(json.loads(result), indent=4))
@@ -168,11 +185,10 @@ for c in range(len(cluster_uuids)):
 
 dataset.delete_dataset(token, address, train_dataset_uuid, False)
 dataset.delete_dataset(token, address, request_dataset_uuid, False)
-for c in range(len(cluster_uuids)):
-    cluster.delete_cluster(token, address, cluster_uuids[c], False)
+cluster.delete_cluster(token, address, cluster_uuid, False)
 
 for r in range(len(flattened_list)):
-    flattened_list[r] /= 20.0
+    flattened_list[r] /= 1.0
 
 # Open the file in write mode
 with open("out.txt", 'w') as file:

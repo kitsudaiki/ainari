@@ -247,7 +247,9 @@ struct OutputInterface {
     {
         assert(timeLength >= 1);
         expectedSize += (timeLength - 1);
-        ioBuffer.resize(expectedSize);
+        if (ioBuffer.size() != expectedSize) {
+            ioBuffer.resize(expectedSize);
+        }
         if (type == FLOAT_OUTPUT) {
             expectedSize *= 32;
         }
@@ -269,8 +271,10 @@ struct InputInterface {
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
         assert(timeLength >= 1);
-        if (inputNeurons.size() < expectedSize) {
+        if (ioBuffer.size() != expectedSize) {
             ioBuffer.resize(expectedSize);
+        }
+        if (inputNeurons.size() < expectedSize + (timeLength - 1)) {
             inputNeurons.resize(expectedSize + (timeLength - 1));
         }
     }
