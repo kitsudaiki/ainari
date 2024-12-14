@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## v0.6.0
+
+**Release-Date**: 2024-12-14
 
 ### BREAKING-CHANGES
 
