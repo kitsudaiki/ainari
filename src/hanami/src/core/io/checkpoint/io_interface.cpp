@@ -194,8 +194,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
     size += sizeof(HexagonEntry);
     size += hexagon.neuronBlocks.size() * sizeof(NeuronBlock);
 
-    const uint64_t numberOfConnections = hexagon.connectionBlocks.size();
-    size += numberOfConnections * sizeof(ConnectionBlock);
+    const uint64_t numberOfConnections = hexagon.synapseBlockLinks.size();
     size += numberOfConnections * sizeof(SynapseBlock);
 
     if (hexagon.inputInterface != nullptr) {
@@ -239,14 +238,10 @@ IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
     SynapseBlock* synapseBlocks
         = Hanami::getItemData<SynapseBlock>(hexagon.attachedHost->synapseBlocks);
 
-    for (uint64_t pos = 0; pos < hexagon.connectionBlocks.size(); pos++) {
-        const ConnectionBlock* connectionBlock = &hexagon.connectionBlocks[pos];
+    for (uint64_t pos = 0; pos < hexagon.synapseBlockLinks.size(); pos++) {
         const uint64_t synapseSectionPos = hexagon.synapseBlockLinks[pos];
         if (synapseSectionPos == UNINIT_STATE_64) {
             error.addMessage("Synapse-block-position invalid");
-            return ERROR;
-        }
-        if (addObjectToLocalBuffer(connectionBlock, error) == false) {
             return ERROR;
         }
         SynapseBlock* synapseBlock = &synapseBlocks[synapseSectionPos];
@@ -348,25 +343,18 @@ IO_Interface::deserialize(Hexagon& hexagon, uint64_t& positionPtr, Hanami::Error
         }
     }
 
-    if (hexagonEntry.connectionBlocksPos != 0) {
+    if (hexagonEntry.SynapseBlocksPos != 0) {
         // check current position
-        if (positionPtr - positionOffset != hexagonEntry.connectionBlocksPos) {
+        if (positionPtr - positionOffset != hexagonEntry.SynapseBlocksPos) {
             error.addMessage("Input-data invalid");
             return INVALID_INPUT;
         }
 
         // connection-blocks and synapse-blocks
         deleteConnections(hexagon);
-        const uint64_t numberOfConnectionBlocks
-            = hexagonEntry.numberOfConnectionBytes
-              / (sizeof(ConnectionBlock) + sizeof(SynapseBlock));
-        hexagon.connectionBlocks.resize(numberOfConnectionBlocks);
-        hexagon.synapseBlockLinks.resize(numberOfConnectionBlocks);
-        for (uint64_t i = 0; i < numberOfConnectionBlocks; i++) {
-            ret = getObjectFromLocalBuffer(positionPtr, &hexagon.connectionBlocks[i], error);
-            if (ret != OK) {
-                return ret;
-            }
+        const uint64_t numberOfBlocks = hexagonEntry.numberOfSynapseBytes / (sizeof(SynapseBlock));
+        hexagon.synapseBlockLinks.resize(numberOfBlocks);
+        for (uint64_t i = 0; i < numberOfBlocks; i++) {
             SynapseBlock synapseBlock;
             ret = getObjectFromLocalBuffer(positionPtr, &synapseBlock, error);
             if (ret != OK) {
@@ -476,18 +464,18 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
     if (hexagonEntry.neuronBlocksPos != 0 && hexagonEntry.neuronBlocksPos < sizeof(HexagonEntry)) {
         return false;
     }
-    if (hexagonEntry.connectionBlocksPos != 0
-        && hexagonEntry.connectionBlocksPos < hexagonEntry.neuronBlocksPos)
+    if (hexagonEntry.SynapseBlocksPos != 0
+        && hexagonEntry.SynapseBlocksPos < hexagonEntry.neuronBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.connectionBlocksPos == 0
-        && hexagonEntry.inputInterfacesPos < hexagonEntry.connectionBlocksPos)
+    if (hexagonEntry.SynapseBlocksPos == 0
+        && hexagonEntry.inputInterfacesPos < hexagonEntry.SynapseBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.connectionBlocksPos == 0
-        && hexagonEntry.outputsInterfacesPos < hexagonEntry.connectionBlocksPos)
+    if (hexagonEntry.SynapseBlocksPos == 0
+        && hexagonEntry.outputsInterfacesPos < hexagonEntry.SynapseBlocksPos)
     {
         return false;
     }
@@ -496,7 +484,7 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
     if (hexagonEntry.neuronBlocksPos >= hexagonEntry.hexagonSize) {
         return false;
     }
-    if (hexagonEntry.connectionBlocksPos >= hexagonEntry.hexagonSize) {
+    if (hexagonEntry.SynapseBlocksPos >= hexagonEntry.hexagonSize) {
         return false;
     }
     if (hexagonEntry.inputInterfacesPos >= hexagonEntry.hexagonSize) {
@@ -509,15 +497,15 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
     // check positions
     if (hexagonEntry.inputInterfacesPos == 0
         && hexagonEntry.neuronBlocksPos + hexagonEntry.numberOfNeuronBytes
-               != hexagonEntry.connectionBlocksPos)
+               != hexagonEntry.SynapseBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.connectionBlocksPos + hexagonEntry.numberOfConnectionBytes
+    if (hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
             != hexagonEntry.inputInterfacesPos
-        && hexagonEntry.connectionBlocksPos + hexagonEntry.numberOfConnectionBytes
+        && hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
                != hexagonEntry.outputsInterfacesPos
-        && hexagonEntry.connectionBlocksPos + hexagonEntry.numberOfConnectionBytes
+        && hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
                != hexagonEntry.hexagonSize)
     {
         return false;
@@ -527,9 +515,7 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
     if (hexagonEntry.numberOfNeuronBytes % sizeof(NeuronBlock) != 0) {
         return false;
     }
-    if (hexagonEntry.numberOfConnectionBytes % (sizeof(ConnectionBlock) + sizeof(SynapseBlock))
-        != 0)
-    {
+    if (hexagonEntry.numberOfSynapseBytes % (sizeof(SynapseBlock)) != 0) {
         return false;
     }
 
@@ -550,7 +536,7 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
 
     // check size against dimentsions in hexagon-header
     const uint64_t numberOfConnectionBlocks
-        = hexagonEntry.numberOfConnectionBytes / (sizeof(ConnectionBlock) + sizeof(SynapseBlock));
+        = hexagonEntry.numberOfSynapseBytes / (sizeof(SynapseBlock));
     if (numberOfConnectionBlocks != hexagonEntry.header.numberOfBlocks) {
         return false;
     }
@@ -583,13 +569,6 @@ IO_Interface::createHexagonEntry(const Hexagon& hexagon)
         posCounter += hexagonEntry.numberOfNeuronBytes;
     }
 
-    if (hexagon.connectionBlocks.size() > 0) {
-        hexagonEntry.connectionBlocksPos = posCounter;
-        hexagonEntry.numberOfConnectionBytes
-            = hexagon.connectionBlocks.size() * (sizeof(ConnectionBlock) + sizeof(SynapseBlock));
-        posCounter += hexagonEntry.numberOfConnectionBytes;
-    }
-
     if (hexagon.inputInterface != nullptr) {
         hexagonEntry.inputInterfacesPos = posCounter;
         hexagonEntry.numberOfInputsBytes
@@ -619,6 +598,5 @@ IO_Interface::deleteConnections(Hexagon& hexagon)
     for (const uint64_t synpaseBlockPos : hexagon.synapseBlockLinks) {
         hexagon.attachedHost->synapseBlocks.deleteItem(synpaseBlockPos);
     }
-    hexagon.connectionBlocks.clear();
     hexagon.synapseBlockLinks.clear();
 }

@@ -122,7 +122,9 @@ CheckpointIO::restoreClusterFromFile(Cluster& cluster,
     strncpy(cluster.clusterHeader.uuid.uuid, originalUuid.c_str(), originalUuid.size());
 
     // count number of blocks and sections within cluster
-    for (const Hexagon& hexagon : cluster.hexagons) {
+
+    // TODO: update
+    /*for (const Hexagon& hexagon : cluster.hexagons) {
         for (const ConnectionBlock& connectionBlock : hexagon.connectionBlocks) {
             cluster.metrics.numberOfBlocks++;
             for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
@@ -131,7 +133,7 @@ CheckpointIO::restoreClusterFromFile(Cluster& cluster,
                 }
             }
         }
-    }
+    }*/
 
     return OK;
 }

@@ -139,6 +139,42 @@ struct ClusterHeader {
 static_assert(sizeof(ClusterHeader) == 512);
 
 //==================================================================================================
+//==================================================================================================
+//==================================================================================================
+
+struct SourceLocationPtr {
+    // HINT (kitsudaiki): not initialized here, because they are used in shared memory in cuda
+    //                    which doesn't support initializing of the values, when defining the
+    //                    shared-memory-object
+    uint32_t hexagonId;
+    uint16_t blockId;
+    uint8_t neuronId;
+    uint8_t isInput;  // 0=not input ; 1=is input ; 2=is binary input
+};
+static_assert(sizeof(SourceLocationPtr) == 8);
+
+//==================================================================================================
+
+struct Connection {
+    SourceLocationPtr origin;
+    float lowerBound = 0.0f;
+    float potentialRange = std::numeric_limits<float>::max();
+    float splitValue = 0.0;
+    float potential = 0.0f;
+    float delta = 0.0f;
+    uint8_t padding[4];
+
+    Connection()
+    {
+        origin.hexagonId = UNINIT_STATE_32;
+        origin.blockId = UNINIT_STATE_16;
+        origin.neuronId = UNINIT_STATE_8;
+        origin.isInput = false;
+    }
+};
+static_assert(sizeof(Connection) == 32);
+
+//==================================================================================================
 
 struct Synapse {
     float weight = 0.0f;
@@ -163,33 +199,16 @@ static_assert(sizeof(SynapseSection) == 2048);
 
 struct SynapseBlock {
     SynapseSection sections[NUMBER_OF_SYNAPSESECTION];
+    Connection connections[NUMBER_OF_SYNAPSESECTION];
 
-    SynapseBlock() { std::fill_n(sections, NUMBER_OF_SYNAPSESECTION, SynapseSection()); }
+    SynapseBlock()
+    {
+        std::fill_n(sections, NUMBER_OF_SYNAPSESECTION, SynapseSection());
+        std::fill_n(connections, NUMBER_OF_SYNAPSESECTION, Connection());
+    }
 };
-static_assert(sizeof(SynapseBlock) == 512 * 2048);
-
-//==================================================================================================
-
-struct SourceLocationPtr {
-    // HINT (kitsudaiki): not initialized here, because they are used in shared memory in cuda
-    //                    which doesn't support initializing of the values, when defining the
-    //                    shared-memory-object
-    uint32_t hexagonId;
-    uint16_t blockId;
-    uint8_t neuronId;
-    uint8_t isInput;  // 0=not input ; 1=is input ; 2=is binary input
-};
-static_assert(sizeof(SourceLocationPtr) == 8);
-
-//==================================================================================================
-
-struct OutputTargetLocationPtr {
-    float connectionWeight = 0.0f;
-    uint16_t blockId = UNINIT_STATE_16;
-    uint16_t neuronId = UNINIT_STATE_8;
-    uint8_t padding[6];
-};
-static_assert(sizeof(OutputTargetLocationPtr) == 16);
+static_assert(sizeof(SynapseBlock)
+              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 32));
 
 //==================================================================================================
 
@@ -218,6 +237,26 @@ static_assert(sizeof(NeuronBlock) == 4096);
 
 //==================================================================================================
 
+struct InputNeuron {
+    uint32_t neuronId = UNINIT_STATE_32;
+    float value = 0.0f;
+};
+static_assert(sizeof(InputNeuron) == 8);
+
+//==================================================================================================
+//==================================================================================================
+//==================================================================================================
+
+struct OutputTargetLocationPtr {
+    float connectionWeight = 0.0f;
+    uint16_t blockId = UNINIT_STATE_16;
+    uint16_t neuronId = UNINIT_STATE_8;
+    uint8_t padding[6];
+};
+static_assert(sizeof(OutputTargetLocationPtr) == 16);
+
+//==================================================================================================
+
 struct OutputNeuron {
     OutputTargetLocationPtr targets[NUMBER_OF_OUTPUT_CONNECTIONS];
     float outputVal = 0.0f;
@@ -225,14 +264,6 @@ struct OutputNeuron {
     uint8_t padding[8];
 };
 static_assert(sizeof(OutputNeuron) == 128);
-
-//==================================================================================================
-
-struct InputNeuron {
-    uint32_t neuronId = UNINIT_STATE_32;
-    float value = 0.0f;
-};
-static_assert(sizeof(InputNeuron) == 8);
 
 //==================================================================================================
 
@@ -281,42 +312,13 @@ struct InputInterface {
 };
 
 //==================================================================================================
-
-struct Connection {
-    SourceLocationPtr origin;
-    float lowerBound = 0.0f;
-    float potentialRange = std::numeric_limits<float>::max();
-    float splitValue = 0.0;
-    float potential = 0.0f;
-    float delta = 0.0f;
-    uint8_t padding[4];
-
-    Connection()
-    {
-        origin.hexagonId = UNINIT_STATE_32;
-        origin.blockId = UNINIT_STATE_16;
-        origin.neuronId = UNINIT_STATE_8;
-        origin.isInput = false;
-    }
-};
-static_assert(sizeof(Connection) == 32);
-
 //==================================================================================================
-
-struct ConnectionBlock {
-    Connection connections[NUMBER_OF_SYNAPSESECTION];
-
-    ConnectionBlock() { std::fill_n(connections, NUMBER_OF_SYNAPSESECTION, Connection()); }
-};
-static_assert(sizeof(ConnectionBlock) == 4 * 4096);
-
 //==================================================================================================
 
 struct CudaHexagonPointer {
     uint32_t deviceId = 0;
 
     NeuronBlock* neuronBlocks = nullptr;
-    ConnectionBlock* connectionBlocks = nullptr;
     uint64_t* synapseBlockLinks = nullptr;
 
     ClusterSettings* clusterSettings = nullptr;
@@ -377,7 +379,6 @@ struct Hexagon {
 
     CudaHexagonPointer cudaPointer;
 
-    std::vector<ConnectionBlock> connectionBlocks;
     std::vector<NeuronBlock> neuronBlocks;
     std::vector<uint64_t> synapseBlockLinks;
 

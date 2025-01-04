@@ -237,7 +237,6 @@ processSynapses(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
     SynapseBlock* synapseBlock = nullptr;
     SynapseSection* section = nullptr;
     NeuronBlock* neuronBlock = nullptr;
-    ConnectionBlock* connectionBlock = nullptr;
     Connection* connection = nullptr;
     uint32_t randomeSeed = rand();
 
@@ -245,12 +244,11 @@ processSynapses(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
         return;
     }
 
-    connectionBlock = &hexagon->connectionBlocks[blockId];
     neuronBlock = &hexagon->neuronBlocks[blockId];
     synapseBlock = &synapseBlocks[hexagon->synapseBlockLinks[blockId]];
 
     for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
-        connection = &connectionBlock->connections[i];
+        connection = &synapseBlock->connections[i];
         if (connection->origin.blockId != UNINIT_STATE_16 && connection->potential > 0.00001f) {
             randomeSeed += (blockId * NUMBER_OF_SYNAPSESECTION) + i;
             section = &synapseBlock->sections[i];
@@ -484,13 +482,21 @@ processInput(Cluster& cluster, Hexagon* hexagon, const bool doTrain)
 inline void
 processConnectionBlocksForward(Cluster& cluster, Hexagon* hexagon)
 {
+    ItemBuffer<SynapseBlock>* synapseBlockBuffer = &hexagon->attachedHost->synapseBlocks;
+    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(*synapseBlockBuffer);
+
+    Connection* connections = nullptr;
     Connection* connection = nullptr;
     SourceLocation sourceLoc;
     uint32_t i = 0;
+    uint64_t link = 0;
 
-    for (ConnectionBlock& connectionBlock : hexagon->connectionBlocks) {
+    for (uint64_t blockId = 0; blockId < hexagon->synapseBlockLinks.size(); ++blockId) {
+        link = hexagon->synapseBlockLinks[blockId];
+        connections = &synapseBlocks[link].connections[0];
+
         for (i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
-            connection = &connectionBlock.connections[i];
+            connection = &connections[i];
             if (connection->origin.blockId == UNINIT_STATE_16) {
                 continue;
             }

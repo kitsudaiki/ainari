@@ -106,7 +106,6 @@ backpropagateConnections(Hexagon* hexagon, SynapseBlock* synapseBlocks, const ui
 {
     Connection* connection = nullptr;
     NeuronBlock* neuronBlock = nullptr;
-    ConnectionBlock* connectionBlock = nullptr;
     SynapseSection* synapseSection = nullptr;
     SynapseBlock* synapseBlock = nullptr;
 
@@ -115,12 +114,11 @@ backpropagateConnections(Hexagon* hexagon, SynapseBlock* synapseBlocks, const ui
     }
     const uint64_t synapseBlockLink = hexagon->synapseBlockLinks[blockId];
 
-    connectionBlock = &hexagon->connectionBlocks[blockId];
     neuronBlock = &hexagon->neuronBlocks[blockId];
     synapseBlock = &synapseBlocks[synapseBlockLink];
 
     for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
-        connection = &connectionBlock->connections[i];
+        connection = &synapseBlock->connections[i];
 
         if (connection->origin.blockId == UNINIT_STATE_16) {
             continue;
@@ -229,17 +227,21 @@ processClusterBackward(Cluster& cluster, const uint32_t hexagonId, const uint32_
 inline void
 processConnectionBlocksBackward(Cluster& cluster, Hexagon* hexagon)
 {
-    NeuronBlock* neuronBlocks = &hexagon->neuronBlocks[0];
-    Connection* connection = nullptr;
-    ConnectionBlock* connectionBlock = nullptr;
-    SourceLocation sourceLoc;
+    ItemBuffer<SynapseBlock>* synapseBlockBuffer = &hexagon->attachedHost->synapseBlocks;
+    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(*synapseBlockBuffer);
 
-    for (uint64_t blockId = 0; blockId < hexagon->connectionBlocks.size(); ++blockId) {
-        connectionBlock = &hexagon->connectionBlocks[blockId];
-        const uint64_t synapseBlockLink = hexagon->synapseBlockLinks[blockId];
+    NeuronBlock* neuronBlocks = &hexagon->neuronBlocks[0];
+    Connection* connections = nullptr;
+    Connection* connection = nullptr;
+    SourceLocation sourceLoc;
+    uint64_t link = 0;
+
+    for (uint64_t blockId = 0; blockId < hexagon->synapseBlockLinks.size(); ++blockId) {
+        link = hexagon->synapseBlockLinks[blockId];
+        connections = &synapseBlocks[link].connections[0];
 
         for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
-            connection = &connectionBlock->connections[i];
+            connection = &connections[i];
             if (connection->origin.blockId == UNINIT_STATE_16) {
                 connection->delta = 0.0f;
                 continue;

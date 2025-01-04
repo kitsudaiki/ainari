@@ -66,8 +66,8 @@ class IO_Interface
         uint64_t neuronBlocksPos = 0;
         uint64_t numberOfNeuronBytes = 0;
 
-        uint64_t connectionBlocksPos = 0;
-        uint64_t numberOfConnectionBytes = 0;
+        uint64_t SynapseBlocksPos = 0;
+        uint64_t numberOfSynapseBytes = 0;
 
         uint64_t inputInterfacesPos = 0;
         uint64_t numberOfInputsBytes = 0;

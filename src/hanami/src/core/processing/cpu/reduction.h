@@ -80,7 +80,7 @@ reduceConnections(Hexagon* hexagon,
                   SynapseBlock* synapseBlocks,
                   const uint32_t blockId)
 {
-    Connection* connection = nullptr;
+    /*Connection* connection = nullptr;
     Neuron* sourceNeuron = nullptr;
     NeuronBlock* sourceNeuronBlock = nullptr;
     Hexagon* sourceHexagon = nullptr;
@@ -112,7 +112,7 @@ reduceConnections(Hexagon* hexagon,
             connection->origin.blockId = UNINIT_STATE_16;
             connection->origin.neuronId = UNINIT_STATE_8;
         }
-    }
+    }*/
 }
 
 /**
