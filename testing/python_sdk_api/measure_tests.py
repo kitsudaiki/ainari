@@ -76,14 +76,12 @@ cluster_template = \
     "hexagons:\n" \
     "    1,1,1\n" \
     "    2,1,1\n" \
-    "    3,1,1\n" \
-    "    4,1,1\n" \
     "    \n" \
     "inputs:\n" \
     "    test_input: 1,1,1\n" \
     "\n" \
     "outputs:\n" \
-    "    test_output: 4,1,1\n" \
+    "    test_output: 2,1,1\n" \
 
 cluster_name = "test_cluster"
 generic_task_name = "test_task"

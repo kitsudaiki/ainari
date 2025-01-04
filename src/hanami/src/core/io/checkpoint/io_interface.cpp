@@ -199,7 +199,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
 
     if (hexagon.inputInterface != nullptr) {
         size += sizeof(InputEntry);
-        size += hexagon.inputInterface->inputNeurons.size() * sizeof(InputNeuron);
+        size += hexagon.inputInterface->inputAxons.size() * sizeof(InputNeuron);
     }
 
     if (hexagon.outputInterface != nullptr) {
@@ -257,15 +257,15 @@ IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
         if (inputEntry.name.setName(hexagon.inputInterface->name) == false) {
             return INVALID_INPUT;
         }
-        inputEntry.numberOfInputs = hexagon.inputInterface->inputNeurons.size();
+        inputEntry.numberOfInputs = hexagon.inputInterface->inputAxons.size();
         inputEntry.targetHexagonId = hexagon.header.hexagonId;
         if (addObjectToLocalBuffer(&inputEntry, error) == false) {
             return ERROR;
         }
 
         // write input-neurons to buffer
-        for (const InputNeuron& inputNeuron : hexagon.inputInterface->inputNeurons) {
-            if (addObjectToLocalBuffer(&inputNeuron, error) == false) {
+        for (const AxonBlock& inputAxon : hexagon.inputInterface->inputAxons) {
+            if (addObjectToLocalBuffer(&inputAxon, error) == false) {
                 return ERROR;
             }
         }
@@ -387,10 +387,10 @@ IO_Interface::deserialize(Hexagon& hexagon, uint64_t& positionPtr, Hanami::Error
         inputIf.name = inputEntry.name.getName();
         inputIf.targetHexagonId = hexagon.header.hexagonId;
 
-        inputIf.inputNeurons.resize(inputEntry.numberOfInputs);
+        inputIf.inputAxons.resize(inputEntry.numberOfInputs);
         inputIf.ioBuffer.resize(inputEntry.numberOfInputs);
-        for (InputNeuron& inputNeuron : inputIf.inputNeurons) {
-            ret = getObjectFromLocalBuffer(positionPtr, &inputNeuron, error);
+        for (AxonBlock& inputAxon : inputIf.inputAxons) {
+            ret = getObjectFromLocalBuffer(positionPtr, &inputAxon, error);
             if (ret != OK) {
                 return ret;
             }
@@ -573,7 +573,7 @@ IO_Interface::createHexagonEntry(const Hexagon& hexagon)
         hexagonEntry.inputInterfacesPos = posCounter;
         hexagonEntry.numberOfInputsBytes
             = sizeof(InputEntry)
-              + (hexagon.inputInterface->inputNeurons.size() * sizeof(InputNeuron));
+              + (hexagon.inputInterface->inputAxons.size() * sizeof(InputNeuron));
     }
 
     if (hexagon.outputInterface != nullptr) {

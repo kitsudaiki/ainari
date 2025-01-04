@@ -211,9 +211,10 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
 
         // resize the input-hexagon
         const uint32_t numberOfNeuronBlocks
-            = (inputInterface->inputNeurons.size() / NEURONS_PER_NEURONBLOCK) + 1;
+            = (inputInterface->inputAxons.size() / NEURONS_PER_NEURONBLOCK) + 1;
         cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
             numberOfNeuronBlocks);
+        cluster->hexagons[inputInterface->targetHexagonId].axonBlocks.resize(numberOfNeuronBlocks);
 
         info->inputs.try_emplace(hexagonName, std::move(fileHandle));
     }

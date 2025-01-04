@@ -142,38 +142,44 @@ static_assert(sizeof(ClusterHeader) == 512);
 //==================================================================================================
 //==================================================================================================
 
-struct SourceLocationPtr {
-    // HINT (kitsudaiki): not initialized here, because they are used in shared memory in cuda
-    //                    which doesn't support initializing of the values, when defining the
-    //                    shared-memory-object
-    uint32_t hexagonId;
-    uint16_t blockId;
-    uint8_t neuronId;
-    uint8_t isInput;  // 0=not input ; 1=is input ; 2=is binary input
+struct Axon {
+    float potential = 0.0f;
+    float delta = 0.0f;
+    uint8_t activeCounter = 0;
+} __attribute__((packed));
+static_assert(sizeof(Axon) == 9);
+
+//==================================================================================================
+
+struct AxonBlock {
+    Axon axons[NEURONS_PER_NEURONBLOCK];
+
+    uint8_t padding[880];
+
+    uint32_t targetHexagonId = UNINIT_STATE_32;
+    uint32_t targetBlockId = UNINIT_STATE_32;
+
+    uint32_t sourceHexagonId = UNINIT_STATE_32;
+    uint32_t sourceBlockId = UNINIT_STATE_32;
+
+    AxonBlock() { std::fill_n(axons, NEURONS_PER_NEURONBLOCK, Axon()); }
 };
-static_assert(sizeof(SourceLocationPtr) == 8);
+static_assert(sizeof(AxonBlock) == 2048);
 
 //==================================================================================================
 
 struct Connection {
-    SourceLocationPtr origin;
     float lowerBound = 0.0f;
     float potentialRange = std::numeric_limits<float>::max();
     float splitValue = 0.0;
-    float potential = 0.0f;
-    float delta = 0.0f;
-    bool active = false;
-    uint8_t padding[3];
 
-    Connection()
-    {
-        origin.hexagonId = UNINIT_STATE_32;
-        origin.blockId = UNINIT_STATE_16;
-        origin.neuronId = UNINIT_STATE_8;
-        origin.isInput = false;
-    }
+    uint32_t sourceBlockId = UNINIT_STATE_32;
+    uint8_t sourceId = UNINIT_STATE_8;
+
+    bool active = false;
+    uint8_t padding[6];
 };
-static_assert(sizeof(Connection) == 32);
+static_assert(sizeof(Connection) == 24);
 
 //==================================================================================================
 
@@ -209,21 +215,19 @@ struct SynapseBlock {
     }
 };
 static_assert(sizeof(SynapseBlock)
-              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 32));
+              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 24));
 
 //==================================================================================================
 
 struct Neuron {
     float input = 0.0f;
     float border = 0.0f;
-    float potential = 0.0f;
-    float delta = 0.0f;
 
     uint8_t refractoryTime = 1;
     uint8_t active = 0;
     uint8_t inUse = 0;
 
-    uint8_t padding[13];
+    uint8_t padding[21];
 };
 static_assert(sizeof(Neuron) == 32);
 
@@ -250,7 +254,7 @@ static_assert(sizeof(InputNeuron) == 8);
 
 struct OutputTargetLocationPtr {
     float connectionWeight = 0.0f;
-    uint16_t blockId = UNINIT_STATE_16;
+    uint32_t blockId = UNINIT_STATE_32;
     uint16_t neuronId = UNINIT_STATE_8;
     uint8_t padding[6];
 };
@@ -264,7 +268,7 @@ struct OutputNeuron {
     float exprectedVal = 0.0f;
     uint8_t padding[8];
 };
-static_assert(sizeof(OutputNeuron) == 128);
+// static_assert(sizeof(OutputNeuron) == 128);
 
 //==================================================================================================
 
@@ -272,6 +276,7 @@ struct OutputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<OutputNeuron> outputNeurons;
+    std::vector<AxonBlock> targetAxonBlocks;
     std::vector<float> ioBuffer;
     OutputType type = PLAIN_OUTPUT;
 
@@ -297,7 +302,7 @@ struct OutputInterface {
 struct InputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
-    std::vector<InputNeuron> inputNeurons;
+    std::vector<AxonBlock> inputAxons;
     std::vector<float> ioBuffer;
 
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
@@ -306,8 +311,15 @@ struct InputInterface {
         if (ioBuffer.size() != expectedSize) {
             ioBuffer.resize(expectedSize);
         }
-        if (inputNeurons.size() < expectedSize + (timeLength - 1)) {
-            inputNeurons.resize(expectedSize + (timeLength - 1));
+        expectedSize += (timeLength - 1);
+        expectedSize /= NEURONS_PER_NEURONBLOCK;
+        expectedSize++;
+        if (inputAxons.size() < expectedSize) {
+            const uint64_t oldSize = 0;
+            inputAxons.resize(expectedSize);
+            for (uint64_t i = oldSize; i < inputAxons.size(); i++) {
+                inputAxons[i] = AxonBlock();
+            }
         }
     }
 };
@@ -381,6 +393,8 @@ struct Hexagon {
     CudaHexagonPointer cudaPointer;
 
     std::vector<NeuronBlock> neuronBlocks;
+    std::vector<AxonBlock> axonBlocks;
+    std::vector<AxonBlock> transferAxonBlocks;
     std::vector<uint64_t> synapseBlockLinks;
 
     bool wasResized = false;
@@ -394,28 +408,5 @@ struct Hexagon {
 };
 
 //==================================================================================================
-
-struct SourceLocation {
-    Hexagon* hexagon = nullptr;
-    NeuronBlock* neuronBlock = nullptr;
-    Neuron* neuron = nullptr;
-};
-
-/**
- * @brief getSourceNeuron
- * @param location
- * @param hexagons
- * @return
- */
-inline SourceLocation
-getSourceNeuron(const SourceLocationPtr& location, Hexagon* hexagons)
-{
-    SourceLocation sourceLoc;
-    sourceLoc.hexagon = &hexagons[location.hexagonId];
-    sourceLoc.neuronBlock = &sourceLoc.hexagon->neuronBlocks[location.blockId];
-    sourceLoc.neuron = &sourceLoc.neuronBlock->neurons[location.neuronId];
-
-    return sourceLoc;
-}
 
 #endif  // HANAMI_CORE_SEGMENT_OBJECTS_H

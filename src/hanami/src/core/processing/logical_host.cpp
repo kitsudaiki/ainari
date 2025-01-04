@@ -26,7 +26,7 @@
 #include <core/cluster/cluster.h>
 #include <core/cluster/cluster_io_convert.h>
 #include <core/cluster/objects.h>
-#include <core/processing/cpu/processing.h>
+#include <core/processing/cpu/core-processing.h>
 #include <hanami_common/buffer/item_buffer.h>
 
 /**

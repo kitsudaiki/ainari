@@ -202,14 +202,11 @@ recvClusterInputMessage(Cluster* cluster, const void* data, const uint64_t dataS
         InputInterface* inputInterface = &it->second;
         inputInterface->initBuffer(msg.numberofvalues(), 1);
 
-        // resize the input-hexagon
-        const uint32_t numberOfNeuronBlocks
-            = (inputInterface->inputNeurons.size() / NEURONS_PER_NEURONBLOCK) + 1;
-        cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
-            numberOfNeuronBlocks);
-
+        // apply values
+        AxonBlock* axonBlock = nullptr;
         for (uint64_t i = 0; i < msg.numberofvalues(); i++) {
-            inputInterface->inputNeurons[i].value = msg.values(i);
+            axonBlock = &inputInterface->inputAxons[i / NEURONS_PER_NEURONBLOCK];
+            axonBlock->axons[i % NEURONS_PER_NEURONBLOCK].potential = msg.values(i);
         }
     }
     else if (msg.targetbuffertype() == TargetBufferType::EXPECTED_BUFFER_TYPE) {

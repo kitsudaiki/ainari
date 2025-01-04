@@ -24,8 +24,10 @@
 
 #include <core/cluster/objects.h>
 #include <core/processing/cluster_resize.h>
-#include <core/processing/cpu/backpropagation.h>
-#include <core/processing/cpu/processing.h>
+#include <core/processing/cpu/core-backpropagation.h>
+#include <core/processing/cpu/core-processing.h>
+#include <core/processing/cpu/output-backpropagation.h>
+#include <core/processing/cpu/output-processing.h>
 #include <core/processing/cpu/reduction.h>
 #include <core/processing/cuda/cuda_functions.h>
 #include <core/processing/logical_host.h>
@@ -74,7 +76,6 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         return;
     }
 
-    processConnectionBlocksForward(*task.cluster, hexagon);
     // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, true);
 
     if (task.cluster->incrementAndCompare(
@@ -111,7 +112,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
 
     // handle output-interface
     if (hexagon->outputInterface != nullptr) {
-        backpropagateOutput(hexagon);
+        backpropagateOutput(hexagon->outputInterface);
     }
 
     // handle special-case that there are no neuron-blocks to process
@@ -135,8 +136,6 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
     if (task.cluster->incrementAndCompare(
             task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
     {
-        processConnectionBlocksBackward(*task.cluster, &task.cluster->hexagons[task.hexagonId]);
-
         if (task.hexagonId == 0) {
             task.cluster->updateClusterState(task);
         }
@@ -177,7 +176,6 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
         return;
     }
 
-    processConnectionBlocksForward(*task.cluster, hexagon);
     // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, false);
 
     if (task.cluster->incrementAndCompare(
