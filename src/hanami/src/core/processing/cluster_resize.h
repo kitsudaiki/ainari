@@ -43,33 +43,24 @@
 inline Connection*
 searchTargetInHexagon(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>& synapseBlockBuffer)
 {
-    uint64_t i = 0;
-    uint64_t j = 0;
-
-    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(synapseBlockBuffer);
-
     const uint64_t numberOfConnectionsBlocks = targetHexagon->synapseBlockLinks.size();
     if (numberOfConnectionsBlocks == 0) {
         return nullptr;
     }
 
-    uint64_t pos = rand() % numberOfConnectionsBlocks;
-    for (i = 0; i < numberOfConnectionsBlocks; ++i) {
-        uint64_t synapseSectionPos = targetHexagon->synapseBlockLinks[pos];
-        if (synapseSectionPos == UNINIT_STATE_64) {
-            return nullptr;
-        }
-        Connection* connections = &synapseBlocks[synapseSectionPos].connections[0];
-
-        for (j = 0; j < NUMBER_OF_SYNAPSESECTION; ++j) {
-            if (connections[j].origin.blockId == UNINIT_STATE_16) {
-                return &connections[j];
-            }
-        }
-        pos = (pos + 1) % numberOfConnectionsBlocks;
+    const uint64_t synapseSectionPos
+        = targetHexagon->synapseBlockLinks[rand() % numberOfConnectionsBlocks];
+    if (synapseSectionPos == UNINIT_STATE_64) {
+        return nullptr;
     }
 
-    return nullptr;
+    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(synapseBlockBuffer);
+    Connection* connections = &synapseBlocks[synapseSectionPos].connections[0];
+    if (connections[NUMBER_OF_SYNAPSESECTION - 1].active == true) {
+        return nullptr;
+    }
+
+    return &connections[NUMBER_OF_SYNAPSESECTION - 1];
 }
 
 /**
@@ -134,11 +125,6 @@ splitSection(Cluster& cluster, Connection* sourceConnection)
     // get target-connection
     Connection* targetConnection = searchTargetInHexagon(targetHexagon, *synapseBlockBuffer);
     if (targetConnection == nullptr) {
-        Hanami::ErrorContainer error;
-        error.addMessage("no target-section found, even there should be sill "
-                         + std::to_string(targetHexagon->header.numberOfFreeSections)
-                         + " available");
-        LOG_ERROR(error);
         return false;
     }
     targetHexagon->header.numberOfFreeSections--;
@@ -146,6 +132,7 @@ splitSection(Cluster& cluster, Connection* sourceConnection)
     cluster.metrics.numberOfSections++;
 
     // initialize new connection
+    targetConnection->active = true;
     targetConnection->origin = sourceConnection->origin;
     targetConnection->lowerBound = sourceConnection->lowerBound + sourceConnection->splitValue;
     targetConnection->potentialRange
@@ -188,11 +175,6 @@ createNewSection(Cluster& cluster,
     }
     Connection* targetConnection = searchTargetInHexagon(targetHexagon, *synapseBlockBuffer);
     if (targetConnection == nullptr) {
-        Hanami::ErrorContainer error;
-        error.addMessage("no target-section found, even there should be sill "
-                         + std::to_string(targetHexagon->header.numberOfFreeSections)
-                         + " available");
-        LOG_ERROR(error);
         return false;
     }
     targetHexagon->header.numberOfFreeSections--;
@@ -200,6 +182,7 @@ createNewSection(Cluster& cluster,
     cluster.metrics.numberOfSections++;
 
     // initialize new connection
+    targetConnection->active = true;
     targetConnection->origin.blockId = blockId;
     targetConnection->origin.neuronId = neuronId;
     targetConnection->origin.hexagonId = hexagon->header.hexagonId;
@@ -233,7 +216,6 @@ updateCluster(Cluster& cluster, Hexagon* hexagon)
     Connection* connections = nullptr;
     Connection* connection = nullptr;
     bool found = false;
-    uint64_t hexagonId = 0;
     uint64_t blockId = 0;
     uint8_t sourceId = 0;
     uint64_t link = 0;
@@ -246,10 +228,11 @@ updateCluster(Cluster& cluster, Hexagon* hexagon)
             connection = &connections[sourceId];
 
             if (connection->splitValue > 0.0f) {
-                found = true;
-                splitSection(cluster, connection);
+                if (splitSection(cluster, connection)) {
+                    found = true;
+                    connection->splitValue = 0.0f;
+                }
             }
-            connection->splitValue = 0.0f;
         }
 
         // resize if necessary

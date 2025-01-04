@@ -129,8 +129,10 @@ synapseProcessingBackward_train(Cluster& cluster,
         ++pos;
     }
 
-    connection->splitValue
-        = halfPotential * static_cast<float>(potential > 0.00001f && isAbleToCreate);
+    if (connection->splitValue == 0.0f) {
+        connection->splitValue
+            = halfPotential * static_cast<float>(potential > 0.00001f && isAbleToCreate);
+    }
 }
 
 /**
@@ -180,49 +182,6 @@ synapseProcessingBackward_request(SynapseSection* synapseSection,
 }
 
 /**
- * @brief process a single synapse-section as binary, so if input greater 0, the whole section
- *        is triggered
- *
- * @param cluster cluster, where the synapseSection belongs to
- * @param synapseSection current synapse-section to process
- * @param connection pointer to the connection-object, which is related to the section
- * @param targetNeuronBlock neuron-block, which is the target for all synapses in the section
- * @param randomSeed reference to the current seed of the randomizer
- */
-template <bool doTrain>
-inline void
-synapseProcessingBackward_Binary(Cluster& cluster,
-                                 SynapseSection* synapseSection,
-                                 Connection* connection,
-                                 NeuronBlock* targetNeuronBlock,
-                                 uint32_t& randomSeed)
-{
-    uint8_t pos = 0;
-    Synapse* synapse = nullptr;
-    Neuron* targetNeuron = nullptr;
-    const bool isAbleToCreate = connection->origin.isInput || cluster.enableCreation;
-
-    // iterate over all synapses in the section
-    while (pos < SYNAPSES_PER_SYNAPSESECTION) {
-        synapse = &synapseSection->synapses[pos];
-
-        if constexpr (doTrain) {
-            if (isAbleToCreate && synapse->targetNeuronId == UNINIT_STATE_8) {
-                createNewSynapse(synapse, 0, randomSeed);
-                cluster.enableCreation = true;
-            }
-        }
-
-        // update target-neuron
-        targetNeuron
-            = &targetNeuronBlock->neurons[synapse->targetNeuronId % NEURONS_PER_NEURONBLOCK];
-        targetNeuron->input += synapse->weight;
-
-        ++pos;
-    }
-}
-
-/**
  * @brief process all synapes of a hexagon
  *
  * @param cluster cluster, where the hexagon belongs to
@@ -247,24 +206,26 @@ processSynapses(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
     neuronBlock = &hexagon->neuronBlocks[blockId];
     synapseBlock = &synapseBlocks[hexagon->synapseBlockLinks[blockId]];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
+    for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION - 1; ++i) {
+        if (synapseBlock->connections[i].active == false
+            && synapseBlock->connections[i + 1].active == true)
+        {
+            synapseBlock->connections[i] = synapseBlock->connections[i + 1];
+            synapseBlock->sections[i] = synapseBlock->sections[i + 1];
+            synapseBlock->connections[i + 1] = Connection();
+            synapseBlock->sections[i + 1] = SynapseSection();
+            assert(synapseBlock->connections[i].active == true);
+            assert(synapseBlock->connections[i + 1].active == false);
+        }
         connection = &synapseBlock->connections[i];
-        if (connection->origin.blockId != UNINIT_STATE_16 && connection->potential > 0.00001f) {
-            randomeSeed += (blockId * NUMBER_OF_SYNAPSESECTION) + i;
+        if (connection->active == true && connection->potential > 0.00001f) {
             section = &synapseBlock->sections[i];
-
-            if (connection->origin.isInput == 2) {
-                synapseProcessingBackward_Binary<doTrain>(
+            if constexpr (doTrain) {
+                synapseProcessingBackward_train(
                     cluster, section, connection, neuronBlock, randomeSeed);
             }
             else {
-                if constexpr (doTrain) {
-                    synapseProcessingBackward_train(
-                        cluster, section, connection, neuronBlock, randomeSeed);
-                }
-                else {
-                    synapseProcessingBackward_request(section, connection, neuronBlock);
-                }
+                synapseProcessingBackward_request(section, connection, neuronBlock);
             }
         }
     }
@@ -495,7 +456,7 @@ processConnectionBlocksForward(Cluster& cluster, Hexagon* hexagon)
         link = hexagon->synapseBlockLinks[blockId];
         connections = &synapseBlocks[link].connections[0];
 
-        for (i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
+        for (i = 0; i < NUMBER_OF_SYNAPSESECTION - 1; ++i) {
             connection = &connections[i];
             if (connection->origin.blockId == UNINIT_STATE_16) {
                 continue;

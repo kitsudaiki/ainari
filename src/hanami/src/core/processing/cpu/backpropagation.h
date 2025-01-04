@@ -117,7 +117,7 @@ backpropagateConnections(Hexagon* hexagon, SynapseBlock* synapseBlocks, const ui
     neuronBlock = &hexagon->neuronBlocks[blockId];
     synapseBlock = &synapseBlocks[synapseBlockLink];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
+    for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION - 1; ++i) {
         connection = &synapseBlock->connections[i];
 
         if (connection->origin.blockId == UNINIT_STATE_16) {
@@ -240,7 +240,7 @@ processConnectionBlocksBackward(Cluster& cluster, Hexagon* hexagon)
         link = hexagon->synapseBlockLinks[blockId];
         connections = &synapseBlocks[link].connections[0];
 
-        for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
+        for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION - 1; ++i) {
             connection = &connections[i];
             if (connection->origin.blockId == UNINIT_STATE_16) {
                 connection->delta = 0.0f;

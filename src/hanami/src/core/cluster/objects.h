@@ -162,7 +162,8 @@ struct Connection {
     float splitValue = 0.0;
     float potential = 0.0f;
     float delta = 0.0f;
-    uint8_t padding[4];
+    bool active = false;
+    uint8_t padding[3];
 
     Connection()
     {
