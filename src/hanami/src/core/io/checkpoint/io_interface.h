@@ -63,10 +63,10 @@ class IO_Interface
         HexagonHeader header;
         uint64_t hexagonSize = 0;
 
-        uint64_t neuronBlocksPos = 0;
-        uint64_t numberOfNeuronBytes = 0;
+        uint64_t axonBlocksPos = 0;
+        uint64_t numberOfAxonBytes = 0;
 
-        uint64_t SynapseBlocksPos = 0;
+        uint64_t synapseBlocksPos = 0;
         uint64_t numberOfSynapseBytes = 0;
 
         uint64_t inputInterfacesPos = 0;

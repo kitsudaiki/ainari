@@ -64,7 +64,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
         processTransferAxonBlocks(*task.cluster, hexagon, randomSeed);
 
         // handle special-case that there are no neuron-blocks to process
-        if (hexagon->neuronBlocks.size() == 0) {
+        if (hexagon->synapseBlockLinks.size() == 0) {
             // in case of the last hexagon
             if (task.hexagonId == task.cluster->hexagons.size() - 1) {
                 task.cluster->updateClusterState(task);
@@ -82,7 +82,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
         }
 
         // share neuron-blocks to process
-        for (uint32_t i = 0; i < hexagon->neuronBlocks.size(); i++) {
+        for (uint32_t i = 0; i < hexagon->synapseBlockLinks.size(); i++) {
             WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
@@ -103,7 +103,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
     }
 
     if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
     {
         processAxonBlocks<true>(*task.cluster, hexagon, randomSeed);
 
@@ -143,7 +143,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
         }
 
         // handle special-case that there are no neuron-blocks to process
-        if (hexagon->neuronBlocks.size() == 0) {
+        if (hexagon->synapseBlockLinks.size() == 0) {
             if (task.hexagonId == 0) {
                 task.cluster->updateClusterState(task);
                 return;
@@ -159,7 +159,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
         }
 
         // share neuron-blocks to process
-        for (uint32_t i = 0; i < hexagon->neuronBlocks.size(); i++) {
+        for (uint32_t i = 0; i < hexagon->synapseBlockLinks.size(); i++) {
             WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
@@ -175,7 +175,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
     backpropagateBlock(*task.cluster, task.hexagonId, task.blockId);
 
     if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
     {
         Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
         if (hexagon->inputInterface == nullptr) {
@@ -216,7 +216,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
         }
 
         // handle special-case that there are no neuron-blocks to process
-        if (hexagon->neuronBlocks.size() == 0) {
+        if (hexagon->synapseBlockLinks.size() == 0) {
             if (task.hexagonId == task.cluster->hexagons.size() - 1) {
                 handleClientOutput(*task.cluster);
                 task.cluster->updateClusterState(task);
@@ -233,7 +233,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
         }
 
         // share neuron-blocks to process
-        for (uint32_t i = 0; i < hexagon->neuronBlocks.size(); i++) {
+        for (uint32_t i = 0; i < hexagon->synapseBlockLinks.size(); i++) {
             WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
@@ -254,7 +254,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
     }
 
     if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
     {
         processAxonBlocks<false>(*task.cluster, hexagon, randomSeed);
 

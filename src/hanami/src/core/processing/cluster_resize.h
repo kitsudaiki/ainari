@@ -80,7 +80,6 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>* synapseBlockBuffe
 
     // resize list
     targetHexagon->synapseBlockLinks.resize(targetHexagon->header.numberOfBlocks);
-    targetHexagon->neuronBlocks.resize(targetHexagon->header.numberOfBlocks);
     targetHexagon->axonBlocks.resize(targetHexagon->header.numberOfBlocks);
     targetHexagon->cluster->metrics.numberOfBlocks++;
 
@@ -88,7 +87,6 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<SynapseBlock>* synapseBlockBuffe
 
     // update content of list for the new size
     targetHexagon->synapseBlockLinks[targetHexagon->header.numberOfBlocks - 1] = synapseSectionPos;
-    targetHexagon->neuronBlocks[targetHexagon->header.numberOfBlocks - 1] = NeuronBlock();
     targetHexagon->axonBlocks[targetHexagon->header.numberOfBlocks - 1] = AxonBlock();
 
     targetHexagon->header.numberOfFreeSections += NUMBER_OF_SYNAPSESECTION;

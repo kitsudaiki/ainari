@@ -35,12 +35,6 @@
 #include <hanami_crypto/hashes.h>
 #include <hanami_root.h>
 
-extern "C" void copyFromGpu_CUDA(Hexagon* hexagon,
-                                 NeuronBlock* neuronBlocks,
-                                 const uint32_t numberOfNeuronBlocks,
-                                 SynapseBlock* synapseBlocks,
-                                 const uint32_t numberOfSynapseBlocks);
-
 /**
  * @brief constructor
  *

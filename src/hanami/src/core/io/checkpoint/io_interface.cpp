@@ -192,7 +192,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
     uint64_t size = 0;
 
     size += sizeof(HexagonEntry);
-    size += hexagon.neuronBlocks.size() * sizeof(NeuronBlock);
+    size += hexagon.axonBlocks.size() * sizeof(AxonBlock);
 
     const uint64_t numberOfConnections = hexagon.synapseBlockLinks.size();
     size += numberOfConnections * sizeof(SynapseBlock);
@@ -228,8 +228,8 @@ IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
     }
 
     // neuron-blocks
-    for (const NeuronBlock& neuronBlock : hexagon.neuronBlocks) {
-        if (addObjectToLocalBuffer(&neuronBlock, error) == false) {
+    for (const AxonBlock& axonBlock : hexagon.axonBlocks) {
+        if (addObjectToLocalBuffer(&axonBlock, error) == false) {
             return ERROR;
         }
     }
@@ -323,29 +323,28 @@ IO_Interface::deserialize(Hexagon& hexagon, uint64_t& positionPtr, Hanami::Error
 
     hexagon.header = hexagonEntry.header;
 
-    if (hexagonEntry.neuronBlocksPos != 0) {
+    if (hexagonEntry.axonBlocksPos != 0) {
         // check current position
-        if (positionPtr - positionOffset != hexagonEntry.neuronBlocksPos) {
+        if (positionPtr - positionOffset != hexagonEntry.axonBlocksPos) {
             error.addMessage("Input-data invalid");
             return INVALID_INPUT;
         }
 
         // neuron-blocks
-        hexagon.neuronBlocks.clear();
-        const uint64_t numberOfNeuronBlocks
-            = hexagonEntry.numberOfNeuronBytes / sizeof(NeuronBlock);
-        hexagon.neuronBlocks.resize(numberOfNeuronBlocks);
-        for (uint64_t i = 0; i < numberOfNeuronBlocks; i++) {
-            ret = getObjectFromLocalBuffer(positionPtr, &hexagon.neuronBlocks[i], error);
+        hexagon.axonBlocks.clear();
+        const uint64_t numberOfaxonBlocks = hexagonEntry.numberOfAxonBytes / sizeof(AxonBlock);
+        hexagon.axonBlocks.resize(numberOfaxonBlocks);
+        for (uint64_t i = 0; i < numberOfaxonBlocks; i++) {
+            ret = getObjectFromLocalBuffer(positionPtr, &hexagon.axonBlocks[i], error);
             if (ret != OK) {
                 return ret;
             }
         }
     }
 
-    if (hexagonEntry.SynapseBlocksPos != 0) {
+    if (hexagonEntry.synapseBlocksPos != 0) {
         // check current position
-        if (positionPtr - positionOffset != hexagonEntry.SynapseBlocksPos) {
+        if (positionPtr - positionOffset != hexagonEntry.synapseBlocksPos) {
             error.addMessage("Input-data invalid");
             return INVALID_INPUT;
         }
@@ -461,30 +460,30 @@ bool
 IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
 {
     // check order
-    if (hexagonEntry.neuronBlocksPos != 0 && hexagonEntry.neuronBlocksPos < sizeof(HexagonEntry)) {
+    if (hexagonEntry.axonBlocksPos != 0 && hexagonEntry.axonBlocksPos < sizeof(HexagonEntry)) {
         return false;
     }
-    if (hexagonEntry.SynapseBlocksPos != 0
-        && hexagonEntry.SynapseBlocksPos < hexagonEntry.neuronBlocksPos)
+    if (hexagonEntry.synapseBlocksPos != 0
+        && hexagonEntry.synapseBlocksPos < hexagonEntry.axonBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.SynapseBlocksPos == 0
-        && hexagonEntry.inputInterfacesPos < hexagonEntry.SynapseBlocksPos)
+    if (hexagonEntry.synapseBlocksPos == 0
+        && hexagonEntry.inputInterfacesPos < hexagonEntry.synapseBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.SynapseBlocksPos == 0
-        && hexagonEntry.outputsInterfacesPos < hexagonEntry.SynapseBlocksPos)
+    if (hexagonEntry.synapseBlocksPos == 0
+        && hexagonEntry.outputsInterfacesPos < hexagonEntry.synapseBlocksPos)
     {
         return false;
     }
 
     // check against total hexagon size
-    if (hexagonEntry.neuronBlocksPos >= hexagonEntry.hexagonSize) {
+    if (hexagonEntry.axonBlocksPos >= hexagonEntry.hexagonSize) {
         return false;
     }
-    if (hexagonEntry.SynapseBlocksPos >= hexagonEntry.hexagonSize) {
+    if (hexagonEntry.synapseBlocksPos >= hexagonEntry.hexagonSize) {
         return false;
     }
     if (hexagonEntry.inputInterfacesPos >= hexagonEntry.hexagonSize) {
@@ -496,23 +495,23 @@ IO_Interface::checkHexagonEntry(const HexagonEntry& hexagonEntry)
 
     // check positions
     if (hexagonEntry.inputInterfacesPos == 0
-        && hexagonEntry.neuronBlocksPos + hexagonEntry.numberOfNeuronBytes
-               != hexagonEntry.SynapseBlocksPos)
+        && hexagonEntry.axonBlocksPos + hexagonEntry.numberOfAxonBytes
+               != hexagonEntry.synapseBlocksPos)
     {
         return false;
     }
-    if (hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
+    if (hexagonEntry.synapseBlocksPos + hexagonEntry.numberOfSynapseBytes
             != hexagonEntry.inputInterfacesPos
-        && hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
+        && hexagonEntry.synapseBlocksPos + hexagonEntry.numberOfSynapseBytes
                != hexagonEntry.outputsInterfacesPos
-        && hexagonEntry.SynapseBlocksPos + hexagonEntry.numberOfSynapseBytes
+        && hexagonEntry.synapseBlocksPos + hexagonEntry.numberOfSynapseBytes
                != hexagonEntry.hexagonSize)
     {
         return false;
     }
 
     // check sizes compared to the object-types
-    if (hexagonEntry.numberOfNeuronBytes % sizeof(NeuronBlock) != 0) {
+    if (hexagonEntry.numberOfAxonBytes % sizeof(AxonBlock) != 0) {
         return false;
     }
     if (hexagonEntry.numberOfSynapseBytes % (sizeof(SynapseBlock)) != 0) {
@@ -563,10 +562,10 @@ IO_Interface::createHexagonEntry(const Hexagon& hexagon)
     hexagonEntry.hexagonSize = hexagonSize;
     posCounter += sizeof(HexagonEntry);
 
-    if (hexagon.neuronBlocks.size() > 0) {
-        hexagonEntry.neuronBlocksPos = posCounter;
-        hexagonEntry.numberOfNeuronBytes = hexagon.neuronBlocks.size() * sizeof(NeuronBlock);
-        posCounter += hexagonEntry.numberOfNeuronBytes;
+    if (hexagon.axonBlocks.size() > 0) {
+        hexagonEntry.axonBlocksPos = posCounter;
+        hexagonEntry.numberOfAxonBytes = hexagon.axonBlocks.size() * sizeof(AxonBlock);
+        posCounter += hexagonEntry.numberOfAxonBytes;
     }
 
     if (hexagon.inputInterface != nullptr) {

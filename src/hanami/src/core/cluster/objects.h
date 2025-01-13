@@ -204,21 +204,6 @@ static_assert(sizeof(SynapseSection) == 2048);
 
 //==================================================================================================
 
-struct SynapseBlock {
-    SynapseSection sections[NUMBER_OF_SYNAPSESECTION];
-    Connection connections[NUMBER_OF_SYNAPSESECTION];
-
-    SynapseBlock()
-    {
-        std::fill_n(sections, NUMBER_OF_SYNAPSESECTION, SynapseSection());
-        std::fill_n(connections, NUMBER_OF_SYNAPSESECTION, Connection());
-    }
-};
-static_assert(sizeof(SynapseBlock)
-              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 24));
-
-//==================================================================================================
-
 struct Neuron {
     float input = 0.0f;
     float border = 0.0f;
@@ -233,13 +218,24 @@ static_assert(sizeof(Neuron) == 32);
 
 //==================================================================================================
 
-struct NeuronBlock {
+struct SynapseBlock {
+    SynapseSection sections[NUMBER_OF_SYNAPSESECTION];
+    Connection connections[NUMBER_OF_SYNAPSESECTION];
     Neuron neurons[NEURONS_PER_NEURONBLOCK];
 
-    NeuronBlock() { std::fill_n(neurons, NEURONS_PER_NEURONBLOCK, Neuron()); }
+    SynapseBlock()
+    {
+        std::fill_n(sections, NUMBER_OF_SYNAPSESECTION, SynapseSection());
+        std::fill_n(connections, NUMBER_OF_SYNAPSESECTION, Connection());
+        std::fill_n(neurons, NEURONS_PER_NEURONBLOCK, Neuron());
+    }
 };
-static_assert(sizeof(NeuronBlock) == 4096);
+static_assert(sizeof(SynapseBlock)
+              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 24)
+                     + (NEURONS_PER_NEURONBLOCK * 32));
 
+//==================================================================================================
+//==================================================================================================
 //==================================================================================================
 
 struct InputNeuron {
@@ -331,7 +327,6 @@ struct InputInterface {
 struct CudaHexagonPointer {
     uint32_t deviceId = 0;
 
-    NeuronBlock* neuronBlocks = nullptr;
     uint64_t* synapseBlockLinks = nullptr;
 
     ClusterSettings* clusterSettings = nullptr;
@@ -392,7 +387,6 @@ struct Hexagon {
 
     CudaHexagonPointer cudaPointer;
 
-    std::vector<NeuronBlock> neuronBlocks;
     std::vector<AxonBlock> axonBlocks;
     std::vector<AxonBlock> transferAxonBlocks;
     std::vector<uint64_t> synapseBlockLinks;
