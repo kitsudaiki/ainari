@@ -59,8 +59,8 @@ Request_State::processEvent()
                 return false;
             }
             for (const float val : inputInterface->ioBuffer) {
-                axonBlock = &inputInterface->inputAxons[counter / NEURONS_PER_NEURONBLOCK];
-                axonBlock->axons[counter % NEURONS_PER_NEURONBLOCK].potential = val;
+                axonBlock = &inputInterface->inputAxons[counter / NEURONS_PER_BLOCK];
+                axonBlock->axons[counter % NEURONS_PER_BLOCK].potential = val;
                 counter++;
             }
         }

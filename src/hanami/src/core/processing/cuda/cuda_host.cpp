@@ -58,15 +58,15 @@ CudaHost::initBuffer()
 
     // m_totalMemory = getAvailableMemory_CUDA(id);
     const uint64_t usedMemory = (m_totalMemory / 100) * 80;  // use 80% for synapse-blocks
-    synapseBlocks.initBuffer(usedMemory / sizeof(SynapseBlock));
-    synapseBlocks.deleteAll();
-    // SynapseBlock* cpuSynapseBlocks = Hanami::getItemData<SynapseBlock>(synapseBlocks);
+    blocks.initBuffer(usedMemory / sizeof(Block));
+    blocks.deleteAll();
+    // Block* cpuBlocks = Hanami::getItemData<Block>(blocks);
 
-    // deviceSynapseBlocks = initDevice_CUDA(cpuSynapseBlocks,
-    // synapseBlocks.metaData.numberOfItems);
+    // deviceBlocks = initDevice_CUDA(cpuBlocks,
+    // blocks.metaData.numberOfItems);
 
     LOG_INFO("Initialized number of syanpse-blocks on gpu-device: "
-             + std::to_string(synapseBlocks.metaData.itemCapacity));
+             + std::to_string(blocks.metaData.itemCapacity));
 }
 
 /**
@@ -84,21 +84,21 @@ CudaHost::moveHexagon(Hexagon* hexagon)
     // sync data from gpu to host, in order to have a consistent state
 
     LogicalHost* originHost = hexagon->attachedHost;
-    SynapseBlock* cpuSynapseBlocks = Hanami::getItemData<SynapseBlock>(originHost->synapseBlocks);
-    SynapseBlock tempBlock;
+    Block* cpuBlocks = Hanami::getItemData<Block>(originHost->blocks);
+    Block tempBlock;
 
     // copy synapse-blocks from the old host to this one
-    for (uint64_t i = 0; i < hexagon->synapseBlockLinks.size(); ++i) {
-        const uint64_t link = hexagon->synapseBlockLinks[i];
+    for (uint64_t i = 0; i < hexagon->blockLinks.size(); ++i) {
+        const uint64_t link = hexagon->blockLinks[i];
         if (link != UNINIT_STATE_64) {
-            tempBlock = cpuSynapseBlocks[link];
-            originHost->synapseBlocks.deleteItem(link);
-            const uint64_t newPos = synapseBlocks.addNewItem(tempBlock);
+            tempBlock = cpuBlocks[link];
+            originHost->blocks.deleteItem(link);
+            const uint64_t newPos = blocks.addNewItem(tempBlock);
             // TODO: make roll-back possible in error-case
             if (newPos == UNINIT_STATE_64) {
                 return false;
             }
-            hexagon->synapseBlockLinks[i] = newPos;
+            hexagon->blockLinks[i] = newPos;
         }
     }
 
@@ -106,8 +106,8 @@ CudaHost::moveHexagon(Hexagon* hexagon)
     hexagon->cudaPointer.deviceId = m_localId;
     // initHexagonOnDevice_CUDA(hexagon,
     //                          &hexagon->cluster->clusterHeader.settings,
-    //                          getItemData<SynapseBlock>(synapseBlocks),
-    //                          deviceSynapseBlocks);
+    //                          getItemData<Block>(blocks),
+    //                          deviceBlocks);
 
     hexagon->attachedHost = this;
 
@@ -123,8 +123,8 @@ CudaHost::syncWithHost(Hexagon* hexagon)
 {
     const std::lock_guard<std::mutex> lock(cudaMutex);
 
-    // SynapseBlock* hostSynapseBlocks = getItemData<SynapseBlock>(synapseBlocks);
-    // copyFromGpu_CUDA(hexagon, hostSynapseBlocks, deviceSynapseBlocks);
+    // Block* hostBlocks = getItemData<Block>(blocks);
+    // copyFromGpu_CUDA(hexagon, hostBlocks, deviceBlocks);
 }
 
 /**
@@ -138,9 +138,9 @@ CudaHost::removeHexagon(Hexagon* hexagon)
     const std::lock_guard<std::mutex> lock(cudaMutex);
 
     // remove synapse-blocks
-    for (uint64_t& link : hexagon->synapseBlockLinks) {
+    for (uint64_t& link : hexagon->blockLinks) {
         if (link != UNINIT_STATE_64) {
-            synapseBlocks.deleteItem(link);
+            blocks.deleteItem(link);
         }
     }
 

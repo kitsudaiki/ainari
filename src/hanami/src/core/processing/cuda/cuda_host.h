@@ -39,7 +39,7 @@ class CudaHost : public LogicalHost
     void removeHexagon(Hexagon* hexagon);
 
     std::mutex cudaMutex;
-    SynapseBlock* deviceSynapseBlocks = nullptr;
+    Block* deviceBlocks = nullptr;
 
    protected:
     bool initWorkerThreads();

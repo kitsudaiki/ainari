@@ -41,8 +41,8 @@
 uint32_t
 calcNumberOfNeuronBlocks(const uint32_t numberOfNeurons)
 {
-    uint32_t numberOfSections = numberOfNeurons / NEURONS_PER_NEURONBLOCK;
-    if (numberOfNeurons % NEURONS_PER_NEURONBLOCK != 0) {
+    uint32_t numberOfSections = numberOfNeurons / NEURONS_PER_BLOCK;
+    if (numberOfNeurons % NEURONS_PER_BLOCK != 0) {
         numberOfSections++;
     }
 

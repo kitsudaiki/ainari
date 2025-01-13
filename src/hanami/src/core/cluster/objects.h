@@ -47,12 +47,12 @@ class LogicalHost;
 #define UNINTI_POINT_32 0x0FFFFFFF
 
 // network-predefines
-#define SYNAPSES_PER_SYNAPSESECTION 128
-#define NUMBER_OF_SYNAPSESECTION 512
-#define NEURONS_PER_NEURONBLOCK 128
+#define SYNAPSES_PER_SECTION 128
+#define NUMBER_OF_SECTION 512
+#define NEURONS_PER_BLOCK 128
 #define POSSIBLE_NEXT_AXON_STEP 80
 #define NUMBER_OF_POSSIBLE_NEXT 86
-#define NUMBER_OF_OUTPUT_CONNECTIONS 7
+#define NUMBER_OF_OUTPUT_CONNECTIONS 31
 
 //==================================================================================================
 
@@ -152,7 +152,7 @@ static_assert(sizeof(Axon) == 9);
 //==================================================================================================
 
 struct AxonBlock {
-    Axon axons[NEURONS_PER_NEURONBLOCK];
+    Axon axons[NEURONS_PER_BLOCK];
 
     uint8_t padding[880];
 
@@ -162,7 +162,7 @@ struct AxonBlock {
     uint32_t sourceHexagonId = UNINIT_STATE_32;
     uint32_t sourceBlockId = UNINIT_STATE_32;
 
-    AxonBlock() { std::fill_n(axons, NEURONS_PER_NEURONBLOCK, Axon()); }
+    AxonBlock() { std::fill_n(axons, NEURONS_PER_BLOCK, Axon()); }
 };
 static_assert(sizeof(AxonBlock) == 2048);
 
@@ -196,9 +196,9 @@ static_assert(sizeof(Synapse) == 16);
 //==================================================================================================
 
 struct SynapseSection {
-    Synapse synapses[SYNAPSES_PER_SYNAPSESECTION];
+    Synapse synapses[SYNAPSES_PER_SECTION];
 
-    SynapseSection() { std::fill_n(synapses, SYNAPSES_PER_SYNAPSESECTION, Synapse()); }
+    SynapseSection() { std::fill_n(synapses, SYNAPSES_PER_SECTION, Synapse()); }
 };
 static_assert(sizeof(SynapseSection) == 2048);
 
@@ -218,21 +218,20 @@ static_assert(sizeof(Neuron) == 32);
 
 //==================================================================================================
 
-struct SynapseBlock {
-    SynapseSection sections[NUMBER_OF_SYNAPSESECTION];
-    Connection connections[NUMBER_OF_SYNAPSESECTION];
-    Neuron neurons[NEURONS_PER_NEURONBLOCK];
+struct Block {
+    SynapseSection sections[NUMBER_OF_SECTION];
+    Connection connections[NUMBER_OF_SECTION];
+    Neuron neurons[NEURONS_PER_BLOCK];
 
-    SynapseBlock()
+    Block()
     {
-        std::fill_n(sections, NUMBER_OF_SYNAPSESECTION, SynapseSection());
-        std::fill_n(connections, NUMBER_OF_SYNAPSESECTION, Connection());
-        std::fill_n(neurons, NEURONS_PER_NEURONBLOCK, Neuron());
+        std::fill_n(sections, NUMBER_OF_SECTION, SynapseSection());
+        std::fill_n(connections, NUMBER_OF_SECTION, Connection());
+        std::fill_n(neurons, NEURONS_PER_BLOCK, Neuron());
     }
 };
-static_assert(sizeof(SynapseBlock)
-              == (NUMBER_OF_SYNAPSESECTION * 2048) + (NUMBER_OF_SYNAPSESECTION * 24)
-                     + (NEURONS_PER_NEURONBLOCK * 32));
+static_assert(sizeof(Block)
+              == (NUMBER_OF_SECTION * 2048) + (NUMBER_OF_SECTION * 24) + (NEURONS_PER_BLOCK * 32));
 
 //==================================================================================================
 //==================================================================================================
@@ -308,7 +307,7 @@ struct InputInterface {
             ioBuffer.resize(expectedSize);
         }
         expectedSize += (timeLength - 1);
-        expectedSize /= NEURONS_PER_NEURONBLOCK;
+        expectedSize /= NEURONS_PER_BLOCK;
         expectedSize++;
         if (inputAxons.size() < expectedSize) {
             const uint64_t oldSize = 0;
@@ -327,7 +326,7 @@ struct InputInterface {
 struct CudaHexagonPointer {
     uint32_t deviceId = 0;
 
-    uint64_t* synapseBlockLinks = nullptr;
+    uint64_t* blockLinks = nullptr;
 
     ClusterSettings* clusterSettings = nullptr;
 };
@@ -389,7 +388,7 @@ struct Hexagon {
 
     std::vector<AxonBlock> axonBlocks;
     std::vector<AxonBlock> transferAxonBlocks;
-    std::vector<uint64_t> synapseBlockLinks;
+    std::vector<uint64_t> blockLinks;
 
     bool wasResized = false;
     uint32_t possibleHexagonTargetIds[NUMBER_OF_POSSIBLE_NEXT];

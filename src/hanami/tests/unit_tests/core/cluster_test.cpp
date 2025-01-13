@@ -250,7 +250,7 @@ Cluster_Init_Test::serialize_test()
     for (uint64_t i = 0; i < copyCluster.hexagons.size(); i++) {
         success = copyCluster.hexagons[i].header == baseCluster.hexagons[i].header;
         TEST_EQUAL(success, true);
-        TEST_EQUAL(copyCluster.hexagons[i].synapseBlockLinks.size(),
-                   baseCluster.hexagons[i].synapseBlockLinks.size());
+        TEST_EQUAL(copyCluster.hexagons[i].blockLinks.size(),
+                   baseCluster.hexagons[i].blockLinks.size());
     }
 }

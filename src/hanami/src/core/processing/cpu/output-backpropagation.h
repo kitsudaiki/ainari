@@ -42,7 +42,7 @@ backpropagateOutput(OutputInterface* outputInterface)
     assert(outputInterface != nullptr);
 
     for (i = 0; i < outputInterface->targetAxonBlocks.size(); ++i) {
-        for (j = 0; j < NEURONS_PER_NEURONBLOCK; ++j) {
+        for (j = 0; j < NEURONS_PER_BLOCK; ++j) {
             axon = &outputInterface->targetAxonBlocks[i].axons[j];
             axon->delta = 0.0f;
         }

@@ -57,7 +57,7 @@ class LogicalHost
     virtual void removeHexagon(Hexagon* hexagon) = 0;
     virtual void syncWithHost(Hexagon* hexagon) = 0;
 
-    Hanami::ItemBuffer<SynapseBlock> synapseBlocks;
+    Hanami::ItemBuffer<Block> blocks;
 
     void addWorkerTaskToQueue(const Hanami::WorkerTask task);
     const Hanami::WorkerTask getWorkerTaskFromQueue();

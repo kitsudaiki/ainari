@@ -46,7 +46,7 @@ _backpropagateNeuron(Hexagon* hexagon, const uint32_t blockId)
     Axon* axon = nullptr;
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
 
-    for (uint8_t neuronId = 0; neuronId < NEURONS_PER_NEURONBLOCK; ++neuronId) {
+    for (uint8_t neuronId = 0; neuronId < NEURONS_PER_BLOCK; ++neuronId) {
         axon = &axonBlock->axons[neuronId];
 
         if (axon->potential < 0.00001f) {
@@ -71,7 +71,7 @@ _backpropagateExitNeuron(Hexagon* hexagon, const uint32_t blockId)
     Axon* axon = nullptr;
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
 
-    for (uint8_t neuronId = 0; neuronId < NEURONS_PER_NEURONBLOCK; ++neuronId) {
+    for (uint8_t neuronId = 0; neuronId < NEURONS_PER_BLOCK; ++neuronId) {
         axon = &axonBlock->axons[neuronId];
         axon->delta *= axon->potential * (1 - axon->potential);
     }
@@ -95,12 +95,12 @@ _backpropagateSection(SynapseSection* section,
     uint8_t pos = 0;
     Synapse* synapse;
     Axon* targetAxon = nullptr;
-    constexpr float trainValue = 0.05f;
+    constexpr float trainValue = 0.1f;
     uint8_t active = 0;
     float delta = 0.0f;
 
     // iterate over all synapses in the section
-    while (pos < SYNAPSES_PER_SYNAPSESECTION && potential > 0.00001f) {
+    while (pos < SYNAPSES_PER_SECTION && potential > 0.00001f) {
         synapse = &section->synapses[pos];
         ++pos;
 
@@ -124,39 +124,39 @@ _backpropagateSection(SynapseSection* section,
  * @brief backpropagate connections
  *
  * @param hexagon pointer to current hexagon
- * @param synapseBlocks pointer to synapse-blocks
+ * @param blocks pointer to synapse-blocks
  * @param blockId id of the current block within the hexagon
  */
 inline void
-_backpropagateSynapseBlock(Hexagon* hexagon, SynapseBlock* synapseBlocks, const uint32_t blockId)
+_backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
 {
-    // std::cout << "    _backpropagateSynapseBlock: x" << hexagon->header.hexagonId << " : b" <<
+    // std::cout << "    _backpropagateBlock: x" << hexagon->header.hexagonId << " : b" <<
     // blockId << std::endl;
 
     Connection* connection = nullptr;
     AxonBlock* axonBlock = nullptr;
     SynapseSection* synapseSection = nullptr;
-    SynapseBlock* synapseBlock = nullptr;
+    Block* block = nullptr;
     AxonBlock* tansferAxonBlocks = &hexagon->transferAxonBlocks[0];
     Axon* axon = nullptr;
 
     if (blockId >= hexagon->header.numberOfBlocks) {
         return;
     }
-    const uint64_t synapseBlockLink = hexagon->synapseBlockLinks[blockId];
+    const uint64_t blockLink = hexagon->blockLinks[blockId];
 
     axonBlock = &hexagon->axonBlocks[blockId];
-    synapseBlock = &synapseBlocks[synapseBlockLink];
+    block = &blocks[blockLink];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION - 1; ++i) {
-        connection = &synapseBlock->connections[i];
+    for (uint32_t i = 0; i < NUMBER_OF_SECTION - 1; ++i) {
+        connection = &block->connections[i];
         axon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
         if (connection->active == false) {
             continue;
         }
 
-        synapseSection = &synapseBlock->sections[i];
+        synapseSection = &block->sections[i];
 
         _backpropagateSection(synapseSection, connection, axonBlock, axon);
     }
@@ -176,7 +176,7 @@ backpropagateBlock(Cluster& cluster, const uint32_t hexagonId, const uint32_t bl
 
     Hanami::ErrorContainer error;
     Hexagon* hexagon = &cluster.hexagons[hexagonId];
-    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(hexagon->attachedHost->synapseBlocks);
+    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
 
     if (hexagon->outputInterface == nullptr) {
         _backpropagateNeuron(hexagon, blockId);
@@ -185,7 +185,7 @@ backpropagateBlock(Cluster& cluster, const uint32_t hexagonId, const uint32_t bl
         _backpropagateExitNeuron(hexagon, blockId);
     }
 
-    _backpropagateSynapseBlock(hexagon, synapseBlocks, blockId);
+    _backpropagateBlock(hexagon, blocks, blockId);
 }
 
 /**

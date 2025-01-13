@@ -66,7 +66,7 @@ class IO_Interface
         uint64_t axonBlocksPos = 0;
         uint64_t numberOfAxonBytes = 0;
 
-        uint64_t synapseBlocksPos = 0;
+        uint64_t blocksPos = 0;
         uint64_t numberOfSynapseBytes = 0;
 
         uint64_t inputInterfacesPos = 0;

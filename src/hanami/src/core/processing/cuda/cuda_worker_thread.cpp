@@ -59,7 +59,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->synapseBlockLinks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         // in case of the last hexagon
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
             task.cluster->updateClusterState(task);
@@ -76,10 +76,9 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         return;
     }
 
-    // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, true);
+    // processing_CUDA(hexagon, m_cudaHost->deviceBlocks, true);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
         if (hexagon->outputInterface != nullptr) {
             processNeuronsOfOutputHexagon<true>(hexagon, rand());
@@ -116,7 +115,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
     }
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->synapseBlockLinks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         if (task.hexagonId == 0) {
             task.cluster->updateClusterState(task);
             return;
@@ -131,10 +130,9 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
         return;
     }
 
-    // backpropagation_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks);
+    // backpropagation_CUDA(hexagon, m_cudaHost->deviceBlocks);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
         if (task.hexagonId == 0) {
             task.cluster->updateClusterState(task);
@@ -161,7 +159,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->synapseBlockLinks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
             task.cluster->updateClusterState(task);
             return;
@@ -176,10 +174,9 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
         return;
     }
 
-    // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, false);
+    // processing_CUDA(hexagon, m_cudaHost->deviceBlocks, false);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].synapseBlockLinks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
         if (hexagon->outputInterface != nullptr) {
             processNeuronsOfOutputHexagon<false>(hexagon, rand());

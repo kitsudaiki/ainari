@@ -61,8 +61,8 @@ TrainForward_State::processEvent()
                 return false;
             }
             for (const float val : inputInterface->ioBuffer) {
-                const uint64_t blockId = counter / NEURONS_PER_NEURONBLOCK;
-                const uint16_t axonId = counter % NEURONS_PER_NEURONBLOCK;
+                const uint64_t blockId = counter / NEURONS_PER_BLOCK;
+                const uint16_t axonId = counter % NEURONS_PER_BLOCK;
                 axonBlock = &inputInterface->inputAxons[blockId];
                 axon = &axonBlock->axons[axonId];
                 axon->potential = val;

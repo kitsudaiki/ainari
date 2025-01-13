@@ -42,8 +42,7 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
                 {
                     const uint32_t blockId = Hanami::pcg_hash(randomSeed)
                                              % hexagon->outputInterface->targetAxonBlocks.size();
-                    const uint16_t neuronId
-                        = Hanami::pcg_hash(randomSeed) % NEURONS_PER_NEURONBLOCK;
+                    const uint16_t neuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
                     const float potential
                         = outputInterface->targetAxonBlocks[blockId].axons[neuronId].potential;
 
