@@ -21,8 +21,6 @@ template <bool doTrain>
 inline void
 processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
 {
-    // std::cout<<"processNeuronsOfOutputHexagon: h"<<hexagon->header.hexagonId<<std::endl;
-
     Axon* axon = nullptr;
     OutputTargetLocationPtr* target = nullptr;
     float weightSum = 0.0f;
@@ -40,8 +38,8 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
                 if (found == false && target->blockId == UNINIT_STATE_32 && out.exprectedVal > 0.0
                     && Hanami::pcg_hash(randomSeed) % 50 == 0)
                 {
-                    const uint32_t blockId = Hanami::pcg_hash(randomSeed)
-                                             % hexagon->outputInterface->targetAxonBlocks.size();
+                    const uint64_t numOfTargets = hexagon->outputInterface->targetAxonBlocks.size();
+                    const uint32_t blockId = Hanami::pcg_hash(randomSeed) % numOfTargets;
                     const uint16_t neuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
                     const float potential
                         = outputInterface->targetAxonBlocks[blockId].axons[neuronId].potential;
@@ -65,6 +63,7 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
             }
 
             axon = &outputInterface->targetAxonBlocks[target->blockId].axons[target->neuronId];
+            axon->delta = 0.0f;
             weightSum += axon->potential * target->connectionWeight;
         }
 

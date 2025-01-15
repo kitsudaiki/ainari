@@ -53,6 +53,7 @@ class LogicalHost;
 #define POSSIBLE_NEXT_AXON_STEP 80
 #define NUMBER_OF_POSSIBLE_NEXT 86
 #define NUMBER_OF_OUTPUT_CONNECTIONS 31
+#define POTENTIAL_BORDER 0.00001f
 
 //==================================================================================================
 

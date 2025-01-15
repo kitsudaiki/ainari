@@ -40,16 +40,13 @@
 inline void
 _backpropagateNeuron(Hexagon* hexagon, const uint32_t blockId)
 {
-    // std::cout << "    _backpropagateNeuron: x" << hexagon->header.hexagonId << " : b" << blockId
-    // << std::endl;
-
     Axon* axon = nullptr;
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
 
     for (uint8_t neuronId = 0; neuronId < NEURONS_PER_BLOCK; ++neuronId) {
         axon = &axonBlock->axons[neuronId];
 
-        if (axon->potential < 0.00001f) {
+        if (axon->potential < POTENTIAL_BORDER) {
             continue;
         }
         axon->delta *= 1.4427f * pow(0.5f, axon->potential);
@@ -64,10 +61,6 @@ _backpropagateNeuron(Hexagon* hexagon, const uint32_t blockId)
 inline void
 _backpropagateExitNeuron(Hexagon* hexagon, const uint32_t blockId)
 {
-    // std::cout << "    _backpropagateExitNeuron: x" << hexagon->header.hexagonId << " : b" <<
-    // blockId
-    // << std::endl;
-
     Axon* axon = nullptr;
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
 
@@ -100,11 +93,11 @@ _backpropagateSection(SynapseSection* section,
     float delta = 0.0f;
 
     // iterate over all synapses in the section
-    while (pos < SYNAPSES_PER_SECTION && potential > 0.00001f) {
+    while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {
         synapse = &section->synapses[pos];
         ++pos;
 
-        if (synapse->targetNeuronId == UNINIT_STATE_8) {
+        if (synapse->targetNeuronId == UNINIT_STATE_8 || synapse->border == 0.0f) {
             continue;
         }
 
@@ -130,9 +123,6 @@ _backpropagateSection(SynapseSection* section,
 inline void
 _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
 {
-    // std::cout << "    _backpropagateBlock: x" << hexagon->header.hexagonId << " : b" <<
-    // blockId << std::endl;
-
     Connection* connection = nullptr;
     AxonBlock* axonBlock = nullptr;
     SynapseSection* synapseSection = nullptr;
@@ -152,13 +142,10 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
         connection = &block->connections[i];
         axon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
-        if (connection->active == false) {
-            continue;
+        if (connection->active == true && axon->potential > POTENTIAL_BORDER) {
+            synapseSection = &block->sections[i];
+            _backpropagateSection(synapseSection, connection, axonBlock, axon);
         }
-
-        synapseSection = &block->sections[i];
-
-        _backpropagateSection(synapseSection, connection, axonBlock, axon);
     }
 }
 
@@ -172,8 +159,6 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
 inline void
 backpropagateBlock(Cluster& cluster, const uint32_t hexagonId, const uint32_t blockId)
 {
-    // std::cout << "backpropagateBlock: x" << hexagonId << " : b" << blockId << std::endl;
-
     Hanami::ErrorContainer error;
     Hexagon* hexagon = &cluster.hexagons[hexagonId];
     Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
@@ -229,8 +214,6 @@ transferAxonBlockFromOutput(Hexagon* hexagon)
 inline void
 transferAxonBlockToInput(Hexagon* hexagon)
 {
-    // std::cout << "transferAxonBlockToInput: x" << hexagon->header.hexagonId << std::endl;
-    // std::cout << "#############################################" << std::endl;
     for (uint64_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
         AxonBlock* axonBlock = &hexagon->transferAxonBlocks[blockId];
         hexagon->inputInterface->inputAxons[blockId] = *axonBlock;
@@ -246,8 +229,6 @@ transferAxonBlockToInput(Hexagon* hexagon)
 inline void
 processAxonBlocksBackward(Cluster& cluster, Hexagon* hexagon)
 {
-    // std::cout << "processAxonBlocksBackward: x" << hexagon->header.hexagonId << std::endl;
-    // handle normal connection
     for (uint64_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
         AxonBlock* transferAxonBlock = &hexagon->transferAxonBlocks[blockId];
         _transferAxonBlocksBackwards(cluster, transferAxonBlock);
