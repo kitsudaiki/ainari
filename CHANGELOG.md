@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### BREAKING-CHANGES
+
+#### Checkpoint-breaking
+
+- updated core-structure for a cleaner communication between different hexagons
+
 ## v0.6.0
 
 **Release-Date**: 2024-12-14
