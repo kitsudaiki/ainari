@@ -23,11 +23,11 @@
 #include "cpu_host.h"
 
 #include <core/processing/cluster_resize.h>
-#include <core/processing/cpu/core-backpropagation.h>
-#include <core/processing/cpu/core-processing.h>
+#include <core/processing/cpu/core_backpropagation.h>
+#include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/cpu_worker_thread.h>
-#include <core/processing/cpu/output-backpropagation.h>
-#include <core/processing/cpu/output-processing.h>
+#include <core/processing/cpu/output_backpropagation.h>
+#include <core/processing/cpu/output_processing.h>
 #include <core/processing/cpu/reduction.h>
 #include <hanami_config/config_handler.h>
 #include <hanami_cpu/memory.h>

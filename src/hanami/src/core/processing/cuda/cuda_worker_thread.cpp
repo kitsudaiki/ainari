@@ -24,10 +24,10 @@
 
 #include <core/cluster/objects.h>
 #include <core/processing/cluster_resize.h>
-#include <core/processing/cpu/core-backpropagation.h>
-#include <core/processing/cpu/core-processing.h>
-#include <core/processing/cpu/output-backpropagation.h>
-#include <core/processing/cpu/output-processing.h>
+#include <core/processing/cpu/core_backpropagation.h>
+#include <core/processing/cpu/core_processing.h>
+#include <core/processing/cpu/output_backpropagation.h>
+#include <core/processing/cpu/output_processing.h>
 #include <core/processing/cpu/reduction.h>
 #include <core/processing/cuda/cuda_functions.h>
 #include <core/processing/logical_host.h>

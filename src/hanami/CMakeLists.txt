@@ -88,12 +88,12 @@ set(SOURCES
     src/core/io/checkpoint/io_interface.h
     src/core/io/data_set/dataset_file_io.h
     src/core/processing/cluster_resize.h
-    src/core/processing/cpu/core-backpropagation.h
-    src/core/processing/cpu/output-backpropagation.h
+    src/core/processing/cpu/core_backpropagation.h
+    src/core/processing/cpu/output_backpropagation.h
     src/core/processing/cpu/cpu_host.h
     src/core/processing/cpu/cpu_worker_thread.h
-    src/core/processing/cpu/core-processing.h
-    src/core/processing/cpu/output-processing.h
+    src/core/processing/cpu/core_processing.h
+    src/core/processing/cpu/output_processing.h
     src/core/processing/cpu/reduction.h
     src/core/processing/cuda/cuda_functions.h
     src/core/processing/cuda/cuda_host.h
