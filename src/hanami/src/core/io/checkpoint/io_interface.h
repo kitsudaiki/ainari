@@ -115,7 +115,7 @@ class IO_Interface
     }
 
     /**
-     * @brief get an object from the local-buffer of from the underlying target
+     * @brief get an object from the local-buffer of the underlying target
      *
      * @param bytePosition total byte-position within the target
      * @param data pointer to the object, which should be written to the target
@@ -183,7 +183,7 @@ class IO_Interface
     bool checkHexagonEntry(const HexagonEntry& hexagonEntry);
     HexagonEntry createHexagonEntry(const Hexagon& hexagon);
 
-    void deleteConnections(Hexagon& hexagon);
+    void clearBlocks(Hexagon& hexagon);
     void initLocalBuffer(const uint64_t totalSize);
 
     LocalBuffer m_localBuffer;

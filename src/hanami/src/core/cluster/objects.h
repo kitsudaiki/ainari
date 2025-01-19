@@ -48,7 +48,7 @@ class LogicalHost;
 
 // network-predefines
 #define SYNAPSES_PER_SECTION 128
-#define NUMBER_OF_SECTION 512
+#define NUMBER_OF_SECTIONS 512
 #define NEURONS_PER_BLOCK 128
 #define POSSIBLE_NEXT_AXON_STEP 80
 #define NUMBER_OF_POSSIBLE_NEXT 86
@@ -220,29 +220,20 @@ static_assert(sizeof(Neuron) == 32);
 //==================================================================================================
 
 struct Block {
-    SynapseSection sections[NUMBER_OF_SECTION];
-    Connection connections[NUMBER_OF_SECTION];
+    SynapseSection sections[NUMBER_OF_SECTIONS];
+    Connection connections[NUMBER_OF_SECTIONS];
     Neuron neurons[NEURONS_PER_BLOCK];
 
     Block()
     {
-        std::fill_n(sections, NUMBER_OF_SECTION, SynapseSection());
-        std::fill_n(connections, NUMBER_OF_SECTION, Connection());
+        std::fill_n(sections, NUMBER_OF_SECTIONS, SynapseSection());
+        std::fill_n(connections, NUMBER_OF_SECTIONS, Connection());
         std::fill_n(neurons, NEURONS_PER_BLOCK, Neuron());
     }
 };
 static_assert(sizeof(Block)
-              == (NUMBER_OF_SECTION * 2048) + (NUMBER_OF_SECTION * 24) + (NEURONS_PER_BLOCK * 32));
-
-//==================================================================================================
-//==================================================================================================
-//==================================================================================================
-
-struct InputNeuron {
-    uint32_t neuronId = UNINIT_STATE_32;
-    float value = 0.0f;
-};
-static_assert(sizeof(InputNeuron) == 8);
+              == (NUMBER_OF_SECTIONS * 2048) + (NUMBER_OF_SECTIONS * 24)
+                     + (NEURONS_PER_BLOCK * 32));
 
 //==================================================================================================
 //==================================================================================================

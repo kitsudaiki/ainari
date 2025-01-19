@@ -248,7 +248,7 @@ processBlock(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
 
     block = &blocks[hexagon->blockLinks[blockId]];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SECTION - 1; ++i) {
+    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS - 1; ++i) {
         if (block->connections[i].active == false && block->connections[i + 1].active == true) {
             block->connections[i] = block->connections[i + 1];
             block->sections[i] = block->sections[i + 1];

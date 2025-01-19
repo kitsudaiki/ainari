@@ -55,11 +55,11 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
 
     Block* blocks = getItemData<Block>(blockBuffer);
     Connection* connections = &blocks[targetBlockLink].connections[0];
-    if (connections[NUMBER_OF_SECTION - 1].active == true) {
+    if (connections[NUMBER_OF_SECTIONS - 1].active == true) {
         return nullptr;
     }
 
-    return &connections[NUMBER_OF_SECTION - 1];
+    return &connections[NUMBER_OF_SECTIONS - 1];
 }
 
 /**
@@ -89,7 +89,7 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
     targetHexagon->blockLinks[targetHexagon->header.numberOfBlocks - 1] = synapseSectionPos;
     targetHexagon->axonBlocks[targetHexagon->header.numberOfBlocks - 1] = AxonBlock();
 
-    targetHexagon->header.numberOfFreeSections += NUMBER_OF_SECTION;
+    targetHexagon->header.numberOfFreeSections += NUMBER_OF_SECTIONS;
 }
 
 /**
@@ -182,7 +182,7 @@ updateCluster(Cluster& cluster, Hexagon* hexagon)
     // resize if necessary
     // IMPORTANT: this must be done at the end, because the resize change the target of the
     // pointer
-    if (hexagon->header.numberOfFreeSections < NUMBER_OF_SECTION / 2) {
+    if (hexagon->header.numberOfFreeSections < NUMBER_OF_SECTIONS / 2) {
         // std::cout << "++++++++++++++++++++++++++++++++++++ resize: " << hexagon->header.hexagonId
         //           << "  " << hexagon->blockLinks.size() << std::endl;
         resizeBlocks(hexagon, blockBuffer);
