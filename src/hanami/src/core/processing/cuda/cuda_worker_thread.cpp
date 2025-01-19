@@ -85,7 +85,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         }
 
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
-            updateCluster(*task.cluster, hexagon);
+            updateCluster(task.cluster, hexagon);
             task.cluster->updateClusterState(task);
         }
         else {
@@ -183,7 +183,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
         }
 
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
-            handleClientOutput(*task.cluster);
+            handleClientOutput(task.cluster);
             task.cluster->updateClusterState(task);
         }
         else {

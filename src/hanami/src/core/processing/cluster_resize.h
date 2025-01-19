@@ -104,7 +104,7 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
  * @return true, if successful, else false
  */
 inline bool
-splitSection(Cluster& cluster,
+splitSection(Cluster* cluster,
              Hexagon* hexagon,
              Connection* sourceConnection,
              AxonBlock* sourceAxonBlocks)
@@ -125,9 +125,9 @@ splitSection(Cluster& cluster,
     }
     hexagon->header.numberOfFreeSections--;
     hexagon->wasResized = true;
-    cluster.metrics.numberOfSections++;
-    // std::cout<<"cluster.metrics.numberOfSections1:
-    // "<<cluster.metrics.numberOfSections<<std::endl;
+    cluster->metrics.numberOfSections++;
+    // std::cout<<"cluster->metrics.numberOfSections1:
+    // "<<cluster->metrics.numberOfSections<<std::endl;
     // initialize new connection
     targetConnection->active = true;
     targetConnection->sourceBlockId = sourceConnection->sourceBlockId;
@@ -151,7 +151,7 @@ splitSection(Cluster& cluster,
  *         transfers to the gpu
  */
 inline bool
-updateCluster(Cluster& cluster, Hexagon* hexagon)
+updateCluster(Cluster* cluster, Hexagon* hexagon)
 {
     ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
     Block* blocks = getItemData<Block>(*blockBuffer);
@@ -196,7 +196,7 @@ updateCluster(Cluster& cluster, Hexagon* hexagon)
  * @param hexagon
  */
 inline void
-processTransferAxonBlocks(Cluster& cluster, Hexagon* hexagon, uint32_t& randomSeed)
+processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
 {
     Axon* axon = nullptr;
     AxonBlock* axonBlock = nullptr;
@@ -223,7 +223,7 @@ processTransferAxonBlocks(Cluster& cluster, Hexagon* hexagon, uint32_t& randomSe
 
             hexagon->header.numberOfFreeSections--;
             hexagon->wasResized = true;
-            cluster.metrics.numberOfSections++;
+            cluster->metrics.numberOfSections++;
 
             // std::cout<<"create "<<hexagon->header.hexagonId<<std::endl;
             axon->activeCounter = 1;

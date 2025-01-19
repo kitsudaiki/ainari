@@ -35,7 +35,7 @@
 
 class Cluster;
 
-void handleClientOutput(Cluster& cluster);
+void handleClientOutput(Cluster* cluster);
 
 class LogicalHost
 {

@@ -58,7 +58,7 @@ Cluster_ParseString_Test::parseString_test()
         "    2,1,1 -> 4,1,1\n"
         "\n"
         "inputs:\n"
-        "    input_hexagon: 1,1,1 (binary)\n"
+        "    input_hexagon: 1,1,1\n"
         "    input_hexagon2: 2,1,1\n"
         "\n"
         "outputs:\n"

@@ -33,7 +33,9 @@
 #include <cmath>
 
 /**
- * @brief backpropagate all neurons
+ * @brief backpropagate all neurons, which are not connected to
+ *        an output-interface
+ *
  * @param hexagon pointer to current hexagon
  * @param blockId id of the current block within the hexagon
  */
@@ -54,7 +56,9 @@ _backpropagateNeuron(Hexagon* hexagon, const uint32_t blockId)
 }
 
 /**
- * @brief backpropagate all neurons
+ * @brief backpropagate all exit-neurons, which are connected to
+ *        an output-interface
+ *
  * @param hexagon pointer to current hexagon
  * @param blockId id of the current block within the hexagon
  */
@@ -71,12 +75,12 @@ _backpropagateExitNeuron(Hexagon* hexagon, const uint32_t blockId)
 }
 
 /**
- * @brief backpropagate a synapse-section
+ * @brief backpropagate a synapse-section and adjust weights
  *
  * @param section current synapse-section
  * @param connection current connection related to the synapse-section
  * @param targetTempBlock temp-value-block of the target neuron-block
- * @param sourceNeuron source-neuron, which triggered the section
+ * @param axon source-axon, which triggered the section
  */
 inline void
 _backpropagateSection(SynapseSection* section,
@@ -108,7 +112,7 @@ _backpropagateSection(SynapseSection* section,
 }
 
 /**
- * @brief backpropagate connections
+ * @brief backpropagate block
  *
  * @param hexagon pointer to current hexagon
  * @param blocks pointer to synapse-blocks
@@ -146,15 +150,15 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
 /**
  * @brief run the backpropagation over the core the cluster
  *
- * @param cluster pointer to cluster to process
+ * @param cluster pointer to cluster
  * @param hexagonId id of the hexagon to process
  * @param blockId id of the block within the hexagon
  */
 inline void
-backpropagateBlock(Cluster& cluster, const uint32_t hexagonId, const uint32_t blockId)
+backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t blockId)
 {
     Hanami::ErrorContainer error;
-    Hexagon* hexagon = &cluster.hexagons[hexagonId];
+    Hexagon* hexagon = &cluster->hexagons[hexagonId];
     Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
 
     if (hexagon->outputInterface == nullptr) {
@@ -168,13 +172,13 @@ backpropagateBlock(Cluster& cluster, const uint32_t hexagonId, const uint32_t bl
 }
 
 /**
- * @brief transferAxonBlocksBackwards
+ * @brief send one transfer-axon-block back to their source
  *
- * @param cluster
- * @param sourceAxonBlock
+ * @param cluster pointer to cluster
+ * @param axonBlock block to transfer
  */
 inline void
-_transferAxonBlocksBackwards(Cluster& cluster, AxonBlock* axonBlock)
+_transferAxonBlocksBackwards(Cluster* cluster, AxonBlock* axonBlock)
 {
     if (axonBlock->sourceBlockId == UNINIT_STATE_32
         || axonBlock->sourceHexagonId == UNINIT_STATE_32)
@@ -182,13 +186,14 @@ _transferAxonBlocksBackwards(Cluster& cluster, AxonBlock* axonBlock)
         return;
     }
 
-    Hexagon* sourceHexagon = &cluster.hexagons[axonBlock->sourceHexagonId];
+    Hexagon* sourceHexagon = &cluster->hexagons[axonBlock->sourceHexagonId];
     sourceHexagon->axonBlocks[axonBlock->sourceBlockId] = *axonBlock;
 }
 
 /**
- * @brief transferAxonBlockToOutput
- * @param hexagon
+ * @brief send axon-blocks of an output-interface back to the hexagon
+ *
+ * @param hexagon pointer to current processed hexagon
  */
 inline void
 transferAxonBlockFromOutput(Hexagon* hexagon)
@@ -202,8 +207,9 @@ transferAxonBlockFromOutput(Hexagon* hexagon)
 }
 
 /**
- * @brief transferAxonBlockToOutput
- * @param hexagon
+ * @brief fake-transfer to the input just to finish the cycle properly
+ *
+ * @param hexagon pointer to current processed hexagon
  */
 inline void
 transferAxonBlockToInput(Hexagon* hexagon)
@@ -215,13 +221,13 @@ transferAxonBlockToInput(Hexagon* hexagon)
 }
 
 /**
- * @brief processAxonBlocksBackward
+ * @brief send transfer-axon-blocks back to their source
  *
- * @param cluster
- * @param hexagon
+ * @param cluster pointer to cluster
+ * @param hexagon pointer to current processed hexagon
  */
 inline void
-processAxonBlocksBackward(Cluster& cluster, Hexagon* hexagon)
+transferAxonBlocksBackward(Cluster* cluster, Hexagon* hexagon)
 {
     for (uint64_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
         AxonBlock* transferAxonBlock = &hexagon->transferAxonBlocks[blockId];

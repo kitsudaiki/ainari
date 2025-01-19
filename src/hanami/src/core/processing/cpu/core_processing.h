@@ -34,13 +34,13 @@
 #include <cmath>
 
 /**
- * @brief transferAxonBlocks
+ * @brief send one axon-block to the next hexagon
  *
- * @param cluster
- * @param sourceAxonBlock
+ * @param cluster cluster, where the hexagon belongs to
+ * @param sourceAxonBlock axon-block, which should to transfered
  */
 inline void
-_transferAxonBlocks(Cluster& cluster, AxonBlock* sourceAxonBlock)
+_transferAxonBlocks(Cluster* cluster, AxonBlock* sourceAxonBlock)
 {
     if (sourceAxonBlock->targetBlockId == UNINIT_STATE_32
         || sourceAxonBlock->targetHexagonId == UNINIT_STATE_32)
@@ -48,13 +48,14 @@ _transferAxonBlocks(Cluster& cluster, AxonBlock* sourceAxonBlock)
         return;
     }
 
-    Hexagon* targetHexagon = &cluster.hexagons[sourceAxonBlock->targetHexagonId];
+    Hexagon* targetHexagon = &cluster->hexagons[sourceAxonBlock->targetHexagonId];
     targetHexagon->transferAxonBlocks[sourceAxonBlock->targetBlockId] = *sourceAxonBlock;
 }
 
 /**
- * @brief transferAxonBlockToOutput
- * @param hexagon
+ * @brief send axon-blocks a hexagon to its connected output-interface
+ *
+ * @param hexagon pointer to hexagon to process
  */
 inline void
 _transferAxonBlockToOutput(Hexagon* hexagon)
@@ -68,16 +69,18 @@ _transferAxonBlockToOutput(Hexagon* hexagon)
 }
 
 /**
- * @brief handleInputAxonBlocks
- * @param cluster
- * @param inputInterface
+ * @brief send axon-blocks from an input-interface to its connected hexagon
+ *
+ * @param cluster cluster, where the hexagon belongs to
+ * @param inputInterface pointer to input-interface, of which the axon-blocks
+ *                       should be send to the connected hexagon
  */
 template <bool doTrain>
 inline void
-processInputAxonBlocks(Cluster& cluster, InputInterface* inputInterface)
+transferInputAxonBlocks(Cluster* cluster, InputInterface* inputInterface)
 {
     const uint64_t targetId = inputInterface->targetHexagonId;
-    cluster.hexagons[targetId].transferAxonBlocks.resize(inputInterface->inputAxons.size());
+    cluster->hexagons[targetId].transferAxonBlocks.resize(inputInterface->inputAxons.size());
 
     for (uint64_t blockId = 0; blockId < inputInterface->inputAxons.size(); ++blockId) {
         AxonBlock* axonBlock = &inputInterface->inputAxons[blockId];
@@ -94,14 +97,16 @@ processInputAxonBlocks(Cluster& cluster, InputInterface* inputInterface)
 }
 
 /**
- * @brief handleNewAxonBlocks
+ * @brief process axon-blocks by initializing them and send them to the
+ *        target-hexagon
  *
- * @param cluster
- * @param sourceHexagon
+ * @param cluster pointer to cluster, where the hexagon belongs to
+ * @param hexagon pointer to hexagon to process
+ * @param randomSeed reference to the current seed of the randomizer
  */
 template <bool doTrain>
 inline void
-processAxonBlocks(Cluster& cluster, Hexagon* hexagon, uint32_t& randomSeed)
+transferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
 {
     // handle output-interface
     if (hexagon->outputInterface != nullptr) {
@@ -117,12 +122,12 @@ processAxonBlocks(Cluster& cluster, Hexagon* hexagon, uint32_t& randomSeed)
                 // get and update target
                 const uint64_t randPos = Hanami::pcg_hash(randomSeed) % NUMBER_OF_POSSIBLE_NEXT;
                 const uint64_t targetId = hexagon->possibleHexagonTargetIds[randPos];
-                const uint64_t currentSize = cluster.hexagons[targetId].transferAxonBlocks.size();
-                cluster.hexagons[targetId].transferAxonBlocks.resize(currentSize + 1);
+                const uint64_t currentSize = cluster->hexagons[targetId].transferAxonBlocks.size();
+                cluster->hexagons[targetId].transferAxonBlocks.resize(currentSize + 1);
 
                 // update information in the source axon-block
                 axon->targetHexagonId = targetId;
-                axon->targetBlockId = cluster.hexagons[targetId].transferAxonBlocks.size() - 1;
+                axon->targetBlockId = cluster->hexagons[targetId].transferAxonBlocks.size() - 1;
                 axon->sourceBlockId = sourceBlockId;
                 axon->sourceHexagonId = hexagon->header.hexagonId;
             }
@@ -161,13 +166,13 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
  * @param cluster cluster, where the synapseSection belongs to
  * @param synapseSection current synapse-section to process
  * @param connection pointer to the connection-object, which is related to the section
+ * @param transferAxon pointer to source-axon, which triggered the section
  * @param targetNeuronBlock neuron-block, which is the target for all synapses in the section
- * @param clusterSettings pointer to cluster-settings
  * @param randomSeed reference to the current seed of the randomizer
  */
 template <bool doTrain>
 inline void
-processSynapseSection(Cluster& cluster,
+processSynapseSection(Cluster* cluster,
                       SynapseSection* synapseSection,
                       Connection* connection,
                       Axon* transferAxon,
@@ -232,7 +237,7 @@ processSynapseSection(Cluster& cluster,
  */
 template <bool doTrain>
 inline void
-processBlock(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
+processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
     Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
     AxonBlock* tansferAxonBlocks = &hexagon->transferAxonBlocks[0];
@@ -280,17 +285,15 @@ processBlock(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
  * @param blockId id of the current block within the hexagon
  */
 inline void
-processNeurons(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
+processNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
     Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
-    ClusterSettings* clusterSettings = &cluster.clusterHeader.settings;
+    ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
     const uint64_t link = hexagon->blockLinks[blockId];
+    AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
     Neuron* neuronBlock = &blocks[link].neurons[0];
     Neuron* neuron = nullptr;
-    AxonBlock* axonBlock = nullptr;
     Axon* axon = nullptr;
-
-    axonBlock = &hexagon->axonBlocks[blockId];
 
     for (uint8_t neuronId = 0; neuronId < NEURONS_PER_BLOCK; ++neuronId) {
         neuron = &neuronBlock[neuronId];
@@ -323,10 +326,10 @@ processNeurons(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
  * @param blockId id of the current block within the hexagon
  */
 inline void
-processExitNeurons(Cluster& cluster, Hexagon* hexagon, const uint32_t blockId)
+processExitNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
     Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
-    ClusterSettings* clusterSettings = &cluster.clusterHeader.settings;
+    ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
     const uint64_t link = hexagon->blockLinks[blockId];
     Neuron* neuronBlock = &blocks[link].neurons[0];
     Neuron* neuron = nullptr;

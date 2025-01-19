@@ -123,16 +123,16 @@ LogicalHost::addWorkerTaskToQueue(const Hanami::WorkerTask task)
  * @param cluster cluster to handle
  */
 void
-handleClientOutput(Cluster& cluster)
+handleClientOutput(Cluster* cluster)
 {
     Hanami::ErrorContainer error;
     // send output back if a client-connection is set
 
-    Task* actualTask = cluster.getCurrentTask();
+    Task* actualTask = cluster->getCurrentTask();
     if (actualTask != nullptr && actualTask->type == REQUEST_TASK) {
         RequestInfo* info = &std::get<RequestInfo>(actualTask->info);
 
-        for (auto& [name, outputInterface] : cluster.outputInterfaces) {
+        for (auto& [name, outputInterface] : cluster->outputInterfaces) {
             DataSetFileHandle* fileHandle = &info->results[name];
             const uint64_t ioBufferSize = convertOutputToBuffer(&outputInterface);
             // TODO: handle return status
@@ -140,8 +140,8 @@ handleClientOutput(Cluster& cluster)
                 *fileHandle, &outputInterface.ioBuffer[0], ioBufferSize * sizeof(float), error);
         }
     }
-    if (cluster.msgClient != nullptr) {
+    if (cluster->msgClient != nullptr) {
         // TODO: handle return status
-        sendClusterOutputMessage(&cluster);
+        sendClusterOutputMessage(cluster);
     }
 }
