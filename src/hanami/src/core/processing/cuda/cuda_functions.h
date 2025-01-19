@@ -25,25 +25,22 @@
 
 #include <core/cluster/objects.h>
 
-extern "C" SynapseBlock* initDevice_CUDA(SynapseBlock* hostSynapseBlocks,
-                                         const uint32_t numberOfSynapseBlocks);
+extern "C" Block* initDevice_CUDA(Block* hostBlocks, const uint32_t numberOfBlocks);
 
 extern "C" void initHexagonOnDevice_CUDA(Hexagon* hexagon,
                                          ClusterSettings* clusterSettings,
-                                         SynapseBlock* hostSynapseBlocks,
-                                         SynapseBlock* deviceSynapseBlocks);
+                                         Block* hostBlocks,
+                                         Block* deviceBlocks);
 
 extern "C" void removeFromDevice_CUDA(Hexagon* hexagon);
 
-extern "C" void copyFromGpu_CUDA(Hexagon* hexagon,
-                                 SynapseBlock* synapseBlocks,
-                                 SynapseBlock* deviceSynapseBlocks);
+extern "C" void copyFromGpu_CUDA(Hexagon* hexagon, Block* blocks, Block* deviceBlocks);
 
-extern "C" void update_CUDA(Hexagon* hexagon, SynapseBlock* deviceSynapseBlocks);
+extern "C" void update_CUDA(Hexagon* hexagon, Block* deviceBlocks);
 
-extern "C" void processing_CUDA(Hexagon* hexagon, SynapseBlock* synapseBlocks, const bool doTrain);
+extern "C" void processing_CUDA(Hexagon* hexagon, Block* blocks, const bool doTrain);
 
-extern "C" void backpropagation_CUDA(Hexagon* hexagon, SynapseBlock* synapseBlocks);
+extern "C" void backpropagation_CUDA(Hexagon* hexagon, Block* blocks);
 
 extern "C" void reduction_CUDA(Hexagon* hexagon);
 

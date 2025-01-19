@@ -23,9 +23,11 @@
 #include "cpu_host.h"
 
 #include <core/processing/cluster_resize.h>
-#include <core/processing/cpu/backpropagation.h>
+#include <core/processing/cpu/core_backpropagation.h>
+#include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/cpu_worker_thread.h>
-#include <core/processing/cpu/processing.h>
+#include <core/processing/cpu/output_backpropagation.h>
+#include <core/processing/cpu/output_processing.h>
 #include <core/processing/cpu/reduction.h>
 #include <hanami_config/config_handler.h>
 #include <hanami_cpu/memory.h>
@@ -71,11 +73,11 @@ CpuHost::initBuffer()
         memoryUsage = 0.9f;
     }
     const uint64_t usedMemory = static_cast<float>(m_totalMemory) * memoryUsage;
-    synapseBlocks.initBuffer(usedMemory / sizeof(SynapseBlock));
-    synapseBlocks.deleteAll();
+    blocks.initBuffer(usedMemory / sizeof(Block));
+    blocks.deleteAll();
 
     LOG_INFO("Initialized number of syanpse-blocks on cpu-device: "
-             + std::to_string(synapseBlocks.metaData.itemCapacity));
+             + std::to_string(blocks.metaData.itemCapacity));
 }
 
 /**
@@ -116,21 +118,21 @@ bool
 CpuHost::moveHexagon(Hexagon* hexagon)
 {
     LogicalHost* sourceHost = hexagon->attachedHost;
-    SynapseBlock* targetSynapseBlocks = Hanami::getItemData<SynapseBlock>(synapseBlocks);
-    SynapseBlock tempSynapseBlock;
+    Block* targetBlocks = Hanami::getItemData<Block>(blocks);
+    Block tempBlock;
 
     // copy synapse-blocks from the old host to this one here
-    for (uint64_t pos = 0; pos < hexagon->synapseBlockLinks.size(); pos++) {
-        const uint64_t synapseSectionPos = hexagon->synapseBlockLinks[pos];
+    for (uint64_t pos = 0; pos < hexagon->blockLinks.size(); pos++) {
+        const uint64_t synapseSectionPos = hexagon->blockLinks[pos];
         if (synapseSectionPos != UNINIT_STATE_64) {
-            tempSynapseBlock = targetSynapseBlocks[synapseSectionPos];
-            sourceHost->synapseBlocks.deleteItem(synapseSectionPos);
-            const uint64_t newPos = synapseBlocks.addNewItem(tempSynapseBlock);
+            tempBlock = targetBlocks[synapseSectionPos];
+            sourceHost->blocks.deleteItem(synapseSectionPos);
+            const uint64_t newPos = blocks.addNewItem(tempBlock);
             // TODO: make roll-back possible in error-case
             if (newPos == UNINIT_STATE_64) {
                 return false;
             }
-            hexagon->synapseBlockLinks[pos] = newPos;
+            hexagon->blockLinks[pos] = newPos;
         }
     }
 
@@ -156,9 +158,9 @@ CpuHost::syncWithHost(Hexagon*)
 void
 CpuHost::removeHexagon(Hexagon* hexagon)
 {
-    for (uint64_t synapseBlockLink : hexagon->synapseBlockLinks) {
-        if (synapseBlockLink != UNINIT_STATE_64) {
-            synapseBlocks.deleteItem(synapseBlockLink);
+    for (uint64_t blockLink : hexagon->blockLinks) {
+        if (blockLink != UNINIT_STATE_64) {
+            blocks.deleteItem(blockLink);
         }
     }
 }

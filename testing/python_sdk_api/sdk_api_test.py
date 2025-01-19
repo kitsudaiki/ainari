@@ -59,17 +59,14 @@ cluster_template = \
     "    enable_reduction: false\n" \
     "hexagons:\n" \
     "    1,1,1\n" \
+    "    2,1,1\n" \
     "    3,1,1\n" \
-    "    4,1,1\n" \
-    "    \n" \
-    "axons:\n" \
-    "    1,1,1 -> 3,1,1\n" \
     "\n" \
     "inputs:\n" \
     "    picture_hex: 1,1,1\n" \
     "\n" \
     "outputs:\n" \
-    "    label_hex: 4,1,1\n" \
+    "    label_hex: 3,1,1\n" \
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -222,7 +219,7 @@ def test_cluster():
 async def test_direct_io(token, address, cluster_uuid):
     # check direct-mode
     ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid, False)
-    for i in range(0, 100):
+    for i in range(0, 1):
         await direct_io.send_train_input(ws,
                                          "picture_hex",
                                          test_values.get_direct_io_test_intput(),

@@ -52,6 +52,8 @@ TrainForward_State::processEvent()
     for (auto& [hexagonName, input] : info->inputs) {
         uint64_t counter = 0;
         InputInterface* inputInterface = &m_cluster->inputInterfaces[hexagonName];
+        AxonBlock* axonBlock = nullptr;
+        Axon* axon = nullptr;
         for (uint64_t t = 0; t < info->timeLength; ++t) {
             if (getDataFromDataSet(inputInterface->ioBuffer, input, info->currentCycle + t, error)
                 != OK)
@@ -59,7 +61,11 @@ TrainForward_State::processEvent()
                 return false;
             }
             for (const float val : inputInterface->ioBuffer) {
-                inputInterface->inputNeurons[counter].value = val;
+                const uint64_t blockId = counter / NEURONS_PER_BLOCK;
+                const uint16_t axonId = counter % NEURONS_PER_BLOCK;
+                axonBlock = &inputInterface->inputAxons[blockId];
+                axon = &axonBlock->axons[axonId];
+                axon->potential = val;
                 counter++;
             }
         }

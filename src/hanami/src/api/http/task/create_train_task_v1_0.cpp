@@ -210,10 +210,9 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         inputInterface->initBuffer(numberOfColumns, info->timeLength);
 
         // resize the input-hexagon
-        const uint32_t numberOfNeuronBlocks
-            = (inputInterface->inputNeurons.size() / NEURONS_PER_NEURONBLOCK) + 1;
-        cluster->hexagons[inputInterface->targetHexagonId].neuronBlocks.resize(
-            numberOfNeuronBlocks);
+        const uint32_t numberOfInputBlocks
+            = (inputInterface->inputAxons.size() / NEURONS_PER_BLOCK) + 1;
+        cluster->hexagons[inputInterface->targetHexagonId].axonBlocks.resize(numberOfInputBlocks);
 
         info->inputs.try_emplace(hexagonName, std::move(fileHandle));
     }

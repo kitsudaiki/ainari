@@ -76,14 +76,12 @@ cluster_template = \
     "hexagons:\n" \
     "    1,1,1\n" \
     "    2,1,1\n" \
-    "    3,1,1\n" \
-    "    4,1,1\n" \
     "    \n" \
     "inputs:\n" \
     "    test_input: 1,1,1\n" \
     "\n" \
     "outputs:\n" \
-    "    test_output: 4,1,1\n" \
+    "    test_output: 2,1,1\n" \
 
 cluster_name = "test_cluster"
 generic_task_name = "test_task"
@@ -107,65 +105,65 @@ train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name
 request_dataset_uuid = dataset.upload_csv_files(
     token, address, request_dataset_name, request_inputs, False)
 
+for x in range(20):
+    inputs = [
+        {
+            "dataset_uuid": train_dataset_uuid,
+            "dataset_column": "test_input",
+            "hexagon_name": "test_input"
+        }
+    ]
 
-inputs = [
-    {
-        "dataset_uuid": train_dataset_uuid,
-        "dataset_column": "test_input",
-        "hexagon_name": "test_input"
-    }
-]
-
-outputs = [
-    {
-        "dataset_uuid": train_dataset_uuid,
-        "dataset_column": "test_output",
-        "hexagon_name": "test_output"
-    }
-]
+    outputs = [
+        {
+            "dataset_uuid": train_dataset_uuid,
+            "dataset_column": "test_output",
+            "hexagon_name": "test_output"
+        }
+    ]
 
 
-# train
-for i in range(0, 100):
-    print("poi: ", i)
-    result = task.create_train_task(token, address, generic_task_name, cluster_uuid, inputs, outputs, 20, False)
+    # train
+    for i in range(0, 100):
+        print("poi: ", i)
+        result = task.create_train_task(token, address, generic_task_name, cluster_uuid, inputs, outputs, 20, False)
+        task_uuid = json.loads(result)["uuid"]
+        finished = False
+        while not finished:
+            result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+            finished = json.loads(result)["state"] == "finished"
+            # print("wait for finish train-task")
+            time.sleep(0.01)
+        result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
+
+
+    inputs = [
+        {
+            "dataset_uuid": request_dataset_uuid,
+            "dataset_column": "test_input",
+            "hexagon_name": "test_input"
+        }
+    ]
+
+    results = [
+        {
+            "dataset_column": "test_output",
+            "hexagon_name": "test_output"
+        }
+    ]
+
+    # test
+    result = task.create_request_task(token, address, generic_task_name, cluster_uuid, inputs, results, 20, False)
     task_uuid = json.loads(result)["uuid"]
+
     finished = False
     while not finished:
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
         finished = json.loads(result)["state"] == "finished"
-        # print("wait for finish train-task")
-        time.sleep(0.01)
-    result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
-
-
-inputs = [
-    {
-        "dataset_uuid": request_dataset_uuid,
-        "dataset_column": "test_input",
-        "hexagon_name": "test_input"
-    }
-]
-
-results = [
-    {
-        "dataset_column": "test_output",
-        "hexagon_name": "test_output"
-    }
-]
-
-# test
-result = task.create_request_task(token, address, generic_task_name, cluster_uuid, inputs, results, 20, False)
-task_uuid = json.loads(result)["uuid"]
-
-finished = False
-while not finished:
-    result = task.get_task(token, address, task_uuid, cluster_uuid, False)
-    finished = json.loads(result)["state"] == "finished"
-    print(result)
-    # print("wait for finish request-task")
-    time.sleep(0.1)
-    # result = task.delete_task(token, address, task_uuid, cluster_uuid)
+        print(result)
+        # print("wait for finish request-task")
+        time.sleep(0.1)
+        # result = task.delete_task(token, address, task_uuid, cluster_uuid)
 
 result = dataset.download_dataset_content(
         token, address, task_uuid, "test_output", 1700, 0, False)
@@ -188,7 +186,7 @@ dataset.delete_dataset(token, address, request_dataset_uuid, False)
 cluster.delete_cluster(token, address, cluster_uuid, False)
 
 for r in range(len(flattened_list)):
-    flattened_list[r] /= 1.0
+    flattened_list[r] /= 20.0
 
 # Open the file in write mode
 with open("out.txt", 'w') as file:

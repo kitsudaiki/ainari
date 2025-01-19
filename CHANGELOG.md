@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### BREAKING-CHANGES
+
+#### API-Breaking
+
+- removed the Binary input option again
+
+#### Checkpoint-breaking
+
+- updated core-structure for a cleaner communication between different hexagons
+- merge connection-, neuron- and synapse-block into one block object
+
+### Changed
+
+- the resize-process was updated to avoid the search-loop for a new free section
+
 ## v0.6.0
 
 **Release-Date**: 2024-12-14

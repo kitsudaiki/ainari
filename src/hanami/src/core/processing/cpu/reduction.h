@@ -40,7 +40,7 @@ reduceSection(SynapseSection* section)
     uint8_t exist = 0;
     uint8_t pos = 0;
 
-    for (pos = 0; pos < SYNAPSES_PER_SYNAPSESECTION; ++pos) {
+    for (pos = 0; pos < SYNAPSES_PER_SECTION; ++pos) {
         synapse = &section->synapses[pos];
 
         if (synapse->targetNeuronId != UNINIT_STATE_8) {
@@ -48,7 +48,7 @@ reduceSection(SynapseSection* section)
 
             // handle active-counter
             if (synapse->activeCounter == 0) {
-                if (pos < SYNAPSES_PER_SYNAPSESECTION - 1) {
+                if (pos < SYNAPSES_PER_SECTION - 1) {
                     section->synapses[pos] = section->synapses[pos + 1];
                     section->synapses[pos + 1] = Synapse();
                 }
@@ -71,16 +71,13 @@ reduceSection(SynapseSection* section)
  *
  * @param hexagon pointer to current hexagon
  * @param neuronBlocks pointer to neuron-blocks
- * @param synapseBlocks pointer to synapse-blocks
+ * @param blocks pointer to synapse-blocks
  * @param blockId id of the current block within the hexagon
  */
 inline void
-reduceConnections(Hexagon* hexagon,
-                  Hexagon* hexagons,
-                  SynapseBlock* synapseBlocks,
-                  const uint32_t blockId)
+reduceConnections(Hexagon* hexagon, Hexagon* hexagons, Block* blocks, const uint32_t blockId)
 {
-    Connection* connection = nullptr;
+    /*Connection* connection = nullptr;
     Neuron* sourceNeuron = nullptr;
     NeuronBlock* sourceNeuronBlock = nullptr;
     Hexagon* sourceHexagon = nullptr;
@@ -93,7 +90,7 @@ reduceConnections(Hexagon* hexagon,
     }
 
     connectionBlock = &hexagon->connectionBlocks[blockId];
-    const uint64_t synapseBlockLink = hexagon->synapseBlockLinks[blockId];
+    const uint64_t blockLink = hexagon->blockLinks[blockId];
 
     for (uint32_t i = 0; i < NUMBER_OF_SYNAPSESECTION; ++i) {
         connection = &connectionBlock->connections[i];
@@ -101,7 +98,7 @@ reduceConnections(Hexagon* hexagon,
             continue;
         }
 
-        synapseSection = &synapseBlocks[synapseBlockLink].sections[i];
+        synapseSection = &blocks[blockLink].sections[i];
         sourceHexagon = &hexagons[connection->origin.hexagonId];
         sourceNeuronBlock = &sourceHexagon->neuronBlocks[connection->origin.blockId];
         sourceNeuron = &sourceNeuronBlock->neurons[connection->origin.neuronId];
@@ -112,7 +109,7 @@ reduceConnections(Hexagon* hexagon,
             connection->origin.blockId = UNINIT_STATE_16;
             connection->origin.neuronId = UNINIT_STATE_8;
         }
-    }
+    }*/
 }
 
 /**
@@ -126,9 +123,9 @@ reduceCluster(Cluster& cluster, const uint32_t hexagonId, const uint32_t blockId
         return;
     }
 
-    SynapseBlock* synapseBlocks = getItemData<SynapseBlock>(hexagon->attachedHost->synapseBlocks);
+    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
     const uint32_t numberOfHexagons = cluster.hexagons.size();
-    reduceConnections(hexagon, &cluster.hexagons[0], synapseBlocks, blockId);
+    reduceConnections(hexagon, &cluster.hexagons[0], blocks, blockId);
 }
 
 #endif  // HANAMI_CORE_REDUCTION_H

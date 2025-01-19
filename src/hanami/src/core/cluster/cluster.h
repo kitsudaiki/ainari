@@ -52,7 +52,6 @@ class Cluster
     HttpWebsocketThread* msgClient = nullptr;
     Hanami::Statemachine* stateMachine = nullptr;
     TaskHandle_State* taskHandleState = nullptr;
-    bool enableCreation = false;
 
     // cluster-data
     ClusterHeader clusterHeader;

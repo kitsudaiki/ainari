@@ -24,8 +24,10 @@
 
 #include <core/cluster/objects.h>
 #include <core/processing/cluster_resize.h>
-#include <core/processing/cpu/backpropagation.h>
-#include <core/processing/cpu/processing.h>
+#include <core/processing/cpu/core_backpropagation.h>
+#include <core/processing/cpu/core_processing.h>
+#include <core/processing/cpu/output_backpropagation.h>
+#include <core/processing/cpu/output_processing.h>
 #include <core/processing/cpu/reduction.h>
 #include <core/processing/cuda/cuda_functions.h>
 #include <core/processing/logical_host.h>
@@ -57,7 +59,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->neuronBlocks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         // in case of the last hexagon
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
             task.cluster->updateClusterState(task);
@@ -74,18 +76,16 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         return;
     }
 
-    processConnectionBlocksForward(*task.cluster, hexagon);
-    // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, true);
+    // processing_CUDA(hexagon, m_cudaHost->deviceBlocks, true);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
         if (hexagon->outputInterface != nullptr) {
             processNeuronsOfOutputHexagon<true>(hexagon, rand());
         }
 
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
-            updateCluster(*task.cluster, hexagon);
+            updateCluster(task.cluster, hexagon);
             task.cluster->updateClusterState(task);
         }
         else {
@@ -111,11 +111,11 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
 
     // handle output-interface
     if (hexagon->outputInterface != nullptr) {
-        backpropagateOutput(hexagon);
+        backpropagateOutput(hexagon->outputInterface);
     }
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->neuronBlocks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         if (task.hexagonId == 0) {
             task.cluster->updateClusterState(task);
             return;
@@ -130,13 +130,10 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
         return;
     }
 
-    // backpropagation_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks);
+    // backpropagation_CUDA(hexagon, m_cudaHost->deviceBlocks);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
-        processConnectionBlocksBackward(*task.cluster, &task.cluster->hexagons[task.hexagonId]);
-
         if (task.hexagonId == 0) {
             task.cluster->updateClusterState(task);
         }
@@ -162,7 +159,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
 
     // handle special-case that there are no neuron-blocks to process
-    if (hexagon->neuronBlocks.size() == 0) {
+    if (hexagon->blockLinks.size() == 0) {
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
             task.cluster->updateClusterState(task);
             return;
@@ -177,18 +174,16 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
         return;
     }
 
-    processConnectionBlocksForward(*task.cluster, hexagon);
-    // processing_CUDA(hexagon, m_cudaHost->deviceSynapseBlocks, false);
+    // processing_CUDA(hexagon, m_cudaHost->deviceBlocks, false);
 
-    if (task.cluster->incrementAndCompare(
-            task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
+    if (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].blockLinks.size()))
     {
         if (hexagon->outputInterface != nullptr) {
             processNeuronsOfOutputHexagon<false>(hexagon, rand());
         }
 
         if (task.hexagonId == task.cluster->hexagons.size() - 1) {
-            handleClientOutput(*task.cluster);
+            handleClientOutput(task.cluster);
             task.cluster->updateClusterState(task);
         }
         else {
