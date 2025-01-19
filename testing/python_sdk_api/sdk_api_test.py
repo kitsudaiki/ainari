@@ -219,7 +219,7 @@ def test_cluster():
 async def test_direct_io(token, address, cluster_uuid):
     # check direct-mode
     ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid, False)
-    for i in range(0,1):
+    for i in range(0, 1):
         await direct_io.send_train_input(ws,
                                          "picture_hex",
                                          test_values.get_direct_io_test_intput(),

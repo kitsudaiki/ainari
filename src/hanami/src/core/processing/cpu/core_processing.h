@@ -149,8 +149,10 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
     synapse->border = remainingW;
     synapse->activeCounter = 5;
     synapse->targetNeuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
-    synapse->weight = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
-    synapse->weight *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+    synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+    synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
 }
 
 /**
@@ -204,7 +206,8 @@ processSynapseSection(Cluster& cluster,
         }
 
         targetNeuron = &targetNeuronBlock[synapse->targetNeuronId % NEURONS_PER_BLOCK];
-        targetNeuron->input += synapse->weight * static_cast<float>(potential > synapse->border);
+        targetNeuron->input += (synapse->weight1 + synapse->weight2)
+                               * static_cast<float>(potential > synapse->border);
 
         // update loop-counter
         halfPotential += static_cast<float>(pos < SYNAPSES_PER_SECTION / 2) * synapse->border;

@@ -185,9 +185,9 @@ static_assert(sizeof(Connection) == 24);
 //==================================================================================================
 
 struct Synapse {
-    float weight = 0.0f;
     float border = 0.0f;
-    float tempValue = 0.0f;
+    float weight1 = 0.0f;
+    float weight2 = 0.0f;
     uint8_t padding2[2];
     uint8_t activeCounter = 0;
     uint8_t targetNeuronId = UNINIT_STATE_8;
