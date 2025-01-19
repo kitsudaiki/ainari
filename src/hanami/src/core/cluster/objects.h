@@ -329,7 +329,6 @@ struct HexagonHeader {
     uint32_t hexagonId = UNINIT_STATE_32;
     bool isInputHexagon = false;
     bool isOutputHexagon = false;
-    bool isBinaryInput = false;
     uint8_t padding[5];
     uint32_t axonTarget = UNINIT_STATE_32;
     uint32_t numberOfFreeSections = 0;

@@ -4,6 +4,10 @@
 
 ### BREAKING-CHANGES
 
+#### API-Breaking
+
+- removed the Binary input option again
+
 #### Checkpoint-breaking
 
 - updated core-structure for a cleaner communication between different hexagons

@@ -74,7 +74,6 @@ blank [ \t]
 "max_connection_distance" return Hanami::ClusterParser::make_MAX_DISTANCE (clusterloc);
 "refractory_time"         return Hanami::ClusterParser::make_REFRACTORY_TIME (clusterloc);
 "enable_reduction"        return Hanami::ClusterParser::make_ENABLE_REDUCTION (clusterloc);
-"binary"                  return Hanami::ClusterParser::make_BINARY_INPUT (clusterloc);
 "true"                    return Hanami::ClusterParser::make_BOOL_TRUE (clusterloc);
 "false"                   return Hanami::ClusterParser::make_BOOL_FALSE (clusterloc);
 "True"                    return Hanami::ClusterParser::make_BOOL_TRUE (clusterloc);

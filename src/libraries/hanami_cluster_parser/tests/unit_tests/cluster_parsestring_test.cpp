@@ -119,15 +119,12 @@ Cluster_ParseString_Test::parseString_test()
     TEST_EQUAL(result.inputs.size(), 3);
     TEST_EQUAL(result.inputs.at(0).name, "input_hexagon");
     TEST_EQUAL(result.inputs.at(0).targetHexagonId, 0);
-    TEST_EQUAL(result.inputs.at(0).binary, true);
 
     TEST_EQUAL(result.inputs.at(1).name, "input_hexagon2");
     TEST_EQUAL(result.inputs.at(1).targetHexagonId, 1);
-    TEST_EQUAL(result.inputs.at(1).binary, false);
 
     TEST_EQUAL(result.inputs.at(2).name, "input_hexagon3");
     TEST_EQUAL(result.inputs.at(2).targetHexagonId, 2);
-    TEST_EQUAL(result.inputs.at(2).binary, false);
 
     TEST_EQUAL(result.outputs.size(), 2);
     TEST_EQUAL(result.outputs.at(0).name, "output_hexagon");

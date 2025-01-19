@@ -79,7 +79,6 @@ YY_DECL;
     INPUTS "inputs"
     OUTPUTS "outputs"
     AXONS "axons"
-    BINARY_INPUT "binary"
     COOLDOWN "neuron_cooldown"
     MAX_DISTANCE "max_connection_distance"
     REFRACTORY_TIME "refractory_time"
@@ -261,27 +260,16 @@ axon:
     }
 
 inputs:
-    inputs input "(" "binary" ")"
-    {
-        $2.binary = true;
-        driver.output->inputs.push_back($2);
-    }
-|
     inputs input
     {
         driver.output->inputs.push_back($2);
-    }
-|
-    input "(" "binary" ")"
-    {
-        $1.binary = true;
-        driver.output->inputs.push_back($1);
     }
 |
     input
     {
         driver.output->inputs.push_back($1);
     }
+
 input:
     "identifier" ":" position
     {
