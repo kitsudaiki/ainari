@@ -141,6 +141,9 @@ IO_Interface::deserialize(Cluster& cluster,
         Hexagon* hexagon = &cluster.hexagons[i];
         if (hexagon->outputInterface == nullptr) {
             for (const AxonBlock& axonBlock : hexagon->axonBlocks) {
+                if (axonBlock.targetHexagonId == UNINIT_STATE_32) {
+                    continue;
+                }
                 Hexagon* targetHexagon = &cluster.hexagons[axonBlock.targetHexagonId];
                 const uint64_t currentSize = targetHexagon->transferAxonBlocks.size();
                 targetHexagon->transferAxonBlocks.resize(currentSize + 1);
