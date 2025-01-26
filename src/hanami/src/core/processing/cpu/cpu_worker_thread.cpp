@@ -52,10 +52,9 @@ void
 CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
 {
     uint32_t randomSeed = rand();
-
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
+
     if (task.blockId == UNINIT_STATE_16) {
-        // handle input-interface
         if (hexagon->inputInterface != nullptr) {
             transferInputAxonBlocks<true>(task.cluster, hexagon->inputInterface);
         }

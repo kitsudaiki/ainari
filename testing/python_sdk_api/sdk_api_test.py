@@ -378,6 +378,7 @@ def test_workflow():
     _train(cluster_uuid, train_dataset_uuid)
 
     _test(cluster_uuid, request_dataset_uuid)
+    _test(cluster_uuid, request_dataset_uuid)
 
     cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
 

@@ -206,9 +206,6 @@ CreateRequestTaskV1M0::runTask(BlossomIO& blossomIO,
             = fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart;
         inputInterface->initBuffer(numberOfColumns, taskInfo->timeLength);
 
-        // resize the input-hexagon
-        const uint32_t numberOfInputBlocks = (numberOfColumns / NEURONS_PER_BLOCK) + 1;
-        cluster->hexagons[inputInterface->targetHexagonId].axonBlocks.resize(numberOfInputBlocks);
         taskInfo->inputs.try_emplace(hexagonName, std::move(fileHandle));
     }
 

@@ -69,7 +69,7 @@ IO_Interface::serialize(const Cluster& cluster, Hanami::ErrorContainer& error)
 
     // write hexagons to buffer
     for (const Hexagon& hexagon : cluster.hexagons) {
-        const ReturnStatus ret = serialize(hexagon, error);
+        const ReturnStatus ret = serializeHexagon(hexagon, error);
         if (ret != OK) {
             return ret;
         }
@@ -130,7 +130,7 @@ IO_Interface::deserialize(Cluster& cluster,
         else {
             cluster.hexagons[i].attachedHost = HanamiRoot::physicalHost->getFirstHost();
         }
-        const ReturnStatus ret = deserialize(cluster.hexagons[i], positionPtr, error);
+        const ReturnStatus ret = deserializeHexagon(cluster.hexagons[i], positionPtr, error);
         if (ret != OK) {
             return ret;
         }
@@ -139,15 +139,13 @@ IO_Interface::deserialize(Cluster& cluster,
     // initialize axon-blocks
     for (uint64_t i = 0; i < numberOfHexagons; i++) {
         Hexagon* hexagon = &cluster.hexagons[i];
-        if (hexagon->outputInterface == nullptr) {
-            for (const AxonBlock& axonBlock : hexagon->axonBlocks) {
-                if (axonBlock.targetHexagonId == UNINIT_STATE_32) {
-                    continue;
-                }
-                Hexagon* targetHexagon = &cluster.hexagons[axonBlock.targetHexagonId];
-                const uint64_t currentSize = targetHexagon->transferAxonBlocks.size();
-                targetHexagon->transferAxonBlocks.resize(currentSize + 1);
+        for (const AxonBlock& axonBlock : hexagon->axonBlocks) {
+            if (axonBlock.targetHexagonId == UNINIT_STATE_32) {
+                continue;
             }
+            Hexagon* targetHexagon = &cluster.hexagons[axonBlock.targetHexagonId];
+            const uint64_t currentSize = targetHexagon->transferAxonBlocks.size();
+            targetHexagon->transferAxonBlocks.resize(currentSize + 1);
         }
     }
 
@@ -232,7 +230,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
  * @return OK-status, if successful, else ERROR-status
  */
 ReturnStatus
-IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
+IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& error)
 {
     // hexagon-entry
     HexagonEntry hexagonEntry = createHexagonEntry(hexagon);
@@ -317,7 +315,9 @@ IO_Interface::serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error)
  * @return true, if successful, else false
  */
 ReturnStatus
-IO_Interface::deserialize(Hexagon& hexagon, uint64_t& positionPtr, Hanami::ErrorContainer& error)
+IO_Interface::deserializeHexagon(Hexagon& hexagon,
+                                 uint64_t& positionPtr,
+                                 Hanami::ErrorContainer& error)
 {
     const uint64_t positionOffset = positionPtr;
     ReturnStatus ret = OK;
