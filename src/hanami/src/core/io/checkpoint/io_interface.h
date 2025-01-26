@@ -175,10 +175,10 @@ class IO_Interface
     uint64_t getClusterSize(const Cluster& cluster) const;
     uint64_t getHexagonSize(const Hexagon& hexagon) const;
 
-    ReturnStatus serialize(const Hexagon& hexagon, Hanami::ErrorContainer& error);
-    ReturnStatus deserialize(Hexagon& hexagon,
-                             uint64_t& positionPtr,
-                             Hanami::ErrorContainer& error);
+    ReturnStatus serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& error);
+    ReturnStatus deserializeHexagon(Hexagon& hexagon,
+                                    uint64_t& positionPtr,
+                                    Hanami::ErrorContainer& error);
 
     bool checkHexagonEntry(const HexagonEntry& hexagonEntry);
     HexagonEntry createHexagonEntry(const Hexagon& hexagon);

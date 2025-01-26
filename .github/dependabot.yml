@@ -7,7 +7,7 @@ updates:
       interval: daily
       time: "12:00"
     labels:
-      - "Code: python"
+      - "Python"
       - "Env: Dependencies"
     groups:
       python-packages:
@@ -25,17 +25,17 @@ updates:
         # see https://github.com/protocolbuffers/protobuf/issues/10051
         versions: '> 3.20.3'
 
-  - package-ecosystem: gomod 
+  - package-ecosystem: gomod
     directory: "/src/cli/hanamictl/"
     schedule:
       interval: daily
       time: "12:00"
     labels:
-      - "Code: go"
+      - "Go"
       - "Env: Dependencies"
     commit-message:
       prefix: "chore(deps)"
     open-pull-requests-limit: 10
-    rebase-strategy: "auto" 
+    rebase-strategy: "auto"
     assignees:
       - "kitsudaiki"

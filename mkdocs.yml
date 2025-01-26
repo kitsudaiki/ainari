@@ -15,7 +15,7 @@ theme:
     - navigation.expand
     - navigation.prune
     - navigation.top
-    - content.code.annotate 
+    - content.code.annotate
     - content.tabs.link
 
 nav:
@@ -105,12 +105,12 @@ markdown_extensions:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
   - pymdownx.tabbed:
-      alternate_style: true 
+      alternate_style: true
 
 extra_css:
   - stylesheets/extra.css
 
-copyright: all rights reserved; 2022-2024 Tobias Anker
+copyright: all rights reserved; 2022-2025 Tobias Anker
 
 extra:
   social:

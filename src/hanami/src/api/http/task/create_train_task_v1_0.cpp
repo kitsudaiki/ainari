@@ -197,7 +197,7 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         const ReturnStatus ret
             = fillTaskIo(fileHandle, userContext, columnName, datasetUuid, status, error);
         if (ret != OK) {
-            return ret;
+            return false;
         }
         if (numberOfCycles > fileHandle.header.numberOfRows) {
             numberOfCycles = fileHandle.header.numberOfRows;
@@ -208,11 +208,6 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         const uint64_t numberOfColumns
             = fileHandle.readSelector.columnEnd - fileHandle.readSelector.columnStart;
         inputInterface->initBuffer(numberOfColumns, info->timeLength);
-
-        // resize the input-hexagon
-        const uint32_t numberOfInputBlocks
-            = (inputInterface->inputAxons.size() / NEURONS_PER_BLOCK) + 1;
-        cluster->hexagons[inputInterface->targetHexagonId].axonBlocks.resize(numberOfInputBlocks);
 
         info->inputs.try_emplace(hexagonName, std::move(fileHandle));
     }
