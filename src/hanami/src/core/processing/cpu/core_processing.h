@@ -211,8 +211,10 @@ processSynapseSection(Cluster* cluster,
         }
 
         targetNeuron = &targetNeuronBlock[synapse->targetNeuronId % NEURONS_PER_BLOCK];
-        targetNeuron->input += (synapse->weight1 + synapse->weight2)
-                               * static_cast<float>(potential > synapse->border);
+        targetNeuron->input += synapse->weight1 * static_cast<float>(potential > synapse->border);
+
+        targetNeuron = &targetNeuronBlock[(synapse->targetNeuronId + 1) % NEURONS_PER_BLOCK];
+        targetNeuron->input += synapse->weight2 * static_cast<float>(potential > synapse->border);
 
         // update loop-counter
         halfPotential += static_cast<float>(pos < SYNAPSES_PER_SECTION / 2) * synapse->border;
