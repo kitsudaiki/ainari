@@ -197,7 +197,7 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
         const ReturnStatus ret
             = fillTaskIo(fileHandle, userContext, columnName, datasetUuid, status, error);
         if (ret != OK) {
-            return ret;
+            return false;
         }
         if (numberOfCycles > fileHandle.header.numberOfRows) {
             numberOfCycles = fileHandle.header.numberOfRows;

@@ -17,6 +17,11 @@
 
 - the resize-process was updated to avoid the search-loop for a new free section
 
+### Fixed
+
+- wrong return-code in one error-case of the create-train-task endpoint was fixed
+
+
 ## v0.6.0
 
 **Release-Date**: 2024-12-14
