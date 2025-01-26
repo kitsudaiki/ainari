@@ -245,25 +245,28 @@ async def test_direct_io(token, address, cluster_uuid):
     assert list(output_values).index(max(output_values)) == 5
 
 
-def test_workflow():
-    print("test workflow")
+def _creat_and_resore_checkpoint(cluster_uuid):
+    # save and reload checkpoint
+    result = cluster.save_cluster(token, address, checkpoint_name, cluster_uuid, False)
+    checkpoint_uuid = json.loads(result)["uuid"]
+    result = checkpoint.list_checkpoints(token, address, False)
+    # print(json.dumps(json.loads(result), indent=4))
 
-    # init
+    cluster.delete_cluster(token, address, cluster_uuid, False)
     result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
     cluster_uuid = json.loads(result)["uuid"]
-    train_dataset_uuid = dataset.upload_mnist_files(
-        token, address, train_dataset_name, train_inputs, train_labels, False)
-    request_dataset_uuid = dataset.upload_mnist_files(
-        token, address, request_dataset_name, request_inputs, request_labels, False)
 
-    result = hosts.list_hosts(token, address, False)
-    hosts_json = json.loads(result)["body"]
-    if len(hosts_json) > 1:
-        print("test move cluster to gpu")
-        target_host_uuid = hosts_json[1][0]
-        cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
+    result = cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid, False)
+    result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+    try:
+        result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+    except hanami_exceptions.NotFoundException:
+        pass
 
-    # run training
+    return cluster_uuid
+
+
+def _train(cluster_uuid, train_dataset_uuid):
     inputs = [
         {
             "dataset_uuid": train_dataset_uuid,
@@ -301,23 +304,8 @@ def test_workflow():
         print(json.dumps(json.loads(result), indent=4))
         result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
 
-    # save and reload checkpoint
-    result = cluster.save_cluster(token, address, checkpoint_name, cluster_uuid, False)
-    checkpoint_uuid = json.loads(result)["uuid"]
-    result = checkpoint.list_checkpoints(token, address, False)
-    # print(json.dumps(json.loads(result), indent=4))
 
-    cluster.delete_cluster(token, address, cluster_uuid, False)
-    result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
-    cluster_uuid = json.loads(result)["uuid"]
-
-    result = cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid, False)
-    result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
-    try:
-        result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
-    except hanami_exceptions.NotFoundException:
-        pass
-
+def _test(cluster_uuid, request_dataset_uuid):
     # run testing
     inputs = [
         {
@@ -367,6 +355,33 @@ def test_workflow():
         token, address, task_uuid, "test_output", 10, 100, False)
     data = json.loads(result)["data"]
     assert len(data[0]) == 10
+
+
+def test_workflow():
+    print("test workflow")
+
+    # init
+    result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
+    cluster_uuid = json.loads(result)["uuid"]
+    train_dataset_uuid = dataset.upload_mnist_files(
+        token, address, train_dataset_name, train_inputs, train_labels, False)
+    request_dataset_uuid = dataset.upload_mnist_files(
+        token, address, request_dataset_name, request_inputs, request_labels, False)
+
+    result = hosts.list_hosts(token, address, False)
+    hosts_json = json.loads(result)["body"]
+    if len(hosts_json) > 1:
+        print("test move cluster to gpu")
+        target_host_uuid = hosts_json[1][0]
+        cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
+
+    _train(cluster_uuid, train_dataset_uuid)
+
+    _test(cluster_uuid, request_dataset_uuid)
+
+    cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
+
+    _test(cluster_uuid, request_dataset_uuid)
 
     asyncio.run(test_direct_io(token, address, cluster_uuid))
 
