@@ -29,7 +29,31 @@
 #include <core/processing/cuda/cuda_host.h>
 #include <core/processing/logical_host.h>
 #include <core/processing/physical_host.h>
+#include <hanami_crypto/hashes.h>
 #include <hanami_root.h>
+
+/**
+ * @brief initialize a new synpase
+ *
+ * @param synapse pointer to the synapse, which should be (re-) initialized
+ * @param remainingW new weight for the synapse
+ * @param randomSeed reference to the current seed of the randomizer
+ */
+inline void
+createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
+{
+    constexpr float randMax = static_cast<float>(RAND_MAX);
+    constexpr float sigNeg = 0.5f;
+    const uint32_t signRand = Hanami::pcg_hash(randomSeed) % 1000;
+
+    synapse->border = remainingW;
+    synapse->activeCounter = 5;
+    synapse->targetNeuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
+    synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+    synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+}
 
 /**
  * @brief search for an empty target-connection within a target-hexagon
@@ -58,6 +82,9 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
     if (connections[NUMBER_OF_SECTIONS - 1].active == true) {
         return nullptr;
     }
+    SynapseSection* sections = &blocks[targetBlockLink].sections[0];
+    uint32_t randomSeed = rand();
+    createNewSynapse(&sections[NUMBER_OF_SECTIONS - 1].synapses[0], 1.0f, randomSeed);
 
     return &connections[NUMBER_OF_SECTIONS - 1];
 }

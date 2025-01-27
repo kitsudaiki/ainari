@@ -92,8 +92,11 @@ _backpropagateSection(SynapseSection* section,
     uint8_t pos = 0;
     Synapse* synapse;
     Axon* targetAxon = nullptr;
-    constexpr float trainValue = 0.05f;
+    constexpr float trainValue = 0.1f;
     float delta = 0.0f;
+    const float range = connection->potentialRange;
+    potential = range * static_cast<float>(potential > range)
+                + potential * static_cast<float>(potential <= range);
 
     // iterate over all synapses in the section
     while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {

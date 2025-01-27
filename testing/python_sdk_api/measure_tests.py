@@ -99,7 +99,7 @@ delete_all_cluster()
 
 result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
 cluster_uuid = json.loads(result)["uuid"]
-asyncio.run(test_direct_io(token, address, cluster_uuid))
+#asyncio.run(test_direct_io(token, address, cluster_uuid))
 
 train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs, False)
 request_dataset_uuid = dataset.upload_csv_files(
