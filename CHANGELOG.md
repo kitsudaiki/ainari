@@ -12,6 +12,7 @@
 
 - updated core-structure for a cleaner communication between different hexagons
 - merge connection-, neuron- and synapse-block into one block object
+- updated section-processing for better input-handling especially for binary input data
 
 ### Changed
 

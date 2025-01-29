@@ -138,29 +138,6 @@ transferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
 }
 
 /**
- * @brief initialize a new synpase
- *
- * @param synapse pointer to the synapse, which should be (re-) initialized
- * @param remainingW new weight for the synapse
- * @param randomSeed reference to the current seed of the randomizer
- */
-inline void
-createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
-{
-    constexpr float randMax = static_cast<float>(RAND_MAX);
-    constexpr float sigNeg = 0.5f;
-    const uint32_t signRand = Hanami::pcg_hash(randomSeed) % 1000;
-
-    synapse->border = remainingW;
-    synapse->activeCounter = 5;
-    synapse->targetNeuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
-    synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
-    synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
-    synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
-    synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
-}
-
-/**
  * @brief process a single synapse-section
  *
  * @param cluster cluster, where the synapseSection belongs to
@@ -187,7 +164,9 @@ processSynapseSection(Cluster* cluster,
     constexpr float createBorder = 0.05f;
     const float range = connection->potentialRange;
     float potential = transferAxon->potential - connection->lowerBound;
-    potential = range * (potential > range) + potential * (potential <= range);
+    float ratio = 1.0f;
+    potential = range * static_cast<float>(potential > range)
+                + potential * static_cast<float>(potential <= range);
 
     // iterate over all synapses in the section
     while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {
@@ -196,7 +175,11 @@ processSynapseSection(Cluster* cluster,
         // create new synapse if necesarry and training is active
         if constexpr (doTrain) {
             if (synapse->targetNeuronId == UNINIT_STATE_8) {
-                createNewSynapse(synapse, potential, randomSeed);
+                // because of the initialize of the section, the first position should
+                // always be filled
+                assert(pos > 0);
+                createNewSynapse(
+                    synapse, synapseSection->synapses[pos - 1].border * 2.0f, randomSeed);
             }
 
             if (potential < synapse->border) {
@@ -206,15 +189,22 @@ processSynapseSection(Cluster* cluster,
                             && potential > createBorder;
 
                 synapse->border = synapse->border * static_cast<float>(condition == false)
-                                  + potential * static_cast<float>(condition);
+                                  + (synapse->border / 2.0f) * static_cast<float>(condition);
             }
         }
 
+        ratio = 1.0f;
+        if (potential < synapse->border) {
+            ratio = ((1.0f / synapse->border) * potential);
+        }
+
         targetNeuron = &targetNeuronBlock[synapse->targetNeuronId % NEURONS_PER_BLOCK];
-        targetNeuron->input += synapse->weight1 * static_cast<float>(potential > synapse->border);
+        targetNeuron->input
+            += synapse->weight1 * ratio * static_cast<float>(potential > synapse->border);
 
         targetNeuron = &targetNeuronBlock[(synapse->targetNeuronId + 1) % NEURONS_PER_BLOCK];
-        targetNeuron->input += synapse->weight2 * static_cast<float>(potential > synapse->border);
+        targetNeuron->input
+            += synapse->weight2 * ratio * static_cast<float>(potential > synapse->border);
 
         // update loop-counter
         halfPotential += static_cast<float>(pos < SYNAPSES_PER_SECTION / 2) * synapse->border;
