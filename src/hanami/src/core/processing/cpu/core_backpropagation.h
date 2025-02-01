@@ -142,7 +142,7 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
     axonBlock = &hexagon->axonBlocks[blockId];
     block = &blocks[blockLink];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS - 1; ++i) {
+    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS; ++i) {
         connection = &block->connections[i];
         axon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 

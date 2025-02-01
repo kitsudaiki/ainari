@@ -67,11 +67,13 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
 inline Connection*
 searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
 {
+    // check if there is even free space
     const uint64_t numberOfConnectionsBlocks = hexagon->blockLinks.size();
     if (numberOfConnectionsBlocks == 0) {
         return nullptr;
     }
 
+    // select a random target-block within the current hexagon
     const uint64_t targetBlockLink = hexagon->blockLinks[rand() % numberOfConnectionsBlocks];
     if (targetBlockLink == UNINIT_STATE_64) {
         return nullptr;
@@ -79,14 +81,27 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
 
     Block* blocks = getItemData<Block>(blockBuffer);
     Connection* connections = &blocks[targetBlockLink].connections[0];
-    if (connections[NUMBER_OF_SECTIONS - 1].active == true) {
+
+    // search for free connection
+    uint32_t foundLocation = UNINIT_STATE_32;
+    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS; ++i) {
+        if (connections[i].active == false) {
+            foundLocation = i;
+            break;
+        }
+    }
+
+    // check if something was found
+    if (foundLocation == UNINIT_STATE_32) {
         return nullptr;
     }
+
+    // initialize found entry
     SynapseSection* sections = &blocks[targetBlockLink].sections[0];
     uint32_t randomSeed = rand();
-    createNewSynapse(&sections[NUMBER_OF_SECTIONS - 1].synapses[0], 1.0f, randomSeed);
+    createNewSynapse(&sections[foundLocation].synapses[0], 1.0f, randomSeed);
 
-    return &connections[NUMBER_OF_SECTIONS - 1];
+    return &connections[foundLocation];
 }
 
 /**
