@@ -218,13 +218,23 @@ processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSe
                 continue;
             }
 
-            Connection* targetConnection = searchTargetInHexagon(hexagon, *blockBuffer);
-            if (targetConnection == nullptr) {
+            // get target objects
+            ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+            const TargetLocation loc = searchTargetInHexagon(hexagon, *blockBuffer);
+            if (loc.targetBlock == UNINIT_STATE_32 || loc.targetConnection == UNINIT_STATE_16) {
                 return;
             }
+
+            // initialize found entry
+            uint32_t randomSeed = rand();
+            Block* blocks = getItemData<Block>(*blockBuffer);
+            SynapseSection* synapseSections = &blocks[loc.targetBlock].sections[0];
+            createNewSynapse(&synapseSections[loc.targetConnection].synapses[0], 1.0f, randomSeed);
+            Connection* targetConnection
+                = &blocks[loc.targetBlock].connections[loc.targetConnection];
+
             targetConnection->active = true;
             targetConnection->lowerBound = 0.0f;
-            targetConnection->potentialRange = std::numeric_limits<float>::max();
             targetConnection->sourceBlockId = blockId;
             targetConnection->sourceId = axonId;
 

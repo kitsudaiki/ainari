@@ -140,6 +140,13 @@ struct ClusterHeader {
 static_assert(sizeof(ClusterHeader) == 512);
 
 //==================================================================================================
+
+struct TargetLocation {
+    uint32_t targetBlock = UNINIT_STATE_32;
+    uint16_t targetConnection = UNINIT_STATE_16;
+};
+
+//==================================================================================================
 //==================================================================================================
 //==================================================================================================
 
@@ -171,14 +178,18 @@ static_assert(sizeof(AxonBlock) == 2048);
 
 struct Connection {
     float lowerBound = 0.0f;
-    float potentialRange = std::numeric_limits<float>::max();
-    float splitValue = 0.0;
 
     uint32_t sourceBlockId = UNINIT_STATE_32;
     uint8_t sourceId = UNINIT_STATE_8;
 
     bool active = false;
-    uint8_t padding[6];
+    bool requireNext = false;
+    uint8_t padding1[5];
+
+    uint32_t nextBlock = UNINIT_STATE_32;
+    uint16_t nextSectionInBlock = UNINIT_STATE_16;
+
+    uint8_t padding2[2];
 };
 static_assert(sizeof(Connection) == 24);
 

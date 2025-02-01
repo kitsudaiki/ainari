@@ -46,6 +46,7 @@
 template <bool doTrain>
 inline void
 processSynapseSection(Cluster* cluster,
+                      Hexagon* hexagon,
                       SynapseSection* synapseSection,
                       Connection* connection,
                       Axon* transferAxon,
@@ -55,14 +56,10 @@ processSynapseSection(Cluster* cluster,
     uint8_t pos = 0;
     Synapse* synapse = nullptr;
     Neuron* targetNeuron = nullptr;
-    float halfPotential = 0.0f;
     bool condition = false;
     constexpr float createBorder = 0.05f;
-    const float range = connection->potentialRange;
     float potential = transferAxon->potential - connection->lowerBound;
     float ratio = 1.0f;
-    potential = range * static_cast<float>(potential > range)
-                + potential * static_cast<float>(potential <= range);
 
     // iterate over all synapses in the section
     while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {
@@ -103,15 +100,25 @@ processSynapseSection(Cluster* cluster,
             += synapse->weight2 * ratio * static_cast<float>(potential > synapse->border);
 
         // update loop-counter
-        halfPotential += static_cast<float>(pos < SYNAPSES_PER_SECTION / 2) * synapse->border;
         potential -= synapse->border;
         ++pos;
     }
 
     if constexpr (doTrain) {
-        if (connection->splitValue == 0.0f) {
-            connection->splitValue
-                = halfPotential * static_cast<float>(potential > POTENTIAL_BORDER);
+        if (potential > POTENTIAL_BORDER) {
+            if (connection->nextBlock == UNINIT_STATE_32) {
+                connection->requireNext = true;
+                return;
+            }
+
+            ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+            Block* blocks = getItemData<Block>(*blockBuffer);
+            Block* targetBlock = &blocks[connection->nextBlock];
+            Connection* nextConnection = &targetBlock->connections[connection->nextSectionInBlock];
+
+            if (nextConnection->lowerBound < potential) {
+                nextConnection->lowerBound = potential;
+            }
         }
     }
 }
@@ -152,7 +159,7 @@ processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
             section = &block->sections[i];
 
             processSynapseSection<doTrain>(
-                cluster, section, connection, transferAxon, neuronBlock, randomeSeed);
+                cluster, hexagon, section, connection, transferAxon, neuronBlock, randomeSeed);
         }
     }
 }
