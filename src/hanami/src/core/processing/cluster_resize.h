@@ -218,44 +218,4 @@ updateCluster(Cluster* cluster, Hexagon* hexagon)
     return found;
 }
 
-/**
- * @brief handleTargetAxonBlocks
- * @param hexagon
- */
-inline void
-processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
-{
-    Axon* axon = nullptr;
-    AxonBlock* axonBlock = nullptr;
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-    for (uint32_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
-        axonBlock = &hexagon->transferAxonBlocks[blockId];
-
-        for (uint16_t axonId = 0; axonId < NEURONS_PER_BLOCK; ++axonId) {
-            axon = &axonBlock->axons[axonId];
-
-            if (axon->activeCounter > 0 || axon->potential < 0.00001f) {
-                continue;
-            }
-
-            Connection* targetConnection = searchTargetInHexagon(hexagon, *blockBuffer);
-            if (targetConnection == nullptr) {
-                return;
-            }
-            targetConnection->active = true;
-            targetConnection->lowerBound = 0.0f;
-            targetConnection->potentialRange = std::numeric_limits<float>::max();
-            targetConnection->sourceBlockId = blockId;
-            targetConnection->sourceId = axonId;
-
-            hexagon->header.numberOfFreeSections--;
-            hexagon->wasResized = true;
-            cluster->metrics.numberOfSections++;
-
-            // std::cout<<"create "<<hexagon->header.hexagonId<<std::endl;
-            axon->activeCounter = 1;
-        }
-    }
-}
-
 #endif  // HANAMI_SECTION_UPDATE_H

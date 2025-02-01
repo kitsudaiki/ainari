@@ -23,6 +23,7 @@
 #include "cpu_worker_thread.h"
 
 #include <core/cluster/objects.h>
+#include <core/processing/axon_handling.h>
 #include <core/processing/cluster_resize.h>
 #include <core/processing/cpu/core_backpropagation.h>
 #include <core/processing/cpu/core_processing.h>
