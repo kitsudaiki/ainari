@@ -165,14 +165,14 @@ for x in range(20):
         time.sleep(0.1)
         # result = task.delete_task(token, address, task_uuid, cluster_uuid)
 
-result = dataset.download_dataset_content(
-        token, address, task_uuid, "test_output", 1700, 0, False)
+    result = dataset.download_dataset_content(
+            token, address, task_uuid, "test_output", 1700, 0, False)
 
-data = json.loads(result)["data"]
-#print(data)
-temp_list = [item for sublist in data for item in sublist]
-for r in range(len(temp_list)):
-    flattened_list[r] += temp_list[r]
+    data = json.loads(result)["data"]
+    #print(data)
+    temp_list = [item for sublist in data for item in sublist]
+    for r in range(len(temp_list)):
+        flattened_list[r] += temp_list[r]
 
 # result = cluster.get_cluster(token, address, cluster_uuid, False)
 # print(json.dumps(json.loads(result), indent=4))

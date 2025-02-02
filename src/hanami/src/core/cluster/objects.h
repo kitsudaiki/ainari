@@ -250,18 +250,16 @@ static_assert(sizeof(Block)
 //==================================================================================================
 //==================================================================================================
 
-struct OutputTargetLocationPtr {
-    float connectionWeight = 0.0f;
-    uint32_t blockId = UNINIT_STATE_32;
-    uint16_t neuronId = UNINIT_STATE_8;
-    uint8_t padding[6];
+struct OutputWeightBlock {
+    float connectionWeight[NEURONS_PER_BLOCK];
+
+    OutputWeightBlock() { std::fill_n(connectionWeight, NEURONS_PER_BLOCK, 0.0f); }
 };
-static_assert(sizeof(OutputTargetLocationPtr) == 16);
+static_assert(sizeof(OutputWeightBlock) == 512);
 
 //==================================================================================================
 
 struct OutputNeuron {
-    OutputTargetLocationPtr targets[NUMBER_OF_OUTPUT_CONNECTIONS];
     float outputVal = 0.0f;
     float exprectedVal = 0.0f;
     uint8_t padding[8];
@@ -274,6 +272,7 @@ struct OutputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<OutputNeuron> outputNeurons;
+    std::vector<OutputWeightBlock> weights;
     std::vector<AxonBlock> targetAxonBlocks;
     std::vector<float> ioBuffer;
     OutputType type = PLAIN_OUTPUT;

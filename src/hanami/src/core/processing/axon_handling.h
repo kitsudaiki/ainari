@@ -57,11 +57,23 @@ _transferAxonBlocks(Cluster* cluster, AxonBlock* sourceAxonBlock)
 inline void
 _transferAxonBlockToOutput(Hexagon* hexagon)
 {
-    hexagon->outputInterface->targetAxonBlocks.resize(hexagon->axonBlocks.size());
+    // updated blocks of output-interface
+    OutputInterface* outputInterface = hexagon->outputInterface;
+    if (outputInterface->targetAxonBlocks.size() != hexagon->axonBlocks.size()) {
+        outputInterface->targetAxonBlocks.resize(hexagon->axonBlocks.size());
+        const int64_t totalWeightBlocks
+            = hexagon->axonBlocks.size() * outputInterface->outputNeurons.size();
+        const int64_t diff = totalWeightBlocks - outputInterface->weights.size();
+
+        // update weight-blocks
+        if (diff > 0) {
+            outputInterface->weights.resize(totalWeightBlocks, OutputWeightBlock());
+        }
+    }
 
     for (uint64_t blockId = 0; blockId < hexagon->axonBlocks.size(); ++blockId) {
         AxonBlock* sourceAxonBlock = &hexagon->axonBlocks[blockId];
-        hexagon->outputInterface->targetAxonBlocks[blockId] = *sourceAxonBlock;
+        outputInterface->targetAxonBlocks[blockId] = *sourceAxonBlock;
     }
 }
 

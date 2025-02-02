@@ -52,7 +52,9 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
     synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
     synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
     synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
-    synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+    if (synapse->weight1 > 0.0f) {
+        synapse->weight2 *= -1.0f;
+    }
 }
 
 /**
