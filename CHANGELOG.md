@@ -17,6 +17,7 @@
 ### Changed
 
 - the resize-process was updated to avoid the search-loop for a new free section
+- updated ubuntu-version in docker-images to 24.04
 
 ### Fixed
 

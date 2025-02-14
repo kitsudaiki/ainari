@@ -28,14 +28,15 @@
 
 ### Runtime
 
-| apt-package   | Purpose                                                                               |
-| ------------- | ------------------------------------------------------------------------------------- |
-| openssl       | ssl-library for TCS-encryption of network-connections                                 |
-| libuuid1      | Generate UUID's within the code                                                       |
-| libcrypto++8  | HMAC, SHA256 and other crypto related operations                                      |
-| libsqlite3-0  | Library to interact with the SQLite3 databases                                        |
-| libprotobuf23 | Runtime-library for protobuffers                                                      |
-| libboost1.74  | Provides the Beast-library of Boost, which is used for the REST-API within OpenHanami |
+| apt-package      | Purpose                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| openssl          | ssl-library for TCS-encryption of network-connections                                 |
+| libuuid1         | Generate UUID's within the code                                                       |
+| libcrypto++8     | HMAC, SHA256 and other crypto related operations                                      |
+| libsqlite3-0     | Library to interact with the SQLite3 databases                                        |
+| libprotobuf23    | Runtime-library for protobuffers (for Ubuntu 22.04)                                   |
+| libprotobuf32t64 | Runtime-library for protobuffers (for Ubuntu 24.04)                                   |
+| libboost1.74     | Provides the Beast-library of Boost, which is used for the REST-API within OpenHanami |
 
 ### Supported compiler
 
