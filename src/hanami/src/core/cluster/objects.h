@@ -176,25 +176,6 @@ static_assert(sizeof(AxonBlock) == 2048);
 
 //==================================================================================================
 
-struct Connection {
-    float lowerBound = 0.0f;
-
-    uint32_t sourceBlockId = UNINIT_STATE_32;
-    uint8_t sourceId = UNINIT_STATE_8;
-
-    bool active = false;
-    bool requireNext = false;
-    uint8_t padding1[5];
-
-    uint32_t nextBlock = UNINIT_STATE_32;
-    uint16_t nextSectionInBlock = UNINIT_STATE_16;
-
-    uint8_t padding2[2];
-};
-static_assert(sizeof(Connection) == 24);
-
-//==================================================================================================
-
 struct Synapse {
     float border = 0.0f;
     float weight1 = 0.0f;
@@ -216,6 +197,27 @@ static_assert(sizeof(SynapseSection) == 2048);
 
 //==================================================================================================
 
+struct Connection {
+    float lowerBound = 0.0f;
+
+    uint32_t sourceBlockId = UNINIT_STATE_32;
+    uint8_t sourceId = UNINIT_STATE_8;
+
+    bool active = false;
+    bool requireNext = false;
+    uint8_t padding1[5];
+
+    uint32_t nextBlock = UNINIT_STATE_32;
+    uint16_t nextSectionInBlock = UNINIT_STATE_16;
+
+    uint8_t padding2[2];
+
+    uint64_t sectionPtr = UNINIT_STATE_64;
+};
+static_assert(sizeof(Connection) == 32);
+
+//==================================================================================================
+
 struct Neuron {
     float input = 0.0f;
     float border = 0.0f;
@@ -231,20 +233,16 @@ static_assert(sizeof(Neuron) == 32);
 //==================================================================================================
 
 struct Block {
-    SynapseSection sections[NUMBER_OF_SECTIONS];
     Connection connections[NUMBER_OF_SECTIONS];
     Neuron neurons[NEURONS_PER_BLOCK];
 
     Block()
     {
-        std::fill_n(sections, NUMBER_OF_SECTIONS, SynapseSection());
         std::fill_n(connections, NUMBER_OF_SECTIONS, Connection());
         std::fill_n(neurons, NEURONS_PER_BLOCK, Neuron());
     }
 };
-static_assert(sizeof(Block)
-              == (NUMBER_OF_SECTIONS * 2048) + (NUMBER_OF_SECTIONS * 24)
-                     + (NEURONS_PER_BLOCK * 32));
+static_assert(sizeof(Block) == (NUMBER_OF_SECTIONS * 32) + (NEURONS_PER_BLOCK * 32));
 
 //==================================================================================================
 //==================================================================================================

@@ -37,6 +37,7 @@
  * @brief process a single synapse-section
  *
  * @param cluster cluster, where the synapseSection belongs to
+ * @param hexagon hexagon, where the synapseSection belongs to
  * @param synapseSection current synapse-section to process
  * @param connection pointer to the connection-object, which is related to the section
  * @param transferAxon pointer to source-axon, which triggered the section
@@ -135,6 +136,8 @@ inline void
 processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
     Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+    SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon->attachedHost->sections);
+
     AxonBlock* tansferAxonBlocks = &hexagon->transferAxonBlocks[0];
 
     Block* block = nullptr;
@@ -155,9 +158,10 @@ processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
         connection = &block->connections[i];
         transferAxon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
-        if (connection->active == true && transferAxon->potential > POTENTIAL_BORDER) {
-            section = &block->sections[i];
-
+        if (connection->active == true && transferAxon->potential > POTENTIAL_BORDER
+            && connection->sectionPtr != UNINIT_STATE_64)
+        {
+            section = &sections[connection->sectionPtr];
             processSynapseSection<doTrain>(
                 cluster, hexagon, section, connection, transferAxon, neuronBlock, randomeSeed);
         }
@@ -216,6 +220,7 @@ inline void
 processExitNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
     Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+
     const uint64_t link = hexagon->blockLinks[blockId];
     Neuron* neuronBlock = &blocks[link].neurons[0];
     Neuron* neuron = nullptr;

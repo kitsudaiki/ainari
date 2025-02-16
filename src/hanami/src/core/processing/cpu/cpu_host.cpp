@@ -73,8 +73,14 @@ CpuHost::initBuffer()
         memoryUsage = 0.9f;
     }
     const uint64_t usedMemory = static_cast<float>(m_totalMemory) * memoryUsage;
-    blocks.initBuffer(usedMemory / sizeof(Block));
+    // one block can have up to 512 entries, but considering, that they are not all fully filled,
+    // 384 was choosen to estimate the average fill rate
+    const uint64_t numberOfBlocks = usedMemory / (sizeof(Block) + (384 * sizeof(SynapseSection)));
+    blocks.initBuffer(numberOfBlocks);
     blocks.deleteAll();
+
+    sections.initBuffer(numberOfBlocks * 384);
+    sections.deleteAll();
 
     LOG_INFO("Initialized number of syanpse-blocks on cpu-device: "
              + std::to_string(blocks.metaData.itemCapacity));
@@ -158,9 +164,22 @@ CpuHost::syncWithHost(Hexagon*)
 void
 CpuHost::removeHexagon(Hexagon* hexagon)
 {
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+
+    // delete sections from buffer
+    for (uint64_t blockLink : hexagon->blockLinks) {
+        Block* block = &blocks[blockLink];
+        for (Connection& connection : block->connections) {
+            if (connection.sectionPtr != UNINIT_STATE_64) {
+                hexagon->attachedHost->blocks.deleteItem(connection.sectionPtr);
+            }
+        }
+    }
+
+    // delete blocks from buffer
     for (uint64_t blockLink : hexagon->blockLinks) {
         if (blockLink != UNINIT_STATE_64) {
-            blocks.deleteItem(blockLink);
+            hexagon->attachedHost->blocks.deleteItem(blockLink);
         }
     }
 }

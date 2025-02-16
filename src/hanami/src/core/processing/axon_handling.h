@@ -231,7 +231,6 @@ processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSe
             }
 
             // get target objects
-            Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
             const TargetLocation loc = searchTargetInHexagon(hexagon, *blockBuffer);
             if (loc.targetBlock == UNINIT_STATE_32 || loc.targetConnection == UNINIT_STATE_16) {
                 return;
@@ -240,10 +239,12 @@ processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSe
             // initialize found entry
             uint32_t randomSeed = rand();
             Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
-            SynapseSection* synapseSections = &blocks[loc.targetBlock].sections[0];
-            createNewSynapse(&synapseSections[loc.targetConnection].synapses[0], 1.0f, randomSeed);
             Connection* targetConnection
                 = &blocks[loc.targetBlock].connections[loc.targetConnection];
+            if (initConnection(hexagon, targetConnection, randomSeed) == false) {
+                // TODO: better error-handling
+                continue;
+            }
 
             targetConnection->active = true;
             targetConnection->lowerBound = 0.0f;

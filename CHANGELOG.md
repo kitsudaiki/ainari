@@ -14,6 +14,7 @@
 - merge connection-, neuron- and synapse-block into one block object
 - updated section-processing for better input-handling especially for binary input data
 - replaced the old split-process for sections to avoid loosing half of the trained section in the process
+- dynamically link sections to connections in order to make memory usage more efficient
 
 ### Changed
 

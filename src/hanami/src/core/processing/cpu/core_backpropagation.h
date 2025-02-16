@@ -122,7 +122,10 @@ _backpropagateSection(SynapseSection* section,
  * @param blockId id of the current block within the hexagon
  */
 inline void
-_backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
+_backpropagateBlock(Hexagon* hexagon,
+                    Block* blocks,
+                    SynapseSection* sections,
+                    const uint32_t blockId)
 {
     Connection* connection = nullptr;
     AxonBlock* axonBlock = nullptr;
@@ -143,8 +146,10 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
         connection = &block->connections[i];
         axon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
-        if (connection->active == true && axon->potential > POTENTIAL_BORDER) {
-            synapseSection = &block->sections[i];
+        if (connection->active == true && axon->potential > POTENTIAL_BORDER
+            && connection->sectionPtr != UNINIT_STATE_64)
+        {
+            synapseSection = &sections[connection->sectionPtr];
             _backpropagateSection(synapseSection, connection, axonBlock, axon);
         }
     }
@@ -163,6 +168,7 @@ backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t bl
     Hanami::ErrorContainer error;
     Hexagon* hexagon = &cluster->hexagons[hexagonId];
     Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+    SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon->attachedHost->sections);
 
     if (hexagon->outputInterface == nullptr) {
         _backpropagateNeuron(hexagon, blockId);
@@ -171,7 +177,7 @@ backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t bl
         _backpropagateExitNeuron(hexagon, blockId);
     }
 
-    _backpropagateBlock(hexagon, blocks, blockId);
+    _backpropagateBlock(hexagon, blocks, sections, blockId);
 }
 
 #endif  // HANAMI_CORE_BACKPROPAGATION_H

@@ -57,6 +57,24 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
     }
 }
 
+inline bool
+initConnection(Hexagon* hexagon, Connection* connection, uint32_t& randomSeed)
+{
+    if (connection->sectionPtr == UNINIT_STATE_64) {
+        Hanami::ItemBuffer<SynapseSection>* sectionBuffer = &hexagon->attachedHost->sections;
+        SynapseSection newSection;
+        const uint64_t newPos = sectionBuffer->addNewItem(newSection);
+        if (newPos == UNINIT_STATE_64) {
+            return false;
+        }
+        connection->sectionPtr = newPos;
+        SynapseSection* sections = Hanami::getItemData<SynapseSection>(*sectionBuffer);
+        createNewSynapse(&sections[connection->sectionPtr].synapses[0], 1.0f, randomSeed);
+    }
+
+    return true;
+}
+
 /**
  * @brief search for an empty target-connection within a target-hexagon
  *
@@ -158,10 +176,6 @@ extendSection(Cluster* cluster,
         return false;
     }
 
-    // get origin object
-    Axon* sourceAxon
-        = &sourceAxonBlocks[sourceConnection->sourceBlockId].axons[sourceConnection->sourceId];
-
     // get target objects
     Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
     const TargetLocation loc = searchTargetInHexagon(hexagon, *blockBuffer);
@@ -172,9 +186,13 @@ extendSection(Cluster* cluster,
     // initialize found entry
     uint32_t randomSeed = rand();
     Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
-    SynapseSection* synapseSections = &blocks[loc.targetBlock].sections[0];
-    createNewSynapse(&synapseSections[loc.targetConnection].synapses[0], 1.0f, randomSeed);
-    Connection* targetConnection = &blocks[loc.targetBlock].connections[loc.targetConnection];
+    Block* block = &blocks[loc.targetBlock];
+
+    // initialize new Section
+    Connection* targetConnection = &block->connections[loc.targetConnection];
+    if (initConnection(hexagon, targetConnection, randomSeed) == false) {
+        return false;
+    }
 
     // std::cout<<"cluster->metrics.numberOfSections1:
     // "<<cluster->metrics.numberOfSections<<std::endl;
