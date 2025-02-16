@@ -1,5 +1,5 @@
 /**
- *  @file       signing.h
+ * @file       signing.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

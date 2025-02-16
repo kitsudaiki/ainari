@@ -1,5 +1,5 @@
 ﻿/**
- *  @file       rapl.cpp
+ * @file       rapl.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

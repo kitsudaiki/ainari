@@ -25,12 +25,9 @@
 #include <hanami_common/items/table_item.h>
 
 #include <ctime>
-#include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <mutex>
 #include <nlohmann/json.hpp>
-#include <sstream>
 #include <string>
 
 using json = nlohmann::json;

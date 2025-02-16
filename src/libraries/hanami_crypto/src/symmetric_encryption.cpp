@@ -1,5 +1,5 @@
 /**
- *  @file       symatic_encryption.cpp
+ * @file       symatic_encryption.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

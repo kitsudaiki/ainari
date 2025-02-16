@@ -1,5 +1,5 @@
 /**
- *  @file       vector_functions.h
+ * @file       vector_functions.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -23,8 +23,6 @@
 #ifndef VECTOR_FUNCTIONS_H
 #define VECTOR_FUNCTIONS_H
 
-#include <algorithm>
-#include <iostream>
 #include <string>
 #include <vector>
 

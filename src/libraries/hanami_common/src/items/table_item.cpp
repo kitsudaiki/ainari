@@ -1,5 +1,5 @@
 /**
- *  @file       table_items.h
+ * @file       table_items.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

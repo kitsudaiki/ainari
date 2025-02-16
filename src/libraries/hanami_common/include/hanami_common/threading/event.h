@@ -1,5 +1,5 @@
 /**
- *  @file       event.h
+ * @file       event.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -24,9 +24,6 @@
 #define EVENT_H
 
 #include <stdint.h>
-
-#include <chrono>
-#include <thread>
 
 namespace Hanami
 {

@@ -1,5 +1,5 @@
 /**
- *  @file       string_functions.h
+ * @file       string_functions.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -25,9 +25,6 @@
 
 #include <stdint.h>
 
-#include <algorithm>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 

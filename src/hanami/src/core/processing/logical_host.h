@@ -29,7 +29,6 @@
 #include <hanami_common/logger.h>
 #include <stdint.h>
 
-#include <atomic>
 #include <deque>
 #include <vector>
 

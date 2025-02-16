@@ -28,9 +28,7 @@
 #include <hanami_cpu/rapl.h>
 #endif
 
-#include <iostream>
 #include <string>
-#include <vector>
 
 namespace Hanami
 {

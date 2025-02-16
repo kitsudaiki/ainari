@@ -1,5 +1,5 @@
 /**
- *  @file       barrier.h
+ * @file       barrier.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -29,8 +29,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
-#include <thread>
-#include <vector>
 
 namespace Hanami
 {

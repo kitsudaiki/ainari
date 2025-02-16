@@ -1,5 +1,5 @@
 /**
- *  @file       speed_test_helper.h
+ * @file       speed_test_helper.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -27,8 +27,6 @@
 #include <math.h>
 
 #include <chrono>
-#include <iomanip>
-#include <iostream>
 #include <map>
 #include <string>
 #include <vector>

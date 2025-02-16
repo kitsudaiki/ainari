@@ -1,5 +1,5 @@
 /**
- *  @file       data_buffer.h
+ * @file       data_buffer.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -26,11 +26,8 @@
 #include <assert.h>
 #include <hanami_common/memory_counter.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <iostream>
 
 namespace Hanami
 {

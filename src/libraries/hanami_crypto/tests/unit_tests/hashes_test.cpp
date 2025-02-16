@@ -1,5 +1,5 @@
 /**
- *  @file       hashes_test.cpp
+ * @file       hashes_test.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

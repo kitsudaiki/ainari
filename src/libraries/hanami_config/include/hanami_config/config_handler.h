@@ -1,5 +1,5 @@
 /**
- *  @file       config_handler.h
+ * @file       config_handler.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

@@ -120,7 +120,7 @@ ShowTaskV1M0::runTask(BlossomIO& blossomIO,
     blossomIO.output["name"] = task->name;
     blossomIO.output["current_cycle"] = progress.currentCyle;
     blossomIO.output["total_number_of_cycles"] = progress.totalNumberOfCycles;
-    blossomIO.output["queue_timestamp"] = serializeTimePoint(progress.queuedTimeStamp);
+    blossomIO.output["queue_timestamp"] = Hanami::serializeTimePoint(progress.queuedTimeStamp);
 
     // get timestamps
     if (progress.state == QUEUED_TASK_STATE) {
@@ -130,18 +130,21 @@ ShowTaskV1M0::runTask(BlossomIO& blossomIO,
     }
     else if (progress.state == ACTIVE_TASK_STATE) {
         blossomIO.output["state"] = "active";
-        blossomIO.output["start_timestamp"] = serializeTimePoint(progress.startActiveTimeStamp);
+        blossomIO.output["start_timestamp"]
+            = Hanami::serializeTimePoint(progress.startActiveTimeStamp);
         blossomIO.output["end_timestamp"] = "-";
     }
     else if (progress.state == ABORTED_TASK_STATE) {
         blossomIO.output["state"] = "aborted";
-        blossomIO.output["start_timestamp"] = serializeTimePoint(progress.startActiveTimeStamp);
+        blossomIO.output["start_timestamp"]
+            = Hanami::serializeTimePoint(progress.startActiveTimeStamp);
         blossomIO.output["end_timestamp"] = "-";
     }
     else if (progress.state == FINISHED_TASK_STATE) {
         blossomIO.output["state"] = "finished";
-        blossomIO.output["start_timestamp"] = serializeTimePoint(progress.startActiveTimeStamp);
-        blossomIO.output["end_timestamp"] = serializeTimePoint(progress.endActiveTimeStamp);
+        blossomIO.output["start_timestamp"]
+            = Hanami::serializeTimePoint(progress.startActiveTimeStamp);
+        blossomIO.output["end_timestamp"] = Hanami::serializeTimePoint(progress.endActiveTimeStamp);
     }
 
     return true;

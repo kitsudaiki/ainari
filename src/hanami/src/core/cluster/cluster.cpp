@@ -178,7 +178,7 @@ Cluster::setClusterState(const std::string& newState)
  * @brief update state of the cluster, which is caled for each finalized cluster
  */
 void
-Cluster::updateClusterState(const WorkerTask& task)
+Cluster::updateClusterState(const Hanami::WorkerTask& task)
 {
     std::lock_guard<std::mutex> guard(m_clusterStateLock);
 

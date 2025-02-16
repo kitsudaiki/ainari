@@ -1,5 +1,5 @@
 /**
- *  @file       ring_buffer.h
+ * @file       ring_buffer.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -24,8 +24,6 @@
 
 #include <hanami_common/buffer/data_buffer.h>
 #include <string.h>
-
-#include <cinttypes>
 
 namespace Hanami
 {

@@ -1,5 +1,5 @@
 /**
- *  @file       statemachine.h
+ * @file       statemachine.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -24,10 +24,8 @@
 #define HANAMI_STATEMACHINE_H
 
 #include <atomic>
-#include <iostream>
 #include <map>
-#include <utility>
-#include <vector>
+#include <string>
 
 namespace Hanami
 {

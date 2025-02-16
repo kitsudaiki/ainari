@@ -1,5 +1,5 @@
 /**
- *  @file       progress_bar.h
+ * @file       progress_bar.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

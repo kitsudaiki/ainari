@@ -67,7 +67,7 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
  * @return found empty connection, if seccessfule, else nullptr
  */
 inline TargetLocation
-searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
+searchTargetInHexagon(Hexagon* hexagon, Hanami::ItemBuffer<Block>& blockBuffer)
 {
     TargetLocation loc;
 
@@ -83,7 +83,7 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
         return loc;
     }
 
-    Block* blocks = getItemData<Block>(blockBuffer);
+    Block* blocks = Hanami::getItemData<Block>(blockBuffer);
     Connection* connections = &blocks[targetBlockLink].connections[0];
 
     // search for free connection
@@ -112,7 +112,7 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
  * @param targetHexagon hexagon to resize
  */
 inline void
-resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
+resizeBlocks(Hexagon* targetHexagon, Hanami::ItemBuffer<Block>* blockBuffer)
 {
     Block block;
     const uint64_t synapseSectionPos = blockBuffer->addNewItem(block);
@@ -163,7 +163,7 @@ extendSection(Cluster* cluster,
         = &sourceAxonBlocks[sourceConnection->sourceBlockId].axons[sourceConnection->sourceId];
 
     // get target objects
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+    Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
     const TargetLocation loc = searchTargetInHexagon(hexagon, *blockBuffer);
     if (loc.targetBlock == UNINIT_STATE_32 || loc.targetConnection == UNINIT_STATE_16) {
         return false;
@@ -171,7 +171,7 @@ extendSection(Cluster* cluster,
 
     // initialize found entry
     uint32_t randomSeed = rand();
-    Block* blocks = getItemData<Block>(*blockBuffer);
+    Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
     SynapseSection* synapseSections = &blocks[loc.targetBlock].sections[0];
     createNewSynapse(&synapseSections[loc.targetConnection].synapses[0], 1.0f, randomSeed);
     Connection* targetConnection = &blocks[loc.targetBlock].connections[loc.targetConnection];
@@ -207,8 +207,8 @@ extendSection(Cluster* cluster,
 inline bool
 updateCluster(Cluster* cluster, Hexagon* hexagon)
 {
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-    Block* blocks = getItemData<Block>(*blockBuffer);
+    Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+    Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
 
     Connection* connections = nullptr;
     Connection* connection = nullptr;

@@ -1,5 +1,5 @@
 /**
- *  @file       file_functions.h
+ * @file       file_functions.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -27,7 +27,6 @@
 #include <hanami_common/logger.h>
 
 #include <filesystem>
-#include <sstream>
 #include <string>
 #include <vector>
 

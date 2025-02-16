@@ -1,5 +1,5 @@
 /**
- *  @file       event_queue.cpp
+ * @file       event_queue.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

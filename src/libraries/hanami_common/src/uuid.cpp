@@ -21,7 +21,6 @@
  */
 
 #include <hanami_common/uuid.h>
-#include <stdint.h>
 #include <uuid/uuid.h>
 
 #include <regex>

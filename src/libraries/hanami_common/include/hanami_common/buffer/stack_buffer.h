@@ -1,5 +1,5 @@
 /**
- *  @file       stack_buffer.h
+ * @file       stack_buffer.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -27,11 +27,7 @@
 #include <hanami_common/buffer/stack_buffer_reserve.h>
 #include <stdint.h>
 
-#include <atomic>
 #include <deque>
-#include <iostream>
-#include <queue>
-#include <vector>
 
 namespace Hanami
 {

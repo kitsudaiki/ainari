@@ -1,5 +1,5 @@
 /**
- *  @file       compare_test_helper.cpp
+ * @file       compare_test_helper.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,6 +21,8 @@
  */
 
 #include <hanami_common/test_helper/compare_test_helper.h>
+
+#include <iostream>
 
 namespace Hanami
 {

@@ -1,5 +1,5 @@
 /**
- *  @file       statemachine.cpp
+ * @file       statemachine.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

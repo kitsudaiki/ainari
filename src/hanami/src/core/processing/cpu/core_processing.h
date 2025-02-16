@@ -111,8 +111,8 @@ processSynapseSection(Cluster* cluster,
                 return;
             }
 
-            ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-            Block* blocks = getItemData<Block>(*blockBuffer);
+            Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+            Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
             Block* targetBlock = &blocks[connection->nextBlock];
             Connection* nextConnection = &targetBlock->connections[connection->nextSectionInBlock];
 
@@ -134,7 +134,7 @@ template <bool doTrain>
 inline void
 processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     AxonBlock* tansferAxonBlocks = &hexagon->transferAxonBlocks[0];
 
     Block* block = nullptr;
@@ -174,7 +174,7 @@ processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 inline void
 processNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
     const uint64_t link = hexagon->blockLinks[blockId];
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
@@ -215,8 +215,7 @@ processNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 inline void
 processExitNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
-    ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     const uint64_t link = hexagon->blockLinks[blockId];
     Neuron* neuronBlock = &blocks[link].neurons[0];
     Neuron* neuron = nullptr;

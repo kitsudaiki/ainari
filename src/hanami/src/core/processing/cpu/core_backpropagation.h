@@ -162,7 +162,7 @@ backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t bl
 {
     Hanami::ErrorContainer error;
     Hexagon* hexagon = &cluster->hexagons[hexagonId];
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
 
     if (hexagon->outputInterface == nullptr) {
         _backpropagateNeuron(hexagon, blockId);

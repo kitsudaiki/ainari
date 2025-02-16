@@ -67,7 +67,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         }
 
         // in case of a normal hexagon
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId + 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -89,7 +89,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -121,7 +121,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
             return;
         }
 
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId - 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -138,7 +138,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId - 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -165,7 +165,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             return;
         }
 
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId + 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -187,7 +187,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;

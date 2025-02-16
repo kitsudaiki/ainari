@@ -62,7 +62,7 @@ CpuHost::~CpuHost() {}
 void
 CpuHost::initBuffer()
 {
-    m_totalMemory = getFreeMemory();
+    m_totalMemory = Hanami::getFreeMemory();
     bool success = false;
     float memoryUsage = GET_FLOAT_CONFIG("processing", "use_of_free_memory", success);
     // TODO: handle amound of min and max value by ranges inside of the config-lib
@@ -86,14 +86,14 @@ CpuHost::initBuffer()
 bool
 CpuHost::initWorkerThreads()
 {
-    Host* host = Host::getInstance();
-    CpuPackage* package = host->cpuPackages.at(m_localId);
+    Hanami::Host* host = Hanami::Host::getInstance();
+    Hanami::CpuPackage* package = host->cpuPackages.at(m_localId);
     uint32_t threadCounter = 0;
     for (uint32_t coreId = 1; coreId < package->cpuCores.size(); coreId++) {
         for (uint32_t threadId = 0; threadId < package->cpuCores.at(coreId)->cpuThreads.size();
              threadId++)
         {
-            CpuThread* thread = package->cpuCores.at(coreId)->cpuThreads.at(threadId);
+            Hanami::CpuThread* thread = package->cpuCores.at(coreId)->cpuThreads.at(threadId);
             CpuWorkerThread* newUnit = new CpuWorkerThread(this);
             m_workerThreads.push_back(newUnit);
             newUnit->startThread();

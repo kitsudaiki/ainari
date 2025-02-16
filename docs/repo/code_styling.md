@@ -22,14 +22,14 @@ which styles the coded based on the clang-format file, when ever a `git commit` 
 Installation:
 
 ```
-sudo apt-get install clang-format-15
+sudo apt-get install clang-format-18
 ```
 
 Load pre-commit hook
 
 ```
 cd OpenHanami
-git config core.hooksPath .git-hooks
+git config core.hooksPath .githooks
 ```
 
 ## Limitations
@@ -69,20 +69,6 @@ line
 
     ```cpp
     if(id == 0) {
-    	return;
-    }
-    ```
-
-Each condition has to be in a separate line and the binary operator at the beginning of the new
-line.
-
-!!! example
-
-    ```cpp
-    if(id == 0
-    	&& text == "poi"
-    	&& counter == 42)
-    {
     	return;
     }
     ```

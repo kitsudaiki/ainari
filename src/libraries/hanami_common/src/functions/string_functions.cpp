@@ -1,5 +1,5 @@
 /**
- *  @file       string_functions.cpp
+ * @file       string_functions.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,6 +21,9 @@
  */
 
 #include <hanami_common/functions/string_functions.h>
+
+#include <algorithm>
+#include <sstream>
 
 namespace Hanami
 {

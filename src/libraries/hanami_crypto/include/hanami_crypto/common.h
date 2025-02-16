@@ -1,5 +1,5 @@
 /**
- *  @file       common.h
+ * @file       common.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -22,6 +22,8 @@
 
 #ifndef CRYPTO_COMMON_H
 #define CRYPTO_COMMON_H
+
+#include <stdint.h>
 
 #include <string>
 

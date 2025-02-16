@@ -123,7 +123,7 @@ reduceCluster(Cluster& cluster, const uint32_t hexagonId, const uint32_t blockId
         return;
     }
 
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     const uint32_t numberOfHexagons = cluster.hexagons.size();
     reduceConnections(hexagon, &cluster.hexagons[0], blocks, blockId);
 }

@@ -1,5 +1,5 @@
 /**
- *  @file       memory_counter.h
+ * @file       memory_counter.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

@@ -31,7 +31,6 @@ class WebSocketServer;
 class HttpServer;
 class HttpWebsocketThread;
 class PhysicalHost;
-using namespace Hanami;
 
 namespace Hanami
 {

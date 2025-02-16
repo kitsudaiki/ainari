@@ -1,5 +1,5 @@
 /**
- *  @file       item_buffer.h
+ * @file       item_buffer.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

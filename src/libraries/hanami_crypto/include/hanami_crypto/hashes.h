@@ -1,5 +1,5 @@
 /**
- *  @file       hashes.h
+ * @file       hashes.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -23,8 +23,9 @@
 #ifndef HASHES_H
 #define HASHES_H
 
-#include <iostream>
-#include <vector>
+#include <stdint.h>
+
+#include <string>
 
 namespace Hanami
 {

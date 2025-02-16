@@ -1,5 +1,5 @@
 /**
- *  @file       barrier.cpp
+ * @file       barrier.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

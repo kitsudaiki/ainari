@@ -272,7 +272,8 @@ CreateTrainTaskV1M0::runTask(BlossomIO& blossomIO,
     blossomIO.output["name"] = taskName;
     blossomIO.output["current_cycle"] = newTask->progress.currentCyle;
     blossomIO.output["total_number_of_cycles"] = newTask->progress.totalNumberOfCycles;
-    blossomIO.output["queue_timestamp"] = serializeTimePoint(newTask->progress.queuedTimeStamp);
+    blossomIO.output["queue_timestamp"]
+        = Hanami::serializeTimePoint(newTask->progress.queuedTimeStamp);
     blossomIO.output["state"] = "queued";
     blossomIO.output["start_timestamp"] = "-";
     blossomIO.output["end_timestamp"] = "-";

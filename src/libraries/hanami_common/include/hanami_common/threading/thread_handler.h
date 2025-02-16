@@ -1,5 +1,5 @@
 /**
- *  @file       thread_handler.h
+ * @file       thread_handler.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -26,7 +26,6 @@
 #include <map>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace Hanami
