@@ -31,8 +31,8 @@ setup(
     install_requires=['jsonschema==4.23.0',
                       'protobuf==3.20.3',
                       'requests==2.32.3',
-                      'simplejson==3.19.3',
-                      'websockets==14.2'],
+                      'simplejson==3.20.1',
+                      'websockets==15.0'],
     cmdclass={
         'install': GenerateProtobufMessages,
     },
