@@ -42,8 +42,8 @@ backpropagateOutput(OutputInterface* outputInterface)
     constexpr float learnValue = 0.05f;
     float delta = 0.0f;
     float update = 0.0f;
-    uint32_t outPos = 0;
-    uint32_t wb = 0;
+    uint64_t outPos = 0;
+    uint64_t wb = 0;
     uint32_t w = 0;
     assert(outputInterface != nullptr);
 
@@ -58,7 +58,7 @@ backpropagateOutput(OutputInterface* outputInterface)
     }
 
     assert(outputInterface->weights.size() % outputInterface->outputNeurons.size() == 0);
-    const uint32_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
+    const uint64_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
 
     for (outPos = 0; outPos < outputInterface->outputNeurons.size(); ++outPos) {
         out = &outputInterface->outputNeurons[outPos];

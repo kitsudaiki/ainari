@@ -95,7 +95,6 @@ set(SOURCES
     src/core/processing/cpu/cpu_worker_thread.h
     src/core/processing/cpu/core_processing.h
     src/core/processing/cpu/output_processing.h
-    src/core/processing/cpu/reduction.h
     src/core/processing/cuda/cuda_functions.h
     src/core/processing/cuda/cuda_host.h
     src/core/processing/cuda/cuda_worker_thread.h

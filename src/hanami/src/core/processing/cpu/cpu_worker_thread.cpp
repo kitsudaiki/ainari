@@ -29,7 +29,6 @@
 #include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <core/processing/logical_host.h>
 
 /**
@@ -272,24 +271,4 @@ CpuWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             task.cluster->hexagons[newTask.hexagonId].attachedHost->addWorkerTaskToQueue(newTask);
         }
     }
-}
-
-/**
- * @brief handle reduction task
- *
- * @param task task to handle
- */
-void
-CpuWorkerThread::handleReductionTask(const Hanami::WorkerTask task)
-{
-    /*reduceCluster(task.cluster, task.hexagonId, task.blockId);
-    if
-    (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
-    { if (task.hexagonId == task.cluster->hexagons.size() - 1) { task.cluster->updateClusterState();
-        }
-        else {
-            m_host->addHexagonToTaskQueue(task.cluster, task.hexagonId + 1);
-            return;
-        }
-    }*/
 }

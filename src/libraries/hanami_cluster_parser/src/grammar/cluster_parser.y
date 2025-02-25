@@ -82,7 +82,6 @@ YY_DECL;
     COOLDOWN "neuron_cooldown"
     MAX_DISTANCE "max_connection_distance"
     REFRACTORY_TIME "refractory_time"
-    ENABLE_REDUCTION "enable_reduction"
     BOOL_TRUE  "true"
     BOOL_FALSE "false"
     OUTPUT_BOOL "bool"
@@ -190,16 +189,6 @@ setting:
             return 1;
         }
         driver.output->refractoryTime = $3;
-    }
-|
-    "enable_reduction" ":" "true"
-    {
-        driver.output->enableReduction = true;
-    }
-|
-    "enable_reduction" ":" "false"
-    {
-        driver.output->enableReduction = false;
     }
 
 hexagons:

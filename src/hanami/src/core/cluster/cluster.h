@@ -48,7 +48,6 @@ class Cluster
     ~Cluster();
 
     // processing
-    uint32_t reductionCounter = 0;
     HttpWebsocketThread* msgClient = nullptr;
     Hanami::Statemachine* stateMachine = nullptr;
     TaskHandle_State* taskHandleState = nullptr;
@@ -82,7 +81,6 @@ class Cluster
     bool goToNextState(const uint32_t nextStateId);
     void startForwardCycle(const bool runNormalMode);
     void startBackwardCycle();
-    void startReductionCycle();
     bool setClusterState(const std::string& newState);
 
     // counter for parallel-processing

@@ -24,7 +24,6 @@
 # include <cerrno>
 # include <climits>
 # include <cstdlib>
-# include <string>
 # include <cluster_parsing/cluster_parser_interface.h>
 # include <cluster_parser.h>
 
@@ -73,7 +72,6 @@ blank [ \t]
 "neuron_cooldown"         return Hanami::ClusterParser::make_COOLDOWN (clusterloc);
 "max_connection_distance" return Hanami::ClusterParser::make_MAX_DISTANCE (clusterloc);
 "refractory_time"         return Hanami::ClusterParser::make_REFRACTORY_TIME (clusterloc);
-"enable_reduction"        return Hanami::ClusterParser::make_ENABLE_REDUCTION (clusterloc);
 "true"                    return Hanami::ClusterParser::make_BOOL_TRUE (clusterloc);
 "false"                   return Hanami::ClusterParser::make_BOOL_FALSE (clusterloc);
 "True"                    return Hanami::ClusterParser::make_BOOL_TRUE (clusterloc);

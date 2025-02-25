@@ -99,7 +99,6 @@ initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
     cluster->clusterHeader.settings.neuronCooldown = clusterMeta.neuronCooldown;
     cluster->clusterHeader.settings.refractoryTime = clusterMeta.refractoryTime;
     cluster->clusterHeader.settings.maxConnectionDistance = clusterMeta.maxConnectionDistance;
-    cluster->clusterHeader.settings.enableReduction = clusterMeta.enableReduction;
 }
 
 /**

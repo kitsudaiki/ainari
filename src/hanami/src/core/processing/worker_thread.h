@@ -47,8 +47,6 @@ class WorkerThread : public Hanami::Thread
     void handleTask(const Hanami::WorkerTask& task);
     virtual void handleTrainForwardTask(Hanami::WorkerTask task) = 0;
     virtual void handleTrainBackwardTask(Hanami::WorkerTask task) = 0;
-    ;
-    virtual void handleReductionTask(const Hanami::WorkerTask task) = 0;
     virtual void handleProcessTask(const Hanami::WorkerTask task) = 0;
 
     uint32_t m_inactiveCounter = 0;

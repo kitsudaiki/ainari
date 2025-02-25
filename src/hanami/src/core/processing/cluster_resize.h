@@ -44,19 +44,28 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
 {
     constexpr float randMax = static_cast<float>(RAND_MAX);
     constexpr float sigNeg = 0.5f;
-    const uint32_t signRand = Hanami::pcg_hash(randomSeed) % 1000;
+    uint32_t signRand = 0;
 
     synapse->border = remainingW;
-    synapse->activeCounter = 5;
+    synapse->activeCounter = 50;
     synapse->targetNeuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
+
     synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    signRand = Hanami::pcg_hash(randomSeed) % 1000;
     synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+
     synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
-    if (synapse->weight1 > 0.0f) {
-        synapse->weight2 *= -1.0f;
-    }
+    signRand = Hanami::pcg_hash(randomSeed) % 1000;
+    synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
 }
 
+/**
+ * @brief initConnection
+ * @param hexagon
+ * @param connection
+ * @param randomSeed
+ * @return
+ */
 inline bool
 initConnection(Hexagon* hexagon, Connection* connection, uint32_t& randomSeed)
 {
@@ -80,7 +89,7 @@ initConnection(Hexagon* hexagon, Connection* connection, uint32_t& randomSeed)
  *
  * @param targetHexagon target-hexagon where to search
  * @param blockBuffer synapse-block-buffer to allocate new block,
- *                           if search-process was successful
+ *                    if search-process was successful
  *
  * @return found empty connection, if seccessfule, else nullptr
  */

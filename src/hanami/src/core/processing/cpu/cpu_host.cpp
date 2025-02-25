@@ -28,7 +28,6 @@
 #include <core/processing/cpu/cpu_worker_thread.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <hanami_config/config_handler.h>
 #include <hanami_cpu/memory.h>
 #include <hanami_hardware/cpu_core.h>
@@ -74,12 +73,12 @@ CpuHost::initBuffer()
     }
     const uint64_t usedMemory = static_cast<float>(m_totalMemory) * memoryUsage;
     // one block can have up to 512 entries, but considering, that they are not all fully filled,
-    // 384 was choosen to estimate the average fill rate
-    const uint64_t numberOfBlocks = usedMemory / (sizeof(Block) + (384 * sizeof(SynapseSection)));
+    // 256 was choosen to estimate the average fill rate
+    const uint64_t numberOfBlocks = usedMemory / (sizeof(Block) + (256 * sizeof(SynapseSection)));
     blocks.initBuffer(numberOfBlocks);
     blocks.deleteAll();
 
-    sections.initBuffer(numberOfBlocks * 384);
+    sections.initBuffer(numberOfBlocks * 256);
     sections.deleteAll();
 
     LOG_INFO("Initialized number of syanpse-blocks on cpu-device: "

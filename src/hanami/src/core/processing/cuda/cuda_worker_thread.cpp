@@ -28,7 +28,6 @@
 #include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <core/processing/cuda/cuda_functions.h>
 #include <core/processing/logical_host.h>
 
@@ -195,9 +194,4 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             task.cluster->hexagons[newTask.hexagonId].attachedHost->addWorkerTaskToQueue(newTask);
         }
     }
-}
-
-void
-CudaWorkerThread::handleReductionTask(const Hanami::WorkerTask task)
-{
 }

@@ -92,7 +92,7 @@ _backpropagateSection(SynapseSection* section,
     uint8_t pos = 0;
     Synapse* synapse;
     Axon* targetAxon = nullptr;
-    constexpr float trainValue = 0.1f;
+    constexpr float trainValue = 0.05f;
     float delta = 0.0f;
 
     // iterate over all synapses in the section
@@ -102,12 +102,18 @@ _backpropagateSection(SynapseSection* section,
         targetAxon = &targetBlock->axons[synapse->targetNeuronId % NEURONS_PER_BLOCK];
         delta = targetAxon->delta * synapse->weight1;
         synapse->weight1 -= trainValue * targetAxon->delta;
+        axon->delta += delta;
+        // synapse->activeCounter += (synapse->activeCounter < 100) * (delta != 0.0f);
 
         targetAxon = &targetBlock->axons[(synapse->targetNeuronId + 1) % NEURONS_PER_BLOCK];
-        delta += targetAxon->delta * synapse->weight2;
+        delta = targetAxon->delta * synapse->weight2;
         synapse->weight2 -= trainValue * targetAxon->delta;
-
         axon->delta += delta;
+        // synapse->activeCounter += (synapse->activeCounter < 100) * (delta != 0.0f);
+
+        // synapse->activeCounter -= (synapse->activeCounter < 100) * (pos > 0);
+        // synapse->targetNeuronId = synapse->targetNeuronId * (synapse->activeCounter > 0)
+        //                           + UNINIT_STATE_8 * (synapse->activeCounter <= 0);
 
         potential -= synapse->border;
         ++pos;

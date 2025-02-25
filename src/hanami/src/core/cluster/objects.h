@@ -27,11 +27,9 @@
 #include <hanami_common/structs.h>
 #include <hanami_common/uuid.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <cstdlib>
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -64,7 +62,6 @@ struct ClusterSettings {
     float neuronCooldown = 1000000000.0f;
     uint32_t refractoryTime = 1;
     int32_t maxConnectionDistance = 1;
-    bool enableReduction = false;
     bool enableCreation = false;
 
     uint8_t padding[42];
@@ -84,9 +81,6 @@ struct ClusterSettings {
             return false;
         }
         if (maxConnectionDistance != rhs.maxConnectionDistance) {
-            return false;
-        }
-        if (enableReduction != rhs.enableReduction) {
             return false;
         }
         // enableCreation is only a temporary value and not relevant for this comparism
@@ -181,7 +175,7 @@ struct Synapse {
     float weight1 = 0.0f;
     float weight2 = 0.0f;
     uint8_t padding2[2];
-    uint8_t activeCounter = 0;
+    int8_t activeCounter = 0;
     uint8_t targetNeuronId = UNINIT_STATE_8;
 };
 static_assert(sizeof(Synapse) == 16);
