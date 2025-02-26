@@ -1,3 +1,25 @@
+/**
+ * @file        output_processing.h
+ *
+ * @author      Tobias Anker <tobias.anker@kitsunemimi.moe>
+ *
+ * @copyright   Apache License Version 2.0
+ *
+ *      Copyright 2022 Tobias Anker
+ *
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
+ */
+
 #ifndef OUTPUTPROCESSING_H
 #define OUTPUTPROCESSING_H
 
@@ -12,6 +34,22 @@
 #include <cmath>
 
 /**
+ * @brief _initConnection
+ * @param out
+ * @param connection
+ */
+inline void
+_initConnection(OutputNeuron* out, float& connection)
+{
+    if (connection == 0.0f && out->exprectedVal > 0.0f) {
+        constexpr float randMax = static_cast<float>(RAND_MAX);
+        constexpr float sigNeg = 0.5f;
+
+        connection = (static_cast<float>(rand()) / randMax) / 10.0f;
+    }
+}
+
+/**
  * @brief process output-nodes
  *
  * @param hexagon current hexagon
@@ -22,56 +60,53 @@ inline void
 processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
 {
     Axon* axon = nullptr;
-    OutputTargetLocationPtr* target = nullptr;
+    AxonBlock* axonBlock = nullptr;
     float weightSum = 0.0f;
-    bool found = false;
+    uint64_t outPos = 0;
+    uint64_t wb = 0;
+    uint32_t w = 0;
+
+    OutputNeuron* out = nullptr;
+    OutputWeightBlock* weightBlocks = nullptr;
+    OutputWeightBlock* wBlock = nullptr;
     OutputInterface* outputInterface = hexagon->outputInterface;
 
-    for (OutputNeuron& out : hexagon->outputInterface->outputNeurons) {
+    if (outputInterface->weights.size() == 0) {
+        return;
+    }
+
+    assert(outputInterface->weights.size() % outputInterface->outputNeurons.size() == 0);
+    const uint64_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
+
+    for (outPos = 0; outPos < outputInterface->outputNeurons.size(); ++outPos) {
+        out = &outputInterface->outputNeurons[outPos];
+        weightBlocks = &outputInterface->weights[outPos * dim];
         weightSum = 0.0f;
-        found = false;
 
-        for (uint8_t j = 0; j < NUMBER_OF_OUTPUT_CONNECTIONS; ++j) {
-            target = &out.targets[j];
+        for (wb = 0; wb < outputInterface->weights.size();
+             wb += outputInterface->outputNeurons.size())
+        {
+            axonBlock = &outputInterface->targetAxonBlocks[wb];
+            wBlock = &weightBlocks[wb];
 
-            if constexpr (doTrain) {
-                if (found == false && target->blockId == UNINIT_STATE_32 && out.exprectedVal > 0.0
-                    && Hanami::pcg_hash(randomSeed) % 50 == 0)
-                {
-                    const uint64_t numOfTargets = hexagon->outputInterface->targetAxonBlocks.size();
-                    const uint32_t blockId = Hanami::pcg_hash(randomSeed) % numOfTargets;
-                    const uint16_t neuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
-                    const float potential
-                        = outputInterface->targetAxonBlocks[blockId].axons[neuronId].potential;
+            for (w = 0; w < NEURONS_PER_BLOCK; ++w) {
+                axon = &axonBlock->axons[w];
+                axon->delta = 0.0f;
 
-                    if (potential != 0.5f) {
-                        target->blockId = blockId;
-                        target->neuronId = neuronId;
-                        target->connectionWeight
-                            = ((float)Hanami::pcg_hash(randomSeed) / (float)RAND_MAX);
-                        found = true;
-
-                        if (potential < 0.5f) {
-                            target->connectionWeight *= -1.0f;
-                        }
+                if (axon->potential != 0.5f) {
+                    if constexpr (doTrain) {
+                        _initConnection(out, wBlock->connectionWeight[w]);
                     }
+                    weightSum += axon->potential * wBlock->connectionWeight[w];
                 }
             }
-
-            if (target->blockId == UNINIT_STATE_32) {
-                continue;
-            }
-
-            axon = &outputInterface->targetAxonBlocks[target->blockId].axons[target->neuronId];
-            axon->delta = 0.0f;
-            weightSum += axon->potential * target->connectionWeight;
         }
 
-        out.outputVal = 0.0f;
+        out->outputVal = 0.0f;
         if (weightSum != 0.0f) {
-            out.outputVal = 1.0f / (1.0f + exp(-1.0f * weightSum));
+            out->outputVal = 1.0f / (1.0f + exp(-1.0f * weightSum));
         }
-        // std::cout << out.outputVal << " : " << out.exprectedVal << std::endl;
+        // std::cout << out->outputVal << " : " << out->exprectedVal << std::endl;
     }
     // std::cout << "-------------------------------------" << std::endl;
 }

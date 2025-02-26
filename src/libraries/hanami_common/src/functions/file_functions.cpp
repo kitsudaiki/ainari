@@ -1,5 +1,5 @@
 /**
- *  @file       file_functions.cpp
+ * @file       file_functions.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

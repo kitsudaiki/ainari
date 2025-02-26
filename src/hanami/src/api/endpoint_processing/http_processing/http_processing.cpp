@@ -188,7 +188,7 @@ HttpProcessing::processControlRequest(http::response<http::dynamic_body>& httpRe
         const std::string httpTypeStr = convertType(hanamiRequest.httpType);
         if (hanamiRequest.httpType != GET_TYPE) {
             if (AuditLogTable::getInstance()->addAuditLogEntry(
-                    getDatetime(), userId, hanamiRequest.targetEndpoint, httpTypeStr, error)
+                    Hanami::getDatetime(), userId, hanamiRequest.targetEndpoint, httpTypeStr, error)
                 == false)
             {
                 error.addMessage("ERROR: Failed to write audit-log into database");

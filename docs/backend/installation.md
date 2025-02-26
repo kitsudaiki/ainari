@@ -82,7 +82,7 @@ For the installation on a kubernetes `helm` is used.
           protocol: TCP
           targetPort: 443
       type: LoadBalancer
-      ```
+    ```
 
 4.  **Cert-Manager**
 

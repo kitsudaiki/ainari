@@ -145,15 +145,6 @@ Cluster::startBackwardCycle()
 }
 
 /**
- * @brief Cluster::startReductionCycle
- */
-void
-Cluster::startReductionCycle()
-{
-    // attachedHost->addClusterToHost(this);
-}
-
-/**
  * @brief switch state of the cluster between task and direct mode
  *
  * @param newState new desired state
@@ -178,7 +169,7 @@ Cluster::setClusterState(const std::string& newState)
  * @brief update state of the cluster, which is caled for each finalized cluster
  */
 void
-Cluster::updateClusterState(const WorkerTask& task)
+Cluster::updateClusterState(const Hanami::WorkerTask& task)
 {
     std::lock_guard<std::mutex> guard(m_clusterStateLock);
 
@@ -190,19 +181,8 @@ Cluster::updateClusterState(const WorkerTask& task)
         startBackwardCycle();
     }
     else if (task.mode == ClusterProcessingMode::TRAIN_BACKWARD_MODE) {
-        // reductionCounter++;
-        if (reductionCounter >= 100 && clusterHeader.settings.enableReduction) {
-            startReductionCycle();
-            reductionCounter = 0;
-        }
-        else {
-            sendClusterTrainEndMessage(this);
-            // countSynapses(*this);
-            goToNextState(NEXT);
-        }
-    }
-    else if (task.mode == ClusterProcessingMode::REDUCTION_MODE) {
         sendClusterTrainEndMessage(this);
+        // countSynapses(*this);
         goToNextState(NEXT);
     }
     else if (task.mode == ClusterProcessingMode::NORMAL_MODE) {

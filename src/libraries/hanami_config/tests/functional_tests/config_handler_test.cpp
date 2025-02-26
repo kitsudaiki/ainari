@@ -1,5 +1,5 @@
 /**
- *  @file       config_handler_test.cpp
+ * @file       config_handler_test.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

@@ -45,7 +45,7 @@ handleErrorCallback(const std::string& errorMessage,
                     const std::string& userId,
                     const std::string& values)
 {
-    ErrorContainer error;
+    Hanami::ErrorContainer error;
     ErrorLogTable::getInstance()->addErrorLogEntry(userId, "", "", values, errorMessage, error);
 }
 

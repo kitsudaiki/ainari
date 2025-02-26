@@ -1,5 +1,5 @@
 /**
- *  @file       compare_test_helper.h
+ * @file       compare_test_helper.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -30,6 +30,11 @@
 
 namespace Hanami
 {
+
+// stupid workaround to ignore the unused-warning for the iostream-include
+// because the compiler is confused by the macro and I don't want to include
+// this lib in every files, which uses the test
+static_assert(sizeof(std::cout) > 0, "Avoid unused warning");
 
 class CompareTestHelper
 {

@@ -15,7 +15,6 @@ settings:
     neuron_cooldown: <COOL_DOWN>
     refractory_time: <REFRACTORY_TIME>
     max_connection_distance: <MAX_DISTANCE>
-    enable_reduction: <ENABLE_REDUCTION>
 
 hexagons:
     X,Y,Z
@@ -62,9 +61,6 @@ The entries within this block are all optional. If not listed, the default is us
     Maximum distance in number-of-hexagon, which a synapses can reach from the source- to the
     target-neuron. (Default = 1; Minimum = 1)
 
--   **enable_reduction**
-
-    Enable reduction-process to cleanup network. (Defaul: false)
 
 ### position
 
@@ -117,7 +113,6 @@ settings:
     neuron_cooldown: 100000000000.0
     refractory_time: 1
     max_connection_distance: 1
-    enable_reduction: false
 
 hexagons:
     1,1,1

@@ -23,12 +23,12 @@
 #include "cpu_worker_thread.h"
 
 #include <core/cluster/objects.h>
+#include <core/processing/axon_handling.h>
 #include <core/processing/cluster_resize.h>
 #include <core/processing/cpu/core_backpropagation.h>
 #include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <core/processing/logical_host.h>
 
 /**
@@ -49,7 +49,7 @@ CpuWorkerThread::~CpuWorkerThread() {}
  * @param task task to handle
  */
 void
-CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
+CpuWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
 {
     uint32_t randomSeed = rand();
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
@@ -71,7 +71,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
             }
 
             // in case of a normal hexagon
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -82,7 +82,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
 
         // share neuron-blocks to process
         for (uint32_t i = 0; i < hexagon->blockLinks.size(); i++) {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
             newTask.blockId = i;
@@ -113,7 +113,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -129,7 +129,7 @@ CpuWorkerThread::handleTrainForwardTask(WorkerTask task)
  * @param task task to handle
  */
 void
-CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
+CpuWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
 {
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
 
@@ -147,7 +147,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
                 return;
             }
 
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId - 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -158,7 +158,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
 
         // share neuron-blocks to process
         for (uint32_t i = 0; i < hexagon->blockLinks.size(); i++) {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
             newTask.blockId = i;
@@ -186,7 +186,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId - 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -202,7 +202,7 @@ CpuWorkerThread::handleTrainBackwardTask(WorkerTask task)
  * @param task task to handle
  */
 void
-CpuWorkerThread::handleProcessTask(const WorkerTask task)
+CpuWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
 {
     uint32_t randomSeed = rand();
     Hexagon* hexagon = &task.cluster->hexagons[task.hexagonId];
@@ -220,7 +220,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
                 return;
             }
 
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -231,7 +231,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
 
         // share neuron-blocks to process
         for (uint32_t i = 0; i < hexagon->blockLinks.size(); i++) {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId;
             newTask.blockId = i;
@@ -263,7 +263,7 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -271,24 +271,4 @@ CpuWorkerThread::handleProcessTask(const WorkerTask task)
             task.cluster->hexagons[newTask.hexagonId].attachedHost->addWorkerTaskToQueue(newTask);
         }
     }
-}
-
-/**
- * @brief handle reduction task
- *
- * @param task task to handle
- */
-void
-CpuWorkerThread::handleReductionTask(const WorkerTask task)
-{
-    /*reduceCluster(task.cluster, task.hexagonId, task.blockId);
-    if
-    (task.cluster->incrementAndCompare(task.cluster->hexagons[task.hexagonId].neuronBlocks.size()))
-    { if (task.hexagonId == task.cluster->hexagons.size() - 1) { task.cluster->updateClusterState();
-        }
-        else {
-            m_host->addHexagonToTaskQueue(task.cluster, task.hexagonId + 1);
-            return;
-        }
-    }*/
 }

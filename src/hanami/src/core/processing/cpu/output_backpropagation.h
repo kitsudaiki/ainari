@@ -1,3 +1,25 @@
+/**
+ * @file        output_backpropagation.h
+ *
+ * @author      Tobias Anker <tobias.anker@kitsunemimi.moe>
+ *
+ * @copyright   Apache License Version 2.0
+ *
+ *      Copyright 2022 Tobias Anker
+ *
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
+ */
+
 #ifndef OUTPUTBACKPROPAGATION_H
 #define OUTPUTBACKPROPAGATION_H
 
@@ -17,32 +39,47 @@
 inline bool
 backpropagateOutput(OutputInterface* outputInterface)
 {
-    Axon* axon = nullptr;
-    OutputNeuron* out = nullptr;
-    OutputTargetLocationPtr* target = nullptr;
     constexpr float learnValue = 0.05f;
     float delta = 0.0f;
     float update = 0.0f;
-    uint64_t i = 0;
-    uint64_t j = 0;
-
+    uint64_t outPos = 0;
+    uint64_t wb = 0;
+    uint32_t w = 0;
     assert(outputInterface != nullptr);
 
-    for (i = 0; i < outputInterface->outputNeurons.size(); ++i) {
-        out = &outputInterface->outputNeurons[i];
+    Axon* axon = nullptr;
+    AxonBlock* axonBlock = nullptr;
+    OutputNeuron* out = nullptr;
+    OutputWeightBlock* weightBlocks = nullptr;
+    OutputWeightBlock* wBlock = nullptr;
+
+    if (outputInterface->weights.size() == 0) {
+        return true;
+    }
+
+    assert(outputInterface->weights.size() % outputInterface->outputNeurons.size() == 0);
+    const uint64_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
+
+    for (outPos = 0; outPos < outputInterface->outputNeurons.size(); ++outPos) {
+        out = &outputInterface->outputNeurons[outPos];
+        weightBlocks = &outputInterface->weights[outPos * dim];
+
         delta = out->outputVal - out->exprectedVal;
         update = delta * out->outputVal * (1 - out->outputVal);
 
-        for (j = 0; j < NUMBER_OF_OUTPUT_CONNECTIONS; ++j) {
-            target = &out->targets[j];
+        for (wb = 0; wb < outputInterface->weights.size();
+             wb += outputInterface->outputNeurons.size())
+        {
+            wBlock = &weightBlocks[wb];
+            axonBlock = &outputInterface->targetAxonBlocks[wb];
 
-            if (target->blockId == UNINIT_STATE_32) {
-                continue;
+            for (w = 0; w < NEURONS_PER_BLOCK; ++w) {
+                axon = &axonBlock->axons[w];
+                if (axon->potential != 0.5f) {
+                    axon->delta += update * wBlock->connectionWeight[w];
+                    wBlock->connectionWeight[w] -= update * learnValue * axon->potential;
+                }
             }
-
-            axon = &outputInterface->targetAxonBlocks[target->blockId].axons[target->neuronId];
-            axon->delta += update * target->connectionWeight;
-            target->connectionWeight -= update * learnValue * axon->potential;
         }
     }
 

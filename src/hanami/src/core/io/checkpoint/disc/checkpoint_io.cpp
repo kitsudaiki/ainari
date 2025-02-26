@@ -50,7 +50,7 @@ CheckpointIO::CheckpointIO() : IO_Interface() {}
  */
 CheckpointIO::~CheckpointIO()
 {
-    ErrorContainer error;
+    Hanami::ErrorContainer error;
     if (m_checkpointFile != nullptr) {
         m_checkpointFile->closeFile(error);
         delete m_checkpointFile;

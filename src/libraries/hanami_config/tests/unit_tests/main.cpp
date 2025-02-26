@@ -1,5 +1,5 @@
 /**
- *  @file       main.cpp
+ * @file       main.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,8 +21,6 @@
  */
 
 #include <config_handler_test.h>
-
-#include <iostream>
 
 int
 main()

@@ -56,7 +56,6 @@ cluster_template = \
     "    neuron_cooldown: 10000000.0\n" \
     "    refractory_time: 1\n" \
     "    max_connection_distance: 1\n" \
-    "    enable_reduction: false\n" \
     "hexagons:\n" \
     "    1,1,1\n" \
     "    2,1,1\n" \

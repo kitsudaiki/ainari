@@ -1,5 +1,5 @@
 /**
- *  @file       memory.cpp
+ * @file       memory.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

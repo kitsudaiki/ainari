@@ -1,5 +1,5 @@
 /**
- *  @file       event.cpp
+ * @file       event.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,6 +21,8 @@
  */
 
 #include <hanami_common/threading/event.h>
+
+#include <thread>
 
 namespace Hanami
 {

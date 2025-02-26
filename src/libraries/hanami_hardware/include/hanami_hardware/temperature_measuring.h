@@ -27,8 +27,6 @@
 #include <hanami_common/threading/thread.h>
 #include <hanami_hardware/value_container.h>
 
-#include <mutex>
-
 namespace Hanami
 {
 struct RequestMessage;

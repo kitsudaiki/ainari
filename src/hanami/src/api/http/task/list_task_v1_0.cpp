@@ -116,20 +116,21 @@ ListTaskV1M0::runTask(BlossomIO& blossomIO,
         const float percentage
             = (1.0f / (float)progress.totalNumberOfCycles) * (float)progress.currentCyle;
         if (progress.state == QUEUED_TASK_STATE) {
-            result.addRow(std::vector<std::string>{id,
-                                                   "queued",
-                                                   std::to_string(percentage),
-                                                   serializeTimePoint(progress.queuedTimeStamp),
-                                                   "-",
-                                                   "-"});
+            result.addRow(
+                std::vector<std::string>{id,
+                                         "queued",
+                                         std::to_string(percentage),
+                                         Hanami::serializeTimePoint(progress.queuedTimeStamp),
+                                         "-",
+                                         "-"});
         }
         else if (progress.state == ACTIVE_TASK_STATE) {
             result.addRow(
                 std::vector<std::string>{id,
                                          "active",
                                          std::to_string(percentage),
-                                         serializeTimePoint(progress.queuedTimeStamp),
-                                         serializeTimePoint(progress.startActiveTimeStamp),
+                                         Hanami::serializeTimePoint(progress.queuedTimeStamp),
+                                         Hanami::serializeTimePoint(progress.startActiveTimeStamp),
                                          "-"});
         }
         else if (progress.state == ABORTED_TASK_STATE) {
@@ -137,8 +138,8 @@ ListTaskV1M0::runTask(BlossomIO& blossomIO,
                 std::vector<std::string>{id,
                                          "aborted",
                                          std::to_string(percentage),
-                                         serializeTimePoint(progress.queuedTimeStamp),
-                                         serializeTimePoint(progress.startActiveTimeStamp),
+                                         Hanami::serializeTimePoint(progress.queuedTimeStamp),
+                                         Hanami::serializeTimePoint(progress.startActiveTimeStamp),
                                          "-"});
         }
         else if (progress.state == FINISHED_TASK_STATE) {
@@ -146,9 +147,9 @@ ListTaskV1M0::runTask(BlossomIO& blossomIO,
                 std::vector<std::string>{id,
                                          "finished",
                                          std::to_string(percentage),
-                                         serializeTimePoint(progress.queuedTimeStamp),
-                                         serializeTimePoint(progress.startActiveTimeStamp),
-                                         serializeTimePoint(progress.endActiveTimeStamp)});
+                                         Hanami::serializeTimePoint(progress.queuedTimeStamp),
+                                         Hanami::serializeTimePoint(progress.startActiveTimeStamp),
+                                         Hanami::serializeTimePoint(progress.endActiveTimeStamp)});
         }
     }
 

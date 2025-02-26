@@ -1,5 +1,5 @@
 /**
- *  @file       table_items.cpp
+ * @file       table_items.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -25,7 +25,6 @@
 
 #include <stdint.h>
 
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <vector>
 

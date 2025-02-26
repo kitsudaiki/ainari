@@ -1,5 +1,5 @@
 /**
- *  @file       main.cpp
+ * @file       main.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -23,9 +23,6 @@
 #include <common_test.h>
 #include <hashes_test.h>
 #include <symmetric_encryption_test.h>
-
-#include <iostream>
-#include <vector>
 
 int
 main()

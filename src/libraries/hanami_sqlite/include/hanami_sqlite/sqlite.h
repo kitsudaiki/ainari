@@ -1,18 +1,23 @@
 /**
- *  @file    sqlite.h
+ * @file    sqlite.h
  *
- *  @author  Tobias Anker <tobias.anker@kitsunemimi.moe>
+ * @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
- *  @copyright MIT License
+ * @copyright  Apache License Version 2.0
  *
- *  @brief simple class for easier handling of sqlite-database
+ *      Copyright 2022 Tobias Anker
  *
- *  @detail This class provides only three abilities: open and close sqlite databases and
- *          execute sql-commands. The results of the database request are converted into
- *          table-itmes of hanami_common.
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
  *
- *          This class was created with the help of:
- *              https://www.tutorialspoint.com/sqlite/sqlite_c_cpp.htm
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
  */
 
 #ifndef SQLITE_H
@@ -21,11 +26,7 @@
 #include <hanami_common/logger.h>
 #include <sqlite3.h>
 
-#include <iostream>
 #include <nlohmann/json.hpp>
-#include <regex>
-#include <utility>
-#include <vector>
 
 using json = nlohmann::json;
 

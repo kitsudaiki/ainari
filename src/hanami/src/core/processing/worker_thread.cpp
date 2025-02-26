@@ -43,9 +43,6 @@ WorkerThread::handleTask(const Hanami::WorkerTask& task)
     else if (task.mode == ClusterProcessingMode::TRAIN_BACKWARD_MODE) {
         handleTrainBackwardTask(task);
     }
-    else if (task.mode == ClusterProcessingMode::REDUCTION_MODE) {
-        handleReductionTask(task);
-    }
     else {
         handleProcessTask(task);
     }

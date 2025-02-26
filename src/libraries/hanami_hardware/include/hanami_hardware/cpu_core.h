@@ -23,7 +23,6 @@
 #ifndef HANAMI_HARDWARE_CPUCORE_H
 #define HANAMI_HARDWARE_CPUCORE_H
 
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>

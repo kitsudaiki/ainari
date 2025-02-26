@@ -44,15 +44,44 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
 {
     constexpr float randMax = static_cast<float>(RAND_MAX);
     constexpr float sigNeg = 0.5f;
-    const uint32_t signRand = Hanami::pcg_hash(randomSeed) % 1000;
+    uint32_t signRand = 0;
 
     synapse->border = remainingW;
-    synapse->activeCounter = 5;
+    synapse->activeCounter = 50;
     synapse->targetNeuronId = Hanami::pcg_hash(randomSeed) % NEURONS_PER_BLOCK;
+
     synapse->weight1 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    signRand = Hanami::pcg_hash(randomSeed) % 1000;
     synapse->weight1 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+
     synapse->weight2 = (static_cast<float>(Hanami::pcg_hash(randomSeed)) / randMax) / 10.0f;
+    signRand = Hanami::pcg_hash(randomSeed) % 1000;
     synapse->weight2 *= static_cast<float>(1.0f - (1000.0f * sigNeg > signRand) * 2);
+}
+
+/**
+ * @brief initConnection
+ * @param hexagon
+ * @param connection
+ * @param randomSeed
+ * @return
+ */
+inline bool
+initConnection(Hexagon* hexagon, Connection* connection, uint32_t& randomSeed)
+{
+    if (connection->sectionPtr == UNINIT_STATE_64) {
+        Hanami::ItemBuffer<SynapseSection>* sectionBuffer = &hexagon->attachedHost->sections;
+        SynapseSection newSection;
+        const uint64_t newPos = sectionBuffer->addNewItem(newSection);
+        if (newPos == UNINIT_STATE_64) {
+            return false;
+        }
+        connection->sectionPtr = newPos;
+        SynapseSection* sections = Hanami::getItemData<SynapseSection>(*sectionBuffer);
+        createNewSynapse(&sections[connection->sectionPtr].synapses[0], 1.0f, randomSeed);
+    }
+
+    return true;
 }
 
 /**
@@ -60,33 +89,48 @@ createNewSynapse(Synapse* synapse, const float remainingW, uint32_t& randomSeed)
  *
  * @param targetHexagon target-hexagon where to search
  * @param blockBuffer synapse-block-buffer to allocate new block,
- *                           if search-process was successful
+ *                    if search-process was successful
  *
  * @return found empty connection, if seccessfule, else nullptr
  */
-inline Connection*
-searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
+inline TargetLocation
+searchTargetInHexagon(Hexagon* hexagon, Hanami::ItemBuffer<Block>& blockBuffer)
 {
-    const uint64_t numberOfConnectionsBlocks = hexagon->blockLinks.size();
-    if (numberOfConnectionsBlocks == 0) {
-        return nullptr;
+    TargetLocation loc;
+
+    // check if there is even free space
+    const uint64_t numberOfBlocksInHexagon = hexagon->blockLinks.size();
+    if (numberOfBlocksInHexagon == 0) {
+        return loc;
     }
 
-    const uint64_t targetBlockLink = hexagon->blockLinks[rand() % numberOfConnectionsBlocks];
+    // select a random target-block within the current hexagon
+    const uint64_t targetBlockLink = hexagon->blockLinks[rand() % numberOfBlocksInHexagon];
     if (targetBlockLink == UNINIT_STATE_64) {
-        return nullptr;
+        return loc;
     }
 
-    Block* blocks = getItemData<Block>(blockBuffer);
+    Block* blocks = Hanami::getItemData<Block>(blockBuffer);
     Connection* connections = &blocks[targetBlockLink].connections[0];
-    if (connections[NUMBER_OF_SECTIONS - 1].active == true) {
-        return nullptr;
-    }
-    SynapseSection* sections = &blocks[targetBlockLink].sections[0];
-    uint32_t randomSeed = rand();
-    createNewSynapse(&sections[NUMBER_OF_SECTIONS - 1].synapses[0], 1.0f, randomSeed);
 
-    return &connections[NUMBER_OF_SECTIONS - 1];
+    // search for free connection
+    uint16_t foundLocation = UNINIT_STATE_16;
+    for (uint16_t i = 0; i < NUMBER_OF_SECTIONS; ++i) {
+        if (connections[i].active == false) {
+            foundLocation = i;
+            break;
+        }
+    }
+
+    // check if something was found
+    if (foundLocation == UNINIT_STATE_16) {
+        return loc;
+    }
+
+    loc.targetBlock = targetBlockLink;
+    loc.targetConnection = foundLocation;
+
+    return loc;
 }
 
 /**
@@ -95,7 +139,7 @@ searchTargetInHexagon(Hexagon* hexagon, ItemBuffer<Block>& blockBuffer)
  * @param targetHexagon hexagon to resize
  */
 inline void
-resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
+resizeBlocks(Hexagon* targetHexagon, Hanami::ItemBuffer<Block>* blockBuffer)
 {
     Block block;
     const uint64_t synapseSectionPos = blockBuffer->addNewItem(block);
@@ -120,7 +164,8 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
 }
 
 /**
- * @brief allocate a new synapse-section
+ * @brief allocate a new synapse-section and attach it to the previous section
+ *        , which requested the extension
  *
  * @param cluster cluster to update
  * @param originLocation position of the soruce-neuron, which require the resize
@@ -131,39 +176,48 @@ resizeBlocks(Hexagon* targetHexagon, ItemBuffer<Block>* blockBuffer)
  * @return true, if successful, else false
  */
 inline bool
-splitSection(Cluster* cluster,
-             Hexagon* hexagon,
-             Connection* sourceConnection,
-             AxonBlock* sourceAxonBlocks)
+extendSection(Cluster* cluster,
+              Hexagon* hexagon,
+              Connection* sourceConnection,
+              AxonBlock* sourceAxonBlocks)
 {
     if (sourceConnection->sourceBlockId == UNINIT_STATE_32) {
         return false;
     }
 
-    // get origin object
-    Axon* sourceAxon
-        = &sourceAxonBlocks[sourceConnection->sourceBlockId].axons[sourceConnection->sourceId];
-
     // get target objects
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-    Connection* targetConnection = searchTargetInHexagon(hexagon, *blockBuffer);
-    if (targetConnection == nullptr) {
+    Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+    const TargetLocation loc = searchTargetInHexagon(hexagon, *blockBuffer);
+    if (loc.targetBlock == UNINIT_STATE_32 || loc.targetConnection == UNINIT_STATE_16) {
         return false;
     }
-    hexagon->header.numberOfFreeSections--;
-    hexagon->wasResized = true;
-    cluster->metrics.numberOfSections++;
+
+    // initialize found entry
+    uint32_t randomSeed = rand();
+    Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
+    Block* block = &blocks[loc.targetBlock];
+
+    // initialize new Section
+    Connection* targetConnection = &block->connections[loc.targetConnection];
+    if (initConnection(hexagon, targetConnection, randomSeed) == false) {
+        return false;
+    }
+
     // std::cout<<"cluster->metrics.numberOfSections1:
     // "<<cluster->metrics.numberOfSections<<std::endl;
     // initialize new connection
     targetConnection->active = true;
     targetConnection->sourceBlockId = sourceConnection->sourceBlockId;
     targetConnection->sourceId = sourceConnection->sourceId;
-    targetConnection->lowerBound = sourceConnection->lowerBound + sourceConnection->splitValue;
-    targetConnection->potentialRange
-        = sourceConnection->potentialRange - sourceConnection->splitValue;
-    sourceConnection->potentialRange = sourceConnection->splitValue;
-    sourceConnection->splitValue = 0.0f;
+
+    sourceConnection->nextBlock = loc.targetBlock;
+    sourceConnection->nextSectionInBlock = loc.targetConnection;
+    sourceConnection->requireNext = false;
+
+    // udpate hexagon- and cluster-information
+    hexagon->header.numberOfFreeSections--;
+    hexagon->wasResized = true;
+    cluster->metrics.numberOfSections++;
 
     return true;
 }
@@ -180,12 +234,12 @@ splitSection(Cluster* cluster,
 inline bool
 updateCluster(Cluster* cluster, Hexagon* hexagon)
 {
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-    Block* blocks = getItemData<Block>(*blockBuffer);
+    Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+    Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
 
     Connection* connections = nullptr;
     Connection* connection = nullptr;
-    bool found = false;
+    bool wasUpdated = false;
     uint64_t blockId = 0;
     uint8_t sourceId = 0;
     uint64_t link = 0;
@@ -197,10 +251,9 @@ updateCluster(Cluster* cluster, Hexagon* hexagon)
         for (sourceId = 0; sourceId < NEURONS_PER_BLOCK; ++sourceId) {
             connection = &connections[sourceId];
 
-            if (connection->splitValue > 0.0f) {
-                if (splitSection(cluster, hexagon, connection, &hexagon->transferAxonBlocks[0])) {
-                    found = true;
-                    connection->splitValue = 0.0f;
+            if (connection->requireNext) {
+                if (extendSection(cluster, hexagon, connection, &hexagon->transferAxonBlocks[0])) {
+                    wasUpdated = true;
                 }
             }
         }
@@ -215,47 +268,7 @@ updateCluster(Cluster* cluster, Hexagon* hexagon)
         resizeBlocks(hexagon, blockBuffer);
     }
 
-    return found;
-}
-
-/**
- * @brief handleTargetAxonBlocks
- * @param hexagon
- */
-inline void
-processTransferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
-{
-    Axon* axon = nullptr;
-    AxonBlock* axonBlock = nullptr;
-    ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
-    for (uint32_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
-        axonBlock = &hexagon->transferAxonBlocks[blockId];
-
-        for (uint16_t axonId = 0; axonId < NEURONS_PER_BLOCK; ++axonId) {
-            axon = &axonBlock->axons[axonId];
-
-            if (axon->activeCounter > 0 || axon->potential < 0.00001f) {
-                continue;
-            }
-
-            Connection* targetConnection = searchTargetInHexagon(hexagon, *blockBuffer);
-            if (targetConnection == nullptr) {
-                return;
-            }
-            targetConnection->active = true;
-            targetConnection->lowerBound = 0.0f;
-            targetConnection->potentialRange = std::numeric_limits<float>::max();
-            targetConnection->sourceBlockId = blockId;
-            targetConnection->sourceId = axonId;
-
-            hexagon->header.numberOfFreeSections--;
-            hexagon->wasResized = true;
-            cluster->metrics.numberOfSections++;
-
-            // std::cout<<"create "<<hexagon->header.hexagonId<<std::endl;
-            axon->activeCounter = 1;
-        }
-    }
+    return wasUpdated;
 }
 
 #endif  // HANAMI_SECTION_UPDATE_H

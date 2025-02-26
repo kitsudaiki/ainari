@@ -29,7 +29,6 @@
 #include <hanami_common/logger.h>
 #include <stdint.h>
 
-#include <atomic>
 #include <deque>
 #include <vector>
 
@@ -58,6 +57,7 @@ class LogicalHost
     virtual void syncWithHost(Hexagon* hexagon) = 0;
 
     Hanami::ItemBuffer<Block> blocks;
+    Hanami::ItemBuffer<SynapseSection> sections;
 
     void addWorkerTaskToQueue(const Hanami::WorkerTask task);
     const Hanami::WorkerTask getWorkerTaskFromQueue();

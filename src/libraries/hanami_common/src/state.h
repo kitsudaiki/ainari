@@ -1,5 +1,5 @@
 /**
- *  @file       state.h
+ * @file       state.h
  *
  * @author      Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

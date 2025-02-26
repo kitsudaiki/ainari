@@ -55,7 +55,6 @@ Cluster_Test::initTest()
           "    refractory_time: 2\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 3\n"
-          "    enable_reduction: true\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"

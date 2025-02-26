@@ -149,7 +149,7 @@ ThreadBinder::run()
             }
 
             // add initially defined core-ids to output
-            ThreadHandler* threadHandler = ThreadHandler::getInstance();
+            Hanami::ThreadHandler* threadHandler = Hanami::ThreadHandler::getInstance();
             const std::vector<Thread*> coreThreads = threadHandler->getThreads("WorkerThread");
             for (const Thread* thread : coreThreads) {
                 const std::string entry = "WorkerThread_" + std::to_string(thread->getThreadId());

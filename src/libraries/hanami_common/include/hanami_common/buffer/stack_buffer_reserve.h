@@ -1,5 +1,5 @@
 /**
- *  @file       stack_buffer_reserve.h
+ * @file       stack_buffer_reserve.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -26,7 +26,6 @@
 #include <hanami_common/buffer/data_buffer.h>
 
 #include <atomic>
-#include <iostream>
 #include <vector>
 
 #define STACK_BUFFER_BLOCK_SIZE 256 * 1024

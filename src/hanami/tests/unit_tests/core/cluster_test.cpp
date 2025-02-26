@@ -50,7 +50,6 @@ Cluster_Init_Test::initTest()
           "    refractory_time: 2\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 3\n"
-          "    enable_reduction: true\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -115,7 +114,6 @@ Cluster_Init_Test::createCluster_test()
     TEST_EQUAL(newCluster.clusterHeader.settings.neuronCooldown, 10000000.0);
     TEST_EQUAL(newCluster.clusterHeader.settings.refractoryTime, 2);
     TEST_EQUAL(newCluster.clusterHeader.settings.maxConnectionDistance, 3);
-    TEST_EQUAL(newCluster.clusterHeader.settings.enableReduction, true);
 
     // test hexagons
     TEST_EQUAL(newCluster.hexagons.size(), 3);

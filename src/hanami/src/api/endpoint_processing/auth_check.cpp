@@ -75,7 +75,9 @@ validateToken(json& result,
         }
         // check policy
         const std::string role = result["role"];
-        if (Policy::getInstance()->checkUserAgainstPolicy(endpoint, httpType, role) == false) {
+        if (Hanami::Policy::getInstance()->checkUserAgainstPolicy(endpoint, httpType, role)
+            == false)
+        {
             errorMessage = "Access denied by policy";
             return false;
         }

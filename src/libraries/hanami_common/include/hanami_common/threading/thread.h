@@ -1,5 +1,5 @@
 /**
- *  @file       thread.h
+ * @file       thread.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

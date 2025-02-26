@@ -34,113 +34,10 @@
 #include <cmath>
 
 /**
- * @brief send one axon-block to the next hexagon
- *
- * @param cluster cluster, where the hexagon belongs to
- * @param sourceAxonBlock axon-block, which should to transfered
- */
-inline void
-_transferAxonBlocks(Cluster* cluster, AxonBlock* sourceAxonBlock)
-{
-    if (sourceAxonBlock->targetBlockId == UNINIT_STATE_32
-        || sourceAxonBlock->targetHexagonId == UNINIT_STATE_32)
-    {
-        return;
-    }
-
-    Hexagon* targetHexagon = &cluster->hexagons[sourceAxonBlock->targetHexagonId];
-    targetHexagon->transferAxonBlocks[sourceAxonBlock->targetBlockId] = *sourceAxonBlock;
-}
-
-/**
- * @brief send axon-blocks a hexagon to its connected output-interface
- *
- * @param hexagon pointer to hexagon to process
- */
-inline void
-_transferAxonBlockToOutput(Hexagon* hexagon)
-{
-    hexagon->outputInterface->targetAxonBlocks.resize(hexagon->axonBlocks.size());
-
-    for (uint64_t blockId = 0; blockId < hexagon->axonBlocks.size(); ++blockId) {
-        AxonBlock* sourceAxonBlock = &hexagon->axonBlocks[blockId];
-        hexagon->outputInterface->targetAxonBlocks[blockId] = *sourceAxonBlock;
-    }
-}
-
-/**
- * @brief send axon-blocks from an input-interface to its connected hexagon
- *
- * @param cluster cluster, where the hexagon belongs to
- * @param inputInterface pointer to input-interface, of which the axon-blocks
- *                       should be send to the connected hexagon
- */
-template <bool doTrain>
-inline void
-transferInputAxonBlocks(Cluster* cluster, InputInterface* inputInterface)
-{
-    const uint64_t targetId = inputInterface->targetHexagonId;
-    cluster->hexagons[targetId].transferAxonBlocks.resize(inputInterface->inputAxons.size());
-
-    for (uint64_t blockId = 0; blockId < inputInterface->inputAxons.size(); ++blockId) {
-        AxonBlock* axonBlock = &inputInterface->inputAxons[blockId];
-
-        if constexpr (doTrain) {
-            if (axonBlock->targetBlockId == UNINIT_STATE_32) {
-                axonBlock->targetHexagonId = targetId;
-                axonBlock->targetBlockId = blockId;
-            }
-        }
-
-        _transferAxonBlocks(cluster, axonBlock);
-    }
-}
-
-/**
- * @brief process axon-blocks by initializing them and send them to the
- *        target-hexagon
- *
- * @param cluster pointer to cluster, where the hexagon belongs to
- * @param hexagon pointer to hexagon to process
- * @param randomSeed reference to the current seed of the randomizer
- */
-template <bool doTrain>
-inline void
-transferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
-{
-    // handle output-interface
-    if (hexagon->outputInterface != nullptr) {
-        _transferAxonBlockToOutput(hexagon);
-        return;
-    }
-
-    // handle normal connection
-    for (uint32_t sourceBlockId = 0; sourceBlockId < hexagon->axonBlocks.size(); ++sourceBlockId) {
-        AxonBlock* axon = &hexagon->axonBlocks[sourceBlockId];
-        if constexpr (doTrain) {
-            if (axon->targetBlockId == UNINIT_STATE_32) {
-                // get and update target
-                const uint64_t randPos = Hanami::pcg_hash(randomSeed) % NUMBER_OF_POSSIBLE_NEXT;
-                const uint64_t targetId = hexagon->possibleHexagonTargetIds[randPos];
-                const uint64_t currentSize = cluster->hexagons[targetId].transferAxonBlocks.size();
-                cluster->hexagons[targetId].transferAxonBlocks.resize(currentSize + 1);
-
-                // update information in the source axon-block
-                axon->targetHexagonId = targetId;
-                axon->targetBlockId = cluster->hexagons[targetId].transferAxonBlocks.size() - 1;
-                axon->sourceBlockId = sourceBlockId;
-                axon->sourceHexagonId = hexagon->header.hexagonId;
-            }
-        }
-
-        _transferAxonBlocks(cluster, axon);
-    }
-}
-
-/**
  * @brief process a single synapse-section
  *
  * @param cluster cluster, where the synapseSection belongs to
+ * @param hexagon hexagon, where the synapseSection belongs to
  * @param synapseSection current synapse-section to process
  * @param connection pointer to the connection-object, which is related to the section
  * @param transferAxon pointer to source-axon, which triggered the section
@@ -150,6 +47,7 @@ transferAxonBlocks(Cluster* cluster, Hexagon* hexagon, uint32_t& randomSeed)
 template <bool doTrain>
 inline void
 processSynapseSection(Cluster* cluster,
+                      Hexagon* hexagon,
                       SynapseSection* synapseSection,
                       Connection* connection,
                       Axon* transferAxon,
@@ -159,14 +57,10 @@ processSynapseSection(Cluster* cluster,
     uint8_t pos = 0;
     Synapse* synapse = nullptr;
     Neuron* targetNeuron = nullptr;
-    float halfPotential = 0.0f;
     bool condition = false;
     constexpr float createBorder = 0.05f;
-    const float range = connection->potentialRange;
     float potential = transferAxon->potential - connection->lowerBound;
     float ratio = 1.0f;
-    potential = range * static_cast<float>(potential > range)
-                + potential * static_cast<float>(potential <= range);
 
     // iterate over all synapses in the section
     while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {
@@ -207,15 +101,25 @@ processSynapseSection(Cluster* cluster,
             += synapse->weight2 * ratio * static_cast<float>(potential > synapse->border);
 
         // update loop-counter
-        halfPotential += static_cast<float>(pos < SYNAPSES_PER_SECTION / 2) * synapse->border;
         potential -= synapse->border;
         ++pos;
     }
 
     if constexpr (doTrain) {
-        if (connection->splitValue == 0.0f) {
-            connection->splitValue
-                = halfPotential * static_cast<float>(potential > POTENTIAL_BORDER);
+        if (potential > POTENTIAL_BORDER) {
+            if (connection->nextBlock == UNINIT_STATE_32) {
+                connection->requireNext = true;
+                return;
+            }
+
+            Hanami::ItemBuffer<Block>* blockBuffer = &hexagon->attachedHost->blocks;
+            Block* blocks = Hanami::getItemData<Block>(*blockBuffer);
+            Block* targetBlock = &blocks[connection->nextBlock];
+            Connection* nextConnection = &targetBlock->connections[connection->nextSectionInBlock];
+
+            if (nextConnection->lowerBound < potential) {
+                nextConnection->lowerBound = potential;
+            }
         }
     }
 }
@@ -231,7 +135,9 @@ template <bool doTrain>
 inline void
 processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+    SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon->attachedHost->sections);
+
     AxonBlock* tansferAxonBlocks = &hexagon->transferAxonBlocks[0];
 
     Block* block = nullptr;
@@ -248,23 +154,16 @@ processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 
     block = &blocks[hexagon->blockLinks[blockId]];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS - 1; ++i) {
-        if (block->connections[i].active == false && block->connections[i + 1].active == true) {
-            block->connections[i] = block->connections[i + 1];
-            block->sections[i] = block->sections[i + 1];
-            block->connections[i + 1] = Connection();
-            block->sections[i + 1] = SynapseSection();
-            assert(block->connections[i].active == true);
-            assert(block->connections[i + 1].active == false);
-        }
+    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS; ++i) {
         connection = &block->connections[i];
         transferAxon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
-        if (connection->active == true && transferAxon->potential > POTENTIAL_BORDER) {
-            section = &block->sections[i];
-
+        if (connection->active == true && transferAxon->potential > POTENTIAL_BORDER
+            && connection->sectionPtr != UNINIT_STATE_64)
+        {
+            section = &sections[connection->sectionPtr];
             processSynapseSection<doTrain>(
-                cluster, section, connection, transferAxon, neuronBlock, randomeSeed);
+                cluster, hexagon, section, connection, transferAxon, neuronBlock, randomeSeed);
         }
     }
 }
@@ -279,7 +178,7 @@ processBlock(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 inline void
 processNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
     const uint64_t link = hexagon->blockLinks[blockId];
     AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
@@ -320,8 +219,8 @@ processNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 inline void
 processExitNeurons(Cluster* cluster, Hexagon* hexagon, const uint32_t blockId)
 {
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
-    ClusterSettings* clusterSettings = &cluster->clusterHeader.settings;
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+
     const uint64_t link = hexagon->blockLinks[blockId];
     Neuron* neuronBlock = &blocks[link].neurons[0];
     Neuron* neuron = nullptr;

@@ -99,7 +99,6 @@ initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
     cluster->clusterHeader.settings.neuronCooldown = clusterMeta.neuronCooldown;
     cluster->clusterHeader.settings.refractoryTime = clusterMeta.refractoryTime;
     cluster->clusterHeader.settings.maxConnectionDistance = clusterMeta.maxConnectionDistance;
-    cluster->clusterHeader.settings.enableReduction = clusterMeta.enableReduction;
 }
 
 /**
@@ -111,7 +110,7 @@ initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
 void
 initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
-    for (const InputMeta& inputMeta : clusterMeta.inputs) {
+    for (const Hanami::InputMeta& inputMeta : clusterMeta.inputs) {
         InputInterface inputInterface;
         inputInterface.targetHexagonId = inputMeta.targetHexagonId;
         inputInterface.name = inputMeta.name;
@@ -133,7 +132,7 @@ initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 void
 initializeOutputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
-    for (const OutputMeta& outputMeta : clusterMeta.outputs) {
+    for (const Hanami::OutputMeta& outputMeta : clusterMeta.outputs) {
         OutputInterface outputInterface;
         outputInterface.targetHexagonId = outputMeta.targetHexagonId;
         outputInterface.name = outputMeta.name;
@@ -190,7 +189,7 @@ initializeHexagons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta, Log
 void
 updateAxons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
 {
-    for (const AxonMeta& axonMeta : clusterMeta.axons) {
+    for (const Hanami::AxonMeta& axonMeta : clusterMeta.axons) {
         cluster->hexagons[axonMeta.sourceId].header.axonTarget = axonMeta.targetId;
     }
 }

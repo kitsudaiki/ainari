@@ -45,7 +45,6 @@ Cluster_ParseString_Test::parseString_test()
         "    refractory_time: 1\n"
         "    neuron_cooldown: 10000000.0\n"
         "    max_connection_distance: 1\n"
-        "    enable_reduction: false\n"
         "\n"
         "hexagons:\n"
         "    1,1,1\n"
@@ -82,7 +81,6 @@ Cluster_ParseString_Test::parseString_test()
     TEST_EQUAL(result.refractoryTime, 1);
     TEST_EQUAL(result.neuronCooldown, 10000000.0f);
     TEST_EQUAL(result.maxConnectionDistance, 1);
-    TEST_EQUAL(result.enableReduction, false);
 
     TEST_EQUAL(result.hexagons.size(), 6);
 
@@ -141,7 +139,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -164,7 +161,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    asdf_config: 1\n"  // <-- error (unknown keyword here)
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -187,7 +183,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,a\n"  // <-- error (invalid position)
@@ -210,7 +205,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "asdf:\n"  // <-- error (unknown keyword here)
           "    1,1,1\n"
@@ -233,7 +227,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -256,7 +249,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -279,7 +271,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"
@@ -307,7 +298,6 @@ Cluster_ParseString_Test::parseString_test()
           "    refractory_time: 1\n"
           "    neuron_cooldown: 10000000.0\n"
           "    max_connection_distance: 1\n"
-          "    enable_reduction: false\n"
           "\n"
           "hexagons:\n"
           "    1,1,1\n"

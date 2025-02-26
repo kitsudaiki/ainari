@@ -28,7 +28,6 @@
 #include <core/processing/cpu/cpu_worker_thread.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <hanami_config/config_handler.h>
 #include <hanami_cpu/memory.h>
 #include <hanami_hardware/cpu_core.h>
@@ -62,7 +61,7 @@ CpuHost::~CpuHost() {}
 void
 CpuHost::initBuffer()
 {
-    m_totalMemory = getFreeMemory();
+    m_totalMemory = Hanami::getFreeMemory();
     bool success = false;
     float memoryUsage = GET_FLOAT_CONFIG("processing", "use_of_free_memory", success);
     // TODO: handle amound of min and max value by ranges inside of the config-lib
@@ -73,8 +72,14 @@ CpuHost::initBuffer()
         memoryUsage = 0.9f;
     }
     const uint64_t usedMemory = static_cast<float>(m_totalMemory) * memoryUsage;
-    blocks.initBuffer(usedMemory / sizeof(Block));
+    // one block can have up to 512 entries, but considering, that they are not all fully filled,
+    // 256 was choosen to estimate the average fill rate
+    const uint64_t numberOfBlocks = usedMemory / (sizeof(Block) + (256 * sizeof(SynapseSection)));
+    blocks.initBuffer(numberOfBlocks);
     blocks.deleteAll();
+
+    sections.initBuffer(numberOfBlocks * 256);
+    sections.deleteAll();
 
     LOG_INFO("Initialized number of syanpse-blocks on cpu-device: "
              + std::to_string(blocks.metaData.itemCapacity));
@@ -86,14 +91,14 @@ CpuHost::initBuffer()
 bool
 CpuHost::initWorkerThreads()
 {
-    Host* host = Host::getInstance();
-    CpuPackage* package = host->cpuPackages.at(m_localId);
+    Hanami::Host* host = Hanami::Host::getInstance();
+    Hanami::CpuPackage* package = host->cpuPackages.at(m_localId);
     uint32_t threadCounter = 0;
     for (uint32_t coreId = 1; coreId < package->cpuCores.size(); coreId++) {
         for (uint32_t threadId = 0; threadId < package->cpuCores.at(coreId)->cpuThreads.size();
              threadId++)
         {
-            CpuThread* thread = package->cpuCores.at(coreId)->cpuThreads.at(threadId);
+            Hanami::CpuThread* thread = package->cpuCores.at(coreId)->cpuThreads.at(threadId);
             CpuWorkerThread* newUnit = new CpuWorkerThread(this);
             m_workerThreads.push_back(newUnit);
             newUnit->startThread();
@@ -158,9 +163,22 @@ CpuHost::syncWithHost(Hexagon*)
 void
 CpuHost::removeHexagon(Hexagon* hexagon)
 {
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+
+    // delete sections from buffer
+    for (uint64_t blockLink : hexagon->blockLinks) {
+        Block* block = &blocks[blockLink];
+        for (Connection& connection : block->connections) {
+            if (connection.sectionPtr != UNINIT_STATE_64) {
+                hexagon->attachedHost->blocks.deleteItem(connection.sectionPtr);
+            }
+        }
+    }
+
+    // delete blocks from buffer
     for (uint64_t blockLink : hexagon->blockLinks) {
         if (blockLink != UNINIT_STATE_64) {
-            blocks.deleteItem(blockLink);
+            hexagon->attachedHost->blocks.deleteItem(blockLink);
         }
     }
 }

@@ -1,5 +1,5 @@
 /**
- *  @file       cpu.h
+ * @file       cpu.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -26,9 +26,6 @@
 #include <hanami_common/logger.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#include <fstream>
-#include <string>
 
 namespace Hanami
 {

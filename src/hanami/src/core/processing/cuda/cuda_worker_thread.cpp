@@ -28,7 +28,6 @@
 #include <core/processing/cpu/core_processing.h>
 #include <core/processing/cpu/output_backpropagation.h>
 #include <core/processing/cpu/output_processing.h>
-#include <core/processing/cpu/reduction.h>
 #include <core/processing/cuda/cuda_functions.h>
 #include <core/processing/logical_host.h>
 
@@ -67,7 +66,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
         }
 
         // in case of a normal hexagon
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId + 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -89,7 +88,7 @@ CudaWorkerThread::handleTrainForwardTask(Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -121,7 +120,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
             return;
         }
 
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId - 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -138,7 +137,7 @@ CudaWorkerThread::handleTrainBackwardTask(Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId - 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -165,7 +164,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             return;
         }
 
-        WorkerTask newTask;
+        Hanami::WorkerTask newTask;
         newTask.cluster = task.cluster;
         newTask.hexagonId = task.hexagonId + 1;
         newTask.blockId = UNINIT_STATE_16;
@@ -187,7 +186,7 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             task.cluster->updateClusterState(task);
         }
         else {
-            WorkerTask newTask;
+            Hanami::WorkerTask newTask;
             newTask.cluster = task.cluster;
             newTask.hexagonId = task.hexagonId + 1;
             newTask.blockId = UNINIT_STATE_16;
@@ -195,9 +194,4 @@ CudaWorkerThread::handleProcessTask(const Hanami::WorkerTask task)
             task.cluster->hexagons[newTask.hexagonId].attachedHost->addWorkerTaskToQueue(newTask);
         }
     }
-}
-
-void
-CudaWorkerThread::handleReductionTask(const Hanami::WorkerTask task)
-{
 }

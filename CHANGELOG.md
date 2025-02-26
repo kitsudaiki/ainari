@@ -13,6 +13,12 @@
 - updated core-structure for a cleaner communication between different hexagons
 - merge connection-, neuron- and synapse-block into one block object
 - updated section-processing for better input-handling especially for binary input data
+- replaced the old split-process for sections to avoid loosing half of the trained section in the process
+- dynamically link sections to connections in order to make memory usage more efficient
+
+#### Template-Breaking
+
+- removed the reductions-mode setting
 
 ### Changed
 
@@ -22,6 +28,10 @@
 ### Fixed
 
 - wrong return-code in one error-case of the create-train-task endpoint was fixed
+
+### Removed
+
+- removed the remaining code of the old broken reduction-process, which doesn't really makes a difference with the current core
 
 
 ## v0.6.0

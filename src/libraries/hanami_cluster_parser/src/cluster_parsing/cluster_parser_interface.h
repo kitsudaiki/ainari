@@ -25,7 +25,6 @@
 
 #include <hanami_common/logger.h>
 
-#include <iostream>
 #include <mutex>
 
 struct Position;

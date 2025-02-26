@@ -36,7 +36,6 @@ enum ClusterProcessingMode : uint8_t {
     NORMAL_MODE = 0,
     TRAIN_FORWARD_MODE = 1,
     TRAIN_BACKWARD_MODE = 2,
-    REDUCTION_MODE = 3,
 };
 
 enum HttpRequestType {

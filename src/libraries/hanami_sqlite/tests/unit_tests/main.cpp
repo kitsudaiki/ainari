@@ -1,7 +1,5 @@
 #include <sqlite_test.h>
 
-#include <iostream>
-
 int
 main()
 {

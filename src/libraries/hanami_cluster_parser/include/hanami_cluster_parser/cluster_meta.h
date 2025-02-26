@@ -26,9 +26,6 @@
 #include <hanami_common/logger.h>
 #include <hanami_common/structs.h>
 
-#include <any>
-#include <limits>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -56,7 +53,6 @@ struct ClusterMeta {
     float neuronCooldown = 1000000000.f;
     uint32_t refractoryTime = 1;
     uint32_t maxConnectionDistance = 1;
-    bool enableReduction = false;
 
     std::vector<Hanami::Position> hexagons;
     std::vector<InputMeta> inputs;

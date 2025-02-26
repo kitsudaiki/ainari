@@ -92,11 +92,8 @@ _backpropagateSection(SynapseSection* section,
     uint8_t pos = 0;
     Synapse* synapse;
     Axon* targetAxon = nullptr;
-    constexpr float trainValue = 0.1f;
+    constexpr float trainValue = 0.05f;
     float delta = 0.0f;
-    const float range = connection->potentialRange;
-    potential = range * static_cast<float>(potential > range)
-                + potential * static_cast<float>(potential <= range);
 
     // iterate over all synapses in the section
     while (pos < SYNAPSES_PER_SECTION && potential > POTENTIAL_BORDER) {
@@ -105,12 +102,18 @@ _backpropagateSection(SynapseSection* section,
         targetAxon = &targetBlock->axons[synapse->targetNeuronId % NEURONS_PER_BLOCK];
         delta = targetAxon->delta * synapse->weight1;
         synapse->weight1 -= trainValue * targetAxon->delta;
+        axon->delta += delta;
+        // synapse->activeCounter += (synapse->activeCounter < 100) * (delta != 0.0f);
 
         targetAxon = &targetBlock->axons[(synapse->targetNeuronId + 1) % NEURONS_PER_BLOCK];
-        delta += targetAxon->delta * synapse->weight2;
+        delta = targetAxon->delta * synapse->weight2;
         synapse->weight2 -= trainValue * targetAxon->delta;
-
         axon->delta += delta;
+        // synapse->activeCounter += (synapse->activeCounter < 100) * (delta != 0.0f);
+
+        // synapse->activeCounter -= (synapse->activeCounter < 100) * (pos > 0);
+        // synapse->targetNeuronId = synapse->targetNeuronId * (synapse->activeCounter > 0)
+        //                           + UNINIT_STATE_8 * (synapse->activeCounter <= 0);
 
         potential -= synapse->border;
         ++pos;
@@ -125,7 +128,10 @@ _backpropagateSection(SynapseSection* section,
  * @param blockId id of the current block within the hexagon
  */
 inline void
-_backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
+_backpropagateBlock(Hexagon* hexagon,
+                    Block* blocks,
+                    SynapseSection* sections,
+                    const uint32_t blockId)
 {
     Connection* connection = nullptr;
     AxonBlock* axonBlock = nullptr;
@@ -142,12 +148,14 @@ _backpropagateBlock(Hexagon* hexagon, Block* blocks, const uint32_t blockId)
     axonBlock = &hexagon->axonBlocks[blockId];
     block = &blocks[blockLink];
 
-    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS - 1; ++i) {
+    for (uint32_t i = 0; i < NUMBER_OF_SECTIONS; ++i) {
         connection = &block->connections[i];
         axon = &tansferAxonBlocks[connection->sourceBlockId].axons[connection->sourceId];
 
-        if (connection->active == true && axon->potential > POTENTIAL_BORDER) {
-            synapseSection = &block->sections[i];
+        if (connection->active == true && axon->potential > POTENTIAL_BORDER
+            && connection->sectionPtr != UNINIT_STATE_64)
+        {
+            synapseSection = &sections[connection->sectionPtr];
             _backpropagateSection(synapseSection, connection, axonBlock, axon);
         }
     }
@@ -165,7 +173,8 @@ backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t bl
 {
     Hanami::ErrorContainer error;
     Hexagon* hexagon = &cluster->hexagons[hexagonId];
-    Block* blocks = getItemData<Block>(hexagon->attachedHost->blocks);
+    Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
+    SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon->attachedHost->sections);
 
     if (hexagon->outputInterface == nullptr) {
         _backpropagateNeuron(hexagon, blockId);
@@ -174,71 +183,7 @@ backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t bl
         _backpropagateExitNeuron(hexagon, blockId);
     }
 
-    _backpropagateBlock(hexagon, blocks, blockId);
-}
-
-/**
- * @brief send one transfer-axon-block back to their source
- *
- * @param cluster pointer to cluster
- * @param axonBlock block to transfer
- */
-inline void
-_transferAxonBlocksBackwards(Cluster* cluster, AxonBlock* axonBlock)
-{
-    if (axonBlock->sourceBlockId == UNINIT_STATE_32
-        || axonBlock->sourceHexagonId == UNINIT_STATE_32)
-    {
-        return;
-    }
-
-    Hexagon* sourceHexagon = &cluster->hexagons[axonBlock->sourceHexagonId];
-    sourceHexagon->axonBlocks[axonBlock->sourceBlockId] = *axonBlock;
-}
-
-/**
- * @brief send axon-blocks of an output-interface back to the hexagon
- *
- * @param hexagon pointer to current processed hexagon
- */
-inline void
-transferAxonBlockFromOutput(Hexagon* hexagon)
-{
-    // std::cout << "transferAxonBlockFromOutput: x" << hexagon->header.hexagonId << std::endl;
-
-    for (uint64_t blockId = 0; blockId < hexagon->axonBlocks.size(); ++blockId) {
-        AxonBlock* axonBlock = &hexagon->axonBlocks[blockId];
-        *axonBlock = hexagon->outputInterface->targetAxonBlocks[blockId];
-    }
-}
-
-/**
- * @brief fake-transfer to the input just to finish the cycle properly
- *
- * @param hexagon pointer to current processed hexagon
- */
-inline void
-transferAxonBlockToInput(Hexagon* hexagon)
-{
-    for (uint64_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
-        AxonBlock* axonBlock = &hexagon->transferAxonBlocks[blockId];
-        hexagon->inputInterface->inputAxons[blockId] = *axonBlock;
-    }
-}
-
-/**
- * @brief send transfer-axon-blocks back to their source
- *
- * @param cluster pointer to cluster
- * @param hexagon pointer to current processed hexagon
- */
-inline void
-transferAxonBlocksBackward(Cluster* cluster, Hexagon* hexagon)
-{
-    for (uint64_t blockId = 0; blockId < hexagon->transferAxonBlocks.size(); ++blockId) {
-        AxonBlock* transferAxonBlock = &hexagon->transferAxonBlocks[blockId];
-        _transferAxonBlocksBackwards(cluster, transferAxonBlock);
-    }
+    _backpropagateBlock(hexagon, blocks, sections, blockId);
 }
 
 #endif  // HANAMI_CORE_BACKPROPAGATION_H

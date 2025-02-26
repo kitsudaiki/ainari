@@ -56,11 +56,14 @@ class IO_Interface
         Hanami::NameEntry name;
         OutputType type = PLAIN_OUTPUT;
         uint32_t numberOfOutputs = 0;
+        uint32_t numberOfWeightBlocks = 0;
         uint32_t targetHexagonId = UNINIT_STATE_32;
     };
 
     struct HexagonEntry {
         HexagonHeader header;
+
+        uint64_t numberOfBlocks = 0;
         uint64_t hexagonSize = 0;
 
         uint64_t axonBlocksPos = 0;
@@ -131,6 +134,10 @@ class IO_Interface
         if (bytePosition + sizeof(T) > m_localBuffer.size + m_localBuffer.startPos) {
             // update position in buffer
             m_localBuffer.startPos = bytePosition;
+            if (m_localBuffer.startPos >= m_localBuffer.totalSize) {
+                error.addMessage("Input-data invalid");
+                return INVALID_INPUT;
+            }
 
             // update size in buffer
             const uint64_t remain = m_localBuffer.totalSize - m_localBuffer.startPos;
@@ -174,6 +181,7 @@ class IO_Interface
 
     uint64_t getClusterSize(const Cluster& cluster) const;
     uint64_t getHexagonSize(const Hexagon& hexagon) const;
+    uint64_t getBlockSize(const Hexagon& hexagon) const;
 
     ReturnStatus serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& error);
     ReturnStatus deserializeHexagon(Hexagon& hexagon,

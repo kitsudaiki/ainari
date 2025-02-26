@@ -45,7 +45,6 @@ Cluster_ParseString_Test::parseString_test()
         "    refractory_time: 1\n"
         "    neuron_cooldown: 10000000.0\n"
         "    max_connection_distance: 1\n"
-        "    enable_reduction: false\n"
         "\n"
         "hexagons:\n"
         "    1,1,1\n"

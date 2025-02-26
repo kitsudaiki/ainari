@@ -1,5 +1,5 @@
 /**
- *  @file       vector_functions.cpp
+ * @file       vector_functions.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,6 +21,8 @@
  */
 
 #include <hanami_common/functions/vector_functions.h>
+
+#include <algorithm>
 
 namespace Hanami
 {

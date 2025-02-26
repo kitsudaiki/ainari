@@ -27,11 +27,9 @@
 #include <hanami_common/structs.h>
 #include <hanami_common/uuid.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <cstdlib>
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -64,7 +62,6 @@ struct ClusterSettings {
     float neuronCooldown = 1000000000.0f;
     uint32_t refractoryTime = 1;
     int32_t maxConnectionDistance = 1;
-    bool enableReduction = false;
     bool enableCreation = false;
 
     uint8_t padding[42];
@@ -84,9 +81,6 @@ struct ClusterSettings {
             return false;
         }
         if (maxConnectionDistance != rhs.maxConnectionDistance) {
-            return false;
-        }
-        if (enableReduction != rhs.enableReduction) {
             return false;
         }
         // enableCreation is only a temporary value and not relevant for this comparism
@@ -140,6 +134,13 @@ struct ClusterHeader {
 static_assert(sizeof(ClusterHeader) == 512);
 
 //==================================================================================================
+
+struct TargetLocation {
+    uint32_t targetBlock = UNINIT_STATE_32;
+    uint16_t targetConnection = UNINIT_STATE_16;
+};
+
+//==================================================================================================
 //==================================================================================================
 //==================================================================================================
 
@@ -169,27 +170,12 @@ static_assert(sizeof(AxonBlock) == 2048);
 
 //==================================================================================================
 
-struct Connection {
-    float lowerBound = 0.0f;
-    float potentialRange = std::numeric_limits<float>::max();
-    float splitValue = 0.0;
-
-    uint32_t sourceBlockId = UNINIT_STATE_32;
-    uint8_t sourceId = UNINIT_STATE_8;
-
-    bool active = false;
-    uint8_t padding[6];
-};
-static_assert(sizeof(Connection) == 24);
-
-//==================================================================================================
-
 struct Synapse {
     float border = 0.0f;
     float weight1 = 0.0f;
     float weight2 = 0.0f;
     uint8_t padding2[2];
-    uint8_t activeCounter = 0;
+    int8_t activeCounter = 0;
     uint8_t targetNeuronId = UNINIT_STATE_8;
 };
 static_assert(sizeof(Synapse) == 16);
@@ -202,6 +188,27 @@ struct SynapseSection {
     SynapseSection() { std::fill_n(synapses, SYNAPSES_PER_SECTION, Synapse()); }
 };
 static_assert(sizeof(SynapseSection) == 2048);
+
+//==================================================================================================
+
+struct Connection {
+    float lowerBound = 0.0f;
+
+    uint32_t sourceBlockId = UNINIT_STATE_32;
+    uint8_t sourceId = UNINIT_STATE_8;
+
+    bool active = false;
+    bool requireNext = false;
+    uint8_t padding1[5];
+
+    uint32_t nextBlock = UNINIT_STATE_32;
+    uint16_t nextSectionInBlock = UNINIT_STATE_16;
+
+    uint8_t padding2[2];
+
+    uint64_t sectionPtr = UNINIT_STATE_64;
+};
+static_assert(sizeof(Connection) == 32);
 
 //==================================================================================================
 
@@ -220,37 +227,31 @@ static_assert(sizeof(Neuron) == 32);
 //==================================================================================================
 
 struct Block {
-    SynapseSection sections[NUMBER_OF_SECTIONS];
     Connection connections[NUMBER_OF_SECTIONS];
     Neuron neurons[NEURONS_PER_BLOCK];
 
     Block()
     {
-        std::fill_n(sections, NUMBER_OF_SECTIONS, SynapseSection());
         std::fill_n(connections, NUMBER_OF_SECTIONS, Connection());
         std::fill_n(neurons, NEURONS_PER_BLOCK, Neuron());
     }
 };
-static_assert(sizeof(Block)
-              == (NUMBER_OF_SECTIONS * 2048) + (NUMBER_OF_SECTIONS * 24)
-                     + (NEURONS_PER_BLOCK * 32));
+static_assert(sizeof(Block) == (NUMBER_OF_SECTIONS * 32) + (NEURONS_PER_BLOCK * 32));
 
 //==================================================================================================
 //==================================================================================================
 //==================================================================================================
 
-struct OutputTargetLocationPtr {
-    float connectionWeight = 0.0f;
-    uint32_t blockId = UNINIT_STATE_32;
-    uint16_t neuronId = UNINIT_STATE_8;
-    uint8_t padding[6];
+struct OutputWeightBlock {
+    float connectionWeight[NEURONS_PER_BLOCK];
+
+    OutputWeightBlock() { std::fill_n(connectionWeight, NEURONS_PER_BLOCK, 0.0f); }
 };
-static_assert(sizeof(OutputTargetLocationPtr) == 16);
+static_assert(sizeof(OutputWeightBlock) == 512);
 
 //==================================================================================================
 
 struct OutputNeuron {
-    OutputTargetLocationPtr targets[NUMBER_OF_OUTPUT_CONNECTIONS];
     float outputVal = 0.0f;
     float exprectedVal = 0.0f;
     uint8_t padding[8];
@@ -263,6 +264,7 @@ struct OutputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<OutputNeuron> outputNeurons;
+    std::vector<OutputWeightBlock> weights;
     std::vector<AxonBlock> targetAxonBlocks;
     std::vector<float> ioBuffer;
     OutputType type = PLAIN_OUTPUT;

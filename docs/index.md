@@ -37,18 +37,7 @@ and multi-tenancy.
     The input of the network is not restricted to range of 0.0 - 1.0 . Every value, as long it is a
     positive value, can be inserted. Also if there is a single broken value in the input-data, which
     is million times higher, than the rest of the input-values, it has nearly no effect on the rest
-    of the already trained data. Thanks to the reduction-process, all synapses, which are only the
-    result of this single input, are removed again from the network.
-
--   **Reduction-Process**
-
-    The concept of a growing network has the result, that there is basically nearly no limit in
-    size, even if the growth-rate slows down over time. To limit the growth-rate even more, it is
-    possible to enable a reduction-process, which removes synapses again, which were to inactive to
-    reach the threshold to be marked as persistent.
-
-    See
-    [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements/#reduction_1)
+    of the already trained data.
 
 -   **Spiking neural network**
 

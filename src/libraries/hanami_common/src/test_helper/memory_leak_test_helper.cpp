@@ -1,5 +1,5 @@
 /**
- *  @file       memory_leak_test_helper.cpp
+ * @file       memory_leak_test_helper.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
@@ -21,6 +21,8 @@
  */
 
 #include <hanami_common/test_helper/memory_leak_test_helper.h>
+
+#include <iostream>
 
 //==================================================================================================
 // Overrides for new and delete

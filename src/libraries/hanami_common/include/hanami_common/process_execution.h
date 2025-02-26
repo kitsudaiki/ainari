@@ -1,5 +1,5 @@
 /**
- *  @file       process_execution.h
+ * @file       process_execution.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

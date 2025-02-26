@@ -1,5 +1,5 @@
 ﻿/**
- *  @file       arg_parser.h
+ * @file       arg_parser.h
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *

@@ -1,5 +1,5 @@
 /**
- *  @file       symmetric_encryption_test.cpp
+ * @file       symmetric_encryption_test.cpp
  *
  *  @author     Tobias Anker <tobias.anker@kitsunemimi.moe>
  *
