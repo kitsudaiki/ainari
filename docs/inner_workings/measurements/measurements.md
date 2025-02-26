@@ -35,7 +35,6 @@ settings:
     neuron_cooldown: 100000000000.0
     refractory_time: 1
     max_connection_distance: 1
-    enable_reduction: false
 
 hexagons:
     1,1,1
@@ -158,60 +157,3 @@ interpolated sections the spikes are much bigger.
 !!! info
 
     These examples will be updated, when a more optimal test-case was found. It is only the current state of evaluation.
-
-#### Reduction
-
-With default-values, but enabled reduction-process the diagram looks nearly the same like the normal
-version without reduction.
-
-![With reduction](reduction.jpg)
-
-Because there are only 4 different input-values in the test, which are used over and over again, a
-big difference also wouldn't be expected, but the transitions between the different input-values are
-looking a bit smother compared to the other version.
-
-## MNIST-Test
-
-Because the constructed case above doesn't show much measurable impact, the reduction-process was
-also tested with the MNIST-dataset.
-
-### Cluster-template
-
-Here the used cluster-template for this test:
-
-```
-version: 1
-settings:
-    neuron_cooldown: 100000000000.0
-    refractory_time: 1
-    max_connection_distance: 1
-    enable_reduction: false
-
-hexagons:
-    1,1,1
-    2,1,1
-    3,1,1
-
-inputs:
-    test_input: 1,1,1
-
-outputs:
-    test_output: 3,1,1
-```
-
-### Reduction
-
-The following shows the impact of the reduction on the cluster-size. Here the number of synapses
-between the neurons are counted:
-
-![Size with and without reduction](reduction_size.jpg)
-
-It shows the expected result, that the reduction-process reduce the number of synapses by removed
-them, which are not used often enough, which can have quite a bit impact on the size of the cluster.
-
-On the other hand this has also impact on the accuracy of the result:
-
-![Accuracy with and without reduction](reduction_accuracy.jpg)
-
-It shows, that the reduction also also impact on the output by reducting the accuracy in this test
-by `0,68%` but in exchange it reduce the cluster-size by `20%`.

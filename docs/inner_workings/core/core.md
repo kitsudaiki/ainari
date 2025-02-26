@@ -5,9 +5,10 @@ development and permanently updated while working on the code of OpenHanami.
 
 Reference implementation of the core functions, which are describe by this chapter:
 
--   [Processing](https://github.com/kitsudaiki/Hanami/blob/develop/src/hanami/src/core/processing/cpu/processing.h)
--   [Backpropagation](https://github.com/kitsudaiki/Hanami/blob/develop/src/hanami/src/core/processing/cpu/backpropagation.h)
--   [Reduction](https://github.com/kitsudaiki/Hanami/blob/develop/src/hanami/src/core/processing/cpu/reduction.h)
+-   [Processing](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/core_processing.h)
+-   [Backpropagation](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/core_backpropagation.h)
+-   [Output-Processing](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/output_processing.h)
+-   [Output-Backpropagation](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/output_backpropagation.h)
 
 ## Basic architecture
 
@@ -76,9 +77,6 @@ There are 3 types of objects:
     which is applied to the connection neuron. In case of the backpropagation this weight is
     adjusted. The border of the synapse is not affected by the backpropagation.
 
-    Additionally is also contains an activation-counter to measure the activity of the synapse,
-    which is used of the experimental [Reduction](/inner_workings/core/core/#reduction)-feature.
-
     _128 synapses = 1 synapse-section_
 
     _512 synapse-section = 1 synapse-block_
@@ -134,9 +132,7 @@ serial order, the potential will be reduced by the border of each passed synapse
 reach zero. Each synapse, which comes later in the section, will not be triggered (blue). This way,
 different potentials triggering different amount of synapses. In case of the MNIST-dataset for
 example this means, that a `1` as input need less processing power, than a `8`, because the `1`
-always has less positive input-values to represent the image of the number. This is also the key of
-the [reduction-process](/inner_workings/core/core/#reduction), because the dependency on the input
-means, that all synapses have a different amount of activity. Also this is necessary for the
+always has less positive input-values to represent the image of the number. Also this is necessary for the
 experimental feature of the
 [spiking neural networks](/inner_workings/core/core/#spiking-neural-network), because different
 timeframes of the spike and it cool-down also means a different amount of active synapse.
@@ -302,19 +298,6 @@ neurons within another hexagon, to avoid race-conditions.
 There are some even more experimental optional features, which can be enabled. They can be defined
 in the [cluster-templates](/frontend/cluster_templates/cluster_template/). There are also a few
 [measurement-examples](/inner_workings/measurements/measurements).
-
-### Reduction
-
-!!! info
-
-    The reduction-process is currently disables, because of changes in the growing process.
-
-The reduction-process should limit the size of the neural network, by deleting nearly never used
-synapses again, which were not capable of reaching the necessary threshold to be persistent.
-
-See the [Example](/inner_workings/measurements/measurements/#reduction_1)
-
-Additional it is necessary for the try-and-error learning approach.
 
 ### No strict layer structure
 

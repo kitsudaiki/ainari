@@ -122,7 +122,6 @@ directly with the neural network via the python-version of the SDK. See for furt
         neuron_cooldown: 10000000.0
         refractory_time: 1
         max_connection_distance: 1
-        enable_reduction: false
 
     hexagons:
         1,1,1
