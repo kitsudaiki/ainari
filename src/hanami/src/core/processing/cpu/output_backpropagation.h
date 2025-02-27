@@ -50,28 +50,28 @@ backpropagateOutput(OutputInterface* outputInterface)
     Axon* axon = nullptr;
     AxonBlock* axonBlock = nullptr;
     OutputNeuron* out = nullptr;
-    OutputWeightBlock* weightBlocks = nullptr;
+    OutputWeightBlock* weightBlockSection = nullptr;
     OutputWeightBlock* wBlock = nullptr;
 
-    if (outputInterface->weights.size() == 0) {
+    if (outputInterface->weightBlocks.size() == 0) {
         return true;
     }
 
-    assert(outputInterface->weights.size() % outputInterface->outputNeurons.size() == 0);
-    const uint64_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
+    assert(outputInterface->weightBlocks.size() % outputInterface->outputNeurons.size() == 0);
+    const uint64_t dim
+        = outputInterface->weightBlocks.size() / outputInterface->outputNeurons.size();
+    assert(dim == outputInterface->targetAxonBlocks.size());
 
     for (outPos = 0; outPos < outputInterface->outputNeurons.size(); ++outPos) {
         out = &outputInterface->outputNeurons[outPos];
-        weightBlocks = &outputInterface->weights[outPos * dim];
+        weightBlockSection = &outputInterface->weightBlocks[outPos * dim];
 
         delta = out->outputVal - out->exprectedVal;
         update = delta * out->outputVal * (1 - out->outputVal);
 
-        for (wb = 0; wb < outputInterface->weights.size();
-             wb += outputInterface->outputNeurons.size())
-        {
-            wBlock = &weightBlocks[wb];
+        for (wb = 0; wb < dim; ++wb) {
             axonBlock = &outputInterface->targetAxonBlocks[wb];
+            wBlock = &weightBlockSection[wb];
 
             for (w = 0; w < NEURONS_PER_BLOCK; ++w) {
                 axon = &axonBlock->axons[w];

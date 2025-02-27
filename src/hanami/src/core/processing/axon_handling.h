@@ -63,11 +63,11 @@ _transferAxonBlockToOutput(Hexagon* hexagon)
         outputInterface->targetAxonBlocks.resize(hexagon->axonBlocks.size());
         const int64_t totalWeightBlocks
             = hexagon->axonBlocks.size() * outputInterface->outputNeurons.size();
-        const int64_t diff = totalWeightBlocks - outputInterface->weights.size();
+        const int64_t diff = totalWeightBlocks - outputInterface->weightBlocks.size();
 
         // update weight-blocks
         if (diff > 0) {
-            outputInterface->weights.resize(totalWeightBlocks, OutputWeightBlock());
+            outputInterface->weightBlocks.resize(totalWeightBlocks, OutputWeightBlock());
         }
     }
 

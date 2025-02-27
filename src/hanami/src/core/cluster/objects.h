@@ -264,7 +264,7 @@ struct OutputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<OutputNeuron> outputNeurons;
-    std::vector<OutputWeightBlock> weights;
+    std::vector<OutputWeightBlock> weightBlocks;
     std::vector<AxonBlock> targetAxonBlocks;
     std::vector<float> ioBuffer;
     OutputType type = PLAIN_OUTPUT;
