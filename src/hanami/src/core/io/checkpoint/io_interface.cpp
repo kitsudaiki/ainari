@@ -250,7 +250,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
 
     if (hexagon.outputInterface != nullptr) {
         size += sizeof(OutputEntry);
-        size += hexagon.outputInterface->weights.size() * sizeof(OutputWeightBlock);
+        size += hexagon.outputInterface->weightBlocks.size() * sizeof(OutputWeightBlock);
         size += hexagon.outputInterface->outputNeurons.size() * sizeof(OutputNeuron);
     }
 
@@ -337,13 +337,13 @@ IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& e
         outputEntry.type = hexagon.outputInterface->type;
         outputEntry.numberOfOutputs = hexagon.outputInterface->ioBuffer.size();
         outputEntry.targetHexagonId = hexagon.header.hexagonId;
-        outputEntry.numberOfWeightBlocks = hexagon.outputInterface->weights.size();
+        outputEntry.numberOfWeightBlocks = hexagon.outputInterface->weightBlocks.size();
         if (addObjectToLocalBuffer(&outputEntry, error) == false) {
             return ERROR;
         }
 
         // write weight-blocks to buffer
-        for (const OutputWeightBlock& weightBlock : hexagon.outputInterface->weights) {
+        for (const OutputWeightBlock& weightBlock : hexagon.outputInterface->weightBlocks) {
             if (addObjectToLocalBuffer(&weightBlock, error) == false) {
                 return ERROR;
             }
@@ -511,10 +511,10 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
         outputIf.type = outputEntry.type;
         outputIf.targetHexagonId = hexagon.header.hexagonId;
         outputIf.initBuffer(outputEntry.numberOfOutputs, 1);
-        outputIf.weights.resize(outputEntry.numberOfWeightBlocks);
+        outputIf.weightBlocks.resize(outputEntry.numberOfWeightBlocks);
 
         // read weight-blocks
-        for (OutputWeightBlock& weightBlock : outputIf.weights) {
+        for (OutputWeightBlock& weightBlock : outputIf.weightBlocks) {
             ret = getObjectFromLocalBuffer(positionPtr, &weightBlock, error);
             if (ret != OK) {
                 return ret;
@@ -675,7 +675,7 @@ IO_Interface::createHexagonEntry(const Hexagon& hexagon)
         hexagonEntry.outputsInterfacesPos = posCounter;
         hexagonEntry.numberOfOutputBytes
             = sizeof(OutputEntry)
-              + (hexagon.outputInterface->weights.size() * sizeof(OutputWeightBlock))
+              + (hexagon.outputInterface->weightBlocks.size() * sizeof(OutputWeightBlock))
               + (hexagon.outputInterface->outputNeurons.size() * sizeof(OutputNeuron));
     }
 

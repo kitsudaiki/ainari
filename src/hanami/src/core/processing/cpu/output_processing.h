@@ -67,27 +67,27 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
     uint32_t w = 0;
 
     OutputNeuron* out = nullptr;
-    OutputWeightBlock* weightBlocks = nullptr;
+    OutputWeightBlock* weightBlockSection = nullptr;
     OutputWeightBlock* wBlock = nullptr;
     OutputInterface* outputInterface = hexagon->outputInterface;
 
-    if (outputInterface->weights.size() == 0) {
+    if (outputInterface->weightBlocks.size() == 0) {
         return;
     }
 
-    assert(outputInterface->weights.size() % outputInterface->outputNeurons.size() == 0);
-    const uint64_t dim = outputInterface->weights.size() / outputInterface->outputNeurons.size();
+    assert(outputInterface->weightBlocks.size() % outputInterface->outputNeurons.size() == 0);
+    const uint64_t dim
+        = outputInterface->weightBlocks.size() / outputInterface->outputNeurons.size();
+    assert(dim == outputInterface->targetAxonBlocks.size());
 
     for (outPos = 0; outPos < outputInterface->outputNeurons.size(); ++outPos) {
         out = &outputInterface->outputNeurons[outPos];
-        weightBlocks = &outputInterface->weights[outPos * dim];
+        weightBlockSection = &outputInterface->weightBlocks[outPos * dim];
         weightSum = 0.0f;
 
-        for (wb = 0; wb < outputInterface->weights.size();
-             wb += outputInterface->outputNeurons.size())
-        {
+        for (wb = 0; wb < dim; ++wb) {
             axonBlock = &outputInterface->targetAxonBlocks[wb];
-            wBlock = &weightBlocks[wb];
+            wBlock = &weightBlockSection[wb];
 
             for (w = 0; w < NEURONS_PER_BLOCK; ++w) {
                 axon = &axonBlock->axons[w];
