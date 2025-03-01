@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from . import hanami_request
-import json
 import base64
 
 
@@ -23,7 +22,7 @@ def create_user(token: str,
                 user_name: str,
                 passphrase: str,
                 is_admin: bool,
-                verify_connection: bool = True) -> str:
+                verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user"
 
     passphrase_bytes = passphrase.encode('utf-8')
@@ -35,18 +34,17 @@ def create_user(token: str,
         "passphrase": base64_encoded.decode('utf-8'),
         "is_admin": is_admin,
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)
 
 
 def get_user(token: str,
              address: str,
              user_id: str,
-             verify_connection: bool = True) -> str:
+             verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user"
     values = f'id={user_id}'
     return hanami_request.send_get_request(token,
@@ -58,7 +56,7 @@ def get_user(token: str,
 
 def list_users(token: str,
                address: str,
-               verify_connection: bool = True) -> str:
+               verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user/all"
     return hanami_request.send_get_request(token,
                                            address,
@@ -70,14 +68,14 @@ def list_users(token: str,
 def delete_user(token: str,
                 address: str,
                 user_id: str,
-                verify_connection: bool = True) -> str:
+                verify_connection: bool = True):
     path = "/v1.0alpha/user"
     values = f'id={user_id}'
-    return hanami_request.send_delete_request(token,
-                                              address,
-                                              path,
-                                              values,
-                                              verify=verify_connection)
+    hanami_request.send_delete_request(token,
+                                       address,
+                                       path,
+                                       values,
+                                       verify=verify_connection)
 
 
 def add_roject_to_user(token: str,
@@ -86,7 +84,7 @@ def add_roject_to_user(token: str,
                        project_id: str,
                        role: str,
                        is_project_admin: bool,
-                       verify_connection: bool = True) -> str:
+                       verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user/project"
     json_body = {
         "id": user_id,
@@ -94,11 +92,10 @@ def add_roject_to_user(token: str,
         "role": role,
         "is_project_admin": is_project_admin,
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)
 
 
@@ -106,19 +103,19 @@ def remove_project_fromUser(token: str,
                             address: str,
                             user_id: str,
                             project_id: str,
-                            verify_connection: bool = True) -> str:
+                            verify_connection: bool = True):
     path = "/v1.0alpha/user/project"
     values = f'project_id={project_id}&id={user_id}'
-    return hanami_request.send_delete_request(token,
-                                              address,
-                                              path,
-                                              values,
-                                              verify=verify_connection)
+    hanami_request.send_delete_request(token,
+                                       address,
+                                       path,
+                                       values,
+                                       verify=verify_connection)
 
 
 def list_projects_of_user(token: str,
                           address: str,
-                          verify_connection: bool = True) -> str:
+                          verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user/project"
     return hanami_request.send_get_request(token,
                                            address,
@@ -130,14 +127,13 @@ def list_projects_of_user(token: str,
 def switch_project(token: str,
                    address: str,
                    project_id: str,
-                   verify_connection: bool = True) -> str:
+                   verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/user/project"
     json_body = {
         "project_id": project_id,
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)

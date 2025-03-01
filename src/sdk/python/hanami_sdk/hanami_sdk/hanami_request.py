@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import requests
+import json
+
 from . import hanami_exceptions
 
 
@@ -34,20 +36,21 @@ def _handle_response(response) -> str:
 def send_post_request(token: str,
                       address: str,
                       path: str,
-                      body: str,
-                      verify: bool) -> str:
+                      body: dict,
+                      verify: bool) -> dict:
+    body_str = json.dumps(body)
     url = f'{address}{path}'
     headers = {'content-type': 'application/json'}
     headers = {'X-Auth-Token': token}
-    response = requests.post(url, data=body, headers=headers, verify=verify)
-    return _handle_response(response)
+    response = requests.post(url, data=body_str, headers=headers, verify=verify)
+    return json.loads(_handle_response(response))
 
 
 def send_get_request(token: str,
                      address: str,
                      path: str,
                      values: str,
-                     verify: bool) -> str:
+                     verify: bool) -> dict:
     if values:
         url = f'{address}{path}?{values}'
     else:
@@ -55,27 +58,28 @@ def send_get_request(token: str,
 
     headers = {'X-Auth-Token': token}
     response = requests.get(url, headers=headers, verify=verify)
-    return _handle_response(response)
+    return json.loads(_handle_response(response))
 
 
 def send_put_request(token: str,
                      address: str,
                      path: str,
-                     body: str,
-                     verify: bool) -> str:
+                     body: dict,
+                     verify: bool) -> dict:
+    body_str = json.dumps(body)
     url = f'{address}{path}'
     headers = {'content-type': 'application/json'}
     headers = {'X-Auth-Token': token}
-    response = requests.put(url, data=body, headers=headers, verify=verify)
-    return _handle_response(response)
+    response = requests.put(url, data=body_str, headers=headers, verify=verify)
+    return json.loads(_handle_response(response))
 
 
 def send_delete_request(token: str,
                         address: str,
                         path: str,
                         values: str,
-                        verify: bool) -> str:
+                        verify: bool):
     url = f'{address}{path}?{values}'
     headers = {'X-Auth-Token': token}
     response = requests.delete(url, headers=headers, verify=verify)
-    return _handle_response(response)
+    _handle_response(response)

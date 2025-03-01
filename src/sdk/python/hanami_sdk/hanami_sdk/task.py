@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from . import hanami_request
-import json
 
 
 def create_train_task(token: str,
@@ -23,7 +22,7 @@ def create_train_task(token: str,
                       inputs: list,
                       outputs: list,
                       timeLength: int = 1,
-                      verify_connection: bool = True) -> str:
+                      verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/task/train"
     json_body = {
         "name": name,
@@ -32,11 +31,10 @@ def create_train_task(token: str,
         "outputs": outputs,
         "time_length": timeLength
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)
 
 
@@ -47,7 +45,7 @@ def create_request_task(token: str,
                         inputs: list,
                         results: list,
                         timeLength: int = 1,
-                        verify_connection: bool = True) -> str:
+                        verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/task/request"
     json_body = {
         "name": name,
@@ -56,11 +54,10 @@ def create_request_task(token: str,
         "results": results,
         "time_length": timeLength
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)
 
 
@@ -68,7 +65,7 @@ def get_task(token: str,
              address: str,
              task_uuid: str,
              cluster_uuid: str,
-             verify_connection: bool = True) -> str:
+             verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/task"
     values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
     return hanami_request.send_get_request(token,
@@ -81,7 +78,7 @@ def get_task(token: str,
 def list_tasks(token: str,
                address: str,
                cluster_uuid: str,
-               verify_connection: bool = True) -> str:
+               verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/task/all"
     values = f'cluster_uuid={cluster_uuid}'
     return hanami_request.send_get_request(token,
@@ -95,11 +92,11 @@ def delete_task(token: str,
                 address: str,
                 task_uuid: str,
                 cluster_uuid: str,
-                verify_connection: bool = True) -> str:
+                verify_connection: bool = True):
     path = "/v1.0alpha/task"
     values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
-    return hanami_request.send_delete_request(token,
-                                              address,
-                                              path,
-                                              values,
-                                              verify=verify_connection)
+    hanami_request.send_delete_request(token,
+                                       address,
+                                       path,
+                                       values,
+                                       verify=verify_connection)

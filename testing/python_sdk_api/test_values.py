@@ -27,6 +27,7 @@ def get_direct_io_test_output():
     should_values[9] = 0.0
     return should_values
 
+
 def get_direct_io_test_intput():
     input_values = [0.0] * 784
     # fill a "5" into the input-buffer

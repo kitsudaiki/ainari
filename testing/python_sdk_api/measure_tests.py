@@ -35,18 +35,15 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 matplotlib.use('Qt5Agg')
 
-def delete_all_cluster():
-    result = cluster.list_clusters(token, address, False)
-    body = json.loads(result)["body"]
 
+def delete_all_cluster():
+    body = cluster.list_clusters(token, address, False)["body"]
     for entry in body:
         cluster.delete_cluster(token, address, entry[1], False)
 
 
 def delete_all_datasets():
-    result = dataset.list_datasets(token, address, False)
-    body = json.loads(result)["body"]
-
+    body = dataset.list_datasets(token, address, False)["body"]
     for entry in body:
         dataset.delete_dataset(token, address, entry[1], False)
 
@@ -92,7 +89,8 @@ delete_all_datasets()
 delete_all_cluster()
 
 # update dataset
-train_dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs, False)
+train_dataset_uuid = dataset.upload_csv_files(
+    token, address, train_dataset_name, train_inputs, False)
 request_dataset_uuid = dataset.upload_csv_files(
     token, address, request_dataset_name, request_inputs, False)
 
@@ -136,45 +134,44 @@ flattened_list = [0.0] * 1750
 
 # create all cluster
 for x in range(replicas):
-    result = cluster.create_cluster(token, address, cluster_name + str(x), cluster_template, False)
-    cluster_uuids[x] = json.loads(result)["uuid"]
+    cluster_uuids[x] = cluster.create_cluster(
+        token, address, cluster_name + str(x), cluster_template, False)["uuid"]
 
 # train
 for i in range(0, 500):
     for x in range(replicas):
         print("poi: ", i)
-        result = task.create_train_task(token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 20, False)
-        task_uuids[x] = json.loads(result)["uuid"]
+        task_uuids[x] = task.create_train_task(
+            token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 20, False)["uuid"]
 
     for x in range(replicas):
         finished = False
         result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-        finished = json.loads(result)["state"] == "finished"
+        finished = result["state"] == "finished"
         while not finished:
             result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-            finished = json.loads(result)["state"] == "finished"
+            finished = result["state"] == "finished"
             # print("wait for finish train-task")
             time.sleep(0.01)
         result = task.delete_task(token, address, task_uuids[x], cluster_uuids[x], False)
 
 # test
 for x in range(replicas):
-    result = task.create_request_task(token, address, generic_task_name, cluster_uuids[x], request_inputs, request_results, 20, False)
-    task_uuids[x] = json.loads(result)["uuid"]
+    task_uuids[x] = task.create_request_task(
+        token, address, generic_task_name, cluster_uuids[x], request_inputs, request_results, 20, False)["uuid"]
     finished = False
     while not finished:
         result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-        finished = json.loads(result)["state"] == "finished"
+        finished = result["state"] == "finished"
         print(result)
         # print("wait for finish request-task")
         time.sleep(0.1)
         # result = task.delete_task(token, address, task_uuids[x], cluster_uuids[x])
 
-    result = dataset.download_dataset_content(
-            token, address, task_uuids[x], "test_output", 1700, 0, False)
+    data = dataset.download_dataset_content(
+        token, address, task_uuids[x], "test_output", 1700, 0, False)["data"]
 
-    data = json.loads(result)["data"]
-    #print(data)
+    # print(data)
     temp_list = [item for sublist in data for item in sublist]
     for r in range(len(temp_list)):
         flattened_list[r] += temp_list[r]

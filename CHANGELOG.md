@@ -28,6 +28,7 @@
 ### Fixed
 
 - wrong return-code in one error-case of the create-train-task endpoint was fixed
+- fixed offset in the output of the timeseries training from datasets
 
 ### Removed
 
