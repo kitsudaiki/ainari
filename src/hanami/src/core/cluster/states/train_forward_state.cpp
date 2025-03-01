@@ -73,7 +73,11 @@ TrainForward_State::processEvent()
 
     for (auto& [hexagonName, output] : info->outputs) {
         OutputInterface* outputInterface = &m_cluster->outputInterfaces[hexagonName];
-        if (getDataFromDataSet(outputInterface->ioBuffer, output, info->currentCycle, error) != OK)
+        if (getDataFromDataSet(outputInterface->ioBuffer,
+                               output,
+                               (info->timeLength - 1) + info->currentCycle,
+                               error)
+            != OK)
         {
             return false;
         }
