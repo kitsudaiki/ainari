@@ -289,6 +289,27 @@ Delete a project.
     project.delete_project(token, address, projet_id)
     ```
 
+### Delete all projects
+
+Delete all projects.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import project
+
+    address = "http://127.0.0.1:11418"
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    project.delete_all_projects(token, address)
+    ```
+
 ## User
 
 !!! info
@@ -501,6 +522,27 @@ Delete a user from the backend.
     user.delete_user(token, address, user_id)
     ```
 
+### Delete all users
+
+Delete all users, except the one, who executed this action.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import user
+
+    address = "http://127.0.0.1:11418"
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    user.delete_all_user(token, address)
+    ```
+
 ### Add project to user
 
 Assigne a project to a normal user.
@@ -564,7 +606,7 @@ Unassign a project from a user.
     # request a token for a user, who has admin-permissions
     # see: https://docs.openhanami.com/api/sdk_library/#request-token
 
-    result = remove_project_fromUser(token, address, user_id, project_id)
+    remove_project_fromUser(token, address, user_id, project_id)
     ```
 
 ### List projects of current user
@@ -614,11 +656,11 @@ Switch to another project with the current user.
     result = switch_project(token, address, project_id)
     ```
 
-## Data-Set
+## Dataset
 
 Datasets are a bunch of train- or test-data, which can be uploaded to the server.
 
-### Upload MNIST-Data-Set
+### Upload MNIST-Dataset
 
 These are files of the official mnist-dataset, which can be uploaded and which are primary used for
 testing currently. Each dataset of this type requires the file-path to the local input- and
@@ -673,7 +715,7 @@ label-file of the same dataset.
     # 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4
     ```
 
-### Upload CSV-Data-Set
+### Upload CSV-Dataset
 
 !!! warning
 
@@ -723,7 +765,7 @@ label-file of the same dataset.
     # 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4
     ```
 
-### Get Data-Set
+### Get Dataset
 
 Get information about a specific dataset.
 
@@ -781,7 +823,7 @@ Get information about a specific dataset.
     # }
     ```
 
-### List Data-Sets
+### List Datasets
 
 List all visible datasets.
 
@@ -841,7 +883,7 @@ List all visible datasets.
     # }
     ```
 
-### Delete Data-Set
+### Delete Dataset
 
 Delete a dataset.
 
@@ -871,6 +913,27 @@ Delete a dataset.
     # see: https://docs.openhanami.com/api/sdk_library/#request-token
 
     dataset.delete_dataset(token, address, dataset_uuid)
+    ```
+
+### Delete all Datasets
+
+Delete all datasets.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import dataset
+
+    address = "http://127.0.0.1:11418"
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    dataset.delete_all_datasets(token, address)
     ```
 
 ### Check MNIST Dataset Result
@@ -1221,6 +1284,27 @@ Delete a cluster from a backend.
     cluster.delete_cluster(token, address, cluster_uuid)
     ```
 
+### Delete all Cluster
+
+Delete all cluster.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import cluster
+
+    address = "http://127.0.0.1:11418"
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    cluster.delete_all_cluster(token, address)
+    ```
+
 ### Create Checkpoint of Cluster
 
 Save the state of the cluster by creating a checkpoint, which is stored on the server.
@@ -1421,15 +1505,10 @@ Create a new task to train the cluster with the data of a dataset, which was upl
                                     cluster_uuid,
                                     inputs,
                                     outputs)
-    task_uuid = json.loads(result)["uuid"]
+    task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    finished = False
-    while not finished:
-        result = task.get_task(token, address, task_uuid, cluster_uuid)
-        finished = json.loads(result)["state"] == "finished"
-        print("wait for finish task")
-        time.sleep(1)
+    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, 1.0)
     ```
 
 ### Create Request-Task
@@ -1505,15 +1584,10 @@ used, which had to be uplaoded first.
                                       cluster_uuid,
                                       inputs,
                                       results)
-    task_uuid = json.loads(result)["uuid"]
+    task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    finished = False
-    while not finished:
-        result = task.get_task(token, address, task_uuid, cluster_uuid)
-        finished = json.loads(result)["state"] == "finished"
-        print("wait for finish task")
-        time.sleep(1)
+    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, 1.0)
     ```
 
 ### Get Task
@@ -1659,6 +1733,31 @@ will not be deleted.
     task.delete_task(token, address, task_uuid, cluster_uuid)
     ```
 
+### Wait until Task is finished
+
+Delete a task from a cluster. In this task was a request and produced a request-result, this result
+will not be deleted.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import task
+
+    address = "http://127.0.0.1:11418"
+    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
+    time_interval = 0.1  # time-interval to check if finished, in seconds
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, time_interval)
+    ```
+
 ## Direct-IO
 
 It is possible to directly connect via websocket to the cluster on the server to make single
@@ -1712,7 +1811,7 @@ requests much faster, because it doesn't use the REST-API. It is an alternative 
     asyncio.run(main())
     ```
 
-### direct request
+### Direct request
 
 === "CLI"
 
@@ -1849,6 +1948,27 @@ Delete a checkpoint from the backend.
 
     checkpoint.delete_checkpoint(token, address, checkpoint_uuid)
 
+    ```
+
+### Delete all Checkpoints
+
+Delete all checkpoint.
+
+=== "CLI"
+
+    (not implemented yet)
+
+=== "Python-SDK"
+
+    ```python
+    from hanami_sdk import checkpoint
+
+    address = "http://127.0.0.1:11418"
+
+    # request a token for a user, who has admin-permissions
+    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+
+    checkpoint.delete_all_checkpoints(token, address)
     ```
 
 ## Hosts

@@ -91,49 +91,6 @@ def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█'):
     sys.stdout.flush()
 
 
-def delete_all_cluster():
-    result = cluster.list_clusters(token, address, False)
-    body = json.loads(result)["body"]
-
-    for entry in body:
-        cluster.delete_cluster(token, address, entry[1], False)
-
-
-def delete_all_projects():
-    result = project.list_projects(token, address, False)
-    body = json.loads(result)["body"]
-
-    for entry in body:
-        project.delete_project(token, address, entry[1], False)
-
-
-def delete_all_user():
-    result = user.list_users(token, address, False)
-    body = json.loads(result)["body"]
-
-    for entry in body:
-        try:
-            user.delete_user(token, address, entry[1], False)
-        except hanami_exceptions.ConflictException:
-            pass
-
-
-def delete_all_datasets():
-    result = dataset.list_datasets(token, address, False)
-    body = json.loads(result)["body"]
-
-    for entry in body:
-        dataset.delete_dataset(token, address, entry[1], False)
-
-
-def delete_all_checkpoints():
-    result = checkpoint.list_checkpoints(token, address, False)
-    body = json.loads(result)["body"]
-
-    for entry in body:
-        checkpoint.delete_checkpoint(token, address, entry[1], False)
-
-
 def test_project():
     print("test project")
 
@@ -183,16 +140,16 @@ def test_dataset():
         token, address, train_dataset_name, train_inputs, train_labels, False)
     dataset_uuid = result
 
-    result = dataset.list_datasets(token, address, False)
-    result = dataset.get_dataset(token, address, dataset_uuid, False)
+    dataset.list_datasets(token, address, False)
+    dataset.get_dataset(token, address, dataset_uuid, False)
 
     try:
-        result = dataset.get_dataset(token, address, "fail_dataset", False)
+        dataset.get_dataset(token, address, "fail_dataset", False)
     except hanami_exceptions.BadRequestException:
         pass
-    result = dataset.delete_dataset(token, address, dataset_uuid, False)
+    dataset.delete_dataset(token, address, dataset_uuid, False)
     try:
-        result = dataset.delete_dataset(token, address, dataset_uuid, False)
+        dataset.delete_dataset(token, address, dataset_uuid, False)
     except hanami_exceptions.NotFoundException:
         pass
 
@@ -200,17 +157,17 @@ def test_dataset():
 def test_cluster():
     print("test cluster")
 
-    result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
-    cluster_uuid = json.loads(result)["uuid"]
-    result = cluster.list_clusters(token, address, False)
-    result = cluster.get_cluster(token, address, cluster_uuid, False)
+    cluster_uuid = cluster.create_cluster(
+        token, address, cluster_name, cluster_template, False)["uuid"]
+    cluster.list_clusters(token, address, False)
+    cluster.get_cluster(token, address, cluster_uuid, False)
     try:
-        result = cluster.get_cluster(token, address, "fail_cluster", False)
+        cluster.get_cluster(token, address, "fail_cluster", False)
     except hanami_exceptions.BadRequestException:
         pass
-    result = cluster.delete_cluster(token, address, cluster_uuid, False)
+    cluster.delete_cluster(token, address, cluster_uuid, False)
     try:
-        result = cluster.delete_cluster(token, address, cluster_uuid, False)
+        cluster.delete_cluster(token, address, cluster_uuid, False)
     except hanami_exceptions.NotFoundException:
         pass
 
@@ -246,19 +203,19 @@ async def test_direct_io(token, address, cluster_uuid):
 
 def _creat_and_resore_checkpoint(cluster_uuid):
     # save and reload checkpoint
-    result = cluster.save_cluster(token, address, checkpoint_name, cluster_uuid, False)
-    checkpoint_uuid = json.loads(result)["uuid"]
-    result = checkpoint.list_checkpoints(token, address, False)
-    # print(json.dumps(json.loads(result), indent=4))
+    checkpoint_uuid = cluster.save_cluster(
+        token, address, checkpoint_name, cluster_uuid, False)["uuid"]
+    checkpoint.list_checkpoints(token, address, False)
+    # print(json.dumps(result, indent=4))
 
     cluster.delete_cluster(token, address, cluster_uuid, False)
-    result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
-    cluster_uuid = json.loads(result)["uuid"]
+    cluster_uuid = cluster.create_cluster(
+        token, address, cluster_name, cluster_template, False)["uuid"]
 
-    result = cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid, False)
-    result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+    cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid, False)
+    checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
     try:
-        result = checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+        checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
     except hanami_exceptions.NotFoundException:
         pass
 
@@ -283,25 +240,24 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     for i in range(0, 1):
-        result = task.create_train_task(
-            token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, False)
-        task_uuid = json.loads(result)["uuid"]
+        task_uuid = task.create_train_task(
+            token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, False)["uuid"]
 
         finished = False
         while not finished:
             time.sleep(1)
             result = task.get_task(token, address, task_uuid, cluster_uuid, False)
-            finished = json.loads(result)["state"] == "finished"
-            progress_bar(json.loads(result)["current_cycle"],
-                         json.loads(result)["total_number_of_cycles"],
+            finished = result["state"] == "finished"
+            progress_bar(result["current_cycle"],
+                         result["total_number_of_cycles"],
                          prefix='Progress:',
                          suffix='Complete',
                          length=50)
 
         print("\n")
         result = cluster.get_cluster(token, address, cluster_uuid, False)
-        print(json.dumps(json.loads(result), indent=4))
-        result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
+        print(json.dumps(result, indent=4))
+        task.delete_task(token, address, task_uuid, cluster_uuid, False)
 
 
 def _test(cluster_uuid, request_dataset_uuid):
@@ -321,38 +277,35 @@ def _test(cluster_uuid, request_dataset_uuid):
         }
     ]
 
-    result = task.create_request_task(
-        token, address, generic_task_name, cluster_uuid, inputs, results, 1, False)
-    task_uuid = json.loads(result)["uuid"]
+    task_uuid = task.create_request_task(
+        token, address, generic_task_name, cluster_uuid, inputs, results, 1, False)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
-        finished = json.loads(result)["state"] == "finished"
-        progress_bar(json.loads(result)["current_cycle"],
-                     json.loads(result)["total_number_of_cycles"],
+        finished = result["state"] == "finished"
+        progress_bar(result["current_cycle"],
+                     result["total_number_of_cycles"],
                      prefix='Progress:',
                      suffix='Complete',
                      length=50)
 
     print("\n")
     result = task.list_tasks(token, address, cluster_uuid, False)
-    result = task.delete_task(token, address, task_uuid, cluster_uuid, False)
+    task.delete_task(token, address, task_uuid, cluster_uuid, False)
     time.sleep(1)
     # check request-result
-    result = dataset.check_mnist_dataset(
-        token, address, task_uuid, request_dataset_uuid, False)
-    accuracy = json.loads(result)["accuracy"]
+    accuracy = dataset.check_mnist_dataset(
+        token, address, task_uuid, request_dataset_uuid, False)["accuracy"]
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
     assert accuracy > 80.0
 
     # download part of the resulting dataset
-    result = dataset.download_dataset_content(
-        token, address, task_uuid, "test_output", 10, 100, False)
-    data = json.loads(result)["data"]
+    data = dataset.download_dataset_content(
+        token, address, task_uuid, "test_output", 10, 100, False)["data"]
     assert len(data[0]) == 10
 
 
@@ -360,15 +313,14 @@ def test_workflow():
     print("test workflow")
 
     # init
-    result = cluster.create_cluster(token, address, cluster_name, cluster_template, False)
-    cluster_uuid = json.loads(result)["uuid"]
+    cluster_uuid = cluster.create_cluster(
+        token, address, cluster_name, cluster_template, False)["uuid"]
     train_dataset_uuid = dataset.upload_mnist_files(
         token, address, train_dataset_name, train_inputs, train_labels, False)
     request_dataset_uuid = dataset.upload_mnist_files(
         token, address, request_dataset_name, request_inputs, request_labels, False)
 
-    result = hosts.list_hosts(token, address, False)
-    hosts_json = json.loads(result)["body"]
+    hosts_json = hosts.list_hosts(token, address, False)["body"]
     if len(hosts_json) > 1:
         print("test move cluster to gpu")
         target_host_uuid = hosts_json[1][0]
@@ -393,11 +345,11 @@ def test_workflow():
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-delete_all_datasets()
-delete_all_checkpoints()
-delete_all_cluster()
-delete_all_projects()
-delete_all_user()
+dataset.delete_all_datasets(token, address, False)
+checkpoint.delete_all_checkpoints(token, address, False)
+cluster.delete_all_cluster(token, address, False)
+project.delete_all_projects(token, address, False)
+user.delete_all_user(token, address, False)
 
 test_project()
 test_user()

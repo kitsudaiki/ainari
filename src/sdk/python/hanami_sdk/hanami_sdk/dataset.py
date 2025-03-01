@@ -25,7 +25,7 @@ import websockets
 
 def list_datasets(token: str,
                   address: str,
-                  verify_connection: bool = True) -> str:
+                  verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/dataset/all"
     return hanami_request.send_get_request(token,
                                            address,
@@ -37,7 +37,7 @@ def list_datasets(token: str,
 def get_dataset(token: str,
                 address: str,
                 dataset_uuid: str,
-                verify_connection: bool = True) -> str:
+                verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/dataset"
     values = f'uuid={dataset_uuid}'
     return hanami_request.send_get_request(token,
@@ -50,21 +50,29 @@ def get_dataset(token: str,
 def delete_dataset(token: str,
                    address: str,
                    checkpoint_uuid: str,
-                   verify_connection: bool = True) -> str:
+                   verify_connection: bool = True):
     path = "/v1.0alpha/dataset"
     values = f'uuid={checkpoint_uuid}'
-    return hanami_request.send_delete_request(token,
-                                              address,
-                                              path,
-                                              values,
-                                              verify=verify_connection)
+    hanami_request.send_delete_request(token,
+                                       address,
+                                       path,
+                                       values,
+                                       verify=verify_connection)
+
+
+def delete_all_datasets(token: str,
+                        address: str,
+                        verify_connection: bool = True):
+    body = list_datasets(token, address, False)["body"]
+    for entry in body:
+        delete_dataset(token, address, entry[1], verify_connection)
 
 
 def check_mnist_dataset(token: str,
                         address: str,
                         dataset_uuid: str,
                         reference_dataset_uuid: str,
-                        verify_connection: bool = True) -> str:
+                        verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/dataset/check"
     values = f'uuid={dataset_uuid}&reference_uuid={reference_dataset_uuid}'
     return hanami_request.send_get_request(token,
@@ -80,10 +88,10 @@ def download_dataset_content(token: str,
                              column_name: str,
                              number_of_rows: int,
                              row_offset: int = 0,
-                             verify_connection: bool = True) -> str:
+                             verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/dataset/content"
     values = f'uuid={dataset_uuid}&column_name={column_name}&row_offset={row_offset}' \
-             f'&number_of_rows={number_of_rows}'
+        f'&number_of_rows={number_of_rows}'
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -105,8 +113,7 @@ def wait_until_upload_complete(token: str,
                                                  values,
                                                  verify=verify_connection)
 
-        result_json = json.loads(result)
-        if result_json["complete"]:
+        if result["complete"]:
             return True
 
         time.sleep(0.5)
@@ -188,15 +195,13 @@ def upload_mnist_files(token: str,
         "input_data_size": len(input_file_data),
         "label_data_size": len(label_file_data),
     }
-    body_str = json.dumps(json_body)
     result = hanami_request.send_post_request(
-        token, address, path, body_str, verify=verify_connection)
+        token, address, path, json_body, verify=verify_connection)
 
     # process init-result
-    result_json = json.loads(result)
-    uuid = result_json["uuid"]
-    input_file_uuid = result_json["uuid_input_file"]
-    label_file_uuid = result_json["uuid_label_file"]
+    uuid = result["uuid"]
+    input_file_uuid = result["uuid_input_file"]
+    label_file_uuid = result["uuid_label_file"]
 
     # send data
     if not asyncio.run(send_data(token,
@@ -228,10 +233,8 @@ def upload_mnist_files(token: str,
         "uuid_input_file": input_file_uuid,
         "uuid_label_file": label_file_uuid,
     }
-    body_str = json.dumps(json_body)
     result = hanami_request.send_put_request(
-        token, address, path, body_str, verify=verify_connection)
-    result_json = json.loads(result)
+        token, address, path, json_body, verify=verify_connection)
 
     return uuid
 
@@ -251,17 +254,15 @@ def upload_csv_files(token: str,
         "name": name,
         "input_data_size": len(input_file_data),
     }
-    body_str = json.dumps(json_body)
     result = hanami_request.send_post_request(token,
                                               address,
                                               path,
-                                              body_str,
+                                              json_body,
                                               verify=verify_connection)
 
     # process init-result
-    result_json = json.loads(result)
-    uuid = result_json["uuid"]
-    input_file_uuid = result_json["uuid_input_file"]
+    uuid = result["uuid"]
+    input_file_uuid = result["uuid_input_file"]
 
     # send data
     if not asyncio.run(send_data(token,
@@ -284,9 +285,7 @@ def upload_csv_files(token: str,
         "uuid": uuid,
         "uuid_input_file": input_file_uuid,
     }
-    body_str = json.dumps(json_body)
     result = hanami_request.send_put_request(
-        token, address, path, body_str, verify=verify_connection)
-    result_json = json.loads(result)
+        token, address, path, json_body, verify=verify_connection)
 
     return uuid

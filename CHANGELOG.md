@@ -7,6 +7,7 @@
 #### API-Breaking
 
 - removed the Binary input option again
+- functions of the python-sdk now returning a dict instead of a json-formated string
 
 #### Checkpoint-breaking
 
@@ -20,6 +21,11 @@
 
 - removed the reductions-mode setting
 
+### Added
+
+- delete-all functions for all resources were added to the python-sdk
+- function to wait for a task to be finished was added to the python-sdk
+
 ### Changed
 
 - the resize-process was updated to avoid the search-loop for a new free section
@@ -28,6 +34,7 @@
 ### Fixed
 
 - wrong return-code in one error-case of the create-train-task endpoint was fixed
+- fixed offset in the output of the timeseries training from datasets
 
 ### Removed
 

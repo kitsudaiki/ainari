@@ -43,5 +43,3 @@ def request_token(address: str,
         raise hanami_exceptions.ConflictException(response.content)
     if response.status_code == 500:
         raise hanami_exceptions.InternalServerErrorException()
-
-# check_token

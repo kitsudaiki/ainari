@@ -13,31 +13,29 @@
 # limitations under the License.
 
 from . import hanami_request
-import json
 
 
 def create_project(token: str,
                    address: str,
                    project_id: str,
                    project_name: str,
-                   verify_connection: bool = True) -> str:
+                   verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/project"
     json_body = {
         "id": project_id,
         "name": project_name,
     }
-    body_str = json.dumps(json_body)
     return hanami_request.send_post_request(token,
                                             address,
                                             path,
-                                            body_str,
+                                            json_body,
                                             verify=verify_connection)
 
 
 def get_project(token: str,
                 address: str,
                 project_id: str,
-                verify_connection: bool = True) -> str:
+                verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/project"
     values = f'id={project_id}'
     return hanami_request.send_get_request(token,
@@ -49,7 +47,7 @@ def get_project(token: str,
 
 def list_projects(token: str,
                   address: str,
-                  verify_connection: bool = True) -> str:
+                  verify_connection: bool = True) -> dict:
     path = "/v1.0alpha/project/all"
     return hanami_request.send_get_request(token,
                                            address,
@@ -61,11 +59,19 @@ def list_projects(token: str,
 def delete_project(token: str,
                    address: str,
                    project_id: str,
-                   verify_connection: bool = True) -> str:
+                   verify_connection: bool = True):
     path = "/v1.0alpha/project"
     values = f'id={project_id}'
-    return hanami_request.send_delete_request(token,
-                                              address,
-                                              path,
-                                              values,
-                                              verify=verify_connection)
+    hanami_request.send_delete_request(token,
+                                       address,
+                                       path,
+                                       values,
+                                       verify=verify_connection)
+
+
+def delete_all_projects(token: str,
+                        address: str,
+                        verify_connection: bool = True):
+    body = list_projects(token, address, False)["body"]
+    for entry in body:
+        delete_project(token, address, entry[1], verify_connection)
