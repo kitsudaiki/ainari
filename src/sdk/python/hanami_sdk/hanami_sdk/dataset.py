@@ -60,6 +60,14 @@ def delete_dataset(token: str,
                                        verify=verify_connection)
 
 
+def delete_all_datasets(token: str,
+                        address: str,
+                        verify_connection: bool = True):
+    body = list_datasets(token, address, False)["body"]
+    for entry in body:
+        delete_dataset(token, address, entry[1], verify_connection)
+
+
 def check_mnist_dataset(token: str,
                         address: str,
                         dataset_uuid: str,

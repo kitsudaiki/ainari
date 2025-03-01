@@ -35,19 +35,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 matplotlib.use('Qt5Agg')
 
-
-def delete_all_cluster():
-    body = cluster.list_clusters(token, address, False)["body"]
-    for entry in body:
-        cluster.delete_cluster(token, address, entry[1], False)
-
-
-def delete_all_datasets():
-    body = dataset.list_datasets(token, address, False)["body"]
-    for entry in body:
-        dataset.delete_dataset(token, address, entry[1], False)
-
-
 config = configparser.ConfigParser()
 config.read('/etc/openhanami/hanami_testing.conf')
 
@@ -85,8 +72,8 @@ train_dataset_name = "train_test_dataset"
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
 # initial cleanup for the case of leftovers from previous run
-delete_all_datasets()
-delete_all_cluster()
+dataset.delete_all_datasets(token, address, False)
+cluster.delete_all_cluster(token, address, False)
 
 # update dataset
 train_dataset_uuid = dataset.upload_csv_files(

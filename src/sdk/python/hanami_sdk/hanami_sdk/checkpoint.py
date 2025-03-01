@@ -37,3 +37,11 @@ def delete_checkpoint(token: str,
                                        path,
                                        values,
                                        verify=verify_connection)
+
+
+def delete_all_checkpoints(token: str,
+                           address: str,
+                           verify_connection: bool = True):
+    body = list_checkpoints(token, address, False)["body"]
+    for entry in body:
+        delete_checkpoint(token, address, entry[1], verify_connection)

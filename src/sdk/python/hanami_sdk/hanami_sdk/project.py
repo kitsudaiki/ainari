@@ -67,3 +67,11 @@ def delete_project(token: str,
                                        path,
                                        values,
                                        verify=verify_connection)
+
+
+def delete_all_projects(token: str,
+                        address: str,
+                        verify_connection: bool = True):
+    body = list_projects(token, address, False)["body"]
+    for entry in body:
+        delete_project(token, address, entry[1], verify_connection)

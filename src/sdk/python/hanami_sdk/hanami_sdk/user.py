@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from . import hanami_request
+from . import hanami_exceptions
+
 import base64
 
 
@@ -76,6 +78,19 @@ def delete_user(token: str,
                                        path,
                                        values,
                                        verify=verify_connection)
+
+
+def delete_all_user(token: str,
+                    address: str,
+                    verify_connection: bool = True):
+    body = list_users(token, address, False)["body"]
+    for entry in body:
+        try:
+            delete_user(token, address, entry[1], verify_connection)
+        except hanami_exceptions.ConflictException:
+            # when a user tries to delete himself, then an exception
+            # is raised, which is catched here.
+            pass
 
 
 def add_roject_to_user(token: str,

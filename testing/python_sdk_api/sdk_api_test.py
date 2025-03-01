@@ -91,39 +91,6 @@ def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█'):
     sys.stdout.flush()
 
 
-def delete_all_cluster():
-    body = cluster.list_clusters(token, address, False)["body"]
-    for entry in body:
-        cluster.delete_cluster(token, address, entry[1], False)
-
-
-def delete_all_projects():
-    body = project.list_projects(token, address, False)["body"]
-    for entry in body:
-        project.delete_project(token, address, entry[1], False)
-
-
-def delete_all_user():
-    body = user.list_users(token, address, False)["body"]
-    for entry in body:
-        try:
-            user.delete_user(token, address, entry[1], False)
-        except hanami_exceptions.ConflictException:
-            pass
-
-
-def delete_all_datasets():
-    body = dataset.list_datasets(token, address, False)["body"]
-    for entry in body:
-        dataset.delete_dataset(token, address, entry[1], False)
-
-
-def delete_all_checkpoints():
-    body = checkpoint.list_checkpoints(token, address, False)["body"]
-    for entry in body:
-        checkpoint.delete_checkpoint(token, address, entry[1], False)
-
-
 def test_project():
     print("test project")
 
@@ -378,11 +345,11 @@ def test_workflow():
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-delete_all_datasets()
-delete_all_checkpoints()
-delete_all_cluster()
-delete_all_projects()
-delete_all_user()
+dataset.delete_all_datasets(token, address, False)
+checkpoint.delete_all_checkpoints(token, address, False)
+cluster.delete_all_cluster(token, address, False)
+project.delete_all_projects(token, address, False)
+user.delete_all_user(token, address, False)
 
 test_project()
 test_user()
