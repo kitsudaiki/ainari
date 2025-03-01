@@ -7,6 +7,7 @@
 #### API-Breaking
 
 - removed the Binary input option again
+- functions of the python-sdk now returning a dict instead of a json-formated string
 
 #### Checkpoint-breaking
 
@@ -19,6 +20,11 @@
 #### Template-Breaking
 
 - removed the reductions-mode setting
+
+### Added
+
+- delete-all functions for all resources were added to the python-sdk
+- function to wait for a task to be finished was added to the python-sdk
 
 ### Changed
 
