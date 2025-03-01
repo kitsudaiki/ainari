@@ -14,6 +14,8 @@
 
 from . import hanami_request
 
+import time
+
 
 def create_train_task(token: str,
                       address: str,
@@ -100,3 +102,19 @@ def delete_task(token: str,
                                        path,
                                        values,
                                        verify=verify_connection)
+
+
+def wait_for_task_finished(token: str,
+                           address: str,
+                           task_uuid: str,
+                           cluster_uuid: str,
+                           time_interval: float = 1.0,
+                           verify_connection: bool = True):
+    finished = False
+    while not finished:
+        result = get_task(token, address, task_uuid, cluster_uuid, verify_connection)
+        finished = result["state"] == "finished"
+        # in case that the task is already finished, an unnecessary sleep should be avoided
+        if finished:
+            return
+        time.sleep(time_interval)

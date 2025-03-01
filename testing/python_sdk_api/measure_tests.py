@@ -21,11 +21,8 @@ from hanami_sdk import cluster
 from hanami_sdk import dataset
 from hanami_sdk import task
 from hanami_sdk import direct_io
-import json
-import time
 import configparser
 import urllib3
-import asyncio
 
 
 # the test use insecure connections, which is totally ok for the tests
@@ -132,28 +129,14 @@ for i in range(0, 500):
             token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 20, False)["uuid"]
 
     for x in range(replicas):
-        finished = False
-        result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-        finished = result["state"] == "finished"
-        while not finished:
-            result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-            finished = result["state"] == "finished"
-            # print("wait for finish train-task")
-            time.sleep(0.01)
+        task.wait_for_task_finished(token, address, task_uuids[x], cluster_uuids[x], 0.01, False)
         result = task.delete_task(token, address, task_uuids[x], cluster_uuids[x], False)
 
 # test
 for x in range(replicas):
     task_uuids[x] = task.create_request_task(
         token, address, generic_task_name, cluster_uuids[x], request_inputs, request_results, 20, False)["uuid"]
-    finished = False
-    while not finished:
-        result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
-        finished = result["state"] == "finished"
-        print(result)
-        # print("wait for finish request-task")
-        time.sleep(0.1)
-        # result = task.delete_task(token, address, task_uuids[x], cluster_uuids[x])
+    task.wait_for_task_finished(token, address, task_uuids[x], cluster_uuids[x], 0.01, False)
 
     data = dataset.download_dataset_content(
         token, address, task_uuids[x], "test_output", 1700, 0, False)["data"]
