@@ -32,7 +32,6 @@
 
 #include <cstring>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 enum DataSetType : uint8_t {

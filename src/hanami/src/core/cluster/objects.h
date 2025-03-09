@@ -256,7 +256,7 @@ struct OutputNeuron {
     float exprectedVal = 0.0f;
     uint8_t padding[8];
 };
-// static_assert(sizeof(OutputNeuron) == 128);
+static_assert(sizeof(OutputNeuron) == 16);
 
 //==================================================================================================
 
@@ -300,9 +300,12 @@ struct InputInterface {
         if (ioBuffer.size() != expectedSize) {
             ioBuffer.resize(expectedSize);
         }
-        expectedSize += (timeLength - 1);
-        expectedSize /= NEURONS_PER_BLOCK;
-        expectedSize++;
+
+        expectedSize += (timeLength - 1);  // respect time-length of the input
+        expectedSize *= 2;  // double length to also hold a negative value for the inputs
+        expectedSize /= NEURONS_PER_BLOCK;  // convert entries to blocks
+        expectedSize++;  // becaus of the line above to fix rounding-error add a new block
+
         if (inputAxons.size() < expectedSize) {
             const uint64_t oldSize = 0;
             inputAxons.resize(expectedSize);

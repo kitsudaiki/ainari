@@ -49,11 +49,15 @@ TrainForward_State::processEvent()
     Task* actualTask = m_cluster->getCurrentTask();
     TrainInfo* info = &std::get<TrainInfo>(actualTask->info);
 
+    AxonBlock* axonBlock = nullptr;
+    Axon* axon = nullptr;
+    uint64_t blockId = 0;
+    uint16_t axonId = 0;
+
     for (auto& [hexagonName, input] : info->inputs) {
         uint64_t counter = 0;
         InputInterface* inputInterface = &m_cluster->inputInterfaces[hexagonName];
-        AxonBlock* axonBlock = nullptr;
-        Axon* axon = nullptr;
+
         for (uint64_t t = 0; t < info->timeLength; ++t) {
             if (getDataFromDataSet(inputInterface->ioBuffer, input, info->currentCycle + t, error)
                 != OK)
@@ -61,12 +65,14 @@ TrainForward_State::processEvent()
                 return false;
             }
             for (const float val : inputInterface->ioBuffer) {
-                const uint64_t blockId = counter / NEURONS_PER_BLOCK;
-                const uint16_t axonId = counter % NEURONS_PER_BLOCK;
+                blockId = counter / NEURONS_PER_BLOCK;
+                axonId = counter % NEURONS_PER_BLOCK;
                 axonBlock = &inputInterface->inputAxons[blockId];
-                axon = &axonBlock->axons[axonId];
-                axon->potential = val;
-                counter++;
+                axonBlock->axons[axonId].potential = 0.0f;
+                axonBlock->axons[axonId + 1].potential = 0.0f;
+                axon = &axonBlock->axons[axonId + (val >= 0.0f)];
+                axon->potential = abs(val);
+                counter += 2;
             }
         }
     }

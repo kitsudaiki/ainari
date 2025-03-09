@@ -204,9 +204,23 @@ recvClusterInputMessage(Cluster* cluster, const void* data, const uint64_t dataS
 
         // apply values
         AxonBlock* axonBlock = nullptr;
-        for (uint64_t i = 0; i < msg.numberofvalues(); i++) {
-            axonBlock = &inputInterface->inputAxons[i / NEURONS_PER_BLOCK];
-            axonBlock->axons[i % NEURONS_PER_BLOCK].potential = msg.values(i);
+        Axon* axon = nullptr;
+        uint64_t bufferPos = 0;
+        uint64_t blockId = 0;
+        uint16_t axonId = 0;
+        float val = 0.0f;
+
+        for (uint64_t i = 0; i < msg.numberofvalues(); ++i) {
+            bufferPos = i * 2;
+            blockId = bufferPos / NEURONS_PER_BLOCK;
+            axonId = bufferPos % NEURONS_PER_BLOCK;
+            val = msg.values(i);
+
+            axonBlock = &inputInterface->inputAxons[blockId];
+            axonBlock->axons[axonId].potential = 0.0f;
+            axonBlock->axons[axonId + 1].potential = 0.0f;
+            axon = &axonBlock->axons[axonId + (val >= 0.0f)];
+            axon->potential = abs(val);
         }
     }
     else if (msg.targetbuffertype() == TargetBufferType::EXPECTED_BUFFER_TYPE) {

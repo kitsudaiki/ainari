@@ -34,8 +34,8 @@ and multi-tenancy.
 
 -   **No normalization of input**
 
-    The input of the network is not restricted to range of 0.0 - 1.0 . Every value, as long it is a
-    positive value, can be inserted. Also if there is a single broken value in the input-data, which
+    The input of the network is not restricted to range of 0.0 - 1.0 . Every value can be inserted, 
+    even negative values. Also if there is a single broken value in the input-data, which
     is million times higher, than the rest of the input-values, it has nearly no effect on the rest
     of the already trained data.
 

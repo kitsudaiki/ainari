@@ -25,6 +25,8 @@
 
 #include <hanami_common/structs.h>
 
+#include "hanami_common/upload_file_handle.h"
+
 class HttpWebsocketThread;
 
 bool recvFileUploadPackage(Hanami::UploadFileHandle* fileHandle,
