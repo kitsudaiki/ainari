@@ -48,10 +48,15 @@ Request_State::processEvent()
     Task* actualTask = m_cluster->getCurrentTask();
     RequestInfo* info = &std::get<RequestInfo>(actualTask->info);
 
+    AxonBlock* axonBlock = nullptr;
+    Axon* axon = nullptr;
+    uint64_t blockId = 0;
+    uint16_t axonId = 0;
+
     for (auto& [hexagonName, input] : info->inputs) {
         uint64_t counter = 0;
         InputInterface* inputInterface = &m_cluster->inputInterfaces[hexagonName];
-        AxonBlock* axonBlock = nullptr;
+
         for (uint64_t t = 0; t < info->timeLength; ++t) {
             if (getDataFromDataSet(inputInterface->ioBuffer, input, info->currentCycle + t, error)
                 != OK)
@@ -59,9 +64,14 @@ Request_State::processEvent()
                 return false;
             }
             for (const float val : inputInterface->ioBuffer) {
-                axonBlock = &inputInterface->inputAxons[counter / NEURONS_PER_BLOCK];
-                axonBlock->axons[counter % NEURONS_PER_BLOCK].potential = val;
-                counter++;
+                blockId = counter / NEURONS_PER_BLOCK;
+                axonId = counter % NEURONS_PER_BLOCK;
+                axonBlock = &inputInterface->inputAxons[blockId];
+                axonBlock->axons[axonId].potential = 0.0f;
+                axonBlock->axons[axonId + 1].potential = 0.0f;
+                axon = &axonBlock->axons[axonId + (val >= 0.0f)];
+                axon->potential = abs(val);
+                counter += 2;
             }
         }
     }

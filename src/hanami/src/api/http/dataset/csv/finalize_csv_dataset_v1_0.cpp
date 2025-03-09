@@ -32,6 +32,8 @@
 #include <hanami_crypto/common.h>
 #include <hanami_root.h>
 
+#include <regex>
+
 FinalizeCsvDataSetV1M0::FinalizeCsvDataSetV1M0()
     : Blossom(
         "Finalize uploaded dataset by checking completeness of the "

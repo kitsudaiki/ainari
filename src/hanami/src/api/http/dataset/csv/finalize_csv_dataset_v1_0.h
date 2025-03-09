@@ -26,8 +26,6 @@
 #include <api/endpoint_processing/blossom.h>
 #include <hanami_common/buffer/data_buffer.h>
 
-#include <regex>
-
 class FinalizeCsvDataSetV1M0 : public Blossom
 {
    public:
