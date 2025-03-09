@@ -37,6 +37,8 @@ DataSetTable::DataSetTable() : HanamiSqlTable(Hanami::SqlDatabase::getInstance()
 {
     m_tableName = "dataset";
 
+    registerColumn("task_uuid", STRING_TYPE).setMaxLength(36).setAllowNull();
+
     registerColumn("location", STRING_TYPE).hideValue();
 }
 
@@ -63,12 +65,13 @@ DataSetTable::addDataSet(const DataSetDbEntry& datasetData,
 
     datasetDataJson["name"] = datasetData.name;
     datasetDataJson["uuid"] = datasetData.uuid;
+    datasetDataJson["task_uuid"] = datasetData.taskUuid;
     datasetDataJson["visibility"] = datasetData.visibility;
     datasetDataJson["location"] = datasetData.location;
 
     const ReturnStatus ret = addWithContext(datasetDataJson, userContext, error);
     if (ret != OK) {
-        error.addMessage("Failed to add checkpoint to database");
+        error.addMessage("Failed to add dataset to database");
         return ret;
     }
 
@@ -102,6 +105,7 @@ DataSetTable::getDataSet(DataSetDbEntry& result,
     result.ownerId = jsonRet["owner_id"];
     result.projectId = jsonRet["project_id"];
     result.uuid = jsonRet["uuid"];
+    result.taskUuid = jsonRet["task_uuid"];
     result.visibility = jsonRet["visibility"];
     result.location = jsonRet["location"];
     result.createdAt = jsonRet["created_at"];

@@ -49,6 +49,11 @@ GetDataSetV1M0::GetDataSetV1M0() : Blossom("Get information of a specific datase
     registerOutputField("description", SAKURA_MAP_TYPE)
         .setComment("Description of the dataset content.");
 
+    registerOutputField("task_uuid", SAKURA_STRING_TYPE)
+        .setComment(
+            "In case that this dataset was created by a request-task, this contains the UUID of "
+            "the task for identifaction.");
+
     registerOutputField("owner_id", SAKURA_STRING_TYPE)
         .setComment("ID of the user, who created the dataset.");
 
@@ -109,6 +114,7 @@ GetDataSetV1M0::runTask(BlossomIO& blossomIO,
     blossomIO.output["uuid"] = datasetUuid;
     blossomIO.output["description"] = fileHandle.description;
     blossomIO.output["name"] = fileHandle.header.name.getName();
+    blossomIO.output["task_uuid"] = entry.taskUuid;
     blossomIO.output["owner_id"] = entry.ownerId;
     blossomIO.output["project_id"] = entry.projectId;
     blossomIO.output["visibility"] = entry.visibility;

@@ -78,9 +78,8 @@ DownloadDatasetContentV1M0::runTask(BlossomIO& blossomIO,
     const uint64_t rowOffset = blossomIO.input["row_offset"];
     const uint64_t numberOfRows = blossomIO.input["number_of_rows"];
 
-    DataSetFileHandle datasetFileHandle;
-
     // open files
+    DataSetFileHandle datasetFileHandle;
     ReturnStatus ret = getFileHandle(datasetFileHandle, datasetUuid, userContext, status, error);
     if (ret != OK) {
         return false;

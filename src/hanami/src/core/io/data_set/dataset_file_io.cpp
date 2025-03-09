@@ -295,7 +295,7 @@ initNewDataSetFile(const std::string& filePath,
     // check source
     if (std::filesystem::exists(filePath) == true) {
         error.addMessage("Data-set file '" + filePath + "' already exist.");
-        return INVALID_INPUT;
+        return ERROR;
     }
 
     DataSetHeader header;
