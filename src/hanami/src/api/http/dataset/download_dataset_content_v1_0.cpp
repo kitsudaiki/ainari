@@ -98,8 +98,24 @@ DownloadDatasetContentV1M0::runTask(BlossomIO& blossomIO,
     const json range = datasetFileHandle.description[columnName];
     datasetFileHandle.readSelector.columnStart = range["column_start"];
     datasetFileHandle.readSelector.columnEnd = range["column_end"];
+
+    // check requested offset
+    if (rowOffset >= datasetFileHandle.header.numberOfRows) {
+        status.statusCode = INVALID_INPUT;
+        status.errorMessage
+            = "Requested row_offset is too big for the dataset with UUID '" + datasetUuid + "'";
+        error.addMessage(status.errorMessage);
+        return false;
+    }
     datasetFileHandle.readSelector.startRow = rowOffset;
-    datasetFileHandle.readSelector.endRow = rowOffset + numberOfRows;
+
+    // check and set number of requested rows
+    if (rowOffset + numberOfRows > datasetFileHandle.header.numberOfRows) {
+        datasetFileHandle.readSelector.endRow = datasetFileHandle.header.numberOfRows - rowOffset;
+    }
+    else {
+        datasetFileHandle.readSelector.endRow = rowOffset + numberOfRows;
+    }
 
     // init buffer for output
     const uint64_t numberOfColumns
