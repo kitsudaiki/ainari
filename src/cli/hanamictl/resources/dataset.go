@@ -45,6 +45,7 @@ var datasetHeader = []string{
 	"number_of_columns",
 	"number_of_rows",
 	"description",
+	"task_uuid",
 	"visibility",
 	"owner_id",
 	"project_id",

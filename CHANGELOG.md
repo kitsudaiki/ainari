@@ -22,10 +22,16 @@
 
 - removed the reductions-mode setting
 
+#### Database-Breaking
+
+- Added `task_uuid` to datasets
+- Datasets, which are created as result form request-task, have now a random uuid instead of the uuid of the initial request-task
+
 ### Added
 
 - delete-all functions for all resources were added to the python-sdk
 - function to wait for a task to be finished was added to the python-sdk
+- a request-task with multiple output-hexagon generates now multiple datasets for each of them
 
 ### Changed
 

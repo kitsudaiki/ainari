@@ -129,6 +129,8 @@ handleClientOutput(Cluster* cluster)
     // send output back if a client-connection is set
 
     Task* actualTask = cluster->getCurrentTask();
+    void* data = nullptr;
+
     if (actualTask != nullptr && actualTask->type == REQUEST_TASK) {
         RequestInfo* info = &std::get<RequestInfo>(actualTask->info);
 
@@ -136,8 +138,8 @@ handleClientOutput(Cluster* cluster)
             DataSetFileHandle* fileHandle = &info->results[name];
             const uint64_t ioBufferSize = convertOutputToBuffer(&outputInterface);
             // TODO: handle return status
-            appendToDataSet(
-                *fileHandle, &outputInterface.ioBuffer[0], ioBufferSize * sizeof(float), error);
+            data = &outputInterface.ioBuffer[0];
+            appendToDataSet(*fileHandle, data, ioBufferSize * sizeof(float), error);
         }
     }
     if (cluster->msgClient != nullptr) {

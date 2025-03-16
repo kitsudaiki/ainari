@@ -68,6 +68,11 @@ CreateMnistDataSetV1M0::CreateMnistDataSetV1M0() : Blossom("Init new mnist-file 
     registerOutputField("visibility", SAKURA_STRING_TYPE)
         .setComment("Visibility of the dataset (private, shared, public).");
 
+    registerOutputField("task_uuid", SAKURA_STRING_TYPE)
+        .setComment(
+            "In case that this dataset was created by a request-task, this contains the UUID of "
+            "the task for identifaction.");
+
     registerOutputField("uuid_input_file", SAKURA_STRING_TYPE)
         .setComment("UUID to identify the file for date upload of input-data.");
 

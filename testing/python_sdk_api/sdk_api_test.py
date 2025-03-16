@@ -296,8 +296,14 @@ def _test(cluster_uuid, request_dataset_uuid):
     task.delete_task(token, address, task_uuid, cluster_uuid, False)
     time.sleep(1)
     # check request-result
+    all_datasets = dataset.list_datasets(token, address, False)
+    result_dataset_uuid = ""
+    for dataset_entry in all_datasets["body"]:
+        if task_uuid == dataset_entry[6]:
+            result_dataset_uuid = dataset_entry[1]
+
     accuracy = dataset.check_mnist_dataset(
-        token, address, task_uuid, request_dataset_uuid, False)["accuracy"]
+        token, address, result_dataset_uuid, request_dataset_uuid, False)["accuracy"]
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
@@ -305,7 +311,7 @@ def _test(cluster_uuid, request_dataset_uuid):
 
     # download part of the resulting dataset
     data = dataset.download_dataset_content(
-        token, address, task_uuid, "test_output", 10, 100, False)["data"]
+        token, address, result_dataset_uuid, "test_output", 10, 100, False)["data"]
     assert len(data[0]) == 10
 
 

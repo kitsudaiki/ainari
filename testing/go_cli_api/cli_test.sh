@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # export HANAMI_ADDRESS=http://127.0.0.1:11418
 # export HANAMI_USER=asdf
 # export HANAMI_PASSPHRASE=asdfasdf
@@ -124,8 +123,8 @@ done
 
 ./hanamictl dataset list --insecure
 
-
-result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[-1] == "cli_request_test_task") | .[1]')
+# echo "debug $(./hanamictl dataset list --insecure -j)"
+result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[5] == "cli_request_test_task") | .[1]')
 echo "Result-Dataset-UUID: $result_uuid"
 
 ./hanamictl dataset get --insecure $result_uuid

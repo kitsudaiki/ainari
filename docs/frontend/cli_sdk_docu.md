@@ -739,10 +739,11 @@ label-file of the same dataset.
     | NUMBER OF COLUMNS | 2                                                                                                |
     | NUMBER OF ROWS    | 1723                                                                                             |
     | DESCRIPTION       | {"test_input":{"column_end":1,"column_start":0},"test_output":{"column_end":2,"column_start":1}} |
+    | TASK UUID         | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4                                                             |
     | VISIBILITY        | private                                                                                          |
     | OWNER ID          | asdf                                                                                             |
     | PROJECT ID        | admin                                                                                            |
-    | CREATED AT        | <nil>                                                                                            |
+    | CREATED AT        | 2025-03-15 22:02:47                                                                              |
     +-------------------+--------------------------------------------------------------------------------------------------+
     ```
 
@@ -781,16 +782,17 @@ Get information about a specific dataset.
     hanamictl dataset get 146bacb3-b5bf-485b-a2e8-d1812b57eb63
 
     +-------------------+-----------------------------------------------------------------------------------------------+
-    | UUID              | 146bacb3-b5bf-485b-a2e8-d1812b57eb63                                                          |
-    | NAME              | cli_test_dataset                                                                              |
+    | UUID              | 91c3799d-556b-4562-ae6d-96d631a46a42                                                          |
+    | NAME              | cli_test_dataset_req                                                                          |
     | VERSION           | v1.0alpha                                                                                     |
     | NUMBER OF COLUMNS | 794                                                                                           |
-    | NUMBER OF ROWS    | 60000                                                                                         |
+    | NUMBER OF ROWS    | 10000                                                                                         |
     | DESCRIPTION       | {"label":{"column_end":794,"column_start":784},"picture":{"column_end":784,"column_start":0}} |
+    | TASK UUID         | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4                                                          |
     | VISIBILITY        | private                                                                                       |
     | OWNER ID          | asdf                                                                                          |
     | PROJECT ID        | admin                                                                                         |
-    | CREATED AT        | <nil>                                                                                         |
+    | CREATED AT        | 2025-03-15 22:02:47                                                                           |
     +-------------------+-----------------------------------------------------------------------------------------------+
     ```
 
@@ -818,6 +820,7 @@ Get information about a specific dataset.
     #     "owner_id": "asdf",
     #     "project_id": "admin",
     #     "type": "mnist",
+    #     "task_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
     #     "uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
     #     "visibility": "private"
     # }
@@ -838,13 +841,13 @@ List all visible datasets.
     ```bash
     hanamictl dataset list
 
-    +--------------------------------------+------------------------+------------+----------+------------+---------------------+
-    |                 UUID                 |          NAME          | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
-    +--------------------------------------+------------------------+------------+----------+------------+---------------------+
-    | 140356ef-aebc-4069-9ef8-1c0e6d13d85f | cli_test_dataset_train | private    | asdf     | admin      | 2024-07-12 20:46:02 |
-    | 8d7ec569-fca7-4ca7-85f6-519ad05472ad | cli_test_dataset_req   | private    | asdf     | admin      | 2024-07-12 20:46:02 |
-    | 146bacb3-b5bf-485b-a2e8-d1812b57eb63 | cli_test_dataset       | private    | asdf     | admin      | 2024-07-12 20:52:21 |
-    +--------------------------------------+------------------------+------------+----------+------------+---------------------+
+    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
+    |                 UUID                 |          NAME          |              TASK UUID               | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
+    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
+    | 8126302c-6d51-43d5-8f34-2c0a574b9ed7 | cli_test_dataset_train |                                      | private    | asdf     | admin      | 2025-03-15 22:02:45 |
+    | 91c3799d-556b-4562-ae6d-96d631a46a42 | cli_test_dataset_req   |                                      | private    | asdf     | admin      | 2025-03-15 22:02:47 |
+    | 91c3799d-556b-4562-ae6d-96d631a46a42 | cli_request_test_task  | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4 | private    | asdf     | admin      | 2025-03-15 22:02:47 |
+    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
     ```
 
 === "Python-SDK"
@@ -864,21 +867,41 @@ List all visible datasets.
     # {
     #     "body": [
     #         [
-    #             "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
+    #             "2025-03-15 21:18:52",
+    #             "329553e0-c4c4-4139-95ee-3ace764739a5",
     #             "admin",
     #             "asdf",
     #             "private",
-    #             "train_test_dataset",
-    #             "mnist"
+    #             "cli_test_dataset_train",
+    #             ""
+    #         ],
+    #         [
+    #             "2025-03-15 21:18:54",
+    #             "887d1b59-8a3e-4814-b148-8405c1d240e0",
+    #             "admin",
+    #             "asdf",
+    #             "private",
+    #             "cli_test_dataset_req",
+    #             ""
+    #         ],
+    #         [
+    #             "2025-03-15 21:20:17",
+    #             "38f464b8-d627-4ab5-944c-94391dd1962d",
+    #             "admin",
+    #             "asdf",
+    #             "private",
+    #             "cli_request_test_task",
+    #             "38f464b8-d627-4ab5-944c-94391dd1962d"
     #         ]
     #     ],
     #     "header": [
+    #         "created_at",
     #         "uuid",
     #         "project_id",
     #         "owner_id",
     #         "visibility",
     #         "name",
-    #         "type"
+    #         "task_uuid"
     #     ]
     # }
     ```
