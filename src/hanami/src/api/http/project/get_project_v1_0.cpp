@@ -46,15 +46,21 @@ GetProjectV1M0::GetProjectV1M0() : Blossom("Show information of a specific regis
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when project was created.");
-
     registerOutputField("id", SAKURA_STRING_TYPE).setComment("ID of the new project.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new project.");
 
-    registerOutputField("creator_id", SAKURA_STRING_TYPE)
-        .setComment("Id of the creator of the user.");
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //

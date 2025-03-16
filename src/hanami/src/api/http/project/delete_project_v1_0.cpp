@@ -66,7 +66,8 @@ DeleteProjectV1M0::runTask(BlossomIO& blossomIO,
     const std::string projectId = blossomIO.input["id"];
 
     // delete data from table
-    const ReturnStatus ret = ProjectTable::getInstance()->deleteProject(projectId, error);
+    const ReturnStatus ret
+        = ProjectTable::getInstance()->deleteProject(projectId, userContext, error);
     if (ret == INVALID_INPUT) {
         status.errorMessage = "Project with id '" + projectId + "' not found";
         status.statusCode = NOT_FOUND_RTYPE;

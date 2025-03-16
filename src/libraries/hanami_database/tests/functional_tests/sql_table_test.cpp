@@ -113,16 +113,18 @@ SqlTable_Test::get_test()
 
     TEST_EQUAL(m_table->getUser(resultItem, m_name1, false, error), OK);
     resultItem.erase("created_at");
-    TEST_EQUAL(resultItem.dump(), std::string("{\"is_admin\":true,\"name\":\"user0815\"}"));
+    TEST_EQUAL(resultItem.dump(),
+               std::string("{\"created_by\":\"test_user\",\"is_admin\":true,\"name\":\"user0815\","
+                           "\"updated_at\":\"\",\"updated_by\":\"\"}"));
 
     TEST_EQUAL(m_table->getUser(resultTable, m_name1, error), OK);
     resultTable.deleteColumn("created_at");
     std::string compare
-        = "+----------+----------+\n"
-          "| name     | is_admin |\n"
-          "+==========+==========+\n"
-          "| user0815 | true     |\n"
-          "+----------+----------+\n";
+        = "+------------+------------+------------+----------+----------+\n"
+          "| created_by | updated_at | updated_by | name     | is_admin |\n"
+          "+============+============+============+==========+==========+\n"
+          "| test_user  |            |            | user0815 | true     |\n"
+          "+------------+------------+------------+----------+----------+\n";
     TEST_EQUAL(resultTable.toString(), compare);
 }
 
@@ -139,14 +141,14 @@ SqlTable_Test::getAll_test()
     result.deleteColumn("created_at");
 
     TEST_EQUAL(result.getNumberOfRows(), 2);
-    TEST_EQUAL(result.getNumberOfColums(), 2);
+    TEST_EQUAL(result.getNumberOfColums(), 5);
 
     result.clearTable();
     TEST_EQUAL(m_table->getAllUser(result, error, true), true);
     result.deleteColumn("created_at");
 
     TEST_EQUAL(result.getNumberOfRows(), 2);
-    TEST_EQUAL(result.getNumberOfColums(), 3);
+    TEST_EQUAL(result.getNumberOfColums(), 6);
 
     // test with limitation
     result.clearTable();
@@ -154,8 +156,8 @@ SqlTable_Test::getAll_test()
     result.deleteColumn("created_at");
 
     TEST_EQUAL(result.getNumberOfRows(), 1);
-    TEST_EQUAL(result.getNumberOfColums(), 3);
-    TEST_EQUAL(result.getCell(0, 0), m_name2);
+    TEST_EQUAL(result.getNumberOfColums(), 6);
+    TEST_EQUAL(result.getCell(3, 0), m_name2);
 }
 
 /**
@@ -175,9 +177,14 @@ SqlTable_Test::update_test()
     TableItem resultTable;
 
     TEST_EQUAL(m_table->getUser(resultItem, m_name1, true, error), OK);
+
+    // remove timestamps, because they are not fix values
     resultItem.erase("created_at");
+    resultItem.erase("updated_at");
+
     TEST_EQUAL(resultItem.dump(),
-               std::string("{\"is_admin\":false,\"name\":\"user0815\",\"pw_hash\":\"secret2\"}"));
+               std::string("{\"created_by\":\"test_user\",\"is_admin\":false,\"name\":\"user0815\","
+                           "\"pw_hash\":\"secret2\",\"updated_by\":\"test_user\"}"));
 }
 
 /**
@@ -194,7 +201,7 @@ SqlTable_Test::delete_test()
     result1.deleteColumn("created_at");
 
     TEST_EQUAL(result1.getNumberOfRows(), 1);
-    TEST_EQUAL(result1.getNumberOfColums(), 2);
+    TEST_EQUAL(result1.getNumberOfColums(), 5);
 
     TEST_EQUAL(m_table->deleteUser(m_name2, error), OK);
     TableItem result2;
@@ -202,14 +209,14 @@ SqlTable_Test::delete_test()
     result2.deleteColumn("created_at");
 
     TEST_EQUAL(result2.getNumberOfRows(), 0);
-    TEST_EQUAL(result2.getNumberOfColums(), 2);
+    TEST_EQUAL(result2.getNumberOfColums(), 5);
 
     TableItem result3;
     m_table->getAllUser(result3, error, OK);
     result3.deleteColumn("created_at");
 
     TEST_EQUAL(result3.getNumberOfRows(), 0);
-    TEST_EQUAL(result3.getNumberOfColums(), 2);
+    TEST_EQUAL(result3.getNumberOfColums(), 5);
 }
 
 /**

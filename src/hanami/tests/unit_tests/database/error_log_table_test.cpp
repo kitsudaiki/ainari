@@ -123,11 +123,11 @@ ErrorLogTable_Test::getAllErrorLog_test()
     TEST_EQUAL(result.getNumberOfRows(), 1);
     TEST_EQUAL(result.getNumberOfColums(), errorLogTable->getNumberOfColumns());
 
-    TEST_EQUAL(result.getCell(1, 0), "test-user");
-    TEST_EQUAL(result.getCell(2, 0), "hanami");
-    TEST_EQUAL(result.getCell(3, 0), "example-context");
-    TEST_EQUAL(result.getCell(4, 0), "values");
-    TEST_EQUAL(result.getCell(5, 0), "this is a test-message");
+    TEST_EQUAL(result.getCell(4, 0), "test-user");
+    TEST_EQUAL(result.getCell(5, 0), "hanami");
+    TEST_EQUAL(result.getCell(6, 0), "example-context");
+    TEST_EQUAL(result.getCell(7, 0), "values");
+    TEST_EQUAL(result.getCell(8, 0), "this is a test-message");
 
     cleanupTest();
 }

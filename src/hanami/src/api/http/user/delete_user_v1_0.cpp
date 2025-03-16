@@ -76,7 +76,7 @@ DeleteUserV1M0::runTask(BlossomIO& blossomIO,
     }
 
     // delete data from table
-    const ReturnStatus ret = UserTable::getInstance()->deleteUser(userId, error);
+    const ReturnStatus ret = UserTable::getInstance()->deleteUser(userId, userContext, error);
     if (ret == INVALID_INPUT) {
         status.errorMessage = "User with id '" + userId + "' not found";
         status.statusCode = NOT_FOUND_RTYPE;

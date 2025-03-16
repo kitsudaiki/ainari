@@ -90,6 +90,9 @@ validateToken(json& result,
     result.erase("iat");
     result.erase("nbf");
     result.erase("created_at");
+    result.erase("created_by");
+    result.erase("updated_at");
+    result.erase("updated_by");
 
     return true;
 }

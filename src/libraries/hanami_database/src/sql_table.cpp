@@ -42,7 +42,15 @@ SqlTable::SqlTable(SqlDatabase* db)
 
     registerColumn("deleted_at", STRING_TYPE).setMaxLength(64);
 
+    registerColumn("deleted_by", STRING_TYPE).setMaxLength(256);
+
     registerColumn("created_at", STRING_TYPE).setMaxLength(64);
+
+    registerColumn("created_by", STRING_TYPE).setMaxLength(256);
+
+    registerColumn("updated_at", STRING_TYPE).setMaxLength(64);
+
+    registerColumn("updated_by", STRING_TYPE).setMaxLength(256);
 }
 
 /**
@@ -134,7 +142,7 @@ SqlTable::createDocumentation(std::string& docu)
 uint64_t
 SqlTable::getNumberOfColumns() const
 {
-    return m_tableHeader.size() - 2;
+    return m_tableHeader.size() - 3;
 }
 
 /**
@@ -164,18 +172,23 @@ SqlTable::registerColumn(const std::string& name, const DbVataValueTypes type)
  * @brief insert values into the table
  *
  * @param values string-list with values to insert
+ * @param creator identifier of the creator of the new entry
  * @param error reference for error-output
  *
  * @return uuid of the new entry, if successful, else empty string
  */
 bool
-SqlTable::insertToDb(json& values, ErrorContainer& error)
+SqlTable::insertToDb(json& values, const std::string& creator, ErrorContainer& error)
 {
     Hanami::TableItem resultItem;
 
-    values["created_at"] = Hanami::getDatetime();
     values["status"] = "active";
+    values["created_at"] = Hanami::getDatetime();
+    values["created_by"] = creator;
+    values["updated_at"] = "";
+    values["updated_by"] = "";
     values["deleted_at"] = "";
+    values["deleted_by"] = "";
 
     // get values from input to check if all required values are set
     std::vector<std::string> dbValues;
@@ -187,9 +200,14 @@ SqlTable::insertToDb(json& values, ErrorContainer& error)
         }
         if (entry.type == BASE64_TYPE) {
             const std::string orig = values[entry.name];
-            std::string base64Msg;
-            Hanami::encodeBase64(base64Msg, orig.c_str(), orig.size());
-            values[entry.name] = base64Msg;
+            if (orig.size() != 0) {
+                std::string base64Msg;
+                Hanami::encodeBase64(base64Msg, orig.c_str(), orig.size());
+                values[entry.name] = base64Msg;
+            }
+            else {
+                values[entry.name] = "";
+            }
         }
         if (values[entry.name].is_string()) {
             dbValues.push_back(values[entry.name]);
@@ -212,15 +230,20 @@ SqlTable::insertToDb(json& values, ErrorContainer& error)
  *
  * @param conditions conditions to filter table
  * @param updates json-map with key-value pairs to update
+ * @param updater identifier of the one who updated the entry
  * @param error reference for error-output
  *
  * @return true, if successful, else false
  */
 ReturnStatus
 SqlTable::updateInDb(std::vector<RequestCondition>& conditions,
-                     const json& updates,
+                     json& updates,
+                     const std::string& updater,
                      ErrorContainer& error)
 {
+    updates["updated_at"] = getDatetime();
+    updates["updated_by"] = updater;
+
     if (conditions.size() != 0) {
         // precheck
         json getResult;
@@ -306,7 +329,8 @@ SqlTable::getFromDb(TableItem& resultTable,
             return INVALID_INPUT;
         }
         for (const DbHeaderEntry& entry : m_tableHeader) {
-            if (entry.name == "status" || entry.name == "deleted_at") {
+            if (entry.name == "status" || entry.name == "deleted_at" || entry.name == "deleted_by")
+            {
                 continue;
             }
             if (showHiddenValues || entry.hide == false) {
@@ -394,33 +418,38 @@ SqlTable::getNumberOfRows(ErrorContainer& error)
 /**
  * @brief delete all entries for the table
  *
+ * @param deleter identifier of the one who deleted the entry
  * @param error reference for error-output
  *
  * @return true, if successful, else false
  */
 bool
-SqlTable::deleteAllFromDb(ErrorContainer& error)
+SqlTable::deleteAllFromDb(const std::string& deleter, ErrorContainer& error)
 {
     std::vector<RequestCondition> conditions;
-    return deleteFromDb(conditions, error);
+    return deleteFromDb(conditions, deleter, error);
 }
 
 /**
  * @brief delete one of more rows from database
  *
  * @param conditions conditions to filter table
+ * @param deleter identifier of the one who deleted the entry
  * @param error reference for error-output
  *
  * @return OK if found, INVALID_INPUT if not found, ERROR in case of internal error
  */
 ReturnStatus
-SqlTable::deleteFromDb(std::vector<RequestCondition>& conditions, ErrorContainer& error)
+SqlTable::deleteFromDb(std::vector<RequestCondition>& conditions,
+                       const std::string& deleter,
+                       ErrorContainer& error)
 {
     json update;
     update["status"] = "deleted";
     update["deleted_at"] = getDatetime();
+    update["deleted_by"] = deleter;
 
-    return updateInDb(conditions, update, error);
+    return updateInDb(conditions, update, deleter, error);
 }
 
 /**
@@ -502,10 +531,10 @@ SqlTable::createSelectQuery(const std::vector<RequestCondition>& conditions,
 {
     // add select
     std::string command = "SELECT ";
-    // offset of 2, because status and deleted_at are removed
-    for (uint64_t i = 2; i < m_tableHeader.size(); i++) {
+    // offset of 3, because status, deleted_at and deleted_by are removed
+    for (uint64_t i = 3; i < m_tableHeader.size(); i++) {
         if (showHiddenValues || m_tableHeader.at(i).hide == false) {
-            if (i != 2) {
+            if (i != 3) {
                 command.append(", ");
             }
 
@@ -671,9 +700,9 @@ SqlTable::processGetResult(json& result, TableItem& tableContent, const bool sho
     // prepare result
     const json firstRow = tableContent.getBody()[0];
 
-    // offset of 2, because status and deleted_at are removed from result
+    // offset of 3, because status, deleted_at adn deleted_by are removed from result
     uint32_t pos = 0;
-    for (uint32_t i = 2; i < m_tableHeader.size(); i++) {
+    for (uint32_t i = 3; i < m_tableHeader.size(); i++) {
         const DbHeaderEntry& entry = m_tableHeader.at(i);
         if (entry.hide == false || showHiddenValues == true) {
             result[entry.name] = firstRow[pos];
@@ -695,7 +724,7 @@ SqlTable::processBase64Entries(TableItem& tableContent, const bool showHiddenVal
 {
     uint32_t x = 0;
     for (const DbHeaderEntry& entry : m_tableHeader) {
-        if (entry.name == "status" || entry.name == "deleted_at") {
+        if (entry.name == "status" || entry.name == "deleted_at" || entry.name == "deleted_by") {
             continue;
         }
         if (showHiddenValues || entry.hide == false) {

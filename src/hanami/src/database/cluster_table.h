@@ -43,6 +43,10 @@ class ClusterTable : public HanamiSqlTable
         std::string ownerId = "";
         std::string visibility = "";
         std::string name = "";
+        std::string createdAt = "";
+        std::string createdBy = "";
+        std::string updatedAt = "";
+        std::string updatedBy = "";
     };
 
     ~ClusterTable();
@@ -65,7 +69,7 @@ class ClusterTable : public HanamiSqlTable
     ReturnStatus deleteCluster(const std::string& clusterUuid,
                                const Hanami::UserContext& userContext,
                                Hanami::ErrorContainer& error);
-    bool deleteAllCluster(Hanami::ErrorContainer& error);
+    bool deleteAllCluster(const Hanami::UserContext& userContext, Hanami::ErrorContainer& error);
 
    private:
     ClusterTable();

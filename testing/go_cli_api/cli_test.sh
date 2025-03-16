@@ -124,7 +124,7 @@ done
 ./hanamictl dataset list --insecure
 
 # echo "debug $(./hanamictl dataset list --insecure -j)"
-result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[5] == "cli_request_test_task") | .[1]')
+result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[8] == "cli_request_test_task") | .[4]')
 echo "Result-Dataset-UUID: $result_uuid"
 
 ./hanamictl dataset get --insecure $result_uuid

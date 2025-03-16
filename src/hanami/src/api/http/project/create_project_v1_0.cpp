@@ -53,15 +53,21 @@ CreateProjectV1M0::CreateProjectV1M0() : Blossom("Register a new project within 
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when project was created.");
-
     registerOutputField("id", SAKURA_STRING_TYPE).setComment("ID of the new project.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new project.");
 
-    registerOutputField("creator_id", SAKURA_STRING_TYPE)
-        .setComment("Id of the creator of the project.");
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //
@@ -92,10 +98,9 @@ CreateProjectV1M0::runTask(BlossomIO& blossomIO,
     ProjectTable::ProjectDbEntry dbEntry;
     dbEntry.id = projectId;
     dbEntry.name = projectName;
-    dbEntry.creatorId = creatorId;
 
     // add new project to table
-    const ReturnStatus ret = ProjectTable::getInstance()->addProject(dbEntry, error);
+    const ReturnStatus ret = ProjectTable::getInstance()->addProject(dbEntry, userContext, error);
     if (ret == INVALID_INPUT) {
         status.errorMessage = "Project with id '" + projectId + "' already exist.";
         status.statusCode = CONFLICT_RTYPE;

@@ -25,6 +25,7 @@
 
 #include <database/generic_tables/hanami_sql_admin_table.h>
 #include <hanami_common/logger.h>
+#include <hanami_common/structs.h>
 
 class UserTable : public HanamiSqlAdminTable
 {
@@ -46,18 +47,23 @@ class UserTable : public HanamiSqlAdminTable
     struct UserDbEntry {
         std::string id = "";
         std::string name = "";
-        std::string creatorId = "";
         std::string salt = "";
         std::string pwHash = "";
         std::vector<UserProjectDbEntry> projects;
         bool isAdmin = false;
+        std::string createdAt = "";
+        std::string createdBy = "";
+        std::string updatedAt = "";
+        std::string updatedBy = "";
     };
 
     ~UserTable();
 
     bool initNewAdminUser(Hanami::ErrorContainer& error);
 
-    ReturnStatus addUser(const UserDbEntry& userData, Hanami::ErrorContainer& error);
+    ReturnStatus addUser(const UserDbEntry& userData,
+                         const Hanami::UserContext& context,
+                         Hanami::ErrorContainer& error);
     ReturnStatus getUser(UserDbEntry& result,
                          const std::string& userId,
                          Hanami::ErrorContainer& error);
@@ -66,9 +72,12 @@ class UserTable : public HanamiSqlAdminTable
                          const bool showHiddenValues,
                          Hanami::ErrorContainer& error);
     bool getAllUser(Hanami::TableItem& result, Hanami::ErrorContainer& error);
-    ReturnStatus deleteUser(const std::string& userId, Hanami::ErrorContainer& error);
+    ReturnStatus deleteUser(const std::string& userId,
+                            const Hanami::UserContext& context,
+                            Hanami::ErrorContainer& error);
     ReturnStatus updateProjectsOfUser(const std::string& userId,
                                       const std::vector<UserProjectDbEntry>& newProjects,
+                                      const Hanami::UserContext& context,
                                       Hanami::ErrorContainer& error);
 
    private:

@@ -80,7 +80,7 @@ ErrorLogTable::addErrorLogEntry(const std::string& userid,
     data["input_values"] = values;
     data["message"] = message;
 
-    if (insertToDb(data, error) == false) {
+    if (insertToDb(data, userid, error) == false) {
         error.addMessage("Failed to add error-log-entry to database");
         return false;
     }

@@ -51,9 +51,6 @@ CreateClusterV1M0::CreateClusterV1M0() : Blossom("Create new cluster.")
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when cluster was created.");
-
     registerOutputField("uuid", SAKURA_STRING_TYPE).setComment("UUID of the new created cluster.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new created cluster.");
@@ -66,6 +63,18 @@ CreateClusterV1M0::CreateClusterV1M0() : Blossom("Create new cluster.")
 
     registerOutputField("visibility", SAKURA_STRING_TYPE)
         .setComment("Visibility of the new created cluster (private, shared, public).");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //

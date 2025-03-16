@@ -86,7 +86,7 @@ def delete_all_user(token: str,
     body = list_users(token, address, False)["body"]
     for entry in body:
         try:
-            delete_user(token, address, entry[1], verify_connection)
+            delete_user(token, address, entry[4], verify_connection)
         except hanami_exceptions.ConflictException:
             # when a user tries to delete himself, then an exception
             # is raised, which is catched here.

@@ -102,6 +102,10 @@ CheckpointTable::getCheckpoint(CheckpointDbEntry& result,
     result.uuid = jsonRet["uuid"];
     result.visibility = jsonRet["visibility"];
     result.location = jsonRet["location"];
+    result.createdAt = jsonRet["created_at"];
+    result.createdBy = jsonRet["created_by"];
+    result.updatedAt = jsonRet["updated_at"];
+    result.updatedBy = jsonRet["updated_by"];
 
     return OK;
 }

@@ -47,6 +47,18 @@ GetCheckpointV1M0::GetCheckpointV1M0() : Blossom("Get checkpoint of a cluster.")
 
     registerOutputField("location", SAKURA_STRING_TYPE).setComment("File path on local storage.");
 
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
+
     //----------------------------------------------------------------------------------------------
     //
     //----------------------------------------------------------------------------------------------

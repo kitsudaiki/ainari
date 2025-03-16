@@ -232,7 +232,7 @@ TempfileTable::getRelatedResourceUuids(std::vector<std::string>& relatedUuids,
     }
 
     for (uint64_t i = 0; i < result.getNumberOfRows(); i++) {
-        relatedUuids.push_back(result.getCell(1, i));
+        relatedUuids.push_back(result.getCell(4, i));
     }
 
     return OK;

@@ -75,13 +75,15 @@ UserTable_Test::createTestDb()
     UserTable::UserProjectDbEntry userProjectData;
     Hanami::ErrorContainer error;
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     userProjectData.projectId = "test-project";
     userProjectData.role = "admin";
     userProjectData.isProjectAdmin = true;
 
     userData.id = m_testId;
     userData.name = m_testName;
-    userData.creatorId = m_testId;
     userData.salt = "asdf";
     userData.pwHash = "test-hash";
     userData.projects.push_back(userProjectData);
@@ -89,11 +91,11 @@ UserTable_Test::createTestDb()
 
     UserTable* userTable = UserTable::getInstance();
     userTable->initTable(error);
-    userTable->addUser(userData, error);
+    userTable->addUser(userData, context, error);
 
     userData.id = "test-id2";
     userData.name = "test-user2";
-    userTable->addUser(userData, error);
+    userTable->addUser(userData, context, error);
 }
 
 /**
@@ -129,13 +131,15 @@ UserTable_Test::addUser_test()
     UserTable::UserProjectDbEntry userProjectData;
     Hanami::ErrorContainer error;
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     userProjectData.projectId = "test-project";
     userProjectData.role = "admin";
     userProjectData.isProjectAdmin = true;
 
     userData.id = m_testId;
     userData.name = m_testName;
-    userData.creatorId = m_testId;
     userData.salt = "asdf";
     userData.pwHash = "test-hash";
     userData.projects.push_back(userProjectData);
@@ -143,8 +147,8 @@ UserTable_Test::addUser_test()
 
     UserTable* userTable = UserTable::getInstance();
     TEST_EQUAL(userTable->initTable(error), true);
-    TEST_EQUAL(userTable->addUser(userData, error), OK);
-    TEST_EQUAL(userTable->addUser(userData, error), INVALID_INPUT);
+    TEST_EQUAL(userTable->addUser(userData, context, error), OK);
+    TEST_EQUAL(userTable->addUser(userData, context, error), INVALID_INPUT);
 
     cleanupTest();
 }
@@ -160,6 +164,9 @@ UserTable_Test::getUser_test()
     Hanami::ErrorContainer error;
     UserTable* userTable = UserTable::getInstance();
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     createTestDb();
 
     // positive test
@@ -167,7 +174,6 @@ UserTable_Test::getUser_test()
     TEST_EQUAL(userTable->getUser(result, m_testId, error), OK);
     TEST_EQUAL(result.id, m_testId);
     TEST_EQUAL(result.name, m_testName);
-    TEST_EQUAL(result.creatorId, m_testId);
     TEST_EQUAL(result.salt, "asdf");
     TEST_EQUAL(result.pwHash, "test-hash");
     TEST_EQUAL(result.projects.size(), 1);
@@ -211,14 +217,17 @@ UserTable_Test::deleteUser_test()
 {
     initTest();
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     Hanami::ErrorContainer error;
     UserTable* userTable = UserTable::getInstance();
 
     createTestDb();
 
     UserTable::UserDbEntry result;
-    TEST_EQUAL(userTable->deleteUser(m_testId, error), OK);
-    TEST_EQUAL(userTable->deleteUser(m_testId, error), INVALID_INPUT);
+    TEST_EQUAL(userTable->deleteUser(m_testId, context, error), OK);
+    TEST_EQUAL(userTable->deleteUser(m_testId, context, error), INVALID_INPUT);
     TEST_EQUAL(userTable->getUser(result, m_testId, error), INVALID_INPUT);
 
     Hanami::TableItem result2;
@@ -242,6 +251,9 @@ UserTable_Test::updateProjectsOfUser_test()
 
     createTestDb();
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     UserTable::UserDbEntry result;
     userTable->getUser(result, m_testId, error);
 
@@ -251,13 +263,12 @@ UserTable_Test::updateProjectsOfUser_test()
     newProject.isProjectAdmin = true;
     result.projects.push_back(newProject);
 
-    TEST_EQUAL(userTable->updateProjectsOfUser(m_testId, result.projects, error), OK);
+    TEST_EQUAL(userTable->updateProjectsOfUser(m_testId, result.projects, context, error), OK);
 
     result = UserTable::UserDbEntry();
     userTable->getUser(result, m_testId, error);
     TEST_EQUAL(result.id, m_testId);
     TEST_EQUAL(result.name, m_testName);
-    TEST_EQUAL(result.creatorId, m_testId);
     TEST_EQUAL(result.salt, "asdf");
     TEST_EQUAL(result.pwHash, "test-hash");
     TEST_EQUAL(result.projects.size(), 2);

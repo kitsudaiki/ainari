@@ -51,14 +51,14 @@ ProjectTable::~ProjectTable() {}
  * @return OK if found, INVALID_INPUT if conflict, ERROR in case of internal error
  */
 ReturnStatus
-ProjectTable::addProject(const ProjectDbEntry& projectData, Hanami::ErrorContainer& error)
+ProjectTable::addProject(const ProjectDbEntry& projectData,
+                         const Hanami::UserContext& context,
+                         Hanami::ErrorContainer& error)
 {
     json projectDataJson;
 
     projectDataJson["id"] = projectData.id;
     projectDataJson["name"] = projectData.name;
-    projectDataJson["creator_id"] = projectData.creatorId;
-    projectDataJson["created_at"] = Hanami::getDatetime();
 
     // check if ID already exist
     const ReturnStatus ret = doesIdAlreadyExist(projectData.id, error);
@@ -70,7 +70,7 @@ ProjectTable::addProject(const ProjectDbEntry& projectData, Hanami::ErrorContain
     }
 
     // add to db
-    if (insertToDb(projectDataJson, error) == false) {
+    if (insertToDb(projectDataJson, context.userId, error) == false) {
         error.addMessage("Failed to add user to database");
         return ERROR;
     }
@@ -100,7 +100,10 @@ ProjectTable::getProject(ProjectDbEntry& result,
 
     result.id = jsonRet["id"];
     result.name = jsonRet["name"];
-    result.creatorId = jsonRet["creator_id"];
+    result.createdAt = jsonRet["created_at"];
+    result.createdBy = jsonRet["created_by"];
+    result.updatedAt = jsonRet["updated_at"];
+    result.updatedBy = jsonRet["updated_by"];
 
     return OK;
 }
@@ -163,7 +166,9 @@ ProjectTable::getAllProjects(Hanami::TableItem& result, Hanami::ErrorContainer& 
  * @return OK if found, INVALID_INPUT if not found, ERROR in case of internal error
  */
 ReturnStatus
-ProjectTable::deleteProject(const std::string& projectId, Hanami::ErrorContainer& error)
+ProjectTable::deleteProject(const std::string& projectId,
+                            const Hanami::UserContext& context,
+                            Hanami::ErrorContainer& error)
 {
     std::vector<RequestCondition> conditions;
     conditions.emplace_back("id", projectId);
@@ -175,7 +180,7 @@ ProjectTable::deleteProject(const std::string& projectId, Hanami::ErrorContainer
     }
 
     // delete ID
-    ret = deleteFromDb(conditions, error);
+    ret = deleteFromDb(conditions, context.userId, error);
     if (ret != OK) {
         error.addMessage("Failed to delete user with id '" + projectId + "' from database");
         return ret;

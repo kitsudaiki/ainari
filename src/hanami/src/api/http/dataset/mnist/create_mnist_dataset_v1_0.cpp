@@ -52,9 +52,6 @@ CreateMnistDataSetV1M0::CreateMnistDataSetV1M0() : Blossom("Init new mnist-file 
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when dataset was created.");
-
     registerOutputField("uuid", SAKURA_STRING_TYPE).setComment("UUID of the new dataset.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new dataset.");
@@ -78,6 +75,18 @@ CreateMnistDataSetV1M0::CreateMnistDataSetV1M0() : Blossom("Init new mnist-file 
 
     registerOutputField("uuid_label_file", SAKURA_STRING_TYPE)
         .setComment("UUID to identify the file for date upload of label-data.");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //
