@@ -54,22 +54,28 @@ RemoveProjectFromUserV1M0::RemoveProjectFromUserV1M0()
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when user was created.");
-
     registerOutputField("id", SAKURA_STRING_TYPE).setComment("ID of the user.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the user.");
 
     registerOutputField("is_admin", SAKURA_BOOL_TYPE).setComment("True, if user is an admin.");
 
-    registerOutputField("creator_id", SAKURA_STRING_TYPE)
-        .setComment("Id of the creator of the user.");
-
     registerOutputField("projects", SAKURA_ARRAY_TYPE)
         .setComment(
             "Json-array with all assigned projects "
             "together with role and project-admin-status.");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //
@@ -130,7 +136,9 @@ RemoveProjectFromUserV1M0::runTask(BlossomIO& blossomIO,
     }
 
     // updated projects of user in database
-    if (UserTable::getInstance()->updateProjectsOfUser(userId, getResult.projects, error) == false)
+    if (UserTable::getInstance()->updateProjectsOfUser(
+            userId, getResult.projects, userContext, error)
+        == false)
     {
         error.addMessage("Failed to update projects of user with id '" + userId + "'.");
         status.statusCode = INTERNAL_SERVER_ERROR_RTYPE;

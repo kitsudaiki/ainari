@@ -70,7 +70,16 @@ GetDataSetV1M0::GetDataSetV1M0() : Blossom("Get information of a specific datase
     registerOutputField("number_of_columns", SAKURA_INT_TYPE).setComment("Number of columns.");
 
     registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when dataset was created.");
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //
@@ -123,6 +132,9 @@ GetDataSetV1M0::runTask(BlossomIO& blossomIO,
     blossomIO.output["number_of_rows"] = fileHandle.header.numberOfRows;
     blossomIO.output["number_of_columns"] = fileHandle.header.numberOfColumns;
     blossomIO.output["created_at"] = entry.createdAt;
+    blossomIO.output["created_by"] = entry.createdBy;
+    blossomIO.output["updated_at"] = entry.updatedAt;
+    blossomIO.output["updated_by"] = entry.updatedBy;
 
     return true;
 }

@@ -45,6 +45,10 @@ class CheckpointTable : public HanamiSqlTable
         std::string visibility = "";
         std::string name = "";
         std::string location = "";
+        std::string createdAt = "";
+        std::string createdBy = "";
+        std::string updatedAt = "";
+        std::string updatedBy = "";
     };
 
     ~CheckpointTable();

@@ -71,7 +71,7 @@ AuditLogTable::addAuditLogEntry(const std::string& timestamp,
     data["endpoint"] = endpoint;
     data["request_type"] = requestType;
 
-    if (insertToDb(data, error) == false) {
+    if (insertToDb(data, userId, error) == false) {
         error.addMessage("Failed to add audit-log-entry to database");
         return false;
     }

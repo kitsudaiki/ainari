@@ -62,22 +62,28 @@ CreateUserV1M0::CreateUserV1M0() : Blossom("Register a new user within Misaki.")
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when user was created.");
-
     registerOutputField("id", SAKURA_STRING_TYPE).setComment("ID of the new user.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new user.");
 
     registerOutputField("is_admin", SAKURA_BOOL_TYPE).setComment("True, if user is an admin.");
 
-    registerOutputField("creator_id", SAKURA_STRING_TYPE)
-        .setComment("Id of the creator of the user.");
-
     registerOutputField("projects", SAKURA_ARRAY_TYPE)
         .setComment(
             "Json-array with all assigned projects "
             "together with role and project-admin-status.");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //
@@ -114,11 +120,10 @@ CreateUserV1M0::runTask(BlossomIO& blossomIO,
     dbEntry.name = blossomIO.input["name"];
     dbEntry.pwHash = pwHash;
     dbEntry.isAdmin = blossomIO.input["is_admin"];
-    dbEntry.creatorId = creatorId;
     dbEntry.salt = salt;
 
     // add new user to table
-    const ReturnStatus ret = UserTable::getInstance()->addUser(dbEntry, error);
+    const ReturnStatus ret = UserTable::getInstance()->addUser(dbEntry, userContext, error);
     if (ret == INVALID_INPUT) {
         status.errorMessage = "User with id '" + newUserId + "' already exist.";
         status.statusCode = CONFLICT_RTYPE;

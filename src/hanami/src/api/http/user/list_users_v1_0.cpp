@@ -38,9 +38,11 @@ ListUsersV1M0::ListUsersV1M0() : Blossom("Get information of all registered user
 
     json headerMatch = json::array();
     headerMatch.push_back("created_at");
+    headerMatch.push_back("created_by");
+    headerMatch.push_back("updated_at");
+    headerMatch.push_back("updated_by");
     headerMatch.push_back("id");
     headerMatch.push_back("name");
-    headerMatch.push_back("creator_id");
     headerMatch.push_back("projects");
     headerMatch.push_back("is_admin");
 

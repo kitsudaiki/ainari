@@ -45,7 +45,7 @@ TestTable::~TestTable() {}
 bool
 TestTable::addUser(json& data, ErrorContainer& error)
 {
-    return insertToDb(data, error);
+    return insertToDb(data, "test_user", error);
 }
 
 /**
@@ -80,11 +80,11 @@ TestTable::getUser(json& resultItem,
  * @brief updateUser
  */
 ReturnStatus
-TestTable::updateUser(const std::string& userID, const json& values, ErrorContainer& error)
+TestTable::updateUser(const std::string& userID, json& values, ErrorContainer& error)
 {
     std::vector<RequestCondition> conditions;
     conditions.emplace_back("name", userID);
-    return updateInDb(conditions, values, error);
+    return updateInDb(conditions, values, "test_user", error);
 }
 
 /**
@@ -117,7 +117,7 @@ TestTable::deleteUser(const std::string& userID, ErrorContainer& error)
 {
     std::vector<RequestCondition> conditions;
     conditions.emplace_back("name", userID);
-    return deleteFromDb(conditions, error);
+    return deleteFromDb(conditions, "test_user", error);
 }
 
 }  // namespace Hanami

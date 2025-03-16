@@ -97,6 +97,10 @@ ClusterTable::getCluster(ClusterDbEntry& result,
     result.projectId = jsonRet["project_id"];
     result.uuid = jsonRet["uuid"];
     result.visibility = jsonRet["visibility"];
+    result.createdAt = jsonRet["created_at"];
+    result.createdBy = jsonRet["created_by"];
+    result.updatedAt = jsonRet["updated_at"];
+    result.updatedBy = jsonRet["updated_by"];
 
     return OK;
 }
@@ -193,7 +197,8 @@ ClusterTable::deleteCluster(const std::string& clusterUuid,
  * @return true, if successful, else false
  */
 bool
-ClusterTable::deleteAllCluster(Hanami::ErrorContainer& error)
+ClusterTable::deleteAllCluster(const Hanami::UserContext& userContext,
+                               Hanami::ErrorContainer& error)
 {
-    return deleteAllFromDb(error);
+    return deleteAllFromDb(userContext.userId, error);
 }

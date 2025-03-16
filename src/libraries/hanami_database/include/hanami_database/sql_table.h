@@ -100,9 +100,10 @@ class SqlTable
 
     DbHeaderEntry& registerColumn(const std::string& name, const DbVataValueTypes type);
 
-    bool insertToDb(json& values, ErrorContainer& error);
+    bool insertToDb(json& values, const std::string& creator, ErrorContainer& error);
     ReturnStatus updateInDb(std::vector<RequestCondition>& conditions,
-                            const json& updates,
+                            json& updates,
+                            const std::string& updater,
                             ErrorContainer& error);
     bool getAllFromDb(TableItem& resultTable,
                       ErrorContainer& error,
@@ -124,8 +125,10 @@ class SqlTable
                            const uint64_t positionOffset = 0,
                            const uint64_t numberOfRows = 0);
     long getNumberOfRows(ErrorContainer& error);
-    bool deleteAllFromDb(ErrorContainer& error);
-    ReturnStatus deleteFromDb(std::vector<RequestCondition>& conditions, ErrorContainer& error);
+    bool deleteAllFromDb(const std::string& deleter, ErrorContainer& error);
+    ReturnStatus deleteFromDb(std::vector<RequestCondition>& conditions,
+                              const std::string& deleter,
+                              ErrorContainer& error);
 
    protected:
     std::string m_tableName = "";

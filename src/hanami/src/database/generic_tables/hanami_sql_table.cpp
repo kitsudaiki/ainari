@@ -86,7 +86,7 @@ HanamiSqlTable::addWithContext(json& values,
         return ERROR;
     }
 
-    if (insertToDb(values, error) == false) {
+    if (insertToDb(values, userContext.userId, error) == false) {
         return ERROR;
     }
 
@@ -132,7 +132,7 @@ HanamiSqlTable::updateWithContext(json& values,
                                   Hanami::ErrorContainer& error)
 {
     fillCondition(conditions, userContext);
-    return updateInDb(conditions, values, error);
+    return updateInDb(conditions, values, userContext.userId, error);
 }
 
 /**
@@ -172,7 +172,7 @@ HanamiSqlTable::deleteFromDbWithContext(std::vector<RequestCondition>& condition
                                         Hanami::ErrorContainer& error)
 {
     fillCondition(conditions, userContext);
-    return deleteFromDb(conditions, error);
+    return deleteFromDb(conditions, userContext.userId, error);
 }
 
 /**

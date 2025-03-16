@@ -28,7 +28,6 @@
 #include <uuid/uuid.h>
 
 #include <string>
-#include <vector>
 
 class SqlDatabase;
 

@@ -299,8 +299,8 @@ def _test(cluster_uuid, request_dataset_uuid):
     all_datasets = dataset.list_datasets(token, address, False)
     result_dataset_uuid = ""
     for dataset_entry in all_datasets["body"]:
-        if task_uuid == dataset_entry[6]:
-            result_dataset_uuid = dataset_entry[1]
+        if task_uuid == dataset_entry[9]:
+            result_dataset_uuid = dataset_entry[4]
 
     accuracy = dataset.check_mnist_dataset(
         token, address, result_dataset_uuid, request_dataset_uuid, False)["accuracy"]

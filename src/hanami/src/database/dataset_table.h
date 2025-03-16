@@ -46,6 +46,9 @@ class DataSetTable : public HanamiSqlTable
         std::string taskUuid = "";
         std::string location = "";
         std::string createdAt = "";
+        std::string createdBy = "";
+        std::string updatedAt = "";
+        std::string updatedBy = "";
     };
 
     ~DataSetTable();

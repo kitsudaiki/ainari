@@ -381,7 +381,9 @@ HanamiRoot::initJwt(Hanami::ErrorContainer& error)
 void
 HanamiRoot::clearCluster(Hanami::ErrorContainer& error)
 {
-    ClusterTable::getInstance()->deleteAllCluster(error);
+    Hanami::UserContext context;
+    context.userId = "HANAMI_RESTART";
+    ClusterTable::getInstance()->deleteAllCluster(context, error);
     // TODO: if a checkpoint exist for a broken cluster, then the cluster should be
     //       restored with the last available checkpoint
 }

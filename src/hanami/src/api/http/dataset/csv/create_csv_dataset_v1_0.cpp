@@ -49,9 +49,6 @@ CreateCsvDataSetV1M0::CreateCsvDataSetV1M0() : Blossom("Init new csv-file datase
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when dataset was created.");
-
     registerOutputField("uuid", SAKURA_STRING_TYPE).setComment("UUID of the new dataset.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the new dataset.");
@@ -72,6 +69,18 @@ CreateCsvDataSetV1M0::CreateCsvDataSetV1M0() : Blossom("Init new csv-file datase
 
     registerOutputField("uuid_input_file", SAKURA_STRING_TYPE)
         .setComment("UUID to identify the file for date upload of input-data.");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //

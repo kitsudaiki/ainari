@@ -117,7 +117,7 @@ def delete_all_cluster(token: str,
                        verify_connection: bool = True):
     body = list_clusters(token, address, False)["body"]
     for entry in body:
-        delete_cluster(token, address, entry[1], verify_connection)
+        delete_cluster(token, address, entry[4], verify_connection)
 
 
 def switch_to_task_mode(token: str,

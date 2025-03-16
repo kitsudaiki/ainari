@@ -8,6 +8,7 @@
 
 - removed the Binary input option again
 - functions of the python-sdk now returning a dict instead of a json-formated string
+- added `created_by`, `updated_at`, `updated_by` and `deleted_by` to all endpoints, where the database was updated
 
 #### Checkpoint-breaking
 
@@ -26,6 +27,8 @@
 
 - Added `task_uuid` to datasets
 - Datasets, which are created as result form request-task, have now a random uuid instead of the uuid of the initial request-task
+- replaced the old `creator_id` for users and projects
+- added `created_by`, `updated_at`, `updated_by` and `deleted_by` to all relevant database-tables
 
 ### Added
 

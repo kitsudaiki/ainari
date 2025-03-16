@@ -33,6 +33,9 @@ ListCheckpointV1M0::ListCheckpointV1M0() : Blossom("List checkpoints of all visi
 
     json headerMatch = json::array();
     headerMatch.push_back("created_at");
+    headerMatch.push_back("created_by");
+    headerMatch.push_back("updated_at");
+    headerMatch.push_back("updated_by");
     headerMatch.push_back("uuid");
     headerMatch.push_back("project_id");
     headerMatch.push_back("owner_id");

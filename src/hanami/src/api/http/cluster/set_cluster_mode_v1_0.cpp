@@ -53,15 +53,24 @@ SetClusterModeV1M0::SetClusterModeV1M0() : Blossom("Set mode of the cluster.")
     // output
     //----------------------------------------------------------------------------------------------
 
-    registerOutputField("created_at", SAKURA_STRING_TYPE)
-        .setComment("Timestamp, when cluster was created.");
-
     registerOutputField("uuid", SAKURA_STRING_TYPE).setComment("UUID of the cluster.");
 
     registerOutputField("name", SAKURA_STRING_TYPE).setComment("Name of the cluster.");
 
     registerOutputField("new_state", SAKURA_STRING_TYPE)
         .setComment("New desired state for the cluster.");
+
+    registerOutputField("created_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was created.");
+
+    registerOutputField("created_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who created the resource.");
+
+    registerOutputField("updated_at", SAKURA_STRING_TYPE)
+        .setComment("Timestamp, when resource was updated.");
+
+    registerOutputField("updated_by", SAKURA_STRING_TYPE)
+        .setComment("ID of the user, who updated the resource.");
 
     //----------------------------------------------------------------------------------------------
     //

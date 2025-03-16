@@ -25,6 +25,7 @@
 
 #include <database/generic_tables/hanami_sql_admin_table.h>
 #include <hanami_common/logger.h>
+#include <hanami_common/structs.h>
 
 class ProjectTable : public HanamiSqlAdminTable
 {
@@ -40,12 +41,17 @@ class ProjectTable : public HanamiSqlAdminTable
     struct ProjectDbEntry {
         std::string id = "";
         std::string name = "";
-        std::string creatorId = "";
+        std::string createdAt = "";
+        std::string createdBy = "";
+        std::string updatedAt = "";
+        std::string updatedBy = "";
     };
 
     ~ProjectTable();
 
-    ReturnStatus addProject(const ProjectDbEntry& userData, Hanami::ErrorContainer& error);
+    ReturnStatus addProject(const ProjectDbEntry& userData,
+                            const Hanami::UserContext& context,
+                            Hanami::ErrorContainer& error);
     ReturnStatus getProject(ProjectDbEntry& result,
                             const std::string& projectName,
                             Hanami::ErrorContainer& error);
@@ -54,7 +60,9 @@ class ProjectTable : public HanamiSqlAdminTable
                             const bool showHiddenValues,
                             Hanami::ErrorContainer& error);
     bool getAllProjects(Hanami::TableItem& result, Hanami::ErrorContainer& error);
-    ReturnStatus deleteProject(const std::string& projectName, Hanami::ErrorContainer& error);
+    ReturnStatus deleteProject(const std::string& projectName,
+                               const Hanami::UserContext& context,
+                               Hanami::ErrorContainer& error);
 
    private:
     ProjectTable();

@@ -33,6 +33,9 @@ ListDataSetV1M0::ListDataSetV1M0() : Blossom("List all visible datasets.")
 
     json headerMatch = json::array();
     headerMatch.push_back("created_at");
+    headerMatch.push_back("created_by");
+    headerMatch.push_back("updated_at");
+    headerMatch.push_back("updated_by");
     headerMatch.push_back("uuid");
     headerMatch.push_back("project_id");
     headerMatch.push_back("owner_id");

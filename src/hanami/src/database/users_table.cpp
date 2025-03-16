@@ -28,6 +28,8 @@
 #include <hanami_crypto/hashes.h>
 #include <hanami_database/sql_database.h>
 
+#include "hanami_common/structs.h"
+
 UserTable* UserTable::instance = nullptr;
 
 /**
@@ -167,12 +169,14 @@ UserTable::initNewAdminUser(Hanami::ErrorContainer& error)
     userData.id = userId;
     userData.name = userName;
     userData.isAdmin = true;
-    userData.creatorId = "HANAMI_INIT";
     userData.pwHash = pwHash;
     userData.salt = salt;
 
+    Hanami::UserContext context;
+    context.userId = "HANAMI_INIT";
+
     // add new admin-user to db
-    if (addUser(userData, error) != OK) {
+    if (addUser(userData, context, error) != OK) {
         error.addMessage("Failed to add new initial admin-user to database");
         LOG_ERROR(error);
         return false;
@@ -190,17 +194,17 @@ UserTable::initNewAdminUser(Hanami::ErrorContainer& error)
  * @return OK if found, INVALID_INPUT if not conflict, ERROR in case of internal error
  */
 ReturnStatus
-UserTable::addUser(const UserDbEntry& userData, Hanami::ErrorContainer& error)
+UserTable::addUser(const UserDbEntry& userData,
+                   const Hanami::UserContext& context,
+                   Hanami::ErrorContainer& error)
 {
     json userDataJson;
 
     userDataJson["id"] = userData.id;
     userDataJson["name"] = userData.name;
     userDataJson["is_admin"] = userData.isAdmin;
-    userDataJson["creator_id"] = userData.creatorId;
     userDataJson["pw_hash"] = userData.pwHash;
     userDataJson["salt"] = userData.salt;
-    userDataJson["created_at"] = Hanami::getDatetime();
 
     // convert project-IDs
     json projectIds = json::array();
@@ -223,7 +227,7 @@ UserTable::addUser(const UserDbEntry& userData, Hanami::ErrorContainer& error)
     }
 
     // add to db
-    if (insertToDb(userDataJson, error) == false) {
+    if (insertToDb(userDataJson, context.userId, error) == false) {
         error.addMessage("Failed to add user to database");
         return ERROR;
     }
@@ -251,10 +255,13 @@ UserTable::getUser(UserDbEntry& result, const std::string& userId, Hanami::Error
 
     result.id = jsonRet["id"];
     result.name = jsonRet["name"];
-    result.creatorId = jsonRet["creator_id"];
     result.isAdmin = jsonRet["is_admin"];
     result.pwHash = jsonRet["pw_hash"];
     result.salt = jsonRet["salt"];
+    result.createdAt = jsonRet["created_at"];
+    result.createdBy = jsonRet["created_by"];
+    result.updatedAt = jsonRet["updated_at"];
+    result.updatedBy = jsonRet["updated_by"];
 
     for (const json& project : jsonRet["projects"]) {
         UserProjectDbEntry newEntry;
@@ -326,7 +333,9 @@ UserTable::getAllUser(Hanami::TableItem& result, Hanami::ErrorContainer& error)
  * @return OK if found, INVALID_INPUT if not found, ERROR in case of internal error
  */
 ReturnStatus
-UserTable::deleteUser(const std::string& userId, Hanami::ErrorContainer& error)
+UserTable::deleteUser(const std::string& userId,
+                      const Hanami::UserContext& context,
+                      Hanami::ErrorContainer& error)
 {
     std::vector<RequestCondition> conditions;
     conditions.emplace_back("id", userId);
@@ -338,7 +347,7 @@ UserTable::deleteUser(const std::string& userId, Hanami::ErrorContainer& error)
     }
 
     // delete ID
-    ret = deleteFromDb(conditions, error);
+    ret = deleteFromDb(conditions, context.userId, error);
     if (ret != OK) {
         error.addMessage("Failed to delete user with id '" + userId + "' from database");
         return ret;
@@ -359,6 +368,7 @@ UserTable::deleteUser(const std::string& userId, Hanami::ErrorContainer& error)
 ReturnStatus
 UserTable::updateProjectsOfUser(const std::string& userId,
                                 const std::vector<UserProjectDbEntry>& newProjects,
+                                const Hanami::UserContext& context,
                                 Hanami::ErrorContainer& error)
 {
     // convert project-list
@@ -383,7 +393,7 @@ UserTable::updateProjectsOfUser(const std::string& userId,
     }
 
     // update projects
-    ret = updateInDb(conditions, newValues, error);
+    ret = updateInDb(conditions, newValues, context.userId, error);
     if (ret != OK) {
         error.addMessage("Failed to update projects for user with id '" + userId
                          + "' from database");

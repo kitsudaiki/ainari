@@ -38,9 +38,11 @@ ListProjectsV1M0::ListProjectsV1M0() : Blossom("Get information of all registere
 
     json headerMatch = json::array();
     headerMatch.push_back("created_at");
+    headerMatch.push_back("created_by");
+    headerMatch.push_back("updated_at");
+    headerMatch.push_back("updated_by");
     headerMatch.push_back("id");
     headerMatch.push_back("name");
-    headerMatch.push_back("creator_id");
 
     registerOutputField("header", SAKURA_ARRAY_TYPE)
         .setComment("Array with the namings all columns of the table.")

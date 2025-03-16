@@ -65,7 +65,7 @@ def delete_all_datasets(token: str,
                         verify_connection: bool = True):
     body = list_datasets(token, address, False)["body"]
     for entry in body:
-        delete_dataset(token, address, entry[1], verify_connection)
+        delete_dataset(token, address, entry[4], verify_connection)
 
 
 def check_mnist_dataset(token: str,

@@ -74,4 +74,4 @@ def delete_all_projects(token: str,
                         verify_connection: bool = True):
     body = list_projects(token, address, False)["body"]
     for entry in body:
-        delete_project(token, address, entry[1], verify_connection)
+        delete_project(token, address, entry[4], verify_connection)

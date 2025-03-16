@@ -118,9 +118,9 @@ AuditLogTable_Test::getAllAuditLog_test()
     TEST_EQUAL(result.getNumberOfRows(), 1);
     TEST_EQUAL(result.getNumberOfColums(), auditLogTable->getNumberOfColumns());
 
-    TEST_EQUAL(result.getCell(1, 0), "test-user");
-    TEST_EQUAL(result.getCell(2, 0), "test-endpoint");
-    TEST_EQUAL(result.getCell(3, 0), "get");
+    TEST_EQUAL(result.getCell(4, 0), "test-user");
+    TEST_EQUAL(result.getCell(5, 0), "test-endpoint");
+    TEST_EQUAL(result.getCell(6, 0), "get");
 
     cleanupTest();
 }

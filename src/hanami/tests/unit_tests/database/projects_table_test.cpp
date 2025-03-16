@@ -70,17 +70,19 @@ ProjectTable_Test::createTestDb()
     ProjectTable::ProjectDbEntry projectData;
     Hanami::ErrorContainer error;
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     projectData.id = m_testId;
     projectData.name = m_testName;
-    projectData.creatorId = m_testId;
 
     ProjectTable* projectTable = ProjectTable::getInstance();
     projectTable->initTable(error);
-    projectTable->addProject(projectData, error);
+    projectTable->addProject(projectData, context, error);
 
     projectData.id = "test-id2";
     projectData.name = "test-project2";
-    projectTable->addProject(projectData, error);
+    projectTable->addProject(projectData, context, error);
 }
 
 /**
@@ -115,14 +117,16 @@ ProjectTable_Test::addProject_test()
     ProjectTable::ProjectDbEntry projectData;
     Hanami::ErrorContainer error;
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     projectData.id = m_testId;
     projectData.name = m_testName;
-    projectData.creatorId = m_testId;
 
     ProjectTable* projectTable = ProjectTable::getInstance();
     TEST_EQUAL(projectTable->initTable(error), true);
-    TEST_EQUAL(projectTable->addProject(projectData, error), OK);
-    TEST_EQUAL(projectTable->addProject(projectData, error), INVALID_INPUT);
+    TEST_EQUAL(projectTable->addProject(projectData, context, error), OK);
+    TEST_EQUAL(projectTable->addProject(projectData, context, error), INVALID_INPUT);
 
     cleanupTest();
 }
@@ -145,7 +149,6 @@ ProjectTable_Test::getProject_test()
     TEST_EQUAL(projectTable->getProject(result, m_testId, error), OK);
     TEST_EQUAL(result.id, m_testId);
     TEST_EQUAL(result.name, m_testName);
-    TEST_EQUAL(result.creatorId, m_testId);
 
     // negative test
     TEST_EQUAL(projectTable->getProject(result, "fail", error), INVALID_INPUT);
@@ -182,14 +185,17 @@ ProjectTable_Test::deleteProject_test()
 {
     initTest();
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     Hanami::ErrorContainer error;
     ProjectTable* projectTable = ProjectTable::getInstance();
 
     createTestDb();
 
     ProjectTable::ProjectDbEntry result;
-    TEST_EQUAL(projectTable->deleteProject(m_testId, error), OK);
-    TEST_EQUAL(projectTable->deleteProject(m_testId, error), INVALID_INPUT);
+    TEST_EQUAL(projectTable->deleteProject(m_testId, context, error), OK);
+    TEST_EQUAL(projectTable->deleteProject(m_testId, context, error), INVALID_INPUT);
     TEST_EQUAL(projectTable->getProject(result, m_testId, error), INVALID_INPUT);
 
     Hanami::TableItem result2;

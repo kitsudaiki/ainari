@@ -218,10 +218,13 @@ ClusterTable_Test::deleteAllCluster_test()
     Hanami::ErrorContainer error;
     ClusterTable* clusterTable = ClusterTable::getInstance();
 
+    Hanami::UserContext context;
+    context.userId = "test_user";
+
     createTestDb();
 
     ClusterTable::ClusterDbEntry result;
-    TEST_EQUAL(clusterTable->deleteAllCluster(error), OK);
+    TEST_EQUAL(clusterTable->deleteAllCluster(context, error), OK);
     TEST_EQUAL(clusterTable->getCluster(result, m_testUuid, m_userContext, error), INVALID_INPUT);
 
     Hanami::TableItem result2;
