@@ -247,7 +247,6 @@ goToNextInitHexagon(Cluster* cluster,
                     int32_t& maxPathLength,
                     const uint32_t sourceHexagonId)
 {
-    std::cout << "-> " << currentHexagon->header.hexagonId << std::endl;
     // check path-length to not go too far
     maxPathLength--;
     if (maxPathLength <= 0 && currentHexagon->header.hexagonId != sourceHexagonId) {
@@ -298,7 +297,6 @@ initializeTargetHexagonList(Cluster* cluster)
         for (uint32_t counter = 0; counter < NUMBER_OF_POSSIBLE_NEXT; counter++) {
             int32_t maxPathLength = cluster->clusterHeader.settings.maxConnectionDistance;
             Hexagon* baseHexagon = &cluster->hexagons[hexagon.header.axonTarget];
-            std::cout << hexagon.header.hexagonId << std::endl;
             const uint32_t targetHexagonId = goToNextInitHexagon(
                 cluster, baseHexagon, maxPathLength, hexagon.header.hexagonId);
             if (hexagon.header.hexagonId != targetHexagonId) {
