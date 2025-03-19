@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## v0.7.0
+
+**Release-Date**: 2025-03-19
 
 ### BREAKING-CHANGES
 
