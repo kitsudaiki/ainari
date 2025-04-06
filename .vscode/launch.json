@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Build hanami",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/hanami",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "cargo build",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf"
+            },
+        },
+        {
+            "name": "Release Build hanami",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/hanami",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "cargo build --release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf"
+            },
+        }
+    ]
+}
