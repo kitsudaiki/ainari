@@ -1,0 +1,23 @@
+debug = true
+log_path = ""
+
+[storage]
+dataset_location = "/etc/openhanami/datasets"
+checkpoint_location = "/etc/openhanami/checkpoints"
+tempfile_location = "/etc/openhanami/tempfiles"
+tempfile_timeout = 10
+
+[processing]
+use_of_free_memory = 0.2
+
+[auth]
+token_key_path = "/etc/openhanami/token_key"
+token_expire_time = 36000
+
+[api]
+ip = "0.0.0.0"
+port = 11418
+
+[database]
+host = "0.0.0.0"
+port = 1234
