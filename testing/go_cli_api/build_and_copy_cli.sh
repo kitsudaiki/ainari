@@ -2,7 +2,7 @@
 
 # build protobuffer for go sdk
 pushd ../../src/sdk/go/hanami_sdk
-protoc --go_out=. --proto_path ../../../libraries/hanami_messages/protobuffers hanami_messages.proto3
+protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
 popd
 
 # build cli-binarygolangci-lint

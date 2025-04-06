@@ -1,0 +1,458 @@
+# Changelog
+
+## [0.27.0] - 2022-08-08
+
+### Added
+- added error-output to binary-files classes
+
+### Changed
+- split bianary-files class into one which use direct-IO and one which doesn't
+- remove `common_` from items- and method-directory names
+- use github-actions as ci-pipeline
+
+### Fixed
+- add missing default-callback to console-logging
+- added some missing comments in binary-files class
+
+
+## [0.26.1] - 2022-07-02
+
+### Fixed
+- removed broken precheck of thread-binding-functions
+
+
+## [0.26.0] - 2022-06-26
+
+### Changed
+- Header of item-buffer was restructured to be stored in the buffer itself too
+
+### Added
+- States of statemachine can now be connected to events, which are triggered, when entering the state
+- Event-Queue to be also able to execute the Events of states by a separate thread
+- item-buffer can now be completely backuped and restored
+
+### Fixed
+- added missing include in state-class
+
+
+## [0.25.3] - 2022-02-13
+
+### Added
+- callback to logger, which is called for each error-message
+
+
+## [0.25.2] - 2022-01-30
+
+### Added
+- new read- and write-function for binary-files, which use a normal pointer instead of data-buffer
+
+### Fixed
+- compile-warnings in data-items
+
+
+## [0.25.1] - 2022-01-09
+
+### Fixed
+- fixed valgrind memory warning in data-items
+
+
+## [0.25.0] - 2021-12-30
+
+### Added
+- support other types in table beside string-objects
+- support list of core-ids instead of only a single code-id for thread-binding
+
+
+## [0.24.0] - 2021-11-26
+
+### Added
+- add getter for inner table-header
+
+### Changed
+- inner rework of the table-item
+- improve speed of string-split-operations
+
+### Fixed
+- fix writeCompleteFile-function to write the correct size
+- made some more getter in data-items const
+
+
+## [0.23.0] - 2021-11-17
+
+### Added
+- new getter in table-items to get a copy of the header and the body separately
+- add new json-formated string-output to table-items
+- add function to steal content of table-item to save unnecessary copy-operations
+- add getter to table to request a single row of the table
+- add function to convert string to upper and lower case
+- add optional define-flag to make the logger-output completely while
+- add function to data-buffer to calculate necessary number of blocks for a number of bytes
+- add usage of error-container for file-operations
+- tables can now be printed without header, if new flag is active
+
+### Changed
+- improved the error-container to handle multiple messages in one container
+
+### Fixed
+- added missing validation to read and write of text-files
+
+### Removed
+- the show-one option for table-items was removed, because its is not used and was also broken
+
+
+## [0.22.0] - 2021-10-26
+
+### Changed
+- the bool-flag while printing a table-item now doesn't show a single item verticall was changed to print the table without head-line
+- error-messages for the logger are now handle by a struct, which also has a field for a possible solution
+- error-messages are now printed as table
+- the name of threads now doesn't have to be unique anymore, which makes automatic created threads in case of clients much easier
+
+### Fixed
+- logging a table now add a line-break at the beginning to not break the output of the first line
+
+
+## [0.21.0] - 2021-10-23
+
+### Added
+- give threads names for identification in thread-manager
+
+### Changed
+- make thrad-binding to cpu-threads more flexible
+- access to table-cells is now by row/column instead of x/y
+- renamed public accessilbe variables in data-items
+- code-cleanup in many parts of the libray
+
+### Fixed
+- fixes to remove compile-warnings in clang
+
+
+## [0.20.0] - 2021-10-02
+
+### Added
+- added parts of libKitsunemimiPersistence
+    - logger
+    - functions for binary-files
+    - functions for text-files
+
+### Changed
+- moved from c++14 to c++17
+
+### Removed
+- moved common object-methods to other libraries
+
+
+## [0.19.0] - 2021-09-26
+
+### Added
+- progress-bar for terminal output
+- optional static part at the beginning of item-buffers
+
+### Changed
+- changed minimal block-size of data-buffer from 512 to 8 byte
+
+
+## [0.18.0] - 2021-03-29
+
+### Added
+- Item-Buffer for fast add and remove of items in a preallocated buffer
+
+### Fixed
+- fix possible race-condition in barrier (not totally complete fixed)
+
+
+## [0.17.1] - 2021-01-17
+
+### Fixed
+- hotfix for the broken hexlify
+
+
+## [0.17.0] - 2021-01-17
+
+### Added
+- Base64 encode and decode to object-methods
+
+### Changed
+- moved new and delete override into memory-leak-test to avoid possible conflics in other projects
+
+### Fixed
+- removed compiler-warnings
+- fixed possible memory-leak in thread class
+
+
+## [0.16.1] - 2020-11-29
+
+### Fixed
+- the new cleanup-thread will now be started automatically
+
+### Changed
+- changed some variables in the thread-class from protected to private. This is basically a API-breaking change, but the affected variables should have never been called by any other object than the thread-class itself. So its basically more a fix.
+
+
+## [0.16.0] - 2020-11-25
+
+### Added
+- Cleanup-Thread, to delete threads in the backgroud, which are scheduled for deletion
+- missing memory-leak tests
+- some missing comments
+
+### Removed
+- Removed some functions to stop a thread  
+
+
+## [0.15.2] - 2020-10-18
+
+### Fixed
+- fixed events for the event-queue
+
+
+## [0.15.1] - 2020-08-16
+
+### Changed
+- memory-counter doesn't counter bytes allocated by new-delete-calls anymore, because there were crazy conflics with opencl 
+
+
+## [0.15.0] - 2020-08-16
+
+### Added
+- memory-leak-test-helper
+- memory-leak-tests
+- event-queue for threads
+
+### Changed
+- update gitlab-ci
+
+
+## [0.14.1] - 2020-08-05
+
+### Changed
+- build tests only in the ci-pipeline, but not everytime when running the build-script
+
+### Fixed
+- smaller style-fixes
+
+
+## [0.14.0] - 2020-08-03
+
+### Added
+- method to remove whitespaces from a string
+- copy-assignment operator to DataBuffer
+- trim-function for strings
+- simple memory-counter to count new- and delete-calls for memory-leak-tests
+- hexlify-function to convert objects into hex-represenation
+
+### Changed
+- vector-method changed to use object-reference instead of pointer
+
+### Fixed
+- manually trigger in barrier-class to reset counter again
+- some smaller naming fixes
+
+
+## [0.13.0] - 2020-04.13
+
+### Changed
+- renamed the methods of the data-, ring- and stack-buffer, to have unique names, because there were conflicts
+
+### Fixed
+- bugfix for the allocateBlocks-method of the data-buffer, because there could be a dataloss if the new allocated block-number was smaller than the actual number
+- bugfix for teh reset-method of the stack-buffer
+
+
+## [0.12.1] - 2020-03-29
+
+### Changed
+- getObjectFromBuffer and getDataPointer in the ring-buffer returning not a const-pointer anymore
+
+### Fixed
+- Destructor of the ring-buffer was broken
+
+
+## [0.12.0] - 2020-03-14
+
+### Added
+- add ring-buffer
+- add stack-buffer and stack-buffer-reserve
+
+
+## [0.11.0] - 2020-02-25
+
+### Added 
+- added `SpeedTestHelper`-class for performance-tests
+
+### Fixed
+- fixed broken reset-function in the DataBuffer
+
+### Changed
+- renamed generic `Test`-class to `CompareTestHelper` and moved the class to a subdirectory
+
+
+## [0.10.1] - 2020-01-18
+
+### Fixed
+- fixed spin-lock to be not removed while optimizing by the compiler
+
+
+## [0.10.0] - 2020-01-15
+
+### Added
+- clear-method to data-items
+
+### Changed
+- methods of databuffer
+
+### Removed
+- namespace `Common`
+
+### Fixed
+- memory-leaks in data-items
+
+
+## [0.9.0] - 2019-12-30
+
+### Added
+- string-method to replace substring within a string
+- function to execute other executables
+
+### Changed
+- changed style of split-string functions
+- made some iterators in the data-items to const_iterator
+
+### Fixed
+- fixed some segmentaion-faults
+
+
+## [0.8.0] - 2019-11-22
+
+### Added
+- new Barrier-class
+
+### Changed
+- data-items now support long and double
+- moved Thread-class in subdirectory
+
+### Fixed
+- little fixes in the data-items to avoid segmentation-faults
+
+
+## [0.7.0] - 2019-11-02
+
+### Changed
+- renamed repo from `libKitsuneCommon` to `libKitsunemimiCommon`
+- statemachine now uses primary int-values as identifier instead of strings
+- renamed unit-test-class, because its also used for functional tests and not only for unit-tests
+- renamed start- and stop-methods in thread to startThread and stopThread
+
+### Added
+- parent-child-states to statemachine
+- spin-locks to thread-class
+
+### Fixed
+- statemachine now thread-save
+
+
+## [0.6.0] - 2019-10-07
+
+### Changed
+- file-structure
+- include paths
+
+### Fixed
+- Maximum thead number for thead-bindung is not hardcoded anymore
+
+
+## [0.5.4] - 2019-09-29
+
+### Added
+- Doxyfile for generating code-documentation
+- copy-assingment-operator to DataMap, DataArray and DataValue
+- copy-assingment-constructor to DataMap, DataArray and DataValue
+
+
+## [0.5.3] - 2019-09-18
+
+### Fixed
+- the output of the toString-method of the data-items was not complete json-format
+
+
+## [0.5.2] - 2019-09-15
+
+### Changed
+- quotes around string in toString are now only added, the its calld by the DataMap or DataArray
+  (this is basically an API-break, but its necessary for libKitsuneJson and to few for a 0.6 tag)
+
+
+## [0.5.1] - 2019-09-08
+
+### Added
+- clear-function for table-items
+- optional block-size option in constructor of the data-buffer
+- support for bool-values in the DataValue-class
+
+### Changed
+- union for internal data-handling in the DataValue-class
+
+
+## [0.5.0] - 2019-08-31
+
+### Added 
+- build-script for the library
+- add show-one-options for tables to make it better readable for tables with one row
+- column-width-limitation in tables
+- rows in the table can now have multiple lines within one cell of the table
+- new common method to split strings into part with a maximum size
+
+### Changed
+- renamed in data-items:
+    - toString -> getString
+    - getString(...) -> getStringByKey(...)
+    - print -> toString
+- renamed in table-items
+    - print -> toString
+- renamed DataObject to DataMap include all relevant getter and setter
+
+
+## [0.4.1] - 2019-08-26
+
+### Fixed
+- data-buffer was missing in the readme-file, which was fixed
+
+
+## [0.4.0] - 2019-08-25
+
+### Added
+- table-items with unit-tests
+- short description to all files
+- content for readme-file
+
+### Changed
+- in data-items: getSize() to size()
+- in data-items: made print-method better usable
+- renamed Test-class to UnitTest-class
+- renamed data_structure-directory to common_items
+
+
+## [0.3.0] - 2019-08-17
+
+### Changed
+- changed file-names for better readable
+
+### Fixed
+- fixed memory-leak in DataArray and DataObject
+
+
+## [0.2.0] - 2019-08-10
+
+### Added
+- data-items, which were originally json-items from libKitsuneJson
+- simple statemachine
+
+
+## [0.1.0] - 2019-08-03
+
+### Added
+- simple thread-class with some common used stuff
+- simple buffer-class which use aligned-memory
+- UNITTEST- and UNITTEST_NEG-makro
+- method to split string
+- method to remove empty entries for a vector of strings

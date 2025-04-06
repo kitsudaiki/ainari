@@ -12,7 +12,7 @@ class GenerateProtobufMessages(install):
         check_call(["protoc",
                     "--python_out=./hanami_sdk",
                     "--proto_path",
-                    "../../../libraries/hanami_messages/protobuffers",
+                    "../../../libs/protobuf",
                     "hanami_messages.proto3"])
 
         # Continue with the default installation process

@@ -24,7 +24,7 @@ RUN apt-get update && \
 
 COPY . .
 
-RUN rm  -f src/libraries/hanami_messages/protobuffers/hanami_messages.proto3.pb.cc src/libraries/hanami_messages/protobuffers/hanami_messages.proto3.pb.h
+RUN rm  -f src/libs/protobuf/hanami_messages.proto3.pb.cc src/libs/protobuf/hanami_messages.proto3.pb.h
 RUN cmake -DCMAKE_BUILD_TYPE=Release .
 RUN make -j8
 RUN mkdir -p /app/ && \

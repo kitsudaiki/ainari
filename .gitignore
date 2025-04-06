@@ -4,7 +4,9 @@ site
 docs/drawio-exporter
 __pycache__
 
+docs_env
 hanami_env
+target
 
 testing/go_cli_api/hanamictl
 testing/ansible_deploy/.vagrant/
@@ -18,7 +20,7 @@ src/sdk/python/hanami_sdk/hanami_messages
 
 gitIdentityChange.sh
 proto3_pb2.py
-CMakeLists.txt.user
+CMakeLists.txt.user*
 
 *.proto3.pb.go
 *.qmake2cmake

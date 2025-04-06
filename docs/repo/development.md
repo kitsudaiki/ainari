@@ -87,7 +87,7 @@ API.
     ```bash
     cd OpenHanami/src/sdk/python/hanami_sdk/hanami_sdk
 
-    protoc --python_out=. --proto_path ../../../../libraries/hanami_messages/protobuffers  hanami_messages.proto3
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
     ```
 
 -   run tests
