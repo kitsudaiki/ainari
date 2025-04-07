@@ -19,6 +19,7 @@ mod common;
 mod api;
 mod database;
 mod config;
+mod core;
 
 use log::{error, info};
 use database::user_table::init_user_table;
