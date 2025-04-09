@@ -18,7 +18,6 @@ use actix_web::{FromRequest, HttpRequest};
 use apistos::ApiSecurity;
 use futures::future::{ready, Ready};
 use serde::{Deserialize, Serialize};
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use log::debug;
 
 use crate::common::functions::split_bearer_token;

@@ -23,6 +23,7 @@ mod core;
 
 use log::{error, info};
 use database::user_table::init_user_table;
+use database::cluster_table::init_cluster_table;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger
@@ -35,10 +36,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize user-table
     match init_user_table() {
-        
         Ok(_) => info!("Initilaized user-datbase-table"),
         Err(e) => {
             error!("Failed to initialize user-database-table: {}", e);
+            return Err(e);
+        }
+    };
+    // Initialize cluster-table
+    match init_cluster_table() {
+        Ok(_) => info!("Initilaized cluster-datbase-table"),
+        Err(e) => {
+            error!("Failed to initialize cluster-database-table: {}", e);
             return Err(e);
         }
     };

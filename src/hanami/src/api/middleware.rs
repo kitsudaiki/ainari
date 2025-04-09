@@ -36,7 +36,6 @@ pub async fn authorization_middleware(
         debug!("Check token for request against {}", req.uri());
         // get token from header
         let token: &str;
-        println!("middleware poi1");
         match req.headers().get("Authorization") {
             Some(value) => {
                 match split_bearer_token(value.to_str().unwrap()) {
@@ -60,9 +59,9 @@ pub async fn authorization_middleware(
             }
         }
     }
-    else {
-        debug!("skip token-check");
-    }
+    //else {
+    //    debug!("skip token-check");
+    //}
 
     info!("Api-call against URI: {}", req.uri());
 
