@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod parser;
-pub mod task;
-pub mod cluster;
-pub mod cluster_handler;
+use serde::Deserialize;
+use log::{info, debug, error};
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub struct Cluster {
+    pub port: u16,
+}
