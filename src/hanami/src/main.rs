@@ -24,6 +24,7 @@ mod core;
 use log::{error, info};
 use database::user_table::init_user_table;
 use database::cluster_table::init_cluster_table;
+use database::dataset_table::init_dataset_table;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger
@@ -50,7 +51,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             return Err(e);
         }
     };
-
+    // Initialize dataset-table
+    match init_dataset_table() {
+        Ok(_) => info!("Initilaized dataset-datbase-table"),
+        Err(e) => {
+            error!("Failed to initialize dataset-database-table: {}", e);
+            return Err(e);
+        }
+    };
     api::http_server::run_server()?;
     
     Ok(())

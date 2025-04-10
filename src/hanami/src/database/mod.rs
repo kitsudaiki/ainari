@@ -15,3 +15,4 @@
 pub mod db_handle;
 pub mod user_table;
 pub mod cluster_table;
+pub mod dataset_table;

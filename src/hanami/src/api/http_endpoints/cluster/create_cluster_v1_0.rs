@@ -36,15 +36,13 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     let cluster_uuid = Uuid::new_v4().to_string();
 
     // parse cluster
-    match cluster_parser::parse_cluster_template(&body.template) {
-        Ok(parsed) => {
-            // TODO
-        }
+    let parsed_cluster = match cluster_parser::parse_cluster_template(&body.template) {
+        Ok(parsed) => parsed,
         Err(e) => {
             let msg = format!("Failed to parse cluster-template with error: '{}'", e);
             return Err(ErrorResponse::InternalError(msg));
         }
-    }    
+    };
 
     // add new cluster to datbase
     match cluster_table::add_new_cluster(

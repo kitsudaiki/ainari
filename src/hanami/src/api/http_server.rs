@@ -25,6 +25,7 @@ use log::{info, debug};
 
 use crate::api::http_endpoints::auth::{renew_token_v1_0, create_token_v1_0};
 use crate::api::http_endpoints::user::{create_user_v1_0, list_user_v1_0, get_user_v1_0, delete_user_v1_0};
+use crate::api::http_endpoints::dataset::create_dataset_v1_0;
 use crate::api::middleware::authorization_middleware;
 use crate::config;
 
@@ -49,6 +50,13 @@ fn v1alpha_routes() -> Scope {
                     resource("/{id}")
                         .route(get().to(get_user_v1_0::get_user))
                         .route(delete().to(delete_user_v1_0::delete_user))
+                )
+        )
+        .service(
+            scope("/dataset")
+                .service(
+                    resource("/{type}/{name}")
+                        .route(post().to(create_dataset_v1_0::upload_binary))
                 )
         )
 }

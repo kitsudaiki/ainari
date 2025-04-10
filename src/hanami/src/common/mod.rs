@@ -16,3 +16,4 @@ pub mod functions;
 pub mod enums;
 pub mod contant;
 pub mod objects;
+pub mod error;
