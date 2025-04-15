@@ -25,9 +25,9 @@
 
 #include <cluster/objects.h>
 #include <cluster/task.h>
-#include <hanami_cluster_parser/cluster_meta.h>
 #include <hanami_common/buffer/data_buffer.h>
 #include <hanami_common/buffer/item_buffer.h>
+#include <include/hanami_core/hanami_root.h>
 
 #include <atomic>
 #include <deque>
@@ -61,7 +61,7 @@ class Cluster
 
     // meta
     const std::string getUuid();
-    bool init(const Hanami::ClusterMeta& clusterTemplate,
+    bool init(const ClusterMeta& clusterTemplate,
               const std::string& uuid,
               LogicalHost* host = nullptr);
 

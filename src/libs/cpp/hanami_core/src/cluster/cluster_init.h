@@ -24,29 +24,25 @@
 #define HANAMI_CLUSTERINIT_H
 
 #include <cluster/objects.h>
-#include <hanami_cluster_parser/cluster_meta.h>
+#include <include/hanami_core/hanami_root.h>
 
 class CoreSegment;
 class Cluster;
 
-using Hanami::ClusterMeta;
-
 bool initNewCluster(Cluster* cluster,
-                    const Hanami::ClusterMeta& clusterMeta,
+                    const ClusterMeta& clusterMeta,
                     const std::string& uuid,
                     LogicalHost* host);
 
 void initializeHeader(Cluster* cluster, const std::string& uuid);
-void initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta);
+void initializeSettings(Cluster* cluster, const ClusterMeta& clusterMeta);
 
-void initializeHexagons(Cluster* cluster,
-                        const Hanami::ClusterMeta& clusterMeta,
-                        LogicalHost* host);
-void updateAxons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta);
+void initializeHexagons(Cluster* cluster, const ClusterMeta& clusterMeta, LogicalHost* host);
+void updateAxons(Cluster* cluster, const ClusterMeta& clusterMeta);
 void initializeTargetHexagonList(Cluster* cluster);
 void initializeOutputNeurons(Cluster* cluster);
-void initializeInputs(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta);
-void initializeOutputs(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta);
+void initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta);
+void initializeOutputs(Cluster* cluster, const ClusterMeta& clusterMeta);
 
 void connectHexagon(Cluster* cluster, Hexagon& sourceHexagon, const uint8_t side);
 void connectAllHexagons(Cluster* cluster);

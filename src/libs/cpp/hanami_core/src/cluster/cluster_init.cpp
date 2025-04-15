@@ -60,7 +60,7 @@ calcNumberOfNeuronBlocks(const uint32_t numberOfNeurons)
  */
 bool
 initNewCluster(Cluster* cluster,
-               const Hanami::ClusterMeta& clusterMeta,
+               const ClusterMeta& clusterMeta,
                const std::string& uuid,
                LogicalHost* host)
 {
@@ -93,7 +93,7 @@ initializeHeader(Cluster* cluster, const std::string& uuid)
  * @param clusterMeta meta-data of cluster-template with the new cluster-settings
  */
 void
-initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
+initializeSettings(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
     cluster->clusterHeader.settings.neuronCooldown = clusterMeta.neuronCooldown;
     cluster->clusterHeader.settings.refractoryTime = clusterMeta.refractoryTime;
@@ -109,7 +109,7 @@ initializeSettings(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
 void
 initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
-    for (const Hanami::InputMeta& inputMeta : clusterMeta.inputs) {
+    for (const InputMeta& inputMeta : clusterMeta.inputs) {
         InputInterface inputInterface;
         inputInterface.targetHexagonId = inputMeta.targetHexagonId;
         inputInterface.name = inputMeta.name;
@@ -131,7 +131,7 @@ initializeInputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 void
 initializeOutputs(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
-    for (const Hanami::OutputMeta& outputMeta : clusterMeta.outputs) {
+    for (const OutputMeta& outputMeta : clusterMeta.outputs) {
         OutputInterface outputInterface;
         outputInterface.targetHexagonId = outputMeta.targetHexagonId;
         outputInterface.name = outputMeta.name;
@@ -153,7 +153,7 @@ initializeOutputs(Cluster* cluster, const ClusterMeta& clusterMeta)
  * @param host initial host to attach the hexagons. if nullptr, use the first cpu-host
  */
 void
-initializeHexagons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta, LogicalHost* host)
+initializeHexagons(Cluster* cluster, const ClusterMeta& clusterMeta, LogicalHost* host)
 {
     cluster->hexagons.resize(clusterMeta.hexagons.size());
 
@@ -186,9 +186,9 @@ initializeHexagons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta, Log
  * @param clusterMeta meta-data of cluster-template with axon-information
  */
 void
-updateAxons(Cluster* cluster, const Hanami::ClusterMeta& clusterMeta)
+updateAxons(Cluster* cluster, const ClusterMeta& clusterMeta)
 {
-    for (const Hanami::AxonMeta& axonMeta : clusterMeta.axons) {
+    for (const AxonMeta& axonMeta : clusterMeta.axons) {
         cluster->hexagons[axonMeta.sourceId].header.axonTarget = axonMeta.targetId;
     }
 }

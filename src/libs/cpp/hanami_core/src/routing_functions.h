@@ -23,7 +23,7 @@
 #ifndef HANAMI_ROUTING_FUNCTIONS_H
 #define HANAMI_ROUTING_FUNCTIONS_H
 
-#include <hanami_cluster_parser/cluster_meta.h>
+#include <include/hanami_core/hanami_root.h>
 #include <stdint.h>
 
 struct NextSides {

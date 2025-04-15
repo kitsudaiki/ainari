@@ -104,7 +104,7 @@ HanamiCore::init(const float maxMemoryUsage, std::string& errorMessage)
 ReturnStatus
 HanamiCore::createCluster(const std::string& uuid,
                           const std::string& name,
-                          const std::string& clusterTemplate,
+                          const ClusterMeta& parsedCluster,
                           std::string& errorMessage)
 {
     Hanami::ErrorContainer error;
@@ -115,14 +115,6 @@ HanamiCore::createCluster(const std::string& uuid,
         // check if cluster already exist
         if (ClusterHandler::getInstance()->getCluster(uuid) != nullptr) {
             error.addMessage("Cluster with UUID '" + uuid + "' already exist.");
-            break;
-        }
-
-        // parse cluster-template to validate syntax
-        Hanami::ClusterMeta parsedCluster;
-        if (Hanami::parseCluster(&parsedCluster, clusterTemplate, error) == false) {
-            error.addMessage("Uploaded template is not a valid cluster-template");
-            error.addMessage(error.toString());
             break;
         }
 

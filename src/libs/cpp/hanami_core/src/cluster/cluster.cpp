@@ -104,9 +104,7 @@ Cluster::getUuid()
  * @return true, if successful, else false
  */
 bool
-Cluster::init(const Hanami::ClusterMeta& clusterTemplate,
-              const std::string& uuid,
-              LogicalHost* host)
+Cluster::init(const ClusterMeta& clusterTemplate, const std::string& uuid, LogicalHost* host)
 {
     return initNewCluster(this, clusterTemplate, uuid, host);
 }

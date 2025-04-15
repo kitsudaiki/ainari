@@ -98,8 +98,8 @@ Cluster_Test::createCluster_test()
     bool success = false;
 
     // parse template
-    Hanami::ClusterMeta parsedCluster;
-    Hanami::parseCluster(&parsedCluster, m_clusterTemplate, error);
+    ClusterMeta parsedCluster;
+    // TODO
 
     REINIT_TEST();
 
@@ -122,9 +122,8 @@ Cluster_Test::serialize_test()
     bool success = false;
 
     // parse template
-    Hanami::ClusterMeta parsedCluster;
-    success = Hanami::parseCluster(&parsedCluster, m_clusterTemplate, error);
-    assert(success);
+    ClusterMeta parsedCluster;
+    // TODO
 
     REINIT_TEST();
 

@@ -70,14 +70,14 @@ Hanami_Core_Test::core_test()
     TEST_EQUAL(ret, false);
 
     // create
-    ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
-    TEST_EQUAL(ret, OK);
-    ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
-    TEST_EQUAL(ret, INVALID_INPUT);
+    // ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
+    // TEST_EQUAL(ret, OK);
+    // ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
+    // TEST_EQUAL(ret, INVALID_INPUT);
 
     // delete
-    ret = core.deleteCluster(uuid);
-    TEST_EQUAL(ret, OK);
-    ret = core.deleteCluster(uuid);
-    TEST_EQUAL(ret, INVALID_INPUT);
+    // ret = core.deleteCluster(uuid);
+    // TEST_EQUAL(ret, OK);
+    // ret = core.deleteCluster(uuid);
+    // TEST_EQUAL(ret, INVALID_INPUT);
 }

@@ -23,6 +23,8 @@
 #ifndef HANAMI_HANAMI_ROOT_H
 #define HANAMI_HANAMI_ROOT_H
 
+#include <hanami_common/logger.h>
+#include <hanami_common/structs.h>
 #include <include/hanami_core/types.h>
 
 #include <memory>
@@ -40,6 +42,34 @@ class GpuInterface;
 }  // namespace Hanami
 class DataSetFileHandle;
 
+struct InputMeta {
+    std::string name = "";
+    uint32_t targetHexagonId = UNINTI_POINT_32;
+};
+
+struct OutputMeta {
+    std::string name = "";
+    uint32_t targetHexagonId = UNINTI_POINT_32;
+    OutputType type = PLAIN_OUTPUT;
+};
+
+struct AxonMeta {
+    uint32_t sourceId = UNINTI_POINT_32;
+    uint32_t targetId = UNINTI_POINT_32;
+};
+
+struct ClusterMeta {
+    uint32_t version = 0;
+    float neuronCooldown = 1000000000.f;
+    uint32_t refractoryTime = 1;
+    uint32_t maxConnectionDistance = 1;
+
+    std::vector<Hanami::Position> hexagons;
+    std::vector<InputMeta> inputs;
+    std::vector<OutputMeta> outputs;
+    std::vector<AxonMeta> axons;
+};
+
 class HanamiCore
 {
    public:
@@ -50,7 +80,7 @@ class HanamiCore
 
     ReturnStatus createCluster(const std::string& clusterUuid,
                                const std::string& name,
-                               const std::string& clusterTemplate,
+                               const ClusterMeta& parsedCluster,
                                std::string& errorMessage);
     ReturnStatus deleteCluster(const std::string& clusterUuid);
     ReturnStatus setClusterMode(const std::string& clusterUuid,

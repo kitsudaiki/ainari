@@ -114,7 +114,6 @@ include_directories(
     ../libraries/hanami_hardware/include
     ../libraries/hanami_common/include
     ../libraries/hanami_crypto/include
-    ../libraries/hanami_cluster_parser/include
 )
 
 # This hard-coded output-path is necessary for easier development of the rust-library
@@ -137,7 +136,6 @@ target_link_libraries(hanami_core
     hanami_cpu
     hanami_hardware
     hanami_common
-    hanami_cluster_parser
     Threads::Threads
     # TODO:enable gpu init here again
     # related issue: https://github.com/kitsudaiki/Hanami/issues/325
@@ -150,7 +148,6 @@ if(run_tests)
         hanami_cpu
         hanami_hardware
         hanami_common
-        hanami_cluster_parser
         hanami_core
         Threads::Threads
         # TODO:enable gpu init here again
@@ -162,7 +159,6 @@ if(run_tests)
         hanami_cpu
         hanami_hardware
         hanami_common
-        hanami_cluster_parser
         hanami_core
         Threads::Threads
         # TODO:enable gpu init here again
