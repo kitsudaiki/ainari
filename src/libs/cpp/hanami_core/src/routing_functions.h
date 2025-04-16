@@ -23,8 +23,9 @@
 #ifndef HANAMI_ROUTING_FUNCTIONS_H
 #define HANAMI_ROUTING_FUNCTIONS_H
 
-#include <include/hanami_core/hanami_root.h>
 #include <stdint.h>
+
+#include "hanami_root.h"
 
 struct NextSides {
     uint8_t sides[5];
@@ -38,10 +39,10 @@ struct NextSides {
  *
  * @return position of the object, which is connected to this side
  */
-inline Hanami::Position
-getNeighborPos(const Hanami::Position sourcePos, const uint8_t side)
+inline Position
+getNeighborPos(const Position sourcePos, const uint8_t side)
 {
-    Hanami::Position result;
+    Position result;
 
     switch (side) {
         case 0:

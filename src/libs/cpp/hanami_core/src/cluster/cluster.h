@@ -23,33 +23,26 @@
 #ifndef HANAMI_CLUSTER_H
 #define HANAMI_CLUSTER_H
 
-#include <cluster/objects.h>
-#include <cluster/task.h>
-#include <hanami_common/buffer/data_buffer.h>
-#include <hanami_common/buffer/item_buffer.h>
-#include <include/hanami_core/hanami_root.h>
+#include <src/cluster/objects.h>
 
 #include <atomic>
-#include <deque>
+#include <map>
+#include <mutex>
 
-class TaskHandle_State;
+#include "hanami_structs.h"
+
 class LogicalHost;
-
 namespace Hanami
 {
-class Statemachine;
-}  // namespace Hanami
+struct WorkerTask;
+}
 
 class Cluster
 {
    public:
     Cluster();
-    Cluster(const void* data, const uint64_t dataSize);
+    // Cluster(const void* data, const uint64_t dataSize);
     ~Cluster();
-
-    // processing
-    Hanami::Statemachine* stateMachine = nullptr;
-    TaskHandle_State* taskHandleState = nullptr;
 
     // cluster-data
     ClusterHeader clusterHeader;
@@ -65,22 +58,11 @@ class Cluster
               const std::string& uuid,
               LogicalHost* host = nullptr);
 
-    // tasks
-    Task* addNewTask();
-    Task* getCurrentTask();
-    const TaskProgress getProgress(const std::string& taskUuid);
-    const Task* getTask(const std::string& taskUuid);
-    bool removeTask(const std::string& taskUuid);
-    bool isFinish(const std::string& taskUuid);
-    void getAllProgress(std::map<std::string, TaskProgress>& result);
-    void updateClusterState(const Hanami::WorkerTask& task);
-    TaskType finishTask();
-
     // states
     bool goToNextState(const uint32_t nextStateId);
     void startForwardCycle(const bool runNormalMode);
     void startBackwardCycle();
-    bool setClusterState(const std::string& newState);
+    void updateClusterState(const Hanami::WorkerTask& task);
 
     // counter for parallel-processing
     bool incrementAndCompare(const uint32_t referenceValue);
@@ -88,11 +70,6 @@ class Cluster
    private:
     std::mutex m_clusterStateLock;
     std::atomic<int> m_counter;
-
-    std::deque<std::string> m_taskQueue;
-    std::map<std::string, Task> m_taskMap;
-    std::mutex m_taskMutex;
-    Task* m_currentTask = nullptr;
 
     bool getNextTask();
 };

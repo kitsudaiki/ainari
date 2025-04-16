@@ -23,14 +23,15 @@
 #ifndef HANAMI_CORE_BACKPROPAGATION_H
 #define HANAMI_CORE_BACKPROPAGATION_H
 
-#include <cluster/cluster.h>
-#include <cluster/objects.h>
-#include <include/hanami_core/hanami_root.h>
 #include <math.h>
 #include <processing/cpu/cpu_host.h>
 #include <processing/logical_host.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
 
 #include <cmath>
+
+#include "hanami_root.h"
 
 /**
  * @brief backpropagate all neurons, which are not connected to

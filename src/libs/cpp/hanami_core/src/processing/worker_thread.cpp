@@ -22,8 +22,9 @@
 
 #include "worker_thread.h"
 
-#include <cluster/cluster.h>
 #include <processing/logical_host.h>
+#include <src/cluster/cluster.h>
+#include <unistd.h>
 
 WorkerThread::WorkerThread() : Hanami::Thread("WorkerThread") {}
 

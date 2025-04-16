@@ -22,14 +22,14 @@
 
 #include "cluster_test.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_init.h>
-#include <cluster/objects.h>
-#include <hanami_common/logger.h>
-#include <hanami_hardware/host.h>
 #include <io/checkpoint/buffer/buffer_io.h>
 #include <processing/logical_host.h>
 #include <processing/physical_host.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/common/logger.h>
+#include <src/hardware/host.h>
 
 Cluster_Init_Test::Cluster_Init_Test() : Hanami::CompareTestHelper("Cluster_Init_Test")
 {
@@ -95,9 +95,17 @@ Cluster_Init_Test::createCluster_test()
     Hanami::ErrorContainer error;
     bool success = false;
 
-    // parse template
+    // define cluster
     ClusterMeta parsedCluster;
-    // TODO
+    parsedCluster.refractoryTime = 2;
+    parsedCluster.neuronCooldown = 10000000.0;
+    parsedCluster.maxConnectionDistance = 3;
+    parsedCluster.hexagons.push_back(Position(1, 1, 1));
+    parsedCluster.hexagons.push_back(Position(3, 1, 1));
+    parsedCluster.hexagons.push_back(Position(4, 1, 1));
+    parsedCluster.axons.push_back(AxonMeta(0, 1));
+    parsedCluster.inputs.push_back(InputMeta("input_hexagon", 0));
+    parsedCluster.outputs.push_back(OutputMeta("input_hexagon", 2, OutputType::PLAIN_OUTPUT));
 
     // create new cluster
     Cluster newCluster;

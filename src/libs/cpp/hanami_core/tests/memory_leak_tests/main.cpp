@@ -20,10 +20,13 @@
  *      limitations under the License.
  */
 
-#include <hanami_common/logger.h>
+#include <src/common/logger.h>
 
+#include "common/buffer/data_buffer_test.h"
+#include "common/buffer/item_buffer_test.h"
+#include "common/items/table_item_test.h"
+#include "common/threading/thread_test.h"
 #include "core/cluster_test.h"
-#include "core/dataset_io_test.h"
 
 int
 main()
@@ -31,7 +34,13 @@ main()
     Hanami::initConsoleLogger(false);
 
     Hanami::Cluster_Test();
-    Hanami::DataSetIO_Test();
+
+    Hanami::DataBuffer_Test();
+    Hanami::ItemBuffer_Test();
+
+    Hanami::TableItem_test();
+
+    Hanami::Thread_Test();
 
     return 0;
 }

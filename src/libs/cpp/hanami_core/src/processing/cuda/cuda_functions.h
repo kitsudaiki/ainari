@@ -23,7 +23,7 @@
 #ifndef CUDA_FUNCTIONS_H
 #define CUDA_FUNCTIONS_H
 
-#include <cluster/objects.h>
+#include <src/cluster/objects.h>
 
 extern "C" Block* initDevice_CUDA(Block* hostBlocks, const uint32_t numberOfBlocks);
 

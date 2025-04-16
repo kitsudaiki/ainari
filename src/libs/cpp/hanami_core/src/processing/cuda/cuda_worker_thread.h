@@ -23,8 +23,8 @@
 #ifndef CUDAWORKERTHREAD_H
 #define CUDAWORKERTHREAD_H
 
-#include <hanami_common/threading/thread.h>
 #include <processing/cuda/cuda_host.h>
+#include <src/common/threading/thread.h>
 
 class Cluster;
 

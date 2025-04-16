@@ -103,7 +103,7 @@ CudaHost::moveHexagon(Hexagon* hexagon)
     }
 
     // update data on gpu
-    hexagon->cudaPointer.deviceId = m_localId;
+    // hexagon->cudaPointer.deviceId = m_localId;
     // initHexagonOnDevice_CUDA(hexagon,
     //                          &hexagon->cluster->clusterHeader.settings,
     //                          getItemData<Block>(blocks),

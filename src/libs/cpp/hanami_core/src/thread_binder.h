@@ -23,8 +23,8 @@
 #ifndef HANAMI_THREADBINDER_H
 #define HANAMI_THREADBINDER_H
 
-#include <hanami_common/logger.h>
-#include <hanami_common/threading/thread.h>
+#include <src/common/logger.h>
+#include <src/common/threading/thread.h>
 
 #include <mutex>
 

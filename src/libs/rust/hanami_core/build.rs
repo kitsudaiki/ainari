@@ -12,20 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use autocxx_build::Builder;
+use std::env;
+use std::path::PathBuf;
 
 fn main() {
-    Builder::new("src/lib.rs", &["src"])
-        .extra_clang_args(&["-std=c++17"])
-        .build().unwrap()
-        .file("src/hanami_root.h")     
-        .std("c++17")
-        .compile("shapes-rs");
+    // let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    println!("cargo:rerun-if-changed=src/main.rs");
-    println!("cargo:rerun-if-changed=src/hanami_root.h");
-    // the release-version of the library has to be used to avoid linking-problems
-    // with the ASAN-dependencies in the debug-version
-    println!("cargo:rustc-link-search=/tmp/hanami_core/release");
-    println!("cargo:rustc-link-lib=hanami_core");
+    // compile C++ library via CMake
+    let dst = cmake::Config::new("hanami_core_cpp")
+        //.no_build_target(true) // <- this disables the 'install' target
+        .build();
+
+    // setup autocxx
+    let include_path = "hanami_core_cpp";
+    let mut b = autocxx_build::Builder::new("src/lib.rs", &[include_path])
+        .extra_clang_args(&["-std=c++17"])
+        .build()
+        .unwrap();
+
+    b.include(include_path)
+     .flag_if_supported("-std=c++17");
+
+    b.compile("autocxx-hanami_core_cpp");
+
+    // link against C++ static lib
+    println!("cargo:rustc-link-search=native={}/build", dst.display());
+    println!("cargo:rustc-link-lib=static=hanami_core_cpp");
 }
+

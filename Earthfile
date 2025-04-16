@@ -90,6 +90,7 @@ prepare-build-dependencies:
     # install dependencies
     RUN apt-get update && \
         apt-get install -y clang-19 \
+                           g++ \
                            make \
                            cmake \
                            bison \

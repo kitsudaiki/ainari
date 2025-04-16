@@ -23,7 +23,7 @@
 #ifndef HANAMI_CORE_TEST_H
 #define HANAMI_CORE_TEST_H
 
-#include <hanami_common/test_helper/compare_test_helper.h>
+#include <src/common/test_helper/compare_test_helper.h>
 
 class Hanami_Core_Test : public Hanami::CompareTestHelper
 {

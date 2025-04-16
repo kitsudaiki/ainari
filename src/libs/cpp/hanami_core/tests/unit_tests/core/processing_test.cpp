@@ -22,9 +22,9 @@
 
 #include "processing_test.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_init.h>
-#include <cluster/objects.h>
 #include <processing/cpu/core_processing.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
 
 Processing_Test::Processing_Test() : Hanami::CompareTestHelper("Processing_Test") {}

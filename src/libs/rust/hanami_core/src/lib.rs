@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,35 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod cluster_handler;
+pub mod cluster;
+pub mod task_queue;
+pub mod tasks;
+
 use autocxx::prelude::*;
 
+// HINT (kitsudaiki): Even if it is not used in this file, this include-block
+// is still necessary, otherwise rust would throw an include-error while building
+// the c++-binding
 autocxx::include_cpp! {
-  #include "hanami_root.h"
-  safety!(unsafe)
-  generate!("HanamiRoot")
-  generate!("create_root")
-}
-
-pub fn test() -> i32 {
-
-    let square = ffi::create_root();
-    println!("Area: {} units", square.area().0);
-    println!("Perimeter: {} units", square.perimeter().0);
-    return square.area().0;
-}
-
-pub fn add(left: u64, right: u64) -> u64 {
-    return left + right;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(test(), 25);
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+    #include "hanami_root.h"
+    #include "hanami_structs.h"
+    #include "cluster_link.h"
+    safety!(unsafe_ffi)
+    generate!("HanamiCore")
+    generate!("ReturnStatus")
+    generate!("createRootObj")
+    generate!("ClusterMeta")
+    generate!("ClusterLink")
 }

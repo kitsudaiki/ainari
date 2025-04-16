@@ -22,17 +22,17 @@
 
 #include "cpu_host.h"
 
-#include <hanami_cpu/memory.h>
-#include <hanami_hardware/cpu_core.h>
-#include <hanami_hardware/cpu_package.h>
-#include <hanami_hardware/cpu_thread.h>
-#include <hanami_hardware/host.h>
 #include <processing/cluster_resize.h>
 #include <processing/cpu/core_backpropagation.h>
 #include <processing/cpu/core_processing.h>
 #include <processing/cpu/cpu_worker_thread.h>
 #include <processing/cpu/output_backpropagation.h>
 #include <processing/cpu/output_processing.h>
+#include <src/hardware/cpu_core.h>
+#include <src/hardware/cpu_package.h>
+#include <src/hardware/cpu_thread.h>
+#include <src/hardware/host.h>
+#include <src/hardware/memory.h>
 
 /**
  * @brief constructor

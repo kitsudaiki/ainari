@@ -22,11 +22,11 @@
 
 #include "logical_host.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_io_convert.h>
-#include <cluster/objects.h>
-#include <hanami_common/buffer/item_buffer.h>
 #include <processing/cpu/core_processing.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/common/buffer/item_buffer.h>
 
 /**
  * @brief constructor
@@ -128,7 +128,7 @@ handleClientOutput(Cluster* cluster)
     Hanami::ErrorContainer error;
     // send output back if a client-connection is set
 
-    Task* actualTask = cluster->getCurrentTask();
+    /*Task* actualTask = cluster->getCurrentTask();
     void* data = nullptr;
 
     if (actualTask != nullptr && actualTask->type == REQUEST_TASK) {
@@ -142,7 +142,7 @@ handleClientOutput(Cluster* cluster)
             appendToDataSet(*fileHandle, data, ioBufferSize * sizeof(float), error);
         }
     }
-    /*if (cluster->msgClient != nullptr) {
+    if (cluster->msgClient != nullptr) {
         // TODO: handle return status
         sendClusterOutputMessage(cluster);
     }*/

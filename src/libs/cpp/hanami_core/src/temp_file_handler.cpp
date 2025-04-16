@@ -23,9 +23,9 @@
 #include "temp_file_handler.h"
 
 #include <database/tempfile_table.h>
-#include <hanami_common/functions/file_functions.h>
-#include <hanami_common/uuid.h>
 #include <hanami_config/config_handler.h>
+#include <src/common/functions/file_functions.h>
+#include <src/common/uuid.h>
 
 TempFileHandler* TempFileHandler::instance = nullptr;
 

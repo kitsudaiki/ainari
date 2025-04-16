@@ -22,10 +22,10 @@
 
 #include "physical_host.h"
 
-#include <hanami_hardware/host.h>
 #include <processing/cpu/cpu_host.h>
 #include <processing/cuda/cuda_functions.h>
 #include <processing/cuda/cuda_host.h>
+#include <src/hardware/host.h>
 
 /**
  * @brief PhysicalHost::PhysicalHost

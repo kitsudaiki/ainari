@@ -23,9 +23,9 @@
 #ifndef CHECKPOINTIO_H
 #define CHECKPOINTIO_H
 
-#include <hanami_common/files/binary_file.h>
-#include <hanami_common/logger.h>
 #include <io/checkpoint/io_interface.h>
+#include <src/common/files/binary_file.h>
+#include <src/common/logger.h>
 
 #include <string>
 

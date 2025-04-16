@@ -23,10 +23,10 @@
 #ifndef LOGICALHOST_H
 #define LOGICALHOST_H
 
-#include <cluster/cluster.h>
-#include <hanami_common/buffer/item_buffer.h>
-#include <hanami_common/logger.h>
 #include <processing/worker_thread.h>
+#include <src/cluster/cluster.h>
+#include <src/common/buffer/item_buffer.h>
+#include <src/common/logger.h>
 #include <stdint.h>
 
 #include <deque>

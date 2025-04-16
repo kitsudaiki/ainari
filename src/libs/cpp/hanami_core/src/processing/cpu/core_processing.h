@@ -23,14 +23,15 @@
 #ifndef HANAMI_CORE_PROCESSING_H
 #define HANAMI_CORE_PROCESSING_H
 
-#include <cluster/cluster.h>
-#include <cluster/objects.h>
-#include <hanami_common/functions/common_functions.h>
-#include <include/hanami_core/hanami_root.h>
 #include <math.h>
 #include <processing/cluster_resize.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/common/functions/common_functions.h>
 
 #include <cmath>
+
+#include "hanami_root.h"
 
 /**
  * @brief process a single synapse-section

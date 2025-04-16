@@ -23,7 +23,7 @@
 #ifndef PROCESSING_TEST_H
 #define PROCESSING_TEST_H
 
-#include <hanami_common/test_helper/compare_test_helper.h>
+#include <src/common/test_helper/compare_test_helper.h>
 
 class Processing_Test : public Hanami::CompareTestHelper
 {

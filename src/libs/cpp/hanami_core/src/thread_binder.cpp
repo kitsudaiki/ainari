@@ -22,13 +22,14 @@
 
 #include "thread_binder.h"
 
-#include <hanami_common/threading/thread.h>
-#include <hanami_common/threading/thread_handler.h>
-#include <hanami_hardware/cpu_core.h>
-#include <hanami_hardware/cpu_package.h>
-#include <hanami_hardware/cpu_thread.h>
-#include <hanami_hardware/host.h>
-#include <include/hanami_core/hanami_root.h>
+#include <src/common/threading/thread.h>
+#include <src/common/threading/thread_handler.h>
+#include <src/hardware/cpu_core.h>
+#include <src/hardware/cpu_package.h>
+#include <src/hardware/cpu_thread.h>
+#include <src/hardware/host.h>
+
+#include "hanami_root.h"
 
 ThreadBinder* ThreadBinder::instance = nullptr;
 

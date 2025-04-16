@@ -23,8 +23,9 @@
 #ifndef HANAMI_CLUSTERINIT_H
 #define HANAMI_CLUSTERINIT_H
 
-#include <cluster/objects.h>
-#include <include/hanami_core/hanami_root.h>
+#include <src/cluster/objects.h>
+
+#include "hanami_root.h"
 
 class CoreSegment;
 class Cluster;

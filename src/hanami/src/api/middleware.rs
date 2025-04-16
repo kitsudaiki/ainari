@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ use actix_web::{
 use log::{info, debug};
 
 use crate::api::{token_handling, errors::ErrorResponse};
-use crate::common::functions::split_bearer_token;
+use hanami_common::functions::split_bearer_token;
 
 pub async fn authorization_middleware(
     req: ServiceRequest,

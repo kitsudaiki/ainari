@@ -482,16 +482,6 @@ jobs:
         name: "Check target-directory"
         run: ls -l /tmp/Hanami_core_debug_build_result
       -
-        name: "Run test: hanami_common"
-        run: |
-          chmod +x /tmp/Hanami_core_debug_build_result/hanami_common_unit_tests
-          /tmp/Hanami_core_debug_build_result/hanami_common_unit_tests
-      -
-        name: "Run test: hanami_cluster_parser"
-        run: |
-          chmod +x /tmp/Hanami_core_debug_build_result/hanami_cluster_parser_unit_tests
-          /tmp/Hanami_core_debug_build_result/hanami_cluster_parser_unit_tests
-      -
         name: "Run test: hanami"
         run: |
           chmod +x  /tmp/Hanami_core_debug_build_result/hanami_unittests
@@ -515,16 +505,6 @@ jobs:
       -
         name: "Check target-directory"
         run: ls -l /tmp/Hanami_core_debug_build_result
-      -
-        name: "Run test: hanami_common"
-        run: |
-          chmod +x /tmp/Hanami_core_debug_build_result/hanami_common_memory_leak_tests
-          /tmp/Hanami_core_debug_build_result/hanami_common_memory_leak_tests
-      -
-        name: "Run test: hanami_cluster_parser"
-        run: |
-          chmod +x /tmp/Hanami_core_debug_build_result/hanami_cluster_parser_memory_leak_tests
-          /tmp/Hanami_core_debug_build_result/hanami_cluster_parser_memory_leak_tests
       -
         name: "Run test: hanami"
         run: |

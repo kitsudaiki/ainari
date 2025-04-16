@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ use uuid::Uuid;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
-use crate::core::cluster::parser::cluster_parser;
 
 use super::cluster_structs::{ClusterCreateReq, ClusterResp};
 
@@ -36,13 +35,13 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     let cluster_uuid = Uuid::new_v4().to_string();
 
     // parse cluster
-    let parsed_cluster = match cluster_parser::parse_cluster_template(&body.template) {
-        Ok(parsed) => parsed,
-        Err(e) => {
-            let msg = format!("Failed to parse cluster-template with error: '{}'", e);
-            return Err(ErrorResponse::InternalError(msg));
-        }
-    };
+    // let parsed_cluster = match cluster_parser::parse_cluster_template(&body.template) {
+    //     Ok(parsed) => parsed,
+    //     Err(e) => {
+    //         let msg = format!("Failed to parse cluster-template with error: '{}'", e);
+    //         return Err(ErrorResponse::InternalError(msg));
+    //     }
+    // };
 
     // add new cluster to datbase
     match cluster_table::add_new_cluster(

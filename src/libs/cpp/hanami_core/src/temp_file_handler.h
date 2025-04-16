@@ -23,12 +23,12 @@
 #ifndef HANAMI_TEMPFILEHANDLER_H
 #define HANAMI_TEMPFILEHANDLER_H
 
-#include <hanami_common/buffer/bit_buffer.h>
-#include <hanami_common/files/binary_file.h>
-#include <hanami_common/logger.h>
-#include <hanami_common/structs.h>
-#include <hanami_common/threading/thread.h>
-#include <hanami_common/upload_file_handle.h>
+#include <src/common/buffer/bit_buffer.h>
+#include <src/common/files/binary_file.h>
+#include <src/common/logger.h>
+#include <src/common/structs.h>
+#include <src/common/threading/thread.h>
+#include <src/common/upload_file_handle.h>
 
 #include <map>
 #include <string>

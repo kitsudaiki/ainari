@@ -22,7 +22,7 @@
 
 #include "cluster_handler.h"
 
-#include <cluster/cluster.h>
+#include <src/cluster/cluster.h>
 
 ClusterHandler* ClusterHandler::instance = nullptr;
 

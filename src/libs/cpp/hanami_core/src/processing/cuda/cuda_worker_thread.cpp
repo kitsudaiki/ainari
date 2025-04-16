@@ -22,7 +22,6 @@
 
 #include "cuda_worker_thread.h"
 
-#include <cluster/objects.h>
 #include <processing/cluster_resize.h>
 #include <processing/cpu/core_backpropagation.h>
 #include <processing/cpu/core_processing.h>
@@ -30,6 +29,7 @@
 #include <processing/cpu/output_processing.h>
 #include <processing/cuda/cuda_functions.h>
 #include <processing/logical_host.h>
+#include <src/cluster/objects.h>
 
 /**
  * @brief constructor

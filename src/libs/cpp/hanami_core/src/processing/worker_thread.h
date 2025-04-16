@@ -23,9 +23,9 @@
 #ifndef WORKERTHREAD_H
 #define WORKERTHREAD_H
 
-#include <hanami_common/defines.h>
-#include <hanami_common/structs.h>
-#include <hanami_common/threading/thread.h>
+#include <src/common/defines.h>
+#include <src/common/structs.h>
+#include <src/common/threading/thread.h>
 
 class LogicalHost;
 class Cluster;

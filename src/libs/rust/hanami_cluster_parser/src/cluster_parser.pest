@@ -1,0 +1,67 @@
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// example
+//
+// version: 1
+// settings:
+//     neuron_cooldown: 1000000000.0;
+//     refractory_time: 1;
+//     max_connection_distance: 1;
+//
+// hexagons:
+//     1,1,1;
+//     3,1,1;
+//     4,1,1;
+//
+// axons:
+//     1,1,1 -> 3,1,1;
+//
+// inputs:
+//     "input_hexagon": 1,1,1;
+//
+// outputs:
+//     "output_hexagon": 4,1,1 (float);
+//
+
+
+WHITESPACE = _{ " " | "\t" | "\n" }
+
+file = { version_r ~ settings_r ~ hexagons_r ~ axons_r ~ inputs_r ~ outputs_r }
+
+version_r = { "version" ~ ":" ~ _int_ }
+
+settings_r = { "settings" ~ ":" ~ neuron_cooldown_r ~ refractory_time_r ~ max_connection_distance_r }
+neuron_cooldown_r = { "neuron_cooldown" ~ ":" ~ _float_ ~ ";"}
+refractory_time_r = { "refractory_time" ~ ":" ~ _int_ ~ ";" }
+max_connection_distance_r  = { "max_connection_distance" ~ ":" ~ _int_ ~ ";" }
+
+hexagons_r = { "hexagons" ~ ":" ~ hexagon_list }
+hexagon_list = { position ~ ";"~ (position ~ ";" )* }
+
+axons_r = { "axons" ~ ":" ~ axon_r+ }
+axon_r = { position ~ "->" ~ position ~ ";" }
+
+inputs_r = { "inputs" ~ ":" ~ input_r+ }
+input_r = { key ~ ":" ~ position ~ ";" }
+
+outputs_r = { "outputs" ~ ":" ~ output_r+ }
+output_r = { key ~ ":" ~ position ~ extra_info? ~ ";" }
+extra_info = { "(" ~ key ~ ")" }
+
+position = { _int_ ~ "," ~ _int_ ~ "," ~ _int_ }
+
+key = @{ ASCII_ALPHANUMERIC+ }
+_int_ = @{ "-"? ~ ASCII_DIGIT+ }
+_float_ = @{ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }

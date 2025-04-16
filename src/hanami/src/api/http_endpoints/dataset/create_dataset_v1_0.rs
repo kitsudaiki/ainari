@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,8 +34,9 @@ use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 
+use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, DataSetFileHandle};
+
 use super::dataset_structs::DatasetResp;
-use super::dataset_io::{init_new_data_set_file, DataSetFileHandle};
 
 #[derive(Debug)]
 pub struct MnistImage {
@@ -243,7 +244,7 @@ pub fn load_mnist_images(
         &target_filepath, 
         &name, 
         &Value::Object(description),
-        super::dataset_io::DataSetType::Uint8Type,
+        DataSetType::Uint8Type,
         number_of_columns)
     {
         Ok(mut handle) => {
@@ -251,7 +252,7 @@ pub fn load_mnist_images(
 
             let mut label_data: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             for (i, img) in images.iter().enumerate() {
-                println!("Image {}: Label = {}", i, img.label);
+                // println!("Image {}: Label = {}", i, img.label);
                 label_data[usize::from(img.label)] = 1;
 
                 match handle.target_file.write_all(&img.pixels) {

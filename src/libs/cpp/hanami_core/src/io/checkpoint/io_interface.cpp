@@ -22,11 +22,12 @@
 
 #include "io_interface.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_init.h>
-#include <include/hanami_core/hanami_root.h>
 #include <processing/logical_host.h>
 #include <processing/physical_host.h>
+#include <src/cluster/cluster.h>
+
+#include "hanami_root.h"
 
 /**
  * @brief constructor

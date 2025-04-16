@@ -22,13 +22,14 @@
 
 #include "cluster_init.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_init.h>
-#include <cluster/objects.h>
-#include <hanami_common/logger.h>
-#include <include/hanami_core/hanami_root.h>
 #include <processing/physical_host.h>
 #include <routing_functions.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/common/logger.h>
+
+#include "hanami_root.h"
 
 /**
  * @brief calculate the number of blocks for a specific number of neurons
@@ -203,7 +204,7 @@ updateAxons(Cluster* cluster, const ClusterMeta& clusterMeta)
 void
 connectHexagon(Cluster* cluster, Hexagon& sourceHexagon, const uint8_t side)
 {
-    const Hanami::Position next = getNeighborPos(sourceHexagon.header.hexagonPos, side);
+    const Position next = getNeighborPos(sourceHexagon.header.hexagonPos, side);
     // debug-output
     // std::cout<<next.x<<" : "<<next.y<<" : "<<next.z<<std::endl;
 

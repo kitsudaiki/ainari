@@ -22,7 +22,7 @@
 
 #include "hanami_core_test.h"
 
-#include <include/hanami_core/hanami_root.h>
+#include "hanami_root.h"
 
 Hanami_Core_Test::Hanami_Core_Test() : Hanami::CompareTestHelper("Cluster_Init_Test")
 {

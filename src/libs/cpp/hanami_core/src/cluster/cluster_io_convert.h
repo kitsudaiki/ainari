@@ -23,7 +23,7 @@
 #ifndef CLUSTER_IO_CONVERT_H
 #define CLUSTER_IO_CONVERT_H
 
-#include <cluster/objects.h>
+#include <src/cluster/objects.h>
 
 void convertBufferToExpected(OutputInterface* outputInterface);
 uint64_t convertOutputToBuffer(OutputInterface* outputInterface);

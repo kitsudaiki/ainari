@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ use apistos::api_operation;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::user_table;
-use crate::common::enums;
+use hanami_common::enums;
 
 use super::user_structs::UserResp;
 

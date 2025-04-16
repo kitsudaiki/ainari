@@ -22,13 +22,14 @@
 
 #include "checkpoint_io.h"
 
-#include <cluster/cluster.h>
-#include <cluster/objects.h>
-#include <hanami_common/buffer/item_buffer.h>
-#include <hanami_common/functions/file_functions.h>
-#include <include/hanami_core/hanami_root.h>
 #include <processing/logical_host.h>
 #include <processing/physical_host.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/common/buffer/item_buffer.h>
+#include <src/common/functions/file_functions.h>
+
+#include "hanami_root.h"
 
 struct CheckpointHeader {
     const char typeIdentifier[8] = "hanami";

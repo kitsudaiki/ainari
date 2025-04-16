@@ -23,7 +23,7 @@
 #include "cluster_io_convert_test.h"
 
 #include <cluster/cluster_io_convert.h>
-#include <hanami_common/logger.h>
+#include <src/common/logger.h>
 
 ClusterIOConvert_Test::ClusterIOConvert_Test() : Hanami::CompareTestHelper("ClusterIOConvert_Test")
 {

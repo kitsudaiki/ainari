@@ -20,11 +20,20 @@
  *      limitations under the License.
  */
 
-#include <hanami_common/logger.h>
+#include <src/common/logger.h>
 
+#include "common/buffer/data_buffer_test.h"
+#include "common/buffer/item_buffer_test.h"
+#include "common/files/binary_file_with_directIO_test.h"
+#include "common/files/binary_file_without_directIO_test.h"
+#include "common/functions/file_functions_test.h"
+#include "common/functions/string_functions_test.h"
+#include "common/functions/vector_functions_test.h"
+#include "common/items/table_item_test.h"
+#include "common/logger_test.h"
+#include "common/threading/thread_handler_test.h"
 #include "core/cluster_io_convert_test.h"
 #include "core/cluster_test.h"
-#include "core/dataset_io_test.h"
 #include "core/hanami_core_test.h"
 #include "core/processing_test.h"
 
@@ -33,9 +42,24 @@ main()
 {
     Hanami::initConsoleLogger(false);
 
+    Hanami::DataBuffer_Test();
+    Hanami::ItemBuffer_Test();
+
+    Hanami::Stringfunctions_Test();
+    Hanami::Vectorfunctions_Test();
+    Hanami::Filefunctions_Test();
+
+    Hanami::Logger_Test();
+
+    Hanami::ThreadHandler_Test();
+
+    Hanami::BinaryFile_withDirectIO_Test();
+    Hanami::BinaryFile_withoutDirectIO_Test();
+
+    Hanami::TableItem_test();
+
     ClusterIOConvert_Test();
     Cluster_Init_Test();
-    DataSetIO_Test();
     Processing_Test();
     Hanami_Core_Test();
 

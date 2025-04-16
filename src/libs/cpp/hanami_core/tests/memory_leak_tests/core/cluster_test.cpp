@@ -22,14 +22,13 @@
 
 #include "cluster_test.h"
 
-#include <cluster/cluster.h>
 #include <cluster/cluster_init.h>
-#include <cluster/objects.h>
-#include <cluster/task.h>
-#include <hanami_hardware/host.h>
 #include <io/checkpoint/buffer/buffer_io.h>
 #include <processing/logical_host.h>
 #include <processing/physical_host.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+#include <src/hardware/host.h>
 
 namespace Hanami
 {
@@ -40,7 +39,6 @@ Cluster_Test::Cluster_Test() : Hanami::MemoryLeakTestHelpter("Cluster_Test")
     initHost_test();
     createCluster_test();
     serialize_test();
-    task_test();
 }
 
 /**
@@ -144,34 +142,6 @@ Cluster_Test::serialize_test()
     delete bufferIo;
     delete copyCluster;
     delete buffer;
-
-    CHECK_MEMORY();
-}
-
-/**
- * @brief task_test
- */
-void
-Cluster_Test::task_test()
-{
-    REINIT_TEST();
-
-    Task* newTask = new Task();
-
-    newTask->name = "asdf";
-    newTask->type = TRAIN_TASK;
-    newTask->progress.queuedTimeStamp = std::chrono::system_clock::now();
-    newTask->info = TrainInfo();
-    TrainInfo* info = &std::get<TrainInfo>(newTask->info);
-    info->timeLength = 42;
-
-    Task* otherTask = new Task(std::move(*newTask));
-    Task* otherTask2 = new Task();
-    *otherTask2 = std::move(*otherTask);
-
-    delete otherTask2;
-    delete otherTask;
-    delete newTask;
 
     CHECK_MEMORY();
 }

@@ -23,11 +23,12 @@
 #ifndef OUTPUTBACKPROPAGATION_H
 #define OUTPUTBACKPROPAGATION_H
 
-#include <cluster/cluster.h>
-#include <cluster/objects.h>
-#include <include/hanami_core/hanami_root.h>
 #include <processing/cpu/cpu_host.h>
 #include <processing/logical_host.h>
+#include <src/cluster/cluster.h>
+#include <src/cluster/objects.h>
+
+#include "hanami_root.h"
 
 /**
  * @brief backpropagate output-nodes

@@ -24,9 +24,9 @@
 #define IO_INTERFACE_H
 
 #include <assert.h>
-#include <cluster/objects.h>
-#include <hanami_common/logger.h>
-#include <include/hanami_core/types.h>
+#include <src/cluster/objects.h>
+#include <src/common/logger.h>
+#include <src/common/types.h>
 #include <stdint.h>
 
 class Cluster;
@@ -48,13 +48,13 @@ class IO_Interface
     };
 
     struct InputEntry {
-        Hanami::NameEntry name;
+        NameEntry name;
         uint32_t numberOfInputs = 0;
         uint32_t targetHexagonId = UNINIT_STATE_32;
     };
 
     struct OutputEntry {
-        Hanami::NameEntry name;
+        NameEntry name;
         OutputType type = PLAIN_OUTPUT;
         uint32_t numberOfOutputs = 0;
         uint32_t numberOfWeightBlocks = 0;

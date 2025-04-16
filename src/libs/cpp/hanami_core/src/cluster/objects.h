@@ -24,13 +24,14 @@
 #define HANAMI_CORE_SEGMENT_OBJECTS_H
 
 #include <assert.h>
-#include <hanami_common/structs.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <cstdlib>
 #include <string>
 #include <vector>
+
+#include "hanami_structs.h"
 
 class Cluster;
 class LogicalHost;
@@ -107,7 +108,7 @@ struct ClusterHeader {
     uint8_t version = 1;
     uint8_t padding[2];
 
-    Hanami::NameEntry name;
+    NameEntry name;
 
     uint64_t staticDataSize = 0;
     UUID uuid;
@@ -347,7 +348,7 @@ struct HexagonHeader {
     uint32_t axonTarget = UNINIT_STATE_32;
     uint32_t numberOfFreeSections = 0;
     uint32_t numberOfBlocks = 0;
-    Hanami::Position hexagonPos;
+    Position hexagonPos;
 
     bool operator==(HexagonHeader& rhs)
     {
@@ -387,9 +388,7 @@ struct Hexagon {
     Cluster* cluster = nullptr;
     InputInterface* inputInterface = nullptr;
     OutputInterface* outputInterface = nullptr;
-    LogicalHost* attachedHost;
-
-    CudaHexagonPointer cudaPointer;
+    LogicalHost* attachedHost = nullptr;
 
     std::vector<AxonBlock> axonBlocks;
     std::vector<AxonBlock> transferAxonBlocks;

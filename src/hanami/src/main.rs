@@ -1,4 +1,4 @@
-// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimim.moe>
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,13 +15,12 @@
 use std::error::Error;
 use std::env;
 
-mod common;
 mod api;
 mod database;
 mod config;
-mod core;
 
 use log::{error, info};
+
 use database::user_table::init_user_table;
 use database::cluster_table::init_cluster_table;
 use database::dataset_table::init_dataset_table;
@@ -59,6 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             return Err(e);
         }
     };
+
     api::http_server::run_server()?;
     
     Ok(())

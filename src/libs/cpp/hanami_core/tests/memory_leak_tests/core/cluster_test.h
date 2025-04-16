@@ -23,7 +23,7 @@
 #ifndef CLUSTER_TEST_H
 #define CLUSTER_TEST_H
 
-#include <hanami_common/test_helper/memory_leak_test_helper.h>
+#include <src/common/test_helper/memory_leak_test_helper.h>
 
 class LogicalHost;
 
@@ -44,7 +44,6 @@ class Cluster_Test : public Hanami::MemoryLeakTestHelpter
     void initHost_test();
     void createCluster_test();
     void serialize_test();
-    void task_test();
 };
 
 }  // namespace Hanami

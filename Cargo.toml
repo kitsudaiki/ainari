@@ -1,4 +1,5 @@
 [workspace]
 members = [
-    "src/hanami"
+    "src/hanami",
+    "src/libs/rust/hanami_core"
 ]
