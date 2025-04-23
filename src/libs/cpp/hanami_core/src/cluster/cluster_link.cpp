@@ -23,6 +23,9 @@
 #include "cluster_link.h"
 
 #include <src/cluster/cluster.h>
+#include <src/common/logger.h>
+#include <src/io/checkpoint/disc/checkpoint_io.h>
+#include <src/processing/logical_host.h>
 
 #include <iostream>
 
@@ -35,10 +38,38 @@ ClusterLink::~ClusterLink()
     }
 }
 
+/**
+ * @brief ClusterLink::printMetrics
+ */
 void
 ClusterLink::printMetrics() const
 {
     std::cout << "Metrics of cluster " << m_cluster->clusterHeader.uuid.toString() << ": "
               << std::endl;
     std::cout << "    Number of hexagons: " << m_cluster->hexagons.size() << std::endl;
+}
+
+/**
+ * @brief ClusterLink::createCheckpoint
+ * @param targetFilePath
+ * @return
+ */
+int
+ClusterLink::createCheckpoint(const std::string& targetFilePath)
+{
+    Hanami::ErrorContainer error;
+    std::filesystem::path filePath = targetFilePath;
+
+    // cluster->stateMachine
+    for (Hexagon& hexagon : m_cluster->hexagons) {
+        hexagon.attachedHost->syncWithHost(&hexagon);
+    }
+    CheckpointIO m_clusterIO;
+    ReturnStatus ret = m_clusterIO.writeClusterToFile(*m_cluster, targetFilePath, error);
+    if (ret != OK) {
+        std::cout << "error: " << error.toString() << std::endl;
+        return ret;
+    }
+
+    return OK;
 }

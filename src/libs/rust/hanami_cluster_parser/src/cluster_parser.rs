@@ -73,7 +73,7 @@ pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> 
                     let mut inner = axon_rule.into_inner();
                     let from = parse_position(inner.next().unwrap());
                     let to = parse_position(inner.next().unwrap());
-                    axons.push(Axon { from, to });
+                    axons.push(AxonMeta { from, to });
                 }
             }
             Rule::inputs_r => {

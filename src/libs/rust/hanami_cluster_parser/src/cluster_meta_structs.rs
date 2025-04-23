@@ -37,7 +37,7 @@ pub struct Settings {
 pub struct Position(pub u32, pub u32, pub u32);
 
 #[derive(Debug)]
-pub struct Axon {
+pub struct AxonMeta {
     pub from: Position,
     pub to: Position,
 }
@@ -60,7 +60,7 @@ pub struct ClusterMeta {
     pub version: i32,
     pub settings: Settings,
     pub hexagons: Vec<Position>,
-    pub axons: Vec<Axon>,
+    pub axons: Vec<AxonMeta>,
     pub inputs: Vec<InputMeta>,
     pub outputs: Vec<OutputMeta>,
 }

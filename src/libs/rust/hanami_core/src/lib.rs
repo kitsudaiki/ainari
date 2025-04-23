@@ -19,9 +19,6 @@ pub mod tasks;
 
 use autocxx::prelude::*;
 
-// HINT (kitsudaiki): Even if it is not used in this file, this include-block
-// is still necessary, otherwise rust would throw an include-error while building
-// the c++-binding
 autocxx::include_cpp! {
     #include "hanami_root.h"
     #include "hanami_structs.h"

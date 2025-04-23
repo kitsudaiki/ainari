@@ -26,6 +26,7 @@ use log::{info, debug};
 use crate::api::http_endpoints::auth::{renew_token_v1_0, create_token_v1_0};
 use crate::api::http_endpoints::user::{create_user_v1_0, list_user_v1_0, get_user_v1_0, delete_user_v1_0};
 use crate::api::http_endpoints::dataset::create_dataset_v1_0;
+use crate::api::http_endpoints::cluster::{create_cluster_v1_0, list_cluster_v1_0, get_cluster_v1_0, delete_cluster_v1_0};
 use crate::api::middleware::authorization_middleware;
 use crate::config;
 
@@ -57,6 +58,19 @@ fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{type}/{name}")
                         .route(post().to(create_dataset_v1_0::upload_binary))
+                )
+        )
+        .service(
+            scope("/cluster")
+                .service(
+                    resource("")
+                        .route(post().to(create_cluster_v1_0::create_cluster))
+                        .route(get().to(list_cluster_v1_0::list_cluster))
+                )
+                .service(
+                    resource("/{uuid}")
+                        .route(get().to(get_cluster_v1_0::get_cluster))
+                        .route(delete().to(delete_cluster_v1_0::delete_cluster))
                 )
         )
 }

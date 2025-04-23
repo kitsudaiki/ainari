@@ -28,8 +28,9 @@ env_logger = "0.10"
 
 # c++
 cxx = "1.0"
-autocxx = "0.30"
+# Version 0.26 has much less warnings than, for example, 0.30, so this version is used for the moment
+autocxx = "0.26"
 
 [build-dependencies]
-autocxx-build = "0.30.0"
+autocxx-build = "0.26.0"
 cmake = "0.1"

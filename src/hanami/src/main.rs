@@ -25,6 +25,8 @@ use database::user_table::init_user_table;
 use database::cluster_table::init_cluster_table;
 use database::dataset_table::init_dataset_table;
 
+use hanami_core::cluster_handler;
+
 fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the logger
     unsafe {
@@ -58,6 +60,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             return Err(e);
         }
     };
+
+    // Initialize hanami-core
+    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
+    if cluster_handle.init_hanami_root() {
+        info!("Initilaized hanami-core")
+    } else {
+        let msg = "Failed to initialize hanami-core".to_string();
+        error!("{}", msg);
+        return Err(msg.into());
+    }
+    drop(cluster_handle);
 
     api::http_server::run_server()?;
     

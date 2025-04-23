@@ -22,6 +22,9 @@ use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 
+use hanami_core::cluster_handler;
+use hanami_core::cluster::Cluster;
+
 use super::cluster_structs::{ClusterCreateReq, ClusterResp};
 
 #[api_operation(
@@ -32,20 +35,21 @@ use super::cluster_structs::{ClusterCreateReq, ClusterResp};
     error_code = 500
 )]
 pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
-    let cluster_uuid = Uuid::new_v4().to_string();
+    let cluster_uuid = Uuid::new_v4();
 
-    // parse cluster
-    // let parsed_cluster = match cluster_parser::parse_cluster_template(&body.template) {
-    //     Ok(parsed) => parsed,
-    //     Err(e) => {
-    //         let msg = format!("Failed to parse cluster-template with error: '{}'", e);
-    //         return Err(ErrorResponse::InternalError(msg));
-    //     }
-    // };
+    // parse cluster-template and create cluster from it
+    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
+    match cluster_handle.create_cluster(cluster_uuid.clone(), body.name.clone(), body.template.clone()) {
+        Ok(_) => {},
+        Err(e) => {
+            let msg = format!("Failed to parse cluster-template with error: '{}'", e);
+            return Err(ErrorResponse::InternalError(msg));
+        }
+    };
 
-    // add new cluster to datbase
+    // add new cluster to database
     match cluster_table::add_new_cluster(
-        &cluster_uuid, 
+        &cluster_uuid.to_string(), 
         &body.name, 
         &body.template, 
         &context.user_id) 
@@ -59,7 +63,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     };
 
     // get new created cluster from database to get addtional information
-    match cluster_table::get_cluster(&cluster_uuid) {
+    match cluster_table::get_cluster(&cluster_uuid.to_string()) {
         Ok(cluster) => {
             let resp = ClusterResp {
                 uuid: cluster.uuid.clone(),

@@ -19,7 +19,7 @@ use std::collections::VecDeque;
 
 use super::tasks::{Task, TaskType};
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
 pub struct TaskQueue {
     pub queue: VecDeque<Task>,
 }

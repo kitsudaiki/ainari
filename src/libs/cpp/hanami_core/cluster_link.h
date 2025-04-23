@@ -23,6 +23,8 @@
 #ifndef HANAMI_CLUSTER_LINK_H
 #define HANAMI_CLUSTER_LINK_H
 
+#include <string>
+
 class Cluster;
 
 class ClusterLink
@@ -32,6 +34,8 @@ class ClusterLink
     ~ClusterLink();
 
     void printMetrics() const;
+
+    int createCheckpoint(const std::string& targetFilePath);
 
    private:
     Cluster* m_cluster = nullptr;
