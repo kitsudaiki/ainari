@@ -13,22 +13,26 @@
 // limitations under the License.
 
 use std::str;
-use serde::{Serialize, Serializer};
 use std::fs;
 use std::path::Path;
 use serde_json::Value as Json;
 use std::io::{self, Write};
 use std::convert::TryFrom;
-use std::io::BufWriter;
+use std::io::{Read, Seek, BufWriter, BufReader, SeekFrom};
 use std::convert::TryInto;
 use std::path::PathBuf;
 use serde_json::{Value, Map};
 use std::mem;
+use uuid::Uuid;
+use bytemuck::{cast_slice, cast_slice_mut, Pod, Zeroable};
+
+use serde::{Serialize, Deserialize};
+use bincode;
 
 use hanami_common::error::{ErrorContainer, ErrorType};
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DataSetType {
     UndefinedType = 0,
     Uint8Type = 1,
@@ -41,137 +45,82 @@ impl Default for DataSetType {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct NameEntry {
-    pub name: [u8; 255],
-    pub name_size: u8,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Column {
+    pub name: String,
+    pub start: u32,
+    pub end: u32,
 }
 
-impl NameEntry {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DataSetBaseHeader {
+    pub type_identifier: String,
+    pub version: String,
+    pub minor_version: String,
+}
+
+impl DataSetBaseHeader {
     pub fn new() -> Self {
-        NameEntry {
-            name: [0; 255],
-            name_size: 0,
+        DataSetBaseHeader {
+            type_identifier: "hanami".to_string(),
+            version: "1".to_string(),
+            minor_version: "0alpha".to_string(),
         }
-    }
-
-    pub fn get_name(&self) -> String {
-        if self.name_size == 0 || self.name_size > 254 {
-            return "".to_string();
-        }
-
-        match str::from_utf8(&self.name[..self.name_size as usize]) {
-            Ok(s) => s.to_string(),
-            Err(_) => "".to_string(),
-        }
-    }
-
-    pub fn set_name(&mut self, new_name: &str) -> bool {
-        let bytes = new_name.as_bytes();
-        let len = bytes.len();
-
-        if len == 0 || len > 254 {
-            return false;
-        }
-
-        self.name[..len].copy_from_slice(bytes);
-        self.name[len] = 0;
-        self.name_size = len as u8;
-
-        true
     }
 }
 
-impl PartialEq for NameEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.name_size == other.name_size &&
-            &self.name[..self.name_size as usize] == &other.name[..other.name_size as usize]
-    }
-}
-impl Eq for NameEntry {}
-
-impl Serialize for NameEntry {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
-        serializer.serialize_str(&self.get_name())
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct DataSetHeader {
-    pub type_identifier: [u8; 8],
-    pub file_identifier: [u8; 32],
-    pub version: [u8; 8],
-    pub minor_version: [u8; 8],
-
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DataSetHeader_v1_0 {
+    pub uuid: Uuid,
+    pub name: String,
+    pub description: String,
     pub data_type: DataSetType,
     pub type_size: u8,
-    pub padding1: [u8; 2],
-    pub description_size: u32,
-
-    pub file_size: u64,
-    pub number_of_rows: u64,
-    pub number_of_columns: u64,
-
-    pub name: NameEntry,
-
-    pub padding2: [u8; 3752],
+    pub columns: Vec<Column>,
 }
 
-impl DataSetHeader {
-    pub fn new() -> Self {
-        DataSetHeader {
-            type_identifier: *b"hanami\0\0",
-            file_identifier: {
-                let mut buf = [0u8; 32];
-                buf[..8].copy_from_slice(b"data-set");
-                buf
-            },
-            version: *b"v1\0\0\0\0\0\0",
-            minor_version: *b"0alpha\0\0",
-
-            data_type: DataSetType::UndefinedType,
-            type_size: 1,
-            padding1: [0; 2],
-            description_size: 0,
-
-            file_size: 0,
-            number_of_rows: 0,
-            number_of_columns: 0,
-
-            name: NameEntry::new(),
-
-            padding2: [0; 3752],
+impl DataSetHeader_v1_0 {
+    pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, columns: Vec<Column>) -> Self {
+        DataSetHeader_v1_0 {
+            uuid: uuid,
+            name: name,
+            description: description,
+            data_type: dataset_type.clone(),
+            type_size: dataset_type as u8,
+            columns: columns,
         }
     }
 }
 
-const _: () = assert!(std::mem::size_of::<NameEntry>() == 256);
-const _: () = assert!(std::mem::size_of::<DataSetHeader>() == 4096);
+#[derive(Debug)]
+pub struct DataSetFileWriteHandle_v1_0 {
+    pub header: DataSetHeader_v1_0,
+    pub target_file: BufWriter<fs::File>,
+    pub payload_offset: u64,
+}
 
 #[derive(Debug)]
-pub struct DataSetFileHandle {
-    pub header: DataSetHeader,
-    pub target_file: BufWriter<fs::File>,
-    pub description: Json,
+pub struct DataSetFileReadHandle_v1_0 {
+    pub header: DataSetHeader_v1_0,
+    pub target_file: BufReader<fs::File>,
+    pub payload_offset: u64,
 }
 
 pub fn init_new_data_set_file(
     file_path: &PathBuf,
-    name: &String,
-    description: &Json,
+    uuid: Uuid,
+    name: String,
+    description: String,
+    columns: Vec<Column>,
     data_type: DataSetType,
-    number_of_columns: u64,
-) -> Result<DataSetFileHandle, ErrorContainer> {
+) -> Result<DataSetFileWriteHandle_v1_0, ErrorContainer> {
 
     let file_path_str: String = file_path.to_string_lossy().into();
 
     // check give dataset-type
     if data_type == DataSetType::UndefinedType {
         return Err(ErrorContainer {
-            error_type: ErrorType::InvalidInput,
+            error_type: ErrorType::Error,
             msg: "Invalid dataset-type".to_string(),
         });
     }
@@ -179,21 +128,10 @@ pub fn init_new_data_set_file(
     // check if file already exist
     if Path::new(file_path).exists() {
         return Err(ErrorContainer {
-            error_type: ErrorType::InvalidInput,
+            error_type: ErrorType::Error,
             msg: format!("Data-set file '{}' already exists.", file_path_str),
         });
     }
-
-    // convert description into string
-    let description_str = match serde_json::to_string(description) {
-        Ok(s) => s,
-        Err(_) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::InvalidInput,
-                msg: "Failed to serialize description".to_string(),
-            });
-        }
-    };
 
     // initialize file
     let file = match fs::File::create(file_path) {
@@ -206,36 +144,29 @@ pub fn init_new_data_set_file(
         }
     };
 
-    let mut result = DataSetFileHandle {
-        header: DataSetHeader::new(),
+    // initialize header
+    let base_header = DataSetBaseHeader::new();
+    let header = DataSetHeader_v1_0::new(uuid, name, description, data_type, columns);
+
+    // initialize resulting file-handle
+    let mut result = DataSetFileWriteHandle_v1_0 {
+        header: header,
         target_file: BufWriter::new(file),
-        description: description.clone(),
+        payload_offset: 0,
     };
 
-    // update header
-    result.header.description_size = description_str.len().try_into().expect("usize doesn't fit into u32");
-    result.header.data_type = data_type;
-    result.header.number_of_columns = number_of_columns;
-    result.header.type_size = data_type as u8;
-
-    // add name to header
-    if !result.header.name.set_name(name) {
-        return Err(ErrorContainer {
-            error_type: ErrorType::InvalidInput,
-            msg: format!("New data-set name '{}' is invalid", name),
-        });
-    }
-
-    // convert header into a byte-array to write it into the file
-    let bytes: &[u8] = unsafe {
-        std::slice::from_raw_parts(
-            &result.header as *const DataSetHeader as *const u8,
-            mem::size_of::<DataSetHeader>(),
-        )
+    // write base-header to file
+    let encoded_base = bincode::serialize(&base_header).unwrap();
+    match result.target_file.write_all(&(encoded_base.len() as u64).to_le_bytes()) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
     };
-
-    // write header to file
-    match result.target_file.write_all(bytes) {
+    match result.target_file.write_all(&encoded_base) {
         Ok(_) => {},
         Err(e) => {
             return Err(ErrorContainer {
@@ -245,10 +176,41 @@ pub fn init_new_data_set_file(
         }
     };
 
-    // write description into file
-    let json_string = result.description.to_string();
-    match result.target_file.write_all(json_string.as_bytes()) {
+    // write header to file
+    let encoded_header = bincode::serialize(&result.header).unwrap();
+    match result.target_file.write_all(&(encoded_header.len() as u64).to_le_bytes()) {
         Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    match result.target_file.write_all(&encoded_header) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+
+    // flush file-buffer, to ensure, that the data are written to the disc
+    match result.target_file.flush() {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+
+    // get current byte-position within the file after writing the header
+    result.payload_offset = match result.target_file.stream_position() {
+        Ok(pos) => pos,
         Err(e) => {
             return Err(ErrorContainer {
                 error_type: ErrorType::Error,
@@ -260,3 +222,215 @@ pub fn init_new_data_set_file(
     Ok(result)
 }
 
+pub fn read_data_set_file(
+    file_path: &PathBuf,
+) -> Result<DataSetFileReadHandle_v1_0, ErrorContainer> {
+    let file_path_str: String = file_path.to_string_lossy().into();
+
+    // check if file already exist
+    if Path::new(file_path).exists() == false {
+        return Err(ErrorContainer {
+            error_type: ErrorType::Error,
+            msg: format!("Data-set file '{}' does not exist.", file_path_str),
+        });
+    }
+
+    let file = match fs::File::open(file_path) {
+        Ok(f) => f,
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to open data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+
+    let mut result = DataSetFileReadHandle_v1_0 {
+        header: DataSetHeader_v1_0::default(),
+        target_file: BufReader::new(file),
+        payload_offset: 0,
+    };
+
+    // read base-header-length
+    let mut base_len_buf = [0u8; 8];
+    match result.target_file.read_exact(&mut base_len_buf) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    let base_len = u64::from_le_bytes(base_len_buf);
+
+    // read base-header-length
+    let mut base_buf = vec![0u8; base_len as usize];
+    match result.target_file.read_exact(&mut base_buf) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    // TODO: handle header
+    let _: DataSetBaseHeader = match bincode::deserialize(&base_buf) {
+        Ok(base_read) => base_read,
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    
+    // read header-length
+    let mut header_len_buf = [0u8; 8];
+    match result.target_file.read_exact(&mut header_len_buf) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    let header_len = u64::from_le_bytes(header_len_buf);
+
+    // read header-length
+    let mut header_buf = vec![0u8; header_len as usize];
+    match result.target_file.read_exact(&mut header_buf) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+    result.header = match bincode::deserialize(&header_buf) {
+        Ok(base_read) => base_read,
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+
+    // get current byte-position within the file after reading the header
+    result.payload_offset = match result.target_file.stream_position() {
+        Ok(pos) => pos,
+        Err(e) => {
+            return Err(ErrorContainer {
+                error_type: ErrorType::Error,
+                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+            });
+        }
+    };
+
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dataset() {
+        let file_path_str = "/tmp/test".to_string();
+        let file_path: PathBuf = PathBuf::from(&file_path_str);
+
+        match fs::remove_file(&file_path) {
+            Ok(_) => {},
+            Err(_) => {},
+        };
+
+        let uuid = Uuid::new_v4();
+        let name = "test_dataset".to_string();
+        let description= "This is a test-dataset".to_string();
+        let mut columns: Vec<Column> = Vec::new();
+        let data_type = DataSetType::FloatType;
+
+        let test_col1= Column {
+            name: "col1".to_string(),
+            start: 0,
+            end: 10,
+        };
+        columns.push(test_col1);
+
+        let test_col2= Column {
+            name: "col2".to_string(),
+            start: 10,
+            end: 15,
+        };
+        columns.push(test_col2);
+
+        let mut write_dataset_handle = init_new_data_set_file(
+            &file_path,
+            uuid.clone(),
+            name.clone(),
+            description.clone(),
+            columns.clone(),
+            data_type.clone()).unwrap();
+
+        // write date for first column
+        let col1: Vec<f32> = vec![4.0f32, 0.0f32, 2.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
+        let col1_bytes = cast_slice(&col1);
+        match write_dataset_handle.target_file.write_all(&col1_bytes) {
+            Ok(_) => {},
+            Err(e) => {
+                assert_eq!(true, false);
+            }
+        };
+
+        // write date for second column
+        let col2: Vec<f32> = vec![0.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32];
+        let col2_bytes = cast_slice(&col2);
+        match write_dataset_handle.target_file.write_all(&col2_bytes) {
+            Ok(_) => {},
+            Err(e) => {
+                assert_eq!(true, false);
+            }
+        };
+
+        // buffer must be flush, so the written columns are in the file on the disc and can be read again
+        let _ = write_dataset_handle.target_file.flush();
+
+        assert_eq!(Path::new(&file_path_str).exists(), true);
+
+        // check single fields of the created header
+        assert_eq!(write_dataset_handle.header.uuid, uuid);
+        assert_eq!(write_dataset_handle.header.name.clone(), name);
+        assert_eq!(write_dataset_handle.header.description.clone(), description);
+        assert_eq!(write_dataset_handle.header.data_type.clone(), data_type);
+        assert_eq!(write_dataset_handle.header.type_size, 4);
+        assert_eq!(write_dataset_handle.header.columns.clone(), columns);
+
+        let mut read_dataset_handle = read_data_set_file(&file_path).unwrap();
+
+        // compare written and read header
+        assert_eq!(write_dataset_handle.header, read_dataset_handle.header);
+        assert_eq!(write_dataset_handle.payload_offset, read_dataset_handle.payload_offset);
+
+        // read and compare frist column
+        let size_col1 = (read_dataset_handle.header.columns[0].end - read_dataset_handle.header.columns[0].start) as usize;
+        let mut col1_read = vec![0.0f32; size_col1];
+        let byte_slice_col1: &mut [u8] = cast_slice_mut(col1_read.as_mut_slice());
+        read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset)).unwrap();
+        let _ = read_dataset_handle.target_file.read_exact(byte_slice_col1);
+        assert_eq!(col1_read, col1);
+
+
+        // read and compare second column
+        let size_col2 = (read_dataset_handle.header.columns[1].end - read_dataset_handle.header.columns[1].start) as usize;
+        let mut col2_read = vec![0.0f32; size_col2];
+        let byte_slice_col2: &mut [u8] = cast_slice_mut(col2_read.as_mut_slice());
+        read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset + 40)).unwrap();
+        let _ = read_dataset_handle.target_file.read_exact(byte_slice_col2).unwrap();
+        assert_eq!(col2_read, col2);
+
+    }
+}

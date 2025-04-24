@@ -17,7 +17,7 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use serde::Deserialize;
 
-use hanami_dataset::dataset_io::DataSetFileHandle;
+use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub enum TaskType {
@@ -49,8 +49,8 @@ pub struct TaskProgress {
 
 #[derive(Debug)]
 pub struct TrainInfo {
-    pub inputs: HashMap<String, DataSetFileHandle>,
-    pub outputs: HashMap<String, DataSetFileHandle>,
+    pub inputs: HashMap<String, DataSetFileReadHandle_v1_0>,
+    pub outputs: HashMap<String, DataSetFileReadHandle_v1_0>,
 
     pub number_of_cycles: u64,
     pub current_cycle: u64,
@@ -59,8 +59,8 @@ pub struct TrainInfo {
 
 #[derive(Debug)]
 pub struct RequestInfo {
-    pub inputs: HashMap<String, DataSetFileHandle>,
-    pub results: HashMap<String, DataSetFileHandle>,
+    pub inputs: HashMap<String, DataSetFileReadHandle_v1_0>,
+    pub results: HashMap<String, DataSetFileWriteHandle_v1_0>,
 
     pub number_of_cycles: u64,
     pub current_cycle: u64,

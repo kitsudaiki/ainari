@@ -34,7 +34,7 @@ use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 
-use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, DataSetFileHandle};
+use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, DataSetFileWriteHandle_v1_0, Column};
 
 use super::dataset_structs::DatasetResp;
 
@@ -54,8 +54,8 @@ pub struct MnistImage {
 pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>, context: UserContext) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
     let upload_dir_path = "./uploads";
     let upload_dir = PathBuf::from(&upload_dir_path);
-    let dataset_uuid = Uuid::new_v4().to_string();
-    let target_filepath: PathBuf = upload_dir.join(&dataset_uuid);
+    let dataset_uuid = Uuid::new_v4();
+    let target_filepath: PathBuf = upload_dir.join(&dataset_uuid.to_string());
 
     let (dataset_type_str, name) = path.into_inner();
     let dataset_type = dataset_type_str.to_string();
@@ -100,7 +100,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         };
 
         // create file
-        let filepath: PathBuf = upload_dir.join(filename + &dataset_uuid);
+        let filepath: PathBuf = upload_dir.join(filename + &dataset_uuid.to_string());
         let mut f = match fs::File::create(&filepath).await {
             Ok(value) => value,
             Err(e) => {
@@ -134,7 +134,8 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             &filepaths[0], 
             &filepaths[1], 
             &target_filepath,
-            &name,
+            dataset_uuid.clone(),
+            name.clone(),
             None) 
         {
             Ok(images) => images,
@@ -148,7 +149,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
 
     // add new dataset to datbase
     let file_path_str: String = target_filepath.to_string_lossy().into();
-    match dataset_table::add_new_dataset(&dataset_uuid, &name, &file_path_str, &context.user_id) {
+    match dataset_table::add_new_dataset(&dataset_uuid.to_string(), &name, &file_path_str, &context.user_id) {
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add dataset with ID '{}' to database.", dataset_uuid);
@@ -158,7 +159,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     };
 
     // get new created dataset from database to get addtional information
-    match dataset_table::get_dataset(&dataset_uuid) {
+    match dataset_table::get_dataset(&dataset_uuid.to_string()) {
         Ok(dataset) => {
             let resp = DatasetResp {
                 uuid: dataset.uuid.clone(),
@@ -184,7 +185,8 @@ pub fn load_mnist_images(
     image_path: &PathBuf,
     label_path: &PathBuf,
     target_filepath: &PathBuf,
-    name: &String,
+    uuid: Uuid,
+    name: String,
     limit: Option<usize>,
 ) -> Result<Vec<MnistImage>, Box<dyn Error>> {
     let mut img_reader = BufReader::new(File::open(image_path)?);
@@ -227,66 +229,71 @@ pub fn load_mnist_images(
     }
 
     let picture_size: u32 = rows * cols;
-    let mut picture_input = Map::new();
-    picture_input.insert("column_start".to_string(), Value::Number(0.into()));
-    picture_input.insert("column_end".to_string(), Value::Number(picture_size.into()));
+    let mut columns:Vec<Column> = Vec::new();
 
-    let mut output_entry = Map::new();
-    output_entry.insert("column_start".to_string(), Value::Number(picture_size.into()));
-    output_entry.insert("column_end".to_string(), Value::Number((picture_size + 10).into()));
+    let pictures = Column {
+        name: "picture".to_string(),
+        start: 0,
+        end: picture_size,
+    };
+    let labels = Column {
+        name: "label".to_string(),
+        start: picture_size,
+        end: picture_size + 10,
+    };
 
-    let mut description = Map::new();
-    description.insert("picture".to_string(), Value::Object(picture_input));
-    description.insert("label".to_string(), Value::Object(output_entry));
+    columns.push(pictures);
+    columns.push(labels);
 
-    let number_of_columns: u64 = u64::try_from(num_images).unwrap() + 10; 
-    match init_new_data_set_file(
+    let mut dataset_handle = match init_new_data_set_file(
         &target_filepath, 
-        &name, 
-        &Value::Object(description),
-        DataSetType::Uint8Type,
-        number_of_columns)
+        uuid,
+        name, 
+        "".to_string(),
+        columns,
+        DataSetType::Uint8Type)
     {
-        Ok(mut handle) => {
-            let file_path_str: String = target_filepath.to_string_lossy().into();
-
-            let mut label_data: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            for (i, img) in images.iter().enumerate() {
-                // println!("Image {}: Label = {}", i, img.label);
-                label_data[usize::from(img.label)] = 1;
-
-                match handle.target_file.write_all(&img.pixels) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        return Err("Image and label count mismatch!".into());
-
-                        // return Err(ErrorContainer {
-                        //     error_type: ErrorType::Error,
-                        //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-                        // });
-                    }
-                };
-
-                match handle.target_file.write_all(&label_data) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        return Err("Image and label count mismatch!".into());
-
-                        // return Err(ErrorContainer {
-                        //     error_type: ErrorType::Error,
-                        //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-                        // });
-                    }
-                };
-
-                label_data[usize::from(img.label)] = 0;
-            }
-            println!("YEAH!");
-        },
+        Ok(mut handle) => handle,
         Err(e) => {
-            println!("FAIL {}", e.msg);
+            error!("FAIL {}", e.msg);
+            return Err(e.msg.into());
         },
     };
+
+    let file_path_str: String = target_filepath.to_string_lossy().into();
+
+    let mut label_data: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (i, img) in images.iter().enumerate() {
+        // println!("Image {}: Label = {}", i, img.label);
+        label_data[usize::from(img.label)] = 1;
+
+        match dataset_handle.target_file.write_all(&img.pixels) {
+            Ok(_) => {},
+            Err(e) => {
+                return Err("Image and label count mismatch!".into());
+
+                // return Err(ErrorContainer {
+                //     error_type: ErrorType::Error,
+                //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+                // });
+            }
+        };
+
+        match dataset_handle.target_file.write_all(&label_data) {
+            Ok(_) => {},
+            Err(e) => {
+                return Err("Image and label count mismatch!".into());
+
+                // return Err(ErrorContainer {
+                //     error_type: ErrorType::Error,
+                //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
+                // });
+            }
+        };
+
+        label_data[usize::from(img.label)] = 0;
+    }
+    println!("YEAH!");
 
     Ok(images)
 }
