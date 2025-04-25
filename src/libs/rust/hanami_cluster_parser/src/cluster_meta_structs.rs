@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -35,6 +36,12 @@ pub struct Settings {
 
 #[derive(Debug, PartialEq)]
 pub struct Position(pub u32, pub u32, pub u32);
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {}, {})", self.0, self.1, self.2)
+    }
+}
 
 #[derive(Debug)]
 pub struct AxonMeta {

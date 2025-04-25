@@ -35,6 +35,7 @@ use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 
 use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, DataSetFileWriteHandle_v1_0, Column};
+use hanami_common::error::HanamiError;
 
 use super::dataset_structs::DatasetResp;
 
@@ -130,7 +131,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             let msg = format!("MNIST-dataset expect 2 uploaded files, but there were {} files found.", filepaths.len());
             return Err(ErrorResponse::BadRequest(msg));
         }
-        let images = match load_mnist_images(
+        match load_mnist_images(
             &filepaths[0], 
             &filepaths[1], 
             &target_filepath,
@@ -138,13 +139,18 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             name.clone(),
             None) 
         {
-            Ok(images) => images,
-            Err(e) => return Err(ErrorResponse::BadRequest(e.to_string())),
+            Ok(()) => {},
+            Err(e) => match e.downcast_ref::<HanamiError>() {
+                Some(HanamiError::InputError(e)) => {
+                    let msg = format!("{}", e);
+                    return Err(ErrorResponse::BadRequest(msg));
+                },
+                _ => {
+                    error!("{}", e);
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            },
         };
-        
-        // for (i, img) in images.iter().enumerate() {
-        //     println!("Image {}: Label = {}", i, img.label);
-        // }
     }
 
     // add new dataset to datbase
@@ -188,7 +194,7 @@ pub fn load_mnist_images(
     uuid: Uuid,
     name: String,
     limit: Option<usize>,
-) -> Result<Vec<MnistImage>, Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
     let mut img_reader = BufReader::new(File::open(image_path)?);
     let mut label_reader = BufReader::new(File::open(label_path)?);
 
@@ -245,56 +251,30 @@ pub fn load_mnist_images(
     columns.push(pictures);
     columns.push(labels);
 
-    let mut dataset_handle = match init_new_data_set_file(
+    let mut dataset_handle = init_new_data_set_file(
         &target_filepath, 
         uuid,
         name, 
         "".to_string(),
         columns,
-        DataSetType::Uint8Type)
-    {
-        Ok(mut handle) => handle,
-        Err(e) => {
-            error!("FAIL {}", e.msg);
-            return Err(e.msg.into());
-        },
-    };
-
-    let file_path_str: String = target_filepath.to_string_lossy().into();
+        DataSetType::Uint8Type)?;
 
     let mut label_data: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (i, img) in images.iter().enumerate() {
+    for (_, img) in images.iter().enumerate() {
         // println!("Image {}: Label = {}", i, img.label);
         label_data[usize::from(img.label)] = 1;
 
-        match dataset_handle.target_file.write_all(&img.pixels) {
-            Ok(_) => {},
-            Err(e) => {
-                return Err("Image and label count mismatch!".into());
-
-                // return Err(ErrorContainer {
-                //     error_type: ErrorType::Error,
-                //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-                // });
-            }
-        };
-
-        match dataset_handle.target_file.write_all(&label_data) {
-            Ok(_) => {},
-            Err(e) => {
-                return Err("Image and label count mismatch!".into());
-
-                // return Err(ErrorContainer {
-                //     error_type: ErrorType::Error,
-                //     msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-                // });
-            }
-        };
+        dataset_handle.target_file.write_all(&img.pixels)?;
+        dataset_handle.target_file.write_all(&label_data)?;
 
         label_data[usize::from(img.label)] = 0;
     }
-    println!("YEAH!");
 
-    Ok(images)
+    // disabled debug-output
+    // for (i, img) in images.iter().enumerate() {
+    //     println!("Image {}: Label = {}", i, img.label);
+    // }
+
+    Ok(())
 }
 

@@ -12,15 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Debug)]
-pub enum ErrorType {
-    Error = 0,
-    InvalidInput = 1,
-}
+use std::fmt;
 
 #[derive(Debug)]
-pub struct ErrorContainer {
-    pub error_type: ErrorType,
-    pub msg: String,
+pub enum HanamiError {
+    InputError(String),
+    Error(String),
 }
+
+impl fmt::Display for HanamiError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HanamiError::InputError(ref msg) => write!(f, "Input-error: {}", msg),
+            HanamiError::Error(ref msg) => write!(f, "Internal error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for HanamiError {}
 

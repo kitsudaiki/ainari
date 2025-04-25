@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error::Error;
 use std::env;
 
 mod api;
@@ -27,7 +26,7 @@ use database::dataset_table::init_dataset_table;
 
 use hanami_core::cluster_handler;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the logger
     unsafe {
         // HINT (kitsudaiki): on my test-environment the rust-compile required the 'unsafe'-marker

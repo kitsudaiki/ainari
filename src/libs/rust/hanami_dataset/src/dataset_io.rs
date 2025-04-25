@@ -15,21 +15,15 @@
 use std::str;
 use std::fs;
 use std::path::Path;
-use serde_json::Value as Json;
-use std::io::{self, Write};
-use std::convert::TryFrom;
-use std::io::{Read, Seek, BufWriter, BufReader, SeekFrom};
-use std::convert::TryInto;
+use std::io::Write;
+use std::io::{Read, Seek, BufWriter, BufReader};
 use std::path::PathBuf;
-use serde_json::{Value, Map};
-use std::mem;
 use uuid::Uuid;
-use bytemuck::{cast_slice, cast_slice_mut, Pod, Zeroable};
 
 use serde::{Serialize, Deserialize};
 use bincode;
 
-use hanami_common::error::{ErrorContainer, ErrorType};
+use hanami_common::error::HanamiError;
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,36 +107,25 @@ pub fn init_new_data_set_file(
     description: String,
     columns: Vec<Column>,
     data_type: DataSetType,
-) -> Result<DataSetFileWriteHandle_v1_0, ErrorContainer> {
+) -> Result<DataSetFileWriteHandle_v1_0, Box<dyn std::error::Error>> {
 
     let file_path_str: String = file_path.to_string_lossy().into();
 
     // check give dataset-type
     if data_type == DataSetType::UndefinedType {
-        return Err(ErrorContainer {
-            error_type: ErrorType::Error,
-            msg: "Invalid dataset-type".to_string(),
-        });
+        return Err(Box::new(HanamiError::InputError("Invalid dataset-type".to_string())));
     }
 
     // check if file already exist
     if Path::new(file_path).exists() {
-        return Err(ErrorContainer {
-            error_type: ErrorType::Error,
-            msg: format!("Data-set file '{}' already exists.", file_path_str),
-        });
+        let msg = format!("Dataset file '{}' already exists.", file_path_str);
+        // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
+        // so here should be an internal error instand of an input-error
+        return Err(Box::new(HanamiError::Error(msg)));
     }
 
     // initialize file
-    let file = match fs::File::create(file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to open data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let file = fs::File::create(file_path)?;
 
     // initialize header
     let base_header = DataSetBaseHeader::new();
@@ -157,93 +140,37 @@ pub fn init_new_data_set_file(
 
     // write base-header to file
     let encoded_base = bincode::serialize(&base_header).unwrap();
-    match result.target_file.write_all(&(encoded_base.len() as u64).to_le_bytes()) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
-    match result.target_file.write_all(&encoded_base) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.write_all(&(encoded_base.len() as u64).to_le_bytes())?;
+    let _ = result.target_file.write_all(&encoded_base)?;
 
     // write header to file
     let encoded_header = bincode::serialize(&result.header).unwrap();
-    match result.target_file.write_all(&(encoded_header.len() as u64).to_le_bytes()) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
-    match result.target_file.write_all(&encoded_header) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.write_all(&(encoded_header.len() as u64).to_le_bytes())?;
+    let _ = result.target_file.write_all(&encoded_header)?;
 
     // flush file-buffer, to ensure, that the data are written to the disc
-    match result.target_file.flush() {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.flush()?;
 
     // get current byte-position within the file after writing the header
-    result.payload_offset = match result.target_file.stream_position() {
-        Ok(pos) => pos,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    result.payload_offset = result.target_file.stream_position()?;
 
     Ok(result)
 }
 
 pub fn read_data_set_file(
     file_path: &PathBuf,
-) -> Result<DataSetFileReadHandle_v1_0, ErrorContainer> {
+) -> Result<DataSetFileReadHandle_v1_0, Box<dyn std::error::Error>> {
     let file_path_str: String = file_path.to_string_lossy().into();
 
-    // check if file already exist
+    // check if file even exist
     if Path::new(file_path).exists() == false {
-        return Err(ErrorContainer {
-            error_type: ErrorType::Error,
-            msg: format!("Data-set file '{}' does not exist.", file_path_str),
-        });
+        let msg = format!("Dataset file '{}' does not exists.", file_path_str);
+        // HINT (kitsudaki): the path comes from the database and not from the user, 
+        // so here should be an internal error instand of an input-error
+        return Err(Box::new(HanamiError::Error(msg)));
     }
 
-    let file = match fs::File::open(file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to open data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let file = fs::File::open(file_path)?;
 
     let mut result = DataSetFileReadHandle_v1_0 {
         header: DataSetHeader_v1_0::default(),
@@ -253,83 +180,27 @@ pub fn read_data_set_file(
 
     // read base-header-length
     let mut base_len_buf = [0u8; 8];
-    match result.target_file.read_exact(&mut base_len_buf) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    result.target_file.read_exact(&mut base_len_buf)?;
     let base_len = u64::from_le_bytes(base_len_buf);
 
     // read base-header-length
     let mut base_buf = vec![0u8; base_len as usize];
-    match result.target_file.read_exact(&mut base_buf) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
-    let _: DataSetBaseHeader = match bincode::deserialize(&base_buf) {
-        Ok(base_read) => base_read,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _: DataSetBaseHeader = bincode::deserialize(&base_buf)?;
     
     // read header-length
     let mut header_len_buf = [0u8; 8];
-    match result.target_file.read_exact(&mut header_len_buf) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.read_exact(&mut header_len_buf)?;
     let header_len = u64::from_le_bytes(header_len_buf);
 
     // read header-length
     let mut header_buf = vec![0u8; header_len as usize];
-    match result.target_file.read_exact(&mut header_buf) {
-        Ok(_) => {},
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
-    result.header = match bincode::deserialize(&header_buf) {
-        Ok(base_read) => base_read,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    let _ = result.target_file.read_exact(&mut header_buf)?;
+    result.header = bincode::deserialize(&header_buf)?;
 
     // get current byte-position within the file after reading the header
-    result.payload_offset = match result.target_file.stream_position() {
-        Ok(pos) => pos,
-        Err(e) => {
-            return Err(ErrorContainer {
-                error_type: ErrorType::Error,
-                msg: format!("Failed to write data-set file '{}' with error: {}.", file_path_str, e),
-            });
-        }
-    };
+    result.payload_offset = result.target_file.stream_position()?;
 
     Ok(result)
 }
@@ -337,6 +208,8 @@ pub fn read_data_set_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytemuck::{cast_slice, cast_slice_mut};
+    use std::io::SeekFrom;
 
     #[test]
     fn test_dataset() {
@@ -345,8 +218,8 @@ mod tests {
 
         match fs::remove_file(&file_path) {
             Ok(_) => {},
-            Err(_) => {},
-        };
+            Err(_) => {}
+        }
 
         let uuid = Uuid::new_v4();
         let name = "test_dataset".to_string();
@@ -379,22 +252,12 @@ mod tests {
         // write date for first column
         let col1: Vec<f32> = vec![4.0f32, 0.0f32, 2.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
         let col1_bytes = cast_slice(&col1);
-        match write_dataset_handle.target_file.write_all(&col1_bytes) {
-            Ok(_) => {},
-            Err(e) => {
-                assert_eq!(true, false);
-            }
-        };
+        let _ = write_dataset_handle.target_file.write_all(&col1_bytes).unwrap();
 
         // write date for second column
         let col2: Vec<f32> = vec![0.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32];
         let col2_bytes = cast_slice(&col2);
-        match write_dataset_handle.target_file.write_all(&col2_bytes) {
-            Ok(_) => {},
-            Err(e) => {
-                assert_eq!(true, false);
-            }
-        };
+        let _ = write_dataset_handle.target_file.write_all(&col2_bytes).unwrap();
 
         // buffer must be flush, so the written columns are in the file on the disc and can be read again
         let _ = write_dataset_handle.target_file.flush();
@@ -422,7 +285,6 @@ mod tests {
         read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset)).unwrap();
         let _ = read_dataset_handle.target_file.read_exact(byte_slice_col1);
         assert_eq!(col1_read, col1);
-
 
         // read and compare second column
         let size_col2 = (read_dataset_handle.header.columns[1].end - read_dataset_handle.header.columns[1].start) as usize;

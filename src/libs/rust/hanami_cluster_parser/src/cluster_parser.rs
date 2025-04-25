@@ -22,7 +22,7 @@ pub struct ClusterParser;
 
 pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> {
     let file_pair = ClusterParser::parse(Rule::file, source_text)
-        .map_err(|e| format!("Parse error: {}", e))?
+        .map_err(|e| format!("Failed to parse cluster-template with error: {}", e))?
         .next().unwrap();
 
     let mut version: i32 = 0;

@@ -24,6 +24,7 @@ use crate::database::cluster_table;
 
 use hanami_core::cluster_handler;
 use hanami_core::cluster::Cluster;
+use hanami_common::error::HanamiError;
 
 use super::cluster_structs::{ClusterCreateReq, ClusterResp};
 
@@ -41,9 +42,13 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
     match cluster_handle.create_cluster(cluster_uuid.clone(), body.name.clone(), body.template.clone()) {
         Ok(_) => {},
-        Err(e) => {
-            let msg = format!("Failed to parse cluster-template with error: '{}'", e);
-            return Err(ErrorResponse::InternalError(msg));
+        Err(HanamiError::InputError(e)) => {
+            let msg = format!("{}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+        Err(HanamiError::Error(e)) => {
+            error!("{}", e);
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 

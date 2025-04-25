@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use hanami_cluster_parser::cluster_parser::parse_cluster_template;
 use hanami_cluster_parser::cluster_meta_structs::*;
+use hanami_common::error::HanamiError;
 
 use crate::cluster::Cluster;
 
@@ -39,24 +40,24 @@ pub struct ClusterHandler {
 }
 
 impl ClusterHandler {
-    fn search_hexagon(&self, hexagons: &Vec<Position>, pos: Position) -> i32 {
+    fn search_hexagon(&self, hexagons: &Vec<Position>, pos: &Position) -> i32 {
         let n: usize = hexagons.len();
 
         for i in 0..n {
-            if hexagons[i] == pos {
+            if hexagons[i] == *pos {
                 return i as i32;
             }
         }
         -1
     }
 
-    pub fn create_cluster(&mut self, uuid: Uuid, name: String, cluster_template: String) -> Result<(), String> {
+    pub fn create_cluster(&mut self, uuid: Uuid, name: String, cluster_template: String) -> Result<(), HanamiError> {
         // parse cluster-template
         let parsed_cluster: ClusterMeta = match parse_cluster_template(cluster_template.as_str()) {
             Ok(parsed) => parsed,
             Err(e) => {
-                error!("Failed to parse cluster-template: {}", e);
-                return Err("".to_string());
+                let msg = format!("Can not create cluster: {}", e);
+                return Err(HanamiError::InputError(msg));
             }
         };
 
@@ -71,22 +72,25 @@ impl ClusterHandler {
 
         // convert axons to c++
         for axon in parsed_cluster.axons {
-            let from_id:i32 = self.search_hexagon(&parsed_cluster.hexagons, axon.from);
+            let from_id:i32 = self.search_hexagon(&parsed_cluster.hexagons, &axon.from);
             if from_id == -1 {
-                return Err("".to_string());
+                let msg = format!("Invalid axon with source: {}", axon.from);
+                return Err(HanamiError::InputError(msg));
             }
-            let target_id:i32 = self.search_hexagon(&parsed_cluster.hexagons, axon.to);
+            let target_id:i32 = self.search_hexagon(&parsed_cluster.hexagons, &axon.to);
             if target_id == -1 {
-                return Err("".to_string());
+                let msg = format!("Invalid axon with target: {}", axon.to);
+                return Err(HanamiError::InputError(msg));
             }
             cluster_meta.pin_mut().addAxon(from_id as u32, target_id as u32);
         }
 
         // convert inputs to c++
         for input in parsed_cluster.inputs {
-            let id:i32 = self.search_hexagon(&parsed_cluster.hexagons, input.pos);
+            let id:i32 = self.search_hexagon(&parsed_cluster.hexagons, &input.pos);
             if id == -1 {
-                return Err("".to_string());
+                let msg = format!("Invalid input position: {}", input.pos);
+                return Err(HanamiError::InputError(msg));
             }
             cxx::let_cxx_string!(name_str = input.name.as_str());
 
@@ -95,9 +99,10 @@ impl ClusterHandler {
 
         // convert outputs to c++
         for output in parsed_cluster.outputs {
-            let id:i32 = self.search_hexagon(&parsed_cluster.hexagons, output.pos);
+            let id:i32 = self.search_hexagon(&parsed_cluster.hexagons, &output.pos);
             if id == -1 {
-                return Err("".to_string());
+                let msg = format!("Invalid output position: {}", output.pos);
+                return Err(HanamiError::InputError(msg));
             }
             cxx::let_cxx_string!(name_str = output.name.as_str());
 
@@ -120,7 +125,8 @@ impl ClusterHandler {
 
         // add cluster to the cluster-handler
         if self.add(uuid, Cluster::new(uuid, name, cluster_link)) == false {
-            return Err("".to_string());
+            let msg = format!("Failed to add cluster with UUID '{}' to cluster-handler", uuid);
+            return Err(HanamiError::Error(msg));
         }
 
         Ok(())
