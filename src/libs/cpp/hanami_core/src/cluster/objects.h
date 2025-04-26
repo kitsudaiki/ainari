@@ -285,14 +285,15 @@ struct OutputInterface {
         expectedSize += (timeLength - 1);
         if (ioBuffer.size() != expectedSize) {
             ioBuffer.resize(expectedSize);
+
+            if (type == FLOAT_OUTPUT) {
+                expectedSize *= 32;
+            }
+            if (type == INT_OUTPUT) {
+                expectedSize *= 64;
+            }
+            outputNeurons.resize(expectedSize);
         }
-        if (type == FLOAT_OUTPUT) {
-            expectedSize *= 32;
-        }
-        if (type == INT_OUTPUT) {
-            expectedSize *= 64;
-        }
-        outputNeurons.resize(expectedSize);
     }
 };
 
@@ -309,18 +310,17 @@ struct InputInterface {
         assert(timeLength >= 1);
         if (ioBuffer.size() != expectedSize) {
             ioBuffer.resize(expectedSize);
-        }
+            expectedSize += (timeLength - 1);  // respect time-length of the input
+            expectedSize *= 2;  // double length to also hold a negative value for the inputs
+            expectedSize /= NEURONS_PER_BLOCK;  // convert entries to blocks
+            expectedSize++;  // becaus of the line above to fix rounding-error add a new block
 
-        expectedSize += (timeLength - 1);  // respect time-length of the input
-        expectedSize *= 2;  // double length to also hold a negative value for the inputs
-        expectedSize /= NEURONS_PER_BLOCK;  // convert entries to blocks
-        expectedSize++;  // becaus of the line above to fix rounding-error add a new block
-
-        if (inputAxons.size() < expectedSize) {
-            const uint64_t oldSize = 0;
-            inputAxons.resize(expectedSize);
-            for (uint64_t i = oldSize; i < inputAxons.size(); i++) {
-                inputAxons[i] = AxonBlock();
+            if (inputAxons.size() < expectedSize) {
+                const uint64_t oldSize = 0;
+                inputAxons.resize(expectedSize);
+                for (uint64_t i = oldSize; i < inputAxons.size(); i++) {
+                    inputAxons[i] = AxonBlock();
+                }
             }
         }
     }

@@ -35,9 +35,9 @@ use hanami_core::cluster::Cluster;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_cluster(uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
     // check first in database
-    match cluster_table::get_cluster(&uuid) {
+    match cluster_table::get_cluster(&cluster_uuid) {
         Ok(_) => {},
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -49,12 +49,12 @@ pub async fn delete_cluster(uuid: Path<Uuid>, context: UserContext) -> Result<No
 
     // delete cluster from core
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.delete(&uuid) == false {
+    if cluster_handle.delete(&cluster_uuid) == false {
         return Err(ErrorResponse::InternalError("".to_string()));
     }
     
     // get new created cluster from database to get addtional information
-    match cluster_table::delete_cluster(&uuid) {
+    match cluster_table::delete_cluster(&cluster_uuid) {
         Ok(_) => {
             return Ok(NoContent);
         },

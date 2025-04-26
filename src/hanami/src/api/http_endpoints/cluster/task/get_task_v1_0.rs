@@ -16,38 +16,26 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use std::str::FromStr;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
+use crate::database::task_table;
 use hanami_common::enums;
 
-use super::cluster_structs::ClusterResp;
+use super::task_structs::{TaskResp, TaskType};
 
 #[api_operation(
-    tag = "cluster",
-    summary = "Get cluster",
-    description = r###"Get information of a cluster from the database."###,
+    tag = "task",
+    summary = "Get task",
+    description = r###"Get information of a task from the database."###,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
-    // get new created cluster from database to get addtional information
-    match cluster_table::get_cluster(&cluster_uuid) {
-        Ok(cluster) => {
-            let resp = ClusterResp {
-                uuid: cluster_uuid.clone(),
-                name: cluster.name.clone(),
-                template: cluster.template.clone(),
-                created_by: cluster.created_by.clone(),
-                created_at: cluster.created_at.clone(),
-                updated_by: cluster.updated_by.clone(),
-                updated_at: cluster.updated_at.clone(),
-            };
-        
-            return Ok(Json(resp));
-        },
+pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+    let task_data = match task_table::get_task(&task_uuid) {
+        Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
@@ -55,4 +43,23 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
             return Err(ErrorResponse::NotFound("".to_string()));
         }
     };
+
+    let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
+        Ok(task_type) => task_type,
+        Err(()) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    let resp = TaskResp {
+        uuid: task_uuid.clone(),
+        name: task_data.name.clone(),
+        task_type: task_type,
+        created_by: task_data.created_by.clone(),
+        created_at: task_data.created_at.clone(),
+        updated_by: task_data.updated_by.clone(),
+        updated_at: task_data.updated_at.clone(),
+    };
+
+    return Ok(Json(resp));
 }

@@ -13,6 +13,7 @@ chrono = "0.4.40"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 static_assertions = "1.1.0"
 lazy_static = "1.4"
+bytemuck = "1.22"
 
 # thread-binding
 core_affinity = "0.8"

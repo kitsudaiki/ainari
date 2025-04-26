@@ -51,7 +51,8 @@ ClusterIOConvert_Test::convertPlain_test()
     testInterface.outputNeurons[2].outputVal = 44.0f;
     testInterface.outputNeurons[3].outputVal = 45.0f;
 
-    convertOutputToBuffer(&testInterface);
+    convertOutputToBuffer(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.ioBuffer[0], 42.0f);
@@ -59,7 +60,8 @@ ClusterIOConvert_Test::convertPlain_test()
     TEST_EQUAL(testInterface.ioBuffer[2], 44.0f);
     TEST_EQUAL(testInterface.ioBuffer[3], 45.0f);
 
-    convertBufferToExpected(&testInterface);
+    convertBufferToExpected(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons[0].exprectedVal, 42.0f);
@@ -86,7 +88,8 @@ ClusterIOConvert_Test::convertBool_test()
     testInterface.outputNeurons[2].outputVal = 0.3f;
     testInterface.outputNeurons[3].outputVal = 0.8f;
 
-    convertOutputToBuffer(&testInterface);
+    convertOutputToBuffer(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.ioBuffer[0], 0.0f);
@@ -99,7 +102,8 @@ ClusterIOConvert_Test::convertBool_test()
     testInterface.ioBuffer[2] = 0.3f;
     testInterface.ioBuffer[3] = 0.8f;
 
-    convertBufferToExpected(&testInterface);
+    convertBufferToExpected(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons[0].exprectedVal, 0.0f);
@@ -126,11 +130,13 @@ ClusterIOConvert_Test::convertFloat_test()
     testInterface.outputNeurons[42].outputVal = 0.3f;
     testInterface.outputNeurons[43].outputVal = 0.8f;
 
-    convertOutputToBuffer(&testInterface);
+    convertOutputToBuffer(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
 
-    convertBufferToExpected(&testInterface);
+    convertBufferToExpected(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons[15].exprectedVal, 1.0f);
@@ -157,13 +163,15 @@ ClusterIOConvert_Test::convertInt_test()
     testInterface.outputNeurons[126].outputVal = 0.3f;
     testInterface.outputNeurons[127].outputVal = 0.8f;
 
-    convertOutputToBuffer(&testInterface);
+    convertOutputToBuffer(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
     TEST_EQUAL(testInterface.ioBuffer[0], 2.0f);
     TEST_EQUAL(testInterface.ioBuffer[1], 1.0f);
 
-    convertBufferToExpected(&testInterface);
+    convertBufferToExpected(
+        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
 
     TEST_EQUAL(testInterface.ioBuffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons[62].exprectedVal, 1.0f);

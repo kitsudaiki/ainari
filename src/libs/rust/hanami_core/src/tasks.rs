@@ -20,12 +20,11 @@ use serde::Deserialize;
 use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
-pub enum TaskType {
-    NoTask = 0,
-    TrainTask = 1,
-    RequestTask = 2,
-    ClusterCheckpointSaveTask = 3,
-    ClusterCheckpointRestoreTask = 4,
+pub enum InternalTaskType {
+    TrainTask = 0,
+    RequestTask = 1,
+    ClusterCheckpointSaveTask = 2,
+    ClusterCheckpointRestoreTask = 3,
 }
 
 #[derive(Debug)]
@@ -78,27 +77,20 @@ pub struct CheckpointRestoreInfo {
 }
 
 #[derive(Debug)]
-enum TaskVariant {
+pub enum TaskVariant {
     Training(TrainInfo),
     Request(RequestInfo),
     CheckpointSave(CheckpointSaveInfo),
     CheckpointRestore(CheckpointRestoreInfo),
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
-    pub task_type: TaskType,
+    pub task_type: InternalTaskType,
     pub name: String,
     pub userId: String,
     pub projectId: String,
 
-    //pub info: TaskVariant,
+    pub info: TaskVariant,
 }
-
-// struct WorkerTask {
-//     Cluster* cluster = nullptr;
-//     uint32_t hexagonId = UNINIT_STATE_32;
-//     blockId = UNINIT_STATE_32;
-//     ClusterProcessingMode mode = ClusterProcessingMode::TRAIN_BACKWARD_MODE;
-// };

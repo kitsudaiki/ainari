@@ -27,8 +27,6 @@
 #include <src/common/logger.h>
 #include <src/common/threading/thread.h>
 
-#include "hanami_root.h"
-
 /**
  * @brief constructor
  */
@@ -147,10 +145,22 @@ Cluster::updateClusterState(const Hanami::WorkerTask& task)
     else if (task.mode == ClusterProcessingMode::TRAIN_BACKWARD_MODE) {
         // sendClusterTrainEndMessage(this);
         //  countSynapses(*this);
+        finishCycle();
         return;
     }
     else if (task.mode == ClusterProcessingMode::NORMAL_MODE) {
         // sendClusterNormalEndMessage(this);
+        finishCycle();
         return;
     }
+}
+
+/**
+ * @brief Cluster::finishCycle
+ * @return
+ */
+void
+Cluster::finishCycle()
+{
+    m_barrier.triggerBarrier();
 }

@@ -27,6 +27,7 @@ use crate::api::http_endpoints::auth::{renew_token_v1_0, create_token_v1_0};
 use crate::api::http_endpoints::user::{create_user_v1_0, list_user_v1_0, get_user_v1_0, delete_user_v1_0};
 use crate::api::http_endpoints::dataset::create_dataset_v1_0;
 use crate::api::http_endpoints::cluster::{create_cluster_v1_0, list_cluster_v1_0, get_cluster_v1_0, delete_cluster_v1_0};
+use crate::api::http_endpoints::cluster::task::{create_train_task_v1_0, get_task_v1_0, list_task_v1_0};
 use crate::api::middleware::authorization_middleware;
 use crate::config;
 
@@ -68,9 +69,22 @@ fn v1alpha_routes() -> Scope {
                         .route(get().to(list_cluster_v1_0::list_cluster))
                 )
                 .service(
-                    resource("/{uuid}")
+                    resource("/{cluster_uuid}")
                         .route(get().to(get_cluster_v1_0::get_cluster))
                         .route(delete().to(delete_cluster_v1_0::delete_cluster))
+                        
+                )
+                .service(
+                    scope("/{cluster_uuid}/task")
+                        .service(
+                            resource("")
+                                .route(post().to(create_train_task_v1_0::create_train_task))
+                                .route(get().to(list_task_v1_0::list_task))
+                        )
+                        .service(
+                            resource("/{task_uuid}")
+                                .route(get().to(get_task_v1_0::get_task))
+                        )
                 )
         )
 }

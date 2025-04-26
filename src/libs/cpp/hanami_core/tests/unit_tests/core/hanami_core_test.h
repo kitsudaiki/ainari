@@ -31,8 +31,6 @@ class Hanami_Core_Test : public Hanami::CompareTestHelper
     Hanami_Core_Test();
 
    private:
-    std::string m_clusterTemplate = "";
-
     void initTest();
 
     void core_test();

@@ -22,7 +22,9 @@
 
 #include "hanami_core_test.h"
 
+#include "cluster_link.h"
 #include "hanami_root.h"
+#include "hanami_structs.h"
 
 Hanami_Core_Test::Hanami_Core_Test() : Hanami::CompareTestHelper("Cluster_Init_Test")
 {
@@ -34,27 +36,6 @@ Hanami_Core_Test::Hanami_Core_Test() : Hanami::CompareTestHelper("Cluster_Init_T
 void
 Hanami_Core_Test::initTest()
 {
-    m_clusterTemplate
-        = "version: 1\n"
-          "settings:\n"
-          "    refractory_time: 2\n"
-          "    neuron_cooldown: 10000000.0\n"
-          "    max_connection_distance: 3\n"
-          "\n"
-          "hexagons:\n"
-          "    1,1,1\n"
-          "    3,1,1\n"
-          "    4,1,1\n"
-          "    \n"
-          "axons:\n"
-          "    1,1,1 -> 3,1,1\n"
-          "\n"
-          "inputs:\n"
-          "    input_hexagon: 1,1,1\n"
-          "\n"
-          "outputs:\n"
-          "    output_hexagon: 4,1,1\n"
-          "\n";
 }
 
 void
@@ -69,15 +50,43 @@ Hanami_Core_Test::core_test()
     ret = core.init(0.01f, errorMessage);
     TEST_EQUAL(ret, false);
 
-    // create
-    // ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
-    // TEST_EQUAL(ret, OK);
-    // ret = core.createCluster(uuid, "test-cluster", m_clusterTemplate, errorMessage);
-    // TEST_EQUAL(ret, INVALID_INPUT);
+    // prepare information for the cluster
+    ClusterMeta clusterMeta;
+    clusterMeta.addHexagon(1, 1, 1);
+    clusterMeta.addHexagon(2, 1, 1);
+    clusterMeta.addHexagon(3, 1, 1);
+    clusterMeta.addAxon(0, 1);
+    clusterMeta.addInput("input", 0);
+    clusterMeta.addOutput("output", 2, PLAIN_OUTPUT);
 
-    // delete
-    // ret = core.deleteCluster(uuid);
-    // TEST_EQUAL(ret, OK);
-    // ret = core.deleteCluster(uuid);
-    // TEST_EQUAL(ret, INVALID_INPUT);
+    std::unique_ptr<ClusterLink> link = core.createCluster("poi", "poi", clusterMeta, errorMessage);
+
+    // set input
+    float inputData[8] = {10.0, 0.0, 10.0, 0.0, 10.0, 0.0, 10.0, 0.0};
+    TEST_EQUAL(link->fillInput("fail", inputData, 8), false);
+    TEST_EQUAL(link->fillInput("input", inputData, 8), true);
+
+    // set expected-values on the outputs
+    float expectedData[4] = {0.0, 1.0, 0.0, 1.0};
+    TEST_EQUAL(link->fillExpected("fail", expectedData, 4), false);
+    TEST_EQUAL(link->fillExpected("output", expectedData, 4), true);
+
+    // train a few times with the same values
+    for (uint32_t i = 0; i < 10000; ++i) {
+        link->doTrain();
+    }
+
+    // make a request with the same input-data
+    link->doRequest();
+
+    // get output of the request-call from the cluster
+    float outputData[4] = {0.0, 0.0, 0.0, 0.0};
+    TEST_EQUAL(link->getOutput("fail", outputData, 4), false);
+    TEST_EQUAL(link->getOutput("output", outputData, 4), true);
+
+    // check results
+    TEST_EQUAL(outputData[0], 0.0f);
+    TEST_NOT_EQUAL(outputData[1], 0.0f);
+    TEST_EQUAL(outputData[2], 0.0f);
+    TEST_NOT_EQUAL(outputData[3], 0.0f);
 }

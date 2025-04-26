@@ -23,6 +23,7 @@ use log::{error, info};
 use database::user_table::init_user_table;
 use database::cluster_table::init_cluster_table;
 use database::dataset_table::init_dataset_table;
+use database::task_table::init_task_table;
 
 use hanami_core::cluster_handler;
 
@@ -37,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize user-table
     match init_user_table() {
-        Ok(_) => info!("Initilaized user-datbase-table"),
+        Ok(_) => info!("Initilaized user-database-table"),
         Err(e) => {
             error!("Failed to initialize user-database-table: {}", e);
             return Err(e);
@@ -45,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     // Initialize cluster-table
     match init_cluster_table() {
-        Ok(_) => info!("Initilaized cluster-datbase-table"),
+        Ok(_) => info!("Initilaized cluster-database-table"),
         Err(e) => {
             error!("Failed to initialize cluster-database-table: {}", e);
             return Err(e);
@@ -53,9 +54,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     // Initialize dataset-table
     match init_dataset_table() {
-        Ok(_) => info!("Initilaized dataset-datbase-table"),
+        Ok(_) => info!("Initilaized dataset-database-table"),
         Err(e) => {
             error!("Failed to initialize dataset-database-table: {}", e);
+            return Err(e);
+        }
+    };
+    // Initialize task-table
+    match init_task_table() {
+        Ok(_) => info!("Initilaized task-database-table"),
+        Err(e) => {
+            error!("Failed to initialize task-database-table: {}", e);
             return Err(e);
         }
     };

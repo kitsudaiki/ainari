@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::CreatedJson;
+use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 
@@ -31,7 +31,7 @@ use super::user_structs::UserResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_user(id: Path<String>, context: UserContext) -> Result<CreatedJson<UserResp>, ErrorResponse> {
+pub async fn get_user(id: Path<String>, context: UserContext) -> Result<Json<UserResp>, ErrorResponse> {
     if context.is_admin == false {
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
@@ -49,7 +49,7 @@ pub async fn get_user(id: Path<String>, context: UserContext) -> Result<CreatedJ
                 updated_at: user.updated_at.clone(),
             };
         
-            return Ok(CreatedJson(resp));
+            return Ok(Json(resp));
         },
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

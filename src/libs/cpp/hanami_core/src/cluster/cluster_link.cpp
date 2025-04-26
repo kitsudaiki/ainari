@@ -23,6 +23,7 @@
 #include "cluster_link.h"
 
 #include <src/cluster/cluster.h>
+#include <src/cluster/cluster_io_convert.h>
 #include <src/common/logger.h>
 #include <src/io/checkpoint/disc/checkpoint_io.h>
 #include <src/processing/logical_host.h>
@@ -72,4 +73,114 @@ ClusterLink::createCheckpoint(const std::string& targetFilePath)
     }
 
     return OK;
+}
+
+/**
+ * @brief ClusterLink::fillInput
+ * @param hexagonName
+ * @param input
+ * @param numberOfInputs
+ */
+bool
+ClusterLink::fillInput(const std::string& hexagonName,
+                       const float* input,
+                       const uint64_t numberOfInputs)
+{
+    auto it = m_cluster->inputInterfaces.find(hexagonName);
+    if (it == m_cluster->inputInterfaces.end()) {
+        return false;
+    }
+
+    InputInterface* inputInterface = &it->second;
+    inputInterface->initBuffer(numberOfInputs, 1);
+
+    AxonBlock* axonBlock = nullptr;
+    Axon* axon = nullptr;
+    uint64_t blockId = 0;
+    uint16_t axonId = 0;
+    uint64_t counter = 0;
+    float val = 0.0f;
+
+    for (uint64_t i = 0; i < numberOfInputs; ++i) {
+        val = input[i];
+        // std::cout << "input: " << val << std::endl;
+        blockId = counter / NEURONS_PER_BLOCK;
+        axonId = counter % NEURONS_PER_BLOCK;
+        axonBlock = &inputInterface->inputAxons[blockId];
+        axonBlock->axons[axonId].potential = 0.0f;
+        axonBlock->axons[axonId + 1].potential = 0.0f;
+        axon = &axonBlock->axons[axonId + (val >= 0.0f)];
+        axon->potential = abs(val);
+        counter += 2;
+    }
+
+    return true;
+}
+
+/**
+ * @brief ClusterLink::fillExpected
+ * @param hexagonName
+ * @param output
+ * @param numberOfOutputs
+ */
+bool
+ClusterLink::fillExpected(const std::string& hexagonName,
+                          float* output,
+                          const uint64_t numberOfOutputs)
+{
+    auto it = m_cluster->outputInterfaces.find(hexagonName);
+    if (it == m_cluster->outputInterfaces.end()) {
+        return false;
+    }
+
+    // float val = 0.0f;
+    // for (uint64_t i = 0; i < numberOfOutputs; ++i) {
+    //     val = output[i];
+    //     std::cout << "output: " << val << std::endl;
+    // }
+    OutputInterface* outputInterface = &it->second;
+    outputInterface->initBuffer(numberOfOutputs, 1);
+    convertBufferToExpected(outputInterface, output, numberOfOutputs);
+
+    return true;
+}
+/**
+ * @brief ClusterLink::getOutput
+ * @param hexagonName
+ * @param output
+ * @param numberOfOutputs
+ * @return
+ */
+bool
+ClusterLink::getOutput(const std::string& hexagonName,
+                       float* output,
+                       const uint64_t numberOfOutputs)
+{
+    auto it = m_cluster->outputInterfaces.find(hexagonName);
+    if (it == m_cluster->outputInterfaces.end()) {
+        return false;
+    }
+
+    OutputInterface* outputInterface = &it->second;
+    convertOutputToBuffer(outputInterface, output, numberOfOutputs);
+
+    return true;
+}
+
+/**
+ * @brief ClusterLink::doTrain
+ */
+void
+ClusterLink::doTrain()
+{
+    std::cout << "do train" << std::endl;
+    m_cluster->startForwardCycle(false);
+    m_cluster->finishCycle();
+}
+
+void
+ClusterLink::doRequest()
+{
+    m_cluster->startForwardCycle(true);
+    m_cluster->finishCycle();
 }

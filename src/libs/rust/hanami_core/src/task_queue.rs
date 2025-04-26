@@ -17,19 +17,20 @@ use log::{info, debug, error};
 use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
 
-use super::tasks::{Task, TaskType};
+use super::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
 
-#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[derive(Default, Debug)]
 pub struct TaskQueue {
     pub queue: VecDeque<Task>,
 }
 
 impl TaskQueue {
-    fn add(&mut self, task: Task) {
+    pub fn add(&mut self, task: Task) {
+        debug!("added task to task-queue");
         self.queue.push_back(task);
     }
 
-    fn get(&mut self) -> Option<Task> {
+    pub fn get(&mut self) -> Option<Task> {
         self.queue.pop_front()
     }
 }
@@ -44,33 +45,45 @@ pub fn init_task_queue() -> TaskQueue {
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
-
     use super::*;
 
     #[test]
     fn test_add_and_get() {
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
         let mut queue = task_queue.lock().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+
+        let info1 = CheckpointSaveInfo {
+            path: "asdf".to_string(),
+        };
+        let info2 = CheckpointSaveInfo {
+            path: "asdf".to_string(),
+        };
 
         let task1 = Task {
-            uuid: Uuid::new_v4(),
-            task_type: TaskType::TrainTask,
+            uuid: uuid1.clone(),
+            task_type: InternalTaskType::TrainTask,
             name: "task1".to_string(),
             userId: "user0815".to_string(),
             projectId: "project0815".to_string(),
+            info: TaskVariant::CheckpointSave(info1),
         };
         let task2 = Task {
-            uuid: Uuid::new_v4(),
-            task_type: TaskType::RequestTask,
+            uuid: uuid2.clone(),
+            task_type: InternalTaskType::RequestTask,
             name: "task2".to_string(),
             userId: "user0816".to_string(),
             projectId: "project0816".to_string(),
+            info: TaskVariant::CheckpointSave(info2),
         };
 
-        queue.add(task1.clone());
-        queue.add(task2.clone());
+        queue.add(task1);
+        queue.add(task2);
 
-        assert_eq!(queue.get(), Some(task1));
-        assert_eq!(queue.get(), Some(task2));
+        let task1 = queue.get().unwrap();
+        assert_eq!(task1.uuid, uuid1);
+        let task2 = queue.get().unwrap();
+        assert_eq!(task2.uuid, uuid2);
     }
 }

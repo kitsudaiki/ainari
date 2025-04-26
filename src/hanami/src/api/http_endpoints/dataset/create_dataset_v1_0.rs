@@ -187,6 +187,10 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     };
 }
 
+fn convert_vec_u8_to_f32(vec_u8: &Vec<u8>) -> Vec<f32> {
+    vec_u8.iter().map(|&x| x as f32).collect()
+}
+
 pub fn load_mnist_images(
     image_path: &PathBuf,
     label_path: &PathBuf,
@@ -226,7 +230,7 @@ pub fn load_mnist_images(
 
     // read images and labels from files
     for _ in 0..count {
-        let mut pixels = vec![0u8; (rows * cols) as usize];
+        let mut pixels = vec![0; (rows * cols) as usize];
         img_reader.read_exact(&mut pixels)?;
 
         let label = label_reader.read_u8()?;
@@ -257,17 +261,33 @@ pub fn load_mnist_images(
         name, 
         "".to_string(),
         columns,
-        DataSetType::Uint8Type)?;
+        DataSetType::FloatType)?; // TODO: use u8-type
 
-    let mut label_data: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut label_data: Vec<f32> = vec![0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
     for (_, img) in images.iter().enumerate() {
         // println!("Image {}: Label = {}", i, img.label);
-        label_data[usize::from(img.label)] = 1;
+        label_data[usize::from(img.label)] = 1.0f32;
 
-        dataset_handle.target_file.write_all(&img.pixels)?;
-        dataset_handle.target_file.write_all(&label_data)?;
+        let converted = convert_vec_u8_to_f32(&img.pixels);
 
-        label_data[usize::from(img.label)] = 0;
+        let image_bytes = unsafe {
+            std::slice::from_raw_parts(
+                converted.as_ptr() as *const u8,
+                converted.len() * std::mem::size_of::<f32>(),
+            )
+        };
+
+        let label_bytes = unsafe {
+            std::slice::from_raw_parts(
+                label_data.as_ptr() as *const u8,
+                label_data.len() * std::mem::size_of::<f32>(),
+            )
+        };
+    
+        dataset_handle.target_file.write_all(&image_bytes)?;
+        dataset_handle.target_file.write_all(&label_bytes)?;
+
+        label_data[usize::from(img.label)] = 0.0f32;
     }
 
     // disabled debug-output

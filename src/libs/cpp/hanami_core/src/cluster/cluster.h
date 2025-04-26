@@ -24,6 +24,7 @@
 #define HANAMI_CLUSTER_H
 
 #include <src/cluster/objects.h>
+#include <src/common/threading/barrier.h>
 
 #include <atomic>
 #include <map>
@@ -66,12 +67,12 @@ class Cluster
 
     // counter for parallel-processing
     bool incrementAndCompare(const uint32_t referenceValue);
+    void finishCycle();
 
    private:
     std::mutex m_clusterStateLock;
     std::atomic<int> m_counter;
-
-    bool getNextTask();
+    Hanami::Barrier m_barrier = Hanami::Barrier(2);
 };
 
 #endif  // HANAMI_CLUSTER_H

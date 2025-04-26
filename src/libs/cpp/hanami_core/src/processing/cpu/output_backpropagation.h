@@ -28,8 +28,6 @@
 #include <src/cluster/cluster.h>
 #include <src/cluster/objects.h>
 
-#include "hanami_root.h"
-
 /**
  * @brief backpropagate output-nodes
  *

@@ -30,11 +30,13 @@
  * @return number of values in io-buffer
  */
 uint64_t
-_handlePlainOutput(OutputInterface* outputInterface)
+_handlePlainOutput(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
-    for (uint64_t i = 0; i < upperBorder; ++i) {
-        outputInterface->ioBuffer[i] = outputInterface->outputNeurons[i].outputVal;
+    uint64_t i = 0;
+    while (i < upperBorder && i < numberOfOutputs) {
+        output[i] = outputInterface->outputNeurons[i].outputVal;
+        ++i;
     }
 
     return upperBorder;
@@ -48,12 +50,14 @@ _handlePlainOutput(OutputInterface* outputInterface)
  * @return number of values in io-buffer
  */
 uint64_t
-_handleBoolOutput(OutputInterface* outputInterface)
+_handleBoolOutput(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
-    for (uint64_t i = 0; i < upperBorder; ++i) {
+    uint64_t i = 0;
+    while (i < upperBorder && i < numberOfOutputs) {
         const float val = outputInterface->outputNeurons[i].outputVal >= 0.5f;
-        outputInterface->ioBuffer[i] = val;
+        output[i] = val;
+        ++i;
     }
 
     return upperBorder;
@@ -68,13 +72,14 @@ _handleBoolOutput(OutputInterface* outputInterface)
  * @return number of values in io-buffer
  */
 uint64_t
-_handleIntOutput(OutputInterface* outputInterface)
+_handleIntOutput(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
     uint64_t val = 0;
 
     const uint64_t upperBorder = outputInterface->outputNeurons.size() / 64;
-    for (uint64_t i = 0; i < upperBorder; ++i) {
+    uint64_t i = 0;
+    while (i < upperBorder && i < numberOfOutputs) {
         val = 0;
 
         for (uint64_t offset = 0; offset < 64; ++offset) {
@@ -82,7 +87,8 @@ _handleIntOutput(OutputInterface* outputInterface)
             val = (val << 1) | static_cast<uint64_t>(neuron->outputVal >= 0.5f);
         }
 
-        outputInterface->ioBuffer[i] = val;
+        output[i] = val;
+        ++i;
     }
 
     return upperBorder;
@@ -97,13 +103,14 @@ _handleIntOutput(OutputInterface* outputInterface)
  * @return number of values in io-buffer
  */
 uint64_t
-_handleFloatOutput(OutputInterface* outputInterface)
+_handleFloatOutput(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
     uint32_t val = 0;
 
     const uint64_t upperBorder = outputInterface->outputNeurons.size() / 32;
-    for (uint64_t i = 0; i < upperBorder; ++i) {
+    uint64_t i = 0;
+    while (i < upperBorder && i < numberOfOutputs) {
         val = 0;
 
         for (uint64_t offset = 0; offset < 32; ++offset) {
@@ -112,7 +119,8 @@ _handleFloatOutput(OutputInterface* outputInterface)
         }
 
         float* floatVal = static_cast<float*>(static_cast<void*>(&val));
-        outputInterface->ioBuffer[i] = *floatVal;
+        output[i] = *floatVal;
+        ++i;
     }
 
     return upperBorder;
@@ -126,19 +134,21 @@ _handleFloatOutput(OutputInterface* outputInterface)
  * @return number of values in io-buffer
  */
 uint64_t
-convertOutputToBuffer(OutputInterface* outputInterface)
+convertOutputToBuffer(OutputInterface* outputInterface,
+                      float* output,
+                      const uint64_t numberOfOutputs)
 {
     switch (outputInterface->type) {
         case PLAIN_OUTPUT:
-            return _handlePlainOutput(outputInterface);
+            return _handlePlainOutput(outputInterface, output, numberOfOutputs);
         case BOOL_OUTPUT:
-            return _handleBoolOutput(outputInterface);
+            return _handleBoolOutput(outputInterface, output, numberOfOutputs);
         case INT_OUTPUT:
-            return _handleIntOutput(outputInterface);
+            return _handleIntOutput(outputInterface, output, numberOfOutputs);
         case FLOAT_OUTPUT:
-            return _handleFloatOutput(outputInterface);
+            return _handleFloatOutput(outputInterface, output, numberOfOutputs);
         default:
-            return _handlePlainOutput(outputInterface);
+            return _handlePlainOutput(outputInterface, output, numberOfOutputs);
     }
 }
 
@@ -148,11 +158,13 @@ convertOutputToBuffer(OutputInterface* outputInterface)
  * @param outputInterface reference to output-interface
  */
 void
-_handlePlainExpected(OutputInterface* outputInterface)
+_handlePlainExpected(OutputInterface* outputInterface,
+                     float* output,
+                     const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
     for (uint64_t i = 0; i < upperBorder; ++i) {
-        outputInterface->outputNeurons[i].exprectedVal = outputInterface->ioBuffer[i];
+        outputInterface->outputNeurons[i].exprectedVal = output[i];
     }
 }
 
@@ -162,11 +174,11 @@ _handlePlainExpected(OutputInterface* outputInterface)
  * @param outputInterface reference to output-interface
  */
 void
-_handleBoolExpected(OutputInterface* outputInterface)
+_handleBoolExpected(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
     for (uint64_t i = 0; i < upperBorder; ++i) {
-        outputInterface->outputNeurons[i].exprectedVal = outputInterface->ioBuffer[i] >= 0.5f;
+        outputInterface->outputNeurons[i].exprectedVal = output[i] >= 0.5f;
     }
 }
 
@@ -176,14 +188,14 @@ _handleBoolExpected(OutputInterface* outputInterface)
  * @param outputInterface reference to output-interface
  */
 void
-_handleIntExpected(OutputInterface* outputInterface)
+_handleIntExpected(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
     uint64_t val = 0;
 
     const uint64_t upperBorder = outputInterface->outputNeurons.size() / 64;
     for (uint64_t i = 0; i < upperBorder; ++i) {
-        val = outputInterface->ioBuffer[i];
+        val = output[i];
         for (uint64_t offset = 0; offset < 64; ++offset) {
             neuron = &outputInterface->outputNeurons[(i * 64) + (63 - offset)];
             neuron->exprectedVal = (val >> offset) & 1;
@@ -197,14 +209,16 @@ _handleIntExpected(OutputInterface* outputInterface)
  * @param outputInterface reference to output-interface
  */
 void
-_handleFloatExpected(OutputInterface* outputInterface)
+_handleFloatExpected(OutputInterface* outputInterface,
+                     float* output,
+                     const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
     uint32_t* val;
 
     const uint64_t upperBorder = outputInterface->outputNeurons.size() / 32;
     for (uint64_t i = 0; i < upperBorder; ++i) {
-        val = static_cast<uint32_t*>(static_cast<void*>(&outputInterface->ioBuffer[i]));
+        val = static_cast<uint32_t*>(static_cast<void*>(&output[i]));
         for (uint64_t offset = 0; offset < 32; ++offset) {
             neuron = &outputInterface->outputNeurons[(i * 32) + (31 - offset)];
             neuron->exprectedVal = (*val >> offset) & 1;
@@ -219,23 +233,25 @@ _handleFloatExpected(OutputInterface* outputInterface)
  * @param outputInterface reference to output-interface
  */
 void
-convertBufferToExpected(OutputInterface* outputInterface)
+convertBufferToExpected(OutputInterface* outputInterface,
+                        float* output,
+                        const uint64_t numberOfOutputs)
 {
     switch (outputInterface->type) {
         case PLAIN_OUTPUT:
-            _handlePlainExpected(outputInterface);
+            _handlePlainExpected(outputInterface, output, numberOfOutputs);
             break;
         case BOOL_OUTPUT:
-            _handleBoolExpected(outputInterface);
+            _handleBoolExpected(outputInterface, output, numberOfOutputs);
             break;
         case INT_OUTPUT:
-            _handleIntExpected(outputInterface);
+            _handleIntExpected(outputInterface, output, numberOfOutputs);
             break;
         case FLOAT_OUTPUT:
-            _handleFloatExpected(outputInterface);
+            _handleFloatExpected(outputInterface, output, numberOfOutputs);
             break;
         default:
-            _handlePlainExpected(outputInterface);
+            _handlePlainExpected(outputInterface, output, numberOfOutputs);
             break;
     }
 }

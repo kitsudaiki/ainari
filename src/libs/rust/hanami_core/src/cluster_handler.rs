@@ -154,8 +154,8 @@ impl ClusterHandler {
         }
     }
 
-    pub fn get(&self, uuid: &Uuid) -> Option<&Cluster> {
-        self.clusters.get(uuid)
+    pub fn get(&mut self, uuid: &Uuid) -> Option<&mut Cluster> {
+        self.clusters.get_mut(uuid)
     }
 
     pub fn delete(&mut self, uuid: &Uuid) -> bool {

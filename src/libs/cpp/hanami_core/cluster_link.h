@@ -23,6 +23,8 @@
 #ifndef HANAMI_CLUSTER_LINK_H
 #define HANAMI_CLUSTER_LINK_H
 
+#include <stdint.h>
+
 #include <string>
 
 class Cluster;
@@ -36,6 +38,17 @@ class ClusterLink
     void printMetrics() const;
 
     int createCheckpoint(const std::string& targetFilePath);
+
+    bool fillInput(const std::string& hexagonName,
+                   const float* input,
+                   const uint64_t numberOfInputs);
+    bool fillExpected(const std::string& hexagonName,
+                      float* output,
+                      const uint64_t numberOfOutputs);
+    bool getOutput(const std::string& hexagonName, float* output, const uint64_t numberOfOutputs);
+
+    void doTrain();
+    void doRequest();
 
    private:
     Cluster* m_cluster = nullptr;

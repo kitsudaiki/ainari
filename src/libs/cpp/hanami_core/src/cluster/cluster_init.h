@@ -25,8 +25,6 @@
 
 #include <src/cluster/objects.h>
 
-#include "hanami_root.h"
-
 class CoreSegment;
 class Cluster;
 
