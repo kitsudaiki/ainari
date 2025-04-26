@@ -14,6 +14,7 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
+use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -36,12 +37,17 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
     };
 
     for cluster in clusters {
-        let obj = ClusterBasicResp {
-            uuid: cluster.uuid.clone(),
-            name: cluster.name.clone(),
-        };
-
-        resp.clusters.push(obj); // fill the vector with objects
+        match Uuid::parse_str(&cluster.uuid) {
+            Ok(uuid) => {
+                let obj = ClusterBasicResp {
+                    uuid: uuid,
+                    name: cluster.name.clone(),
+                };
+        
+                resp.clusters.push(obj);
+            }
+            Err(e) =>  return Err(ErrorResponse::InternalError("".to_string())),
+        }
     }
 
     Ok(Json(resp))

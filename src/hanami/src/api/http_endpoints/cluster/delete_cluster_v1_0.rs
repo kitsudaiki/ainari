@@ -35,7 +35,7 @@ use hanami_core::cluster::Cluster;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_cluster(uuid: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_cluster(uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
     // check first in database
     match cluster_table::get_cluster(&uuid) {
         Ok(_) => {},
@@ -49,18 +49,10 @@ pub async fn delete_cluster(uuid: Path<String>, context: UserContext) -> Result<
 
     // delete cluster from core
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    match Uuid::parse_str(&uuid) {
-        Ok(converted_uuid) => {
-            if cluster_handle.delete(&converted_uuid) == false {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        },
-        Err(e) => {
-            let msg = format!("'{}' is not a  valid UUID", uuid);
-            return Err(ErrorResponse::BadRequest(msg));
-        },
+    if cluster_handle.delete(&uuid) == false {
+        return Err(ErrorResponse::InternalError("".to_string()));
     }
-
+    
     // get new created cluster from database to get addtional information
     match cluster_table::delete_cluster(&uuid) {
         Ok(_) => {

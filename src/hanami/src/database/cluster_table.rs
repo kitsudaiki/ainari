@@ -19,6 +19,7 @@ use log::{info, debug, error};
 use std::env;
 use std::error::Error;
 use rand::{distr::Alphanumeric, Rng};
+use uuid::Uuid;
 
 use crate::database::db_handle;
 use hanami_common::functions::sha256_hash;
@@ -73,9 +74,9 @@ pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_new_cluster(cluster_uuid: &String, cluster_name: &String, cluster_template: &String, creator_id: &String) -> QueryResult<usize> {
+pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_template: &String, creator_id: &String) -> QueryResult<usize> {
     let cluster = cluster{
-        uuid: cluster_uuid.clone(),
+        uuid: cluster_uuid.to_string().clone(),
         name: cluster_name.clone(),
         template: cluster_template.clone(),
         status: "".to_string(),
@@ -102,11 +103,11 @@ pub fn add_cluster(cluster: &cluster) -> QueryResult<usize> {
     diesel::insert_into(clusters).values(new_cluster).execute(&mut *conn)
 }
 
-pub fn get_cluster(cluster_uuid: &String) -> Result<cluster, enums::DbError> {
+pub fn get_cluster(cluster_uuid: &Uuid) -> Result<cluster, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
     match clusters
-        .filter(uuid.eq(cluster_uuid).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(cluster_uuid.to_string()).and(status.eq("ACTIVE")))
         .select(cluster::as_select())
         .first::<cluster>(&mut *conn)
     {
@@ -125,10 +126,10 @@ pub fn list_clusters() -> QueryResult<Vec<cluster>> {
     clusters.filter(status.eq("ACTIVE")).select(cluster::as_select()).load(&mut *conn)
 }
 
-pub fn delete_cluster(cluster_uuid: &String) -> Result<(), enums::DbError> {
+pub fn delete_cluster(cluster_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
-    match diesel::update(clusters.filter(uuid.eq(cluster_uuid)))
+    match diesel::update(clusters.filter(uuid.eq(cluster_uuid.to_string())))
         .set(status.eq("DELETED"))
         .execute(&mut *conn)
     {
@@ -145,17 +146,19 @@ pub fn delete_cluster(cluster_uuid: &String) -> Result<(), enums::DbError> {
 mod tests {
     use super::*;
 
-    fn hard_delete_cluster(cluster_uuid: &String) {
+    fn hard_delete_cluster(cluster_uuid: &Uuid) {
         use self::clusters::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
-        let _ = diesel::delete(clusters.filter(uuid.eq(cluster_uuid))).execute(&mut *conn);
+        let _ = diesel::delete(clusters.filter(uuid.eq(cluster_uuid.to_string()))).execute(&mut *conn);
     }
     
     #[test]
     fn test_add_get_cluster() {
         let _ = init_cluster_table();
+        let uuid1 = Uuid::new_v4();
+
         let cluster: cluster = cluster {
-            uuid: "8442afdf-24b0-460d-ba11-bda6826b7a03".to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
             status: "ACTIVE".to_string(),
@@ -167,10 +170,10 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_cluster(&cluster.uuid);
+        hard_delete_cluster(&uuid1);
 
         add_cluster(&cluster).unwrap();
-        match get_cluster(&"8442afdf-24b0-460d-ba11-bda6826b7a03".to_string()) {
+        match get_cluster(&uuid1) {
             Ok(retrieved_cluster) => {
                 assert_eq!(retrieved_cluster.uuid, cluster.uuid);
                 assert_eq!(retrieved_cluster.name, cluster.name);
@@ -184,14 +187,17 @@ mod tests {
             Err(_) => {}
         };
 
-        let _ = delete_cluster(&cluster.uuid);
+        let _ = hard_delete_cluster(&uuid1);
     }
 
     #[test]
     fn test_list_clusters() {
         let _ = init_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+
         let cluster1 = cluster {
-            uuid: "8442afdf-24b0-460d-ba11-bda6826b7a03".to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
             status: "ACTIVE".to_string(),
@@ -204,7 +210,7 @@ mod tests {
         };
         
         let cluster2 = cluster {
-            uuid: "b260fbd5-338a-446c-a637-65e809afc2c3".to_string(),
+            uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             template: "asdf".to_string(),
             status: "DELETED".to_string(),
@@ -216,22 +222,24 @@ mod tests {
             deleted_by: None,
         };
         
-        hard_delete_cluster(&cluster1.uuid);
-        hard_delete_cluster(&cluster2.uuid);
+        hard_delete_cluster(&uuid1);
+        hard_delete_cluster(&uuid2);
 
         add_cluster(&cluster1).unwrap();
         add_cluster(&cluster2).unwrap();
         let clusters = list_clusters().unwrap();
         assert_eq!(clusters.len(), 2);
-        let _ = delete_cluster(&cluster1.uuid);
-        let _ = delete_cluster(&cluster2.uuid);
+        let _ = hard_delete_cluster(&uuid1);
+        let _ = hard_delete_cluster(&uuid2);
     }
 
     #[test]
     fn test_delete_cluster() {
         let _ = init_cluster_table();
+        let uuid1 = Uuid::new_v4();
+
         let cluster = cluster {
-            uuid: "b260fbd5-338a-446c-a637-65e809afc2c3".to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
             status: "ACTIVE".to_string(),
@@ -243,11 +251,11 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_cluster(&cluster.uuid);
+        hard_delete_cluster(&uuid1);
 
         add_cluster(&cluster).unwrap();
-        let _ = delete_cluster(&"b260fbd5-338a-446c-a637-65e809afc2c3".to_string());
-        let result = get_cluster(&"b260fbd5-338a-446c-a637-65e809afc2c3".to_string());
+        let _ = delete_cluster(&uuid1);
+        let result = get_cluster(&uuid1);
         assert!(result.is_err());
     }
 }

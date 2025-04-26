@@ -155,7 +155,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
 
     // add new dataset to datbase
     let file_path_str: String = target_filepath.to_string_lossy().into();
-    match dataset_table::add_new_dataset(&dataset_uuid.to_string(), &name, &file_path_str, &context.user_id) {
+    match dataset_table::add_new_dataset(&dataset_uuid, &name, &file_path_str, &context.user_id) {
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add dataset with ID '{}' to database.", dataset_uuid);
@@ -165,10 +165,10 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     };
 
     // get new created dataset from database to get addtional information
-    match dataset_table::get_dataset(&dataset_uuid.to_string()) {
+    match dataset_table::get_dataset(&dataset_uuid) {
         Ok(dataset) => {
             let resp = DatasetResp {
-                uuid: dataset.uuid.clone(),
+                uuid: dataset_uuid.clone(),
                 name: dataset.name.clone(),
                 created_by: dataset.created_by.clone(),
                 created_at: dataset.created_at.clone(),

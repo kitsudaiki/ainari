@@ -15,6 +15,7 @@
 use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct DatasetCreateReq {
@@ -24,7 +25,7 @@ pub struct DatasetCreateReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct DatasetResp {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub name: String,
     pub created_at: String,
     pub created_by: String,
@@ -34,7 +35,7 @@ pub struct DatasetResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct DatasetBasicResp {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub name: String,
 }
 

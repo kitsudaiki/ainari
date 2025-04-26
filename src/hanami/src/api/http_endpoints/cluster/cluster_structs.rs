@@ -15,6 +15,7 @@
 use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterCreateReq {
@@ -24,7 +25,7 @@ pub struct ClusterCreateReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterResp {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub name: String,
     pub template: String,
     pub created_at: String,
@@ -35,7 +36,7 @@ pub struct ClusterResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterBasicResp {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub name: String,
 }
 

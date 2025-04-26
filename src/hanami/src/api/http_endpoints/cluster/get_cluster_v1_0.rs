@@ -15,6 +15,7 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::Path;
 use apistos::api_operation;
+use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -31,12 +32,12 @@ use super::cluster_structs::ClusterResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(uuid: Path<String>, context: UserContext) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
+pub async fn get_cluster(uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
     // get new created cluster from database to get addtional information
     match cluster_table::get_cluster(&uuid) {
         Ok(cluster) => {
             let resp = ClusterResp {
-                uuid: cluster.uuid.clone(),
+                uuid: uuid.clone(),
                 name: cluster.name.clone(),
                 template: cluster.template.clone(),
                 created_by: cluster.created_by.clone(),

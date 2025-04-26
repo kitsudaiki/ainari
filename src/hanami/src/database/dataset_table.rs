@@ -72,9 +72,9 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_new_dataset(dataset_uuid: &String, dataset_name: &String, file_path: &String, creator_id: &String) -> QueryResult<usize> {
+pub fn add_new_dataset(dataset_uuid: &Uuid, dataset_name: &String, file_path: &String, creator_id: &String) -> QueryResult<usize> {
     let dataset = dataset{
-        uuid: dataset_uuid.clone(),
+        uuid: dataset_uuid.to_string().clone(),
         name: dataset_name.clone(),
         file_path: file_path.clone(),
         status: "".to_string(),
@@ -101,11 +101,11 @@ pub fn add_dataset(dataset: &dataset) -> QueryResult<usize> {
     diesel::insert_into(datasets).values(new_dataset).execute(&mut *conn)
 }
 
-pub fn get_dataset(dataset_uuid: &String) -> Result<dataset, enums::DbError> {
+pub fn get_dataset(dataset_uuid: &Uuid) -> Result<dataset, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
     match datasets
-        .filter(uuid.eq(dataset_uuid).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(dataset_uuid.to_string()).and(status.eq("ACTIVE")))
         .select(dataset::as_select())
         .first::<dataset>(&mut *conn)
     {
@@ -124,10 +124,10 @@ pub fn list_datasets() -> QueryResult<Vec<dataset>> {
     datasets.filter(status.eq("ACTIVE")).select(dataset::as_select()).load(&mut *conn)
 }
 
-pub fn delete_dataset(dataset_uuid: &String) -> Result<(), enums::DbError> {
+pub fn delete_dataset(dataset_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
-    match diesel::update(datasets.filter(uuid.eq(dataset_uuid)))
+    match diesel::update(datasets.filter(uuid.eq(dataset_uuid.to_string())))
         .set(status.eq("DELETED"))
         .execute(&mut *conn)
     {
@@ -144,17 +144,19 @@ pub fn delete_dataset(dataset_uuid: &String) -> Result<(), enums::DbError> {
 mod tests {
     use super::*;
 
-    fn hard_delete_dataset(dataset_uuid: &String) {
+    fn hard_delete_dataset(dataset_uuid: &Uuid) {
         use self::datasets::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
-        let _ = diesel::delete(datasets.filter(uuid.eq(dataset_uuid))).execute(&mut *conn);
+        let _ = diesel::delete(datasets.filter(uuid.eq(dataset_uuid.to_string()))).execute(&mut *conn);
     }
     
     #[test]
     fn test_add_get_dataset() {
         let _ = init_dataset_table();
+        let uuid1 = Uuid::new_v4();
+
         let dataset: dataset = dataset {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
             status: "ACTIVE".to_string(),
@@ -166,10 +168,10 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&dataset.uuid);
+        hard_delete_dataset(&uuid1);
 
         add_dataset(&dataset).unwrap();
-        match get_dataset(&dataset.uuid) {
+        match get_dataset(&uuid1) {
             Ok(retrieved_dataset) => {
                 assert_eq!(retrieved_dataset.uuid, dataset.uuid);
                 assert_eq!(retrieved_dataset.name, dataset.name);
@@ -183,14 +185,17 @@ mod tests {
             Err(_) => {}
         };
 
-        let _ = delete_dataset(&dataset.uuid);
+        let _ = hard_delete_dataset(&uuid1);
     }
 
     #[test]
     fn test_list_datasets() {
         let _ = init_dataset_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+
         let dataset1 = dataset {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
             status: "ACTIVE".to_string(),
@@ -203,7 +208,7 @@ mod tests {
         };
         
         let dataset2 = dataset {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             file_path: "/tmp/bla".to_string(),
             status: "DELETED".to_string(),
@@ -215,22 +220,24 @@ mod tests {
             deleted_by: None,
         };
         
-        hard_delete_dataset(&dataset1.uuid);
-        hard_delete_dataset(&dataset2.uuid);
+        hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid2);
 
         add_dataset(&dataset1).unwrap();
         add_dataset(&dataset2).unwrap();
         let datasets = list_datasets().unwrap();
         assert_eq!(datasets.len(), 2);
-        let _ = delete_dataset(&dataset1.uuid);
-        let _ = delete_dataset(&dataset2.uuid);
+        let _ = hard_delete_dataset(&uuid1);
+        let _ = hard_delete_dataset(&uuid2);
     }
 
     #[test]
     fn test_delete_dataset() {
         let _ = init_dataset_table();
+        let uuid1 = Uuid::new_v4();
+
         let dataset = dataset {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
             status: "ACTIVE".to_string(),
@@ -242,11 +249,11 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&dataset.uuid);
+        hard_delete_dataset(&uuid1);
 
         add_dataset(&dataset).unwrap();
-        let _ = delete_dataset(&dataset.uuid);
-        let result = get_dataset(&dataset.uuid);
+        let _ = delete_dataset(&uuid1);
+        let result = get_dataset(&uuid1);
         assert!(result.is_err());
     }
 }
