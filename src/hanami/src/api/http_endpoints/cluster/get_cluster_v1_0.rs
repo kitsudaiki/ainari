@@ -34,7 +34,7 @@ use super::cluster_structs::ClusterResp;
 )]
 pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
     // get new created cluster from database to get addtional information
-    match cluster_table::get_cluster(&cluster_uuid) {
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(cluster) => {
             let resp = ClusterResp {
                 uuid: cluster_uuid.clone(),

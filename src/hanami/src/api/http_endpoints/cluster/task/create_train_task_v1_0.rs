@@ -45,7 +45,7 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
     let task_uuid = Uuid::new_v4();
 
     // check if cluster-uuid exist in database
-    let _ = match cluster_table::get_cluster(&cluster_uuid) {
+    let _ = match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(cluster) => cluster,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -73,7 +73,7 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
 
     // prepare inputs for task
     for input in &body.inputs {
-        let dataset = match dataset_table::get_dataset(&input.dataset_uuid) {
+        let dataset = match dataset_table::get_dataset(&input.dataset_uuid, &context) {
             Ok(dataset) => dataset,
             Err(_) => 
             {
@@ -96,7 +96,7 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
 
     // prepare outputs for task
     for output in &body.outputs {
-        let dataset = match dataset_table::get_dataset(&output.dataset_uuid) {
+        let dataset = match dataset_table::get_dataset(&output.dataset_uuid, &context) {
             Ok(dataset) => dataset,
             Err(_) => 
             {
@@ -122,7 +122,7 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
         &task_uuid, 
         &body.name, 
         &body.task_type.to_string(),
-        &context.user_id) 
+        &context) 
     {
         Ok(_) => {},
         Err(_) => {
@@ -146,7 +146,7 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
     cluster_handle.add_task(task);
 
     // get new created task from database to get addtional information
-    let task_data = match task_table::get_task(&task_uuid) {
+    let task_data = match task_table::get_task(&task_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

@@ -35,10 +35,10 @@ use crate::api::token_handling;
     )
 )]
 pub struct UserContext{
-  pub user_id: String,
-  pub project_id: String,
-  pub is_admin: bool,
-  pub is_project_admin: bool,
+    pub user_id: String,
+    pub project_id: String,
+    pub is_admin: bool,
+    pub is_project_admin: bool,
 }
 
 impl FromRequest for UserContext {

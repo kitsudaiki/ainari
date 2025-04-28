@@ -30,7 +30,7 @@ use super::cluster_structs::{ClusterBasicResp, ClusterListResp};
     error_code = 500
 )]
 pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
-    let clusters = cluster_table::list_clusters().unwrap();
+    let clusters = cluster_table::list_clusters(&context).unwrap();
 
     let mut resp = ClusterListResp {
         clusters: Vec::new(),

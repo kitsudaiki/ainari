@@ -34,7 +34,7 @@ use super::task_structs::{TaskResp, TaskType};
     error_code = 500
 )]
 pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
-    let task_data = match task_table::get_task(&task_uuid) {
+    let task_data = match task_table::get_task(&task_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

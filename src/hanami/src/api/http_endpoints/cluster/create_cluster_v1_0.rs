@@ -57,7 +57,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
         &cluster_uuid, 
         &body.name, 
         &body.template, 
-        &context.user_id) 
+        &context) 
     {
         Ok(_) => {},
         Err(_) => {
@@ -68,7 +68,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     };
 
     // get new created cluster from database to get addtional information
-    match cluster_table::get_cluster(&cluster_uuid) {
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(cluster) => {
             let resp = ClusterResp {
                 uuid: cluster_uuid.clone(),
