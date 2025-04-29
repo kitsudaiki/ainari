@@ -12,38 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::NoContent;
+use actix_web::web::Json;
 use apistos::api_operation;
-use actix_web::web::Path;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
-use hanami_common::enums;
+
+use super::project_structs::{ProjectBasicResp, ProjectListResp};
 
 #[api_operation(
     tag = "project",
-    summary = "Delete project",
-    description = r###"Delete a project from the database. This can only be done by an admin."###,
+    summary = "List project",
+    description = r###"List basic information of all project from the database. This can only be done by an admin."###,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
-pub async fn delete_project(id: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>, ErrorResponse> {
     if context.is_admin == false {
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
+    
+    let projects = project_table::list_projects().unwrap();
 
-    // get new created project from database to get addtional information
-    match project_table::delete_project(&id) {
-        Ok(_) => {
-            return Ok(NoContent);
-        },
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        },
-        Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
-        }
+    let mut resp = ProjectListResp {
+        projects: Vec::new(),
     };
+
+    for project in projects {
+        let obj = ProjectBasicResp {
+            id: project.id.clone(),
+            name: project.name.clone(),
+        };
+
+        resp.projects.push(obj); // fill the vector with objects
+    }
+
+    Ok(Json(resp))
 }

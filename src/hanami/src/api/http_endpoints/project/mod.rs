@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod db_handle;
-pub mod user_table;
-pub mod cluster_table;
-pub mod dataset_table;
-pub mod task_table;
-pub mod project_table;
+pub mod create_project_v1_0;
+pub mod list_project_v1_0;
+pub mod get_project_v1_0;
+pub mod delete_project_v1_0;
+mod project_structs;

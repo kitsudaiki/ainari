@@ -23,11 +23,12 @@ use apistos::paths::ExternalDocumentation;
 use std::error::Error;
 use log::{info, debug};
 
-use crate::api::http_endpoints::auth::{renew_token_v1_0, create_token_v1_0};
-use crate::api::http_endpoints::user::{create_user_v1_0, list_user_v1_0, get_user_v1_0, delete_user_v1_0};
-use crate::api::http_endpoints::dataset::create_dataset_v1_0;
-use crate::api::http_endpoints::cluster::{create_cluster_v1_0, list_cluster_v1_0, get_cluster_v1_0, delete_cluster_v1_0};
-use crate::api::http_endpoints::cluster::task::{create_train_task_v1_0, get_task_v1_0, list_task_v1_0};
+use crate::api::http_endpoints::auth::*;
+use crate::api::http_endpoints::user::*;
+use crate::api::http_endpoints::project::*;
+use crate::api::http_endpoints::dataset::*;
+use crate::api::http_endpoints::cluster::*;
+use crate::api::http_endpoints::cluster::task::*;
 use crate::api::middleware::authorization_middleware;
 use crate::config;
 
@@ -39,6 +40,19 @@ fn v1alpha_routes() -> Scope {
                     resource("")
                         .route(put().to(renew_token_v1_0::renew_token))
                         .route(post().to(create_token_v1_0::create_token))
+                )
+        )
+        .service(
+            scope("/projeect")
+                .service(
+                    resource("")
+                        .route(post().to(create_project_v1_0::create_project))
+                        .route(get().to(list_project_v1_0::list_project))
+                )
+                .service(
+                    resource("/{id}")
+                        .route(get().to(get_project_v1_0::get_project))
+                        .route(delete().to(delete_project_v1_0::delete_project))
                 )
         )
         .service(
