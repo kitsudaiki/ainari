@@ -37,7 +37,7 @@ pub async fn get_user(id: Path<String>, context: UserContext) -> Result<Json<Use
     }
 
     // get new created user from database to get addtional information
-    match user_table::get_user(&id) {
+    match user_table::get_user(&id, &context) {
         Ok(user) => {
             let resp = UserResp {
                 id: user.id.clone(),

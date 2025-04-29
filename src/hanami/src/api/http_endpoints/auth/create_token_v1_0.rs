@@ -33,7 +33,7 @@ use super::auth_structs::{UserLoginReq, UserLoginResp};
 pub async fn create_token(body: Json<UserLoginReq>) -> Result<CreatedJson<UserLoginResp>, ErrorResponse> {
     // get user from database
     let user: user_table::User;
-    match user_table::get_user(&body.id) {
+    match user_table::get_auth_user(&body.id) {
         Ok(val) => user = val,
         Err(_) => {
             return Err(ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()));

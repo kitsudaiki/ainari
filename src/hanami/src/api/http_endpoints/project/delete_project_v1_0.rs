@@ -35,7 +35,7 @@ pub async fn delete_project(id: Path<String>, context: UserContext) -> Result<No
     }
 
     // get new created project from database to get addtional information
-    match project_table::delete_project(&id) {
+    match project_table::delete_project(&id, &context) {
         Ok(_) => {
             return Ok(NoContent);
         },

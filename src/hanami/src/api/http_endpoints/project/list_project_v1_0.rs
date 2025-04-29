@@ -33,7 +33,7 @@ pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>,
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
     
-    let projects = project_table::list_projects().unwrap();
+    let projects = project_table::list_projects(&context).unwrap();
 
     let mut resp = ProjectListResp {
         projects: Vec::new(),

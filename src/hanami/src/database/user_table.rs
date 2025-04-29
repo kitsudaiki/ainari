@@ -21,6 +21,8 @@ use std::error::Error;
 use rand::{distr::Alphanumeric, Rng};
 
 use crate::database::db_handle;
+use crate::api::user_context::UserContext;
+
 use hanami_common::functions::sha256_hash;
 use hanami_common::enums;
 
@@ -61,8 +63,15 @@ pub struct User {
     pub deleted_by: Option<String>,
 }
 
-pub fn init_admin() -> Result<(), Box<dyn Error>> {        
-    let users = list_users().unwrap();
+pub fn init_admin() -> Result<(), Box<dyn Error>> {   
+    let fake_admin_context = UserContext {
+        user_id: "HANAMI_INIT".to_string(),
+        project_id: "HANAMI_INIT".to_string(),
+        is_admin: true,
+        is_project_admin: false,
+    };
+
+    let users = list_users(&fake_admin_context).unwrap();
     if users.len() != 0 {
         debug!("Already existing user found, so no new admin will be created.");
         return Ok(());
@@ -97,7 +106,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         },
     }
 
-    add_new_user(&admin_id, &admin_name, &admin_passphrase, true, &"HANAMI_INIT".to_string())?;
+    add_new_user(&admin_id, &admin_name, &admin_passphrase, true, &fake_admin_context)?;
 
     Ok(())
 }
@@ -125,7 +134,7 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     init_admin()
 }
 
-pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, is_admin: bool, creator_id: &String) -> QueryResult<usize> {
+pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, is_admin: bool, context: &UserContext) -> QueryResult<usize> {
     // salt passphrase
     let salt: String = rand::rng()
         .sample_iter(&Alphanumeric)
@@ -144,11 +153,11 @@ pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, i
         is_admin: is_admin,
         pw_hash: pw_hash,
         salt: salt,
-        created_at: "".to_string(),
-        created_by: creator_id.clone(),
-        updated_at: "".to_string(),
-        updated_by: creator_id.clone(),
-        status: "".to_string(),
+        status: "ACTIVE".to_string(),
+        created_at: Utc::now().to_rfc3339(),
+        created_by: context.user_id.clone(),
+        updated_at: Utc::now().to_rfc3339(),
+        updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
@@ -160,15 +169,10 @@ pub fn add_user(user: &User) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
 
-    let mut new_user = user.clone();
-    new_user.created_at = Utc::now().to_rfc3339();
-    new_user.updated_at = Utc::now().to_rfc3339();
-    new_user.status = "ACTIVE".to_string();
-
-    diesel::insert_into(users).values(new_user).execute(&mut *conn)
+    diesel::insert_into(users).values(user).execute(&mut *conn)
 }
 
-pub fn get_user(user_id: &String) -> Result<User, enums::DbError> {
+pub fn get_auth_user(user_id: &String) -> Result<User, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
     match users
@@ -185,13 +189,43 @@ pub fn get_user(user_id: &String) -> Result<User, enums::DbError> {
     }
 }
 
-pub fn list_users() -> QueryResult<Vec<User>> {
+pub fn get_user(user_id: &String, context: &UserContext) -> Result<User, enums::DbError> {
+    if context.is_admin == false {
+        return Err(enums::DbError::NotFound);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::users::dsl::*;
+    match users
+        .filter(id.eq(user_id).and(status.eq("ACTIVE")))
+        .select(User::as_select())
+        .first::<User>(&mut *conn)
+    {
+        Ok(user) => Ok(user),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            error!("Database-error: {}", e);
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+pub fn list_users(context: &UserContext) -> QueryResult<Vec<User>> {
+    if context.is_admin == false {
+        let dummy: QueryResult<Vec<User>> = Ok(vec![]);
+        return dummy;
+    }
+
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
     users.filter(status.eq("ACTIVE")).select(User::as_select()).load(&mut *conn)
 }
 
-pub fn delete_user(user_id: &String) -> Result<(), enums::DbError> {
+pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    if context.is_admin == false {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
     match diesel::update(users.filter(id.eq(user_id)))
@@ -220,8 +254,17 @@ mod tests {
     #[test]
     fn test_add_get_user() {
         let _ = init_user_table();
+        let project_id = "test-project-1".to_string();
+        let owner_id = "test-user-1".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let user: User = User {
-            id: "1".to_string(),
+            id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
             is_admin: true,
@@ -239,7 +282,7 @@ mod tests {
         hard_delete_user(&user.id);
 
         add_user(&user).unwrap();
-        match get_user(&"1".to_string()) {
+        match get_user(&owner_id, &context) {
             Ok(retrieved_user) => {
                 assert_eq!(retrieved_user.id, user.id);
                 assert_eq!(retrieved_user.name, user.name);
@@ -256,14 +299,24 @@ mod tests {
             Err(_) => {}
         };
 
-        let _ = delete_user(&user.id);
+        let _ = delete_user(&user.id, &context);
     }
 
     #[test]
     fn test_list_users() {
         let _ = init_user_table();
+        let project_id = "test-project-1".to_string();
+        let owner_id1 = "test-user-2".to_string();
+        let owner_id2 = "test-user-3".to_string();
+        let context = UserContext {
+            user_id: owner_id1.clone(),
+            project_id: project_id.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let user1 = User {
-            id: "2".to_string(),
+            id: owner_id1.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
             is_admin: true,
@@ -279,7 +332,7 @@ mod tests {
         };
         
         let user2 = User {
-            id: "3".to_string(),
+            id: owner_id2.clone(),
             name: "Bob".to_string(),
             projects: "ProjectB".to_string(),
             is_admin: false,
@@ -299,17 +352,28 @@ mod tests {
 
         add_user(&user1).unwrap();
         add_user(&user2).unwrap();
-        let users = list_users().unwrap();
-        assert_eq!(users.len(), 2);
-        let _ = delete_user(&user1.id);
-        let _ = delete_user(&user2.id);
+
+        let users = list_users(&context).unwrap();
+        assert_eq!(users.len(), 1);
+
+        let _ = delete_user(&user1.id, &context);
+        let _ = delete_user(&user2.id, &context);
     }
 
     #[test]
     fn test_delete_user() {
         let _ = init_user_table();
+        let project_id = "test-project-1".to_string();
+        let owner_id = "test-user-4".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let user = User {
-            id: "4".to_string(),
+            id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
             is_admin: true,
@@ -327,8 +391,8 @@ mod tests {
         hard_delete_user(&user.id);
 
         add_user(&user).unwrap();
-        let _ = delete_user(&"4".to_string());
-        let result = get_user(&"4".to_string());
+        let _ = delete_user(&owner_id, &context);
+        let result = get_user(&owner_id, &context);
         assert!(result.is_err());
     }
 }

@@ -21,6 +21,8 @@ use std::error::Error;
 use rand::{distr::Alphanumeric, Rng};
 
 use crate::database::db_handle;
+use crate::api::user_context::UserContext;
+
 use hanami_common::functions::sha256_hash;
 use hanami_common::enums;
 
@@ -66,19 +68,20 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
     );")?;
-    
+
     Ok(())
 }
 
-pub fn add_new_project(project_id: &String, project_name: &String, creator_id: &String) -> QueryResult<usize> {
+pub fn add_new_project(project_id: &String, project_name: &String, context: &UserContext) -> QueryResult<usize> {
+    
     let project = Project{
         id: project_id.clone(),
         name: project_name.clone(),
-        created_at: "".to_string(),
-        created_by: creator_id.clone(),
-        updated_at: "".to_string(),
-        updated_by: creator_id.clone(),
-        status: "".to_string(),
+        status: "ACTIVE".to_string(),
+        created_at: Utc::now().to_rfc3339(),
+        created_by: context.user_id.clone(),
+        updated_at: Utc::now().to_rfc3339(),
+        updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
@@ -90,15 +93,14 @@ pub fn add_project(project: &Project) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
 
-    let mut new_project = project.clone();
-    new_project.created_at = Utc::now().to_rfc3339();
-    new_project.updated_at = Utc::now().to_rfc3339();
-    new_project.status = "ACTIVE".to_string();
-
-    diesel::insert_into(projects).values(new_project).execute(&mut *conn)
+    diesel::insert_into(projects).values(project).execute(&mut *conn)
 }
 
-pub fn get_project(project_id: &String) -> Result<Project, enums::DbError> {
+pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project, enums::DbError> {
+    if context.is_admin == false {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
     match projects
@@ -115,13 +117,22 @@ pub fn get_project(project_id: &String) -> Result<Project, enums::DbError> {
     }
 }
 
-pub fn list_projects() -> QueryResult<Vec<Project>> {
+pub fn list_projects(context: &UserContext) -> QueryResult<Vec<Project>> {  
+    if context.is_admin == false {
+        let dummy: QueryResult<Vec<Project>> = Ok(vec![]);
+        return dummy;
+    }
+
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
     projects.filter(status.eq("ACTIVE")).select(Project::as_select()).load(&mut *conn)
 }
 
-pub fn delete_project(project_id: &String) -> Result<(), enums::DbError> {
+pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    if context.is_admin == false {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
     match diesel::update(projects.filter(id.eq(project_id)))
@@ -150,8 +161,17 @@ mod tests {
     #[test]
     fn test_add_get_project() {
         let _ = init_project_table();
+        let project_id = "test-project-1".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let project: Project = Project {
-            id: "1".to_string(),
+            id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -165,7 +185,7 @@ mod tests {
         hard_delete_project(&project.id);
 
         add_project(&project).unwrap();
-        match get_project(&"1".to_string()) {
+        match get_project(&project_id, &context) {
             Ok(retrieved_project) => {
                 assert_eq!(retrieved_project.id, project.id);
                 assert_eq!(retrieved_project.name, project.name);
@@ -178,14 +198,24 @@ mod tests {
             Err(_) => {}
         };
 
-        let _ = delete_project(&project.id);
+        let _ = delete_project(&project.id, &context);
     }
 
     #[test]
     fn test_list_projects() {
         let _ = init_project_table();
+        let project_id1 = "test-project-2".to_string();
+        let project_id2 = "test-project-3".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id1.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let project1 = Project {
-            id: "2".to_string(),
+            id: project_id1.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -197,7 +227,7 @@ mod tests {
         };
         
         let project2 = Project {
-            id: "3".to_string(),
+            id: project_id2.clone(),
             name: "Bob".to_string(),
             status: "DELETED".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -213,17 +243,28 @@ mod tests {
 
         add_project(&project1).unwrap();
         add_project(&project2).unwrap();
-        let projects = list_projects().unwrap();
-        assert_eq!(projects.len(), 2);
-        let _ = delete_project(&project1.id);
-        let _ = delete_project(&project2.id);
+
+        let projects = list_projects(&context).unwrap();
+        assert_eq!(projects.len(), 1);
+
+        let _ = delete_project(&project1.id, &context);
+        let _ = delete_project(&project2.id, &context);
     }
 
     #[test]
     fn test_delete_project() {
         let _ = init_project_table();
+        let project_id = "test-project-5".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: true,
+            is_project_admin: false,
+        };
+
         let project = Project {
-            id: "4".to_string(),
+            id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -237,8 +278,8 @@ mod tests {
         hard_delete_project(&project.id);
 
         add_project(&project).unwrap();
-        let _ = delete_project(&"4".to_string());
-        let result = get_project(&"4".to_string());
+        let _ = delete_project(&project_id, &context);
+        let result = get_project(&project_id, &context);
         assert!(result.is_err());
     }
 }

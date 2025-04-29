@@ -38,7 +38,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     }   
 
     // check if user already exist within the database
-    match user_table::get_user(&body.id) {
+    match user_table::get_user(&body.id, &context) {
         Ok(_) => {
             let msg = format!("User with ID '{}' already exist.", body.id);
             return Err(ErrorResponse::Conflict(msg));
@@ -52,7 +52,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     };
 
     // add new user to datbase
-    match user_table::add_new_user(&body.id, &body.name, &body.passphrase, body.is_admin, &context.user_id) {
+    match user_table::add_new_user(&body.id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add user with ID '{}' to database.", body.id);
@@ -62,7 +62,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     };
 
     // get new created user from database to get addtional information
-    match user_table::get_user(&body.id) {
+    match user_table::get_user(&body.id, &context) {
         Ok(user) => {
             let resp = UserResp {
                 id: user.id.clone(),

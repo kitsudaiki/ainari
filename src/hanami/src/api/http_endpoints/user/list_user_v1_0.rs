@@ -33,7 +33,7 @@ pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, Error
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
     
-    let users = user_table::list_users().unwrap();
+    let users = user_table::list_users(&context).unwrap();
 
     let mut resp = UserListResp {
         users: Vec::new(),

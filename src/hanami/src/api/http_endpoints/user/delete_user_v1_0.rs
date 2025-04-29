@@ -35,7 +35,7 @@ pub async fn delete_user(id: Path<String>, context: UserContext) -> Result<NoCon
     }
 
     // get new created user from database to get addtional information
-    match user_table::delete_user(&id) {
+    match user_table::delete_user(&id, &context) {
         Ok(_) => {
             return Ok(NoContent);
         },

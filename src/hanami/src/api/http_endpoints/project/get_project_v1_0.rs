@@ -37,7 +37,7 @@ pub async fn get_project(id: Path<String>, context: UserContext) -> Result<Json<
     }
 
     // get new created project from database to get addtional information
-    match project_table::get_project(&id) {
+    match project_table::get_project(&id, &context) {
         Ok(project) => {
             let resp = ProjectResp {
                 id: project.id.clone(),
