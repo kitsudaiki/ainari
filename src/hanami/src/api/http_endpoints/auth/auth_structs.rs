@@ -17,12 +17,19 @@ use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct UserLoginReq {
-    pub id: String,
-    pub passphrase: String,
+pub struct UserTokenResp {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct UserLoginResp {
-    pub token: String,
+#[derive(Debug, Deserialize)]
+pub struct OAuth2Request {
+    pub token_format: String,
+    pub grant_type: String,
+    pub client_id: String,
+    pub client_secret: String,
+    // pub username: Option<String>,
+    // pub password: Option<String>,
+    // pub scope: Option<String>,
 }

@@ -19,7 +19,7 @@ use crate::api::token_handling;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 
-use super::auth_structs::UserLoginResp;
+use super::auth_structs::UserTokenResp;
 
 #[api_operation(
     tag = "auth",
@@ -28,23 +28,24 @@ use super::auth_structs::UserLoginResp;
     error_code = 401,
     error_code = 500
 )]
-pub async fn renew_token(context: UserContext) -> Result<CreatedJson<UserLoginResp>, ErrorResponse> {
-    // create token based for the user
-    match token_handling::create_token(
+pub async fn renew_token(context: UserContext) -> Result<CreatedJson<UserTokenResp>, ErrorResponse> {
+    let token = match token_handling::create_token(
         &context.user_id, 
         &context.project_id, 
         context.is_admin, 
         context.is_project_admin)
     {
-        Ok(token) => {
-            let response = UserLoginResp{
-                token: token,
-            };
-        
-            return Ok(CreatedJson(response));
-        },
+        Ok(token) => token,
         Err(_) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
-    }
+    };
+
+    let response = UserTokenResp{
+        access_token: token,
+        token_type: "bearer".to_string(),
+        expires: 3600,
+    };
+
+    return Ok(CreatedJson(response));
 }

@@ -19,6 +19,7 @@ apistos = { version = "0.5", features = ["extras"] }
 # json
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_urlencoded = "0.7"
 # jwt-token
 jsonwebtoken = "9"
 # config-file

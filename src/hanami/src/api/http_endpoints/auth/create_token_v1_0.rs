@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Json;
-use apistos::actix::CreatedJson;
+use actix_web::{post, web, App, HttpServer, Responder, HttpResponse};
 use apistos::api_operation;
+use actix_web::web::Json;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
 use crate::database::user_table;
+
 use hanami_common::functions::sha256_hash;
 
-use super::auth_structs::{UserLoginReq, UserLoginResp};
+use super::auth_structs::{OAuth2Request, UserTokenResp};
 
 #[api_operation(
     tag = "auth",
@@ -30,10 +31,30 @@ use super::auth_structs::{UserLoginReq, UserLoginResp};
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_token(body: Json<UserLoginReq>) -> Result<CreatedJson<UserLoginResp>, ErrorResponse> {
+pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResponse> {
+    let parsed = match parse_oauth2_body(body.as_str()) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            let msg = format!("Failed to parse body: {}", err);
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+    };
+
+    // get and check token-format
+    if parsed.token_format != "jwt" {
+        let msg = format!("Token-format '{}' is not supported. Supported formats: [ jwt ]", parsed.token_format);
+        return Err(ErrorResponse::BadRequest(msg));
+    }
+
+    // get and check grant-type
+    if parsed.grant_type != "client_credentials" {
+        let msg = format!("Grant-type '{}' is not supported. Supported types: [ client_credentials ]", parsed.token_format);
+        return Err(ErrorResponse::BadRequest(msg));
+    }
+
     // get user from database
     let user: user_table::User;
-    match user_table::get_auth_user(&body.id) {
+    match user_table::get_auth_user(&parsed.client_id) {
         Ok(val) => user = val,
         Err(_) => {
             return Err(ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()));
@@ -41,28 +62,34 @@ pub async fn create_token(body: Json<UserLoginReq>) -> Result<CreatedJson<UserLo
     }
 
     // check passphrase
-    let salted_passphrase = format!("{}{}", body.passphrase, user.salt);
+    let salted_passphrase = format!("{}{}", &parsed.client_secret, user.salt);
     let pw_hash = sha256_hash(salted_passphrase.as_str());
     if pw_hash != user.pw_hash {
         return Err(ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()));
     }
 
     // create token based for the user
-    match token_handling::create_token(
+    let token = match token_handling::create_token(
         &user.id, 
         &"".to_string(), 
         user.is_admin, 
         false)
     {
-        Ok(token) => {
-            let response = UserLoginResp{
-                token: token,
-            };
-        
-            return Ok(CreatedJson(response));
-        },
+        Ok(token) => token,
         Err(_) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
-    }
+    };
+
+    let response = UserTokenResp{
+        access_token: token,
+        token_type: "bearer".to_string(),
+        expires: 3600,
+    };
+
+    return Ok(Json(response));
+}
+
+fn parse_oauth2_body(body: &str) -> Result<OAuth2Request, serde_urlencoded::de::Error> {
+    serde_urlencoded::from_str(body)
 }

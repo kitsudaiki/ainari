@@ -32,7 +32,7 @@ use std::fmt::{Debug, Display, Formatter};
   status(code = 410, description = "Gone"),
   status(code = 412, description = "Precondition failed"),
   status(code = 413, description = "Payload too large"),
-  status(code = 500, description = "Invalid input")
+  status(code = 500, description = "Internal error")
 )]
 pub enum ErrorResponse {
     BadRequest(String),
