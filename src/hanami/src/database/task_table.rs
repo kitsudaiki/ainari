@@ -253,8 +253,8 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             task_type: "Train-Task".to_string(),
-            owner_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            owner_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
             updated_at: "2025-03-31".to_string(),
@@ -265,8 +265,8 @@ mod tests {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             task_type: "Train-Task".to_string(),
-            owner_id: "test-user-2".to_string(),
-            project_id: "test-project-1".to_string(),
+            owner_id: "test-user-43".to_string(),
+            project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
             updated_at: "2025-03-31".to_string(),
@@ -277,8 +277,8 @@ mod tests {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             task_type: "Train-Task".to_string(),
-            owner_id: "test-user-3".to_string(),
-            project_id: "test-project-2".to_string(),
+            owner_id: "test-user-44".to_string(),
+            project_id: "test_permissions_2".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
             updated_at: "2025-03-31".to_string(),
@@ -295,8 +295,8 @@ mod tests {
 
         // list-test normal user
         let context = UserContext {
-            user_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            user_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             is_admin: false,
             is_project_admin: false,
         };
@@ -305,8 +305,8 @@ mod tests {
 
         // list-test project-admin
         let context = UserContext {
-            user_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            user_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             is_admin: false,
             is_project_admin: true,
         };
@@ -315,8 +315,8 @@ mod tests {
 
         // list-test admin
         let context = UserContext {
-            user_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            user_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             is_admin: true,
             is_project_admin: false,
         };
@@ -325,8 +325,8 @@ mod tests {
 
         // get-test normal user
         let context = UserContext {
-            user_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            user_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             is_admin: false,
             is_project_admin: false,
         };
@@ -341,8 +341,8 @@ mod tests {
 
         // get-test normal user false uuid
         let context = UserContext {
-            user_id: "test-user-1".to_string(),
-            project_id: "test-project-1".to_string(),
+            user_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
             is_admin: false,
             is_project_admin: false,
         };
