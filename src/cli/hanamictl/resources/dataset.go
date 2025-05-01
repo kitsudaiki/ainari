@@ -38,71 +38,53 @@ var (
 	referenceDatasetUuid string
 )
 
-var datasetHeader = []string{
-	"uuid",
-	"name",
-	"version",
-	"number_of_columns",
-	"number_of_rows",
-	"description",
-	"task_uuid",
-	"visibility",
-	"owner_id",
-	"project_id",
-	"created_at",
-}
+// var createMnistDatasetCmd = &cobra.Command{
+// 	Use:   "mnist -i INPUT_FILE_PATH -l LABEL_FILE_PATH DATASET_NAME",
+// 	Short: "Upload new mnist dataset.",
+// 	Args:  cobra.ExactArgs(1),
+// 	Run: func(cmd *cobra.Command, args []string) {
+// 		token := Login()
+// 		address := os.Getenv("HANAMI_ADDRESS")
+// 		datasetName := args[0]
+// 		uuid, err := hanami_sdk.UploadMnistFiles(address, token, datasetName, inputFilePath, labelFilePath, hanamictl_common.DisableTlsVerification)
+// 		if err != nil {
+// 			fmt.Println(err)
+// 			os.Exit(1)
+// 		}
 
-var datasetCheckHeader = []string{
-	"accuracy",
-}
+// 		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
+// 		if err == nil {
+// 			hanamictl_common.PrintSingle(content)
+// 		} else {
+// 			fmt.Println(err)
+// 			os.Exit(1)
+// 		}
+// 	},
+// }
 
-var createMnistDatasetCmd = &cobra.Command{
-	Use:   "mnist -i INPUT_FILE_PATH -l LABEL_FILE_PATH DATASET_NAME",
-	Short: "Upload new mnist dataset.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		datasetName := args[0]
-		uuid, err := hanami_sdk.UploadMnistFiles(address, token, datasetName, inputFilePath, labelFilePath, hanamictl_common.DisableTlsVerification)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+// var createCsvDatasetCmd = &cobra.Command{
+// 	Use:   "csv -i INPUT_FILE_PATH DATASET_NAME",
+// 	Short: "Upload new csv dataset.",
+// 	Args:  cobra.ExactArgs(1),
+// 	Run: func(cmd *cobra.Command, args []string) {
+// 		token := Login()
+// 		address := os.Getenv("HANAMI_ADDRESS")
+// 		datasetName := args[0]
+// 		uuid, err := hanami_sdk.UploadCsvFiles(address, token, datasetName, inputFilePath, hanamictl_common.DisableTlsVerification)
+// 		if err != nil {
+// 			fmt.Println(err)
+// 			os.Exit(1)
+// 		}
 
-		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
-		if err == nil {
-			hanamictl_common.PrintSingle(content, datasetHeader)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var createCsvDatasetCmd = &cobra.Command{
-	Use:   "csv -i INPUT_FILE_PATH DATASET_NAME",
-	Short: "Upload new csv dataset.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		datasetName := args[0]
-		uuid, err := hanami_sdk.UploadCsvFiles(address, token, datasetName, inputFilePath, hanamictl_common.DisableTlsVerification)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
-		if err == nil {
-			hanamictl_common.PrintSingle(content, datasetHeader)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
+// 		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
+// 		if err == nil {
+// 			hanamictl_common.PrintSingle(content)
+// 		} else {
+// 			fmt.Println(err)
+// 			os.Exit(1)
+// 		}
+// 	},
+// }
 
 var checkDatasetCmd = &cobra.Command{
 	Use:   "check -r REFERENCE_DATASET_UUID DATASET_UUID",
@@ -114,7 +96,7 @@ var checkDatasetCmd = &cobra.Command{
 		datasetUuid := args[0]
 		content, err := hanami_sdk.CheckDataset(address, token, datasetUuid, referenceDatasetUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintSingle(content, datasetCheckHeader)
+			hanamictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -132,7 +114,7 @@ var getDatasetCmd = &cobra.Command{
 		datasetUuid := args[0]
 		content, err := hanami_sdk.GetDataset(address, token, datasetUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintSingle(content, datasetHeader)
+			hanamictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -148,7 +130,7 @@ var listDatasetCmd = &cobra.Command{
 		address := os.Getenv("HANAMI_ADDRESS")
 		content, err := hanami_sdk.ListDataset(address, token, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintList(content, datasetHeader)
+			hanamictl_common.PrintList(content["datasets"].([]interface{}))
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -206,17 +188,17 @@ var createDatasetCmd = &cobra.Command{
 func Init_Dataset_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(datasetCmd)
 
-	datasetCmd.AddCommand(createDatasetCmd)
+	// datasetCmd.AddCommand(createDatasetCmd)
 
-	createDatasetCmd.AddCommand(createMnistDatasetCmd)
-	createMnistDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	createMnistDatasetCmd.Flags().StringVarP(&labelFilePath, "label", "l", "", "Path to file with label-data (mandatory)")
-	createMnistDatasetCmd.MarkFlagRequired("input")
-	createMnistDatasetCmd.MarkFlagRequired("label")
+	// createDatasetCmd.AddCommand(createMnistDatasetCmd)
+	// createMnistDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
+	// createMnistDatasetCmd.Flags().StringVarP(&labelFilePath, "label", "l", "", "Path to file with label-data (mandatory)")
+	// createMnistDatasetCmd.MarkFlagRequired("input")
+	// createMnistDatasetCmd.MarkFlagRequired("label")
 
-	createDatasetCmd.AddCommand(createCsvDatasetCmd)
-	createCsvDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	createCsvDatasetCmd.MarkFlagRequired("input")
+	// createDatasetCmd.AddCommand(createCsvDatasetCmd)
+	// createCsvDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
+	// createCsvDatasetCmd.MarkFlagRequired("input")
 
 	datasetCmd.AddCommand(checkDatasetCmd)
 	checkDatasetCmd.Flags().StringVarP(&referenceDatasetUuid, "reference", "r", "", "UUID of the dataset, which works as reference (mandatory)")

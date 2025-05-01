@@ -42,7 +42,7 @@ func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs [
         outputArray = append(outputArray, output)
     }
 
-	path := "v1.0alpha/task/train"
+	path := "v1alpha/task/train"
 	jsonBody := map[string]interface{}{
 		"name":         name,
 		"cluster_uuid": clusterUuid,
@@ -64,7 +64,7 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
         resultArray = append(resultArray, result)
     }
 
-	path := "v1.0alpha/task/request"
+	path := "v1alpha/task/request"
 	jsonBody := map[string]interface{}{
 		"name":         name,
 		"cluster_uuid": clusterUuid,
@@ -76,7 +76,7 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
 }
 
 func GetTask(address, token, taskId, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task"
+	path := "v1alpha/task"
 	vars := map[string]interface{}{
 		"uuid":         taskId,
 		"cluster_uuid": clusterUuid,
@@ -85,13 +85,13 @@ func GetTask(address, token, taskId, clusterUuid string, skipTlsVerification boo
 }
 
 func ListTask(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task/all"
+	path := "v1alpha/task/all"
 	vars := map[string]interface{}{"cluster_uuid": clusterUuid}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task"
+	path := "v1alpha/task"
 	vars := map[string]interface{}{
 		"uuid":         taskUuid,
 		"cluster_uuid": clusterUuid,

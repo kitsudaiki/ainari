@@ -21,7 +21,7 @@
 package hanami_sdk
 
 func CreateProject(address, token, projectId, projectName string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/project"
+	path := "v1alpha/project"
 	jsonBody := map[string]interface{}{
 		"id":   projectId,
 		"name": projectName,
@@ -30,19 +30,19 @@ func CreateProject(address, token, projectId, projectName string, skipTlsVerific
 }
 
 func GetProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/project"
+	path := "v1alpha/project"
 	vars := map[string]interface{}{"id": projectId}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListProject(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/project/all"
+	path := "v1alpha/project/all"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/project"
+	path := "v1alpha/project"
 	vars := map[string]interface{}{"id": projectId}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }

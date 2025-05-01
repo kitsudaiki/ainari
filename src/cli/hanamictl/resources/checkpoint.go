@@ -29,15 +29,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var checkpointHeader = []string{
-	"uuid",
-	"name",
-	"visibility",
-	"owner_id",
-	"project_id",
-	"created_at",
-}
-
 var getCheckpointCmd = &cobra.Command{
 	Use:   "get CHECKPOINT_UUID",
 	Short: "Get information of a specific checkpoint.",
@@ -51,7 +42,7 @@ var getCheckpointCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, checkpointHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -66,7 +57,7 @@ var listCheckpointCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintList(content, checkpointHeader)
+		hanamictl_common.PrintList(content["checkpoints"].([]interface{}))
 	},
 }
 

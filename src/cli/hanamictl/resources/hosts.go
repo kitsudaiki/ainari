@@ -42,7 +42,7 @@ var listHostsCmd = &cobra.Command{
 		address := os.Getenv("HANAMI_ADDRESS")
 		content, err := hanami_sdk.ListHosts(address, token, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintList(content, hostHeader)
+			hanamictl_common.PrintList(content["hosts"].([]interface{}))
 		} else {
 			fmt.Println(err)
 			os.Exit(1)

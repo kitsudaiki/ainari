@@ -38,16 +38,6 @@ var (
 	timeLength  int
 )
 
-var taskHeader = []string{
-	"uuid",
-	"state",
-	"current_cycle",
-	"total_number_of_cycles",
-	"queue_timestamp",
-	"start_timestamp",
-	"end_timestamp",
-}
-
 func convertTaskIO(input []string) ([]hanami_sdk.TaskInput, error) {
 	ret := []hanami_sdk.TaskInput{}
 
@@ -134,7 +124,7 @@ var createTrainTaskCmd = &cobra.Command{
 		}
 		content, err := hanami_sdk.CreateTrainTask(address, token, taskName, clusterUuid, taskInput, taskOutput, timeLength, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintSingle(content, taskHeader)
+			hanamictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -162,7 +152,7 @@ var createRequestTaskCmd = &cobra.Command{
 		}
 		content, err := hanami_sdk.CreateRequestTask(address, token, taskName, clusterUuid, taskInput, taskOutput, timeLength, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintSingle(content, taskHeader)
+			hanamictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -180,7 +170,7 @@ var getTaskCmd = &cobra.Command{
 		taskId := args[0]
 		content, err := hanami_sdk.GetTask(address, token, taskId, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintSingle(content, taskHeader)
+			hanamictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -196,7 +186,7 @@ var listTaskCmd = &cobra.Command{
 		address := os.Getenv("HANAMI_ADDRESS")
 		content, err := hanami_sdk.ListTask(address, token, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
-			hanamictl_common.PrintList(content, taskHeader)
+			hanamictl_common.PrintList(content["tasks"].([]interface{}))
 		} else {
 			fmt.Println(err)
 			os.Exit(1)

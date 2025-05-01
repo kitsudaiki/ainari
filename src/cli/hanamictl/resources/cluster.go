@@ -35,35 +35,6 @@ var (
 	checkpointUuid string
 )
 
-var clusterHeader = []string{
-	"uuid",
-	"name",
-	"visibility",
-	"owner_id",
-	"project_id",
-	"created_at",
-}
-
-var clusterGetHeader = []string{
-	"uuid",
-	"name",
-	"visibility",
-	"owner_id",
-	"number_of_blocks",
-	"number_of_sections",
-	"project_id",
-	"created_at",
-}
-
-var clusterSaveHeader = []string{
-	"uuid",
-	"name",
-}
-
-var clusterRestoreHeader = []string{
-	"uuid",
-}
-
 var createClusterCmd = &cobra.Command{
 	Use:   "create -t TEMPLATE_PATH NAME",
 	Short: "Create a new cluster.",
@@ -82,7 +53,7 @@ var createClusterCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, clusterHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -99,7 +70,7 @@ var getClusterCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, clusterGetHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -114,7 +85,7 @@ var listClusterCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintList(content, clusterHeader)
+		hanamictl_common.PrintList(content["clusters"].([]interface{}))
 	},
 }
 
@@ -148,7 +119,7 @@ var saveClusterCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, clusterSaveHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -165,7 +136,7 @@ var restoreClusterCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, clusterRestoreHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 

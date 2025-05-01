@@ -74,6 +74,55 @@ func prepareVars(vars map[string]interface{}) string {
 	return ""
 }
 
+func sendAuthRequest(address, path string, body string, skipTlsVerification bool) (map[string]interface{}, error) {
+	outputMap := map[string]interface{}{}
+
+	// check if https or not
+	if strings.Contains(address, "https") {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
+	}
+
+	// build uri
+	var reqBody = strings.NewReader(body)
+	completePath := fmt.Sprintf("%s/%s", address, path)
+	// fmt.Println("completePath: " + completePath)
+	// fmt.Println("request-body: " + jsonDataStr)
+	req, err := http.NewRequest("POST", completePath, reqBody)
+	if err != nil {
+		return outputMap, err
+	}
+
+	// run request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return outputMap, err
+	}
+	defer resp.Body.Close()
+
+	// read data from response and convert into string
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return outputMap, err
+	}
+	bodyString := string(bodyBytes)
+	//fmt.Printf("bodyString: " + bodyString + "\n")
+
+	if resp.StatusCode != http.StatusOK {
+		return outputMap, &RequestError{
+			StatusCode: resp.StatusCode,
+			Err:        bodyString,
+		}
+	}
+
+	// parse result
+	err = json.Unmarshal([]byte(bodyString), &outputMap)
+	if err != nil {
+		return outputMap, err
+	}
+
+	return outputMap, nil
+}
+
 func sendGenericRequest(address, token, requestType, path string, jsonBody *map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
 	jsonDataStr := ""
@@ -101,9 +150,8 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	}
 
 	// add token to header
-	if token != "" {
-		req.Header.Set("X-Auth-Token", token)
-	}
+	var bearer_token = fmt.Sprintf("Bearer %s", token)
+	req.Header.Set("Authorization",  bearer_token)
 
 	// run request
 	resp, err := http.DefaultClient.Do(req)
@@ -119,7 +167,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	}
 	bodyString := string(bodyBytes)
 
-	//fmt.Printf("bodyString: " + bodyString + "\n")
+	fmt.Printf("bodyString: " + bodyString + "\n")
 	if resp.StatusCode != http.StatusOK {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,

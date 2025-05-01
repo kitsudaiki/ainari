@@ -39,15 +39,6 @@ var (
 	isAdmin    bool
 )
 
-var userHeader = []string{
-	"id",
-	"name",
-	"is_admin",
-	"projects",
-	"creator_id",
-	"created_at",
-}
-
 var createUserCmd = &cobra.Command{
 	Use:   "create USER_ID",
 	Short: "Create a new user.",
@@ -90,7 +81,7 @@ var createUserCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, userHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -107,7 +98,7 @@ var getUserCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintSingle(content, userHeader)
+		hanamictl_common.PrintSingle(content)
 	},
 }
 
@@ -122,7 +113,7 @@ var listUserCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		hanamictl_common.PrintList(content, userHeader)
+		hanamictl_common.PrintList(content["users"].([]interface{}))
 	},
 }
 
