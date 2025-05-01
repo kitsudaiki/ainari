@@ -28,22 +28,22 @@ use crate::database::task_table;
 use crate::database::dataset_table;
 
 use hanami_core::cluster_handler;
-use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, TrainInfo};
+use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, RequestInfo};
 use hanami_common::enums;
-use hanami_dataset::dataset_io::read_data_set_file;
+use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
 
 use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
 
 #[api_operation(
     tag = "task",
-    summary = "Create new train-task",
-    description = r###"Create new train-task for a cluster"###,
+    summary = "Create new request-task",
+    description = r###"Create new request-task for a cluster"###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::TrainTask;
+    let task_type = TaskType::RequestTask;
 
     // check if cluster-uuid exist in database
     let _ = match cluster_table::get_cluster(&cluster_uuid, &context) {
@@ -64,9 +64,9 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
     };
 
     // prepare task-info
-    let mut info = TrainInfo {
+    let mut info = RequestInfo {
         inputs: HashMap::new(),
-        outputs: HashMap::new(),
+        results: HashMap::new(),
         number_of_cycles: 60000,
         current_cycle: 0,
         time_length: 1,
@@ -81,7 +81,9 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
             }
         };
 
-        match read_data_set_file(&PathBuf::from(dataset.file_path)) {
+        let file_path = dataset.file_path;
+
+        match read_data_set_file(&PathBuf::from(file_path)) {
             Ok(file_handle) => {
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             },
@@ -93,17 +95,38 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
 
     // prepare outputs for task
     for output in &body.outputs {
-        let dataset = match dataset_table::get_dataset(&output.dataset_uuid, &context) {
-            Ok(dataset) => dataset,
+        let result_uuid = Uuid::new_v4();
+        let upload_dir_path = "./uploads";
+        let upload_dir = PathBuf::from(&upload_dir_path);
+        let target_filepath: PathBuf = upload_dir.join(&result_uuid.to_string());
+        let description = "".to_string();
+        let columns: HashMap<String, Column> = HashMap::new();
+        let name = "poi".to_string();
+        let row_size: u64 = 0;
+
+        // add new dataset to datbase
+        let file_path_str: String = target_filepath.to_string_lossy().into();
+        match dataset_table::add_new_dataset(&result_uuid, &name, &file_path_str, &context) {
+            Ok(_) => {},
             Err(_) => {
+                let msg = format!("Failed to add dataset with ID '{}' to database.", result_uuid);
+                error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
 
-        match read_data_set_file(&PathBuf::from(dataset.file_path)) {
+        match init_new_data_set_file(
+            &PathBuf::from(target_filepath), 
+            result_uuid,
+            name,
+            description,
+            row_size,
+            columns,
+            DataSetType::FloatType) 
+        {
             Ok(file_handle) => {
-                info.outputs.insert(output.hexagon.clone(), file_handle);
-            }
+                info.results.insert(output.hexagon.clone(), file_handle);
+            },
             Err(_) => {
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
@@ -128,12 +151,14 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: InternalTaskType::TrainTask,
+        task_type: InternalTaskType::RequestTask,
         name: body.name.clone(),
         userId: context.user_id.clone(),
         projectId: context.project_id.clone(),
-        info: TaskVariant::Training(info),
+        info: TaskVariant::Request(info),
     };
+
+    // add task to task-queue of the cluster
     cluster_handle.add_task(task);
 
     // get new created task from database to get addtional information

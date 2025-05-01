@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod create_train_task_v1_0;
+pub mod create_request_task_v1_0;
 pub mod get_task_v1_0;
 pub mod list_task_v1_0;
 pub mod task_structs;

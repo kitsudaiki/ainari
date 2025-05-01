@@ -20,10 +20,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
 use std::io::{Read, Seek, BufWriter, BufReader};
+use std::error::Error;
+
+use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
 
 use crate::task_queue::{TaskQueue, init_task_queue};
-use crate::tasks::{Task, InternalTaskType};
-use crate::tasks::TaskVariant;
+use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo};
 
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
@@ -40,49 +42,114 @@ pub struct ClusterLinkHanle {
     pub cluster_link: UniquePtr<ffi::ClusterLink>, 
 }
 
+fn get_values(hexagon_name: &String, file_handle: &mut DataSetFileReadHandle_v1_0, cycle_count: &u64) -> Result<(*mut f32, usize), String> {
+    let col_get = match file_handle.header.columns.get(hexagon_name) {
+        Some(col) => col,
+        _ => {
+            error!("Column with name '{}' not found in dataset.", hexagon_name);
+            return Err("".to_string());
+        }
+    };
+
+    let size_input = (col_get.end - col_get.start) as usize;
+    let mut offset_bytes = (file_handle.header.row_size) * 4 * cycle_count;
+    offset_bytes += col_get.start * 4;
+
+    let mut input_read = vec![0.0f32; size_input];
+    let byte_slice_input: &mut [u8] = cast_slice_mut(input_read.as_mut_slice());
+    file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
+    let _ = file_handle.target_file.read_exact(byte_slice_input);
+    let input_ptr: *mut f32 = input_read.as_mut_ptr();
+
+    Ok((input_ptr, size_input))
+}
+
+fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_v1_0, cluster_link: &mut UniquePtr<ffi::ClusterLink>, cycle_count: &u64) -> Result<(), String> {
+    let col_get = match file_handle.header.columns.get(hexagon_name) {
+        Some(col) => col,
+        _ => {
+            error!("Column with name '{}' not found in dataset.", hexagon_name);
+            return Err("".to_string());
+        }
+    };
+
+    let size_output = (col_get.end - col_get.start) as usize;
+    let mut output_read = vec![0.0f32; size_output];
+    let mut output_ptr: *mut f32 = output_read.as_mut_ptr();
+
+    cxx::let_cxx_string!(cxx_name = hexagon_name); 
+    unsafe {
+        cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64);
+    }
+
+    Ok(())
+}
+
+fn handle_train_task(task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    for cycle_count in 0..task_info.number_of_cycles {
+        for (hexagon_name, file_handle) in &mut task_info.inputs {  
+            match get_values(hexagon_name, file_handle, &cycle_count) {
+                Ok((input_ptr, size_input)) => {
+                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
+                    unsafe {
+                        cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
+                    }
+                },
+                Err(_) => return,
+            }
+        }
+
+        for (hexagon_name, file_handle) in &mut task_info.outputs {  
+            match get_values(hexagon_name, file_handle, &cycle_count) {
+                Ok((output_ptr, size_output)) => {
+                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
+                    unsafe {
+                        cluster_link.pin_mut().fillExpected(&cxx_name, output_ptr, size_output as u64);
+                    }
+                },
+                Err(_) => return,
+            }
+        }
+
+        cluster_link.pin_mut().doTrain();
+    }
+}
+
+fn handle_request_task(task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    for cycle_count in 0..task_info.number_of_cycles {
+        for (hexagon_name, file_handle) in &mut task_info.inputs {  
+            match get_values(hexagon_name, file_handle, &cycle_count) {
+                Ok((input_ptr, size_input)) => {
+                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
+                    unsafe {
+                        cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
+                    }
+                },
+                Err(_) => return,
+            }
+        }
+
+        cluster_link.pin_mut().doRequest();
+
+        for (hexagon_name, file_handle) in &mut task_info.results {  
+            match write_values(hexagon_name, file_handle, cluster_link, &cycle_count) {
+                Ok(()) => {},
+                Err(_) => return,
+            }
+        }
+    }
+}
+
+
 impl ClusterLinkHanle {
     pub fn handle_task(&mut self, task: Task) {
         match task.info {
             TaskVariant::Training(mut task_info) => {
-                let mut pos: u64 = 0;
-
-                for i in 0..task_info.number_of_cycles {
-                    for (hexagon_name, mut file_handle) in &mut task_info.inputs {  
-                        let size_input = (file_handle.header.columns[0].end - file_handle.header.columns[0].start) as usize;
-                        let mut input_read = vec![0.0f32; size_input];
-                        let byte_slice_input: &mut [u8] = cast_slice_mut(input_read.as_mut_slice());
-                        file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + pos)).unwrap();
-                        let _ = file_handle.target_file.read_exact(byte_slice_input);
-                        let input_ptr: *mut f32 = input_read.as_mut_ptr();
-
-                        pos += 4 * size_input as u64;
-
-                        cxx::let_cxx_string!(cxx_name = hexagon_name); 
-                        unsafe {
-                            self.cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
-                        }
-                    }
-
-                    for (hexagon_name, mut file_handle) in &mut task_info.outputs {  
-                        let size_output = (file_handle.header.columns[1].end - file_handle.header.columns[1].start) as usize;
-                        let mut output_read = vec![0.0f32; size_output];
-                        let byte_slice_output: &mut [u8] = cast_slice_mut(output_read.as_mut_slice());
-                        file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + pos)).unwrap();
-                        let _ = file_handle.target_file.read_exact(byte_slice_output);
-                        let output_ptr: *mut f32 = output_read.as_mut_ptr();
-
-                        pos += 4 * size_output as u64;
-
-                        cxx::let_cxx_string!(cxx_name = hexagon_name); 
-                        unsafe {
-                            self.cluster_link.pin_mut().fillExpected(&cxx_name, output_ptr, size_output as u64);
-                        }
-                    }
-
-                    self.cluster_link.pin_mut().doTrain();
-                }
+                handle_train_task(&mut task_info, &mut self.cluster_link);
             }, 
-            TaskVariant::Request(_) => {}, 
+            TaskVariant::Request(mut task_info) => {
+                handle_request_task(&mut task_info, &mut self.cluster_link);
+            }, 
             TaskVariant::CheckpointSave(_) => {
                 cxx::let_cxx_string!(file_path_str = "");
                 let _: i32 = self.cluster_link.pin_mut().createCheckpoint(&file_path_str).into();
@@ -92,8 +159,6 @@ impl ClusterLinkHanle {
     }
 }
 
-// HINT (kitsudaiki): cluster has to be defined here, because otherwise the assiging
-// of the cluster_link would fail with an incompatible type error
 pub struct Cluster {
     pub uuid: Uuid,
     pub name: String,

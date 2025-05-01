@@ -58,7 +58,6 @@ pub struct TaskDatasetLink {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskCreateReq {
     pub name: String,
-    pub task_type: TaskType,
     pub inputs: Vec<TaskDatasetLink>,
     pub outputs: Vec<TaskDatasetLink>,
 }

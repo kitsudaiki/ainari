@@ -91,8 +91,15 @@ fn v1alpha_routes() -> Scope {
                 .service(
                     scope("/{cluster_uuid}/task")
                         .service(
-                            resource("")
+                            resource("/train")
                                 .route(post().to(create_train_task_v1_0::create_train_task))
+                        )
+                        .service(
+                            resource("/request")
+                                .route(post().to(create_request_task_v1_0::create_request_task))
+                        )
+                        .service(
+                            resource("")
                                 .route(get().to(list_task_v1_0::list_task))
                         )
                         .service(

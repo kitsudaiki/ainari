@@ -25,16 +25,17 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::collections::HashMap;
 use byteorder::{ReadBytesExt, BigEndian};
 use uuid::Uuid;
-use serde_json::{Value, Map};
+use serde_json::Map;
 use std::io::Write;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 
-use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, DataSetFileWriteHandle_v1_0, Column};
+use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, Column};
 use hanami_common::error::HanamiError;
 
 use super::dataset_structs::DatasetResp;
@@ -238,28 +239,28 @@ pub fn load_mnist_images(
         images.push(MnistImage { label, pixels });
     }
 
-    let picture_size: u32 = rows * cols;
-    let mut columns:Vec<Column> = Vec::new();
+    let picture_size: u64 = (rows * cols) as u64;
+    let mut columns: HashMap<String, Column> = HashMap::new();
 
     let pictures = Column {
-        name: "picture".to_string(),
         start: 0,
         end: picture_size,
     };
+    columns.insert("picture".to_string(),pictures);
+
     let labels = Column {
-        name: "label".to_string(),
         start: picture_size,
         end: picture_size + 10,
     };
+    columns.insert("label".to_string(),labels);
 
-    columns.push(pictures);
-    columns.push(labels);
-
+    let row_size = picture_size + 10;
     let mut dataset_handle = init_new_data_set_file(
         &target_filepath, 
         uuid,
         name, 
         "".to_string(),
+        row_size as u64,
         columns,
         DataSetType::FloatType)?; // TODO: use u8-type
 

@@ -18,6 +18,7 @@ use std::path::Path;
 use std::io::Write;
 use std::io::{Read, Seek, BufWriter, BufReader};
 use std::path::PathBuf;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use serde::{Serialize, Deserialize};
@@ -41,9 +42,8 @@ impl Default for DataSetType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Column {
-    pub name: String,
-    pub start: u32,
-    pub end: u32,
+    pub start: u64,
+    pub end: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,17 +70,19 @@ pub struct DataSetHeader_v1_0 {
     pub description: String,
     pub data_type: DataSetType,
     pub type_size: u8,
-    pub columns: Vec<Column>,
+    pub row_size: u64,
+    pub columns: HashMap<String, Column>,
 }
 
 impl DataSetHeader_v1_0 {
-    pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, columns: Vec<Column>) -> Self {
+    pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, row_size: u64, columns: HashMap<String, Column>) -> Self {
         DataSetHeader_v1_0 {
             uuid: uuid,
             name: name,
             description: description,
             data_type: dataset_type.clone(),
             type_size: dataset_type as u8,
+            row_size: row_size,
             columns: columns,
         }
     }
@@ -105,7 +107,8 @@ pub fn init_new_data_set_file(
     uuid: Uuid,
     name: String,
     description: String,
-    columns: Vec<Column>,
+    row_size: u64,
+    columns: HashMap<String, Column>,
     data_type: DataSetType,
 ) -> Result<DataSetFileWriteHandle_v1_0, Box<dyn std::error::Error>> {
 
@@ -129,7 +132,7 @@ pub fn init_new_data_set_file(
 
     // initialize header
     let base_header = DataSetBaseHeader::new();
-    let header = DataSetHeader_v1_0::new(uuid, name, description, data_type, columns);
+    let header = DataSetHeader_v1_0::new(uuid, name, description, data_type, row_size, columns);
 
     // initialize resulting file-handle
     let mut result = DataSetFileWriteHandle_v1_0 {
@@ -224,28 +227,28 @@ mod tests {
         let uuid = Uuid::new_v4();
         let name = "test_dataset".to_string();
         let description= "This is a test-dataset".to_string();
-        let mut columns: Vec<Column> = Vec::new();
+        let mut columns: HashMap<String, Column> = HashMap::new();
         let data_type = DataSetType::FloatType;
 
         let test_col1= Column {
-            name: "col1".to_string(),
             start: 0,
             end: 10,
         };
-        columns.push(test_col1);
+        columns.insert("col1".to_string(), test_col1);
 
         let test_col2= Column {
-            name: "col2".to_string(),
             start: 10,
             end: 15,
         };
-        columns.push(test_col2);
+        columns.insert("col2".to_string(), test_col2);
+        let row_size = 15;
 
         let mut write_dataset_handle = init_new_data_set_file(
             &file_path,
             uuid.clone(),
             name.clone(),
             description.clone(),
+            row_size,
             columns.clone(),
             data_type.clone()).unwrap();
 
@@ -279,7 +282,22 @@ mod tests {
         assert_eq!(write_dataset_handle.payload_offset, read_dataset_handle.payload_offset);
 
         // read and compare frist column
-        let size_col1 = (read_dataset_handle.header.columns[0].end - read_dataset_handle.header.columns[0].start) as usize;
+        let col_get1 = match read_dataset_handle.header.columns.get(&"col1".to_string()) {
+            Some(col) => col,
+            _ => {
+                assert_eq!(true, false);
+                return;
+            }
+        };
+        let col_get2 = match read_dataset_handle.header.columns.get(&"col2".to_string()) {
+            Some(col) => col,
+            _ => {
+                assert_eq!(true, false);
+                return;
+            }
+        };
+
+        let size_col1 = (col_get1.end - col_get1.start) as usize;
         let mut col1_read = vec![0.0f32; size_col1];
         let byte_slice_col1: &mut [u8] = cast_slice_mut(col1_read.as_mut_slice());
         read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset)).unwrap();
@@ -287,7 +305,7 @@ mod tests {
         assert_eq!(col1_read, col1);
 
         // read and compare second column
-        let size_col2 = (read_dataset_handle.header.columns[1].end - read_dataset_handle.header.columns[1].start) as usize;
+        let size_col2 = (col_get2.end - col_get2.start) as usize;
         let mut col2_read = vec![0.0f32; size_col2];
         let byte_slice_col2: &mut [u8] = cast_slice_mut(col2_read.as_mut_slice());
         read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset + 40)).unwrap();
