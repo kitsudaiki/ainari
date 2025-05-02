@@ -13,31 +13,31 @@
 // limitations under the License.
 
 use std::fmt::format;
+use std::fs;
+use log::{info, debug, error};
 
 use apistos::actix::NoContent;
 use apistos::api_operation;
 use actix_web::web::Path;
 use uuid::Uuid;
 
-use crate::api::errors::ErrorResponse;
+use crate::api::errors::{self, ErrorResponse};
 use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
+use crate::database::dataset_table;
 
 use hanami_common::enums;
-use hanami_core::cluster_handler;
-use hanami_core::cluster::Cluster;
 
 #[api_operation(
-    tag = "cluster",
-    summary = "Delete cluster",
-    description = r###"Delete a cluster from the database and core."###,
+    tag = "dataset",
+    summary = "Delete dataset",
+    description = r###"Delete a dataset from the database and core."###,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
-    match cluster_table::delete_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+    let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset) => dataset,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
@@ -46,11 +46,23 @@ pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> R
         }
     };
 
-    // delete cluster from core
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.delete(&cluster_uuid) == false {
-        return Err(ErrorResponse::InternalError("".to_string()));
+    match fs::remove_file(&dataset.file_path) {
+        Ok(_) => {},
+        Err(_) => {
+            error!("Failed to delete file '{}' from disc", dataset.file_path);
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
     }
+
+    match dataset_table::delete_dataset(&dataset_uuid, &context) {
+        Ok(_) => {},
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            return Err(ErrorResponse::NotFound("".to_string()));
+        }
+    };
 
     Ok(NoContent)   
 }

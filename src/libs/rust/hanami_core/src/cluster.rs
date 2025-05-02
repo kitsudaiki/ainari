@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
-use std::io::{Read, Seek, BufWriter, BufReader};
+use std::io::{Read, Write, Seek, BufWriter, BufReader};
 use std::error::Error;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
@@ -81,6 +81,9 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_
     unsafe {
         cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64);
     }
+
+    let output_bytes = cast_slice(&output_read);
+    let _ = file_handle.target_file.write_all(&output_bytes);
 
     Ok(())
 }

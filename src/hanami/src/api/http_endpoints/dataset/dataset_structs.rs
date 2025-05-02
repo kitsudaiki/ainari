@@ -41,5 +41,5 @@ pub struct DatasetBasicResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct DatasetListResp {
-    pub clusters: Vec<DatasetBasicResp>
+    pub datasets: Vec<DatasetBasicResp>
 }

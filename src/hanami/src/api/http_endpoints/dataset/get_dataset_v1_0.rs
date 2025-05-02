@@ -19,30 +19,29 @@ use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
+use crate::database::dataset_table;
 use hanami_common::enums;
 
-use super::cluster_structs::ClusterResp;
+use super::dataset_structs::DatasetResp;
 
 #[api_operation(
-    tag = "cluster",
-    summary = "Get cluster",
-    description = r###"Get information of a cluster from the database."###,
+    tag = "dataset",
+    summary = "Get dataset",
+    description = r###"Get information of a dataset from the database."###,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster) => {
-            let resp = ClusterResp {
-                uuid: cluster_uuid.clone(),
-                name: cluster.name.clone(),
-                template: cluster.template.clone(),
-                created_by: cluster.created_by.clone(),
-                created_at: cluster.created_at.clone(),
-                updated_by: cluster.updated_by.clone(),
-                updated_at: cluster.updated_at.clone(),
+pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetResp>, ErrorResponse> {
+    match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset) => {
+            let resp = DatasetResp {
+                uuid: dataset_uuid.clone(),
+                name: dataset.name.clone(),
+                created_by: dataset.created_by.clone(),
+                created_at: dataset.created_at.clone(),
+                updated_by: dataset.updated_by.clone(),
+                updated_at: dataset.updated_at.clone(),
             };
         
             return Ok(Json(resp));

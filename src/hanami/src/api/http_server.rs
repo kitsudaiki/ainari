@@ -74,6 +74,16 @@ fn v1alpha_routes() -> Scope {
                     resource("/{type}/{name}")
                         .route(post().to(create_dataset_v1_0::upload_binary))
                 )
+                .service(
+                    resource("")
+                        .route(get().to(list_dataset_v1_0::list_dataset))
+                )
+                .service(
+                    resource("/{dataset_uuid}")
+                        .route(get().to(get_dataset_v1_0::get_dataset))
+                        .route(delete().to(delete_dataset_v1_0::delete_dataset))
+                        
+                )
         )
         .service(
             scope("/cluster")
