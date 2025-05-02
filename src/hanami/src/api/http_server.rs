@@ -27,6 +27,7 @@ use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::user::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::dataset::*;
+use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::cluster::*;
 use crate::api::http_endpoints::cluster::task::*;
 use crate::api::middleware::authorization_middleware;
@@ -82,7 +83,18 @@ fn v1alpha_routes() -> Scope {
                     resource("/{dataset_uuid}")
                         .route(get().to(get_dataset_v1_0::get_dataset))
                         .route(delete().to(delete_dataset_v1_0::delete_dataset))
-                        
+                )
+        )
+        .service(
+            scope("/checkpoint")
+                .service(
+                    resource("")
+                        .route(get().to(list_checkpoint_v1_0::list_checkpoint))
+                )
+                .service(
+                    resource("/{checkpoint_uuid}")
+                        .route(get().to(get_checkpoint_v1_0::get_checkpoint))
+                        .route(delete().to(delete_checkpoint_v1_0::delete_checkpoint))
                 )
         )
         .service(
@@ -107,6 +119,10 @@ fn v1alpha_routes() -> Scope {
                         .service(
                             resource("/request")
                                 .route(post().to(create_request_task_v1_0::create_request_task))
+                        )
+                        .service(
+                            resource("/checkpoint_save")
+                                .route(post().to(create_checkpoint_save_task_v1_0::create_checkpoint_save_task))
                         )
                         .service(
                             resource("")

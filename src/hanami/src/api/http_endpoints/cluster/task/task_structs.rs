@@ -24,6 +24,7 @@ use std::fmt;
 pub enum TaskType {
     TrainTask = 0,
     RequestTask = 1,
+    CheckpointCreateTask = 2,
 }
 
 impl fmt::Display for TaskType {
@@ -31,6 +32,7 @@ impl fmt::Display for TaskType {
         let s = match self {
             TaskType::TrainTask => "Train-Task",
             TaskType::RequestTask => "Request-Task",
+            TaskType::CheckpointCreateTask => "Checkpoint-Create-Task",
         };
         write!(f, "{}", s)
     }

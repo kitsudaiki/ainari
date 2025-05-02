@@ -17,3 +17,4 @@ pub mod user;
 pub mod cluster;
 pub mod dataset;
 pub mod project;
+pub mod checkpoint;

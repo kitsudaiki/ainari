@@ -25,7 +25,7 @@ use std::error::Error;
 use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
 
 use crate::task_queue::{TaskQueue, init_task_queue};
-use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo};
+use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
 
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
@@ -143,6 +143,11 @@ fn handle_request_task(task_info: &mut RequestInfo, cluster_link: &mut UniquePtr
     }
 }
 
+fn handle_checkpoint_save_task(task_info: &mut CheckpointSaveInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    let file_path_str: String = task_info.path.to_string_lossy().into();
+    cxx::let_cxx_string!(cxx_path = file_path_str);
+    let _: i32 = cluster_link.pin_mut().createCheckpoint(&cxx_path).into();
+}
 
 impl ClusterLinkHanle {
     pub fn handle_task(&mut self, task: Task) {
@@ -153,9 +158,8 @@ impl ClusterLinkHanle {
             TaskVariant::Request(mut task_info) => {
                 handle_request_task(&mut task_info, &mut self.cluster_link);
             }, 
-            TaskVariant::CheckpointSave(_) => {
-                cxx::let_cxx_string!(file_path_str = "");
-                let _: i32 = self.cluster_link.pin_mut().createCheckpoint(&file_path_str).into();
+            TaskVariant::CheckpointSave(mut task_info) => {
+                handle_checkpoint_save_task(&mut task_info, &mut self.cluster_link);
             }, 
             TaskVariant::CheckpointRestore(_) => {}, 
         }

@@ -18,3 +18,4 @@ pub mod cluster_table;
 pub mod dataset_table;
 pub mod task_table;
 pub mod project_table;
+pub mod checkpoint_table;

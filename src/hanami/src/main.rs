@@ -24,6 +24,7 @@ use database::user_table::init_user_table;
 use database::cluster_table::init_cluster_table;
 use database::dataset_table::init_dataset_table;
 use database::task_table::init_task_table;
+use database::checkpoint_table::init_checkpoint_table;
 
 use hanami_core::cluster_handler;
 
@@ -65,6 +66,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => info!("Initilaized task-database-table"),
         Err(e) => {
             error!("Failed to initialize task-database-table: {}", e);
+            return Err(e);
+        }
+    };
+    // Initialize checkpoint-table
+    match init_checkpoint_table() {
+        Ok(_) => info!("Initilaized checkpoint-database-table"),
+        Err(e) => {
+            error!("Failed to initialize checkpoint-database-table: {}", e);
             return Err(e);
         }
     };

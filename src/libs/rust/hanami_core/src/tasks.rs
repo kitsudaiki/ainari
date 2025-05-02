@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use std::time::SystemTime;
-use uuid::Uuid;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use serde::Deserialize;
+use uuid::Uuid;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
 
@@ -68,12 +69,12 @@ pub struct RequestInfo {
 
 #[derive(Debug)]
 pub struct CheckpointSaveInfo {
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug)]
 pub struct CheckpointRestoreInfo {
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug)]
