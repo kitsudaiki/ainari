@@ -42,7 +42,13 @@ pub struct ClusterLinkHanle {
     pub cluster_link: UniquePtr<ffi::ClusterLink>, 
 }
 
-fn get_values(hexagon_name: &String, file_handle: &mut DataSetFileReadHandle_v1_0, cycle_count: &u64) -> Result<(*mut f32, usize), String> {
+fn get_values(
+    hexagon_name: &String, 
+    file_handle: &mut DataSetFileReadHandle_v1_0, 
+    cycle_count: &u64, 
+    cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
+    is_expected: bool) -> Result<(), String> 
+{
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
@@ -51,6 +57,7 @@ fn get_values(hexagon_name: &String, file_handle: &mut DataSetFileReadHandle_v1_
         }
     };
 
+    // calculate position in dataset-file
     let size_input = (col_get.end - col_get.start) as usize;
     let mut offset_bytes = (file_handle.header.row_size) * 4 * cycle_count;
     offset_bytes += col_get.start * 4;
@@ -60,8 +67,20 @@ fn get_values(hexagon_name: &String, file_handle: &mut DataSetFileReadHandle_v1_
     file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
     let _ = file_handle.target_file.read_exact(byte_slice_input);
     let input_ptr: *mut f32 = input_read.as_mut_ptr();
+    cxx::let_cxx_string!(cxx_name = hexagon_name); 
 
-    Ok((input_ptr, size_input))
+    // tigger action in c++ code
+    if is_expected == false {
+        unsafe {
+            cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
+        }
+    } else {
+        unsafe {
+            cluster_link.pin_mut().fillExpected(&cxx_name, input_ptr, size_input as u64);
+        }
+    }
+
+    Ok(())
 }
 
 fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_v1_0, cluster_link: &mut UniquePtr<ffi::ClusterLink>, cycle_count: &u64) -> Result<(), String> {
@@ -75,7 +94,7 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_
 
     let size_output = (col_get.end - col_get.start) as usize;
     let mut output_read = vec![0.0f32; size_output];
-    let mut output_ptr: *mut f32 = output_read.as_mut_ptr();
+    let output_ptr: *mut f32 = output_read.as_mut_ptr();
 
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     unsafe {
@@ -91,25 +110,15 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_
 fn handle_train_task(task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
     for cycle_count in 0..task_info.number_of_cycles {
         for (hexagon_name, file_handle) in &mut task_info.inputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count) {
-                Ok((input_ptr, size_input)) => {
-                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
-                    unsafe {
-                        cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
-                    }
-                },
+            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                Ok(()) => {},
                 Err(_) => return,
             }
         }
 
         for (hexagon_name, file_handle) in &mut task_info.outputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count) {
-                Ok((output_ptr, size_output)) => {
-                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
-                    unsafe {
-                        cluster_link.pin_mut().fillExpected(&cxx_name, output_ptr, size_output as u64);
-                    }
-                },
+            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, true) {
+                Ok(()) => {},
                 Err(_) => return,
             }
         }
@@ -121,13 +130,8 @@ fn handle_train_task(task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi
 fn handle_request_task(task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
     for cycle_count in 0..task_info.number_of_cycles {
         for (hexagon_name, file_handle) in &mut task_info.inputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count) {
-                Ok((input_ptr, size_input)) => {
-                    cxx::let_cxx_string!(cxx_name = hexagon_name); 
-                    unsafe {
-                        cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
-                    }
-                },
+            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                Ok(()) => {},
                 Err(_) => return,
             }
         }
@@ -196,8 +200,9 @@ impl Cluster {
         let link_clone = Arc::clone(&link);
 
         let handle = thread::spawn(move || {
+            debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
-                println!("Looping forever");
+                // println!("Looping forever");
                 let mut queue_handle = queue_clone.lock().unwrap();
 
                 if let Some(mut task) = queue_handle.get() {
@@ -212,7 +217,7 @@ impl Cluster {
                     thread::sleep(std::time::Duration::from_secs(1));
                 }
             }
-            debug!("Thread stopped");
+            debug!("Stopped cluster-thread");
         });
 
         Cluster {

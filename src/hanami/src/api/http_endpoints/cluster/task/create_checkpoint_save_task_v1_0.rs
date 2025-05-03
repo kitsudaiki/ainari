@@ -32,7 +32,7 @@ use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo
 use hanami_common::enums;
 use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
 
-use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
+use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -41,7 +41,7 @@ use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_checkpoint_save_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointCreateTask;
     let upload_dir_path = "./uploads";

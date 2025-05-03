@@ -26,7 +26,7 @@
 #include <src/cluster/objects.h>
 
 void convertBufferToExpected(OutputInterface* outputInterface,
-                             float* output,
+                             const float* output,
                              const uint64_t numberOfOutputs);
 uint64_t convertOutputToBuffer(OutputInterface* outputInterface,
                                float* output,

@@ -38,29 +38,23 @@ var (
 	referenceDatasetUuid string
 )
 
-// var createMnistDatasetCmd = &cobra.Command{
-// 	Use:   "mnist -i INPUT_FILE_PATH -l LABEL_FILE_PATH DATASET_NAME",
-// 	Short: "Upload new mnist dataset.",
-// 	Args:  cobra.ExactArgs(1),
-// 	Run: func(cmd *cobra.Command, args []string) {
-// 		token := Login()
-// 		address := os.Getenv("HANAMI_ADDRESS")
-// 		datasetName := args[0]
-// 		uuid, err := hanami_sdk.UploadMnistFiles(address, token, datasetName, inputFilePath, labelFilePath, hanamictl_common.DisableTlsVerification)
-// 		if err != nil {
-// 			fmt.Println(err)
-// 			os.Exit(1)
-// 		}
-
-// 		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
-// 		if err == nil {
-// 			hanamictl_common.PrintSingle(content)
-// 		} else {
-// 			fmt.Println(err)
-// 			os.Exit(1)
-// 		}
-// 	},
-// }
+var createMnistDatasetCmd = &cobra.Command{
+	Use:   "mnist -i INPUT_FILE_PATH -l LABEL_FILE_PATH DATASET_NAME",
+	Short: "Upload new mnist dataset.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		datasetName := args[0]
+		content, err := hanami_sdk.CreateMnistDataset(address, token, datasetName, inputFilePath, labelFilePath, hanamictl_common.DisableTlsVerification)
+		if err == nil {
+			hanamictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
 
 // var createCsvDatasetCmd = &cobra.Command{
 // 	Use:   "csv -i INPUT_FILE_PATH DATASET_NAME",
@@ -129,12 +123,11 @@ var listDatasetCmd = &cobra.Command{
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
 		content, err := hanami_sdk.ListDataset(address, token, hanamictl_common.DisableTlsVerification)
-		if err == nil {
-			hanamictl_common.PrintList(content["datasets"].([]interface{}))
-		} else {
+		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		hanamictl_common.PrintList(content["datasets"].([]interface{}))
 	},
 }
 
@@ -188,13 +181,13 @@ var createDatasetCmd = &cobra.Command{
 func Init_Dataset_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(datasetCmd)
 
-	// datasetCmd.AddCommand(createDatasetCmd)
+	datasetCmd.AddCommand(createDatasetCmd)
 
-	// createDatasetCmd.AddCommand(createMnistDatasetCmd)
-	// createMnistDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	// createMnistDatasetCmd.Flags().StringVarP(&labelFilePath, "label", "l", "", "Path to file with label-data (mandatory)")
-	// createMnistDatasetCmd.MarkFlagRequired("input")
-	// createMnistDatasetCmd.MarkFlagRequired("label")
+	createDatasetCmd.AddCommand(createMnistDatasetCmd)
+	createMnistDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
+	createMnistDatasetCmd.Flags().StringVarP(&labelFilePath, "label", "l", "", "Path to file with label-data (mandatory)")
+	createMnistDatasetCmd.MarkFlagRequired("input")
+	createMnistDatasetCmd.MarkFlagRequired("label")
 
 	// createDatasetCmd.AddCommand(createCsvDatasetCmd)
 	// createCsvDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")

@@ -21,7 +21,7 @@
 package hanami_sdk
 
 func ListHosts(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/host/all"
+	path := "v1alpha/host"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }

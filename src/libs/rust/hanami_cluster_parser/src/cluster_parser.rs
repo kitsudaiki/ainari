@@ -107,13 +107,10 @@ pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> 
                         "float" => OutputType::FLOAT_OUTPUT,
                         "int"   => OutputType::INT_OUTPUT,
                         "bool"  => OutputType::BOOL_OUTPUT,
-                        _       => OutputType::UNKNOWN_TYPE
+                        _       => {
+                            return Err(format!("Invalid output extra value: '{}'", extra_field));
+                        }
                     };
-            
-                    // validation-check fo the type-field
-                    if output_type == OutputType::UNKNOWN_TYPE {
-                        return Err(format!("Invalid output extra value: '{}'", extra_field));
-                    }
 
                     outputs.push(OutputMeta {
                         name: name_str,

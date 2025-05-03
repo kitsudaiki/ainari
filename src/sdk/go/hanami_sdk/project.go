@@ -20,6 +20,10 @@
 
 package hanami_sdk
 
+import (
+	"fmt"
+)
+
 func CreateProject(address, token, projectId, projectName string, skipTlsVerification bool) (map[string]interface{}, error) {
 	path := "v1alpha/project"
 	jsonBody := map[string]interface{}{
@@ -30,19 +34,19 @@ func CreateProject(address, token, projectId, projectName string, skipTlsVerific
 }
 
 func GetProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/project"
-	vars := map[string]interface{}{"id": projectId}
+	path := fmt.Sprintf("v1alpha/project/%s", projectId)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListProject(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/project/all"
+	path := "v1alpha/project"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/project"
-	vars := map[string]interface{}{"id": projectId}
+	path := fmt.Sprintf("v1alpha/project/%s", projectId)
+	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }

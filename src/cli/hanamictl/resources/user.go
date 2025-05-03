@@ -46,7 +46,6 @@ var createUserCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		var passphrase string
 		var err error
 		if len(passphrase) == 0 {
 			fmt.Print("Enter Passphrase: ")

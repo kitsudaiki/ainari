@@ -32,7 +32,7 @@ use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, TrainInfo};
 use hanami_common::enums;
 use hanami_dataset::dataset_io::read_data_set_file;
 
-use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
+use super::task_structs::{TaskCreateTrainReq, TaskResp, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -41,7 +41,7 @@ use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::TrainTask;
 
@@ -67,10 +67,12 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
     let mut info = TrainInfo {
         inputs: HashMap::new(),
         outputs: HashMap::new(),
-        number_of_cycles: 60000,
+        number_of_cycles: 0,
         current_cycle: 0,
         time_length: 1,
     };
+
+    let mut number_of_cycles =  u64::MAX;
 
     // prepare inputs for task
     for input in &body.inputs {
@@ -83,6 +85,11 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
 
         match read_data_set_file(&PathBuf::from(dataset.file_path)) {
             Ok(file_handle) => {
+                let number_of_rows = file_handle.get_number_of_rows();
+                if number_of_cycles > number_of_rows {
+                    number_of_cycles = number_of_rows;
+                }
+
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             },
             Err(_) => {
@@ -102,6 +109,11 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
 
         match read_data_set_file(&PathBuf::from(dataset.file_path)) {
             Ok(file_handle) => {
+                let number_of_rows = file_handle.get_number_of_rows();
+                if number_of_cycles > number_of_rows {
+                    number_of_cycles = number_of_rows;
+                }
+
                 info.outputs.insert(output.hexagon.clone(), file_handle);
             }
             Err(_) => {
@@ -109,6 +121,8 @@ pub async fn create_train_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uui
             }
         };
     }
+
+    info.number_of_cycles = number_of_cycles;
 
     // add new task to database
     match task_table::add_new_task(

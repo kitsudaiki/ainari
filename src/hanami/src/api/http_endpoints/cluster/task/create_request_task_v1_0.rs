@@ -32,7 +32,7 @@ use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, RequestInfo};
 use hanami_common::enums;
 use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
 
-use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
+use super::task_structs::{TaskCreateRequestReq, TaskResp, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -41,7 +41,7 @@ use super::task_structs::{TaskCreateReq, TaskResp, TaskType};
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::RequestTask;
 
@@ -67,11 +67,13 @@ pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<U
     let mut info = RequestInfo {
         inputs: HashMap::new(),
         results: HashMap::new(),
-        number_of_cycles: 60000,
+        number_of_cycles: 0,
         current_cycle: 0,
         time_length: 1,
     };
 
+    let mut number_of_cycles =  u64::MAX;
+    
     // prepare inputs for task
     for input in &body.inputs {
         let dataset = match dataset_table::get_dataset(&input.dataset_uuid, &context) {
@@ -85,6 +87,11 @@ pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<U
 
         match read_data_set_file(&PathBuf::from(file_path)) {
             Ok(file_handle) => {
+                let number_of_rows = file_handle.get_number_of_rows();
+                if number_of_cycles > number_of_rows {
+                    number_of_cycles = number_of_rows;
+                }
+
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             },
             Err(_) => {
@@ -93,14 +100,16 @@ pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<U
         };
     }
 
+    info.number_of_cycles = number_of_cycles;
+
     // prepare outputs for task
-    for output in &body.outputs {
+    for output in &body.results {
         let result_uuid = Uuid::new_v4();
         let upload_dir_path = "./uploads";
         let upload_dir = PathBuf::from(&upload_dir_path);
         let target_filepath: PathBuf = upload_dir.join(&result_uuid.to_string());
         let description = "".to_string();
-        let columns: HashMap<String, Column> = HashMap::new();
+        let mut columns: HashMap<String, Column> = HashMap::new();
         let name = "poi".to_string();
         let row_size: u64 = 0;
 
@@ -114,6 +123,12 @@ pub async fn create_request_task(body: Json<TaskCreateReq>, cluster_uuid: Path<U
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
+
+        let col = Column {
+            start: 0,
+            end: 10,
+        };
+        columns.insert(output.hexagon.clone(),col);
 
         match init_new_data_set_file(
             &PathBuf::from(target_filepath), 

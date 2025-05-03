@@ -20,24 +20,33 @@
 
 package hanami_sdk
 
+import (
+	"fmt"
+)
 
-const chunkSize = 128 * 1024 // 128 KiB
+// const chunkSize = 128 * 1024 // 128 KiB
+
+func CreateMnistDataset(address, token, datasetName, imageFilePath, labelFilePath string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/dataset/mnist/%s", datasetName)
+	files := []string{imageFilePath, labelFilePath}
+	return UploadFiles(address, token, path, files, skipTlsVerification)
+}
 
 func GetDataset(address, token, datasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/dataset"
-	vars := map[string]interface{}{"uuid": datasetUuid}
+	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListDataset(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/dataset/all"
+	path := "v1alpha/dataset"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteDataset(address, token, datasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/dataset"
-	vars := map[string]interface{}{"uuid": datasetUuid}
+	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
+	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }
 

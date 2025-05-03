@@ -22,6 +22,8 @@
 
 #include "cluster_io_convert.h"
 
+#include <iostream>
+
 /**
  * @brief handle plain output-values
  *
@@ -159,7 +161,7 @@ convertOutputToBuffer(OutputInterface* outputInterface,
  */
 void
 _handlePlainExpected(OutputInterface* outputInterface,
-                     float* output,
+                     const float* output,
                      const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
@@ -174,7 +176,9 @@ _handlePlainExpected(OutputInterface* outputInterface,
  * @param outputInterface reference to output-interface
  */
 void
-_handleBoolExpected(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
+_handleBoolExpected(OutputInterface* outputInterface,
+                    const float* output,
+                    const uint64_t numberOfOutputs)
 {
     const uint64_t upperBorder = outputInterface->outputNeurons.size();
     for (uint64_t i = 0; i < upperBorder; ++i) {
@@ -188,7 +192,9 @@ _handleBoolExpected(OutputInterface* outputInterface, float* output, const uint6
  * @param outputInterface reference to output-interface
  */
 void
-_handleIntExpected(OutputInterface* outputInterface, float* output, const uint64_t numberOfOutputs)
+_handleIntExpected(OutputInterface* outputInterface,
+                   const float* output,
+                   const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
     uint64_t val = 0;
@@ -210,15 +216,15 @@ _handleIntExpected(OutputInterface* outputInterface, float* output, const uint64
  */
 void
 _handleFloatExpected(OutputInterface* outputInterface,
-                     float* output,
+                     const float* output,
                      const uint64_t numberOfOutputs)
 {
     OutputNeuron* neuron = nullptr;
-    uint32_t* val;
+    const uint32_t* val;
 
     const uint64_t upperBorder = outputInterface->outputNeurons.size() / 32;
     for (uint64_t i = 0; i < upperBorder; ++i) {
-        val = static_cast<uint32_t*>(static_cast<void*>(&output[i]));
+        val = static_cast<const uint32_t*>(static_cast<const void*>(&output[i]));
         for (uint64_t offset = 0; offset < 32; ++offset) {
             neuron = &outputInterface->outputNeurons[(i * 32) + (31 - offset)];
             neuron->exprectedVal = (*val >> offset) & 1;
@@ -234,7 +240,7 @@ _handleFloatExpected(OutputInterface* outputInterface,
  */
 void
 convertBufferToExpected(OutputInterface* outputInterface,
-                        float* output,
+                        const float* output,
                         const uint64_t numberOfOutputs)
 {
     switch (outputInterface->type) {

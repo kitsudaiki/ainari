@@ -27,6 +27,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"bytes"
+	"io"
+	"os"
+	"mime/multipart"
 )
 
 type RequestError struct {
@@ -105,7 +109,7 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 		return outputMap, err
 	}
 	bodyString := string(bodyBytes)
-	//fmt.Printf("bodyString: " + bodyString + "\n")
+	// fmt.Printf("bodyString: " + bodyString + "\n")
 
 	if resp.StatusCode != http.StatusOK {
 		return outputMap, &RequestError{
@@ -133,6 +137,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 		}
 		jsonDataStr = string(jsonData)
 	}
+	// fmt.Println("request-body: "+ jsonDataStr + "\n")
 
 	// check if https or not
 	if strings.Contains(address, "https") {
@@ -152,6 +157,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	// add token to header
 	var bearer_token = fmt.Sprintf("Bearer %s", token)
 	req.Header.Set("Authorization",  bearer_token)
+	req.Header.Set("Content-Type", "application/json")
 
 	// run request
 	resp, err := http.DefaultClient.Do(req)
@@ -167,8 +173,8 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	}
 	bodyString := string(bodyBytes)
 
-	fmt.Printf("bodyString: " + bodyString + "\n")
-	if resp.StatusCode != http.StatusOK {
+	// fmt.Printf("response-body: " + bodyString + "\n")
+	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,
 			Err:        bodyString,
@@ -176,10 +182,79 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	}
 
 	// parse result
-	err = json.Unmarshal([]byte(bodyString), &outputMap)
-	if err != nil {
-		return outputMap, nil
+	_ = json.Unmarshal([]byte(bodyString), &outputMap)
+	return outputMap, nil
+}
+
+func UploadFiles(address, token, path string, filePaths []string, skipTlsVerification bool) (map[string]interface{}, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	outputMap := map[string]interface{}{}
+
+	for _, path := range filePaths {
+		file, err := os.Open(path)
+		if err != nil {
+			return outputMap, fmt.Errorf("failed to open file %s: %w", path, err)
+		}
+		defer file.Close()
+
+		part, err := writer.CreateFormFile("file", path)
+		if err != nil {
+			return outputMap, fmt.Errorf("failed to create form file for %s: %w", path, err)
+		}
+
+		if _, err := io.Copy(part, file); err != nil {
+			return outputMap, fmt.Errorf("failed to copy file data for %s: %w", path, err)
+		}
 	}
 
+	// Close the writer to finish the form
+	if err := writer.Close(); err != nil {
+		return outputMap, fmt.Errorf("failed to close writer: %w", err)
+	}
+
+	// check if https or not
+	if strings.Contains(address, "https") {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
+	}
+
+	// Create the request
+	completePath := fmt.Sprintf("%s/%s", address, path)
+	// fmt.Println("completePath: " + completePath)
+	// fmt.Println("request-body: " + jsonDataStr)
+	req, err := http.NewRequest("POST", completePath, body)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var bearer_token = fmt.Sprintf("Bearer %s", token)
+	req.Header.Set("Authorization",  bearer_token)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return outputMap, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and print the response (optional!)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return outputMap, err
+	}
+	bodyString := string(bodyBytes)
+
+	// fmt.Printf("response-body: " + bodyString + "\n")
+	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+		return outputMap, &RequestError{
+			StatusCode: resp.StatusCode,
+			Err:        bodyString,
+		}
+	}
+
+	// parse result
+	_ = json.Unmarshal([]byte(bodyString), &outputMap)
 	return outputMap, nil
 }

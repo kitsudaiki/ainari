@@ -102,6 +102,21 @@ pub struct DataSetFileReadHandle_v1_0 {
     pub payload_offset: u64,
 }
 
+impl DataSetFileReadHandle_v1_0 {
+    pub fn get_number_of_rows(&self) -> u64 {
+        match self.target_file.get_ref().metadata() {
+            Ok(metadata) => {
+                let content_size = metadata.len() as u64 - self.payload_offset;
+                content_size / (self.header.row_size * 4)
+            },
+            Err(_) => {
+                // TODO: handle error-case better
+                0
+            }
+        }
+    }
+}
+
 pub fn init_new_data_set_file(
     file_path: &PathBuf,
     uuid: Uuid,

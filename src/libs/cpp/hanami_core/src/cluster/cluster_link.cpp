@@ -125,7 +125,7 @@ ClusterLink::fillInput(const std::string& hexagonName,
  */
 bool
 ClusterLink::fillExpected(const std::string& hexagonName,
-                          float* output,
+                          const float* output,
                           const uint64_t numberOfOutputs)
 {
     auto it = m_cluster->outputInterfaces.find(hexagonName);
@@ -133,11 +133,6 @@ ClusterLink::fillExpected(const std::string& hexagonName,
         return false;
     }
 
-    // float val = 0.0f;
-    // for (uint64_t i = 0; i < numberOfOutputs; ++i) {
-    //     val = output[i];
-    //     std::cout << "output: " << val << std::endl;
-    // }
     OutputInterface* outputInterface = &it->second;
     outputInterface->initBuffer(numberOfOutputs, 1);
     convertBufferToExpected(outputInterface, output, numberOfOutputs);

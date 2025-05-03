@@ -30,6 +30,10 @@ fn main() {
         .build()
         .unwrap();
 
+    if env::var("PROFILE").unwrap() == "release" {
+        b.flag_if_supported("-O3");
+    }
+    
     b.include(include_path)
      .flag_if_supported("-std=c++17");
 

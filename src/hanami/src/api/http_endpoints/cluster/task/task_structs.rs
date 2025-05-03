@@ -58,10 +58,28 @@ pub struct TaskDatasetLink {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct TaskCreateReq {
+pub struct TaskDatasetResultLink {
+    pub dataset_column: String,
+    pub hexagon: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct TaskCreateTrainReq {
     pub name: String,
     pub inputs: Vec<TaskDatasetLink>,
     pub outputs: Vec<TaskDatasetLink>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct TaskCreateRequestReq {
+    pub name: String,
+    pub inputs: Vec<TaskDatasetLink>,
+    pub results: Vec<TaskDatasetResultLink>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct TaskCreateCheckpointSaveReq {
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
