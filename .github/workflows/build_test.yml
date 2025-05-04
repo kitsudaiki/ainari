@@ -9,8 +9,8 @@ permissions:
 env:
   REGISTRY_HANAMI_IMAGE: kitsudaiki/hanami
   REGISTRY_DOCS_IMAGE: kitsudaiki/openhanami_docs
-  HANAMI_ADMIN_USER_ID: asdf
-  HANAMI_ADMIN_USER_NAME: asdf
+  HANAMI_ADMIN_ID: asdf
+  HANAMI_ADMIN_NAME: asdf
   HANAMI_ADMIN_PASSPHRASE: asdfasdf
 
 jobs:
@@ -543,18 +543,15 @@ jobs:
 
 
   sdk_api_tests:
-    # TODO: re-enable tests again
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-
     name: "SDK-API-Tests"
     needs: [ cargo_tests, unit_tests, memory_leak_tests ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       -
         name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
+          sudo apt-get install -y openssl libsqlite3-0 
       -
         name: Set python-version as environment variable
         run: |
@@ -634,18 +631,15 @@ jobs:
 
 
   cli_api_tests:
-    # TODO: re-enable tests again
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-
     name: "CLI-API-Tests"
     needs: [ cargo_tests, unit_tests, memory_leak_tests ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       -
         name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
+          sudo apt-get install -y openssl libsqlite3-0
       -
         name: Checkout repository
         run: |
@@ -724,14 +718,12 @@ jobs:
       fail-fast: false
       matrix:
         python_version:
-          - { tag: "python-3_9", name: "Python 3.9", version: "3.9", runs-on: "ubuntu-20.04" } 
           - { tag: "python-3_10", name: "Python 3.10", version: "3.10", runs-on: "ubuntu-22.04" } 
           - { tag: "python-3_11", name: "Python 3.11", version: "3.11", runs-on: "ubuntu-22.04" } 
           - { tag: "python-3_12", name: "Python 3.12", version: "3.12", runs-on: "ubuntu-24.04" } 
     runs-on: ${{ matrix.python_version.runs-on }}
     name: "${{ matrix.python_version.name }}"
     outputs:
-      python-3_9: ${{ steps.status.outputs.python-3_9 }}
       python-3_10: ${{ steps.status.outputs.python-3_10 }}
       python-3_11: ${{ steps.status.outputs.python-3_11 }}
       python-3_12: ${{ steps.status.outputs.python-3_12 }}
@@ -818,8 +810,8 @@ jobs:
             ./example_configs/openhanami:/etc/openhanami \
             -p 127.0.0.1:11418:11418 \
             --name=hanami \
-            --env HANAMI_ADMIN_USER_ID=asdf \
-            --env HANAMI_ADMIN_USER_NAME=asdf \
+            --env HANAMI_ADMIN_ID=asdf \
+            --env HANAMI_ADMIN_NAME=asdf \
             --env HANAMI_ADMIN_PASSPHRASE=asdfasdf \
             kitsudaiki/hanami:test
       -
@@ -845,10 +837,10 @@ jobs:
 
 
   docker_build:
-    name: "Build Docker-images"
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    name: "Build Docker-images"
     needs: [ sdk_api_tests, cli_api_tests ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -926,9 +918,9 @@ jobs:
 
 
   docker_merge:
-    name: "Merge and push Docker-image"
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ubuntu-22.04
+    name: "Merge and push Docker-image"
+    runs-on: ubuntu-24.04
     needs: [ docker_build ]
     steps:
       -
@@ -1126,6 +1118,12 @@ jobs:
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
           time: '60s'
+      -
+        name: Check kubernetes-resources
+        run: |
+          kubectl get pods
+          kubectl get configmaps
+          kubectl get deployments
       -
         name: Update hosts-file
         run: |

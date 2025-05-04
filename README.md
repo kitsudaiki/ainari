@@ -33,10 +33,10 @@ and multi-tenancy.
 
 | Backend                                                       | SDK                                         | Deployment                                          |
 | ------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
-| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_9][img_python-3_9]][Workflow]   | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
-| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
-| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
-| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
+| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
+| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
+| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
+| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] |                                             | [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
 | [![ubuntu-2404_clang-16][img_ubuntu-2404_clang-16]][Workflow] |                                             | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
 | [![ubuntu-2404_clang-17][img_ubuntu-2404_clang-17]][Workflow] |                                             |                                                     |
 | [![ubuntu-2404_clang-18][img_ubuntu-2404_clang-18]][Workflow] |                                             |                                                     |
@@ -73,8 +73,6 @@ and multi-tenancy.
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-13/shields.json&style=flat-square
 [img_ubuntu-2404_gcc-14]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-14/shields.json&style=flat-square
-[img_python-3_9]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_9/shields.json&style=flat-square
 [img_python-3_10]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:

@@ -1,15 +1,14 @@
-version: 1
-settings:
-    neuron_cooldown: 10000000.0
-    refractory_time: 1
-    max_connection_distance: 1
-hexagons:
-    1,1,1
-    2,1,1
-    3,1,1
-    
-inputs:
-    picture_hex: 1,1,1
-
-outputs:
-    label_hex: 3,1,1
+version: 42 
+settings: 
+    neuron_cooldown: 1000000000.0; 
+    refractory_time: 1; 
+    max_connection_distance: 1; 
+hexagons:  
+    1,1,1; 
+    2,2,2;
+axons: 
+    1,1,1 -> 2,2,2; 
+inputs: 
+    picture: 1,1,1; 
+outputs: 
+    label: 2,2,2;

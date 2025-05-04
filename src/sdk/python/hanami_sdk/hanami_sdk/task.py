@@ -25,7 +25,7 @@ def create_train_task(token: str,
                       outputs: list,
                       timeLength: int = 1,
                       verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/task/train"
+    path = "/v1alpha/task/train"
     json_body = {
         "name": name,
         "cluster_uuid": cluster_uuid,
@@ -48,7 +48,7 @@ def create_request_task(token: str,
                         results: list,
                         timeLength: int = 1,
                         verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/task/request"
+    path = "/v1alpha/task/request"
     json_body = {
         "name": name,
         "cluster_uuid": cluster_uuid,
@@ -68,7 +68,7 @@ def get_task(token: str,
              task_uuid: str,
              cluster_uuid: str,
              verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/task"
+    path = "/v1alpha/task"
     values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
     return hanami_request.send_get_request(token,
                                            address,
@@ -81,7 +81,7 @@ def list_tasks(token: str,
                address: str,
                cluster_uuid: str,
                verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/task/all"
+    path = "/v1alpha/task/all"
     values = f'cluster_uuid={cluster_uuid}'
     return hanami_request.send_get_request(token,
                                            address,
@@ -95,7 +95,7 @@ def delete_task(token: str,
                 task_uuid: str,
                 cluster_uuid: str,
                 verify_connection: bool = True):
-    path = "/v1.0alpha/task"
+    path = "/v1alpha/task"
     values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
     hanami_request.send_delete_request(token,
                                        address,

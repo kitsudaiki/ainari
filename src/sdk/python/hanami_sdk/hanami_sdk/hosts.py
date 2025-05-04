@@ -18,7 +18,7 @@ from . import hanami_request
 def list_hosts(token: str,
                address: str,
                verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/host/all"
+    path = "/v1alpha/host/all"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,

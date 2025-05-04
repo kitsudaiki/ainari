@@ -34,6 +34,10 @@ pub async fn delete_user(id: Path<String>, context: UserContext) -> Result<NoCon
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
 
+    if context.user_id == id.to_string() {
+        return Err(ErrorResponse::Conflict("A user can not delete himself.".to_string()));
+    }
+
     // get new created user from database to get addtional information
     match user_table::delete_user(&id, &context) {
         Ok(_) => {

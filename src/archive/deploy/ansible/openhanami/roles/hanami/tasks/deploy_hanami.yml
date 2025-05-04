@@ -56,8 +56,8 @@
     detach: true
     command: "hanami"
     env:
-      HANAMI_ADMIN_USER_ID: "{{ lookup('env', 'ADMIN_USER_ID') }}"
-      HANAMI_ADMIN_USER_NAME: "{{ lookup('env', 'ADMIN_USER_NAME') }}"
+      HANAMI_ADMIN_ID: "{{ lookup('env', 'ADMIN_USER_ID') }}"
+      HANAMI_ADMIN_NAME: "{{ lookup('env', 'ADMIN_USER_NAME') }}"
       HANAMI_ADMIN_PASSPHRASE: "{{ lookup('env', 'ADMIN_PASSPHRASE') }}"
     ports:
       - "11418:11418"

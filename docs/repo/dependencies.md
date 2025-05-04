@@ -10,33 +10,16 @@
 | clang-format-15     | Helper for styling the source-code                                                   |
 | make                | Build-Tool                                                                           |
 | cmake               | Tool to genereate make-file for the code.                                            |
-| bison               | Parser-Generator                                                                     |
-| flex                | Lexxer for the Parser-Generator                                                      |
 | libssl-dev          | ssl-library for TCS-encryption of network-connections                                |
-| libcrypto++-dev     | HMAC, SHA256 and other crypto related operations                                     |
-| libboost1.74-dev    | Provides the Beast-library of Boost, which is used for the REST-API within the Torii |
-| uuid-dev            | Generate UUID's within the code                                                      |
 | libsqlite3-dev      | Library to interact with the SQLite3 databases                                       |
-| protobuf-compiler   | Convert protobuf-files into source-code                                              |
 | nlohmann-json3-dev  | Json-parser                                                                          |
-
-### Submodules
-
-| name               | License | Purpose                       |
-| ------------------ | ------- | ----------------------------- |
-| Thalhammer/jwt-cpp | MIT     | create and validate jwt-token |
 
 ### Runtime
 
 | apt-package      | Purpose                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------- |
 | openssl          | ssl-library for TCS-encryption of network-connections                                 |
-| libuuid1         | Generate UUID's within the code                                                       |
-| libcrypto++8     | HMAC, SHA256 and other crypto related operations                                      |
 | libsqlite3-0     | Library to interact with the SQLite3 databases                                        |
-| libprotobuf23    | Runtime-library for protobuffers (for Ubuntu 22.04)                                   |
-| libprotobuf32t64 | Runtime-library for protobuffers (for Ubuntu 24.04)                                   |
-| libboost1.74     | Provides the Beast-library of Boost, which is used for the REST-API within OpenHanami |
 
 ### Supported compiler
 
@@ -67,7 +50,6 @@ see
 
 | Python (SDK)                                |
 | ------------------------------------------- |
-| [![python-3_9][img_python-3_9]][Workflow]   |
 | [![python-3_10][img_python-3_10]][Workflow] |
 | [![python-3_11][img_python-3_11]][Workflow] |
 | [![python-3_12][img_python-3_12]][Workflow] |
@@ -102,8 +84,6 @@ see [go.sum](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/cli/hanam
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-13/shields.json&style=flat-square
 [img_ubuntu-2404_gcc-14]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-14/shields.json&style=flat-square
-[img_python-3_9]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_9/shields.json&style=flat-square
 [img_python-3_10]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:

@@ -19,7 +19,7 @@ from . import hanami_exceptions
 
 
 def _handle_response(response) -> str:
-    if response.status_code == 200:
+    if response.status_code >= 200 and response.status_code < 300:
         return response.content
     if response.status_code == 400:
         raise hanami_exceptions.BadRequestException(response.content)
@@ -40,8 +40,9 @@ def send_post_request(token: str,
                       verify: bool) -> dict:
     body_str = json.dumps(body)
     url = f'{address}{path}'
-    headers = {'content-type': 'application/json'}
-    headers = {'X-Auth-Token': token}
+    bearer_token = "Bearer " + token
+    headers = {'Authorization': bearer_token,
+               'content-type': 'application/json'}
     response = requests.post(url, data=body_str, headers=headers, verify=verify)
     return json.loads(_handle_response(response))
 
@@ -56,7 +57,8 @@ def send_get_request(token: str,
     else:
         url = f'{address}{path}'
 
-    headers = {'X-Auth-Token': token}
+    bearer_token = "Bearer " + token
+    headers = {'Authorization': bearer_token}
     response = requests.get(url, headers=headers, verify=verify)
     return json.loads(_handle_response(response))
 
@@ -68,8 +70,9 @@ def send_put_request(token: str,
                      verify: bool) -> dict:
     body_str = json.dumps(body)
     url = f'{address}{path}'
-    headers = {'content-type': 'application/json'}
-    headers = {'X-Auth-Token': token}
+    bearer_token = "Bearer " + token
+    headers = {'Authorization': bearer_token,
+               'content-type': 'application/json'}
     response = requests.put(url, data=body_str, headers=headers, verify=verify)
     return json.loads(_handle_response(response))
 
@@ -80,6 +83,7 @@ def send_delete_request(token: str,
                         values: str,
                         verify: bool):
     url = f'{address}{path}?{values}'
-    headers = {'X-Auth-Token': token}
+    bearer_token = "Bearer " + token
+    headers = {'Authorization': bearer_token}
     response = requests.delete(url, headers=headers, verify=verify)
     _handle_response(response)

@@ -20,7 +20,7 @@ def list_audit_logs(token: str,
                     user_id: str,
                     page: int,
                     verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/audit_log"
+    path = "/v1alpha/audit_log"
     values = f'user_id={user_id}&page={page}'
     return hanami_request.send_get_request(token,
                                            address,
@@ -34,7 +34,7 @@ def list_error_logs(token: str,
                     user_id: str,
                     page: int,
                     verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/error_log"
+    path = "/v1alpha/error_log"
     if user_id:
         values = f'user_id={user_id}&page={page}'
     else:

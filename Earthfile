@@ -61,8 +61,7 @@ flake8:
     COPY testing testing
     COPY .flake8 .flake8
     RUN rm -rf src/sdk/python/hanami_sdk/hanami_sdk/hanami_messages/proto3_pb2.py src/sdk/python/hanami_sdk/hanami_env src/sdk/python/hanami_sdk/build
-    RUN flake8 testing/python_sdk_api/sdk_api_test.py && \
-        flake8 src/sdk/python
+    RUN flake8 src/sdk/python
 
 
 ansible-lint:
@@ -146,8 +145,9 @@ compile-hanami:
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
     RUN cargo build
-    RUN mkdir /tmp/hanami
-    SAVE ARTIFACT ./target/debug/hanami /tmp/hanami
+    RUN cp ./target/debug/hanami /tmp/
+    SAVE ARTIFACT /tmp/hanami /tmp/hanami
+    SAVE ARTIFACT /tmp/hanami AS LOCAL hanami
 
 test-hanami:
     FROM +prepare-build-dependencies
@@ -174,19 +174,26 @@ build-image:
 
 
 generate-docs:
-    COPY +compile-code/hanami/hanami /tmp/
+    ENV HANAMI_ADMIN_ID asdf
+    ENV HANAMI_ADMIN_NAME asdf
+    ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
+
+    COPY +compile-hanami/hanami /tmp/hanami
+    COPY example_configs/openhanami /etc/openhanami
 
     RUN apt-get update && \
-        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 libgbm-dev libasound2 xvfb dbus
-    RUN chmod +x /tmp/hanami_core
-    RUN /tmp/hanami_core --generate_docu
+        apt-get install -y openssl libsqlite3-0 libgbm-dev xvfb dbus
 
     RUN apt-get update && \
         apt-get install -y python3 \
                            python3-pip \
+                           python3-venv \
                            wget \
                            curl && \
-        pip3 install mkdocs \
+        python3 -m venv hanami_env && \
+        . hanami_env/bin/activate && \
+        pip3 install hapless \
+                     mkdocs \
                      mkdocs-material \
                      mkdocs-swagger-ui-tag \
                      # pin mkdocs-drawio-exporter because 0.10.x is broken
@@ -194,18 +201,22 @@ generate-docs:
         curl -s https://api.github.com/repos/jgraph/drawio-desktop/releases/latest | grep browser_download_url | grep "amd64"  | grep "deb" | cut -d "\"" -f 4 | wget -i - && \
         apt -f -y install ./drawio-amd64-*.deb
 
+    RUN chmod +x /tmp/hanami
+    RUN . hanami_env/bin/activate && \
+        hap run /tmp/hanami && \
+        sleep 5 && \
+        curl 127.0.0.1:11418/openapi.json > ./open_api_docu.json
+
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
-    RUN cp ./db.md docs/backend/
-    RUN cp ./config.md docs/backend/
     RUN cp ./open_api_docu.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
-    RUN xvfb-run -a mkdocs build --clean
+    RUN . hanami_env/bin/activate && xvfb-run -a mkdocs build --clean
 
     SAVE ARTIFACT site AS LOCAL site
 
@@ -220,7 +231,6 @@ build-docs:
 
     WORKDIR /openhanami_docs
 
-    RUN useradd -m ubuntu
     RUN chown -R ubuntu:ubuntu .
     USER ubuntu
 

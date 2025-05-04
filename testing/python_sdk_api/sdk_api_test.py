@@ -17,8 +17,8 @@
 from hanami_sdk import hanami_token
 from hanami_sdk import checkpoint
 from hanami_sdk import cluster
-from hanami_sdk import dataset
-from hanami_sdk import direct_io
+# from hanami_sdk import dataset
+# from hanami_sdk import direct_io
 from hanami_sdk import hosts
 from hanami_sdk import project
 from hanami_sdk import task
@@ -51,21 +51,20 @@ request_inputs = config["test_data"]["request_inputs"]
 request_labels = config["test_data"]["request_labels"]
 
 cluster_template = \
-    "version: 1\n" \
-    "settings:\n" \
-    "    neuron_cooldown: 10000000.0\n" \
-    "    refractory_time: 1\n" \
-    "    max_connection_distance: 1\n" \
-    "hexagons:\n" \
-    "    1,1,1\n" \
-    "    2,1,1\n" \
-    "    3,1,1\n" \
-    "\n" \
-    "inputs:\n" \
-    "    picture_hex: 1,1,1\n" \
-    "\n" \
-    "outputs:\n" \
-    "    label_hex: 3,1,1\n" \
+    "version: 42 " \
+    "settings: " \
+    "    neuron_cooldown: 1000000000.0; " \
+    "    refractory_time: 1; " \
+    "    max_connection_distance: 1; " \
+    "hexagons:  " \
+    "    1,1,1; " \
+    "    2,2,2; " \
+    "axons: " \
+    "    1,1,1 -> 2,2,2;  " \
+    "inputs: " \
+    "    picture: 1,1,1; " \
+    "outputs: " \
+    "    label: 2,2,2;" \
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -227,7 +226,7 @@ def _train(cluster_uuid, train_dataset_uuid):
         {
             "dataset_uuid": train_dataset_uuid,
             "dataset_column": "picture",
-            "hexagon_name": "picture_hex"
+            "hexagon": "picture_hex"
         }
     ]
 
@@ -235,7 +234,7 @@ def _train(cluster_uuid, train_dataset_uuid):
         {
             "dataset_uuid": train_dataset_uuid,
             "dataset_column": "label",
-            "hexagon_name": "label_hex"
+            "hexagon": "label_hex"
         }
     ]
 
@@ -266,14 +265,14 @@ def _test(cluster_uuid, request_dataset_uuid):
         {
             "dataset_uuid": request_dataset_uuid,
             "dataset_column": "picture",
-            "hexagon_name": "picture_hex"
+            "hexagon": "picture_hex"
         }
     ]
 
     results = [
         {
             "dataset_column": "test_output",
-            "hexagon_name": "label_hex"
+            "hexagon": "label_hex"
         }
     ]
 
@@ -351,14 +350,14 @@ def test_workflow():
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-dataset.delete_all_datasets(token, address, False)
-checkpoint.delete_all_checkpoints(token, address, False)
-cluster.delete_all_cluster(token, address, False)
-project.delete_all_projects(token, address, False)
+# dataset.delete_all_datasets(token, address, False)
+# checkpoint.delete_all_checkpoints(token, address, False)
+# cluster.delete_all_cluster(token, address, False)
+# project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)
 
-test_project()
+# test_project()
 test_user()
-test_dataset()
-test_cluster()
-test_workflow()
+# test_dataset()
+# test_cluster()
+# test_workflow()

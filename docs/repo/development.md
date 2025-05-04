@@ -39,8 +39,8 @@ This document should help to setup a local environment for development.
     create the first admin-user:
 
     ```bash
-    export HANAMI_ADMIN_USER_ID=asdf
-    export HANAMI_ADMIN_USER_NAME=asdf
+    export HANAMI_ADMIN_ID=asdf
+    export HANAMI_ADMIN_NAME=asdf
     export HANAMI_ADMIN_PASSPHRASE=asdfasdf
     ```
 
