@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::format;
-
 use apistos::actix::NoContent;
 use apistos::api_operation;
 use actix_web::web::Path;
@@ -25,7 +23,6 @@ use crate::database::cluster_table;
 
 use hanami_common::enums;
 use hanami_core::cluster_handler;
-use hanami_core::cluster::Cluster;
 
 #[api_operation(
     tag = "cluster",
@@ -36,13 +33,15 @@ use hanami_core::cluster::Cluster;
     error_code = 500
 )]
 pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+    // delete cluster from database
     match cluster_table::delete_cluster(&cluster_uuid, &context) {
         Ok(_) => {},
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 

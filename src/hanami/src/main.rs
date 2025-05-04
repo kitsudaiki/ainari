@@ -21,6 +21,7 @@ mod config;
 use log::{error, info};
 
 use database::user_table::init_user_table;
+use database::project_table::init_project_table;
 use database::cluster_table::init_cluster_table;
 use database::dataset_table::init_dataset_table;
 use database::task_table::init_task_table;
@@ -42,6 +43,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => info!("Initilaized user-database-table"),
         Err(e) => {
             error!("Failed to initialize user-database-table: {}", e);
+            return Err(e);
+        }
+    };
+    // Initialize project-table
+    match init_project_table() {
+        Ok(_) => info!("Initilaized project-database-table"),
+        Err(e) => {
+            error!("Failed to initialize project-database-table: {}", e);
             return Err(e);
         }
     };

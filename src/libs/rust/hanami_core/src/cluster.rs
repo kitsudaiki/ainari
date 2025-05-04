@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{info, debug, error};
+use log::{debug, error};
 use uuid::Uuid;
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
-use std::io::{Read, Write, Seek, BufWriter, BufReader};
-use std::error::Error;
+use std::io::{Read, Write, Seek};
 
-use hanami_dataset::dataset_io::{DataSetFileReadHandle_v1_0, DataSetFileWriteHandle_v1_0};
+use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::task_queue::{TaskQueue, init_task_queue};
 use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
@@ -30,7 +29,6 @@ use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
 use autocxx::prelude::*;
-use cxx::CxxString;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClusterMode {
@@ -44,7 +42,7 @@ pub struct ClusterLinkHanle {
 
 fn get_values(
     hexagon_name: &String, 
-    file_handle: &mut DataSetFileReadHandle_v1_0, 
+    file_handle: &mut DataSetFileReadHandleV1_0, 
     cycle_count: &u64, 
     cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
     is_expected: bool) -> Result<(), String> 
@@ -83,7 +81,7 @@ fn get_values(
     Ok(())
 }
 
-fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandle_v1_0, cluster_link: &mut UniquePtr<ffi::ClusterLink>, cycle_count: &u64) -> Result<(), String> {
+fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandleV1_0, cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> {
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
@@ -139,7 +137,7 @@ fn handle_request_task(task_info: &mut RequestInfo, cluster_link: &mut UniquePtr
         cluster_link.pin_mut().doRequest();
 
         for (hexagon_name, file_handle) in &mut task_info.results {  
-            match write_values(hexagon_name, file_handle, cluster_link, &cycle_count) {
+            match write_values(hexagon_name, file_handle, cluster_link) {
                 Ok(()) => {},
                 Err(_) => return,
             }
@@ -205,7 +203,7 @@ impl Cluster {
                 // println!("Looping forever");
                 let mut queue_handle = queue_clone.lock().unwrap();
 
-                if let Some(mut task) = queue_handle.get() {
+                if let Some(task) = queue_handle.get() {
                     drop(queue_handle);
 
                     //println!("Popped from front: {:?}", task);

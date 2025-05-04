@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
-use log::{info, debug, error};
-use std::sync::{Arc, Mutex};
+use log::debug;
 use std::collections::VecDeque;
 
-use super::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
+use super::tasks::Task;
 
 #[derive(Default, Debug)]
 pub struct TaskQueue {
@@ -45,6 +43,9 @@ pub fn init_task_queue() -> TaskQueue {
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
+    use crate::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
+    use std::sync::{Arc, Mutex};
+
     use super::*;
 
     #[test]

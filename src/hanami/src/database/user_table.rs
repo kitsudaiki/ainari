@@ -47,7 +47,7 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = users)]
-pub struct User {
+pub struct UserEntry {
     pub id: String,
     pub name: String,
     pub projects: String,
@@ -146,7 +146,7 @@ pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, i
     // create sha256-hash from the salted passphrase to store the hash in the database
     let pw_hash = sha256_hash(salted_passphrase.as_str());
 
-    let user = User{
+    let user = UserEntry{
         id: user_id.clone(),
         name: user_name.clone(),
         projects: "[]".to_string(),
@@ -165,20 +165,20 @@ pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, i
     add_user(&user)
 }
 
-pub fn add_user(user: &User) -> QueryResult<usize> {
+pub fn add_user(user: &UserEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
 
     diesel::insert_into(users).values(user).execute(&mut *conn)
 }
 
-pub fn get_auth_user(user_id: &String) -> Result<User, enums::DbError> {
+pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
     match users
         .filter(id.eq(user_id).and(status.eq("ACTIVE")))
-        .select(User::as_select())
-        .first::<User>(&mut *conn)
+        .select(UserEntry::as_select())
+        .first::<UserEntry>(&mut *conn)
     {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -189,7 +189,7 @@ pub fn get_auth_user(user_id: &String) -> Result<User, enums::DbError> {
     }
 }
 
-pub fn get_user(user_id: &String, context: &UserContext) -> Result<User, enums::DbError> {
+pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, enums::DbError> {
     if context.is_admin == false {
         return Err(enums::DbError::NotFound);
     }
@@ -198,8 +198,8 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<User, enums::
     use self::users::dsl::*;
     match users
         .filter(id.eq(user_id).and(status.eq("ACTIVE")))
-        .select(User::as_select())
-        .first::<User>(&mut *conn)
+        .select(UserEntry::as_select())
+        .first::<UserEntry>(&mut *conn)
     {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -210,15 +210,15 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<User, enums::
     }
 }
 
-pub fn list_users(context: &UserContext) -> QueryResult<Vec<User>> {
+pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
     if context.is_admin == false {
-        let dummy: QueryResult<Vec<User>> = Ok(vec![]);
+        let dummy: QueryResult<Vec<UserEntry>> = Ok(vec![]);
         return dummy;
     }
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
-    users.filter(status.eq("ACTIVE")).select(User::as_select()).load(&mut *conn)
+    users.filter(status.eq("ACTIVE")).select(UserEntry::as_select()).load(&mut *conn)
 }
 
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
@@ -244,6 +244,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn hard_delete_user(user_id: &String) {
         use self::users::dsl::*;
@@ -252,6 +253,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_user() {
         let _ = init_user_table();
         let project_id = "test-project-1".to_string();
@@ -263,7 +265,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let user: User = User {
+        let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
@@ -303,6 +305,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_users() {
         let _ = init_user_table();
         let project_id = "test-project-1".to_string();
@@ -315,7 +318,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let user1 = User {
+        let user1 = UserEntry {
             id: owner_id1.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
@@ -331,7 +334,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let user2 = User {
+        let user2 = UserEntry {
             id: owner_id2.clone(),
             name: "Bob".to_string(),
             projects: "ProjectB".to_string(),
@@ -361,6 +364,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_delete_user() {
         let _ = init_user_table();
         let project_id = "test-project-1".to_string();
@@ -372,7 +376,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let user = User {
+        let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),

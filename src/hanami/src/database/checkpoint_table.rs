@@ -15,9 +15,8 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
+use log::error;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -45,7 +44,7 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = checkpoints)]
-pub struct checkpoint {
+pub struct CheckpointEntry {
     pub uuid: String,
     pub name: String,
     pub file_path: String,
@@ -81,7 +80,7 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_checkpoint(checkpoint_uuid: &Uuid, checkpoint_name: &String, file_path: &String, context: &UserContext) -> QueryResult<usize> {
-    let checkpoint = checkpoint{
+    let checkpoint = CheckpointEntry{
         uuid: checkpoint_uuid.to_string().clone(),
         name: checkpoint_name.clone(),
         file_path: file_path.clone(),
@@ -99,14 +98,14 @@ pub fn add_new_checkpoint(checkpoint_uuid: &Uuid, checkpoint_name: &String, file
     add_checkpoint(&checkpoint)
 }
 
-pub fn add_checkpoint(checkpoint: &checkpoint) -> QueryResult<usize> {
+pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
 
     diesel::insert_into(checkpoints).values(checkpoint).execute(&mut *conn)
 }
 
-pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<checkpoint, enums::DbError> {
+pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<CheckpointEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
     
@@ -122,8 +121,8 @@ pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<c
     }
 
     match query
-        .select(checkpoint::as_select())
-        .first::<checkpoint>(&mut *conn)
+        .select(CheckpointEntry::as_select())
+        .first::<CheckpointEntry>(&mut *conn)
     {
         Ok(checkpoint) => Ok(checkpoint),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -134,7 +133,7 @@ pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<c
     }
 }
 
-pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<checkpoint>> {
+pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
     
@@ -149,7 +148,7 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<checkpoint>> {
         }
     }
 
-    query.select(checkpoint::as_select()).load(&mut *conn)
+    query.select(CheckpointEntry::as_select()).load(&mut *conn)
 }
 
 pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
@@ -178,7 +177,8 @@ pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use serial_test::serial;
+    
     fn hard_delete_checkpoint(checkpoint_uuid: &Uuid) {
         use self::checkpoints::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
@@ -186,6 +186,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_checkpoint() {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
@@ -199,7 +200,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let checkpoint: checkpoint = checkpoint {
+        let checkpoint = CheckpointEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -235,6 +236,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_checkpoints() {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
@@ -249,7 +251,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let checkpoint1 = checkpoint {
+        let checkpoint1 = CheckpointEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -264,7 +266,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let checkpoint2 = checkpoint {
+        let checkpoint2 = CheckpointEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -291,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_delete_checkpoint() {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
@@ -304,7 +307,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let checkpoint = checkpoint {
+        let checkpoint = CheckpointEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -329,13 +332,14 @@ mod tests {
 
 
     #[test]
+    #[serial]
     fn test_checkpoints_permissions() {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
 
-        let checkpoint1 = checkpoint {
+        let checkpoint1 = CheckpointEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -350,7 +354,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let checkpoint2 = checkpoint {
+        let checkpoint2 = CheckpointEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -365,7 +369,7 @@ mod tests {
             deleted_by: None,
         };
                 
-        let checkpoint3 = checkpoint {
+        let checkpoint3 = CheckpointEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             file_path: "/tmp/bla".to_string(),

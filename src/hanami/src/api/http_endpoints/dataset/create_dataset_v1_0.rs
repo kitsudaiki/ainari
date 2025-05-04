@@ -71,7 +71,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     match fs::create_dir_all(&upload_dir).await {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Failed to create dataset-upload-directory '{}'.", upload_dir_path);
+            let msg = format!("Failed to create dataset-upload-directory '{}' with error: {}", upload_dir_path, e);
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

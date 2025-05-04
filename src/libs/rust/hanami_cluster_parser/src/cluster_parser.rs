@@ -103,10 +103,10 @@ pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> 
                 
                     // convert output-type
                     let output_type = match extra_field {
-                        "plain" => OutputType::PLAIN_OUTPUT,
-                        "float" => OutputType::FLOAT_OUTPUT,
-                        "int"   => OutputType::INT_OUTPUT,
-                        "bool"  => OutputType::BOOL_OUTPUT,
+                        "plain" => OutputType::PlainOutput,
+                        "float" => OutputType::FloatOutput,
+                        "int"   => OutputType::IntOutput,
+                        "bool"  => OutputType::BoolOutput,
                         _       => {
                             return Err(format!("Invalid output extra value: '{}'", extra_field));
                         }
@@ -368,10 +368,10 @@ mod tests {
                 assert_eq!(parsed.outputs.len(), 2);
                 assert_eq!(parsed.outputs[0].name, "key3");
                 assert_eq!(parsed.outputs[0].pos, Position(3, 3, 3));
-                assert_eq!(parsed.outputs[0].output_type, OutputType::FLOAT_OUTPUT);
+                assert_eq!(parsed.outputs[0].output_type, OutputType::FloatOutput);
                 assert_eq!(parsed.outputs[1].name, "key4");
                 assert_eq!(parsed.outputs[1].pos, Position(4, 4, 4));
-                assert_eq!(parsed.outputs[1].output_type, OutputType::PLAIN_OUTPUT);
+                assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
             }
             Err(e) => {
                 eprintln!("❌ Parsing Error: {}", e);

@@ -64,7 +64,7 @@ impl DataSetBaseHeader {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DataSetHeader_v1_0 {
+pub struct DataSetHeaderV1_0 {
     pub uuid: Uuid,
     pub name: String,
     pub description: String,
@@ -74,9 +74,9 @@ pub struct DataSetHeader_v1_0 {
     pub columns: HashMap<String, Column>,
 }
 
-impl DataSetHeader_v1_0 {
+impl DataSetHeaderV1_0 {
     pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, row_size: u64, columns: HashMap<String, Column>) -> Self {
-        DataSetHeader_v1_0 {
+        DataSetHeaderV1_0 {
             uuid: uuid,
             name: name,
             description: description,
@@ -89,20 +89,20 @@ impl DataSetHeader_v1_0 {
 }
 
 #[derive(Debug)]
-pub struct DataSetFileWriteHandle_v1_0 {
-    pub header: DataSetHeader_v1_0,
+pub struct DataSetFileWriteHandleV1_0 {
+    pub header: DataSetHeaderV1_0,
     pub target_file: BufWriter<fs::File>,
     pub payload_offset: u64,
 }
 
 #[derive(Debug)]
-pub struct DataSetFileReadHandle_v1_0 {
-    pub header: DataSetHeader_v1_0,
+pub struct DataSetFileReadHandleV1_0 {
+    pub header: DataSetHeaderV1_0,
     pub target_file: BufReader<fs::File>,
     pub payload_offset: u64,
 }
 
-impl DataSetFileReadHandle_v1_0 {
+impl DataSetFileReadHandleV1_0 {
     pub fn get_number_of_rows(&self) -> u64 {
         match self.target_file.get_ref().metadata() {
             Ok(metadata) => {
@@ -125,7 +125,7 @@ pub fn init_new_data_set_file(
     row_size: u64,
     columns: HashMap<String, Column>,
     data_type: DataSetType,
-) -> Result<DataSetFileWriteHandle_v1_0, Box<dyn std::error::Error>> {
+) -> Result<DataSetFileWriteHandleV1_0, Box<dyn std::error::Error>> {
 
     let file_path_str: String = file_path.to_string_lossy().into();
 
@@ -147,10 +147,10 @@ pub fn init_new_data_set_file(
 
     // initialize header
     let base_header = DataSetBaseHeader::new();
-    let header = DataSetHeader_v1_0::new(uuid, name, description, data_type, row_size, columns);
+    let header = DataSetHeaderV1_0::new(uuid, name, description, data_type, row_size, columns);
 
     // initialize resulting file-handle
-    let mut result = DataSetFileWriteHandle_v1_0 {
+    let mut result = DataSetFileWriteHandleV1_0 {
         header: header,
         target_file: BufWriter::new(file),
         payload_offset: 0,
@@ -177,7 +177,7 @@ pub fn init_new_data_set_file(
 
 pub fn read_data_set_file(
     file_path: &PathBuf,
-) -> Result<DataSetFileReadHandle_v1_0, Box<dyn std::error::Error>> {
+) -> Result<DataSetFileReadHandleV1_0, Box<dyn std::error::Error>> {
     let file_path_str: String = file_path.to_string_lossy().into();
 
     // check if file even exist
@@ -190,8 +190,8 @@ pub fn read_data_set_file(
 
     let file = fs::File::open(file_path)?;
 
-    let mut result = DataSetFileReadHandle_v1_0 {
-        header: DataSetHeader_v1_0::default(),
+    let mut result = DataSetFileReadHandleV1_0 {
+        header: DataSetHeaderV1_0::default(),
         target_file: BufReader::new(file),
         payload_offset: 0,
     };

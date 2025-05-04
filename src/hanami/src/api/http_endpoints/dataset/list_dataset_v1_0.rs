@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
+use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -30,24 +31,35 @@ use super::dataset_structs::{DatasetBasicResp, DatasetListResp};
     error_code = 500
 )]
 pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>, ErrorResponse> {
-    let datasets = dataset_table::list_datasets(&context).unwrap();
+    let datasets = match dataset_table::list_datasets(&context)
+    {
+        Ok(datasets) => datasets,
+        Err(e) => {
+            error!("Failed to get list of datasets form database: '{}'", e);
+            return Err(ErrorResponse::InternalError("".to_string()))
+        }
+    };
 
     let mut resp = DatasetListResp {
         datasets: Vec::new(),
     };
 
     for dataset in datasets {
-        match Uuid::parse_str(&dataset.uuid) {
-            Ok(uuid) => {
-                let obj = DatasetBasicResp {
-                    uuid: uuid,
-                    name: dataset.name.clone(),
-                };
-        
-                resp.datasets.push(obj);
-            }
-            Err(e) =>  return Err(ErrorResponse::InternalError("".to_string())),
-        }
+        // parse-uuid-string coming from the database
+        let uuid = match Uuid::parse_str(&dataset.uuid) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                error!("Failed to convert dataset-uuid with error: '{}'", e);
+                return Err(ErrorResponse::InternalError("".to_string()))
+            },
+        };
+
+        let obj = DatasetBasicResp {
+            uuid: uuid,
+            name: dataset.name.clone(),
+        };
+
+        resp.datasets.push(obj);
     }
 
     Ok(Json(resp))

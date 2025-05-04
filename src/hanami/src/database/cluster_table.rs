@@ -15,16 +15,13 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
-use std::env;
+use log::error;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
 use uuid::Uuid;
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
 
-use hanami_common::functions::sha256_hash;
 use hanami_common::enums;
 
 // Define the schema
@@ -47,7 +44,7 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = clusters)]
-pub struct cluster {
+pub struct ClusterEntry {
     pub uuid: String,
     pub name: String,
     pub template: String,
@@ -83,7 +80,7 @@ pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_template: &String, context: &UserContext) -> QueryResult<usize> {
-    let cluster = cluster{
+    let cluster = ClusterEntry{
         uuid: cluster_uuid.to_string().clone(),
         name: cluster_name.clone(),
         template: cluster_template.clone(),
@@ -101,13 +98,13 @@ pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_templ
     add_cluster(&cluster)
 }
 
-pub fn add_cluster(cluster: &cluster) -> QueryResult<usize> {
+pub fn add_cluster(cluster: &ClusterEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
     diesel::insert_into(clusters).values(cluster).execute(&mut *conn)
 }
 
-pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<cluster, enums::DbError> {
+pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<ClusterEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
 
@@ -123,8 +120,8 @@ pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<cluster
     }
 
     match query
-        .select(cluster::as_select())
-        .first::<cluster>(&mut *conn)
+        .select(ClusterEntry::as_select())
+        .first::<ClusterEntry>(&mut *conn)
     {
         Ok(cluster) => Ok(cluster),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -135,7 +132,7 @@ pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<cluster
     }
 }
 
-pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<cluster>> {
+pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
 
@@ -150,7 +147,7 @@ pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<cluster>> {
         }
     }
 
-    query.select(cluster::as_select()).load(&mut *conn)
+    query.select(ClusterEntry::as_select()).load(&mut *conn)
 }
 
 pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
@@ -178,6 +175,7 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn hard_delete_cluster(cluster_uuid: &Uuid) {
         use self::clusters::dsl::*;
@@ -186,6 +184,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_cluster() {
         let _ = init_cluster_table();
         let uuid1 = Uuid::new_v4();
@@ -199,7 +198,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let cluster: cluster = cluster {
+        let cluster = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
@@ -239,6 +238,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_clusters() {
         let _ = init_cluster_table();
         let uuid1 = Uuid::new_v4();
@@ -253,7 +253,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let cluster1 = cluster {
+        let cluster1 = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
@@ -268,7 +268,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let cluster2 = cluster {
+        let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             template: "asdf".to_string(),
@@ -295,6 +295,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_delete_cluster() {
         let _ = init_cluster_table();
         let uuid1 = Uuid::new_v4();
@@ -308,7 +309,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let cluster = cluster {
+        let cluster = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
@@ -332,13 +333,14 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_clusters_permissions() {
         let _ = init_cluster_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
 
-        let cluster1 = cluster {
+        let cluster1 = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
@@ -353,7 +355,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let cluster2 = cluster {
+        let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             template: "asdf".to_string(),
@@ -368,7 +370,7 @@ mod tests {
             deleted_by: None,
         };
                 
-        let cluster3 = cluster {
+        let cluster3 = ClusterEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             template: "asdf".to_string(),

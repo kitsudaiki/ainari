@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::format;
 use std::fs;
-use log::{info, debug, error};
-
+use log::error;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 use actix_web::web::Path;
 use uuid::Uuid;
 
-use crate::api::errors::{self, ErrorResponse};
+use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 

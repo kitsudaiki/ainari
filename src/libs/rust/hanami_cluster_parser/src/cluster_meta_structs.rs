@@ -17,13 +17,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum OutputType {
-    PLAIN_OUTPUT = 0,
-    BOOL_OUTPUT = 1,
-    INT_OUTPUT = 2,
-    FLOAT_OUTPUT = 3,
+    PlainOutput = 0,
+    BoolOutput = 1,
+    IntOutput = 2,
+    FloatOutput = 3,
 }
 impl Default for OutputType {
-    fn default() -> Self { OutputType::PLAIN_OUTPUT }
+    fn default() -> Self { OutputType::PlainOutput }
 }
 
 #[derive(Debug)]

@@ -111,13 +111,13 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 	bodyString := string(bodyBytes)
 	// fmt.Printf("bodyString: " + bodyString + "\n")
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,
 			Err:        bodyString,
 		}
 	}
-
+	
 	// parse result
 	err = json.Unmarshal([]byte(bodyString), &outputMap)
 	if err != nil {
@@ -174,7 +174,8 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	bodyString := string(bodyBytes)
 
 	// fmt.Printf("response-body: " + bodyString + "\n")
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+	// fmt.Printf("resp.StatusCode: %s", resp.StatusCode)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,
 			Err:        bodyString,
@@ -247,7 +248,7 @@ func UploadFiles(address, token, path string, filePaths []string, skipTlsVerific
 	bodyString := string(bodyBytes)
 
 	// fmt.Printf("response-body: " + bodyString + "\n")
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,
 			Err:        bodyString,

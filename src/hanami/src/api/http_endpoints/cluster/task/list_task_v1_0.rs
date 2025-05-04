@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::CreatedJson;
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use log::error;
@@ -22,8 +21,6 @@ use std::str::FromStr;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::task_table;
-
-use hanami_common::enums;
 
 use super::task_structs::{TaskBasicResp, TaskListResp, TaskType};
 
@@ -35,16 +32,27 @@ use super::task_structs::{TaskBasicResp, TaskListResp, TaskType};
     error_code = 500
 )]
 pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
-    let tasks = task_table::list_tasks(&cluster_uuid, &context).unwrap();
+    let tasks = match task_table::list_tasks(&cluster_uuid, &context)
+    {
+        Ok(tasks) => tasks,
+        Err(e) => {
+            error!("Failed to get list of tasks form database: '{}'", e);
+            return Err(ErrorResponse::InternalError("".to_string()))
+        }
+    };
 
     let mut resp = TaskListResp {
         tasks: Vec::new(),
     };
 
     for task in tasks {
+        // parse-uuid-string coming from the database
         let uuid = match Uuid::parse_str(&task.uuid) {
             Ok(uuid) => uuid,
-            Err(e) =>  return Err(ErrorResponse::InternalError("".to_string())),
+            Err(e) => {
+                error!("Failed to convert task-uuid with error: '{}'", e);
+                return Err(ErrorResponse::InternalError("".to_string()))
+            },
         };
 
         // convert task-type

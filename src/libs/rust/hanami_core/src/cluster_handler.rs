@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{info, debug, error};
+use log::error;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use uuid::Uuid;
-use std::thread::{self, JoinHandle};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use hanami_cluster_parser::cluster_parser::parse_cluster_template;
 use hanami_cluster_parser::cluster_meta_structs::*;
@@ -121,7 +119,6 @@ impl ClusterHandler {
 
         // initialize hanami-code c++-code
         let cluster_link: UniquePtr<ffi::ClusterLink> = self.hanami_core.pin_mut().createCluster(&uuid_str, &name_str, &cluster_meta, error_msg.pin_mut());
-        cluster_link.printMetrics();
 
         // add cluster to the cluster-handler
         if self.add(uuid, Cluster::new(uuid, name, cluster_link)) == false {

@@ -35,8 +35,6 @@ class ClusterLink
     ClusterLink(Cluster* cluster);
     ~ClusterLink();
 
-    void printMetrics() const;
-
     int createCheckpoint(const std::string& targetFilePath);
 
     bool fillInput(const std::string& hexagonName,

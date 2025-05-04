@@ -34,8 +34,6 @@
 #include <src/processing/physical_host.h>
 #include <src/thread_binder.h>
 
-#include <iostream>
-
 #include "cluster_link.h"
 
 // init static variables
@@ -98,12 +96,14 @@ HanamiCore::init(const float maxMemoryUsage, std::string& errorMessage)
 }
 
 /**
- * @brief HanamiCore::createCluster
- * @param uuid
- * @param name
- * @param clusterTemplate
- * @param errorMessage
- * @return
+ * @brief create a new cluster
+ *
+ * @param uuid pre-defined uuid for the cluster
+ * @param name name for the new cluster
+ * @param clusterTemplate template of the new cluster
+ * @param errorMessage reference for error-message output
+ *
+ * @return pinter to a cluster-link-obj to interact with the cluster behind it
  */
 std::unique_ptr<ClusterLink>
 HanamiCore::createCluster(const std::string& uuid,
@@ -157,9 +157,11 @@ HanamiCore::createCluster(const std::string& uuid,
 }
 
 /**
- * @brief HanamiCore::deleteCluster
- * @param uuid
- * @return
+ * @brief delete a cluster again
+ *
+ * @param uuid uuid of the cluster
+ *
+ * @return return-status
  */
 int
 HanamiCore::deleteCluster(const std::string& uuid)
@@ -175,66 +177,10 @@ HanamiCore::deleteCluster(const std::string& uuid)
 }
 
 /**
- * @brief HanamiCore::createCheckpoint
- * @param clusterUuid
- * @param targetFilePath
- * @param errorMessage
- * @return
- */
-int
-HanamiCore::createCheckpoint(const std::string& clusterUuid,
-                             const std::string& targetFilePath,
-                             std::string& errorMessage)
-{
-    Hanami::ErrorContainer error;
-    std::filesystem::path filePath = targetFilePath;
-
-    std::lock_guard<std::mutex> guard(m_clusterMutex);
-
-    Cluster* cluster = ClusterHandler::getInstance()->getCluster(clusterUuid);
-    if (cluster == nullptr) {
-        error.addMessage("Cluster with UUID '" + clusterUuid
-                         + "'not found even it exists within the database");
-        errorMessage = error.toString();
-        return INVALID_INPUT;
-    }
-
-    // cluster->stateMachine
-    for (Hexagon& hexagon : cluster->hexagons) {
-        hexagon.attachedHost->syncWithHost(&hexagon);
-    }
-    CheckpointIO m_clusterIO;
-    ReturnStatus ret = m_clusterIO.writeClusterToFile(*cluster, targetFilePath, error);
-    if (ret != OK) {
-        return ret;
-    }
-
-    return OK;
-}
-
-/**
- * @brief createRootObj
- * @return
+ * @brief get pointer to a new root-object
  */
 std::unique_ptr<HanamiCore>
 createRootObj()
 {
     return std::make_unique<HanamiCore>();
-}
-void
-HanamiCore::my_cpp_function()
-{
-    std::cout << "my_cpp_function" << std::endl;
-}
-
-int
-HanamiCore::area() const
-{
-    return 5 * 5;
-}
-
-int
-HanamiCore::perimeter() const
-{
-    return 4 * 5;
 }

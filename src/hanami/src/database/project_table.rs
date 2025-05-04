@@ -15,15 +15,12 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
-use std::env;
+use log::error;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
 
-use hanami_common::functions::sha256_hash;
 use hanami_common::enums;
 
 // Define the schema
@@ -43,7 +40,7 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = projects)]
-pub struct Project {
+pub struct ProjectEntry {
     pub id: String,
     pub name: String,
     pub status: String,
@@ -74,7 +71,7 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_project(project_id: &String, project_name: &String, context: &UserContext) -> QueryResult<usize> {
     
-    let project = Project{
+    let project = ProjectEntry{
         id: project_id.clone(),
         name: project_name.clone(),
         status: "ACTIVE".to_string(),
@@ -89,14 +86,14 @@ pub fn add_new_project(project_id: &String, project_name: &String, context: &Use
     add_project(&project)
 }
 
-pub fn add_project(project: &Project) -> QueryResult<usize> {
+pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
 
     diesel::insert_into(projects).values(project).execute(&mut *conn)
 }
 
-pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project, enums::DbError> {
+pub fn get_project(project_id: &String, context: &UserContext) -> Result<ProjectEntry, enums::DbError> {
     if context.is_admin == false {
         return Err(enums::DbError::NotFound);
     }
@@ -105,8 +102,8 @@ pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project
     use self::projects::dsl::*;
     match projects
         .filter(id.eq(project_id).and(status.eq("ACTIVE")))
-        .select(Project::as_select())
-        .first::<Project>(&mut *conn)
+        .select(ProjectEntry::as_select())
+        .first::<ProjectEntry>(&mut *conn)
     {
         Ok(project) => Ok(project),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -117,15 +114,15 @@ pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project
     }
 }
 
-pub fn list_projects(context: &UserContext) -> QueryResult<Vec<Project>> {  
+pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {  
     if context.is_admin == false {
-        let dummy: QueryResult<Vec<Project>> = Ok(vec![]);
+        let dummy: QueryResult<Vec<ProjectEntry>> = Ok(vec![]);
         return dummy;
     }
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
-    projects.filter(status.eq("ACTIVE")).select(Project::as_select()).load(&mut *conn)
+    projects.filter(status.eq("ACTIVE")).select(ProjectEntry::as_select()).load(&mut *conn)
 }
 
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
@@ -151,6 +148,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn hard_delete_project(project_id: &String) {
         use self::projects::dsl::*;
@@ -159,6 +157,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_project() {
         let _ = init_project_table();
         let project_id = "test-project-1".to_string();
@@ -170,7 +169,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let project: Project = Project {
+        let project = ProjectEntry {
             id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
@@ -202,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_projects() {
         let _ = init_project_table();
         let project_id1 = "test-project-2".to_string();
@@ -214,7 +214,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let project1 = Project {
+        let project1 = ProjectEntry {
             id: project_id1.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
@@ -226,7 +226,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let project2 = Project {
+        let project2 = ProjectEntry {
             id: project_id2.clone(),
             name: "Bob".to_string(),
             status: "DELETED".to_string(),
@@ -252,6 +252,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_delete_project() {
         let _ = init_project_table();
         let project_id = "test-project-5".to_string();
@@ -263,7 +264,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let project = Project {
+        let project = ProjectEntry {
             id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),

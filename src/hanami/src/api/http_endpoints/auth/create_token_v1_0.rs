@@ -52,7 +52,7 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     }
 
     // get user from database
-    let user: user_table::User;
+    let user: user_table::UserEntry;
     match user_table::get_auth_user(&parsed.client_id) {
         Ok(val) => user = val,
         Err(_) => {

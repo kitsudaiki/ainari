@@ -15,7 +15,7 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
+use log::error;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -148,6 +148,7 @@ pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn hard_delete_task(task_uuid: &Uuid) {
         use self::tasks::dsl::*;
@@ -156,6 +157,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_task() {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
@@ -200,6 +202,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_tasks() {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
@@ -253,6 +256,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_tasks_permissions() {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();

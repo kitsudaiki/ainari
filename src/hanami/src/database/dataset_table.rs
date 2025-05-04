@@ -15,9 +15,8 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
+use log::error;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -45,7 +44,7 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = datasets)]
-pub struct dataset {
+pub struct DatasetEntry {
     pub uuid: String,
     pub name: String,
     pub file_path: String,
@@ -81,7 +80,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_dataset(dataset_uuid: &Uuid, dataset_name: &String, file_path: &String, context: &UserContext) -> QueryResult<usize> {
-    let dataset = dataset{
+    let dataset = DatasetEntry{
         uuid: dataset_uuid.to_string().clone(),
         name: dataset_name.clone(),
         file_path: file_path.clone(),
@@ -99,14 +98,14 @@ pub fn add_new_dataset(dataset_uuid: &Uuid, dataset_name: &String, file_path: &S
     add_dataset(&dataset)
 }
 
-pub fn add_dataset(dataset: &dataset) -> QueryResult<usize> {
+pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
 
     diesel::insert_into(datasets).values(dataset).execute(&mut *conn)
 }
 
-pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<dataset, enums::DbError> {
+pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<DatasetEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
     
@@ -122,8 +121,8 @@ pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<dataset
     }
 
     match query
-        .select(dataset::as_select())
-        .first::<dataset>(&mut *conn)
+        .select(DatasetEntry::as_select())
+        .first::<DatasetEntry>(&mut *conn)
     {
         Ok(dataset) => Ok(dataset),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -134,7 +133,7 @@ pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<dataset
     }
 }
 
-pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<dataset>> {
+pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
     
@@ -149,7 +148,7 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<dataset>> {
         }
     }
 
-    query.select(dataset::as_select()).load(&mut *conn)
+    query.select(DatasetEntry::as_select()).load(&mut *conn)
 }
 
 pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
@@ -178,6 +177,7 @@ pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     fn hard_delete_dataset(dataset_uuid: &Uuid) {
         use self::datasets::dsl::*;
@@ -186,6 +186,7 @@ mod tests {
     }
     
     #[test]
+    #[serial]
     fn test_add_get_dataset() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
@@ -199,7 +200,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let dataset: dataset = dataset {
+        let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -235,6 +236,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_list_datasets() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
@@ -249,7 +251,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let dataset1 = dataset {
+        let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -264,7 +266,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let dataset2 = dataset {
+        let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -291,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_delete_dataset() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
@@ -304,7 +307,7 @@ mod tests {
             is_project_admin: false,
         };
 
-        let dataset = dataset {
+        let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -329,13 +332,14 @@ mod tests {
 
 
     #[test]
+    #[serial]
     fn test_datasets_permissions() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
 
-        let dataset1 = dataset {
+        let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -350,7 +354,7 @@ mod tests {
             deleted_by: None,
         };
         
-        let dataset2 = dataset {
+        let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             file_path: "/tmp/bla".to_string(),
@@ -365,7 +369,7 @@ mod tests {
             deleted_by: None,
         };
                 
-        let dataset3 = dataset {
+        let dataset3 = DatasetEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             file_path: "/tmp/bla".to_string(),

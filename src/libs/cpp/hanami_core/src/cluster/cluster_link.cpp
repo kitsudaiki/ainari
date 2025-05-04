@@ -30,6 +30,11 @@
 
 #include <iostream>
 
+/**
+ * @brief constructor
+ *
+ * @param cluster pointer to the cluster related to this specific link
+ */
 ClusterLink::ClusterLink(Cluster* cluster) { m_cluster = cluster; }
 
 ClusterLink::~ClusterLink()
@@ -40,20 +45,11 @@ ClusterLink::~ClusterLink()
 }
 
 /**
- * @brief ClusterLink::printMetrics
- */
-void
-ClusterLink::printMetrics() const
-{
-    std::cout << "Metrics of cluster " << m_cluster->clusterHeader.uuid.toString() << ": "
-              << std::endl;
-    std::cout << "    Number of hexagons: " << m_cluster->hexagons.size() << std::endl;
-}
-
-/**
- * @brief ClusterLink::createCheckpoint
- * @param targetFilePath
- * @return
+ * @brief create checkpoint of the cluster
+ *
+ * @param targetFilePath local file-path, where to store the resulting checkpoint
+ *
+ * @return return-status
  */
 int
 ClusterLink::createCheckpoint(const std::string& targetFilePath)
@@ -61,7 +57,6 @@ ClusterLink::createCheckpoint(const std::string& targetFilePath)
     Hanami::ErrorContainer error;
     std::filesystem::path filePath = targetFilePath;
 
-    // cluster->stateMachine
     for (Hexagon& hexagon : m_cluster->hexagons) {
         hexagon.attachedHost->syncWithHost(&hexagon);
     }
@@ -76,10 +71,13 @@ ClusterLink::createCheckpoint(const std::string& targetFilePath)
 }
 
 /**
- * @brief ClusterLink::fillInput
- * @param hexagonName
- * @param input
- * @param numberOfInputs
+ * @brief fill input-hexagons with values
+ *
+ * @param hexagonName name of the hexagon
+ * @param input pointer to the list with the input-values
+ * @param numberOfInputs number of input-values in the list
+ *
+ * @return false, if hexagon with the name doesn't exist, else true
  */
 bool
 ClusterLink::fillInput(const std::string& hexagonName,
@@ -118,10 +116,13 @@ ClusterLink::fillInput(const std::string& hexagonName,
 }
 
 /**
- * @brief ClusterLink::fillExpected
- * @param hexagonName
- * @param output
- * @param numberOfOutputs
+ * @brief fill output-hexagons with expect-values
+ *
+ * @param hexagonName name of the hexagon
+ * @param output pointer to the list with the expected output-values
+ * @param numberOfOutputs number of output-values in the list
+ *
+ * @return false, if hexagon with the name doesn't exist, else true
  */
 bool
 ClusterLink::fillExpected(const std::string& hexagonName,
@@ -139,12 +140,15 @@ ClusterLink::fillExpected(const std::string& hexagonName,
 
     return true;
 }
+
 /**
- * @brief ClusterLink::getOutput
- * @param hexagonName
- * @param output
- * @param numberOfOutputs
- * @return
+ * @brief get resulting values of an output-hexagon
+ *
+ * @param hexagonName name of the hexagon
+ * @param output pointer to the target-list
+ * @param numberOfOutputs size of the list
+ *
+ * @return false, if hexagon with the name doesn't exist, else true
  */
 bool
 ClusterLink::getOutput(const std::string& hexagonName,
@@ -163,16 +167,18 @@ ClusterLink::getOutput(const std::string& hexagonName,
 }
 
 /**
- * @brief ClusterLink::doTrain
+ * @brief start a train-cycle
  */
 void
 ClusterLink::doTrain()
 {
-    std::cout << "do train" << std::endl;
     m_cluster->startForwardCycle(false);
     m_cluster->finishCycle();
 }
 
+/**
+ * @brief start a request-cycle
+ */
 void
 ClusterLink::doRequest()
 {

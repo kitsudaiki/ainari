@@ -50,13 +50,6 @@ class HanamiCore
                                                const ClusterMeta& parsedCluster,
                                                std::string& errorMessage);
     int deleteCluster(const std::string& clusterUuid);
-    int createCheckpoint(const std::string& clusterUuid,
-                         const std::string& targetFilePath,
-                         std::string& errorMessage);
-
-    int area() const;
-    int perimeter() const;
-    void my_cpp_function();
 
     static Hanami::GpuInterface* gpuInterface;
     static HanamiCore* rootObj;

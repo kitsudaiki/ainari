@@ -23,7 +23,6 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 
 use hanami_core::cluster_handler;
-use hanami_core::cluster::Cluster;
 use hanami_common::error::HanamiError;
 
 use super::cluster_structs::{ClusterCreateReq, ClusterResp};

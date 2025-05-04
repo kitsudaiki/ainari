@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
+use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -30,24 +31,35 @@ use super::cluster_structs::{ClusterBasicResp, ClusterListResp};
     error_code = 500
 )]
 pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
-    let clusters = cluster_table::list_clusters(&context).unwrap();
+    let clusters = match cluster_table::list_clusters(&context)
+    {
+        Ok(clusters) => clusters,
+        Err(e) => {
+            error!("Failed to get list of clusters form database: '{}'", e);
+            return Err(ErrorResponse::InternalError("".to_string()))
+        }
+    };
 
     let mut resp = ClusterListResp {
         clusters: Vec::new(),
     };
 
     for cluster in clusters {
-        match Uuid::parse_str(&cluster.uuid) {
-            Ok(uuid) => {
-                let obj = ClusterBasicResp {
-                    uuid: uuid,
-                    name: cluster.name.clone(),
-                };
-        
-                resp.clusters.push(obj);
-            }
-            Err(e) =>  return Err(ErrorResponse::InternalError("".to_string())),
-        }
+        // parse-uuid-string coming from the database
+        let uuid = match Uuid::parse_str(&cluster.uuid) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                error!("Failed to convert cluster-uuid with error: '{}'", e);
+                return Err(ErrorResponse::InternalError("".to_string()))
+            },
+        };
+
+        let obj = ClusterBasicResp {
+            uuid: uuid,
+            name: cluster.name.clone(),
+        };
+
+        resp.clusters.push(obj);
     }
 
     Ok(Json(resp))
