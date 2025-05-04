@@ -16,15 +16,12 @@ use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use log::{info, debug, error};
-use std::env;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
 use uuid::Uuid;
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
 
-use hanami_common::functions::sha256_hash;
 use hanami_common::enums;
 
 // Define the schema
@@ -32,6 +29,7 @@ table! {
     tasks (uuid) {
         uuid -> Varchar,
         name -> Varchar,
+        cluster_uuid -> Varchar,
         task_type -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -44,9 +42,10 @@ table! {
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = tasks)]
-pub struct task {
+pub struct TaskEntry {
     pub uuid: String,
     pub name: String,
+    pub cluster_uuid: String,
     pub task_type: String,
     pub owner_id: String,
     pub project_id: String,
@@ -61,6 +60,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
+        cluster_uuid VARCHAR(40),
         task_type VARCHAR(32),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
@@ -73,10 +73,11 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_new_task(task_uuid: &Uuid, task_name: &String, task_type: &String, context: &UserContext) -> QueryResult<usize> {
-    let task = task{
+pub fn add_new_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_name: &String, task_type: &String, context: &UserContext) -> QueryResult<usize> {
+    let task = TaskEntry{
         uuid: task_uuid.to_string().clone(),
         name: task_name.clone(),
+        cluster_uuid: cluster_uuid.to_string().clone(),
         task_type: task_type.clone(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -89,19 +90,21 @@ pub fn add_new_task(task_uuid: &Uuid, task_name: &String, task_type: &String, co
     add_task(&task)
 }
 
-fn add_task(task: &task) -> QueryResult<usize> {
+fn add_task(task: &TaskEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::tasks::dsl::*;
 
     diesel::insert_into(tasks).values(task).execute(&mut *conn)
 }
 
-pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<task, enums::DbError> {
+pub fn get_task(task_uuid: &Uuid, cluster_uuid_in: &Uuid, context: &UserContext) -> Result<TaskEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::tasks::dsl::*;
     
     let mut query = tasks
-        .filter(uuid.eq(task_uuid.to_string()))
+        // HINT (kitsudaiki): Had to rename the function-parameter cluster_uuid to cluster_uuid_in to have a different name,
+        // because here in this filter, it results in conflicts in case both sides of the eq are named the same
+        .filter(uuid.eq(task_uuid.to_string()).and(cluster_uuid.eq(cluster_uuid_in.to_string())))
         .into_boxed();
 
     if context.is_admin == false {
@@ -112,8 +115,8 @@ pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<task, enums::
     }
 
     match query
-        .select(task::as_select())
-        .first::<task>(&mut *conn)
+        .select(TaskEntry::as_select())
+        .first::<TaskEntry>(&mut *conn)
     {
         Ok(task) => Ok(task),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -124,11 +127,13 @@ pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<task, enums::
     }
 }
 
-pub fn list_tasks(context: &UserContext) -> QueryResult<Vec<task>> {
+pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::tasks::dsl::*;
 
-    let mut query = tasks.into_boxed();
+    let mut query = tasks
+        .filter(cluster_uuid.eq(cluster_uuid_in.to_string()))
+        .into_boxed();
 
     if context.is_admin == false {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -137,7 +142,7 @@ pub fn list_tasks(context: &UserContext) -> QueryResult<Vec<task>> {
         }
     }
 
-    query.select(task::as_select()).load(&mut *conn)
+    query.select(TaskEntry::as_select()).load(&mut *conn)
 }
 
 #[cfg(test)]
@@ -154,6 +159,7 @@ mod tests {
     fn test_add_get_task() {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -164,9 +170,10 @@ mod tests {
             is_project_admin: false,
         };
 
-        let task: task = task {
+        let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -179,7 +186,7 @@ mod tests {
         hard_delete_task(&uuid1);
 
         add_task(&task).unwrap();
-        match get_task(&uuid1, &context) {
+        match get_task(&uuid1, &cluster_uuid, &context) {
             Ok(retrieved_task) => {
                 assert_eq!(retrieved_task.uuid, task.uuid);
                 assert_eq!(retrieved_task.name, task.name);
@@ -197,6 +204,7 @@ mod tests {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -207,9 +215,10 @@ mod tests {
             is_project_admin: false,
         };
 
-        let task1 = task {
+        let task1 = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -219,9 +228,10 @@ mod tests {
             updated_by: "admin".to_string(),
         };
         
-        let task2 = task {
+        let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -236,7 +246,7 @@ mod tests {
 
         add_task(&task1).unwrap();
         add_task(&task2).unwrap();
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 2);
         let _ = hard_delete_task(&uuid1);
         let _ = hard_delete_task(&uuid2);
@@ -248,10 +258,12 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
 
-        let task1 = task {
+        let task1 = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -261,9 +273,10 @@ mod tests {
             updated_by: "admin".to_string(),
         };
         
-        let task2 = task {
+        let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -273,9 +286,10 @@ mod tests {
             updated_by: "admin".to_string(),
         };
                 
-        let task3 = task {
+        let task3 = TaskEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
             task_type: "Train-Task".to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
@@ -300,7 +314,7 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 1);
 
         // list-test project-admin
@@ -310,7 +324,7 @@ mod tests {
             is_admin: false,
             is_project_admin: true,
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 2);
 
         // list-test admin
@@ -320,7 +334,7 @@ mod tests {
             is_admin: true,
             is_project_admin: false,
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 3);
 
         // get-test normal user
@@ -330,7 +344,7 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_task(&uuid1, &context) {
+        match get_task(&uuid1, &cluster_uuid, &context) {
             Ok(retrieved_task) => {
                 assert_eq!(retrieved_task.uuid, uuid1.to_string());
             },
@@ -346,7 +360,7 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_task(&uuid3, &context) {
+        match get_task(&uuid3, &cluster_uuid, &context) {
             Ok(_) => {
                 assert_eq!(true, false);
             },

@@ -34,8 +34,8 @@ use super::task_structs::{TaskBasicResp, TaskListResp, TaskType};
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_task(task_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
-    let tasks = task_table::list_tasks(&context).unwrap();
+pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
+    let tasks = task_table::list_tasks(&cluster_uuid, &context).unwrap();
 
     let mut resp = TaskListResp {
         tasks: Vec::new(),

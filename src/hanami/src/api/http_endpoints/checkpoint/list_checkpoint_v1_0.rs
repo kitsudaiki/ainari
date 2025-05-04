@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
+use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -45,8 +46,11 @@ pub async fn list_checkpoint(context: UserContext) -> Result<Json<CheckpointList
                 };
         
                 resp.checkpoints.push(obj);
+            },
+            Err(e) => {
+                error!("Error while creating checkpoint: '{}'", e);
+                return Err(ErrorResponse::InternalError("".to_string()));
             }
-            Err(e) =>  return Err(ErrorResponse::InternalError("".to_string())),
         }
     }
 

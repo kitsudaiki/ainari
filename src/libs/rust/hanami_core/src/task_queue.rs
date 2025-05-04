@@ -55,10 +55,10 @@ mod tests {
         let uuid2 = Uuid::new_v4();
 
         let info1 = CheckpointSaveInfo {
-            path: "asdf".to_string(),
+            path: "asdf".to_string().into(),
         };
         let info2 = CheckpointSaveInfo {
-            path: "asdf".to_string(),
+            path: "asdf".to_string().into(),
         };
 
         let task1 = Task {

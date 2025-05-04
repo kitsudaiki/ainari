@@ -17,7 +17,6 @@ use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use log::error;
 use uuid::Uuid;
-use std::collections::HashMap;
 use std::str::FromStr;
 use std::path::PathBuf;
 
@@ -25,12 +24,10 @@ use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::database::task_table;
-use crate::database::dataset_table;
 
 use hanami_core::cluster_handler;
 use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
 use hanami_common::enums;
-use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
 
 use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType};
 
@@ -74,6 +71,7 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
     // add new task to database
     match task_table::add_new_task(
         &task_uuid, 
+        &cluster_uuid,
         &body.name, 
         &task_type.to_string(),
         &context) 
@@ -100,7 +98,7 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
     cluster_handle.add_task(task);
 
     // get new created task from database to get addtional information
-    let task_data = match task_table::get_task(&task_uuid, &context) {
+    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

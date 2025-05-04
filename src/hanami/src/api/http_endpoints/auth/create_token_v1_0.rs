@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{post, web, App, HttpServer, Responder, HttpResponse};
 use apistos::api_operation;
 use actix_web::web::Json;
 

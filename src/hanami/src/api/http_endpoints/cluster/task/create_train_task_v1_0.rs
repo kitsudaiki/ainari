@@ -127,6 +127,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     // add new task to database
     match task_table::add_new_task(
         &task_uuid, 
+        &cluster_uuid,
         &body.name, 
         &task_type.to_string(),
         &context) 
@@ -151,7 +152,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     cluster_handle.add_task(task);
 
     // get new created task from database to get addtional information
-    let task_data = match task_table::get_task(&task_uuid, &context) {
+    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
