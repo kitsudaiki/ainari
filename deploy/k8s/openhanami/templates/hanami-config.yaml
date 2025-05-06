@@ -24,7 +24,6 @@ data:
     port = 11418
 
     [database]
-    host = "0.0.0.0"
-    port = 1234
+    file_path = "/etc/openhanami/hanami_db"
 
 kind: ConfigMap

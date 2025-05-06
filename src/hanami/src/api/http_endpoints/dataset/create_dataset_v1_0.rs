@@ -33,6 +33,7 @@ use std::io::Write;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
+use crate::config;
 
 use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, Column};
 use hanami_common::error::HanamiError;
@@ -54,7 +55,7 @@ pub struct MnistImage {
     error_code = 500
 )]
 pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>, context: UserContext) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
-    let upload_dir_path = "./uploads";
+    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
     let dataset_uuid = Uuid::new_v4();
     let target_filepath: PathBuf = upload_dir.join(&dataset_uuid.to_string());

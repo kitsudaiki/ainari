@@ -16,11 +16,14 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use std::sync::{Arc, Mutex};
 
+use crate::config;
+
 lazy_static::lazy_static! {
     pub static ref DB_CONN: Arc<Mutex<SqliteConnection>> = Arc::new(Mutex::new(establish_connection()));
 }
 
 pub fn establish_connection() -> SqliteConnection {
-    let database_url = ":memory:".to_string();
-    SqliteConnection::establish(&database_url).expect("Error connecting to database")
+    let file_path = config::CONFIG.database.file_path.clone();
+    //let database_url = ":memory:".to_string();
+    SqliteConnection::establish(&file_path).expect("Error connecting to database")
 }

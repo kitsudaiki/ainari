@@ -19,6 +19,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use log::{error, debug};
 
 use crate::api::user_context::UserContext;
+use crate::config;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Claims {
@@ -35,10 +36,8 @@ pub struct Claims {
 }
 
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
-    // TODO: remove hard-coded secret
-    let secret = b"super_secret_key"; // Replace with a secure key
-
     // validate token
+    let secret = config::TOKEN_KEY.as_bytes();;
     let key = DecodingKey::from_secret(secret);
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
@@ -55,15 +54,14 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
 }
 
 pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_project_admin: bool) -> Result<String, ()> {
-    let secret = b"super_secret_key"; // Replace with a secure key
+    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
 
     // get timestamps for token
     let current = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    // TODO: make time configurable
-    let expiration = current + 3600; // Token valid for 1 hour
+    let expiration = current + token_expire_time;
 
     // create token-payload
     let claims = Claims {
@@ -77,6 +75,7 @@ pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_pr
     };
 
     // create token
+    let secret = config::TOKEN_KEY.as_bytes();;
     match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)) {
         Ok(token) => {
             debug!("Successfully created token for user-id '{}' and project-id '{}'", user_id, project_id);

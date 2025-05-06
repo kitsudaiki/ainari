@@ -20,7 +20,7 @@ use schemars::JsonSchema;
 pub struct UserTokenResp {
     pub access_token: String,
     pub token_type: String,
-    pub expires: u32,
+    pub expires: u64,
 }
 
 #[derive(Debug, Deserialize)]

@@ -151,6 +151,7 @@ compile-hanami:
 
 test-hanami:
     FROM +prepare-build-dependencies
+    COPY example_configs/openhanami /etc/openhanami
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
     RUN cargo test

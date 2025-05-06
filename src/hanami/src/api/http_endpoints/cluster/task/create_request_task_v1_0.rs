@@ -26,6 +26,7 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::database::task_table;
 use crate::database::dataset_table;
+use crate::config;
 
 use hanami_core::cluster_handler;
 use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, RequestInfo};
@@ -106,7 +107,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     // prepare outputs for task
     for output in &body.results {
         let result_uuid = Uuid::new_v4();
-        let upload_dir_path = "./uploads";
+        let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
         let upload_dir = PathBuf::from(&upload_dir_path);
         let target_filepath: PathBuf = upload_dir.join(&result_uuid.to_string());
         let description = "".to_string();

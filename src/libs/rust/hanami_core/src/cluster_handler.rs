@@ -129,8 +129,7 @@ impl ClusterHandler {
         Ok(())
     }
 
-    pub fn init_hanami_root(&mut self) -> bool {
-        let max_memory_usage: f32 = 0.1;
+    pub fn init_hanami_root(&mut self, max_memory_usage: f32) -> bool {
         let mut error_msg = ffi::make_string("");
 
         let success = self.hanami_core.pin_mut().init(max_memory_usage, error_msg.pin_mut());
@@ -188,7 +187,7 @@ mod tests {
     #[test]
     fn create_cluster() {
         let mut handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-        handle.init_hanami_root();
+        handle.init_hanami_root(0.1f32);
 
         let key = Uuid::new_v4();
         let name = "test_cluster".to_string();

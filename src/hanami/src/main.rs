@@ -19,13 +19,7 @@ mod database;
 mod config;
 
 use log::{error, info};
-
-use database::user_table::init_user_table;
-use database::project_table::init_project_table;
-use database::cluster_table::init_cluster_table;
-use database::dataset_table::init_dataset_table;
-use database::task_table::init_task_table;
-use database::checkpoint_table::init_checkpoint_table;
+use log::{SetLoggerError, LevelFilter};
 
 use hanami_core::cluster_handler;
 
@@ -38,58 +32,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     env_logger::init(); 
 
-    // Initialize user-table
-    match init_user_table() {
-        Ok(_) => info!("Initilaized user-database-table"),
-        Err(e) => {
-            error!("Failed to initialize user-database-table: {}", e);
-            return Err(e);
-        }
-    };
-    // Initialize project-table
-    match init_project_table() {
-        Ok(_) => info!("Initilaized project-database-table"),
-        Err(e) => {
-            error!("Failed to initialize project-database-table: {}", e);
-            return Err(e);
-        }
-    };
-    // Initialize cluster-table
-    match init_cluster_table() {
-        Ok(_) => info!("Initilaized cluster-database-table"),
-        Err(e) => {
-            error!("Failed to initialize cluster-database-table: {}", e);
-            return Err(e);
-        }
-    };
-    // Initialize dataset-table
-    match init_dataset_table() {
-        Ok(_) => info!("Initilaized dataset-database-table"),
-        Err(e) => {
-            error!("Failed to initialize dataset-database-table: {}", e);
-            return Err(e);
-        }
-    };
-    // Initialize task-table
-    match init_task_table() {
-        Ok(_) => info!("Initilaized task-database-table"),
-        Err(e) => {
-            error!("Failed to initialize task-database-table: {}", e);
-            return Err(e);
-        }
-    };
-    // Initialize checkpoint-table
-    match init_checkpoint_table() {
-        Ok(_) => info!("Initilaized checkpoint-database-table"),
-        Err(e) => {
-            error!("Failed to initialize checkpoint-database-table: {}", e);
-            return Err(e);
-        }
-    };
+    let enable_debug_log = config::CONFIG.debug;
+    if enable_debug_log == false {
+        log::set_max_level(LevelFilter::Info);
+    } 
 
     // Initialize hanami-core
+    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.init_hanami_root() {
+    if cluster_handle.init_hanami_root(use_of_free_memory) {
         info!("Initilaized hanami-core")
     } else {
         let msg = "Failed to initialize hanami-core".to_string();
@@ -97,6 +48,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(msg.into());
     }
     drop(cluster_handle);
+
+    database::init_database()?;
 
     api::http_server::run_server()?;
     

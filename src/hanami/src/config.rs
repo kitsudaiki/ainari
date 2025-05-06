@@ -46,7 +46,7 @@ pub struct Processing {
 #[derive(Debug, Deserialize)]
 pub struct Auth {
     pub token_key_path: String,
-    pub token_expire_time: u32,
+    pub token_expire_time: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,8 +57,7 @@ pub struct Api {
 
 #[derive(Debug, Deserialize)]
 pub struct Database {
-    pub host: String,
-    pub port: u16,
+    pub file_path: String,
 }
 
 // Global singleton config
@@ -84,6 +83,23 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         },
         Err(e) => {
             error!("Failed read config-file '{}'", file_path);
+            error!("{}", e);
+            process::exit(1);
+        }
+    }
+});
+
+pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
+    let file_path = &CONFIG.auth.token_key_path;
+    debug!("read token-key from file: '{}'", file_path);
+
+    match fs::read_to_string(&file_path) {
+        Ok(content) => {
+            debug!("successfully read token-key-file '{}'", file_path);
+            content    
+        },
+        Err(e) => {
+            error!("Failed read token-key-file '{}'", file_path);
             error!("{}", e);
             process::exit(1);
         }

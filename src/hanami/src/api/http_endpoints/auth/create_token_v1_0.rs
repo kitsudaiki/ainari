@@ -18,6 +18,7 @@ use actix_web::web::Json;
 use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
 use crate::database::user_table;
+use crate::config;
 
 use hanami_common::functions::sha256_hash;
 
@@ -32,6 +33,8 @@ use super::auth_structs::{OAuth2Request, UserTokenResp};
     error_code = 500
 )]
 pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResponse> {
+    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
+
     let parsed = match parse_oauth2_body(body.as_str()) {
         Ok(parsed) => parsed,
         Err(err) => {
@@ -84,7 +87,7 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     let response = UserTokenResp{
         access_token: token,
         token_type: "bearer".to_string(),
-        expires: 3600,
+        expires: token_expire_time,
     };
 
     return Ok(Json(response));

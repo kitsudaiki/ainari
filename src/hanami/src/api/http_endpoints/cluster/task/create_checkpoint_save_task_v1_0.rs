@@ -24,6 +24,7 @@ use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::database::task_table;
+use crate::config;
 
 use hanami_core::cluster_handler;
 use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
@@ -41,7 +42,7 @@ use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType};
 pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointCreateTask;
-    let upload_dir_path = "./uploads";
+    let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
     let target_filepath: PathBuf = upload_dir.join(&task_uuid.to_string());
 
