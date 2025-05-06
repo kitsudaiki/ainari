@@ -28,6 +28,7 @@ use super::cluster_structs::ClusterResp;
     tag = "cluster",
     summary = "Get cluster",
     description = r###"Get information of a cluster from the database."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
@@ -51,7 +52,8 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 }

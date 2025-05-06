@@ -27,6 +27,7 @@ use super::auth_structs::{OAuth2Request, UserTokenResp};
     tag = "auth",
     summary = "Create Token",
     description = r###"Create Token for given user credentials"###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]

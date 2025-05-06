@@ -28,7 +28,7 @@ use hanami_common::enums;
 #[api_operation(
     tag = "dataset",
     summary = "Delete dataset",
-    description = r###"Delete a dataset from the database and core."###,
+    description = r###"Delete a dataset from the database and files from the storage."###,
     error_code = 401,
     error_code = 404,
     error_code = 500
@@ -40,7 +40,8 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 
@@ -58,7 +59,8 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 

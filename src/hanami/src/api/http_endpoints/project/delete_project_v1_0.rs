@@ -25,17 +25,18 @@ use hanami_common::enums;
     tag = "project",
     summary = "Delete project",
     description = r###"Delete a project from the database. This can only be done by an admin."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_project(id: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_project(project_id: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
     if context.is_admin == false {
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
 
     // get new created project from database to get addtional information
-    match project_table::delete_project(&id, &context) {
+    match project_table::delete_project(&project_id, &context) {
         Ok(_) => {
             return Ok(NoContent);
         },
@@ -43,7 +44,8 @@ pub async fn delete_project(id: Path<String>, context: UserContext) -> Result<No
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Project with ID '{}' not found.", project_id);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 }

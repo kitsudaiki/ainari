@@ -47,8 +47,9 @@ pub struct MnistImage {
 
 #[api_operation(
     tag = "dataset",
-    summary = "Create new cluster",
-    description = r###"Create new cluster based on a cluster-template."###,
+    summary = "Create new dataset",
+    description = r###"Create new dataset by uploading files."###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]

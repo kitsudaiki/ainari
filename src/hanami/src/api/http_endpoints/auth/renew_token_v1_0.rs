@@ -25,6 +25,7 @@ use super::auth_structs::UserTokenResp;
     tag = "auth",
     summary = "Renew Token",
     description = r###"Renew Token"###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]

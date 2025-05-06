@@ -45,14 +45,15 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
     let upload_dir = PathBuf::from(&upload_dir_path);
     let target_filepath: PathBuf = upload_dir.join(&task_uuid.to_string());
 
-    // check if cluster-uuid exist in database
-    let _ = match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster) => cluster,
+    // check if cluster exist
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(_) => {},
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 

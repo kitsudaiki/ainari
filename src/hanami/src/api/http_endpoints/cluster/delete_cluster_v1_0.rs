@@ -28,6 +28,7 @@ use hanami_core::cluster_handler;
     tag = "cluster",
     summary = "Delete cluster",
     description = r###"Delete a cluster from the database and core."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500

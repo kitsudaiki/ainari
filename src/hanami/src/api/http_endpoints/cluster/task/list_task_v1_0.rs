@@ -21,17 +21,33 @@ use std::str::FromStr;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::task_table;
+use crate::database::cluster_table;
+
+use hanami_common::enums;
 
 use super::task_structs::{TaskBasicResp, TaskListResp, TaskType};
 
 #[api_operation(
     tag = "task",
-    summary = "Create new train-task",
-    description = r###"Create new train-task for a task"###,
+    summary = "List tasks",
+    description = r###"List all tasks of a cluster"###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]
 pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
+    // check if cluster exist
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(_) => {},
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
     let tasks = match task_table::list_tasks(&cluster_uuid, &context)
     {
         Ok(tasks) => tasks,

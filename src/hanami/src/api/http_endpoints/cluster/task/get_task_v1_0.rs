@@ -21,6 +21,8 @@ use std::str::FromStr;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::task_table;
+use crate::database::cluster_table;
+
 use hanami_common::enums;
 
 use super::task_structs::{TaskResp, TaskType};
@@ -28,19 +30,33 @@ use super::task_structs::{TaskResp, TaskType};
 #[api_operation(
     tag = "task",
     summary = "Get task",
-    description = r###"Get information of a task from the database."###,
+    description = r###"Get information of a task of a cluster from the database."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+    // check if cluster exist
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(_) => {},
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Task with UUID '{}' not found.", task_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 

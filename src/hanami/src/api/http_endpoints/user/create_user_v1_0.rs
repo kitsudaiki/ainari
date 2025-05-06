@@ -28,6 +28,7 @@ use super::user_structs::{UserCreateReq, UserResp};
     tag = "user",
     summary = "Create new user",
     description = r###"Create new user. This can only be done by an admin."###,
+    error_code = 400,
     error_code = 401,
     error_code = 409,
     error_code = 500

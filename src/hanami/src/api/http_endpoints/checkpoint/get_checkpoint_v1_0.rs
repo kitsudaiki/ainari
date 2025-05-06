@@ -28,6 +28,7 @@ use super::checkpoint_structs::CheckpointResp;
     tag = "checkpoint",
     summary = "Get checkpoint",
     description = r###"Get information of a checkpoint from the database."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
@@ -50,7 +51,8 @@ pub async fn get_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext) -
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 }

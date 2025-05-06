@@ -28,6 +28,7 @@ use super::dataset_structs::DatasetResp;
     tag = "dataset",
     summary = "Get dataset",
     description = r###"Get information of a dataset from the database."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
@@ -50,7 +51,8 @@ pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Resu
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 }

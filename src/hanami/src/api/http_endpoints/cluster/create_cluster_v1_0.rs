@@ -31,6 +31,7 @@ use super::cluster_structs::{ClusterCreateReq, ClusterResp};
     tag = "cluster",
     summary = "Create new cluster",
     description = r###"Create new cluster based on a cluster-template."###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]
@@ -42,7 +43,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     match cluster_handle.create_cluster(cluster_uuid.clone(), body.name.clone(), body.template.clone()) {
         Ok(_) => {},
         Err(HanamiError::InputError(e)) => {
-            let msg = format!("{}", e);
+            let msg = format!("Invalid input: {}", e);
             return Err(ErrorResponse::BadRequest(msg));
         },
         Err(HanamiError::Error(e)) => {

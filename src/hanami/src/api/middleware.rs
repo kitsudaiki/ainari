@@ -29,6 +29,8 @@ pub async fn authorization_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
 
     let mut skip_check = false;
+
+    // skip check for specific endpoints
     skip_check |= req.uri() == "/v1alpha/token" && req.method() == &Method::POST;
     skip_check |= req.uri() == "/openapi.json" && req.method() == &Method::GET;
 

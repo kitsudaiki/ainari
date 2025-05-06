@@ -30,6 +30,7 @@ use hanami_common::enums;
     tag = "checkpoint",
     summary = "Delete checkpoint",
     description = r###"Delete a checkpoint from the database and core."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
@@ -41,7 +42,8 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 
@@ -59,7 +61,8 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
+            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            return Err(ErrorResponse::NotFound(msg));
         }
     };
 

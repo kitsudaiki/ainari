@@ -28,6 +28,7 @@ use super::project_structs::{ProjectCreateReq, ProjectResp};
     tag = "project",
     summary = "Create new project",
     description = r###"Create new project. This can only be done by an admin."###,
+    error_code = 400,
     error_code = 401,
     error_code = 409,
     error_code = 500

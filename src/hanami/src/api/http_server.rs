@@ -51,7 +51,7 @@ fn v1alpha_routes() -> Scope {
                         .route(get().to(list_project_v1_0::list_project))
                 )
                 .service(
-                    resource("/{id}")
+                    resource("/{project_id}")
                         .route(get().to(get_project_v1_0::get_project))
                         .route(delete().to(delete_project_v1_0::delete_project))
                 )
@@ -64,7 +64,7 @@ fn v1alpha_routes() -> Scope {
                         .route(get().to(list_user_v1_0::list_user))
                 )
                 .service(
-                    resource("/{id}")
+                    resource("/{user_id}")
                         .route(get().to(get_user_v1_0::get_user))
                         .route(delete().to(delete_user_v1_0::delete_user))
                 )
@@ -148,7 +148,7 @@ pub async fn run_server() -> Result<(), impl Error> {
     HttpServer::new(move || {
       let spec = Spec {
           info: Info {
-              title: "OpenHanami-API-Documentation".to_string(),
+              title: "Hanami-API-Documentation".to_string(),
               contact: Some(Contact {
                   email: Some("tobias.anker@kitsunemimi.moe".to_string()),
                   ..Default::default()

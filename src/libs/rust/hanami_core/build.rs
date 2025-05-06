@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
-use std::path::PathBuf;
-
 fn main() {
-    // let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    // compile C++ library via CMake
+    // compile C++ library via cmake
     let dst = cmake::Config::new("hanami_core_cpp")
-        //.no_build_target(true) // <- this disables the 'install' target
         .build();
 
     // setup autocxx
@@ -30,9 +24,7 @@ fn main() {
         .build()
         .unwrap();
 
-    if env::var("PROFILE").unwrap() == "release" {
-        b.flag_if_supported("-O3");
-    }
+    b.flag_if_supported("-O3");
     
     b.include(include_path)
      .flag_if_supported("-std=c++17");

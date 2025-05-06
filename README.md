@@ -15,7 +15,7 @@
 
 # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
-## **IMPORTANT**: The repository was renamed after version 0.5.0, so all versions from 0.5.0 and below should still work like before, but there are major differences to newer versions.
+# **IMPORTANT: The project is currently in a process of big reconstruction, by translating big parts of the backend from C++ into Rust code. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
 
 ## Intro
 
