@@ -145,8 +145,8 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         uuid: task_uuid.clone(),
         task_type: InternalTaskType::TrainTask,
         name: body.name.clone(),
-        userId: context.user_id.clone(),
-        projectId: context.project_id.clone(),
+        user_id: context.user_id.clone(),
+        project_id: context.project_id.clone(),
         info: TaskVariant::Training(info),
     };
     cluster_handle.add_task(task);

@@ -44,7 +44,7 @@ fn v1alpha_routes() -> Scope {
                 )
         )
         .service(
-            scope("/projeect")
+            scope("/project")
                 .service(
                     resource("")
                         .route(post().to(create_project_v1_0::create_project))

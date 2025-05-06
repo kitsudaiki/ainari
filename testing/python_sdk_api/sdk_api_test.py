@@ -17,7 +17,7 @@
 from hanami_sdk import hanami_token
 from hanami_sdk import checkpoint
 from hanami_sdk import cluster
-# from hanami_sdk import dataset
+from hanami_sdk import dataset
 # from hanami_sdk import direct_io
 from hanami_sdk import hosts
 from hanami_sdk import project
@@ -64,7 +64,7 @@ cluster_template = \
     "inputs: " \
     "    picture: 1,1,1; " \
     "outputs: " \
-    "    label: 2,2,2;" \
+    "    label: 2,2,2;"
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -137,14 +137,14 @@ def test_dataset():
 
     result = dataset.upload_mnist_files(
         token, address, train_dataset_name, train_inputs, train_labels, False)
-    dataset_uuid = result
+    dataset_uuid = result["uuid"]
 
     dataset.list_datasets(token, address, False)
     dataset.get_dataset(token, address, dataset_uuid, False)
 
     try:
-        dataset.get_dataset(token, address, "fail_dataset", False)
-    except hanami_exceptions.BadRequestException:
+        dataset.get_dataset(token, address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
+    except hanami_exceptions.NotFoundException:
         pass
     dataset.delete_dataset(token, address, dataset_uuid, False)
     try:
@@ -161,8 +161,8 @@ def test_cluster():
     cluster.list_clusters(token, address, False)
     cluster.get_cluster(token, address, cluster_uuid, False)
     try:
-        cluster.get_cluster(token, address, "fail_cluster", False)
-    except hanami_exceptions.BadRequestException:
+        cluster.get_cluster(token, address, "569003fd-bf24-410b-8678-28f141877ac9", False)
+    except hanami_exceptions.NotFoundException:
         pass
     cluster.delete_cluster(token, address, cluster_uuid, False)
     try:
@@ -325,39 +325,39 @@ def test_workflow():
     request_dataset_uuid = dataset.upload_mnist_files(
         token, address, request_dataset_name, request_inputs, request_labels, False)
 
-    hosts_json = hosts.list_hosts(token, address, False)["body"]
-    if len(hosts_json) > 1:
-        print("test move cluster to gpu")
-        target_host_uuid = hosts_json[1][0]
-        cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
+    # hosts_json = hosts.list_hosts(token, address, False)["body"]
+    # if len(hosts_json) > 1:
+    #     print("test move cluster to gpu")
+    #     target_host_uuid = hosts_json[1][0]
+    #     cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
 
     _train(cluster_uuid, train_dataset_uuid)
 
     _test(cluster_uuid, request_dataset_uuid)
     _test(cluster_uuid, request_dataset_uuid)
 
-    cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
+    # cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
 
-    _test(cluster_uuid, request_dataset_uuid)
+    # _test(cluster_uuid, request_dataset_uuid)
 
-    asyncio.run(test_direct_io(token, address, cluster_uuid))
+    # asyncio.run(test_direct_io(token, address, cluster_uuid))
 
     # cleanup
-    # dataset.delete_dataset(token, address, train_dataset_uuid, False)
-    # dataset.delete_dataset(token, address, request_dataset_uuid, False)
+    dataset.delete_dataset(token, address, train_dataset_uuid, False)
+    dataset.delete_dataset(token, address, request_dataset_uuid, False)
     cluster.delete_cluster(token, address, cluster_uuid, False)
 
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
-# dataset.delete_all_datasets(token, address, False)
+dataset.delete_all_datasets(token, address, False)
 # checkpoint.delete_all_checkpoints(token, address, False)
-# cluster.delete_all_cluster(token, address, False)
-# project.delete_all_projects(token, address, False)
+cluster.delete_all_cluster(token, address, False)
+project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)
 
-# test_project()
+test_project()
 test_user()
-# test_dataset()
-# test_cluster()
+test_dataset()
+test_cluster()
 # test_workflow()

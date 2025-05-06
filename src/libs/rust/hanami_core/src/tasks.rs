@@ -90,8 +90,8 @@ pub struct Task {
     pub uuid: Uuid,
     pub task_type: InternalTaskType,
     pub name: String,
-    pub userId: String,
-    pub projectId: String,
+    pub user_id: String,
+    pub project_id: String,
 
     pub info: TaskVariant,
 }

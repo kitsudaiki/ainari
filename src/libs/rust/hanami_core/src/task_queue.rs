@@ -66,16 +66,16 @@ mod tests {
             uuid: uuid1.clone(),
             task_type: InternalTaskType::TrainTask,
             name: "task1".to_string(),
-            userId: "user0815".to_string(),
-            projectId: "project0815".to_string(),
+            user_id: "user0815".to_string(),
+            project_id: "project0815".to_string(),
             info: TaskVariant::CheckpointSave(info1),
         };
         let task2 = Task {
             uuid: uuid2.clone(),
             task_type: InternalTaskType::RequestTask,
             name: "task2".to_string(),
-            userId: "user0816".to_string(),
-            projectId: "project0816".to_string(),
+            user_id: "user0816".to_string(),
+            project_id: "project0816".to_string(),
             info: TaskVariant::CheckpointSave(info2),
         };
 

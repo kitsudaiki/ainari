@@ -169,8 +169,8 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         uuid: task_uuid.clone(),
         task_type: InternalTaskType::RequestTask,
         name: body.name.clone(),
-        userId: context.user_id.clone(),
-        projectId: context.project_id.clone(),
+        user_id: context.user_id.clone(),
+        project_id: context.project_id.clone(),
         info: TaskVariant::Request(info),
     };
 

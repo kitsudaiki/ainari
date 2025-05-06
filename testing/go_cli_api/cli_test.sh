@@ -3,10 +3,10 @@
 # export HANAMI_USER=asdf
 # export HANAMI_PASSPHRASE=asdfasdf
 
-# export train_inputs=/home/neptune/Schreibtisch/mnist/train-images.idx3-ubyte
-# export train_labels=/home/neptune/Schreibtisch/mnist/train-labels.idx1-ubyte
-# export request_inputs=/home/neptune/Schreibtisch/mnist/t10k-images.idx3-ubyte
-# export request_labels=/home/neptune/Schreibtisch/mnist/t10k-labels.idx1-ubyte
+# export train_inputs=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
+# export train_labels=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte
+# export request_inputs=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
+# export request_labels=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
 
 
 # build protobuffer for go sdk
@@ -25,14 +25,14 @@ cp ../../src/cli/hanamictl/hanamictl .
 ./hanamictl user delete --insecure cli_test_user
 
 # ########################
-# echo ""
-# echo "project tests"
-# ./hanamictl project create --insecure -n "cli test project" cli_test_project
-# ./hanamictl project get --insecure cli_test_project
-# ./hanamictl project list --insecure
-# ./hanamictl project delete --insecure cli_test_project
+echo ""
+echo "project tests"
+./hanamictl project create --insecure -n "cli test project" cli_test_project
+./hanamictl project get --insecure cli_test_project
+./hanamictl project list --insecure
+./hanamictl project delete --insecure cli_test_project
 
-########################
+# ########################
 echo ""
 echo "user tests"
 ./hanamictl user create --insecure -n "cli test user" -p "asdfasdf" cli_test_user

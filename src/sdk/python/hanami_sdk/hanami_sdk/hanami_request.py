@@ -14,6 +14,7 @@
 
 import requests
 import json
+import os
 
 from . import hanami_exceptions
 
@@ -87,3 +88,26 @@ def send_delete_request(token: str,
     headers = {'Authorization': bearer_token}
     response = requests.delete(url, headers=headers, verify=verify)
     _handle_response(response)
+
+
+def upload_files(token: str,
+                 address: str,
+                 path: str,
+                 file_paths,
+                 verify: bool):
+    files = []
+    for file_path in file_paths:
+        file = open(file_path, 'rb')
+        files.append(('file', (os.path.basename(file_path), file)))
+
+    url = f'{address}{path}'
+    bearer_token = "Bearer " + token
+    headers = {'Authorization': bearer_token}
+    try:
+        response = requests.post(url, headers=headers, files=files, verify=verify)
+        return json.loads(_handle_response(response))
+    except requests.exceptions.RequestException as e:
+        raise e
+    finally:
+        for _, (_, fileobj) in files:
+            fileobj.close()
