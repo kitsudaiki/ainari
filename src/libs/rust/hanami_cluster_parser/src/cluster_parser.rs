@@ -108,7 +108,7 @@ pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> 
                         "int"   => OutputType::IntOutput,
                         "bool"  => OutputType::BoolOutput,
                         _       => {
-                            return Err(format!("Invalid output extra value: '{}'", extra_field));
+                            return Err(format!("Invalid output extra value: '{extra_field}'"));
                         }
                     };
 

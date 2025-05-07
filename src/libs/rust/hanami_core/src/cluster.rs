@@ -50,7 +50,7 @@ fn get_values(
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
-            error!("Column with name '{}' not found in dataset.", hexagon_name);
+            error!("Column with name '{hexagon_name}' not found in dataset.");
             return Err("".to_string());
         }
     };
@@ -85,7 +85,7 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandleV
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
-            error!("Column with name '{}' not found in dataset.", hexagon_name);
+            error!("Column with name '{hexagon_name}' not found in dataset.");
             return Err("".to_string());
         }
     };

@@ -35,7 +35,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
     {
         Ok(clusters) => clusters,
         Err(e) => {
-            error!("Failed to get list of clusters form database: '{}'", e);
+            error!("Failed to get list of clusters form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()))
         }
     };
@@ -49,7 +49,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         let uuid = match Uuid::parse_str(&cluster.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                error!("Failed to convert cluster-uuid with error: '{}'", e);
+                error!("Failed to convert cluster-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()))
             },
         };

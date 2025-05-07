@@ -183,7 +183,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -204,7 +204,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -235,7 +235,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

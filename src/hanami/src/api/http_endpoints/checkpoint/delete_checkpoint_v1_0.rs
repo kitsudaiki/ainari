@@ -42,7 +42,7 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -50,7 +50,8 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
     match fs::remove_file(&checkpoint.file_path) {
         Ok(_) => {},
         Err(_) => {
-            error!("Failed to delete file '{}' from disc", checkpoint.file_path);
+            let file_path = checkpoint.file_path;
+            error!("Failed to delete file '{file_path}' from disc");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
@@ -58,10 +59,11 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
     match checkpoint_table::delete_checkpoint(&checkpoint_uuid, &context) {
         Ok(_) => {},
         Err(enums::DbError::InternalError) => {
+            error!("Error while deleting checkpoint from DB");
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

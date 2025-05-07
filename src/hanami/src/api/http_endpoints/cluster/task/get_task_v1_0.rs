@@ -44,7 +44,7 @@ pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: 
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -55,7 +55,7 @@ pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: 
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Task with UUID '{}' not found.", task_uuid);
+            let msg = format!("Task with UUID '{task_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

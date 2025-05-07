@@ -38,10 +38,12 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }   
 
+    let id = &body.id;
+
     // check if user already exist within the database
-    match user_table::get_user(&body.id, &context) {
+    match user_table::get_user(&id, &context) {
         Ok(_) => {
-            let msg = format!("User with ID '{}' already exist.", body.id);
+            let msg = format!("User with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
         },
         Err(enums::DbError::InternalError) => {
@@ -53,17 +55,16 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     };
 
     // add new user to datbase
-    match user_table::add_new_user(&body.id, &body.name, &body.passphrase, body.is_admin, &context) {
+    match user_table::add_new_user(&id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add user with ID '{}' to database.", body.id);
-            error!("{}", msg);
+            error!("Failed to add user with ID '{id}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     // get new created user from database to get addtional information
-    match user_table::get_user(&body.id, &context) {
+    match user_table::get_user(&id, &context) {
         Ok(user) => {
             let resp = UserResp {
                 id: user.id.clone(),
@@ -79,8 +80,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
         },
         Err(_) => 
         {
-            let msg = format!("Failed to get user with ID '{}' from database, even the user should exist.", body.id);
-            error!("{}", msg);
+            error!("Failed to get user with ID '{id}' from database, even the user should exist");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

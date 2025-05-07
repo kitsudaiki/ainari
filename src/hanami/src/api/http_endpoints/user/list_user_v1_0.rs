@@ -46,7 +46,7 @@ pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, Error
             is_admin: user.is_admin,
         };
 
-        resp.users.push(obj); // fill the vector with objects
+        resp.users.push(obj);
     }
 
     Ok(Json(resp))

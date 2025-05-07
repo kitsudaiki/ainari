@@ -53,7 +53,7 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -80,8 +80,7 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
     {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add task with UUID '{}' to database.", task_uuid);
-            error!("{}", msg);
+            error!("Failed to add task with UUID '{task_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

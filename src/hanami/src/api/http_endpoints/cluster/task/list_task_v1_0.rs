@@ -43,7 +43,7 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -66,7 +66,7 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
         let uuid = match Uuid::parse_str(&task.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                error!("Failed to convert task-uuid with error: '{}'", e);
+                error!("Failed to convert task-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()))
             },
         };

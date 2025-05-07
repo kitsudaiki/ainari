@@ -65,7 +65,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
 
     // check given type
     if ["mnist", "csv"].contains(&dataset_type.as_str()) == false {
-        let msg = format!("Type '{}' is not in list [ mnist, csv ]", dataset_type);
+        let msg = format!("Type '{dataset_type}' is not in list [ mnist, csv ]");
         return Err(ErrorResponse::BadRequest(msg.to_string()));
     }
 
@@ -73,8 +73,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     match fs::create_dir_all(&upload_dir).await {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Failed to create dataset-upload-directory '{}' with error: {}", upload_dir_path, e);
-            error!("{}", msg);
+            error!("Failed to create dataset-upload-directory '{upload_dir_path}' with error: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
@@ -108,7 +107,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             Ok(value) => value,
             Err(e) => {
                 let path = filepath.as_os_str().to_str().unwrap();
-                let msg = format!("Failed to create upload-file '{}' with error: {}.", path, e);
+                let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
                 error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
@@ -129,8 +128,9 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
 
     // process mnist-dataset
     if dataset_type == "mnist" {
+        let path_len = filepaths.len();
         if filepaths.len() != 2 {
-            let msg = format!("MNIST-dataset expect 2 uploaded files, but there were {} files found.", filepaths.len());
+            let msg = format!("MNIST-dataset expect 2 uploaded files, but there were {path_len} files found.");
             return Err(ErrorResponse::BadRequest(msg));
         }
         match load_mnist_images(
@@ -160,8 +160,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     match dataset_table::add_new_dataset(&dataset_uuid, &name, &file_path_str, &context) {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add dataset with ID '{}' to database.", dataset_uuid);
-            error!("{}", msg);
+            error!("Failed to add dataset with ID '{dataset_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -182,8 +181,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         },
         Err(_) => 
         {
-            let msg = format!("Failed to get dataset with ID '{}' from database, even the user should exist.", dataset_uuid);
-            error!("{}", msg);
+            error!("Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

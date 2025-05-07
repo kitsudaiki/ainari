@@ -127,7 +127,7 @@ pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<C
         Ok(checkpoint) => Ok(checkpoint),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -168,7 +168,7 @@ pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Resul
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

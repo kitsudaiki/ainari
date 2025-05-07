@@ -136,7 +136,7 @@ pub fn init_new_data_set_file(
 
     // check if file already exist
     if Path::new(file_path).exists() {
-        let msg = format!("Dataset file '{}' already exists.", file_path_str);
+        let msg = format!("Dataset file '{file_path_str}' already exists.");
         // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
         // so here should be an internal error instand of an input-error
         return Err(Box::new(HanamiError::Error(msg)));
@@ -182,7 +182,7 @@ pub fn read_data_set_file(
 
     // check if file even exist
     if Path::new(file_path).exists() == false {
-        let msg = format!("Dataset file '{}' does not exists.", file_path_str);
+        let msg = format!("Dataset file '{file_path_str}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user, 
         // so here should be an internal error instand of an input-error
         return Err(Box::new(HanamiError::Error(msg)));

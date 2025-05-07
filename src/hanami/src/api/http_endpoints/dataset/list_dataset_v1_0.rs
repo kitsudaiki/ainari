@@ -35,7 +35,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
     {
         Ok(datasets) => datasets,
         Err(e) => {
-            error!("Failed to get list of datasets form database: '{}'", e);
+            error!("Failed to get list of datasets form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()))
         }
     };
@@ -49,7 +49,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
         let uuid = match Uuid::parse_str(&dataset.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                error!("Failed to convert dataset-uuid with error: '{}'", e);
+                error!("Failed to convert dataset-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()))
             },
         };

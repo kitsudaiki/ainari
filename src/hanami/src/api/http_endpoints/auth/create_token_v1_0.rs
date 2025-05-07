@@ -38,20 +38,22 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     let parsed = match parse_oauth2_body(body.as_str()) {
         Ok(parsed) => parsed,
         Err(err) => {
-            let msg = format!("Failed to parse body: {}", err);
+            let msg = format!("Failed to parse body: {err}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
 
     // get and check token-format
     if parsed.token_format != "jwt" {
-        let msg = format!("Token-format '{}' is not supported. Supported formats: [ jwt ]", parsed.token_format);
+        let token_format = parsed.token_format;
+        let msg = format!("Token-format '{token_format}' is not supported. Supported formats: [ jwt ]");
         return Err(ErrorResponse::BadRequest(msg));
     }
 
     // get and check grant-type
     if parsed.grant_type != "client_credentials" {
-        let msg = format!("Grant-type '{}' is not supported. Supported types: [ client_credentials ]", parsed.token_format);
+        let grant_type = parsed.grant_type;
+        let msg = format!("Grant-type '{grant_type}' is not supported. Supported types: [ client_credentials ]");
         return Err(ErrorResponse::BadRequest(msg));
     }
 

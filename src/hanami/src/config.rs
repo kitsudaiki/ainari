@@ -67,10 +67,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
 
     match fs::read_to_string(&file_path) {
         Ok(content) => {
-            debug!("successfully read config-file '{}'", file_path);
+            debug!("successfully read config-file '{file_path}'");
             match toml::from_str(&content) {
                 Ok(v) => {
-                    info!("successfully loaded config '{}'", file_path);
+                    info!("successfully loaded config '{file_path}'");
                     return v;        
                 },
                 Err(e) => {
@@ -82,7 +82,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             }       
         },
         Err(e) => {
-            error!("Failed read config-file '{}'", file_path);
+            error!("Failed read config-file '{file_path}'");
             error!("{}", e);
             process::exit(1);
         }
@@ -91,15 +91,15 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
 
 pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
     let file_path = &CONFIG.auth.token_key_path;
-    debug!("read token-key from file: '{}'", file_path);
+    debug!("read token-key from file: '{file_path}'");
 
     match fs::read_to_string(&file_path) {
         Ok(content) => {
-            debug!("successfully read token-key-file '{}'", file_path);
+            debug!("successfully read token-key-file '{file_path}'");
             content    
         },
         Err(e) => {
-            error!("Failed read token-key-file '{}'", file_path);
+            error!("Failed read token-key-file '{file_path}'");
             error!("{}", e);
             process::exit(1);
         }

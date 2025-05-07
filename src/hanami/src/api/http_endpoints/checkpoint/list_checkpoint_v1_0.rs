@@ -31,7 +31,14 @@ use super::checkpoint_structs::{CheckpointBasicResp, CheckpointListResp};
     error_code = 500
 )]
 pub async fn list_checkpoint(context: UserContext) -> Result<Json<CheckpointListResp>, ErrorResponse> {
-    let checkpoints = checkpoint_table::list_checkpoints(&context).unwrap();
+    let checkpoints = match checkpoint_table::list_checkpoints(&context)
+    {
+        Ok(checkpoints) => checkpoints,
+        Err(e) => {
+            error!("Failed to get list of checkpoints form database: '{:?}'", e);
+            return Err(ErrorResponse::InternalError("".to_string()))
+        }
+    };
 
     let mut resp = CheckpointListResp {
         checkpoints: Vec::new(),
@@ -48,7 +55,7 @@ pub async fn list_checkpoint(context: UserContext) -> Result<Json<CheckpointList
                 resp.checkpoints.push(obj);
             },
             Err(e) => {
-                error!("Error while creating checkpoint: '{}'", e);
+                error!("Error while listing checkpoint: '{:?}'", e);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         }

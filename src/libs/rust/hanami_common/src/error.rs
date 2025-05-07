@@ -23,8 +23,8 @@ pub enum HanamiError {
 impl fmt::Display for HanamiError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HanamiError::InputError(ref msg) => write!(f, "Input-error: {}", msg),
-            HanamiError::Error(ref msg) => write!(f, "Internal error: {}", msg),
+            HanamiError::InputError(ref msg) => write!(f, "Input-error: {msg}"),
+            HanamiError::Error(ref msg) => write!(f, "Internal error: {msg}"),
         }
     }
 }

@@ -54,7 +54,7 @@ impl ClusterHandler {
         let parsed_cluster: ClusterMeta = match parse_cluster_template(cluster_template.as_str()) {
             Ok(parsed) => parsed,
             Err(e) => {
-                let msg = format!("Can not create cluster: {}", e);
+                let msg = format!("Can not create cluster: {:?}", e);
                 return Err(HanamiError::InputError(msg));
             }
         };
@@ -122,7 +122,7 @@ impl ClusterHandler {
 
         // add cluster to the cluster-handler
         if self.add(uuid, Cluster::new(uuid, name, cluster_link)) == false {
-            let msg = format!("Failed to add cluster with UUID '{}' to cluster-handler", uuid);
+            let msg = format!("Failed to add cluster with UUID '{uuid}' to cluster-handler");
             return Err(HanamiError::Error(msg));
         }
 

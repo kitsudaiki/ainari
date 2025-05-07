@@ -120,7 +120,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         match dataset_table::add_new_dataset(&result_uuid, &name, &file_path_str, &context) {
             Ok(_) => {},
             Err(_) => {
-                let msg = format!("Failed to add dataset with ID '{}' to database.", result_uuid);
+                let msg = format!("Failed to add dataset with ID '{result_uuid}' to database.");
                 error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
@@ -160,8 +160,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add task with UUID '{}' to database.", task_uuid);
-            error!("{}", msg);
+            error!("Failed to add task with UUID '{task_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

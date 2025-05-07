@@ -121,7 +121,7 @@ pub fn get_task(task_uuid: &Uuid, cluster_uuid_in: &Uuid, context: &UserContext)
         Ok(task) => Ok(task),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {}", e);
+            error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

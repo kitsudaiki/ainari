@@ -48,7 +48,7 @@ pub async fn delete_user(user_id: Path<String>, context: UserContext) -> Result<
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("User with ID '{}' not found.", user_id);
+            let msg = format!("User with ID '{user_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

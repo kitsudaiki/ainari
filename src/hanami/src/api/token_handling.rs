@@ -78,7 +78,7 @@ pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_pr
     let secret = config::TOKEN_KEY.as_bytes();;
     match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)) {
         Ok(token) => {
-            debug!("Successfully created token for user-id '{}' and project-id '{}'", user_id, project_id);
+            debug!("Successfully created token for user-id '{user_id}' and project-id '{project_id}'");
             return Ok(token);
         },
         Err(e) => {

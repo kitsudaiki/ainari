@@ -61,7 +61,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add cluster with UUID '{}' to database.", cluster_uuid);
+            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
@@ -84,7 +84,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
         },
         Err(_) => 
         {
-            let msg = format!("Failed to get cluster with ID '{}' from database, even the cluster should exist.", cluster_uuid);
+            let msg = format!("Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist.");
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

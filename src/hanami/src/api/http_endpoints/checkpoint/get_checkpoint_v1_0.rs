@@ -16,6 +16,7 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -48,10 +49,11 @@ pub async fn get_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext) -
             return Ok(Json(resp));
         },
         Err(enums::DbError::InternalError) => {
+            error!("Error while getting checkpoint from DB");
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{}' not found.", checkpoint_uuid);
+            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

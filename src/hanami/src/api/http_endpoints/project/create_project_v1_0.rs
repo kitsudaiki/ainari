@@ -36,12 +36,14 @@ use super::project_structs::{ProjectCreateReq, ProjectResp};
 pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {
     if context.is_admin == false {
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
-    }   
+    }
+
+    let id = &body.id;
 
     // check if project already exist within the database
-    match project_table::get_project(&body.id, &context) {
+    match project_table::get_project(&id, &context) {
         Ok(_) => {
-            let msg = format!("Project with ID '{}' already exist.", body.id);
+            let msg = format!("Project with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
         },
         Err(enums::DbError::InternalError) => {
@@ -53,17 +55,17 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
     };
 
     // add new project to datbase
-    match project_table::add_new_project(&body.id, &body.name, &context) {
+    match project_table::add_new_project(&id, &body.name, &context) {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add project with ID '{}' to database.", body.id);
+            let msg = format!("Failed to add project with ID '{id}' to database.");
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     // get new created project from database to get addtional information
-    match project_table::get_project(&body.id, &context) {
+    match project_table::get_project(&id, &context) {
         Ok(project) => {
             let resp = ProjectResp {
                 id: project.id.clone(),
@@ -78,7 +80,7 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
         },
         Err(_) => 
         {
-            let msg = format!("Failed to get project with ID '{}' from database, even the project should exist.", body.id);
+            let msg = format!("Failed to get project with ID '{id}' from database, even the project should exist.");
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

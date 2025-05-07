@@ -52,7 +52,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -135,7 +135,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     {
         Ok(_) => {},
         Err(_) => {
-            let msg = format!("Failed to add task with UUID '{}' to database.", task_uuid);
+            let msg = format!("Failed to add task with UUID '{task_uuid}' to database.");
             error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

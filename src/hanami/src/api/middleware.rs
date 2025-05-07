@@ -29,13 +29,14 @@ pub async fn authorization_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
 
     let mut skip_check = false;
+    let uri = req.uri();
 
     // skip check for specific endpoints
-    skip_check |= req.uri() == "/v1alpha/token" && req.method() == &Method::POST;
-    skip_check |= req.uri() == "/openapi.json" && req.method() == &Method::GET;
+    skip_check |= uri == "/v1alpha/token" && req.method() == &Method::POST;
+    skip_check |= uri == "/openapi.json" && req.method() == &Method::GET;
 
     if skip_check == false {
-        debug!("Check token for request against {}", req.uri());
+        debug!("Check token for request against {uri}");
         // get token from header
         let token: &str;
         match req.headers().get("Authorization") {
@@ -65,7 +66,7 @@ pub async fn authorization_middleware(
     //    debug!("skip token-check");
     //}
 
-    info!("Api-call against URI: {}", req.uri());
+    info!("Api-call against URI: {uri}");
 
     let resp = next.call(req).await;
 

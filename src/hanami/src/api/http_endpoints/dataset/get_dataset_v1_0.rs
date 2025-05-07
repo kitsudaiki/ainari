@@ -51,7 +51,7 @@ pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Resu
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

@@ -40,7 +40,7 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -48,7 +48,8 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
     match fs::remove_file(&dataset.file_path) {
         Ok(_) => {},
         Err(_) => {
-            error!("Failed to delete file '{}' from disc", dataset.file_path);
+            let file_path = dataset.file_path;
+            error!("Failed to delete file '{file_path}' from disc");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
@@ -59,7 +60,7 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{}' not found.", dataset_uuid);
+            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };

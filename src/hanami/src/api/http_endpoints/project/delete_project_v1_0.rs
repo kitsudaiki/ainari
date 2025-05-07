@@ -44,7 +44,7 @@ pub async fn delete_project(project_id: Path<String>, context: UserContext) -> R
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Project with ID '{}' not found.", project_id);
+            let msg = format!("Project with ID '{project_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
