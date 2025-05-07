@@ -20,33 +20,37 @@
 
 package hanami_sdk
 
-import b64 "encoding/base64"
+import (
+	"fmt"
+	// b64 "encoding/base64"
+)
 
 func CreateUser(address, token, userId, userName, passphrase string, is_admin, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/user"
+	// "passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
+	path := "v1alpha/user"
 	jsonBody := map[string]interface{}{
 		"id":         userId,
 		"name":       userName,
-		"passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
+		"passphrase": passphrase,
 		"is_admin":   is_admin,
 	}
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }
 
 func GetUser(address, token, userId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/user"
-	vars := map[string]interface{}{"id": userId}
+	path := fmt.Sprintf("v1alpha/user/%s", userId)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListUser(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/user/all"
+	path := "v1alpha/user"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteUser(address, token, userId string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/user"
-	vars := map[string]interface{}{"id": userId}
+	path := fmt.Sprintf("v1alpha/user/%s", userId)
+	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }

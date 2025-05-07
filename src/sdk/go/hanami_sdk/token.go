@@ -21,20 +21,19 @@
 package hanami_sdk
 
 import (
-	b64 "encoding/base64"
+	"fmt"
+	//b64 "encoding/base64"
 )
 
 func RequestToken(address, user, passphrase string, skipTlsVerification bool) string {
-	path := "v1.0alpha/token"
-	jsonBody := map[string]interface{}{
-		"id":         user,
-		"passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
-	}
+	path := "v1alpha/token"
+	//b64.StdEncoding.EncodeToString([]byte(passphrase))
+	var body = fmt.Sprintf("token_format=jwt&grant_type=client_credentials&client_id=%s&client_secret=%s", user, passphrase)
 
-	content, err := sendGenericRequest(address, "", "POST", path, &jsonBody, skipTlsVerification)
+	content, err := sendAuthRequest(address, path, body, skipTlsVerification)
 	if err != nil {
 		return ""
 	}
 
-	return content["token"].(string)
+	return content["access_token"].(string)
 }

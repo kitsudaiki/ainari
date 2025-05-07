@@ -1,0 +1,16 @@
+[package]
+name = "hanami_dataset"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hanami_common = { path = "../hanami_common" }
+# json
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
+# common stuff
+sanitize-filename = "0.5"
+byteorder = "1.5"
+bincode = "1.3"
+bytemuck = "1.22"

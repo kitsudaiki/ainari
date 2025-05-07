@@ -4,6 +4,38 @@
 
 ### BREAKING-CHANGES
 
+Translate big parts of the program from C++ into Rust:
+- REST-API endpoints
+- Database-connection
+- Config-file
+- Cluster-Template-Parser
+
+#### API-Breaking
+
+- IDs of API-requests of now in the query-path instead of the body
+- OAuth-styling of token-requests
+- upload files of datasets via API-endpoint instead of websocket
+
+#### Template-Breaking
+
+- Added `;` to the end of the files of the templates
+
+#### Database-Breaking
+
+- new dataset-file-header, because of the better serialization-features of rust
+
+#### Database-Breaking
+
+- updated database-schemas in confext of the code-translation
+
+
+
+## v0.7.0
+
+**Release-Date**: 2025-03-19
+
+### BREAKING-CHANGES
+
 #### API-Breaking
 
 - removed the Binary input option again

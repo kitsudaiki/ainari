@@ -1,0 +1,58 @@
+// Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use actix_web::web::Json;
+use actix_web::web::Path;
+use apistos::api_operation;
+use uuid::Uuid;
+
+use crate::api::errors::ErrorResponse;
+use crate::api::user_context::UserContext;
+use crate::database::dataset_table;
+use hanami_common::enums;
+
+use super::dataset_structs::DatasetResp;
+
+#[api_operation(
+    tag = "dataset",
+    summary = "Get dataset",
+    description = r###"Get information of a dataset from the database."###,
+    error_code = 400,
+    error_code = 401,
+    error_code = 404,
+    error_code = 500
+)]
+pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetResp>, ErrorResponse> {
+    match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset) => {
+            let resp = DatasetResp {
+                uuid: dataset_uuid.clone(),
+                name: dataset.name.clone(),
+                created_by: dataset.created_by.clone(),
+                created_at: dataset.created_at.clone(),
+                updated_by: dataset.updated_by.clone(),
+                updated_at: dataset.updated_at.clone(),
+            };
+        
+            return Ok(Json(resp));
+        },
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+}

@@ -39,8 +39,8 @@ This document should help to setup a local environment for development.
     create the first admin-user:
 
     ```bash
-    export HANAMI_ADMIN_USER_ID=asdf
-    export HANAMI_ADMIN_USER_NAME=asdf
+    export HANAMI_ADMIN_ID=asdf
+    export HANAMI_ADMIN_NAME=asdf
     export HANAMI_ADMIN_PASSPHRASE=asdfasdf
     ```
 
@@ -87,7 +87,7 @@ API.
     ```bash
     cd OpenHanami/src/sdk/python/hanami_sdk/hanami_sdk
 
-    protoc --python_out=. --proto_path ../../../../libraries/hanami_messages/protobuffers  hanami_messages.proto3
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
     ```
 
 -   run tests

@@ -2,30 +2,28 @@ apiVersion: v1
 metadata:
   name: hanami-config
 data:
-  hanami.conf: |+
-    [DEFAULT]
-    debug = True
-    log_path = "/var/log"
-    database = "/etc/openhanami/data/hanami_db"
-    use_cuda = false
+  hanami.toml: |+
+    debug = true
+    log_path = ""
 
     [storage]
-    dataset_location = "/etc/openhanami/data/datasets"
-    checkpoint_location = "/etc/openhanami/data/checkpoints"
-    tempfile_location = "/etc/openhanami/data/tempfiles"
+    dataset_location = "/etc/openhanami/datasets"
+    checkpoint_location = "/etc/openhanami/checkpoints"
+    tempfile_location = "/etc/openhanami/tempfiles"
     tempfile_timeout = 10
 
     [processing]
-    use_of_free_memory = {{ .Values.processing.use_of_free_memory }}
+    use_of_free_memory = 0.2
 
     [auth]
-    policies = "/etc/openhanami/policies"
     token_key_path = "/etc/openhanami/token_key"
-    token_expire_time = {{ .Values.token.expire_time }}
+    token_expire_time = 36000
 
-    [http]
-    enable = True
-    ip = 127.0.0.1
+    [api]
+    ip = "0.0.0.0"
     port = 11418
+
+    [database]
+    file_path = "/etc/openhanami/hanami_db"
 
 kind: ConfigMap

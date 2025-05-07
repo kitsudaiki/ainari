@@ -15,7 +15,7 @@
 from . import hanami_request
 from . import hanami_exceptions
 
-import base64
+# import base64
 
 
 def create_user(token: str,
@@ -25,15 +25,11 @@ def create_user(token: str,
                 passphrase: str,
                 is_admin: bool,
                 verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user"
-
-    passphrase_bytes = passphrase.encode('utf-8')
-    base64_encoded = base64.b64encode(passphrase_bytes)
-
+    path = "/v1alpha/user"
     json_body = {
         "id": user_id,
         "name": user_name,
-        "passphrase": base64_encoded.decode('utf-8'),
+        "passphrase": passphrase,
         "is_admin": is_admin,
     }
     return hanami_request.send_post_request(token,
@@ -47,19 +43,18 @@ def get_user(token: str,
              address: str,
              user_id: str,
              verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user"
-    values = f'id={user_id}'
+    path = f'/v1alpha/user/{user_id}'
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
-                                           values,
+                                           "",
                                            verify=verify_connection)
 
 
 def list_users(token: str,
                address: str,
                verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user/all"
+    path = "/v1alpha/user"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -71,22 +66,21 @@ def delete_user(token: str,
                 address: str,
                 user_id: str,
                 verify_connection: bool = True):
-    path = "/v1.0alpha/user"
-    values = f'id={user_id}'
+    path = f'/v1alpha/user/{user_id}'
     hanami_request.send_delete_request(token,
                                        address,
                                        path,
-                                       values,
+                                       "",
                                        verify=verify_connection)
 
 
 def delete_all_user(token: str,
                     address: str,
                     verify_connection: bool = True):
-    body = list_users(token, address, False)["body"]
+    body = list_users(token, address, False)["users"]
     for entry in body:
         try:
-            delete_user(token, address, entry[4], verify_connection)
+            delete_user(token, address, entry["id"], verify_connection)
         except hanami_exceptions.ConflictException:
             # when a user tries to delete himself, then an exception
             # is raised, which is catched here.
@@ -100,7 +94,7 @@ def add_roject_to_user(token: str,
                        role: str,
                        is_project_admin: bool,
                        verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user/project"
+    path = "/v1alpha/user/project"
     json_body = {
         "id": user_id,
         "project_id": project_id,
@@ -119,7 +113,7 @@ def remove_project_fromUser(token: str,
                             user_id: str,
                             project_id: str,
                             verify_connection: bool = True):
-    path = "/v1.0alpha/user/project"
+    path = "/v1alpha/user/project"
     values = f'project_id={project_id}&id={user_id}'
     hanami_request.send_delete_request(token,
                                        address,
@@ -131,7 +125,7 @@ def remove_project_fromUser(token: str,
 def list_projects_of_user(token: str,
                           address: str,
                           verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user/project"
+    path = "/v1alpha/user/project"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -143,7 +137,7 @@ def switch_project(token: str,
                    address: str,
                    project_id: str,
                    verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/user/project"
+    path = "/v1alpha/user/project"
     json_body = {
         "project_id": project_id,
     }

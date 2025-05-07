@@ -20,14 +20,18 @@
 
 package hanami_sdk
 
+import (
+	"fmt"
+)
+
 type TaskInput struct {
-	HexagonName        string `json:"hexagon_name"`
+	HexagonName        string `json:"hexagon"`
 	DatasetColumnName  string `json:"dataset_column"`
 	DatasetUuid        string `json:"dataset_uuid"`
 }
 
 type TaskResult struct {
-	HexagonName        string `json:"hexagon_name"`
+	HexagonName        string `json:"hexagon"`
 	DatasetColumnName  string `json:"dataset_column"`
 }
 
@@ -42,10 +46,9 @@ func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs [
         outputArray = append(outputArray, output)
     }
 
-	path := "v1.0alpha/task/train"
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/train", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name":         name,
-		"cluster_uuid": clusterUuid,
 		"inputs":       inputArray,
 		"outputs":      outputArray,
 		"time_length":  timeLenght,
@@ -64,10 +67,9 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
         resultArray = append(resultArray, result)
     }
 
-	path := "v1.0alpha/task/request"
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/request", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name":         name,
-		"cluster_uuid": clusterUuid,
 		"inputs":       inputArray,
 		"results":      resultArray,
 		"time_length":  timeLenght,
@@ -75,26 +77,20 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }
 
-func GetTask(address, token, taskId, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task"
-	vars := map[string]interface{}{
-		"uuid":         taskId,
-		"cluster_uuid": clusterUuid,
-	}
+func GetTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListTask(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task/all"
-	vars := map[string]interface{}{"cluster_uuid": clusterUuid}
+	path := fmt.Sprintf("v1alpha/cluster/%s/task", clusterUuid)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/task"
-	vars := map[string]interface{}{
-		"uuid":         taskUuid,
-		"cluster_uuid": clusterUuid,
-	}
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
+	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }

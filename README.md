@@ -15,7 +15,7 @@
 
 # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
-## **IMPORTANT**: The repository was renamed after version 0.5.0, so all versions from 0.5.0 and below should still work like before, but there are major differences to newer versions.
+# **IMPORTANT: The project is currently in a process of big reconstruction, by translating big parts of the backend from C++ into Rust code. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
 
 ## Intro
 
@@ -33,10 +33,10 @@ and multi-tenancy.
 
 | Backend                                                       | SDK                                         | Deployment                                          |
 | ------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
-| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_9][img_python-3_9]][Workflow]   | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
-| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
-| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
-| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
+| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
+| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
+| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
+| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] |                                             | [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
 | [![ubuntu-2404_clang-16][img_ubuntu-2404_clang-16]][Workflow] |                                             | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
 | [![ubuntu-2404_clang-17][img_ubuntu-2404_clang-17]][Workflow] |                                             |                                                     |
 | [![ubuntu-2404_clang-18][img_ubuntu-2404_clang-18]][Workflow] |                                             |                                                     |
@@ -73,8 +73,6 @@ and multi-tenancy.
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-13/shields.json&style=flat-square
 [img_ubuntu-2404_gcc-14]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-14/shields.json&style=flat-square
-[img_python-3_9]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_9/shields.json&style=flat-square
 [img_python-3_10]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:

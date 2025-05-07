@@ -39,7 +39,7 @@ Steps:
     files have to be uploaded, there are 2 websockets necessary, one for each file.
 
 3. The data-transfer over the websocket after this is done with
-   [protobuf-messages](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/libraries/hanami_messages/protobuffers/hanami_messages.proto3)
+   [protobuf-messages](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/libs/protobuf/hanami_messages.proto3)
    with the `FileUpload_Message`-message:
 
     - **position**: Byte-position within the temporary file
@@ -75,7 +75,7 @@ Steps:
    success = 1.
 
 3. The data-transfer over the websocket after this is done with
-   [protobuf-messages](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/libraries/hanami_messages/protobuffers/hanami_messages.proto3)
+   [protobuf-messages](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/libs/protobuf/hanami_messages.proto3)
    with the `ClusterIO_Message`-message:
 
     - **hexagonName**: name of the input-hexagon, where the data have to be applied

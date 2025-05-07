@@ -9,8 +9,8 @@ permissions:
 env:
   REGISTRY_HANAMI_IMAGE: kitsudaiki/hanami
   REGISTRY_DOCS_IMAGE: kitsudaiki/openhanami_docs
-  HANAMI_ADMIN_USER_ID: asdf
-  HANAMI_ADMIN_USER_NAME: asdf
+  HANAMI_ADMIN_ID: asdf
+  HANAMI_ADMIN_NAME: asdf
   HANAMI_ADMIN_PASSPHRASE: asdfasdf
 
 jobs:
@@ -21,11 +21,13 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - 
+      -
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      -
         name: Run check
         run: earthly --ci +clang-format
 
@@ -37,11 +39,13 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - 
+      -
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      -
         name: Run check
         run: earthly --ci +cppcheck
 
@@ -69,10 +73,12 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      -
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
         name: Run check
         run: earthly --ci +flake8
@@ -83,7 +89,7 @@ jobs:
     name: "Detect binary executables"
     runs-on: ubuntu-latest
     steps:
-      - 
+      -
         name: checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -104,10 +110,10 @@ jobs:
     name: "Lint commits"
     runs-on: ubuntu-latest
     steps:
-      - 
+      -
         name: checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - 
+      -
         name: lint commits
         uses: wagoid/commitlint-github-action@7f0a61df502599e1f1f50880aaa7ec1e2c0592f2
 
@@ -119,10 +125,12 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      -
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
         name: Run check
         run: earthly --ci +secret-scan
@@ -136,7 +144,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - 
+      -
         name: Set helm-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -144,7 +152,7 @@ jobs:
           else \
               echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -152,26 +160,26 @@ jobs:
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
           git checkout ${GITHUB_REF#refs/heads/}
-      - 
+      -
         name: Install dependencies for SDK
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler wget gzip python3 python3-pip python3-wheel
-      - 
+      -
         name: Build python package
         run: |
           cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/hanami_sdk/hanami_sdk
-          protoc --python_out=. --proto_path ../../../../libraries/hanami_messages/protobuffers  hanami_messages.proto3
+          protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
           cd ..
           python3 setup.py bdist_wheel --universal
-      - 
+      -
         name: Copy files
         run: |
           mkdir /tmp/hanami_python_build_result
           cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/hanami_sdk/dist
           ls -l
           cp ./hanami_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl /tmp/hanami_python_build_result/
-      - 
+      -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
@@ -188,7 +196,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - 
+      -
         name: Set helm-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -196,7 +204,7 @@ jobs:
           else \
               echo "HELM_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -204,23 +212,65 @@ jobs:
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
           git checkout ${GITHUB_REF#refs/heads/}
-      - 
+      -
         name: Build helm chart
         run: |
           cd ${GITHUB_REPOSITORY#*/}/deploy/k8s/openhanami
           helm package --version $HELM_VERSION .
-      - 
+      -
         name: Copy files
         run: |
           mkdir /tmp/hanami_helm_build_result
           cd ${GITHUB_REPOSITORY#*/}
           cp ./deploy/k8s/openhanami/openhanami-$HELM_VERSION.tgz /tmp/hanami_helm_build_result/
-      - 
+      -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
           name: hanami_helm_build_result
           path: /tmp/hanami_helm_build_result
+          retention-days: 1
+
+
+
+  build_hanami_core:
+    name: "Compile hanami-core (debug)"
+    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
+    steps:
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+        with:
+          version: v0.8.0
+      -
+        name: Checkout repository
+        run: |
+          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # branch can not be read by the git commands, which is necessary for the build-script
+          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
+          cd ${GITHUB_REPOSITORY#*/}
+          git checkout ${GITHUB_REF#refs/heads/}
+          git submodule init
+          git submodule update --recursive
+      -
+        name: Compile core-lib (Debug)
+        run: |
+          cd ${GITHUB_REPOSITORY#*/}
+          earthly --artifact +compile-core-lib-debug/tmp/hanami_core ./builds/binaries
+      -
+        name: Copy files
+        run: |
+          mkdir /tmp/Hanami_core_debug_build_result
+          cd ${GITHUB_REPOSITORY#*/}
+          cp -r builds/binaries/* /tmp/Hanami_core_debug_build_result/
+      -
+        name: Create artifact
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        with:
+          name: Hanami_core_debug_build_result
+          path: /tmp/Hanami_core_debug_build_result
           retention-days: 1
 
 
@@ -232,10 +282,11 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -245,18 +296,18 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
-        name: Compile code (Debug)
+      -
+        name: Compile core-lib (Debug)
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-code-debug/tmp/hanami ./builds/binaries
-      - 
+          earthly --artifact +compile-hanami/tmp/hanami ./builds/
+      -
         name: Copy files
         run: |
           mkdir /tmp/Hanami_debug_build_result
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/binaries/* /tmp/Hanami_debug_build_result/
-      - 
+          cp -r builds/hanami /tmp/Hanami_debug_build_result/
+      -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
@@ -273,10 +324,11 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -286,24 +338,25 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Compile code
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           earthly --artifact +compile-cli/tmp/hanamictl ./builds/
-      - 
+      -
         name: Copy files
         run: |
           mkdir /tmp/hanamictl_build_result
           cd ${GITHUB_REPOSITORY#*/}
           cp -r builds/hanamictl /tmp/hanamictl_build_result/
-      - 
+      -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
           name: hanamictl_build_result
           path: /tmp/hanamictl_build_result
           retention-days: 1
+
 
 
   compiler_test:
@@ -346,7 +399,7 @@ jobs:
       ubuntu-2404_gcc-13: ${{ steps.status.outputs.ubuntu-2404_gcc-13 }}
       ubuntu-2404_gcc-14: ${{ steps.status.outputs.ubuntu-2404_gcc-14 }}
     steps:
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -356,7 +409,7 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Install basic packages
         run: |
           sudo apt-get update && \
@@ -373,22 +426,22 @@ jobs:
                            uuid-dev  \
                            libsqlite3-dev \
                            protobuf-compiler
-      - 
+      -
         name: Install clang on Ubuntu 22.04
         if: (matrix.compiler.tag == 'ubuntu-2204_clang-14') || (matrix.compiler.tag == 'ubuntu-2204_clang-15')
         run: |
           sudo apt-get install -y clang-15 clang-14 clang-13
-      - 
+      -
         name: Install clang on Ubuntu 24.04
         if: (matrix.compiler.tag == 'ubuntu-2404_clang-15') || (matrix.compiler.tag == 'ubuntu-2404_clang-16') || (matrix.compiler.tag == 'ubuntu-2404_clang-17') || (matrix.compiler.tag == 'ubuntu-2404_clang-18')
         run: |
           sudo apt-get install -y clang-15 clang-16 clang-17 clang-18
-      - 
+      -
         name: Install gcc on Ubuntu 22.04
         if: (matrix.compiler.tag == 'ubuntu-2204_gcc-10') || (matrix.compiler.tag == 'ubuntu-2204_gcc-11') || (matrix.compiler.tag == 'ubuntu-2204_gcc-12')
         run: |
           sudo apt-get install -y gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12
-      - 
+      -
         name: Install gcc on Ubuntu 24.04
         if: (matrix.compiler.tag == 'ubuntu-2404_gcc-12') || (matrix.compiler.tag == 'ubuntu-2404_gcc-13') || (matrix.compiler.tag == 'ubuntu-2404_gcc-14')
         run: |
@@ -404,7 +457,8 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/} 
           ./src/hanami/hanami_unittests
-      - name: Update Result
+      -
+        name: Update Result
         id: status
         if: ${{ always() }}
         run: echo "${{ matrix.compiler.tag }}=${{ job.status }}" >> $GITHUB_OUTPUT
@@ -412,176 +466,65 @@ jobs:
 
 
   unit_tests:
-    name: "Unit-Tests"
-    needs: [ build_hanami, build_hanamictl, build_helm_package, build_python_package ]
+    name: "Unit-Tests (C++-libs)"
+    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:22.04
+      image: ubuntu:24.04
     steps:
-      - 
-        name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
-      - 
+          name: Hanami_core_debug_build_result
+          path: /tmp/Hanami_core_debug_build_result
+      -
         name: "Check target-directory"
-        run: ls -l /tmp/Hanami_debug_build_result
-      - 
-        name: "Run test: hanami_common"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_common_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_common_unit_tests
-      - 
-        name: "Run test: hanami_config"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_config_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_config_unit_tests
-      - 
-        name: "Run test: hanami_crypto"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_crypto_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_crypto_unit_tests
-      - 
-        name: "Run test: hanami_ini"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_ini_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_ini_unit_tests
-      - 
-        name: "Run test: hanami_sqlite"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_sqlite_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_sqlite_unit_tests
-      - 
-        name: "Run test: hanami_cluster_parser"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_cluster_parser_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_cluster_parser_unit_tests
-      - 
-        name: "Run test: hanami_policies"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_policies_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_policies_unit_tests
-      - 
-        name: "Run test: hanami_args"
-        run: |
-          chmod +x  /tmp/Hanami_debug_build_result/hanami_args_unit_tests
-          /tmp/Hanami_debug_build_result/hanami_args_unit_tests
-      - 
+        run: ls -l /tmp/Hanami_core_debug_build_result
+      -
         name: "Run test: hanami"
         run: |
-          chmod +x  /tmp/Hanami_debug_build_result/hanami_unittests
-          /tmp/Hanami_debug_build_result/hanami_unittests
+          chmod +x  /tmp/Hanami_core_debug_build_result/hanami_unittests
+          /tmp/Hanami_core_debug_build_result/hanami_unittests
 
 
 
   memory_leak_tests:
-    name: "Memory-Leak-Tests"
-    needs: [ build_hanami, build_hanamictl, build_helm_package, build_python_package ]
+    name: "Memory-Leak-Tests (C++-libs)"
+    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:22.04
+      image: ubuntu:24.04
     steps:
-      - 
-        name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
-      - 
+          name: Hanami_core_debug_build_result
+          path: /tmp/Hanami_core_debug_build_result
+      -
         name: "Check target-directory"
-        run: ls -l /tmp/Hanami_debug_build_result
-      - 
-        name: "Run test: hanami_common"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_common_memory_leak_tests
-          /tmp/Hanami_debug_build_result/hanami_common_memory_leak_tests
-      - 
-        name: "Run test: hanami_cluster_parser"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_cluster_parser_memory_leak_tests
-          /tmp/Hanami_debug_build_result/hanami_cluster_parser_memory_leak_tests
-      - 
+        run: ls -l /tmp/Hanami_core_debug_build_result
+      -
         name: "Run test: hanami"
         run: |
-          chmod +x  /tmp/Hanami_debug_build_result/hanami_memory_leak_tests
-          /tmp/Hanami_debug_build_result/hanami_memory_leak_tests
+          chmod +x  /tmp/Hanami_core_debug_build_result/hanami_memory_leak_tests
+          /tmp/Hanami_core_debug_build_result/hanami_memory_leak_tests
 
 
 
-  functional_tests:
-    name: "Functional-Tests"
-    needs: [ build_hanami, build_hanamictl, build_helm_package, build_python_package ]
+  cargo_tests:
+    name: "Cargo Test"
+    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
+    env:
+      FORCE_COLOR: 1
     steps:
-      - 
-        name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
-      - 
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+      -
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
-      - 
-        name: "Check target-directory"
-        run: ls -l /tmp/Hanami_debug_build_result
-      - 
-        name: "Run test: hanami_config"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_config_functional_tests
-          /tmp/Hanami_debug_build_result/hanami_config_functional_tests
-      # - 
-      #  name: "Run test: hanami_obj"
-      #   run: |
-      #     chmod +x /tmp/Hanami_debug_build_result/libraries/hanami_obj/tests/functional_tests/functional_tests
-      #     /tmp/Hanami_debug_build_result/libraries/hanami_obj/tests/functional_tests/functional_tests
-      - 
-        name: "Run test: hanami_database"
-        run: |
-          chmod +x /tmp/Hanami_debug_build_result/hanami_database_functional_tests
-          /tmp/Hanami_debug_build_result/hanami_database_functional_tests
-      # - 
-      #  name: "Run test: hanami_network"
-      #   run: |
-      #     chmod +x /tmp/Hanami_debug_build_result/libraries/hanami_network/tests/functional_tests/functional_tests
-      #     /tmp/Hanami_debug_build_result/libraries/hanami_network/tests/functional_tests/functional_tests
-
-
-
-  sdk_api_tests:
-    name: "SDK-API-Tests"
-    needs: [ unit_tests, memory_leak_tests, functional_tests ]
-    runs-on: ubuntu-22.04
-    steps:
-      - 
-        name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
-      - 
-        name: Set python-version as environment variable
-        run: |
-          if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
-              echo "PYTHON_PACKAGE_VERSION=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          else \
-              echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          fi
-      - 
+          version: v0.8.0
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -591,19 +534,55 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
+        name: Compile code
+        run: |
+          cd ${GITHUB_REPOSITORY#*/}
+          earthly +test-hanami
+
+
+
+  sdk_api_tests:
+    name: "SDK-API-Tests"
+    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssl libsqlite3-0 
+      -
+        name: Set python-version as environment variable
+        run: |
+          if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
+              echo "PYTHON_PACKAGE_VERSION=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
+          else \
+              echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
+          fi
+      -
+        name: Checkout repository
+        run: |
+          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # branch can not be read by the git commands, which is necessary for the build-script
+          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
+          cd ${GITHUB_REPOSITORY#*/}
+          git checkout ${GITHUB_REF#refs/heads/}
+          git submodule init
+          git submodule update --recursive
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: hanami_python_build_result
           path: /tmp/hanami_python_build_result
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: Hanami_debug_build_result
           path: /tmp/Hanami_debug_build_result
-      - 
+      -
         name: Install dependencies for SDK
         run: |
           sudo apt-get update
@@ -611,7 +590,7 @@ jobs:
           cd /tmp/hanami_python_build_result
           ls -l
           pip3 install -U hanami_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl
-      - 
+      -
         name: Download mnist-files
         run: |
           cd /tmp/
@@ -623,7 +602,7 @@ jobs:
           gzip -d train-labels-idx1-ubyte.gz
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
-      - 
+      -
         name: run Hanami in backgroupd
         run: |
           cd ${GITHUB_REPOSITORY#*/}
@@ -634,12 +613,12 @@ jobs:
           /tmp/Hanami_debug_build_result/hanami &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
-      - 
+      -
         name: Sleep for 15 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
           time: '15s'
-      - 
+      -
         name: Run test
         run: |
           cd ${GITHUB_REPOSITORY#*/}/testing/python_sdk_api
@@ -653,15 +632,15 @@ jobs:
 
   cli_api_tests:
     name: "CLI-API-Tests"
-    needs: [ unit_tests, memory_leak_tests, functional_tests ]
-    runs-on: ubuntu-22.04
+    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
+    runs-on: ubuntu-24.04
     steps:
-      - 
+      -
         name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74
-      - 
+          sudo apt-get install -y openssl libsqlite3-0
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -671,7 +650,7 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
@@ -683,12 +662,12 @@ jobs:
         with:
           name: hanamictl_build_result
           path: /tmp/hanamictl_build_result
-      - 
+      -
         name: Build local docker-image
         run: |
           chmod +x /tmp/hanamictl_build_result/hanamictl
           cp /tmp/hanamictl_build_result/hanamictl ${GITHUB_REPOSITORY#*/}/testing/go_cli_api/
-      - 
+      -
         name: Download mnist-files
         run: |
           cd /tmp/
@@ -700,7 +679,7 @@ jobs:
           gzip -d train-labels-idx1-ubyte.gz
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
-      - 
+      -
         name: run Hanami in backgroupd
         run: |
           cd ${GITHUB_REPOSITORY#*/}
@@ -711,12 +690,12 @@ jobs:
           /tmp/Hanami_debug_build_result/hanami &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
-      - 
+      -
         name: Sleep for 15 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
           time: '15s'
-      - 
+      -
         name: Run test
         run: |
           export PATH=$PATH:/usr/local/go/bin
@@ -734,24 +713,22 @@ jobs:
 
   python_version_test:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    needs: [ unit_tests, memory_leak_tests, functional_tests ]
+    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
     strategy:
       fail-fast: false
       matrix:
         python_version:
-          - { tag: "python-3_9", name: "Python 3.9", version: "3.9", runs-on: "ubuntu-20.04" } 
           - { tag: "python-3_10", name: "Python 3.10", version: "3.10", runs-on: "ubuntu-22.04" } 
           - { tag: "python-3_11", name: "Python 3.11", version: "3.11", runs-on: "ubuntu-22.04" } 
           - { tag: "python-3_12", name: "Python 3.12", version: "3.12", runs-on: "ubuntu-24.04" } 
     runs-on: ${{ matrix.python_version.runs-on }}
     name: "${{ matrix.python_version.name }}"
     outputs:
-      python-3_9: ${{ steps.status.outputs.python-3_9 }}
       python-3_10: ${{ steps.status.outputs.python-3_10 }}
       python-3_11: ${{ steps.status.outputs.python-3_11 }}
       python-3_12: ${{ steps.status.outputs.python-3_12 }}
     steps:
-      - 
+      -
         name: Set python-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -759,7 +736,7 @@ jobs:
           else \
               echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -769,24 +746,24 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: hanami_python_build_result
           path: /tmp/hanami_python_build_result
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: Hanami_debug_build_result
           path: /tmp/Hanami_debug_build_result
-      - 
+      -
         name: Install python
         uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f
         with:
           python-version: "${{ matrix.python_version.version }}"
-      - 
+      -
         name: Install hanami-sdk
         run: |
           cd /tmp/hanami_python_build_result
@@ -800,7 +777,7 @@ jobs:
         name: Print installed pip-packages
         run: |
           pip list
-      - 
+      -
         name: Build local docker-image
         run: |
           cd ${GITHUB_REPOSITORY#*/}
@@ -812,7 +789,7 @@ jobs:
           # So using the Dockerfile here to ensure, the final build after 
           # merge doesn't fail.
           docker build -t kitsudaiki/hanami:test .
-      - 
+      -
         name: Download mnist-files
         run: |
           cd /tmp/
@@ -824,7 +801,7 @@ jobs:
           gzip -d train-labels-idx1-ubyte.gz
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
-      - 
+      -
         name: Start hanami-docker-container
         run: |
           cd ${GITHUB_REPOSITORY#*/}
@@ -833,16 +810,16 @@ jobs:
             ./example_configs/openhanami:/etc/openhanami \
             -p 127.0.0.1:11418:11418 \
             --name=hanami \
-            --env HANAMI_ADMIN_USER_ID=asdf \
-            --env HANAMI_ADMIN_USER_NAME=asdf \
+            --env HANAMI_ADMIN_ID=asdf \
+            --env HANAMI_ADMIN_NAME=asdf \
             --env HANAMI_ADMIN_PASSPHRASE=asdfasdf \
             kitsudaiki/hanami:test
-      - 
+      -
         name: Sleep for 15 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
           time: '15s'
-      - 
+      -
         name: Run test
         run: |
           cd ${GITHUB_REPOSITORY#*/}/testing/python_sdk_api
@@ -851,7 +828,8 @@ jobs:
           cp test_values.py test_dir/
           cd test_dir
           python sdk_api_test.py
-      - name: Update Result
+      -
+        name: Update Result
         id: status
         if: ${{ always() }}
         run: echo "${{ matrix.python_version.tag }}=${{ job.status }}" >> $GITHUB_OUTPUT
@@ -859,10 +837,10 @@ jobs:
 
 
   docker_build:
-    name: "Build Docker-images"
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    name: "Build Docker-images"
     needs: [ sdk_api_tests, cli_api_tests ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -870,16 +848,16 @@ jobs:
           - linux/amd64
           - linux/arm64
     steps:
-      - 
+      -
         name: Prepare
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
-      - 
+      -
         uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -889,31 +867,31 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Docker meta
         id: meta
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
         with:
           images: ${{ env.REGISTRY_HANAMI_IMAGE }}
-      - 
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
-      - 
+      -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db
-      - 
+      -
         name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - 
+      -
         name: Check location
         run: |
           pwd
           cd OpenHanami
           ls -l
-      - 
+      -
         name: Build and push by digest
         id: build
         uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
@@ -922,13 +900,13 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_HANAMI_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-      - 
+      -
         name: Export digest
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"          
-      - 
+      -
         name: Upload digest
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
@@ -940,12 +918,12 @@ jobs:
 
 
   docker_merge:
-    name: "Merge and push Docker-image"
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ubuntu-22.04
+    name: "Merge and push Docker-image"
+    runs-on: ubuntu-24.04
     needs: [ docker_build ]
     steps:
-      - 
+      -
         name: Set branch name as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -953,38 +931,38 @@ jobs:
           else \
               echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
-      - 
+      -
         name: Download digests
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           path: /tmp/digests
           pattern: digests-*
           merge-multiple: true
-      - 
+      -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db
-      - 
+      -
         name: Docker meta
         id: meta
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
         with:
           images: ${{ env.REGISTRY_HANAMI_IMAGE }}
-      - 
+      -
         name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - 
+      -
         name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create -t ${{ env.REGISTRY_HANAMI_IMAGE }}:${{ env.BRANCH_NAME }} \
             $(printf '${{ env.REGISTRY_HANAMI_IMAGE }}@sha256:%s ' *)          
-      - 
+      -
         name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_HANAMI_IMAGE }}:${{ env.BRANCH_NAME }}
@@ -1014,7 +992,7 @@ jobs:
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     steps:
-      - 
+      -
         name: Set branch name as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1022,7 +1000,7 @@ jobs:
           else \
               echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Set python-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1030,7 +1008,7 @@ jobs:
           else \
               echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Set helm-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1038,13 +1016,13 @@ jobs:
           else \
               echo "HELM_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: hanami_python_build_result
           path: /tmp/hanami_python_build_result
-      - 
+      -
         name: Install dependencies for SDK
         run: |
           sudo apt-get update
@@ -1052,10 +1030,10 @@ jobs:
           cd /tmp/hanami_python_build_result
           ls -l
           pip3 install -U hanami_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl
-      - 
+      -
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -1071,7 +1049,7 @@ jobs:
         with:
           name: hanami_helm_build_result
           path: /tmp/hanami_helm_build_result
-      - 
+      -
         name: Install dependencies for SDK
         run: |
           sudo snap install helm --classic
@@ -1080,7 +1058,7 @@ jobs:
         name: Install k3s without traefik
         run: |
           sudo curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" INSTALL_K3S_VERSION=v${{ matrix.kubernetes_version.version }}+k3s1  sh -
-      - 
+      -
         name: Sleep for 60 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
@@ -1135,18 +1113,24 @@ jobs:
         name: Install hanami
         run: |
           helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-hanami  openhanami /tmp/hanami_helm_build_result/openhanami-$HELM_VERSION.tgz
-      - 
+      -
         name: Sleep for 60 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
         with:
           time: '60s'
+      -
+        name: Check kubernetes-resources
+        run: |
+          kubectl get pods
+          kubectl get configmaps
+          kubectl get deployments
       -
         name: Update hosts-file
         run: |
           ingress_ip=$(kubectl get ingress hanami-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip  local-hanami" | sudo tee -a /etc/hosts
           cat /etc/hosts
-      - 
+      -
         name: Download mnist-files
         run: |
           cd /tmp/
@@ -1158,13 +1142,13 @@ jobs:
           gzip -d train-labels-idx1-ubyte.gz
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
-      - 
+      -
         name: Prepare test-config
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           sudo cp -r ./example_configs/openhanami /etc/
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/openhanami/hanami_testing.conf
-      - 
+      -
         name: Run test
         run: |
           cd ${GITHUB_REPOSITORY#*/}/testing/python_sdk_api
@@ -1173,7 +1157,8 @@ jobs:
           cp test_values.py test_dir/
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
-      - name: Update Result
+      -
+        name: Update Result
         id: status
         if: ${{ always() }}
         run: echo "${{ matrix.kubernetes_version.tag }}=${{ job.status }}" >> $GITHUB_OUTPUT
@@ -1186,7 +1171,7 @@ jobs:
     runs-on: ubuntu-22.04
     name: Publish badges
     steps:
-      - 
+      -
         name: Set branch name as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1194,10 +1179,10 @@ jobs:
           else \
               echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - 
+      -
         name: Publish Compiler Badges
         uses: ./.github/actions/badge
         with:
@@ -1205,7 +1190,7 @@ jobs:
           badges: ${{ toJson(needs.compiler_test.outputs) }}
           github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
           branch_name: ${{ env.BRANCH_NAME }}
-      - 
+      -
         name: Publish Python Badges
         uses: ./.github/actions/badge
         with:
@@ -1213,7 +1198,7 @@ jobs:
           badges: ${{ toJson(needs.python_version_test.outputs) }}
           github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
           branch_name: ${{ env.BRANCH_NAME }}
-      - 
+      -
         name: Publish Kubernetes Badges
         uses: ./.github/actions/badge
         with:
@@ -1232,7 +1217,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - 
+      -
         name: Set branch name as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1240,14 +1225,14 @@ jobs:
           else \
               echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
-      - 
+      -
         uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
         with:
           version: v0.8.0
-      - 
+      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
@@ -1257,18 +1242,18 @@ jobs:
           git checkout ${GITHUB_REF#refs/heads/}
           git submodule init
           git submodule update --recursive
-      - 
+      -
         name: Build docs
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           earthly  +build-docs --image_name=${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }}
-      - 
+      -
         name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - 
+      -
         name: Push image
         run: docker push ${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }}
 
@@ -1282,7 +1267,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - 
+      -
         name: Set branch name as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1290,7 +1275,7 @@ jobs:
           else \
               echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Set helm-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1298,7 +1283,7 @@ jobs:
           else \
               echo "HELM_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
           fi
-      - 
+      -
         name: Set python-version as environment variable
         run: |
           if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
@@ -1318,13 +1303,13 @@ jobs:
         with:
           name: hanami_helm_build_result
           path: /tmp/hanami_helm_build_result
-      - 
+      -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: hanami_python_build_result
           path: /tmp/hanami_python_build_result
-      - 
+      -
         name: Prepare ssh-keys
         run: |
           mkdir -p ~/.ssh
@@ -1339,17 +1324,17 @@ jobs:
           ssh ${{ secrets.SHARE_SSH_ACCESS }} "mkdir -p ~/hanami_file_share/$BRANCH_NAME/helm-chart"
           ssh ${{ secrets.SHARE_SSH_ACCESS }} "mkdir -p ~/hanami_file_share/$BRANCH_NAME/python-package"
           ssh ${{ secrets.SHARE_SSH_ACCESS }} "mkdir -p ~/hanami_file_share/$BRANCH_NAME/client"
-      - 
+      -
         name: Upload hanamictl
         run: |
           cd /tmp/hanamictl_build_result
           tar -czvf hanamictl_amd64_$BRANCH_NAME.tar.gz hanamictl
           scp hanamictl_amd64_$BRANCH_NAME.tar.gz ${{ secrets.SHARE_SSH_ACCESS }}:~/hanami_file_share/$BRANCH_NAME/client/
-      - 
+      -
         name: Upload helm-chart
         run: |
           scp /tmp/hanami_helm_build_result/openhanami-$HELM_VERSION.tgz ${{ secrets.SHARE_SSH_ACCESS }}:~/hanami_file_share/$BRANCH_NAME/helm-chart/
-      - 
+      -
         name: Upload pip-package
         run: |
           scp /tmp/hanami_python_build_result/hanami_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl ${{ secrets.SHARE_SSH_ACCESS }}:~/hanami_file_share/$BRANCH_NAME/python-package/

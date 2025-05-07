@@ -105,7 +105,7 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 
     ```bash
     cd ./src/sdk/python/hanami_sdk/hanami_sdk
-    protoc --python_out=. --proto_path ../../../../libraries/hanami_messages/protobuffers  hanami_messages.proto3
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
     cd ..
     python3 setup.py bdist_wheel --universal
     ```

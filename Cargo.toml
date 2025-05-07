@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "src/hanami",
+    "src/libs/rust/hanami_core"
+]

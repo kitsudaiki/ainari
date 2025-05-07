@@ -21,7 +21,7 @@
 package hanami_sdk
 
 func GetThreadMapping(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/threading"
+	path := "v1alpha/threading"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }

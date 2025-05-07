@@ -12,6 +12,10 @@
 
     # **IMPORTANT: his project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
+!!! danger "IMPORTANT"
+
+    # **IMPORTANT: The project is currently in a process of big reconstruction, by translating big parts of the backend from C++ into Rust code. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
+
 ## Intro
 
 OpenHanami contains in its core a custom experimental artificial neural network, which can work on

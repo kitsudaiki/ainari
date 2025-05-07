@@ -20,7 +20,7 @@ def create_project(token: str,
                    project_id: str,
                    project_name: str,
                    verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/project"
+    path = "/v1alpha/project"
     json_body = {
         "id": project_id,
         "name": project_name,
@@ -36,19 +36,18 @@ def get_project(token: str,
                 address: str,
                 project_id: str,
                 verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/project"
-    values = f'id={project_id}'
+    path = f"/v1alpha/project/{project_id}"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
-                                           values,
+                                           "",
                                            verify=verify_connection)
 
 
 def list_projects(token: str,
                   address: str,
                   verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/project/all"
+    path = "/v1alpha/project"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -60,18 +59,17 @@ def delete_project(token: str,
                    address: str,
                    project_id: str,
                    verify_connection: bool = True):
-    path = "/v1.0alpha/project"
-    values = f'id={project_id}'
+    path = f"/v1alpha/project/{project_id}"
     hanami_request.send_delete_request(token,
                                        address,
                                        path,
-                                       values,
+                                       "",
                                        verify=verify_connection)
 
 
 def delete_all_projects(token: str,
                         address: str,
                         verify_connection: bool = True):
-    body = list_projects(token, address, False)["body"]
+    body = list_projects(token, address, False)["projects"]
     for entry in body:
-        delete_project(token, address, entry[4], verify_connection)
+        delete_project(token, address, entry["id"], verify_connection)

@@ -14,25 +14,23 @@
 
 import requests
 from . import hanami_exceptions
-import base64
+# import base64
 
 
 def request_token(address: str,
                   user_id: str,
                   passphrase: str,
                   verify_connection: bool = True) -> str:
-    url = f'{address}/v1.0alpha/token'
-    passphrase_bytes = passphrase.encode('utf-8')
-    base64_encoded = base64.b64encode(passphrase_bytes)
+    url = f'{address}/v1alpha/token'
+    # passphrase_bytes = passphrase.encode('utf-8')
+    # base64_encoded = base64.b64encode(passphrase_bytes)
 
-    json_body = {
-        "id": user_id,
-        "passphrase": base64_encoded.decode('utf-8'),
-    }
+    body = "token_format=jwt&grant_type=client_credentials" \
+           f'&client_id={user_id}&client_secret={passphrase}'
 
-    response = requests.post(url, json=json_body, verify=verify_connection)
+    response = requests.post(url, data=body, verify=verify_connection)
     if response.status_code == 200:
-        return response.json()["token"]
+        return response.json()["access_token"]
     if response.status_code == 400:
         raise hanami_exceptions.BadRequestException(response.content)
     if response.status_code == 401:

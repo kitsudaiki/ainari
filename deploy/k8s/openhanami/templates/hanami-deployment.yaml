@@ -38,9 +38,9 @@ spec:
         image: {{ .Values.docker.registry }}/hanami:{{ .Values.docker.tag }}
         imagePullPolicy: Always
         env:
-        - name: HANAMI_ADMIN_USER_ID
+        - name: HANAMI_ADMIN_ID
           value: {{ required "user.id is required!" .Values.user.id }}
-        - name: HANAMI_ADMIN_USER_NAME
+        - name: HANAMI_ADMIN_NAME
           value: {{ required "user.name is required!" .Values.user.name }}
         - name: HANAMI_ADMIN_PASSPHRASE
           value: {{ required "user.passphrase is required!" .Values.user.passphrase }}
@@ -48,11 +48,8 @@ spec:
         - name: data-volume
           mountPath: /etc/openhanami/data/
         - name: hanami-config
-          mountPath: /etc/openhanami/hanami.conf
-          subPath: hanami.conf
-        - name: policies-config
-          mountPath: /etc/openhanami/policies
-          subPath: policies
+          mountPath: /etc/openhanami/hanami.toml
+          subPath: hanami.toml
         - name: token-key
           mountPath: /etc/openhanami/token_key
           subPath: token_key
@@ -76,9 +73,6 @@ spec:
         - name: hanami-config
           configMap:
             name: hanami-config
-        - name: policies-config
-          configMap:
-            name: policies-config
         - name: token-key
           secret:
             secretName: token-key

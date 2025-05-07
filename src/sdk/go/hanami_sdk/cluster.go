@@ -21,38 +21,40 @@
 package hanami_sdk
 
 import (
-	b64 "encoding/base64"
+	"fmt"
+	// b64 "encoding/base64"
 )
 
 func CreateCluster(address, token, name, template string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster"
+	path := "v1alpha/cluster"
 	jsonBody := map[string]interface{}{
 		"name":     name,
-		"template": b64.StdEncoding.EncodeToString([]byte(template)),
+		// "template": b64.StdEncoding.EncodeToString([]byte(template)),
+		"template": template,
 	}
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }
 
 func GetCluster(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster"
-	vars := map[string]interface{}{"uuid": clusterUuid}
+	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
+	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func ListCluster(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster/all"
+	path := "v1alpha/cluster"
 	vars := map[string]interface{}{}
 	return SendGet(address, token, path, vars, skipTlsVerification)
 }
 
 func DeleteCluster(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster"
-	vars := map[string]interface{}{"uuid": clusterUuid}
+	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
+	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }
 
 func SaveCluster(address, token, clusterUuid, checkpointName string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster/save"
+	path := "v1alpha/cluster/save"
 	jsonBody := map[string]interface{}{
 		"name":         checkpointName,
 		"cluster_uuid": clusterUuid,
@@ -61,7 +63,7 @@ func SaveCluster(address, token, clusterUuid, checkpointName string, skipTlsVeri
 }
 
 func RestoreCluster(address, token, clusterUuid, checkpointUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1.0alpha/cluster/load"
+	path := "v1alpha/cluster/load"
 	jsonBody := map[string]interface{}{
 		"checkpoint_uuid": checkpointUuid,
 		"cluster_uuid":    clusterUuid,

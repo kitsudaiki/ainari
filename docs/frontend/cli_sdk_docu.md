@@ -16,7 +16,7 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
     # build protobuf-messages
     pushd ../sdk/go/hanami_sdk
-    protoc --go_out=. --proto_path ../../../libraries/hanami_messages/protobuffers hanami_messages.proto3
+    protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
     popd
 
     # build cli-tool

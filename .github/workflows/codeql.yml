@@ -97,8 +97,6 @@ jobs:
         sudo apt-get install bison \
                            flex \
                            libssl-dev \
-                           libcrypto++-dev \
-                           libboost-dev \
                            nlohmann-json3-dev \
                            uuid-dev  \
                            libsqlite3-dev \

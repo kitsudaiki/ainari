@@ -15,7 +15,6 @@
 from . import hanami_request
 import websockets
 import json
-import base64
 import ssl
 
 
@@ -24,15 +23,10 @@ def create_cluster(token: str,
                    name: str,
                    template: str,
                    verify_connection: bool = True) -> dict:
-    # convert template to base64
-    template_bytes = template.encode("ascii")
-    base64_bytes = base64.b64encode(template_bytes)
-    base64_string = base64_bytes.decode("ascii")
-
-    path = "/v1.0alpha/cluster"
+    path = "/v1alpha/cluster"
     json_body = {
         "name": name,
-        "template": base64_string,
+        "template": template,
     }
     return hanami_request.send_post_request(token,
                                             address,
@@ -46,7 +40,7 @@ def save_cluster(token: str,
                  name: str,
                  cluster_uuid: str,
                  verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/cluster/save"
+    path = "/v1alpha/cluster/save"
     json_body = {
         "name": name,
         "cluster_uuid": cluster_uuid,
@@ -63,7 +57,7 @@ def restore_cluster(token: str,
                     checkpoint_uuid: str,
                     cluster_uuid: str,
                     verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/cluster/load"
+    path = "/v1alpha/cluster/load"
     json_body = {
         "checkpoint_uuid": checkpoint_uuid,
         "cluster_uuid": cluster_uuid,
@@ -79,19 +73,18 @@ def get_cluster(token: str,
                 address: str,
                 cluster_uuid: str,
                 verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/cluster"
-    values = f'uuid={cluster_uuid}'
+    path = f"/v1alpha/cluster/{cluster_uuid}"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
-                                           values,
+                                           "",
                                            verify=verify_connection)
 
 
 def list_clusters(token: str,
                   address: str,
                   verify_connection: bool = True) -> dict:
-    path = "/v1.0alpha/cluster/all"
+    path = "/v1alpha/cluster"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -103,28 +96,27 @@ def delete_cluster(token: str,
                    address: str,
                    cluster_uuid: str,
                    verify_connection: bool = True):
-    path = "/v1.0alpha/cluster"
-    values = f'uuid={cluster_uuid}'
+    path = f"/v1alpha/cluster/{cluster_uuid}"
     hanami_request.send_delete_request(token,
                                        address,
                                        path,
-                                       values,
+                                       "",
                                        verify=verify_connection)
 
 
 def delete_all_cluster(token: str,
                        address: str,
                        verify_connection: bool = True):
-    body = list_clusters(token, address, False)["body"]
+    body = list_clusters(token, address, False)["clusters"]
     for entry in body:
-        delete_cluster(token, address, entry[4], verify_connection)
+        delete_cluster(token, address, entry["uuid"], verify_connection)
 
 
 def switch_to_task_mode(token: str,
                         address: str,
                         cluster_uuid: str,
                         verify_connection: bool = True):
-    path = "/v1.0alpha/cluster/set_mode"
+    path = "/v1alpha/cluster/set_mode"
     json_body = {
         "new_state": "TASK",
         "uuid": cluster_uuid,
@@ -141,7 +133,7 @@ def switch_host(token: str,
                 cluster_uuid: str,
                 host_uuid: str,
                 verify_connection: bool = True):
-    path = "/v1.0alpha/cluster/switch_host"
+    path = "/v1alpha/cluster/switch_host"
     json_body = {
         "cluster_uuid": cluster_uuid,
         "host_uuid": host_uuid,
@@ -158,7 +150,7 @@ async def switch_to_direct_mode(token: str,
                                 address: str,
                                 cluster_uuid: str,
                                 verify_connection: bool = True):
-    path = "/v1.0alpha/cluster/set_mode"
+    path = "/v1alpha/cluster/set_mode"
     json_body = {
         "new_state": "DIRECT",
         "uuid": cluster_uuid,

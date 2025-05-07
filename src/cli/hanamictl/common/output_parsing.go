@@ -34,16 +34,23 @@ import (
 var PrintAsJson bool = false
 var DisableTlsVerification bool = false
 
-func PrintSingle(input map[string]interface{}, outputFields []string) {
+func PrintSingle(input map[string]interface{}) {
 	if PrintAsJson {
 		jsonData, _ := json.MarshalIndent(input, "", "    ")
 		fmt.Println(string(jsonData))
 		return
 	}
 
+	// filter header-keys
+	header_names := []string{}
+	for key := range input {
+		header_names = append(header_names, key)
+	}
+		
 	table := tablewriter.NewWriter(os.Stdout)
 
-	for _, element := range outputFields {
+	// fill body of table
+	for _, element := range header_names {
 		v := input[element]
 		lineData := []string{}
 		lineData = append(lineData, strings.ToUpper(strings.ReplaceAll(element, "_", " ")))
@@ -63,48 +70,33 @@ func PrintSingle(input map[string]interface{}, outputFields []string) {
 	table.Render()
 }
 
-func searchInHeader(headerArray []interface{}, name string) int {
-	for index, val := range headerArray {
-		str := fmt.Sprintf("%v", val)
-		if str == name {
-			return index
-		}
-	}
-
-	return -1
-}
-
-func PrintList(input map[string]interface{}, outputFields []string) {
+func PrintList(input []interface{}) {
 	if PrintAsJson {
 		jsonData, _ := json.MarshalIndent(input, "", "    ")
 		fmt.Println(string(jsonData))
 		return
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	headerArray := input["header"].([]interface{})
-	bodyArray := input["body"].([]interface{})
-
-	// fill and add table header
-	headerPositions := []int{}
-	headerData := []string{}
-	for _, element := range outputFields {
-		pos := searchInHeader(headerArray, element)
-		if pos == -1 {
-			continue
-		}
-
-		str := fmt.Sprintf("%v", headerArray[pos])
-		headerData = append(headerData, str)
-		headerPositions = append(headerPositions, pos)
+	// handle empty results
+	if len(input) == 0 {
+		fmt.Println("no values to print")
+		return
 	}
-	table.SetHeader(headerData)
 
-	// fill and add body to table
-	for _, line := range bodyArray {
+	// filter header-keys
+	header_names := []string{}
+	for key := range input[0].(map[string]interface{}) {
+		header_names = append(header_names, key)
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader(header_names)
+
+	// fill body of table
+	for _, line := range input {
 		lineData := []string{}
-		for _, pos := range headerPositions {
-			val := line.([]interface{})[pos]
+		for _, header := range header_names {
+			val := line.(map[string]interface{})[header]
 			if strVal, ok := val.(string); ok {
 				lineData = append(lineData, strVal)
 			} else {
