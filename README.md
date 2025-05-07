@@ -31,7 +31,7 @@ and multi-tenancy.
 
 ## Supported Environment
 
-| Backend                                                       | SDK                                         | Deployment                                          |
+| C++ Core-Library                                              | Python-SDK                                  | Deployment                                          |
 | ------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
 | [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
 | [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |

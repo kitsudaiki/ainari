@@ -415,17 +415,11 @@ jobs:
           sudo apt-get update && \
           sudo apt-get install -y make \
                            cmake \
-                           bison \
-                           flex \
                            git \
                            ssh \
                            libssl-dev \
-                           libcrypto++-dev \
-                           libboost-dev \
                            nlohmann-json3-dev \
-                           uuid-dev  \
-                           libsqlite3-dev \
-                           protobuf-compiler
+                           libsqlite3-dev
       -
         name: Install clang on Ubuntu 22.04
         if: (matrix.compiler.tag == 'ubuntu-2204_clang-14') || (matrix.compiler.tag == 'ubuntu-2204_clang-15')
@@ -456,7 +450,7 @@ jobs:
         name: Run basic test
         run: |
           cd ${GITHUB_REPOSITORY#*/} 
-          ./src/hanami/hanami_unittests
+          ./src/libs/cpp/hanami_core/hanami_unittests
       -
         name: Update Result
         id: status
