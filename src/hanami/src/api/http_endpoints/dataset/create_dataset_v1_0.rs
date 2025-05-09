@@ -29,7 +29,6 @@ use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 use crate::config;
 
-use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, Column};
 use hanami_dataset::converter::load_mnist_images;
 use hanami_common::error::HanamiError;
 
@@ -44,10 +43,14 @@ use super::dataset_structs::DatasetResp;
     error_code = 500
 )]
 pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>, context: UserContext) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
-    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
+    let tempfile_location = config::CONFIG.storage.tempfile_location.clone();
+    let dataset_location = config::CONFIG.storage.dataset_location.clone();
+
+    let tempfile_dir = PathBuf::from(&tempfile_location);
+    let dataset_dir = PathBuf::from(&dataset_location);
+
     let dataset_uuid = Uuid::new_v4();
-    let target_filepath: PathBuf = upload_dir.join(&dataset_uuid.to_string());
+    let target_filepath: PathBuf = dataset_dir.join(&dataset_uuid.to_string());
 
     let (dataset_type_str, name) = path.into_inner();
     let dataset_type = dataset_type_str.to_string();
@@ -59,15 +62,22 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     }
 
     // Ensure directory exists
-    match fs::create_dir_all(&upload_dir).await {
+    match fs::create_dir_all(&tempfile_dir).await {
         Ok(_) => (),
         Err(e) => {
-            error!("Failed to create dataset-upload-directory '{upload_dir_path}' with error: {e}");
+            error!("Failed to create dataset-upload-directory '{tempfile_location}' with error: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    }
+    match fs::create_dir_all(&dataset_dir).await {
+        Ok(_) => (),
+        Err(e) => {
+            error!("Failed to create dataset-upload-directory '{dataset_location}' with error: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
 
-    let mut filepaths = Vec::new();
+    let mut temp_file_paths = Vec::new();
     // process items from payload
     while let Some(item) = payload.next().await {
         let mut field = match item {
@@ -91,18 +101,18 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         };
 
         // create file
-        let filepath: PathBuf = upload_dir.join(filename + &dataset_uuid.to_string());
-        let mut f = match fs::File::create(&filepath).await {
+        let temp_file_path: PathBuf = tempfile_dir.join(filename + &dataset_uuid.to_string());
+        let mut f = match fs::File::create(&temp_file_path).await {
             Ok(value) => value,
             Err(e) => {
-                let path = filepath.as_os_str().to_str().unwrap();
+                let path = temp_file_path.as_os_str().to_str().unwrap();
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
                 error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
 
-        filepaths.push(filepath);
+        temp_file_paths.push(temp_file_path);
 
         // fill content into file
         while let Some(chunk) = field.next().await {
@@ -120,14 +130,14 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
 
     // process mnist-dataset
     if dataset_type == "mnist" {
-        let path_len = filepaths.len();
-        if filepaths.len() != 2 {
+        let path_len = temp_file_paths.len();
+        if temp_file_paths.len() != 2 {
             let msg = format!("MNIST-dataset expect 2 uploaded files, but there were {path_len} files found.");
             return Err(ErrorResponse::BadRequest(msg));
         }
         match load_mnist_images(
-            &filepaths[0], 
-            &filepaths[1], 
+            &temp_file_paths[0], 
+            &temp_file_paths[1], 
             &target_filepath,
             dataset_uuid.clone(),
             name.clone(),
