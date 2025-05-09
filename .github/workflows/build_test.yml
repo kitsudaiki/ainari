@@ -831,7 +831,7 @@ jobs:
 
 
   docker_build:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build Docker-images"
     needs: [ sdk_api_tests, cli_api_tests ]
     runs-on: ubuntu-24.04
@@ -912,7 +912,7 @@ jobs:
 
 
   docker_merge:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Merge and push Docker-image"
     runs-on: ubuntu-24.04
     needs: [ docker_build ]
@@ -964,7 +964,7 @@ jobs:
 
 
   kubernetes_test:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     needs: [ docker_merge ]
     runs-on: ubuntu-22.04
     strategy:

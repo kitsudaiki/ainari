@@ -15,6 +15,7 @@
 import requests
 import json
 import os
+from requests_toolbelt import MultipartEncoder
 
 from . import hanami_exceptions
 
@@ -95,19 +96,28 @@ def upload_files(token: str,
                  path: str,
                  file_paths,
                  verify: bool):
-    files = []
-    for file_path in file_paths:
-        file = open(file_path, 'rb')
-        files.append(('file', (os.path.basename(file_path), file)))
-
     url = f'{address}{path}'
     bearer_token = "Bearer " + token
-    headers = {'Authorization': bearer_token}
+
+    fields = {}
+    open_files = []
+
+    for i, file_path in enumerate(file_paths):
+        f = open(file_path, 'rb')
+        open_files.append(f)  # Keep open until after upload!
+        fields[f'file{i}'] = (os.path.basename(file_path), f, 'application/octet-stream')
+
+    encoder = MultipartEncoder(fields=fields)
+    headers = {
+        'Authorization': bearer_token,
+        'Content-Type': encoder.content_type
+    }
+
     try:
-        response = requests.post(url, headers=headers, files=files, verify=verify)
+        response = requests.post(url, data=encoder, headers=headers, verify=verify)
         return json.loads(_handle_response(response))
     except requests.exceptions.RequestException as e:
         raise e
     finally:
-        for _, (_, fileobj) in files:
-            fileobj.close()
+        for f in open_files:
+            f.close()

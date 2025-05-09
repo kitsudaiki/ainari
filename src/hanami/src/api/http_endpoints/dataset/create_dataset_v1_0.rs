@@ -108,7 +108,10 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         while let Some(chunk) = field.next().await {
             let data = match chunk {
                 Ok(value) => value,
-                Err(_) => return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string())),
+                Err(e) => {
+                    error!("{}", e);
+                    return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string()));
+                }
             };
             
             let _ = f.write_all(&data).await;

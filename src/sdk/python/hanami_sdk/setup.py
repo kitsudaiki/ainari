@@ -32,7 +32,8 @@ setup(
                       'protobuf==3.20.3',
                       'requests==2.32.3',
                       'simplejson==3.20.1',
-                      'websockets==15.0.1'],
+                      'websockets==15.0.1',
+                      'requests_toolbelt==1.0.0'],
     cmdclass={
         'install': GenerateProtobufMessages,
     },
