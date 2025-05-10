@@ -192,7 +192,7 @@ pub fn read_data_set_file(
 
     let mut result = DataSetFileReadHandleV1_0 {
         header: DataSetHeaderV1_0::default(),
-        target_file: BufReader::new(file),
+        target_file: BufReader::with_capacity(4096, file),
         payload_offset: 0,
     };
 

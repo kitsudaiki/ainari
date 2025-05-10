@@ -58,38 +58,38 @@ cluster_uuid=$(./hanamictl cluster create --insecure -j -t ./cluster_template cl
 
 
 ########################
-# echo ""
-# echo "workfloat tests"
-# ./hanamictl host list  --insecure
+echo ""
+echo "workfloat tests"
+./hanamictl host list  --insecure
 
-# train_dataset_uuid=$(./hanamictl dataset create mnist --insecure -j -i $train_inputs -l $train_labels cli_test_dataset_train | jq -r '.uuid')
-# echo "Train-Dataset-UUID: $train_dataset_uuid"
+train_dataset_uuid=$(./hanamictl dataset create mnist --insecure -j -i $train_inputs -l $train_labels cli_test_dataset_train | jq -r '.uuid')
+echo "Train-Dataset-UUID: $train_dataset_uuid"
 
-# request_dataset_uuid=$(./hanamictl dataset create mnist --insecure -j -i $request_inputs -l $request_labels cli_test_dataset_req | jq -r '.uuid')
-# echo "Request-Dataset-UUID: $request_dataset_uuid"
+request_dataset_uuid=$(./hanamictl dataset create mnist --insecure -j -i $request_inputs -l $request_labels cli_test_dataset_req | jq -r '.uuid')
+echo "Request-Dataset-UUID: $request_dataset_uuid"
 
-# cluster_uuid=$(./hanamictl cluster create --insecure -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
-# echo "Cluster-UUID: $cluster_uuid"
-
-
-# # train test
-# echo "./hanamictl task create train --insecure -j -i $train_dataset_uuid:picture:picture_hex -o $train_dataset_uuid:label:label_hex -c $cluster_uuid cli_train_test_task"
-# task_uuid=$(./hanamictl task create train --insecure -j -i $train_dataset_uuid:picture:picture_hex -o $train_dataset_uuid:label:label_hex -c $cluster_uuid cli_train_test_task | jq -r '.uuid')
-# echo "Train-Task-UUID: $task_uuid"
-
-# while true; do
-#     ./hanamictl task get --insecure -c $cluster_uuid $task_uuid
-#     state=$(./hanamictl task get --insecure -j -c $cluster_uuid $task_uuid | jq -r '.state')
-#     if [[ "$state" == *"finished"* ]]; then
-#         echo "Process finished. Exiting loop."
-#         break
-#     fi
-#     sleep 1
-# done
-# ./hanamictl task get --insecure -c $cluster_uuid $task_uuid
+cluster_uuid=$(./hanamictl cluster create --insecure -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
+echo "Cluster-UUID: $cluster_uuid"
 
 
-# # save and restore test
+# train test
+echo "./hanamictl task create train --insecure -j -i $train_dataset_uuid:picture:picture -o $train_dataset_uuid:label:label -c $cluster_uuid cli_train_test_task"
+task_uuid=$(./hanamictl task create train --insecure -j -i $train_dataset_uuid:picture:picture -o $train_dataset_uuid:label:label -c $cluster_uuid cli_train_test_task | jq -r '.uuid')
+echo "Train-Task-UUID: $task_uuid"
+
+while true; do
+    ./hanamictl task get --insecure -c $cluster_uuid $task_uuid
+    state=$(./hanamictl task get --insecure -j -c $cluster_uuid $task_uuid | jq -r '.state')
+    if [[ "$state" == *"Finished"* ]]; then
+        echo "Process finished. Exiting loop."
+        break
+    fi
+    sleep 1
+done
+./hanamictl task get --insecure -c $cluster_uuid $task_uuid
+
+
+# save and restore test
 # ./hanamictl cluster save --insecure -n cli_test_checkpoint $cluster_uuid
 # checkpoint_uuid=$(./hanamictl cluster save --insecure -j -n cli_test_checkpoint $cluster_uuid  | jq -r '.uuid')
 # sleep 1
@@ -101,29 +101,29 @@ cluster_uuid=$(./hanamictl cluster create --insecure -j -t ./cluster_template cl
 # echo "new Cluster-UUID: $cluster_uuid"
 # ./hanamictl cluster restore --insecure -c $checkpoint_uuid $cluster_uuid
 
-# # request test
-# echo "./hanamictl task create request --insecure -j -i $request_dataset_uuid:picture:picture_hex -r label_hex:cli_test_output -c $cluster_uuid cli_request_test_task"
-# req_task_uuid=$(./hanamictl task create request --insecure -j -i $request_dataset_uuid:picture:picture_hex -r label_hex:cli_test_output -c $cluster_uuid cli_request_test_task | jq -r '.uuid')
-# echo "Request-Task-UUID: $req_task_uuid"
+# request test
+echo "./hanamictl task create request --insecure -j -i $request_dataset_uuid:picture:picture -r label:cli_test_output -c $cluster_uuid cli_request_test_task"
+req_task_uuid=$(./hanamictl task create request --insecure -j -i $request_dataset_uuid:picture:picture -r label:cli_test_output -c $cluster_uuid cli_request_test_task | jq -r '.uuid')
+echo "Request-Task-UUID: $req_task_uuid"
 
-# ./hanamictl task list --insecure -c $cluster_uuid 
-# echo "$taskUuid"
-# ./hanamictl task delete --insecure -c $cluster_uuid $task_uuid
+./hanamictl task list --insecure -c $cluster_uuid 
+echo "$taskUuid"
+./hanamictl task delete --insecure -c $cluster_uuid $task_uuid
 
-# while true; do
-#     ./hanamictl task get --insecure -c $cluster_uuid $req_task_uuid
-#     state=$(./hanamictl task get --insecure -j -c $cluster_uuid $req_task_uuid | jq -r '.state')
-#     if [[ "$state" == *"finished"* ]]; then
-#         echo "Process finished. Exiting loop."
-#         break
-#     fi
-#     sleep 1
-# done
-# ./hanamictl task get --insecure -c $cluster_uuid $req_task_uuid
+while true; do
+    ./hanamictl task get --insecure -c $cluster_uuid $req_task_uuid
+    state=$(./hanamictl task get --insecure -j -c $cluster_uuid $req_task_uuid | jq -r '.state')
+    if [[ "$state" == *"Finished"* ]]; then
+        echo "Process finished. Exiting loop."
+        break
+    fi
+    sleep 1
+done
+./hanamictl task get --insecure -c $cluster_uuid $req_task_uuid
 
-# ./hanamictl dataset list --insecure
+./hanamictl dataset list --insecure
 
-# # echo "debug $(./hanamictl dataset list --insecure -j)"
+# echo "debug $(./hanamictl dataset list --insecure -j)"
 # result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[8] == "cli_request_test_task") | .[4]')
 # echo "Result-Dataset-UUID: $result_uuid"
 

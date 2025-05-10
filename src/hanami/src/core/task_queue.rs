@@ -15,6 +15,9 @@
 use log::debug;
 use std::collections::VecDeque;
 
+use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::database::task_table;
+
 use super::tasks::Task;
 
 #[derive(Default, Debug)]
@@ -25,6 +28,7 @@ pub struct TaskQueue {
 impl TaskQueue {
     pub fn add(&mut self, task: Task) {
         debug!("added task to task-queue");
+        let _ = task_table::update_task_state(&task.uuid, &TaskState::Queued);
         self.queue.push_back(task);
     }
 
@@ -45,7 +49,7 @@ mod tests {
     use uuid::Uuid;
     use std::sync::{Arc, Mutex};
 
-    use crate::core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
+    use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
     use super::*;
 
     #[test]
@@ -64,7 +68,7 @@ mod tests {
 
         let task1 = Task {
             uuid: uuid1.clone(),
-            task_type: InternalTaskType::TrainTask,
+            task_type: TaskType::TrainTask,
             name: "task1".to_string(),
             user_id: "user0815".to_string(),
             project_id: "project0815".to_string(),
@@ -72,7 +76,7 @@ mod tests {
         };
         let task2 = Task {
             uuid: uuid2.clone(),
-            task_type: InternalTaskType::RequestTask,
+            task_type: TaskType::RequestTask,
             name: "task2".to_string(),
             user_id: "user0816".to_string(),
             project_id: "project0816".to_string(),

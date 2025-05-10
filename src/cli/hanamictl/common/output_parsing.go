@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sort"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -46,7 +47,8 @@ func PrintSingle(input map[string]interface{}) {
 	for key := range input {
 		header_names = append(header_names, key)
 	}
-		
+	sort.Strings(header_names)
+	
 	table := tablewriter.NewWriter(os.Stdout)
 
 	// fill body of table
@@ -88,6 +90,7 @@ func PrintList(input []interface{}) {
 	for key := range input[0].(map[string]interface{}) {
 		header_names = append(header_names, key)
 	}
+	sort.Strings(header_names)
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader(header_names)

@@ -25,7 +25,7 @@ use crate::database::cluster_table;
 
 use hanami_common::enums;
 
-use super::task_structs::{TaskBasicResp, TaskListResp, TaskType};
+use super::task_structs::{TaskBasicResp, TaskListResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",
@@ -78,11 +78,20 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
+
+        // convert task-state
+        let task_state = match TaskState::from_str(task.task_state.as_str()) {
+            Ok(task_state) => task_state,
+            Err(()) => {
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
         
         let obj = TaskBasicResp {
             uuid: uuid,
             name: task.name.clone(),
             task_type: task_type,
+            state: task_state,
         };
 
         resp.tasks.push(obj);

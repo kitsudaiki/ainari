@@ -25,13 +25,12 @@ def create_train_task(token: str,
                       outputs: list,
                       timeLength: int = 1,
                       verify_connection: bool = True) -> dict:
-    path = "/v1alpha/task/train"
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/train"
     json_body = {
         "name": name,
-        "cluster_uuid": cluster_uuid,
         "inputs": inputs,
         "outputs": outputs,
-        "time_length": timeLength
+        # "time_length": timeLength
     }
     return hanami_request.send_post_request(token,
                                             address,
@@ -48,13 +47,12 @@ def create_request_task(token: str,
                         results: list,
                         timeLength: int = 1,
                         verify_connection: bool = True) -> dict:
-    path = "/v1alpha/task/request"
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/request"
     json_body = {
         "name": name,
-        "cluster_uuid": cluster_uuid,
         "inputs": inputs,
         "results": results,
-        "time_length": timeLength
+        # "time_length": timeLength
     }
     return hanami_request.send_post_request(token,
                                             address,
@@ -68,12 +66,11 @@ def get_task(token: str,
              task_uuid: str,
              cluster_uuid: str,
              verify_connection: bool = True) -> dict:
-    path = "/v1alpha/task"
-    values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
-                                           values,
+                                           "",
                                            verify=verify_connection)
 
 
@@ -81,12 +78,11 @@ def list_tasks(token: str,
                address: str,
                cluster_uuid: str,
                verify_connection: bool = True) -> dict:
-    path = "/v1alpha/task/all"
-    values = f'cluster_uuid={cluster_uuid}'
+    path = f"/v1alpha/cluster/{cluster_uuid}/task"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
-                                           values,
+                                           "",
                                            verify=verify_connection)
 
 
@@ -95,12 +91,11 @@ def delete_task(token: str,
                 task_uuid: str,
                 cluster_uuid: str,
                 verify_connection: bool = True):
-    path = "/v1alpha/task"
-    values = f'uuid={task_uuid}&cluster_uuid={cluster_uuid}'
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     hanami_request.send_delete_request(token,
                                        address,
                                        path,
-                                       values,
+                                       "",
                                        verify=verify_connection)
 
 
@@ -113,7 +108,7 @@ def wait_for_task_finished(token: str,
     finished = False
     while not finished:
         result = get_task(token, address, task_uuid, cluster_uuid, verify_connection)
-        finished = result["state"] == "finished"
+        finished = result["state"] == "FINISHED"
         # in case that the task is already finished, an unnecessary sleep should be avoided
         if finished:
             return

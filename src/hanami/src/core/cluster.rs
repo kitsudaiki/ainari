@@ -20,8 +20,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
 use std::io::{Read, Write, Seek};
+use std::time::{Duration, Instant};
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
+
+use crate::database::task_table;
+use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 
 use super::task_queue::{TaskQueue, init_task_queue};
 use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
@@ -47,6 +51,7 @@ fn get_values(
     cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
     is_expected: bool) -> Result<(), String> 
 {
+        // get column-description from the dataset
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
@@ -65,9 +70,9 @@ fn get_values(
     file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
     let _ = file_handle.target_file.read_exact(byte_slice_input);
     let input_ptr: *mut f32 = input_read.as_mut_ptr();
-    cxx::let_cxx_string!(cxx_name = hexagon_name); 
 
     // tigger action in c++ code
+    cxx::let_cxx_string!(cxx_name = hexagon_name); 
     if is_expected == false {
         unsafe {
             cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
@@ -81,7 +86,12 @@ fn get_values(
     Ok(())
 }
 
-fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandleV1_0, cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> {
+fn write_values(
+    hexagon_name: &String, 
+    file_handle: &mut DataSetFileWriteHandleV1_0, 
+    cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
+{
+    // get column-description from the dataset
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
@@ -94,6 +104,7 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandleV
     let mut output_read = vec![0.0f32; size_output];
     let output_ptr: *mut f32 = output_read.as_mut_ptr();
 
+    // get output from the c++ backend
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     unsafe {
         cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64);
@@ -105,47 +116,81 @@ fn write_values(hexagon_name: &String, file_handle: &mut DataSetFileWriteHandleV
     Ok(())
 }
 
-fn handle_train_task(task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
-    for cycle_count in 0..task_info.number_of_cycles {
-        for (hexagon_name, file_handle) in &mut task_info.inputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
-                Ok(()) => {},
-                Err(_) => return,
+fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    let mut prev_timestamp = Instant::now();
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
+
+    for epoch_count in 0..1 {
+        for cycle_count in 0..task_info.number_of_cycles {
+            // update current state in database at least after 1 second
+            let now = Instant::now();
+            if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
+                prev_timestamp = now;
+                let _ = task_table::update_task_progress(task_uuid, &(epoch_count as i64), &(cycle_count as i64));
             }
-        }
 
-        for (hexagon_name, file_handle) in &mut task_info.outputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, true) {
-                Ok(()) => {},
-                Err(_) => return,
+            // push input-values form dataset into the backend
+            for (hexagon_name, file_handle) in &mut task_info.inputs {  
+                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                    Ok(()) => {},
+                    Err(_) => return,
+                }
             }
-        }
 
-        cluster_link.pin_mut().doTrain();
-    }
-}
-
-fn handle_request_task(task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
-    for cycle_count in 0..task_info.number_of_cycles {
-        for (hexagon_name, file_handle) in &mut task_info.inputs {  
-            match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
-                Ok(()) => {},
-                Err(_) => return,
+            // push output-values form dataset into the backend
+            for (hexagon_name, file_handle) in &mut task_info.outputs {  
+                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, true) {
+                    Ok(()) => {},
+                    Err(_) => return,
+                }
             }
-        }
 
-        cluster_link.pin_mut().doRequest();
-
-        for (hexagon_name, file_handle) in &mut task_info.results {  
-            match write_values(hexagon_name, file_handle, cluster_link) {
-                Ok(()) => {},
-                Err(_) => return,
-            }
+            cluster_link.pin_mut().doTrain();
         }
     }
+
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
 }
 
-fn handle_checkpoint_save_task(task_info: &mut CheckpointSaveInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    let mut prev_timestamp = Instant::now();
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
+
+    for epoch_count in 0..1 {
+        for cycle_count in 0..task_info.number_of_cycles {
+            // update current state in database at least after 1 second
+            let now = Instant::now();
+            if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
+                prev_timestamp = now;
+                let _ = task_table::update_task_progress(task_uuid, &(epoch_count as i64), &(cycle_count as i64));
+            }
+
+            // push input-values form dataset into the backend
+            for (hexagon_name, file_handle) in &mut task_info.inputs {  
+                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                    Ok(()) => {},
+                    Err(_) => return,
+                }
+            }
+
+            cluster_link.pin_mut().doRequest();
+
+            // get output-values form backend and write them into the dataset
+            for (hexagon_name, file_handle) in &mut task_info.results {  
+                match write_values(hexagon_name, file_handle, cluster_link) {
+                    Ok(()) => {},
+                    Err(_) => return,
+                }
+            }
+        }
+    }
+
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
+}
+
+fn handle_checkpoint_save_task(task_uuid: &Uuid, task_info: &mut CheckpointSaveInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
     let file_path_str: String = task_info.path.to_string_lossy().into();
     cxx::let_cxx_string!(cxx_path = file_path_str);
     let _: i32 = cluster_link.pin_mut().createCheckpoint(&cxx_path).into();
@@ -155,13 +200,13 @@ impl ClusterLinkHanle {
     pub fn handle_task(&mut self, task: Task) {
         match task.info {
             TaskVariant::Training(mut task_info) => {
-                handle_train_task(&mut task_info, &mut self.cluster_link);
+                handle_train_task(&task.uuid, &mut task_info, &mut self.cluster_link);
             }, 
             TaskVariant::Request(mut task_info) => {
-                handle_request_task(&mut task_info, &mut self.cluster_link);
+                handle_request_task(&task.uuid, &mut task_info, &mut self.cluster_link);
             }, 
             TaskVariant::CheckpointSave(mut task_info) => {
-                handle_checkpoint_save_task(&mut task_info, &mut self.cluster_link);
+                handle_checkpoint_save_task(&task.uuid, &mut task_info, &mut self.cluster_link);
             }, 
             TaskVariant::CheckpointRestore(_) => {}, 
         }

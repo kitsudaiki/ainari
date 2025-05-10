@@ -25,7 +25,7 @@ use crate::database::cluster_table;
 
 use hanami_common::enums;
 
-use super::task_structs::{TaskResp, TaskType};
+use super::task_structs::{TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",
@@ -36,7 +36,9 @@ use super::task_structs::{TaskResp, TaskType};
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+    let (cluster_uuid, task_uuid) = uuids.into_inner();
+
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(_) => {},
@@ -66,15 +68,27 @@ pub async fn get_task(cluster_uuid: Path<Uuid>, task_uuid: Path<Uuid>, context: 
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
+    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
+        Ok(task_state) => task_state,
+        Err(()) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     let resp = TaskResp {
         uuid: task_uuid.clone(),
         name: task_data.name.clone(),
         task_type: task_type,
+        state: task_state,
+        total_number_of_epochs: task_data.total_number_of_epochs.clone(),
+        current_epoch: task_data.current_epoch.clone(),
+        total_number_of_cycles: task_data.total_number_of_cycles.clone(),
+        current_cycle: task_data.current_cycle.clone(),
+        queued_at: task_data.queued_at.clone(),
+        started_at: task_data.started_at.clone(),
+        finished_at: task_data.finished_at.clone(),
         created_by: task_data.created_by.clone(),
         created_at: task_data.created_at.clone(),
-        updated_by: task_data.updated_by.clone(),
-        updated_at: task_data.updated_at.clone(),
     };
 
     return Ok(Json(resp));

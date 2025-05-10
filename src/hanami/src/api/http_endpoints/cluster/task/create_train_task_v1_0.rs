@@ -27,17 +27,18 @@ use crate::database::cluster_table;
 use crate::database::task_table;
 use crate::database::dataset_table;
 use crate::core::cluster_handler;
-use crate::core::tasks::{Task, InternalTaskType, TaskVariant, TrainInfo};
+use crate::core::tasks::{Task, TaskVariant, TrainInfo};
 
 use hanami_common::enums;
 use hanami_dataset::dataset_io::read_data_set_file;
 
-use super::task_structs::{TaskCreateTrainReq, TaskResp, TaskType};
+use super::task_structs::{TaskCreateTrainReq, TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",
     summary = "Create new train-task",
     description = r###"Create new train-task for a cluster"###,
+    error_code = 400,
     error_code = 401,
     error_code = 500
 )]
@@ -129,7 +130,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         &task_uuid, 
         &cluster_uuid,
         &body.name, 
-        &task_type.to_string(),
+        &task_type,
         &1, // TODO: corrent number of epochs
         &number_of_cycles,
         &context) 
@@ -145,7 +146,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: InternalTaskType::TrainTask,
+        task_type: TaskType::TrainTask,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -170,16 +171,29 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         Err(()) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
+    };        
+    // convert task-state
+    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
+        Ok(task_state) => task_state,
+        Err(()) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
     };
 
     let resp = TaskResp {
         uuid: task_uuid.clone(),
         name: task_data.name.clone(),
         task_type: task_type,
+        state: task_state,
+        total_number_of_epochs: task_data.total_number_of_epochs.clone(),
+        current_epoch: task_data.current_epoch.clone(),
+        total_number_of_cycles: task_data.total_number_of_cycles.clone(),
+        current_cycle: task_data.current_cycle.clone(),
+        queued_at: task_data.queued_at.clone(),
+        started_at: task_data.started_at.clone(),
+        finished_at: task_data.finished_at.clone(),
         created_by: task_data.created_by.clone(),
         created_at: task_data.created_at.clone(),
-        updated_by: task_data.updated_by.clone(),
-        updated_at: task_data.updated_at.clone(),
     };
 
     return Ok(CreatedJson(resp));

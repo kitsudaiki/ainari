@@ -15,16 +15,17 @@
 fn main() {
     // compile C++ library via cmake
     let dst = cmake::Config::new("hanami_core_cpp")
+        .profile("Release")
         .build();
 
     // setup autocxx
     let include_path = "hanami_core_cpp";
     let mut b = autocxx_build::Builder::new("src/main.rs", &[include_path])
-        .extra_clang_args(&["-std=c++17"])
+        .extra_clang_args(&["-std=c++17", "-O3"])
         .build()
         .unwrap();
 
-    b.flag_if_supported("-O3");
+    b.flag("-O3");
     
     b.include(include_path)
      .flag_if_supported("-std=c++17");
