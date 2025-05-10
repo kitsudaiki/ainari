@@ -23,7 +23,7 @@ serde_urlencoded = "0.7"
 # jwt-token
 jsonwebtoken = "9"
 # config-file
-toml = "0.7"
+toml = "0.8"
 # singleton (like used for the config-variable)
 once_cell = "1.18"
 # logger
