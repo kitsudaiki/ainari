@@ -840,7 +840,7 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          - linux/arm64
+          # - linux/arm64
     steps:
       -
         name: Prepare
@@ -1205,7 +1205,7 @@ jobs:
 
   build_docs:
     name: Build and push docs
-    needs: [ kubernetes_test ]
+    needs: [ docker_merge ]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     env:
@@ -1255,7 +1255,7 @@ jobs:
 
   upload_files:
     name: "Upload files to share"
-    needs: [ kubernetes_test ]
+    needs: [ docker_merge ]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     env:

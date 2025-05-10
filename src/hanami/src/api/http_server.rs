@@ -14,6 +14,7 @@
 
 use actix_web::{App, HttpServer};
 use actix_web::middleware::{Logger, from_fn};
+use actix_web::web::PayloadConfig;
 use apistos::app::OpenApiWrapper;
 use apistos::spec::Spec;
 use apistos::web::{post, put, get, delete, resource, scope, Scope};
@@ -173,6 +174,7 @@ pub async fn run_server() -> Result<(), impl Error> {
             .document(spec)
             .wrap(from_fn(authorization_middleware))
             .wrap(Logger::default())
+            .app_data(PayloadConfig::new(1 << 30))  // 1GB max payload-size
             .service(v1alpha_routes())
             .build("/openapi.json")
     })

@@ -31,7 +31,10 @@ import (
 	"io"
 	"os"
 	"mime/multipart"
+	"path/filepath"
 )
+
+const chunkSize = 1024 * 1024 // 1 MiB
 
 type RequestError struct {
 	StatusCode int
@@ -192,20 +195,31 @@ func UploadFiles(address, token, path string, filePaths []string, skipTlsVerific
 	writer := multipart.NewWriter(body)
 	outputMap := map[string]interface{}{}
 
-	for _, path := range filePaths {
+	// Open and stream each file into multipart writer
+	for idx, path := range filePaths {
 		file, err := os.Open(path)
 		if err != nil {
-			return outputMap, fmt.Errorf("failed to open file %s: %w", path, err)
+			return outputMap, fmt.Errorf("failed to open file %s: %v", path, err)
 		}
 		defer file.Close()
 
-		part, err := writer.CreateFormFile("file", path)
+		part, err := writer.CreateFormFile(fmt.Sprintf("file%d", idx), filepath.Base(path))
 		if err != nil {
-			return outputMap, fmt.Errorf("failed to create form file for %s: %w", path, err)
+			return outputMap, fmt.Errorf("failed to create form part for %s: %v", path, err)
 		}
 
-		if _, err := io.Copy(part, file); err != nil {
-			return outputMap, fmt.Errorf("failed to copy file data for %s: %w", path, err)
+		buf := make([]byte, chunkSize)
+		for {
+			n, err := file.Read(buf)
+			if err != nil && err != io.EOF {
+				return outputMap, fmt.Errorf("error reading file %s: %v", path, err)
+			}
+			if n == 0 {
+				break
+			}
+			if _, err := part.Write(buf[:n]); err != nil {
+				return outputMap, fmt.Errorf("error writing part for %s: %v", path, err)
+			}
 		}
 	}
 

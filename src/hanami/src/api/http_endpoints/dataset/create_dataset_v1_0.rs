@@ -20,31 +20,19 @@ use apistos::api_operation;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 use tokio::fs;
-use log::error;
-use std::error::Error;
+use log::{error, debug};
 use std::path::PathBuf;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::collections::HashMap;
-use byteorder::{ReadBytesExt, BigEndian};
 use uuid::Uuid;
-use std::io::Write;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 use crate::config;
 
-use hanami_dataset::dataset_io::{DataSetType, init_new_data_set_file, Column};
+use hanami_dataset::converter::load_mnist_images;
 use hanami_common::error::HanamiError;
 
 use super::dataset_structs::DatasetResp;
-
-#[derive(Debug)]
-pub struct MnistImage {
-    pub label: u8,
-    pub pixels: Vec<u8>, // 28x28 = 784 pixels
-}
 
 #[api_operation(
     tag = "dataset",
@@ -55,10 +43,14 @@ pub struct MnistImage {
     error_code = 500
 )]
 pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>, context: UserContext) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
-    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
+    let tempfile_location = config::CONFIG.storage.tempfile_location.clone();
+    let dataset_location = config::CONFIG.storage.dataset_location.clone();
+
+    let tempfile_dir = PathBuf::from(&tempfile_location);
+    let dataset_dir = PathBuf::from(&dataset_location);
+
     let dataset_uuid = Uuid::new_v4();
-    let target_filepath: PathBuf = upload_dir.join(&dataset_uuid.to_string());
+    let target_filepath: PathBuf = dataset_dir.join(&dataset_uuid.to_string());
 
     let (dataset_type_str, name) = path.into_inner();
     let dataset_type = dataset_type_str.to_string();
@@ -70,15 +62,22 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     }
 
     // Ensure directory exists
-    match fs::create_dir_all(&upload_dir).await {
+    match fs::create_dir_all(&tempfile_dir).await {
         Ok(_) => (),
         Err(e) => {
-            error!("Failed to create dataset-upload-directory '{upload_dir_path}' with error: {e}");
+            error!("Failed to create dataset-upload-directory '{tempfile_location}' with error: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    }
+    match fs::create_dir_all(&dataset_dir).await {
+        Ok(_) => (),
+        Err(e) => {
+            error!("Failed to create dataset-upload-directory '{dataset_location}' with error: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
 
-    let mut filepaths = Vec::new();
+    let mut temp_file_paths = Vec::new();
     // process items from payload
     while let Some(item) = payload.next().await {
         let mut field = match item {
@@ -102,40 +101,63 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         };
 
         // create file
-        let filepath: PathBuf = upload_dir.join(filename + &dataset_uuid.to_string());
-        let mut f = match fs::File::create(&filepath).await {
+        let temp_file_path: PathBuf = tempfile_dir.join(filename + &dataset_uuid.to_string());
+        let mut f = match fs::File::create(&temp_file_path).await {
             Ok(value) => value,
             Err(e) => {
-                let path = filepath.as_os_str().to_str().unwrap();
+                let path = temp_file_path.as_os_str().to_str().unwrap();
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
                 error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
 
-        filepaths.push(filepath);
+        temp_file_paths.push(temp_file_path.clone());
 
         // fill content into file
-        while let Some(chunk) = field.next().await {
-            let data = match chunk {
-                Ok(value) => value,
-                Err(_) => return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string())),
-            };
+        let result = async {
+            while let Some(chunk) = field.next().await {
+                let data = match chunk {
+                    Ok(value) => value,
+                    Err(e) => {
+                        error!("{}", e);
+                        return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string()));
+                    }
+                };
+                
+                let _ = f.write_all(&data).await;
+            }
             
-            let _ = f.write_all(&data).await;
+            Ok(())
+        }
+        .await;
+
+        match result {
+            Ok(_) => {},
+            Err(e) => {
+                debug!("Dataset-upload broken or canceled.");
+                match std::fs::remove_file(&temp_file_path) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
+                        error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+                    }
+                }
+                return Err(e);
+            }
         }
     }
 
     // process mnist-dataset
     if dataset_type == "mnist" {
-        let path_len = filepaths.len();
-        if filepaths.len() != 2 {
+        let path_len = temp_file_paths.len();
+        if temp_file_paths.len() != 2 {
             let msg = format!("MNIST-dataset expect 2 uploaded files, but there were {path_len} files found.");
             return Err(ErrorResponse::BadRequest(msg));
         }
         match load_mnist_images(
-            &filepaths[0], 
-            &filepaths[1], 
+            &temp_file_paths[0], 
+            &temp_file_paths[1], 
             &target_filepath,
             dataset_uuid.clone(),
             name.clone(),
@@ -166,135 +188,34 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     };
 
     // get new created dataset from database to get addtional information
-    match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset) => {
-            let resp = DatasetResp {
-                uuid: dataset_uuid.clone(),
-                name: dataset.name.clone(),
-                created_by: dataset.created_by.clone(),
-                created_at: dataset.created_at.clone(),
-                updated_by: dataset.updated_by.clone(),
-                updated_at: dataset.updated_at.clone(),
-            };
-        
-            return Ok(CreatedJson(resp));
-        },
+    let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset) => dataset,
         Err(_) => 
         {
             error!("Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
-}
 
-fn convert_vec_u8_to_f32(vec_u8: &Vec<u8>) -> Vec<f32> {
-    vec_u8.iter().map(|&x| x as f32).collect()
-}
-
-pub fn load_mnist_images(
-    image_path: &PathBuf,
-    label_path: &PathBuf,
-    target_filepath: &PathBuf,
-    uuid: Uuid,
-    name: String,
-    limit: Option<usize>,
-) -> Result<(), Box<dyn Error>> {
-    let mut img_reader = BufReader::new(File::open(image_path)?);
-    let mut label_reader = BufReader::new(File::open(label_path)?);
-
-    // check magic number of image-file
-    let magic = img_reader.read_u32::<BigEndian>()?;
-    if magic != 2051 {
-        return Err("Invalid image file magic number!".into());
+    for file_path in temp_file_paths {
+        match std::fs::remove_file(&file_path) {
+            Ok(()) => {},
+            Err(e) => {
+                let tempfile_path_str: String = file_path.to_string_lossy().into();
+                error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+            }
+        }
     }
 
-    // get meta-information of image-file
-    let num_images = img_reader.read_u32::<BigEndian>()?;
-    let rows = img_reader.read_u32::<BigEndian>()?;
-    let cols = img_reader.read_u32::<BigEndian>()?;
-
-    // check magic number of label-file
-    let label_magic = label_reader.read_u32::<BigEndian>()?;
-    if label_magic != 2049 {
-        return Err("Invalid label file magic number!".into());
-    }
-
-    // check if number of images and labes are the same
-    let num_labels = label_reader.read_u32::<BigEndian>()?;
-    if num_images != num_labels {
-        return Err("Image and label count mismatch!".into());
-    }
-    // prepare buffer
-    let count = limit.unwrap_or(num_images as usize).min(num_images as usize);
-    let mut images = Vec::with_capacity(count);
-
-    // read images and labels from files
-    for _ in 0..count {
-        let mut pixels = vec![0; (rows * cols) as usize];
-        img_reader.read_exact(&mut pixels)?;
-
-        let label = label_reader.read_u8()?;
-
-        images.push(MnistImage { label, pixels });
-    }
-
-    let picture_size: u64 = (rows * cols) as u64;
-    let mut columns: HashMap<String, Column> = HashMap::new();
-
-    let pictures = Column {
-        start: 0,
-        end: picture_size,
+    // create response
+    let resp = DatasetResp {
+        uuid: dataset_uuid.clone(),
+        name: dataset.name.clone(),
+        created_by: dataset.created_by.clone(),
+        created_at: dataset.created_at.clone(),
+        updated_by: dataset.updated_by.clone(),
+        updated_at: dataset.updated_at.clone(),
     };
-    columns.insert("picture".to_string(),pictures);
 
-    let labels = Column {
-        start: picture_size,
-        end: picture_size + 10,
-    };
-    columns.insert("label".to_string(),labels);
-
-    let row_size = picture_size + 10;
-    let mut dataset_handle = init_new_data_set_file(
-        &target_filepath, 
-        uuid,
-        name, 
-        "".to_string(),
-        row_size as u64,
-        columns,
-        DataSetType::FloatType)?; // TODO: use u8-type
-
-    let mut label_data: Vec<f32> = vec![0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
-    for (_, img) in images.iter().enumerate() {
-        // println!("Image {}: Label = {}", i, img.label);
-        label_data[usize::from(img.label)] = 1.0f32;
-
-        let converted = convert_vec_u8_to_f32(&img.pixels);
-
-        let image_bytes = unsafe {
-            std::slice::from_raw_parts(
-                converted.as_ptr() as *const u8,
-                converted.len() * std::mem::size_of::<f32>(),
-            )
-        };
-
-        let label_bytes = unsafe {
-            std::slice::from_raw_parts(
-                label_data.as_ptr() as *const u8,
-                label_data.len() * std::mem::size_of::<f32>(),
-            )
-        };
-    
-        dataset_handle.target_file.write_all(&image_bytes)?;
-        dataset_handle.target_file.write_all(&label_bytes)?;
-
-        label_data[usize::from(img.label)] = 0.0f32;
-    }
-
-    // disabled debug-output
-    // for (i, img) in images.iter().enumerate() {
-    //     println!("Image {}: Label = {}", i, img.label);
-    // }
-
-    Ok(())
+    return Ok(CreatedJson(resp));
 }
-

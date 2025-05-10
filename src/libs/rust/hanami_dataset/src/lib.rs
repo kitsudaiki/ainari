@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod dataset_io;
+pub mod converter;
