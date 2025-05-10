@@ -53,7 +53,6 @@ pub struct TrainInfo {
     pub outputs: HashMap<String, DataSetFileReadHandleV1_0>,
 
     pub number_of_cycles: u64,
-    pub current_cycle: u64,
     pub time_length: u64,
 }
 
@@ -63,7 +62,6 @@ pub struct RequestInfo {
     pub results: HashMap<String, DataSetFileWriteHandleV1_0>,
 
     pub number_of_cycles: u64,
-    pub current_cycle: u64,
     pub time_length: u64,
 }
 

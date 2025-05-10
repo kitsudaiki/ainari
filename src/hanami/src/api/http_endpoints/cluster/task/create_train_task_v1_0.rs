@@ -69,7 +69,6 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         inputs: HashMap::new(),
         outputs: HashMap::new(),
         number_of_cycles: 0,
-        current_cycle: 0,
         time_length: 1,
     };
 
@@ -131,6 +130,8 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         &cluster_uuid,
         &body.name, 
         &task_type.to_string(),
+        &1, // TODO: corrent number of epochs
+        &number_of_cycles,
         &context) 
     {
         Ok(_) => {},

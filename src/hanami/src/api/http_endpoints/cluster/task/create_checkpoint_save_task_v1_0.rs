@@ -76,6 +76,8 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
         &cluster_uuid,
         &body.name, 
         &task_type.to_string(),
+        &1,
+        &1,
         &context) 
     {
         Ok(_) => {},
