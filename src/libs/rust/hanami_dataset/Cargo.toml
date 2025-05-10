@@ -12,5 +12,5 @@ uuid = { version = "1.16.0", features = ["v4", "serde"] }
 # common stuff
 sanitize-filename = "0.6"
 byteorder = "1.5"
-bincode = "1.3"
+bincode = "2.0"
 bytemuck = "1.22"
