@@ -20,7 +20,7 @@ use apistos::api_operation;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 use tokio::fs;
-use log::error;
+use log::{error, debug};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -112,19 +112,39 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             }
         };
 
-        temp_file_paths.push(temp_file_path);
+        temp_file_paths.push(temp_file_path.clone());
 
         // fill content into file
-        while let Some(chunk) = field.next().await {
-            let data = match chunk {
-                Ok(value) => value,
-                Err(e) => {
-                    error!("{}", e);
-                    return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string()));
-                }
-            };
+        let result = async {
+            while let Some(chunk) = field.next().await {
+                let data = match chunk {
+                    Ok(value) => value,
+                    Err(e) => {
+                        error!("{}", e);
+                        return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string()));
+                    }
+                };
+                
+                let _ = f.write_all(&data).await;
+            }
             
-            let _ = f.write_all(&data).await;
+            Ok(())
+        }
+        .await;
+
+        match result {
+            Ok(_) => {},
+            Err(e) => {
+                debug!("Dataset-upload broken or canceled.");
+                match std::fs::remove_file(&temp_file_path) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
+                        error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+                    }
+                }
+                return Err(e);
+            }
         }
     }
 
@@ -168,23 +188,34 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     };
 
     // get new created dataset from database to get addtional information
-    match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset) => {
-            let resp = DatasetResp {
-                uuid: dataset_uuid.clone(),
-                name: dataset.name.clone(),
-                created_by: dataset.created_by.clone(),
-                created_at: dataset.created_at.clone(),
-                updated_by: dataset.updated_by.clone(),
-                updated_at: dataset.updated_at.clone(),
-            };
-        
-            return Ok(CreatedJson(resp));
-        },
+    let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset) => dataset,
         Err(_) => 
         {
             error!("Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
+
+    for file_path in temp_file_paths {
+        match std::fs::remove_file(&file_path) {
+            Ok(()) => {},
+            Err(e) => {
+                let tempfile_path_str: String = file_path.to_string_lossy().into();
+                error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+            }
+        }
+    }
+
+    // create response
+    let resp = DatasetResp {
+        uuid: dataset_uuid.clone(),
+        name: dataset.name.clone(),
+        created_by: dataset.created_by.clone(),
+        created_at: dataset.created_at.clone(),
+        updated_by: dataset.updated_by.clone(),
+        updated_at: dataset.updated_at.clone(),
+    };
+
+    return Ok(CreatedJson(resp));
 }
