@@ -26,9 +26,9 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::database::task_table;
 use crate::database::dataset_table;
+use crate::core::cluster_handler;
+use crate::core::tasks::{Task, InternalTaskType, TaskVariant, TrainInfo};
 
-use hanami_core::cluster_handler;
-use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, TrainInfo};
 use hanami_common::enums;
 use hanami_dataset::dataset_io::read_data_set_file;
 

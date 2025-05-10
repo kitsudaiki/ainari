@@ -19,7 +19,7 @@ fn main() {
 
     // setup autocxx
     let include_path = "hanami_core_cpp";
-    let mut b = autocxx_build::Builder::new("src/lib.rs", &[include_path])
+    let mut b = autocxx_build::Builder::new("src/main.rs", &[include_path])
         .extra_clang_args(&["-std=c++17"])
         .build()
         .unwrap();

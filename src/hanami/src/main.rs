@@ -17,11 +17,25 @@ use std::env;
 mod api;
 mod database;
 mod config;
+mod core;
 
 use log::{error, info};
-use log::{SetLoggerError, LevelFilter};
+use log::LevelFilter;
 
-use hanami_core::cluster_handler;
+use core::cluster_handler;
+
+autocxx::include_cpp! {
+    #include "hanami_root.h"
+    #include "hanami_structs.h"
+    #include "cluster_link.h"
+    safety!(unsafe_ffi)
+    generate!("HanamiCore")
+    generate!("ReturnStatus")
+    generate!("createRootObj")
+    generate!("ClusterMeta")
+    generate!("ClusterLink")
+}
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the logger

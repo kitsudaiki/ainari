@@ -16,15 +16,3 @@ pub mod cluster_handler;
 pub mod cluster;
 pub mod task_queue;
 pub mod tasks;
-
-autocxx::include_cpp! {
-    #include "hanami_root.h"
-    #include "hanami_structs.h"
-    #include "cluster_link.h"
-    safety!(unsafe_ffi)
-    generate!("HanamiCore")
-    generate!("ReturnStatus")
-    generate!("createRootObj")
-    generate!("ClusterMeta")
-    generate!("ClusterLink")
-}

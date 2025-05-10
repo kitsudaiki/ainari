@@ -43,9 +43,9 @@ pub fn init_task_queue() -> TaskQueue {
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
-    use crate::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
     use std::sync::{Arc, Mutex};
 
+    use crate::core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
     use super::*;
 
     #[test]

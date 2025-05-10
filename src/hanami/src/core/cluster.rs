@@ -23,8 +23,8 @@ use std::io::{Read, Write, Seek};
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
-use crate::task_queue::{TaskQueue, init_task_queue};
-use crate::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
+use super::task_queue::{TaskQueue, init_task_queue};
+use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
 
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;

@@ -25,9 +25,9 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::database::task_table;
 use crate::config;
+use crate::core::cluster_handler;
+use crate::core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
 
-use hanami_core::cluster_handler;
-use hanami_core::tasks::{Task, InternalTaskType, TaskVariant, CheckpointSaveInfo};
 use hanami_common::enums;
 
 use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType};
