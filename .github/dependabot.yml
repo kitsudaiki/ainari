@@ -39,3 +39,18 @@ updates:
     rebase-strategy: "auto"
     assignees:
       - "kitsudaiki"
+
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "12:00"
+    labels:
+      - "Rust"
+      - "Env: Dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    assignees:
+      - "kitsudaiki"
