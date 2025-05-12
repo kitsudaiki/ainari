@@ -126,12 +126,16 @@ fn v1alpha_routes() -> Scope {
                                 .route(post().to(create_checkpoint_save_task_v1_0::create_checkpoint_save_task))
                         )
                         .service(
-                            resource("")
-                                .route(get().to(list_task_v1_0::list_task))
-                        )
-                        .service(
                             resource("/{task_uuid}")
                                 .route(get().to(get_task_v1_0::get_task))
+                        )
+                        .service(
+                            resource("/{task_uuid}/abort")
+                                .route(put().to(get_task_v1_0::get_task))
+                        )
+                        .service(
+                            resource("")
+                                .route(get().to(list_task_v1_0::list_task))
                         )
                 )
         )

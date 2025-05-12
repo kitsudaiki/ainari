@@ -21,7 +21,7 @@ use hanami_cluster_parser::cluster_parser::parse_cluster_template;
 use hanami_cluster_parser::cluster_meta_structs::*;
 use hanami_common::error::HanamiError;
 
-use crate::cluster::Cluster;
+use super::cluster::Cluster;
 
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;

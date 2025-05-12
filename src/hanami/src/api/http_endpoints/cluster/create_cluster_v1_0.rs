@@ -21,8 +21,8 @@ use uuid::Uuid;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
+use crate::core::cluster_handler;
 
-use hanami_core::cluster_handler;
 use hanami_common::error::HanamiError;
 
 use super::cluster_structs::{ClusterCreateReq, ClusterResp};

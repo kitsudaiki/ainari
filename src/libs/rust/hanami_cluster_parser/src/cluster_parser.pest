@@ -62,6 +62,6 @@ extra_info = { "(" ~ key ~ ")" }
 
 position = { _int_ ~ "," ~ _int_ ~ "," ~ _int_ }
 
-key = @{ ASCII_ALPHANUMERIC+ }
+key = @{ (ASCII_ALPHANUMERIC | "_")+ }
 _int_ = @{ "-"? ~ ASCII_DIGIT+ }
 _float_ = @{ "-"? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }

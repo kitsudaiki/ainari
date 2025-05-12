@@ -4,9 +4,9 @@ version = "0.8.0"
 edition = "2024"
 
 [dependencies]
-hanami_core = { path = "../libs/rust/hanami_core" }
 hanami_dataset = { path = "../libs/rust/hanami_dataset" }
 hanami_common = { path = "../libs/rust/hanami_common" }
+hanami_cluster_parser = { path = "../libs/rust/hanami_cluster_parser" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"
@@ -38,9 +38,24 @@ chrono = "0.4.40"
 futures = "0.3"
 bytes = "1"
 uuid = { version = "1.16.0", features = ["v4"] }
-sanitize-filename = "0.5"
+sanitize-filename = "0.6"
 byteorder = "1.5"
 bincode = "1.3"
+bytemuck = "1.22"
+static_assertions = "1.1.0"
+# c++
+cxx = "1.0"
+autocxx = "0.30"
 
 [dev-dependencies]
-serial_test = "2"
+serial_test = "3"
+
+[build-dependencies]
+autocxx-build = "0.30.0"
+cmake = "0.1"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3

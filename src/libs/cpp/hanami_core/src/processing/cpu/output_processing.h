@@ -104,9 +104,9 @@ processNeuronsOfOutputHexagon(Hexagon* hexagon, uint32_t randomSeed)
         if (weightSum != 0.0f) {
             out->outputVal = 1.0f / (1.0f + exp(-1.0f * weightSum));
         }
-        std::cout << out->outputVal << " : " << out->exprectedVal << std::endl;
+        // std::cout << out->outputVal << " : " << out->exprectedVal << std::endl;
     }
-    std::cout << "-------------------------------------" << std::endl;
+    // std::cout << "-------------------------------------" << std::endl;
 }
 
 #endif  // OUTPUTPROCESSING_H

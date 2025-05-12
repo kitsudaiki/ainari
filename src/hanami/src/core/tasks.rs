@@ -20,22 +20,7 @@ use uuid::Uuid;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-pub enum InternalTaskType {
-    TrainTask = 0,
-    RequestTask = 1,
-    ClusterCheckpointSaveTask = 2,
-    ClusterCheckpointRestoreTask = 3,
-}
-
-#[derive(Debug)]
-pub enum TaskState {
-    UndefinedTaskState = 0,
-    QueuedTaskState = 1,
-    ActiveTaskState = 2,
-    AbortedTaskState = 3,
-    FinishedTaskState = 4,
-}
+use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 
 pub struct TaskProgress {
     pub task_state: TaskState,
@@ -53,7 +38,6 @@ pub struct TrainInfo {
     pub outputs: HashMap<String, DataSetFileReadHandleV1_0>,
 
     pub number_of_cycles: u64,
-    pub current_cycle: u64,
     pub time_length: u64,
 }
 
@@ -63,7 +47,6 @@ pub struct RequestInfo {
     pub results: HashMap<String, DataSetFileWriteHandleV1_0>,
 
     pub number_of_cycles: u64,
-    pub current_cycle: u64,
     pub time_length: u64,
 }
 
@@ -88,7 +71,7 @@ pub enum TaskVariant {
 #[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
-    pub task_type: InternalTaskType,
+    pub task_type: TaskType,
     pub name: String,
     pub user_id: String,
     pub project_id: String,

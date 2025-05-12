@@ -21,6 +21,7 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 
 use hanami_common::enums;
 
@@ -31,12 +32,20 @@ table! {
         name -> Varchar,
         cluster_uuid -> Varchar,
         task_type -> Varchar,
+        task_state -> Varchar,
+        total_number_of_epochs -> BigInt,
+        current_epoch -> BigInt,
+        total_number_of_cycles -> BigInt,
+        current_cycle -> BigInt,
+        queued_at -> Nullable<Text>,
+        started_at -> Nullable<Text>,
+        aborted_at -> Nullable<Text>,
+        finished_at -> Nullable<Text>,
+        error_message -> Nullable<Text>,
         owner_id -> Varchar,
         project_id -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
-        updated_at -> Varchar,
-        updated_by -> Varchar,
     }
 }
 
@@ -47,44 +56,70 @@ pub struct TaskEntry {
     pub name: String,
     pub cluster_uuid: String,
     pub task_type: String,
+    pub task_state: String,
+    pub total_number_of_epochs: i64,
+    pub current_epoch: i64,
+    pub total_number_of_cycles: i64,
+    pub current_cycle: i64,
+    pub queued_at: Option<String>,
+    pub started_at: Option<String>,
+    pub aborted_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub error_message: Option<String>,
     pub owner_id: String,
     pub project_id: String,
     pub created_at: String,
     pub created_by: String,
-    pub updated_at: String,
-    pub updated_by: String,
 }
 
 pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS tasks (
+    error!("poi1");
+    conn.batch_execute("CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         cluster_uuid VARCHAR(40),
         task_type VARCHAR(32),
+        task_state VARCHAR(32),
+        total_number_of_epochs INTEGER,
+        current_epoch INTEGER,
+        total_number_of_cycles INTEGER,
+        current_cycle INTEGER,
+        queued_at TEXT,
+        started_at TEXT,
+        aborted_at TEXT,
+        finished_at TEXT,
+        error_message TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256)
+        created_by VARCHAR(256)
     );")?;
 
+    error!("poi1");
     Ok(())
 }
 
-pub fn add_new_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_name: &String, task_type: &String, context: &UserContext) -> QueryResult<usize> {
+pub fn add_new_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_name: &String, task_type: &TaskType, total_number_of_epochs: &u64, total_number_of_cycles: &u64, context: &UserContext) -> QueryResult<usize> {
     let task = TaskEntry{
         uuid: task_uuid.to_string().clone(),
         name: task_name.clone(),
         cluster_uuid: cluster_uuid.to_string().clone(),
-        task_type: task_type.clone(),
+        task_type: task_type.to_string(),
+        task_state: TaskState::Created.to_string(),
+        total_number_of_epochs: total_number_of_epochs.clone() as i64,
+        current_epoch: 0,
+        total_number_of_cycles: total_number_of_cycles.clone() as i64,
+        current_cycle: 0,
+        queued_at: None,
+        started_at: None,
+        aborted_at: None,
+        finished_at: None,
+        error_message: None,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
-        updated_by: context.user_id.clone(),
     };
 
     add_task(&task)
@@ -145,6 +180,165 @@ pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<
     query.select(TaskEntry::as_select()).load(&mut *conn)
 }
 
+pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Result<(), ()> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::tasks::dsl::*;
+
+    match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+        .set((
+            current_epoch.eq(epoch),
+            current_cycle.eq(cycle),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => {
+            return Err(());
+        },
+        Err(e) => {
+            error!("Database-error: {:?}", e);
+            return Err(());
+        }
+    }
+}
+
+pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::tasks::dsl::*;
+
+    match new_state {
+        TaskState::Created => {
+            return Ok(());
+        },
+        TaskState::Queued => {
+            match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+                .set((
+                    task_state.eq(new_state.to_string()), 
+                    queued_at.eq(Utc::now().to_rfc3339()),
+                ))
+                .execute(&mut *conn)
+            {
+                Ok(_) => {
+                    return Ok(());
+                },
+                Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+                Err(e) => {
+                    error!("Database-error: {:?}", e);
+                    Err(enums::DbError::InternalError)
+                }
+            }
+        },
+        TaskState::Active => {
+            match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+                .set((
+                    task_state.eq(new_state.to_string()), 
+                    started_at.eq(Utc::now().to_rfc3339()),
+                ))
+                .execute(&mut *conn)
+            {
+                Ok(_) => {
+                    return Ok(());
+                },
+                Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+                Err(e) => {
+                    error!("Database-error: {:?}", e);
+                    Err(enums::DbError::InternalError)
+                }
+            }
+        },
+        TaskState::Aborted => {
+            match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+                .set((
+                    task_state.eq(new_state.to_string()), 
+                    aborted_at.eq(Utc::now().to_rfc3339()),
+                ))
+                .execute(&mut *conn)
+            {
+                Ok(_) => {
+                    return Ok(());
+                },
+                Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+                Err(e) => {
+                    error!("Database-error: {:?}", e);
+                    Err(enums::DbError::InternalError)
+                }
+            }
+        },
+        TaskState::Finished => {
+            match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+                .set((
+                    task_state.eq(new_state.to_string()), 
+                    finished_at.eq(Utc::now().to_rfc3339()),
+                ))
+                .execute(&mut *conn)
+            {
+                Ok(_) => {
+                    return Ok(());
+                },
+                Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+                Err(e) => {
+                    error!("Database-error: {:?}", e);
+                    Err(enums::DbError::InternalError)
+                }
+            }
+        },
+        TaskState::Error => {
+            return Ok(());
+        },
+    }
+}
+
+pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::tasks::dsl::*;
+
+    match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+        .set((
+            task_state.eq(TaskState::Error.to_string()), 
+            error_message.eq(error_msg),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => {
+            return Ok(());
+        },
+        Err(diesel::result::Error::NotFound) => {
+            return Err(());
+        },
+        Err(e) => {
+            error!("Database-error: {:?}", e);
+            return Err(());
+        }
+    }
+}
+
+pub fn is_aborted(task_uuid: &Uuid) -> bool {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::tasks::dsl::*;
+
+    let mut query = tasks
+        .filter(uuid.eq(task_uuid.to_string()))
+        .into_boxed();
+
+    match query
+        .select(TaskEntry::as_select())
+        .first::<TaskEntry>(&mut *conn)
+    {
+        Ok(task) => {
+            if task.task_state == TaskState::Aborted.to_string() {
+                true
+            } else {
+                false
+            }
+        },
+        Err(diesel::result::Error::NotFound) => false,
+        Err(e) => {
+            error!("Database-error: {:?}", e);
+            false
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,13 +370,21 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
 
         hard_delete_task(&uuid1);
@@ -193,7 +395,6 @@ mod tests {
                 assert_eq!(retrieved_task.uuid, task.uuid);
                 assert_eq!(retrieved_task.name, task.name);
                 assert_eq!(retrieved_task.created_by, task.created_by);
-                assert_eq!(retrieved_task.updated_by, task.updated_by);
             },
             Err(_) => {}
         };
@@ -222,26 +423,42 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
         
         let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
         
         hard_delete_task(&uuid1);
@@ -268,39 +485,63 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
         
         let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
                 
         let task3 = TaskEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: "Train-Task".to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
-            updated_by: "admin".to_string(),
         };
         
         hard_delete_task(&uuid1);
@@ -374,5 +615,269 @@ mod tests {
         let _ = hard_delete_task(&uuid1);
         let _ = hard_delete_task(&uuid2);
         let _ = hard_delete_task(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_update_task_state() {
+        init_task_table().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let task = TaskEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+        };
+
+        hard_delete_task(&uuid1);
+
+        add_task(&task).unwrap();
+
+        let _ = update_task_state(&uuid1, &TaskState::Created);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Created.to_string());
+                assert_eq!(retrieved_task.queued_at, None);
+                assert_eq!(retrieved_task.started_at, None);
+                assert_eq!(retrieved_task.aborted_at, None);
+                assert_eq!(retrieved_task.finished_at, None);
+            },
+            Err(_) => {}
+        };
+
+        let _ = update_task_state(&uuid1, &TaskState::Queued);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Queued.to_string());
+                assert_ne!(retrieved_task.queued_at, None);
+                assert_eq!(retrieved_task.started_at, None);
+                assert_eq!(retrieved_task.aborted_at, None);
+                assert_eq!(retrieved_task.finished_at, None);
+            },
+            Err(_) => {}
+        };
+
+        let _ = update_task_state(&uuid1, &TaskState::Active);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Active.to_string());
+                assert_ne!(retrieved_task.queued_at, None);
+                assert_ne!(retrieved_task.started_at, None);
+                assert_eq!(retrieved_task.aborted_at, None);
+                assert_eq!(retrieved_task.finished_at, None);
+            },
+            Err(_) => {}
+        };
+
+        let _ = update_task_state(&uuid1, &TaskState::Aborted);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Aborted.to_string());
+                assert_ne!(retrieved_task.queued_at, None);
+                assert_ne!(retrieved_task.started_at, None);
+                assert_ne!(retrieved_task.aborted_at, None);
+                assert_eq!(retrieved_task.finished_at, None);
+            },
+            Err(_) => {}
+        };
+
+        let _ = update_task_state(&uuid1, &TaskState::Finished);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Finished.to_string());
+                assert_ne!(retrieved_task.queued_at, None);
+                assert_ne!(retrieved_task.started_at, None);
+                assert_ne!(retrieved_task.aborted_at, None);
+                assert_ne!(retrieved_task.finished_at, None);
+            },
+            Err(_) => {}
+        };
+
+        let _ = hard_delete_task(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_update_task_progress() {
+        init_task_table().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let task = TaskEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+        };
+
+        hard_delete_task(&uuid1);
+
+        add_task(&task).unwrap();
+
+        update_task_progress(&uuid1, &123, &42).unwrap();
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.current_cycle, 42);
+                assert_eq!(retrieved_task.current_epoch, 123);
+            },
+            Err(_) => {}
+        };
+
+        let _ = hard_delete_task(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_error_state() {
+        init_task_table().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let error_msg = "This is an error".to_string();
+        let cluster_uuid = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let task = TaskEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+        };
+
+        hard_delete_task(&uuid1);
+
+        add_task(&task).unwrap();
+
+        update_task_progress(&uuid1, &123, &42).unwrap();
+
+        let _ = set_error_state(&uuid1, &error_msg);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Error.to_string());
+                assert_eq!(retrieved_task.error_message, Some(error_msg));
+            },
+            Err(_) => {}
+        };
+
+        let _ = hard_delete_task(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_is_aborted() {
+        init_task_table().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let cluster_uuid = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+
+        let task = TaskEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+        };
+
+        hard_delete_task(&uuid1);
+
+        add_task(&task).unwrap();
+
+        assert_eq!(is_aborted(&uuid1), false);
+
+        let _ = update_task_state(&uuid1, &TaskState::Aborted);
+
+        assert_eq!(is_aborted(&uuid1), true);
+
+        let _ = hard_delete_task(&uuid1);
     }
 }

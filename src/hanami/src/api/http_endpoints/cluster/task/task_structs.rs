@@ -51,6 +51,46 @@ impl FromStr for TaskType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub enum TaskState {
+    Created = 0,
+    Queued = 1,
+    Active = 2,
+    Aborted = 3,
+    Finished = 4,
+    Error = 5,
+}
+
+impl fmt::Display for TaskState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            TaskState::Created => "CREATED",
+            TaskState::Queued => "QUEUED",
+            TaskState::Active => "ACTIVE",
+            TaskState::Aborted => "ABORTED",
+            TaskState::Finished => "FINISHED",
+            TaskState::Error => "ERROR",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for TaskState {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "CREATED" => Ok(TaskState::Created),
+            "QUEUED" => Ok(TaskState::Queued),
+            "ACTIVE" => Ok(TaskState::Active),
+            "ABORTED" => Ok(TaskState::Aborted),
+            "FINISHED" => Ok(TaskState::Finished),
+            "ERROR" => Ok(TaskState::Error),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskDatasetLink {
     pub dataset_uuid: Uuid,
     pub dataset_column: String,
@@ -87,10 +127,17 @@ pub struct TaskResp {
     pub uuid: Uuid,
     pub name: String,
     pub task_type: TaskType,
+    pub state: TaskState,
+    pub total_number_of_epochs: i64,
+    pub current_epoch: i64,
+    pub total_number_of_cycles: i64,
+    pub current_cycle: i64,
+    pub queued_at: Option<String>,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub error_message: Option<String>,
     pub created_at: String,
     pub created_by: String,
-    pub updated_at: String,
-    pub updated_by: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -98,6 +145,7 @@ pub struct TaskBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub task_type: TaskType,
+    pub state: TaskState,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

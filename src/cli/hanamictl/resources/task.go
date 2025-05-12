@@ -212,6 +212,24 @@ var deleteTaskCmd = &cobra.Command{
 	},
 }
 
+var abortTaskCmd = &cobra.Command{
+	Use:   "abort TASK_ID",
+	Short: "Abort a specific task.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		taskUuid := args[0]
+		content, err := hanami_sdk.AbortTask(address, token, taskUuid, clusterUuid, hanamictl_common.DisableTlsVerification)
+		if err == nil {
+			hanamictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
 var taskCmd = &cobra.Command{
 	Use:   "task",
 	Short: "Manage task.",
@@ -256,4 +274,8 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	taskCmd.AddCommand(deleteTaskCmd)
 	deleteTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
 	deleteTaskCmd.MarkFlagRequired("cluster")
+
+	taskCmd.AddCommand(abortTaskCmd)
+	abortTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
+	abortTaskCmd.MarkFlagRequired("cluster")
 }

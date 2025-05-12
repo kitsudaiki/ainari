@@ -29,14 +29,15 @@ use super::task_structs::{TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",
-    summary = "Get task",
-    description = r###"Get information of a task of a cluster from the database."###,
+    summary = "Abort task",
+    description = r###"Abort a task."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
-pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+pub async fn abort_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
     let (cluster_uuid, task_uuid) = uuids.into_inner();
 
     // check if cluster exist
@@ -51,6 +52,40 @@ pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result
         }
     };
 
+    // check current state of the task to avoid to abort finished and errored tasks
+    match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
+        Ok(task_data) => {
+            if task_data.task_state == TaskState::Aborted.to_string() 
+                || task_data.task_state == TaskState::Error.to_string() 
+                || task_data.task_state == TaskState::Finished.to_string() 
+            {
+                let state_str = task_data.task_state.to_string();
+                let msg = format!("Task with UUID '{task_uuid}' is in state '{state_str}' can not be aborted.");
+                return Err(ErrorResponse::Conflict(msg));
+            }
+        },
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Task with UUID '{task_uuid}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    // set abort-state in database
+    match task_table::update_task_state(&task_uuid, &TaskState::Aborted) {
+        Ok(()) => {},
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        },
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Task with UUID '{task_uuid}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    }
+
+    // get task from database
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
@@ -62,6 +97,7 @@ pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result
         }
     };
 
+    // convert enums
     let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
         Ok(task_type) => task_type,
         Err(()) => {
