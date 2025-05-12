@@ -85,11 +85,12 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         };
 
         match read_data_set_file(&PathBuf::from(dataset.file_path)) {
-            Ok(file_handle) => {
+            Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
                     number_of_cycles = number_of_rows;
                 }
+                file_handle.selected_column = input.dataset_column.clone();
 
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             },
@@ -109,11 +110,12 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         };
 
         match read_data_set_file(&PathBuf::from(dataset.file_path)) {
-            Ok(file_handle) => {
+            Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
                     number_of_cycles = number_of_rows;
                 }
+                file_handle.selected_column = output.dataset_column.clone();
 
                 info.outputs.insert(output.hexagon.clone(), file_handle);
             }

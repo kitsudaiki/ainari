@@ -88,11 +88,12 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         let file_path = dataset.file_path;
 
         match read_data_set_file(&PathBuf::from(file_path)) {
-            Ok(file_handle) => {
+            Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
                     number_of_cycles = number_of_rows;
                 }
+                file_handle.selected_column = input.dataset_column.clone();
 
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             },
@@ -130,7 +131,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
             start: 0,
             end: 10,
         };
-        columns.insert(output.hexagon.clone(),col);
+        columns.insert(output.dataset_column.clone(),col);
 
         match init_new_data_set_file(
             &PathBuf::from(target_filepath), 
@@ -141,7 +142,8 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
             columns,
             DataSetType::FloatType) 
         {
-            Ok(file_handle) => {
+            Ok(mut file_handle) => {
+                file_handle.selected_column = output.dataset_column.clone();
                 info.results.insert(output.hexagon.clone(), file_handle);
             },
             Err(_) => {

@@ -62,9 +62,9 @@ cluster_template = \
     "axons: " \
     "    1,1,1 -> 2,2,2;  " \
     "inputs: " \
-    "    picture: 1,1,1; " \
+    "    picture_hex: 1,1,1; " \
     "outputs: " \
-    "    label: 2,2,2;"
+    "    label_hex: 2,2,2;"
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -226,7 +226,7 @@ def _train(cluster_uuid, train_dataset_uuid):
         {
             "dataset_uuid": train_dataset_uuid,
             "dataset_column": "picture",
-            "hexagon": "picture"
+            "hexagon": "picture_hex"
         }
     ]
 
@@ -234,7 +234,7 @@ def _train(cluster_uuid, train_dataset_uuid):
         {
             "dataset_uuid": train_dataset_uuid,
             "dataset_column": "label",
-            "hexagon": "label"
+            "hexagon": "label_hex"
         }
     ]
 
@@ -256,6 +256,8 @@ def _train(cluster_uuid, train_dataset_uuid):
                          length=50)
 
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+        # print(json.dumps(result, indent=4))
+
         print("\n")
         result = cluster.get_cluster(token, address, cluster_uuid, False)
         task.delete_task(token, address, task_uuid, cluster_uuid, False)
@@ -267,14 +269,14 @@ def _test(cluster_uuid, request_dataset_uuid):
         {
             "dataset_uuid": request_dataset_uuid,
             "dataset_column": "picture",
-            "hexagon": "picture"
+            "hexagon": "picture_hex"
         }
     ]
 
     results = [
         {
-            "dataset_column": "test_output",
-            "hexagon": "label"
+            "dataset_column": "label",
+            "hexagon": "label_hex"
         }
     ]
 
@@ -285,6 +287,7 @@ def _test(cluster_uuid, request_dataset_uuid):
     while not finished:
         time.sleep(1)
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+        # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
         progress_bar(result["current_cycle"],
@@ -295,6 +298,7 @@ def _test(cluster_uuid, request_dataset_uuid):
 
     print("\n")
     result = task.list_tasks(token, address, cluster_uuid, False)
+    # print(json.dumps(result, indent=4))
     task.delete_task(token, address, task_uuid, cluster_uuid, False)
     time.sleep(1)
     # check request-result

@@ -93,6 +93,7 @@ pub struct DataSetFileWriteHandleV1_0 {
     pub header: DataSetHeaderV1_0,
     pub target_file: BufWriter<fs::File>,
     pub payload_offset: u64,
+    pub selected_column: String,
 }
 
 #[derive(Debug)]
@@ -100,6 +101,7 @@ pub struct DataSetFileReadHandleV1_0 {
     pub header: DataSetHeaderV1_0,
     pub target_file: BufReader<fs::File>,
     pub payload_offset: u64,
+    pub selected_column: String,
 }
 
 impl DataSetFileReadHandleV1_0 {
@@ -154,6 +156,7 @@ pub fn init_new_data_set_file(
         header: header,
         target_file: BufWriter::new(file),
         payload_offset: 0,
+        selected_column: "".to_string(),
     };
 
     // write base-header to file
@@ -194,6 +197,7 @@ pub fn read_data_set_file(
         header: DataSetHeaderV1_0::default(),
         target_file: BufReader::with_capacity(4096, file),
         payload_offset: 0,
+        selected_column: "".to_string(),
     };
 
     // read base-header-length

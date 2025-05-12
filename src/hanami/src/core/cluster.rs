@@ -51,11 +51,12 @@ fn get_values(
     cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
     is_expected: bool) -> Result<(), String> 
 {
-        // get column-description from the dataset
-    let col_get = match file_handle.header.columns.get(hexagon_name) {
+    // get column-description from the dataset
+    let column = &file_handle.selected_column;
+    let col_get = match file_handle.header.columns.get(column) {
         Some(col) => col,
         _ => {
-            let msg = format!("Column with name '{hexagon_name}' not found in dataset.");
+            let msg = format!("Column with name '{column}' not found in dataset.");
             return Err(msg);
         }
     };
@@ -98,10 +99,11 @@ fn write_values(
     cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
 {
     // get column-description from the dataset
-    let col_get = match file_handle.header.columns.get(hexagon_name) {
+    let column = &file_handle.selected_column;
+    let col_get = match file_handle.header.columns.get(column) {
         Some(col) => col,
         _ => {
-            let msg = format!("Column with name '{hexagon_name}' not found in dataset.");
+            let msg = format!("Column with name '{column}' not found in dataset.");
             return Err(msg);
         }
     };
