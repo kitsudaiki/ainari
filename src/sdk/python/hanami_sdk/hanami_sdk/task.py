@@ -99,6 +99,19 @@ def delete_task(token: str,
                                        verify=verify_connection)
 
 
+def abort_task(token: str,
+               address: str,
+               task_uuid: str,
+               cluster_uuid: str,
+               verify_connection: bool = True):
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort"
+    hanami_request.send_put_request(token,
+                                    address,
+                                    path,
+                                    "",
+                                    verify=verify_connection)
+
+
 def wait_for_task_finished(token: str,
                            address: str,
                            task_uuid: str,

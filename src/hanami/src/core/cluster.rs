@@ -128,6 +128,11 @@ fn write_values(
 }
 
 fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    // check if task was aborted
+    if task_table::is_aborted(&task_uuid) {
+        return;
+    }
+
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
 
@@ -137,7 +142,12 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
             let now = Instant::now();
             if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
                 prev_timestamp = now;
-                let _ = task_table::update_task_progress(task_uuid, &(epoch_count as i64), &(cycle_count as i64));
+                let _ = task_table::update_task_progress(&task_uuid, &(epoch_count as i64), &(cycle_count as i64));
+
+                // check if task was aborted
+                if task_table::is_aborted(&task_uuid) {
+                    return;
+                }
             }
 
             // push input-values form dataset into the backend
@@ -171,6 +181,11 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
 }
 
 fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+    // check if task was aborted
+    if task_table::is_aborted(&task_uuid) {
+        return;
+    }
+    
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
 
@@ -181,6 +196,11 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
             if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
                 prev_timestamp = now;
                 let _ = task_table::update_task_progress(task_uuid, &(epoch_count as i64), &(cycle_count as i64));
+
+                // check if task was aborted
+                if task_table::is_aborted(&task_uuid) {
+                    return;
+                }
             }
 
             // push input-values form dataset into the backend

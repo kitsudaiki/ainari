@@ -94,3 +94,9 @@ func DeleteTask(address, token, taskUuid, clusterUuid string, skipTlsVerificatio
 	vars := map[string]interface{}{}
 	return SendDelete(address, token, path, vars, skipTlsVerification)
 }
+
+func AbortTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s/abort", clusterUuid, taskUuid)
+	vars := map[string]interface{}{}
+	return SendPut(address, token, path, vars, skipTlsVerification)
+}
