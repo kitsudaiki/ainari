@@ -246,8 +246,9 @@ def _train(cluster_uuid, train_dataset_uuid):
         while not finished:
             time.sleep(1)
             result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+            # print(json.dumps(result, indent=4))
 
-            finished = result["state"] == "Finished"
+            finished = result["state"] == "Finished" or result["state"] == "Error"
             progress_bar(result["current_cycle"],
                          result["total_number_of_cycles"],
                          prefix='Progress:',
@@ -255,7 +256,6 @@ def _train(cluster_uuid, train_dataset_uuid):
                          length=50)
 
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
-        # print(json.dumps(result, indent=4))
         print("\n")
         result = cluster.get_cluster(token, address, cluster_uuid, False)
         task.delete_task(token, address, task_uuid, cluster_uuid, False)
@@ -286,7 +286,7 @@ def _test(cluster_uuid, request_dataset_uuid):
         time.sleep(1)
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
 
-        finished = result["state"] == "Finished"
+        finished = result["state"] == "Finished" or result["state"] == "Error"
         progress_bar(result["current_cycle"],
                      result["total_number_of_cycles"],
                      prefix='Progress:',

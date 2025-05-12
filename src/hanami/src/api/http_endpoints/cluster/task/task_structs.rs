@@ -57,6 +57,7 @@ pub enum TaskState {
     Active = 2,
     Aborted = 3,
     Finished = 4,
+    Error = 5,
 }
 
 impl fmt::Display for TaskState {
@@ -67,6 +68,7 @@ impl fmt::Display for TaskState {
             TaskState::Active => "ACTIVE",
             TaskState::Aborted => "ABORTED",
             TaskState::Finished => "FINISHED",
+            TaskState::Error => "ERROR",
         };
         write!(f, "{}", s)
     }
@@ -82,6 +84,7 @@ impl FromStr for TaskState {
             "ACTIVE" => Ok(TaskState::Active),
             "ABORTED" => Ok(TaskState::Aborted),
             "FINISHED" => Ok(TaskState::Finished),
+            "ERROR" => Ok(TaskState::Error),
             _ => Err(()),
         }
     }
@@ -132,6 +135,7 @@ pub struct TaskResp {
     pub queued_at: Option<String>,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
+    pub error_message: Option<String>,
     pub created_at: String,
     pub created_by: String,
 }

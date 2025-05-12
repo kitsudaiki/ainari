@@ -192,6 +192,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         queued_at: task_data.queued_at.clone(),
         started_at: task_data.started_at.clone(),
         finished_at: task_data.finished_at.clone(),
+        error_message: task_data.error_message.clone(),
         created_by: task_data.created_by.clone(),
         created_at: task_data.created_at.clone(),
     };

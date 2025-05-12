@@ -218,6 +218,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         queued_at: task_data.queued_at.clone(),
         started_at: task_data.started_at.clone(),
         finished_at: task_data.finished_at.clone(),
+        error_message: task_data.error_message.clone(),
         created_by: task_data.created_by.clone(),
         created_at: task_data.created_at.clone(),
     };

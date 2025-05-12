@@ -55,8 +55,8 @@ fn get_values(
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
-            error!("Column with name '{hexagon_name}' not found in dataset.");
-            return Err("".to_string());
+            let msg = format!("Column with name '{hexagon_name}' not found in dataset.");
+            return Err(msg);
         }
     };
 
@@ -75,11 +75,17 @@ fn get_values(
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     if is_expected == false {
         unsafe {
-            cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64);
+            if cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64) == false {
+                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                return Err(msg);
+            }
         }
     } else {
         unsafe {
-            cluster_link.pin_mut().fillExpected(&cxx_name, input_ptr, size_input as u64);
+            if cluster_link.pin_mut().fillExpected(&cxx_name, input_ptr, size_input as u64) == false {
+                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                return Err(msg);
+            }
         }
     }
 
@@ -95,8 +101,8 @@ fn write_values(
     let col_get = match file_handle.header.columns.get(hexagon_name) {
         Some(col) => col,
         _ => {
-            error!("Column with name '{hexagon_name}' not found in dataset.");
-            return Err("".to_string());
+            let msg = format!("Column with name '{hexagon_name}' not found in dataset.");
+            return Err(msg);
         }
     };
 
@@ -107,7 +113,10 @@ fn write_values(
     // get output from the c++ backend
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     unsafe {
-        cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64);
+        if cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64) == false {
+            let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+            return Err(msg);
+        }
     }
 
     let output_bytes = cast_slice(&output_read);
@@ -133,7 +142,10 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
                 match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
                     Ok(()) => {},
-                    Err(_) => return,
+                    Err(e) => {
+                        let _ = task_table::set_error_state(&task_uuid, &e);
+                        return;
+                    }
                 }
             }
 
@@ -141,7 +153,10 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
             for (hexagon_name, file_handle) in &mut task_info.outputs {  
                 match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, true) {
                     Ok(()) => {},
-                    Err(_) => return,
+                    Err(e) => {
+                        let _ = task_table::set_error_state(&task_uuid, &e);
+                        return;
+                    }
                 }
             }
 
@@ -170,7 +185,10 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
                 match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
                     Ok(()) => {},
-                    Err(_) => return,
+                    Err(e) => {
+                        let _ = task_table::set_error_state(&task_uuid, &e);
+                        return;
+                    }
                 }
             }
 
@@ -180,7 +198,10 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
             for (hexagon_name, file_handle) in &mut task_info.results {  
                 match write_values(hexagon_name, file_handle, cluster_link) {
                     Ok(()) => {},
-                    Err(_) => return,
+                    Err(e) => {
+                        let _ = task_table::set_error_state(&task_uuid, &e);
+                        return;
+                    }
                 }
             }
         }

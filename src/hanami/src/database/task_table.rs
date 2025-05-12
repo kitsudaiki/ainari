@@ -41,6 +41,7 @@ table! {
         started_at -> Nullable<Text>,
         aborted_at -> Nullable<Text>,
         finished_at -> Nullable<Text>,
+        error_message -> Nullable<Text>,
         owner_id -> Varchar,
         project_id -> Varchar,
         created_at -> Varchar,
@@ -64,6 +65,7 @@ pub struct TaskEntry {
     pub started_at: Option<String>,
     pub aborted_at: Option<String>,
     pub finished_at: Option<String>,
+    pub error_message: Option<String>,
     pub owner_id: String,
     pub project_id: String,
     pub created_at: String,
@@ -87,6 +89,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
         started_at TEXT,
         aborted_at TEXT,
         finished_at TEXT,
+        error_message TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         created_at VARCHAR(64),
@@ -112,6 +115,7 @@ pub fn add_new_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_name: &String, t
         started_at: None,
         aborted_at: None,
         finished_at: None,
+        error_message: None,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         created_at: Utc::now().to_rfc3339(),
@@ -286,6 +290,33 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 }
             }
         },
+        TaskState::Error => {
+            return Ok(());
+        },
+    }
+}
+
+pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::tasks::dsl::*;
+
+    match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
+        .set((
+            task_state.eq(TaskState::Error.to_string()), 
+            error_message.eq(error_msg),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => {
+            return Ok(());
+        },
+        Err(diesel::result::Error::NotFound) => {
+            return Err(());
+        },
+        Err(e) => {
+            error!("Database-error: {:?}", e);
+            return Err(());
+        }
     }
 }
 
@@ -330,6 +361,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
@@ -382,6 +414,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
@@ -402,6 +435,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
@@ -442,6 +476,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -462,6 +497,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -482,6 +518,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             created_at: "2025-03-31".to_string(),
@@ -591,6 +628,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
@@ -699,6 +737,7 @@ mod tests {
             started_at: None,
             aborted_at: None,
             finished_at: None,
+            error_message: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             created_at: "2025-03-31".to_string(),
@@ -715,6 +754,63 @@ mod tests {
             Ok(retrieved_task) => {
                 assert_eq!(retrieved_task.current_cycle, 42);
                 assert_eq!(retrieved_task.current_epoch, 123);
+            },
+            Err(_) => {}
+        };
+
+        let _ = hard_delete_task(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_error_state() {
+        init_task_table().unwrap();
+        let uuid1 = Uuid::new_v4();
+        let error_msg = "This is an error".to_string();
+        let cluster_uuid = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let task = TaskEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            cluster_uuid: cluster_uuid.to_string(),
+            task_type: TaskType::TrainTask.to_string(),
+            task_state: TaskState::Created.to_string(),
+            total_number_of_epochs: 42,
+            current_epoch: 0,
+            total_number_of_cycles: 43,
+            current_cycle: 0,
+            queued_at: None,
+            started_at: None,
+            aborted_at: None,
+            finished_at: None,
+            error_message: None,
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+        };
+
+        hard_delete_task(&uuid1);
+
+        add_task(&task).unwrap();
+
+        update_task_progress(&uuid1, &123, &42).unwrap();
+
+        let _ = set_error_state(&uuid1, &error_msg);
+
+        match get_task(&uuid1, &cluster_uuid, &context) {
+            Ok(retrieved_task) => {
+                assert_eq!(retrieved_task.task_state, TaskState::Error.to_string());
+                assert_eq!(retrieved_task.error_message, Some(error_msg));
             },
             Err(_) => {}
         };
