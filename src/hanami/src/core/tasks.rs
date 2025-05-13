@@ -15,22 +15,11 @@
 use std::time::SystemTime;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::Deserialize;
 use uuid::Uuid;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
-
-pub struct TaskProgress {
-    pub task_state: TaskState,
-    pub total_number_of_cycles: u64,
-    pub current_cycle: u64,
-    pub queued_time_stamp: SystemTime,
-    pub start_active_time_stamp: SystemTime,
-    pub end_active_time_stamp: SystemTime,
-    pub estimated_remaining_time: u64,
-}
 
 #[derive(Debug)]
 pub struct TrainInfo {

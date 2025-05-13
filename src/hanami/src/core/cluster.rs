@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{debug, error};
+use log::debug;
 use uuid::Uuid;
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
@@ -25,7 +25,9 @@ use std::time::{Duration, Instant};
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::database::task_table;
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::database::cluster_table;
+use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
+use crate::api::http_endpoints::cluster::cluster_structs::ClusterMode;
 
 use super::task_queue::{TaskQueue, init_task_queue};
 use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
@@ -33,12 +35,6 @@ use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
 use autocxx::prelude::*;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClusterMode {
-    TaskMode,
-    DirectMode,
-}
 
 pub struct ClusterLinkHanle {
     pub cluster_link: UniquePtr<ffi::ClusterLink>, 
@@ -257,10 +253,7 @@ impl ClusterLinkHanle {
 }
 
 pub struct Cluster {
-    pub uuid: Uuid,
-    pub name: String,
-
-    pub mode: ClusterMode,
+    pub mode: Arc<Mutex<ClusterMode>>,
 
     pub queue: Arc<Mutex<TaskQueue>>,
     pub cluster_link: Arc<Mutex<ClusterLinkHanle>>,
@@ -275,7 +268,7 @@ pub struct Cluster {
 unsafe impl Send for ClusterLinkHanle {}
 
 impl Cluster {
-    pub fn new(uuid: Uuid, name: String, cluster_link: UniquePtr<ffi::ClusterLink>) -> Self {
+    pub fn new(uuid: Uuid, cluster_link: UniquePtr<ffi::ClusterLink>) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
 
@@ -285,15 +278,38 @@ impl Cluster {
         let link = Arc::new(Mutex::new(ClusterLinkHanle{cluster_link: cluster_link}));
         let link_clone = Arc::clone(&link);
 
+        let mode = Arc::new(Mutex::new(ClusterMode::Task));
+        let mode_clone = Arc::clone(&mode);
+
         let handle = thread::spawn(move || {
             debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // println!("Looping forever");
-                let mut queue_handle = queue_clone.lock().unwrap();
 
+                // sleep, if cluster-mode is set to direct-mode
+                let mut cluster_mode = mode_clone.lock().unwrap();
+                if *cluster_mode == ClusterMode::Direct {
+                    // set cluster in database to direct-mode to expose information, that the cluster is now ready 
+                    // for direct interaction and doesn't process a task from the queue anymore
+                    let _ = cluster_table::set_cluster_mode(&uuid, &ClusterMode::Direct);
+
+                    // encapsulate the wait-look within the if-condition so the database will be only updated 
+                    // at the beginning and the end of the direct-mode and not in every iteration
+                    while *cluster_mode == ClusterMode::Direct {
+                        drop(cluster_mode);
+                        thread::sleep(std::time::Duration::from_secs(1));
+                        cluster_mode = mode_clone.lock().unwrap();
+                    }
+
+                    // reset mode of cluster in database back to task-mode
+                    let _ = cluster_table::set_cluster_mode(&uuid, &ClusterMode::Task);
+                } 
+                drop(cluster_mode);
+
+                // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
+                let mut queue_handle = queue_clone.lock().unwrap();
                 if let Some(task) = queue_handle.get() {
                     drop(queue_handle);
-
                     //println!("Popped from front: {:?}", task);
 
                     let mut link_handle = link_clone.lock().unwrap();
@@ -307,10 +323,8 @@ impl Cluster {
         });
 
         Cluster {
-            name: name,
-            uuid: uuid,
             cluster_link: link,
-            mode: ClusterMode::TaskMode,
+            mode: mode,
             queue: queue, 
             handle: Some(handle),
             running,
@@ -327,6 +341,11 @@ impl Cluster {
     pub fn add_task(&mut self, task: Task) {
         let mut queue_handle = self.queue.lock().unwrap();
         queue_handle.add(task);
+    }
+
+    pub fn set_mode(&mut self, mode: &ClusterMode) {
+        let mut cluster_mode = self.mode.lock().unwrap();
+        *cluster_mode = mode.clone();
     }
 }
 

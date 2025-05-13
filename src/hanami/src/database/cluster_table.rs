@@ -21,6 +21,7 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::api::http_endpoints::cluster::cluster_structs::ClusterMode;
 
 use hanami_common::enums;
 
@@ -30,6 +31,7 @@ table! {
         uuid -> Varchar,
         name -> Varchar,
         template -> Text,
+        mode -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -48,6 +50,7 @@ pub struct ClusterEntry {
     pub uuid: String,
     pub name: String,
     pub template: String,
+    pub mode: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -65,6 +68,7 @@ pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         template TEXT,
+        mode VARCHAR(16),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),
@@ -84,6 +88,7 @@ pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_templ
         uuid: cluster_uuid.to_string().clone(),
         name: cluster_name.clone(),
         template: cluster_template.clone(),
+        mode: format!("{}", ClusterMode::Task),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -172,6 +177,24 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
+pub fn set_cluster_mode(cluster_uuid: &Uuid, new_mode: &ClusterMode) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::clusters::dsl::*;
+    match diesel::update(clusters.filter(uuid.eq(cluster_uuid.to_string())))
+        .set((
+            mode.eq(format!("{}", new_mode)),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            error!("Database-error: {:?}", e);
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,6 +225,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -257,6 +281,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -272,6 +297,7 @@ mod tests {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -313,6 +339,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -344,6 +371,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -359,6 +387,7 @@ mod tests {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -374,6 +403,7 @@ mod tests {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
@@ -470,5 +500,53 @@ mod tests {
         let _ = hard_delete_cluster(&uuid1);
         let _ = hard_delete_cluster(&uuid2);
         let _ = hard_delete_cluster(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_cluster_mode() {
+        let _ = init_cluster_table();
+        let uuid1 = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let cluster = ClusterEntry {
+            uuid: uuid1.to_string(),
+            name: "Alice".to_string(),
+            template: "asdf".to_string(),
+            mode: format!("{}", ClusterMode::Task),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        hard_delete_cluster(&uuid1);
+
+        add_cluster(&cluster).unwrap();
+
+        let result = set_cluster_mode(&uuid1, &ClusterMode::Direct);
+        assert!(result.is_err() == false);
+
+        match get_cluster(&uuid1, &context) {
+            Ok(retrieved_cluster) => {
+                assert_eq!(retrieved_cluster.mode, format!("{}", ClusterMode::Direct));
+            },
+            Err(_) => {
+                assert_eq!(true, false);
+            }
+        };
     }
 }

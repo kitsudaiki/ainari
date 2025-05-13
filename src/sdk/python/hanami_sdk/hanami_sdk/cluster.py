@@ -13,9 +13,6 @@
 # limitations under the License.
 
 from . import hanami_request
-import websockets
-import json
-import ssl
 
 
 def create_cluster(token: str,
@@ -112,22 +109,6 @@ def delete_all_cluster(token: str,
         delete_cluster(token, address, entry["uuid"], verify_connection)
 
 
-def switch_to_task_mode(token: str,
-                        address: str,
-                        cluster_uuid: str,
-                        verify_connection: bool = True):
-    path = "/v1alpha/cluster/set_mode"
-    json_body = {
-        "new_state": "TASK",
-        "uuid": cluster_uuid,
-    }
-    return hanami_request.send_put_request(token,
-                                           address,
-                                           path,
-                                           json_body,
-                                           verify=verify_connection)
-
-
 def switch_host(token: str,
                 address: str,
                 cluster_uuid: str,
@@ -146,47 +127,31 @@ def switch_host(token: str,
                                            verify=verify_connection)
 
 
-async def switch_to_direct_mode(token: str,
-                                address: str,
-                                cluster_uuid: str,
-                                verify_connection: bool = True):
-    path = "/v1alpha/cluster/set_mode"
+def switch_to_task_mode(token: str,
+                        address: str,
+                        cluster_uuid: str,
+                        verify_connection: bool = True):
+    path = f"/v1alpha/cluster/{cluster_uuid}/mode"
     json_body = {
-        "new_state": "DIRECT",
-        "uuid": cluster_uuid,
+        "mode": "Task",
     }
-    hanami_request.send_put_request(token,
-                                    address,
-                                    path,
-                                    json_body,
-                                    verify=verify_connection)
+    return hanami_request.send_put_request(token,
+                                           address,
+                                           path,
+                                           json_body,
+                                           verify=verify_connection)
 
-    # create initial request for the websocket-connection
-    initial_ws_msg = {
-        "token": token,
-        "target": "cluster",
-        "uuid": cluster_uuid,
+
+def switch_to_direct_mode(token: str,
+                          address: str,
+                          cluster_uuid: str,
+                          verify_connection: bool = True):
+    path = f"/v1alpha/cluster/{cluster_uuid}/mode"
+    json_body = {
+        "mode": "Direct",
     }
-    body_str = json.dumps(initial_ws_msg)
-
-    ssl_context = None
-    websocket_begin = "ws"
-    if address.startswith("https"):
-        websocket_begin = "wss"
-
-        # Disable SSL verification
-        if not verify_connection:
-            ssl_context = ssl.SSLContext()
-            ssl_context.verify_mode = ssl.CERT_NONE
-
-    base_address = address.split('/')[2]
-    ws = await websockets.connect(websocket_begin + "://" + base_address, ssl=ssl_context)
-
-    await ws.send(body_str)
-    message = await ws.recv()
-    result_json = json.loads(message)
-
-    if result_json["success"] is False:
-        return None
-
-    return ws
+    return hanami_request.send_put_request(token,
+                                           address,
+                                           path,
+                                           json_body,
+                                           verify=verify_connection)

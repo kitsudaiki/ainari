@@ -17,5 +17,6 @@ pub mod create_cluster_v1_0;
 pub mod get_cluster_v1_0;
 pub mod list_cluster_v1_0;
 pub mod delete_cluster_v1_0;
+pub mod switch_mode_v1_0;
 
 pub mod task;

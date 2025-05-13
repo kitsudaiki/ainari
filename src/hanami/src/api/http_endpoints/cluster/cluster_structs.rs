@@ -16,6 +16,37 @@ use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use uuid::Uuid;
+use std::str::FromStr;
+use std::fmt;
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, PartialEq)]
+pub enum ClusterMode {
+    Task,
+    Direct,
+}
+
+impl fmt::Display for ClusterMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            ClusterMode::Task => "Task",
+            ClusterMode::Direct => "Direct",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for ClusterMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Task" => Ok(ClusterMode::Task),
+            "Direct" => Ok(ClusterMode::Direct),
+            _ => Err(()),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterCreateReq {
@@ -24,10 +55,16 @@ pub struct ClusterCreateReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ClusterModeSetReq {
+    pub mode: ClusterMode,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterResp {
     pub uuid: Uuid,
     pub name: String,
     pub template: String,
+    pub mode: ClusterMode,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,

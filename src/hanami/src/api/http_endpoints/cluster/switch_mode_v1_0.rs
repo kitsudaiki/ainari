@@ -14,37 +14,62 @@
 
 use std::str::FromStr;
 
+use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
+use log::error;
 use uuid::Uuid;
+
+use crate::api::user_context::UserContext;
+use crate::api::errors::ErrorResponse;
+use crate::database::cluster_table;
+use crate::core::cluster_handler;
 
 use hanami_common::enums;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
-
-use super::cluster_structs::{ClusterResp, ClusterMode};
+use super::cluster_structs::ClusterMode;
+use super::cluster_structs::{ClusterModeSetReq, ClusterResp};
 
 #[api_operation(
     tag = "cluster",
-    summary = "Get cluster",
-    description = r###"Get information of a cluster from the database."###,
+    summary = "Switch cluster-mode",
+    description = r###"Switch cluster-mode between task-mode and direct-mode."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
-    let cluster_data = match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster_data) => cluster_data,
+pub async fn switch_mode(cluster_uuid: Path<Uuid>, body: Json<ClusterModeSetReq>, context: UserContext) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
+
+    // check if cluster exist
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(_) => {},
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
+            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
             return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    // get cluster-handle
+    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
+    match cluster_handler.get(&cluster_uuid) {
+        Some(cluster_handle) => {
+            cluster_handle.set_mode(&body.mode);
+        },
+        None => return Err(ErrorResponse::InternalError("".to_string()))
+    };
+
+    // get cluster again from datbase
+    let cluster_data: cluster_table::ClusterEntry = match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(cluster_data) => cluster_data,
+        Err(_) => 
+        {
+            let msg = format!("Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist.");
+            error!("{}", msg);
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
@@ -67,5 +92,5 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
         updated_at: cluster_data.updated_at.clone(),
     };
 
-    return Ok(Json(resp));
+    return Ok(CreatedJson(resp));
 }

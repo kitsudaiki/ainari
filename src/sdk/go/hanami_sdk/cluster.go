@@ -70,3 +70,20 @@ func RestoreCluster(address, token, clusterUuid, checkpointUuid string, skipTlsV
 	}
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }
+
+func SwitchToTaskMode(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/mode", clusterUuid)
+	jsonBody := map[string]interface{}{
+		"mode": "Task",
+	}
+	return SendPut(address, token, path, jsonBody, skipTlsVerification)
+}
+
+func SwitchToDirectMode(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/mode", clusterUuid)
+	jsonBody := map[string]interface{}{
+		"mode": "Direct",
+	}
+	return SendPut(address, token, path, jsonBody, skipTlsVerification)
+}
+
