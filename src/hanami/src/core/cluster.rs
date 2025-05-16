@@ -14,13 +14,14 @@
 
 use log::debug;
 use uuid::Uuid;
+use bytemuck::{cast_slice, cast_slice_mut};
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
 use std::io::{Read, Write, Seek};
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
@@ -346,6 +347,74 @@ impl Cluster {
     pub fn set_mode(&mut self, mode: &ClusterMode) {
         let mut cluster_mode = self.mode.lock().unwrap();
         *cluster_mode = mode.clone();
+    }
+
+    pub fn request(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &mut HashMap<String, Vec<f32>>) -> Result<(), String> {
+        let mut link = self.cluster_link.lock().unwrap();
+
+        // push input-values form dataset into the backend
+        for (hexagon_name, data) in inputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        link.cluster_link.pin_mut().doRequest();
+
+        // get output-values from the backend
+        for (hexagon_name, data) in outputs {  
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            // get size of the hexagon, to resize the buffer for the output-values
+            let size: u64 = link.cluster_link.pin_mut().getSize(&cxx_name);
+            data.resize(size as usize, 0.0f32);
+            // get output from the c++ backend
+            let data_ptr: *mut f32 = data.as_mut_ptr();
+            unsafe {
+                if link.cluster_link.pin_mut().getOutput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn train(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &HashMap<String, Vec<f32>>) -> Result<(), String> {
+        let mut link = self.cluster_link.lock().unwrap();
+
+        // push input-values form dataset into the backend
+        for (hexagon_name, data) in inputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        // push output-values form dataset into the backend
+        for (hexagon_name, data) in outputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillExpected(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        link.cluster_link.pin_mut().doTrain();
+
+        Ok(())
     }
 }
 

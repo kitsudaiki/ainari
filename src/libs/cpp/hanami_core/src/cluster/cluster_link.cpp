@@ -167,6 +167,24 @@ ClusterLink::getOutput(const std::string& hexagonName,
 }
 
 /**
+ * @brief get number of values of a hexagon
+ *
+ * @param hexagonName name of the hexagon
+ *
+ * @return size of the hexagon
+ */
+uint64_t
+ClusterLink::getSize(const std::string& hexagonName)
+{
+    auto it = m_cluster->outputInterfaces.find(hexagonName);
+    if (it == m_cluster->outputInterfaces.end()) {
+        return 0;
+    }
+
+    return it->second.outputNeurons.size();
+}
+
+/**
  * @brief start a train-cycle
  */
 void

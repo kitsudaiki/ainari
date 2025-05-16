@@ -22,7 +22,10 @@ from . import hanami_exceptions
 
 def _handle_response(response) -> str:
     if response.status_code >= 200 and response.status_code < 300:
-        return response.content
+        if len(response.content) == 0:
+            return "{}"
+        else:
+            return response.content
     if response.status_code == 400:
         raise hanami_exceptions.BadRequestException(response.content)
     if response.status_code == 401:

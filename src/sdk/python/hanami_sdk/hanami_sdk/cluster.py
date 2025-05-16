@@ -155,3 +155,40 @@ def switch_to_direct_mode(token: str,
                                            path,
                                            json_body,
                                            verify=verify_connection)
+
+
+def train(token: str,
+          address: str,
+          cluster_uuid: str,
+          inputs: dict,
+          outputs: dict,
+          verify_connection: bool = True):
+    path = f"/v1alpha/cluster/{cluster_uuid}/train"
+    json_body = {
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+    hanami_request.send_put_request(token,
+                                    address,
+                                    path,
+                                    json_body,
+                                    verify=verify_connection)
+
+
+def request(token: str,
+            address: str,
+            cluster_uuid: str,
+            inputs: dict,
+            outputs: list,
+            verify_connection: bool = True):
+    path = f"/v1alpha/cluster/{cluster_uuid}/request"
+    json_body = {
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+    return hanami_request.send_put_request(token,
+                                           address,
+                                           path,
+                                           json_body,
+                                           verify=verify_connection)
+

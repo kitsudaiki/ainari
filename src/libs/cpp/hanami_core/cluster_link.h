@@ -44,6 +44,7 @@ class ClusterLink
                       const float* output,
                       const uint64_t numberOfOutputs);
     bool getOutput(const std::string& hexagonName, float* output, const uint64_t numberOfOutputs);
+    uint64_t getSize(const std::string& hexagonName);
 
     void doTrain();
     void doRequest();

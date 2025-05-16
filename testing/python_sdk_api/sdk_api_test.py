@@ -349,6 +349,17 @@ def test_workflow():
 
     # asyncio.run(test_direct_io(token, address, cluster_uuid))
 
+    inputs = dict()
+    inputs["picture_hex"] = test_values.get_direct_io_test_intput()
+    outputs = dict()
+    outputs["label_hex"] = test_values.get_direct_io_test_output()
+    cluster.train(token, address, cluster_uuid, inputs, outputs, False)
+
+    output_names = ["label_hex"]
+    output_values = cluster.request(token, address, cluster_uuid, inputs, output_names, False)
+    print("output: %s" % json.dumps(output_values, indent=4))
+    assert list(output_values["outputs"]["label_hex"]).index(max(output_values["outputs"]["label_hex"])) == 5
+
     # cleanup
     dataset.delete_dataset(token, address, train_dataset_uuid, False)
     dataset.delete_dataset(token, address, request_dataset_uuid, False)

@@ -22,8 +22,6 @@
 
 #include "cluster_io_convert.h"
 
-#include <iostream>
-
 /**
  * @brief handle plain output-values
  *
