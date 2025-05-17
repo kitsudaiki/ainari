@@ -30,6 +30,7 @@ import (
 	"sort"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 var PrintAsJson bool = false
@@ -66,8 +67,9 @@ func PrintSingle(input map[string]interface{}) {
 		table.Append(lineData)
 	}
 
-	table.SetRowLine(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.Configure(func(config *tablewriter.Config) {
+		config.Row.Formatting.Alignment = tw.AlignLeft
+	})
 	// table.EnableBorder(false)
 	table.Render()
 }
@@ -93,7 +95,7 @@ func PrintList(input []interface{}) {
 	sort.Strings(header_names)
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader(header_names)
+	table.Header(header_names)
 
 	// fill body of table
 	for _, line := range input {
@@ -110,8 +112,9 @@ func PrintList(input []interface{}) {
 		table.Append(lineData)
 	}
 
-	table.SetRowLine(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.Configure(func(config *tablewriter.Config) {
+		config.Row.Formatting.Alignment = tw.AlignLeft
+	})
 	table.Render()
 }
 
@@ -130,7 +133,7 @@ func PrintValueList(data []interface{}, offset int) {
 	for i := range len(data[0].([]interface{})) {
 		headerData = append(headerData, strconv.Itoa(i))
 	}
-	table.SetHeader(headerData)
+	table.Header(headerData)
 
 	// fill and add body to table
 	for i, line := range data {
@@ -142,7 +145,8 @@ func PrintValueList(data []interface{}, offset int) {
 		table.Append(lineData)
 	}
 
-	table.SetRowLine(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.Configure(func(config *tablewriter.Config) {
+		config.Row.Formatting.Alignment = tw.AlignLeft
+	})
 	table.Render()
 }
