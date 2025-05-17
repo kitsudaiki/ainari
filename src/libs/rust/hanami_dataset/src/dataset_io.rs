@@ -22,12 +22,12 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use serde::{Serialize, Deserialize};
-use bincode;
+use bincode::{config, Decode, Encode};
 
 use hanami_common::error::HanamiError;
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum DataSetType {
     UndefinedType = 0,
     Uint8Type = 1,
@@ -40,13 +40,13 @@ impl Default for DataSetType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct Column {
     pub start: u64,
     pub end: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct DataSetBaseHeader {
     pub type_identifier: String,
     pub version: String,
@@ -63,9 +63,9 @@ impl DataSetBaseHeader {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct DataSetHeaderV1_0 {
-    pub uuid: Uuid,
+    pub uuid: String, // HINT (kitsudaiki): String instead of Uuid, because Uuid doesn't implement Encode and Decode
     pub name: String,
     pub description: String,
     pub data_type: DataSetType,
@@ -77,7 +77,7 @@ pub struct DataSetHeaderV1_0 {
 impl DataSetHeaderV1_0 {
     pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, row_size: u64, columns: HashMap<String, Column>) -> Self {
         DataSetHeaderV1_0 {
-            uuid: uuid,
+            uuid: uuid.to_string(),
             name: name,
             description: description,
             data_type: dataset_type.clone(),
@@ -130,6 +130,7 @@ pub fn init_new_data_set_file(
 ) -> Result<DataSetFileWriteHandleV1_0, Box<dyn std::error::Error>> {
 
     let file_path_str: String = file_path.to_string_lossy().into();
+    let bincode_config = config::standard();
 
     // check give dataset-type
     if data_type == DataSetType::UndefinedType {
@@ -160,12 +161,12 @@ pub fn init_new_data_set_file(
     };
 
     // write base-header to file
-    let encoded_base = bincode::serialize(&base_header).unwrap();
+    let encoded_base = bincode::encode_to_vec(&base_header, bincode_config).unwrap();
     let _ = result.target_file.write_all(&(encoded_base.len() as u64).to_le_bytes())?;
     let _ = result.target_file.write_all(&encoded_base)?;
 
     // write header to file
-    let encoded_header = bincode::serialize(&result.header).unwrap();
+    let encoded_header = bincode::encode_to_vec(&result.header, bincode_config).unwrap();
     let _ = result.target_file.write_all(&(encoded_header.len() as u64).to_le_bytes())?;
     let _ = result.target_file.write_all(&encoded_header)?;
 
@@ -182,6 +183,7 @@ pub fn read_data_set_file(
     file_path: &PathBuf,
 ) -> Result<DataSetFileReadHandleV1_0, Box<dyn std::error::Error>> {
     let file_path_str: String = file_path.to_string_lossy().into();
+    let bincode_config = config::standard();
 
     // check if file even exist
     if Path::new(file_path).exists() == false {
@@ -209,7 +211,7 @@ pub fn read_data_set_file(
     let mut base_buf = vec![0u8; base_len as usize];
     let _ = result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
-    let _: DataSetBaseHeader = bincode::deserialize(&base_buf)?;
+    let (_, _): (DataSetBaseHeader, usize) = bincode::decode_from_slice(&base_buf[..], bincode_config).unwrap();
     
     // read header-length
     let mut header_len_buf = [0u8; 8];
@@ -219,7 +221,8 @@ pub fn read_data_set_file(
     // read header-length
     let mut header_buf = vec![0u8; header_len as usize];
     let _ = result.target_file.read_exact(&mut header_buf)?;
-    result.header = bincode::deserialize(&header_buf)?;
+    let (header, _): (DataSetHeaderV1_0, usize) = bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
+    result.header = header;
 
     // get current byte-position within the file after reading the header
     result.payload_offset = result.target_file.stream_position()?;
@@ -287,7 +290,7 @@ mod tests {
         assert_eq!(Path::new(&file_path_str).exists(), true);
 
         // check single fields of the created header
-        assert_eq!(write_dataset_handle.header.uuid, uuid);
+        assert_eq!(write_dataset_handle.header.uuid, uuid.to_string());
         assert_eq!(write_dataset_handle.header.name.clone(), name);
         assert_eq!(write_dataset_handle.header.description.clone(), description);
         assert_eq!(write_dataset_handle.header.data_type.clone(), data_type);
