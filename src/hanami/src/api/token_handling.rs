@@ -37,7 +37,7 @@ pub struct Claims {
 
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
     // validate token
-    let secret = config::TOKEN_KEY.as_bytes();;
+    let secret = config::TOKEN_KEY.as_bytes();
     let key = DecodingKey::from_secret(secret);
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
@@ -75,7 +75,7 @@ pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_pr
     };
 
     // create token
-    let secret = config::TOKEN_KEY.as_bytes();;
+    let secret = config::TOKEN_KEY.as_bytes();
     match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)) {
         Ok(token) => {
             debug!("Successfully created token for user-id '{user_id}' and project-id '{project_id}'");

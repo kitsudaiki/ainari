@@ -109,7 +109,14 @@ fn v1alpha_routes() -> Scope {
                     resource("/{cluster_uuid}")
                         .route(get().to(get_cluster_v1_0::get_cluster))
                         .route(delete().to(delete_cluster_v1_0::delete_cluster))
-                        
+                )
+                .service(
+                    resource("/{cluster_uuid}/request")
+                        .route(put().to(request_cluster_v1_0::request_cluster))
+                )
+                .service(
+                    resource("/{cluster_uuid}/train")
+                        .route(put().to(train_cluster_v1_0::train_cluster))
                 )
                 .service(
                     scope("/{cluster_uuid}/task")

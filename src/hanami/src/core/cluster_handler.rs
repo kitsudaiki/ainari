@@ -121,7 +121,7 @@ impl ClusterHandler {
         let cluster_link: UniquePtr<ffi::ClusterLink> = self.hanami_core.pin_mut().createCluster(&uuid_str, &name_str, &cluster_meta, error_msg.pin_mut());
 
         // add cluster to the cluster-handler
-        if self.add(uuid, Cluster::new(uuid, name, cluster_link)) == false {
+        if self.add(uuid, Cluster::new(uuid, cluster_link)) == false {
             let msg = format!("Failed to add cluster with UUID '{uuid}' to cluster-handler");
             return Err(HanamiError::Error(msg));
         }

@@ -15,7 +15,7 @@
 use log::debug;
 use std::collections::VecDeque;
 
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 use crate::database::task_table;
 
 use super::tasks::Task;
@@ -50,6 +50,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
+    use crate::api::http_endpoints::cluster::task::task_structs::TaskType;
     use super::*;
 
     #[test]

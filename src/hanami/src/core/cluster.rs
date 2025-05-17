@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{debug, error};
+use log::debug;
 use uuid::Uuid;
+use bytemuck::{cast_slice, cast_slice_mut};
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-use bytemuck::{cast_slice, cast_slice_mut};
 use std::io::SeekFrom;
 use std::io::{Read, Write, Seek};
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::database::task_table;
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 
 use super::task_queue::{TaskQueue, init_task_queue};
 use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
@@ -33,12 +34,6 @@ use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
 use autocxx::prelude::*;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClusterMode {
-    TaskMode,
-    DirectMode,
-}
 
 pub struct ClusterLinkHanle {
     pub cluster_link: UniquePtr<ffi::ClusterLink>, 
@@ -127,7 +122,7 @@ fn write_values(
     Ok(())
 }
 
-fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
     // check if task was aborted
     if task_table::is_aborted(&task_uuid) {
         return;
@@ -150,9 +145,11 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
                 }
             }
 
+            let mut link = link_handle.lock().unwrap();
+
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -163,7 +160,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
 
             // push output-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.outputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, true) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, true) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -172,7 +169,9 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
                 }
             }
 
-            cluster_link.pin_mut().doTrain();
+            link.cluster_link.pin_mut().doTrain();
+
+            drop(link);
         }
     }
 
@@ -180,7 +179,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, cluster_link: 
     let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
 }
 
-fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
     // check if task was aborted
     if task_table::is_aborted(&task_uuid) {
         return;
@@ -203,9 +202,11 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
                 }
             }
 
+            let mut link = link_handle.lock().unwrap();
+
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, cluster_link, false) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -214,11 +215,11 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
                 }
             }
 
-            cluster_link.pin_mut().doRequest();
+            link.cluster_link.pin_mut().doRequest();
 
             // get output-values form backend and write them into the dataset
             for (hexagon_name, file_handle) in &mut task_info.results {  
-                match write_values(hexagon_name, file_handle, cluster_link) {
+                match write_values(hexagon_name, file_handle, &mut link.cluster_link) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -226,6 +227,8 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
                     }
                 }
             }
+
+            drop(link);
         }
     }
 
@@ -233,37 +236,32 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, cluster_li
     let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
 }
 
-fn handle_checkpoint_save_task(task_uuid: &Uuid, task_info: &mut CheckpointSaveInfo, cluster_link: &mut UniquePtr<ffi::ClusterLink>) {
+fn handle_checkpoint_save_task(task_uuid: &Uuid, task_info: &mut CheckpointSaveInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
+    let mut link = link_handle.lock().unwrap();
+
     let file_path_str: String = task_info.path.to_string_lossy().into();
     cxx::let_cxx_string!(cxx_path = file_path_str);
-    let _: i32 = cluster_link.pin_mut().createCheckpoint(&cxx_path).into();
+    let _: i32 = link.cluster_link.pin_mut().createCheckpoint(&cxx_path).into();
 }
 
-impl ClusterLinkHanle {
-    pub fn handle_task(&mut self, task: Task) {
-        match task.info {
-            TaskVariant::Training(mut task_info) => {
-                handle_train_task(&task.uuid, &mut task_info, &mut self.cluster_link);
-            }, 
-            TaskVariant::Request(mut task_info) => {
-                handle_request_task(&task.uuid, &mut task_info, &mut self.cluster_link);
-            }, 
-            TaskVariant::CheckpointSave(mut task_info) => {
-                handle_checkpoint_save_task(&task.uuid, &mut task_info, &mut self.cluster_link);
-            }, 
-            TaskVariant::CheckpointRestore(_) => {}, 
-        }
+pub fn handle_task(task: Task, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
+    match task.info {
+        TaskVariant::Training(mut task_info) => {
+            handle_train_task(&task.uuid, &mut task_info, link_handle);
+        }, 
+        TaskVariant::Request(mut task_info) => {
+            handle_request_task(&task.uuid, &mut task_info, link_handle);
+        }, 
+        TaskVariant::CheckpointSave(mut task_info) => {
+            handle_checkpoint_save_task(&task.uuid, &mut task_info, link_handle);
+        }, 
+        TaskVariant::CheckpointRestore(_) => {}, 
     }
 }
 
 pub struct Cluster {
-    pub uuid: Uuid,
-    pub name: String,
-
-    pub mode: ClusterMode,
-
     pub queue: Arc<Mutex<TaskQueue>>,
-    pub cluster_link: Arc<Mutex<ClusterLinkHanle>>,
+    pub link_handle: Arc<Mutex<ClusterLinkHanle>>,
 
     pub handle: Option<JoinHandle<()>>,
     pub running: Arc<AtomicBool>,
@@ -275,29 +273,28 @@ pub struct Cluster {
 unsafe impl Send for ClusterLinkHanle {}
 
 impl Cluster {
-    pub fn new(uuid: Uuid, name: String, cluster_link: UniquePtr<ffi::ClusterLink>) -> Self {
+    pub fn new(uuid: Uuid, cluster_link: UniquePtr<ffi::ClusterLink>) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
 
         let queue = Arc::new(Mutex::new(init_task_queue()));
         let queue_clone = Arc::clone(&queue);
 
-        let link = Arc::new(Mutex::new(ClusterLinkHanle{cluster_link: cluster_link}));
-        let link_clone = Arc::clone(&link);
+        let link_handle = Arc::new(Mutex::new(ClusterLinkHanle{cluster_link: cluster_link}));
+        let link_handle_clone = Arc::clone(&link_handle);
 
         let handle = thread::spawn(move || {
             debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // println!("Looping forever");
-                let mut queue_handle = queue_clone.lock().unwrap();
 
+                // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
+                let mut queue_handle = queue_clone.lock().unwrap();
                 if let Some(task) = queue_handle.get() {
                     drop(queue_handle);
-
                     //println!("Popped from front: {:?}", task);
 
-                    let mut link_handle = link_clone.lock().unwrap();
-                    link_handle.handle_task(task);
+                    handle_task(task, &link_handle_clone);
                 } else {
                     drop(queue_handle);
                     thread::sleep(std::time::Duration::from_secs(1));
@@ -307,10 +304,7 @@ impl Cluster {
         });
 
         Cluster {
-            name: name,
-            uuid: uuid,
-            cluster_link: link,
-            mode: ClusterMode::TaskMode,
+            link_handle: link_handle,
             queue: queue, 
             handle: Some(handle),
             running,
@@ -327,6 +321,74 @@ impl Cluster {
     pub fn add_task(&mut self, task: Task) {
         let mut queue_handle = self.queue.lock().unwrap();
         queue_handle.add(task);
+    }
+
+    pub fn request(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &mut HashMap<String, Vec<f32>>) -> Result<(), String> {
+        let mut link = self.link_handle.lock().unwrap();
+
+        // push input-values form dataset into the backend
+        for (hexagon_name, data) in inputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        link.cluster_link.pin_mut().doRequest();
+
+        // get output-values from the backend
+        for (hexagon_name, data) in outputs {  
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            // get size of the hexagon, to resize the buffer for the output-values
+            let size: u64 = link.cluster_link.pin_mut().getSize(&cxx_name);
+            data.resize(size as usize, 0.0f32);
+            // get output from the c++ backend
+            let data_ptr: *mut f32 = data.as_mut_ptr();
+            unsafe {
+                if link.cluster_link.pin_mut().getOutput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn train(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &HashMap<String, Vec<f32>>) -> Result<(), String> {
+        let mut link = self.link_handle.lock().unwrap();
+
+        // push input-values form dataset into the backend
+        for (hexagon_name, data) in inputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        // push output-values form dataset into the backend
+        for (hexagon_name, data) in outputs {  
+            let data_ptr = data.as_ptr();
+            cxx::let_cxx_string!(cxx_name = hexagon_name); 
+            unsafe {
+                if link.cluster_link.pin_mut().fillExpected(&cxx_name, data_ptr, data.len() as u64) == false {
+                    let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                    return Err(msg);
+                }
+            }
+        }
+
+        link.cluster_link.pin_mut().doTrain();
+
+        Ok(())
     }
 }
 

@@ -16,14 +16,16 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use std::collections::HashMap;
 
 use hanami_common::enums;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
+use crate::core::cluster_handler;
 
-use super::cluster_structs::ClusterResp;
+use super::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
 
 #[api_operation(
     tag = "cluster",
@@ -34,9 +36,10 @@ use super::cluster_structs::ClusterResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
-    let cluster_data = match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster_data) => cluster_data,
+pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterRequestResp>, ErrorResponse> {
+    // check if cluster exist
+    match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(_) => {},
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
@@ -46,15 +49,28 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
         }
     };
 
-    let resp = ClusterResp {
-        uuid: cluster_uuid.clone(),
-        name: cluster_data.name.clone(),
-        template: cluster_data.template.clone(),
-        created_by: cluster_data.created_by.clone(),
-        created_at: cluster_data.created_at.clone(),
-        updated_by: cluster_data.updated_by.clone(),
-        updated_at: cluster_data.updated_at.clone(),
+    // get cluster-handle
+    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
+    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
+        Some(cluster_handle) => cluster_handle,
+        None => return Err(ErrorResponse::InternalError("".to_string()))
     };
 
-    return Ok(Json(resp));
+    let mut resp = ClusterRequestResp {
+        outputs: HashMap::new(),
+    };
+
+    for hexagon_name in &body.outputs {
+        resp.outputs.insert(hexagon_name.clone(), Vec::new());
+    }
+
+    // run request-process in cluster
+    match cluster_handle.request(&body.inputs, &mut resp.outputs) {
+        Ok(()) => {},
+        Err(msg) => {
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    }
+
+    Ok(Json(resp))   
 }

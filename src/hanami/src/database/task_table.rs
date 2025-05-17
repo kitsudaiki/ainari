@@ -316,7 +316,7 @@ pub fn is_aborted(task_uuid: &Uuid) -> bool {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::tasks::dsl::*;
 
-    let mut query = tasks
+    let query = tasks
         .filter(uuid.eq(task_uuid.to_string()))
         .into_boxed();
 

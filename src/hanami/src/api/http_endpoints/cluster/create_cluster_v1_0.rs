@@ -68,20 +68,8 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     };
 
     // get new created cluster from database to get addtional information
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster) => {
-            let resp = ClusterResp {
-                uuid: cluster_uuid.clone(),
-                name: cluster.name.clone(),
-                template: cluster.template.clone(),
-                created_by: cluster.created_by.clone(),
-                created_at: cluster.created_at.clone(),
-                updated_by: cluster.updated_by.clone(),
-                updated_at: cluster.updated_at.clone(),
-            };
-        
-            return Ok(CreatedJson(resp));
-        },
+    let cluster_data: cluster_table::ClusterEntry = match cluster_table::get_cluster(&cluster_uuid, &context) {
+        Ok(cluster_data) => cluster_data,
         Err(_) => 
         {
             let msg = format!("Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist.");
@@ -89,4 +77,16 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
+
+    let resp = ClusterResp {
+        uuid: cluster_uuid.clone(),
+        name: cluster_data.name.clone(),
+        template: cluster_data.template.clone(),
+        created_by: cluster_data.created_by.clone(),
+        created_at: cluster_data.created_at.clone(),
+        updated_by: cluster_data.updated_by.clone(),
+        updated_at: cluster_data.updated_at.clone(),
+    };
+
+    return Ok(CreatedJson(resp));
 }

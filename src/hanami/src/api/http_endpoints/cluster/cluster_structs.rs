@@ -16,11 +16,16 @@ use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use uuid::Uuid;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterCreateReq {
     pub name: String,
     pub template: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ClusterModeSetReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -44,3 +49,21 @@ pub struct ClusterBasicResp {
 pub struct ClusterListResp {
     pub clusters: Vec<ClusterBasicResp>
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ClusterTrainReq {
+    pub inputs: HashMap<String, Vec<f32>>,
+    pub outputs: HashMap<String, Vec<f32>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ClusterRequestReq {
+    pub inputs: HashMap<String, Vec<f32>>,
+    pub outputs: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ClusterRequestResp {
+    pub outputs: HashMap<String, Vec<f32>>,
+}
+
