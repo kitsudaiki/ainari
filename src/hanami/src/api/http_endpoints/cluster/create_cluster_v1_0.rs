@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-
 use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
@@ -27,7 +25,7 @@ use crate::core::cluster_handler;
 
 use hanami_common::error::HanamiError;
 
-use super::cluster_structs::{ClusterCreateReq, ClusterResp, ClusterMode};
+use super::cluster_structs::{ClusterCreateReq, ClusterResp};
 
 #[api_operation(
     tag = "cluster",
@@ -80,19 +78,10 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
         }
     };
 
-    // convert cluster-mode
-    let cluster_mode = match ClusterMode::from_str(cluster_data.mode.as_str()) {
-        Ok(cluster_mode) => cluster_mode,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
     let resp = ClusterResp {
         uuid: cluster_uuid.clone(),
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
-        mode: cluster_mode,
         created_by: cluster_data.created_by.clone(),
         created_at: cluster_data.created_at.clone(),
         updated_by: cluster_data.updated_by.clone(),

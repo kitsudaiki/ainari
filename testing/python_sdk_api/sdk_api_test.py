@@ -358,7 +358,8 @@ def test_workflow():
     output_names = ["label_hex"]
     output_values = cluster.request(token, address, cluster_uuid, inputs, output_names, False)
     print("output: %s" % json.dumps(output_values, indent=4))
-    assert list(output_values["outputs"]["label_hex"]).index(max(output_values["outputs"]["label_hex"])) == 5
+    assert list(output_values["outputs"]["label_hex"]).index(
+        max(output_values["outputs"]["label_hex"])) == 5
 
     # cleanup
     dataset.delete_dataset(token, address, train_dataset_uuid, False)

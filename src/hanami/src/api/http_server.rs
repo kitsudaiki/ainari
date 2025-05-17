@@ -111,10 +111,6 @@ fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_cluster_v1_0::delete_cluster))
                 )
                 .service(
-                    resource("/{cluster_uuid}/mode")
-                        .route(put().to(switch_mode_v1_0::switch_mode))
-                )
-                .service(
                     resource("/{cluster_uuid}/request")
                         .route(put().to(request_cluster_v1_0::request_cluster))
                 )

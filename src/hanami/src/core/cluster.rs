@@ -26,9 +26,7 @@ use std::collections::HashMap;
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::database::task_table;
-use crate::database::cluster_table;
 use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
-use crate::api::http_endpoints::cluster::cluster_structs::ClusterMode;
 
 use super::task_queue::{TaskQueue, init_task_queue};
 use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
@@ -262,8 +260,6 @@ pub fn handle_task(task: Task, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
 }
 
 pub struct Cluster {
-    pub mode: Arc<Mutex<ClusterMode>>,
-
     pub queue: Arc<Mutex<TaskQueue>>,
     pub link_handle: Arc<Mutex<ClusterLinkHanle>>,
 
@@ -284,36 +280,13 @@ impl Cluster {
         let queue = Arc::new(Mutex::new(init_task_queue()));
         let queue_clone = Arc::clone(&queue);
 
-        let link = Arc::new(Mutex::new(ClusterLinkHanle{cluster_link: cluster_link}));
-        let link_clone = Arc::clone(&link);
-
-        let mode = Arc::new(Mutex::new(ClusterMode::Task));
-        let mode_clone = Arc::clone(&mode);
+        let link_handle = Arc::new(Mutex::new(ClusterLinkHanle{cluster_link: cluster_link}));
+        let link_handle_clone = Arc::clone(&link_handle);
 
         let handle = thread::spawn(move || {
             debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // println!("Looping forever");
-
-                // sleep, if cluster-mode is set to direct-mode
-                let mut cluster_mode = mode_clone.lock().unwrap();
-                if *cluster_mode == ClusterMode::Direct {
-                    // set cluster in database to direct-mode to expose information, that the cluster is now ready 
-                    // for direct interaction and doesn't process a task from the queue anymore
-                    let _ = cluster_table::set_cluster_mode(&uuid, &ClusterMode::Direct);
-
-                    // encapsulate the wait-look within the if-condition so the database will be only updated 
-                    // at the beginning and the end of the direct-mode and not in every iteration
-                    while *cluster_mode == ClusterMode::Direct {
-                        drop(cluster_mode);
-                        thread::sleep(std::time::Duration::from_secs(1));
-                        cluster_mode = mode_clone.lock().unwrap();
-                    }
-
-                    // reset mode of cluster in database back to task-mode
-                    let _ = cluster_table::set_cluster_mode(&uuid, &ClusterMode::Task);
-                } 
-                drop(cluster_mode);
 
                 // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
                 let mut queue_handle = queue_clone.lock().unwrap();
@@ -321,7 +294,7 @@ impl Cluster {
                     drop(queue_handle);
                     //println!("Popped from front: {:?}", task);
 
-                    handle_task(task, &link_clone);
+                    handle_task(task, &link_handle_clone);
                 } else {
                     drop(queue_handle);
                     thread::sleep(std::time::Duration::from_secs(1));
@@ -331,8 +304,7 @@ impl Cluster {
         });
 
         Cluster {
-            link_handle: link,
-            mode: mode,
+            link_handle: link_handle,
             queue: queue, 
             handle: Some(handle),
             running,
@@ -349,11 +321,6 @@ impl Cluster {
     pub fn add_task(&mut self, task: Task) {
         let mut queue_handle = self.queue.lock().unwrap();
         queue_handle.add(task);
-    }
-
-    pub fn set_mode(&mut self, mode: &ClusterMode) {
-        let mut cluster_mode = self.mode.lock().unwrap();
-        *cluster_mode = mode.clone();
     }
 
     pub fn request(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &mut HashMap<String, Vec<f32>>) -> Result<(), String> {

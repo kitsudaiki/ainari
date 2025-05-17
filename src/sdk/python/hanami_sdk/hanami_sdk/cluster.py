@@ -191,4 +191,3 @@ def request(token: str,
                                            path,
                                            json_body,
                                            verify=verify_connection)
-

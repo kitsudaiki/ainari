@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
@@ -25,7 +23,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 
-use super::cluster_structs::{ClusterResp, ClusterMode};
+use super::cluster_structs::ClusterResp;
 
 #[api_operation(
     tag = "cluster",
@@ -48,19 +46,10 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
         }
     };
 
-    // convert cluster-mode
-    let cluster_mode = match ClusterMode::from_str(cluster_data.mode.as_str()) {
-        Ok(cluster_mode) => cluster_mode,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
     let resp = ClusterResp {
         uuid: cluster_uuid.clone(),
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
-        mode: cluster_mode,
         created_by: cluster_data.created_by.clone(),
         created_at: cluster_data.created_at.clone(),
         updated_by: cluster_data.updated_by.clone(),

@@ -35,7 +35,6 @@ pub struct Storage {
     pub dataset_location: String,
     pub checkpoint_location: String,
     pub tempfile_location: String,
-    pub tempfile_timeout: u32,
 }
 
 #[derive(Debug, Deserialize)]
