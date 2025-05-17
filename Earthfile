@@ -115,8 +115,8 @@ compile-cli:
         wget -c https://go.dev/dl/go1.22.5.linux-amd64.tar.gz && \
         tar -C /usr/local/ -xzf go1.22.5.linux-amd64.tar.gz
     COPY src src
-    RUN cd ./src/sdk/go/hanami_sdk && \
-        protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
+    # RUN cd ./src/sdk/go/hanami_sdk && \
+    #     protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
     RUN cd src/cli/hanamictl && \
         /usr/local/go/bin/go build .
     SAVE ARTIFACT ./src/cli/hanamictl/hanamictl /tmp/hanamictl
