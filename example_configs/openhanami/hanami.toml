@@ -5,7 +5,6 @@ log_path = ""
 dataset_location = "/etc/openhanami/datasets"
 checkpoint_location = "/etc/openhanami/checkpoints"
 tempfile_location = "/etc/openhanami/tempfiles"
-tempfile_timeout = 10
 
 [processing]
 use_of_free_memory = 0.2

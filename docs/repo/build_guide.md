@@ -7,7 +7,7 @@
     -   For Ubuntu 22.04 and 24.04 (Debian should work too):
 
         ```bash
-        apt-get install clang-15 make cmake bison flex libssl-dev libcrypto++-dev libboost-dev nlohmann-json3-dev uuid-dev libsqlite3-dev protobuf-compiler
+        apt-get install gcc g++ clang-15 make cmake nlohmann-json3-dev libsqlite3-dev
         ```
 
     -   On Ubuntu 24.04 a new clang version than `15` can also be used or g++. See
@@ -16,19 +16,29 @@
 -   Clone repository with submodules
 
     ```bash
-    git clone --recurse-submodules https://github.com/kitsudaiki/OpenHanami.git
+    git clone https://github.com/kitsudaiki/OpenHanami.git
     ```
 
--   In case the repo was cloned without submodules initially:
+## Build hamami plain
+
+-   Compile hanami
 
     ```bash
     cd OpenHanami
 
-    git submodule init
-    git submodule update --recursive
+    cargo build --release
     ```
 
-## Build hamami plain
+-   In case you also want to compile the unit-tests and so on, you have to add `-Drun_tests=ON` to
+    the cmake-commands
+
+-   Resulting binary
+
+    ```bash
+    ./target/release/hanami
+    ```
+
+## Build hamami-core cpp-lib plain
 
 -   Compile hanami
 
