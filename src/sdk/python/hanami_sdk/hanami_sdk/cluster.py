@@ -32,38 +32,38 @@ def create_cluster(token: str,
                                             verify=verify_connection)
 
 
-def save_cluster(token: str,
-                 address: str,
-                 name: str,
-                 cluster_uuid: str,
-                 verify_connection: bool = True) -> dict:
-    path = "/v1alpha/cluster/save"
-    json_body = {
-        "name": name,
-        "cluster_uuid": cluster_uuid,
-    }
-    return hanami_request.send_post_request(token,
-                                            address,
-                                            path,
-                                            json_body,
-                                            verify=verify_connection)
+# def save_cluster(token: str,
+#                  address: str,
+#                  name: str,
+#                  cluster_uuid: str,
+#                  verify_connection: bool = True) -> dict:
+#     path = "/v1alpha/cluster/save"
+#     json_body = {
+#         "name": name,
+#         "cluster_uuid": cluster_uuid,
+#     }
+#     return hanami_request.send_post_request(token,
+#                                             address,
+#                                             path,
+#                                             json_body,
+#                                             verify=verify_connection)
 
 
-def restore_cluster(token: str,
-                    address: str,
-                    checkpoint_uuid: str,
-                    cluster_uuid: str,
-                    verify_connection: bool = True) -> dict:
-    path = "/v1alpha/cluster/load"
-    json_body = {
-        "checkpoint_uuid": checkpoint_uuid,
-        "cluster_uuid": cluster_uuid,
-    }
-    return hanami_request.send_post_request(token,
-                                            address,
-                                            path,
-                                            json_body,
-                                            verify=verify_connection)
+# def restore_cluster(token: str,
+#                     address: str,
+#                     checkpoint_uuid: str,
+#                     cluster_uuid: str,
+#                     verify_connection: bool = True) -> dict:
+#     path = "/v1alpha/cluster/load"
+#     json_body = {
+#         "checkpoint_uuid": checkpoint_uuid,
+#         "cluster_uuid": cluster_uuid,
+#     }
+#     return hanami_request.send_post_request(token,
+#                                             address,
+#                                             path,
+#                                             json_body,
+#                                             verify=verify_connection)
 
 
 def get_cluster(token: str,

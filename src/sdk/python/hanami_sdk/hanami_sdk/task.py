@@ -61,6 +61,40 @@ def create_request_task(token: str,
                                             verify=verify_connection)
 
 
+def create_checkpoint_save_task(token: str,
+                                address: str,
+                                cluster_uuid: str,
+                                name: str,
+                                verify_connection: bool = True) -> dict:
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_save"
+    json_body = {
+        "name": name,
+    }
+    return hanami_request.send_post_request(token,
+                                            address,
+                                            path,
+                                            json_body,
+                                            verify=verify_connection)
+
+
+def create_checkpoint_restore_task(token: str,
+                                   address: str,
+                                   cluster_uuid: str,
+                                   name: str,
+                                   checkpoint_uuid: str,
+                                   verify_connection: bool = True) -> dict:
+    path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_restore"
+    json_body = {
+        "name": name,
+        "checkpoint_uuid": checkpoint_uuid,
+    }
+    return hanami_request.send_post_request(token,
+                                            address,
+                                            path,
+                                            json_body,
+                                            verify=verify_connection)
+
+
 def get_task(token: str,
              address: str,
              task_uuid: str,

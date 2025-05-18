@@ -15,13 +15,14 @@
 fn main() {
     // compile C++ library via cmake
     let dst = cmake::Config::new("hanami_core_cpp")
+        //.profile("Debug")
         .profile("Release")
         .build();
 
     // setup autocxx
     let include_path = "hanami_core_cpp";
     let mut b = autocxx_build::Builder::new("src/main.rs", &[include_path])
-        .extra_clang_args(&["-std=c++17", "-O3"])
+        .extra_clang_args(&["-std=c++17"])
         .build()
         .unwrap();
 

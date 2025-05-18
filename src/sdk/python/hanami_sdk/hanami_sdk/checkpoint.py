@@ -18,7 +18,7 @@ from . import hanami_request
 def list_checkpoints(token: str,
                      address: str,
                      verify_connection: bool = True) -> dict:
-    path = "/v1alpha/checkpoint/all"
+    path = "/v1alpha/checkpoint"
     return hanami_request.send_get_request(token,
                                            address,
                                            path,
@@ -30,18 +30,17 @@ def delete_checkpoint(token: str,
                       address: str,
                       checkpoint_uuid: str,
                       verify_connection: bool = True):
-    path = "/v1alpha/checkpoint"
-    values = f'uuid={checkpoint_uuid}'
+    path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
     hanami_request.send_delete_request(token,
                                        address,
                                        path,
-                                       values,
+                                       "",
                                        verify=verify_connection)
 
 
 def delete_all_checkpoints(token: str,
                            address: str,
                            verify_connection: bool = True):
-    body = list_checkpoints(token, address, False)["body"]
+    body = list_checkpoints(token, address, False)["checkpoints"]
     for entry in body:
-        delete_checkpoint(token, address, entry[1], verify_connection)
+        delete_checkpoint(token, address, entry["uuid"], verify_connection)

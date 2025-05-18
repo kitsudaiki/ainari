@@ -202,16 +202,18 @@ async def test_direct_io(token, address, cluster_uuid):
 
 def _creat_and_resore_checkpoint(cluster_uuid):
     # save and reload checkpoint
-    checkpoint_uuid = cluster.save_cluster(
-        token, address, checkpoint_name, cluster_uuid, False)["uuid"]
-    checkpoint.list_checkpoints(token, address, False)
+    checkpoint_uuid = task.create_checkpoint_save_task(
+        token, address, cluster_uuid, checkpoint_name, False)["uuid"]
+    time.sleep(2)
+    result = checkpoint.list_checkpoints(token, address, False)
     # print(json.dumps(result, indent=4))
 
     cluster.delete_cluster(token, address, cluster_uuid, False)
     cluster_uuid = cluster.create_cluster(
         token, address, cluster_name, cluster_template, False)["uuid"]
 
-    cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid, False)
+    task.create_checkpoint_restore_task(token, address, cluster_uuid, "restore", checkpoint_uuid, False)
+    time.sleep(2)
     checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
     try:
         checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
@@ -343,9 +345,9 @@ def test_workflow():
     _test(cluster_uuid, request_dataset_uuid)
     _test(cluster_uuid, request_dataset_uuid)
 
-    # cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
+    cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
 
-    # _test(cluster_uuid, request_dataset_uuid)
+    _test(cluster_uuid, request_dataset_uuid)
 
     # asyncio.run(test_direct_io(token, address, cluster_uuid))
 
@@ -370,7 +372,7 @@ def test_workflow():
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 
 dataset.delete_all_datasets(token, address, False)
-# checkpoint.delete_all_checkpoints(token, address, False)
+checkpoint.delete_all_checkpoints(token, address, False)
 cluster.delete_all_cluster(token, address, False)
 project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)

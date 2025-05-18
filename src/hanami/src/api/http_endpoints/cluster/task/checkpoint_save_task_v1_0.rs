@@ -30,7 +30,7 @@ use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
 
 use hanami_common::enums;
 
-use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType, TaskState};
+use super::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",
@@ -38,11 +38,12 @@ use super::task_structs::{TaskCreateCheckpointSaveReq, TaskResp, TaskType, TaskS
     description = r###"Create new checkpoint-task for a cluster"###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
-pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn checkpoint_save_task(body: Json<TaskCheckpointSaveReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::CheckpointCreateTask;
+    let task_type = TaskType::CheckpointSaveTask;
     let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
     let target_filepath: PathBuf = upload_dir.join(&task_uuid.to_string());
@@ -91,7 +92,7 @@ pub async fn create_checkpoint_save_task(body: Json<TaskCreateCheckpointSaveReq>
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: TaskType::CheckpointCreateTask,
+        task_type: TaskType::CheckpointSaveTask,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),

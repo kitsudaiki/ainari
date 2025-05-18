@@ -69,6 +69,9 @@ class Cluster
     bool incrementAndCompare(const uint32_t referenceValue);
     void finishCycle();
 
+    ReturnStatus createCheckpoint(const std::string& targetFilePath);
+    ReturnStatus restoreCheckpoint(const std::string& targetFilePath);
+
    private:
     std::mutex m_clusterStateLock;
     std::atomic<int> m_counter;

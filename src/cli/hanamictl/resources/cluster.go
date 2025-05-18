@@ -32,7 +32,6 @@ import (
 var (
 	templatePath   string
 	checkpointName string
-	checkpointUuid string
 	clusterMode    string
 )
 
@@ -107,69 +106,6 @@ var deleteClusterCmd = &cobra.Command{
 	},
 }
 
-var saveClusterCmd = &cobra.Command{
-	Use:   "save -n CHECKPOINT_NAME CLUSTER_UUID",
-	Short: "Save cluster as checkpoint.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		clusterUuid := args[0]
-		content, err := hanami_sdk.SaveCluster(address, token, clusterUuid, checkpointName, hanamictl_common.DisableTlsVerification)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		hanamictl_common.PrintSingle(content)
-	},
-}
-
-var restoreClusterCmd = &cobra.Command{
-	Use:   "restore -c CHECKPOINT_UUID CLUSTER_UUID",
-	Short: "Restore cluster from checkpoint.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		clusterUuid := args[0]
-		content, err := hanami_sdk.RestoreCluster(address, token, clusterUuid, checkpointUuid, hanamictl_common.DisableTlsVerification)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		hanamictl_common.PrintSingle(content)
-	},
-}
-
-var switchModeClusterCmd = &cobra.Command{
-	Use:   "mode -m MODE CLUSTER_UUID",
-	Short: "Switch cluster between task- and direct-mode.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		clusterUuid := args[0]
-		if clusterMode == "task" {
-			content, err := hanami_sdk.SwitchToTaskMode(address, token, clusterUuid, hanamictl_common.DisableTlsVerification)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			hanamictl_common.PrintSingle(content)
-		} else if clusterMode == "direct" {
-			content, err := hanami_sdk.SwitchToDirectMode(address, token, clusterUuid, hanamictl_common.DisableTlsVerification)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			hanamictl_common.PrintSingle(content)
-		} else {
-			fmt.Println("unknown cluster-mode {}", clusterMode)
-			os.Exit(1)
-		}
-	},
-}
-
 var clusterCmd = &cobra.Command{
 	Use:   "cluster",
 	Short: "Manage cluster.",
@@ -187,16 +123,4 @@ func Init_Cluster_Commands(rootCmd *cobra.Command) {
 	clusterCmd.AddCommand(listClusterCmd)
 
 	clusterCmd.AddCommand(deleteClusterCmd)
-
-	clusterCmd.AddCommand(saveClusterCmd)
-	saveClusterCmd.Flags().StringVarP(&checkpointName, "name", "n", "", "Checkpoint name (mandatory)")
-	saveClusterCmd.MarkFlagRequired("name")
-
-	clusterCmd.AddCommand(restoreClusterCmd)
-	restoreClusterCmd.Flags().StringVarP(&checkpointUuid, "checkpoint", "c", "", "Checkpoint UUID (mandatory)")
-	restoreClusterCmd.MarkFlagRequired("checkpoint")
-
-	clusterCmd.AddCommand(switchModeClusterCmd)
-	switchModeClusterCmd.Flags().StringVarP(&clusterMode, "mode", "m", "", "New mode for the cluster. Options 'task' and 'direct' (mandatory)")
-	switchModeClusterCmd.MarkFlagRequired("mode")
 }

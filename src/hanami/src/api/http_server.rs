@@ -130,7 +130,11 @@ fn v1alpha_routes() -> Scope {
                         )
                         .service(
                             resource("/checkpoint_save")
-                                .route(post().to(create_checkpoint_save_task_v1_0::create_checkpoint_save_task))
+                                .route(post().to(checkpoint_save_task_v1_0::checkpoint_save_task))
+                        )
+                        .service(
+                            resource("/checkpoint_restore")
+                                .route(post().to(checkpoint_restore_task_v1_0::checkpoint_restore_task))
                         )
                         .service(
                             resource("/{task_uuid}")

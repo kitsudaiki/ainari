@@ -25,10 +25,7 @@
 #include <src/cluster/cluster.h>
 #include <src/cluster/cluster_io_convert.h>
 #include <src/common/logger.h>
-#include <src/io/checkpoint/disc/checkpoint_io.h>
 #include <src/processing/logical_host.h>
-
-#include <iostream>
 
 /**
  * @brief constructor
@@ -54,20 +51,20 @@ ClusterLink::~ClusterLink()
 int
 ClusterLink::createCheckpoint(const std::string& targetFilePath)
 {
-    Hanami::ErrorContainer error;
-    std::filesystem::path filePath = targetFilePath;
+    return m_cluster->createCheckpoint(targetFilePath);
+}
 
-    for (Hexagon& hexagon : m_cluster->hexagons) {
-        hexagon.attachedHost->syncWithHost(&hexagon);
-    }
-    CheckpointIO m_clusterIO;
-    ReturnStatus ret = m_clusterIO.writeClusterToFile(*m_cluster, targetFilePath, error);
-    if (ret != OK) {
-        std::cout << "error: " << error.toString() << std::endl;
-        return ret;
-    }
-
-    return OK;
+/**
+ * @brief restore a cluster from a checkpoint-file
+ *
+ * @param targetFilePath path to the local checkpoint-file, which should be restored
+ *
+ * @return return-status
+ */
+int
+ClusterLink::restoreCheckpoint(const std::string& targetFilePath)
+{
+    return m_cluster->restoreCheckpoint(targetFilePath);
 }
 
 /**

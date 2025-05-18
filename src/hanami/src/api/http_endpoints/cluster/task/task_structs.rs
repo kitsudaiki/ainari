@@ -24,15 +24,17 @@ use std::fmt;
 pub enum TaskType {
     TrainTask = 0,
     RequestTask = 1,
-    CheckpointCreateTask = 2,
+    CheckpointSaveTask = 2,
+    CheckpointRestoreTask = 3,
 }
 
 impl fmt::Display for TaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TaskType::TrainTask => "Train-Task",
-            TaskType::RequestTask => "Request-Task",
-            TaskType::CheckpointCreateTask => "Checkpoint-Create-Task",
+            TaskType::TrainTask => "TrainTask",
+            TaskType::RequestTask => "RequestTask",
+            TaskType::CheckpointSaveTask => "CheckpointSaveTask",
+            TaskType::CheckpointRestoreTask => "CheckpointRestoreTask",
         };
         write!(f, "{}", s)
     }
@@ -43,8 +45,10 @@ impl FromStr for TaskType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Train-Task" => Ok(TaskType::TrainTask),
-            "Request-Task" => Ok(TaskType::RequestTask),
+            "TrainTask" => Ok(TaskType::TrainTask),
+            "RequestTask" => Ok(TaskType::RequestTask),
+            "CheckpointSaveTask" => Ok(TaskType::CheckpointSaveTask),
+            "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestoreTask),
             _ => Err(()),
         }
     }
@@ -118,8 +122,14 @@ pub struct TaskCreateRequestReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct TaskCreateCheckpointSaveReq {
+pub struct TaskCheckpointSaveReq {
     pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct TaskCheckpointRestoreReq {
+    pub name: String,
+    pub checkpoint_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

@@ -77,6 +77,23 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }
 
+func CreateCheckpointSaveTask(address, token, name, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_save", clusterUuid)
+	jsonBody := map[string]interface{}{
+		"name": name,
+	}
+	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+}
+
+func CreateCheckpointRestoreTask(address, token, name, clusterUuid, checkpointUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_restore", clusterUuid)
+	jsonBody := map[string]interface{}{
+		"name": name,
+		"checkpoint_uuid": checkpointUuid,
+	}
+	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+}
+
 func GetTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
