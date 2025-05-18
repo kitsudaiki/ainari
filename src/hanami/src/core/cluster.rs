@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::debug;
+use log::{debug, error};
 use uuid::Uuid;
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::thread::{self, JoinHandle};
@@ -26,10 +26,12 @@ use std::collections::HashMap;
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 use crate::database::task_table;
+use crate::database::checkpoint_table;
 use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
+use crate::api::user_context::UserContext;
 
 use super::task_queue::{TaskQueue, init_task_queue};
-use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo};
+use super::tasks::{Task, TaskVariant, TrainInfo, RequestInfo, CheckpointSaveInfo, CheckpointRestoreInfo};
 
 // HINT (kitsudaiki): ffi is necessary ot get the c++ stuff, defined in the lib.rs
 use crate::ffi;
@@ -236,12 +238,39 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handl
     let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
 }
 
-fn handle_checkpoint_save_task(task_uuid: &Uuid, task_info: &mut CheckpointSaveInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
+fn handle_checkpoint_save_task(task_uuid: &Uuid, task_name: &String, user_id: &String, project_id: &String, task_info: &mut CheckpointSaveInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
+    let mut link = link_handle.lock().unwrap();
+
+    let file_path_str: String = task_info.path.to_string_lossy().into();
+    cxx::let_cxx_string!(cxx_path = file_path_str.clone());
+    link.cluster_link.pin_mut().createCheckpoint(&cxx_path);
+
+    // create information for new database-entry
+    let context = &UserContext { 
+        user_id: user_id.clone(), 
+        project_id: project_id.clone(), 
+        is_admin: false, 
+        is_project_admin: false 
+    };
+
+    // add information of new checkpoint to the database
+    // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
+    match checkpoint_table::add_new_checkpoint(&task_uuid, &task_name, &file_path_str, context) {
+        Ok(_) => {},
+        Err(e) => {
+            error!("{}", e);
+            let _ = task_table::set_error_state(&task_uuid, &"Internal error".to_string());
+            return;
+        }
+    }
+}
+
+fn handle_checkpoint_restore_task(_: &Uuid, task_info: &mut CheckpointRestoreInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
     let mut link = link_handle.lock().unwrap();
 
     let file_path_str: String = task_info.path.to_string_lossy().into();
     cxx::let_cxx_string!(cxx_path = file_path_str);
-    let _: i32 = link.cluster_link.pin_mut().createCheckpoint(&cxx_path).into();
+    link.cluster_link.pin_mut().restoreCheckpoint(&cxx_path);
 }
 
 pub fn handle_task(task: Task, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
@@ -253,13 +282,18 @@ pub fn handle_task(task: Task, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
             handle_request_task(&task.uuid, &mut task_info, link_handle);
         }, 
         TaskVariant::CheckpointSave(mut task_info) => {
-            handle_checkpoint_save_task(&task.uuid, &mut task_info, link_handle);
+            handle_checkpoint_save_task(&task.uuid, &task.name, &task.user_id, &task.project_id, &mut task_info, link_handle);
         }, 
-        TaskVariant::CheckpointRestore(_) => {}, 
+        TaskVariant::CheckpointRestore(mut task_info) => {
+            handle_checkpoint_restore_task(&task.uuid, &mut task_info, link_handle);
+        }
     }
 }
 
 pub struct Cluster {
+    #[allow(dead_code)]
+    pub uuid: Uuid,
+    
     pub queue: Arc<Mutex<TaskQueue>>,
     pub link_handle: Arc<Mutex<ClusterLinkHanle>>,
 
@@ -304,6 +338,7 @@ impl Cluster {
         });
 
         Cluster {
+            uuid: uuid,
             link_handle: link_handle,
             queue: queue, 
             handle: Some(handle),

@@ -36,6 +36,7 @@ class ClusterLink
     ~ClusterLink();
 
     int createCheckpoint(const std::string& targetFilePath);
+    int restoreCheckpoint(const std::string& targetFilePath);
 
     bool fillInput(const std::string& hexagonName,
                    const float* input,

@@ -26,6 +26,9 @@
 #include <src/cluster/cluster.h>
 #include <src/common/logger.h>
 #include <src/common/threading/thread.h>
+#include <src/io/checkpoint/disc/checkpoint_io.h>
+
+#include <iostream>
 
 /**
  * @brief constructor
@@ -163,4 +166,62 @@ void
 Cluster::finishCycle()
 {
     m_barrier.triggerBarrier();
+}
+
+/**
+ * @brief create checkpoint of the cluster
+ *
+ * @param targetFilePath local file-path, where to store the resulting checkpoint
+ *
+ * @return return-status
+ */
+ReturnStatus
+Cluster::createCheckpoint(const std::string& targetFilePath)
+{
+    Hanami::ErrorContainer error;
+    std::filesystem::path filePath = targetFilePath;
+
+    for (Hexagon& hexagon : this->hexagons) {
+        hexagon.attachedHost->syncWithHost(&hexagon);
+    }
+    // HINT (kitsudaiki): has to be on the heap, instead on object on the stack
+    // or otherwise the autocxx will fail when calling this function. I have no idea why,
+    // but at least this workarounc works fine.
+    std::unique_ptr<CheckpointIO> clusterIO = std::make_unique<CheckpointIO>();
+    ReturnStatus ret = clusterIO->writeClusterToFile(*this, targetFilePath, error);
+    if (ret != OK) {
+        std::cout << "error: " << error.toString() << std::endl;
+        return ret;
+    }
+
+    return OK;
+}
+
+/**
+ * @brief restore a cluster from a checkpoint-file
+ *
+ * @param targetFilePath path to the local checkpoint-file, which should be restored
+ *
+ * @return return-status
+ */
+ReturnStatus
+Cluster::restoreCheckpoint(const std::string& targetFilePath)
+{
+    Hanami::ErrorContainer error;
+    std::filesystem::path filePath = targetFilePath;
+
+    for (Hexagon& hexagon : hexagons) {
+        hexagon.attachedHost->syncWithHost(&hexagon);
+    }
+    // HINT (kitsudaiki): has to be on the heap, instead on object on the stack
+    // or otherwise the autocxx will fail when calling this function. I have no idea why,
+    // but at least this workarounc works fine.
+    std::unique_ptr<CheckpointIO> clusterIO = std::make_unique<CheckpointIO>();
+    ReturnStatus ret = clusterIO->restoreClusterFromFile(*this, targetFilePath, error);
+    if (ret != OK) {
+        std::cout << "error: " << error.toString() << std::endl;
+        return ret;
+    }
+
+    return OK;
 }

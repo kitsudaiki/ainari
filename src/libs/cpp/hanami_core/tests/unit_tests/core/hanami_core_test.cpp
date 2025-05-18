@@ -32,7 +32,7 @@ Hanami_Core_Test::Hanami_Core_Test() : Hanami::CompareTestHelper("Cluster_Init_T
 
     // HINT (kitsudaiki): this test has only minimal input and so it can often fail
     // which makes it to fragile for the ci-pipeline. Can be enabled temporary for tests.
-    // core_test();
+    core_test();
 }
 
 void
@@ -85,6 +85,9 @@ Hanami_Core_Test::core_test()
     float outputData[4] = {0.0, 0.0, 0.0, 0.0};
     TEST_EQUAL(link->getOutput("fail", outputData, 4), false);
     TEST_EQUAL(link->getOutput("output", outputData, 4), true);
+
+    link->createCheckpoint("/etc/openhanami/checkpoints/47fb66bd-4f58-41eb-912c-5f8e71253160");
+    link->restoreCheckpoint("/etc/openhanami/checkpoints/47fb66bd-4f58-41eb-912c-5f8e71253160");
 
     // check results
     TEST_EQUAL(outputData[0], 0.0f);

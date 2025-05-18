@@ -33,6 +33,7 @@ import (
 
 var (
 	clusterUuid string
+	checkpointUuid string
 	inputData   []string
 	outputData  []string
 	timeLength  int
@@ -160,6 +161,42 @@ var createRequestTaskCmd = &cobra.Command{
 	},
 }
 
+var createCheckpointSaveTaskCmd = &cobra.Command{
+	Use:   "save -c CLUSTER_UUID TASK_NAME",
+	Short: "Create a new task to create a checkpoint from a cluster.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		taskName := args[0]
+		content, err := hanami_sdk.CreateCheckpointSaveTask(address, token, taskName, clusterUuid, hanamictl_common.DisableTlsVerification)
+		if err == nil {
+			hanamictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var createCheckpointRestoreTaskCmd = &cobra.Command{
+	Use:   "restore -c CLUSTER_UUID -s CHECKPOINT_UUID TASK_NAME",
+	Short: "Create a new task to create a checkpoint from a cluster.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		taskName := args[0]
+		content, err := hanami_sdk.CreateCheckpointRestoreTask(address, token, taskName, clusterUuid, checkpointUuid, hanamictl_common.DisableTlsVerification)
+		if err == nil {
+			hanamictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
 var getTaskCmd = &cobra.Command{
 	Use:   "get TASK_ID",
 	Short: "Get information of a specific task.",
@@ -262,6 +299,16 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createRequestTaskCmd.MarkFlagRequired("cluster")
 	createRequestTaskCmd.MarkFlagRequired("input")
 	createRequestTaskCmd.MarkFlagRequired("result")
+
+	createTaskCmd.AddCommand(createCheckpointSaveTaskCmd)
+	createCheckpointSaveTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
+	createCheckpointSaveTaskCmd.MarkFlagRequired("cluster")
+
+	createTaskCmd.AddCommand(createCheckpointRestoreTaskCmd)
+	createCheckpointRestoreTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
+	createCheckpointRestoreTaskCmd.Flags().StringVarP(&checkpointUuid, "checkpoint_uuid", "s", "", "Checkpoint UUID UUID (mandatory)")
+	createCheckpointRestoreTaskCmd.MarkFlagRequired("cluster")
+	createCheckpointRestoreTaskCmd.MarkFlagRequired("checkpoint_uuid")
 
 	taskCmd.AddCommand(getTaskCmd)
 	getTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
