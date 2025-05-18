@@ -17,10 +17,6 @@ it easier for a new person to understand the code.
     │   ├── archive
     │   │   ├── frontend
     │   │   │   └── OpenHanami-Dashboard
-    │   │   ├── libraries
-    │   │   │   ├── hanami_network
-    │   │   │   ├── hanami_obj
-    │   │   │   └── hanami_opencl
     │   │   └── sdk
     │   │       └── javascript
     │   │
@@ -32,19 +28,14 @@ it easier for a new person to understand the code.
     │   ├── hanami
     │   │   └── (see below)
     │   │
-    │   ├── libraries
-    │   │   ├── hanami_args
-    │   │   ├── hanami_cluster_parser
-    │   │   ├── hanami_common
-    │   │   ├── hanami_config
-    │   │   ├── hanami_cpu
-    │   │   ├── hanami_crypto
-    │   │   ├── hanami_database
-    │   │   ├── hanami_hardware
-    │   │   ├── hanami_ini
-    │   │   ├── hanami_messages
-    │   │   ├── hanami_policies
-    │   │   └── hanami_sqlite
+    │   ├── libs
+    │   │   ├── cpp
+    │   │   │   └── hanami_core
+    │   │   ├── rust
+    │   │   │   ├── hanami_cluster_parser
+    │   │   │   ├── hanami_common
+    │   │   │   └── hanami_dataset
+    │   │   └── protobuf
     │   │
     │   ├── sdk
     │   │   ├── go
@@ -85,61 +76,30 @@ it easier for a new person to understand the code.
 
         Contains the main-part of [hanami](/repo/repo_structure/#hanami-source-code)
 
-    -   **libraries**
+    -   **libs**
 
-        -   **hanami_args**
+        Libraries used by the binaries.
+        
+        -   **cpp**
 
-            Provide argument-parser for the CLI of hanami
+            -   **hanami_core**
 
-        -   **hanami_cluster_parser**
+                Core-Library, which contains all functions to handle, process and interact with the neural networks
+        
+        -   **rust**
 
-            Parser for the [Cluster-templates](/frontend/cluster_templates/cluster_template/)
+            -   **hanami_cluster_parser**
 
-        -   **hanami_common**
+                Contains the parser for the cluster-templates.
 
-            Simple C++ library with commenly used functions for memory-handling, thread-handling,
-            data representation and testing.
+            -   **hanami_common**
 
-        -   **hanami_config**
+                Common rust-functions used in the project.
 
-            Parser for the config-file of hanami.
+            -   **hanami_dataset**
 
-        -   **hanami_cpu**
-
-            Simple library to read different information of the cpu, like topological information,
-            speed and energy consumption with RAPL, manipulate the speed of single cores of the cpu
-            and read information of the local memory.
-
-        -   **hanami_crypto**
-
-            Wrapper-library for crypto-operation from other external libraries, to simplify the
-            usage of basic operation like AES, HMAC, SHA256, etc.
-
-        -   **hanami_database**
-
-            General abstraction-layer to interact with SQL-databases and creates SQL-queries out fo
-            data-structure.
-
-        -   **hanami_hardware**
-
-            Collect hardware-information of the local system.
-
-        -   **hanami_ini**
-
-            ini-file parser, which is used by the config-library
-
-        -   **hanami_messages**
-
-            Protobuf-message definition
-
-        -   **hanami_policies**
-
-            Parser for the policy-file of hanami
-
-        -   **hanami_sqlite**
-
-            Functions to interact with sqlit3. Is used by the database-li
-
+                Contains functions to read and write dataset-files.
+        
     -   **sdk**
 
         Code of the python SDK library and the go-version of the SDK-lib used by the CLI
@@ -159,69 +119,32 @@ it easier for a new person to understand the code.
         └── hanami
             ├── src
             │   ├── api
-            │   │   ├── endpoint_processing
-            │   │   ├── http
-            │   │   │   ├── auth
-            │   │   │   ├── checkpoint
-            │   │   │   ├── cluster
-            │   │   │   ├── dataset
-            │   │   │   ├── hosts
-            │   │   │   ├── logs
-            │   │   │   ├── measurements
-            │   │   │   ├── project
-            │   │   │   ├── system_info
-            │   │   │   ├── task
-            │   │   │   ├── threading
-            │   │   │   └── user
-            │   │   └── websocket
+            │   │   └── http_endpoints
+            │   │       ├── auth
+            │   │       ├── checkpoint
+            │   │       ├── cluster
+            │   │       │   └── task
+            │   │       ├── dataset
+            │   │       ├── project
+            │   │       └── user
             │   ├── core
-            │   │   ├── cluster
-            │   │   ├── io
-            │   │   │   ├── checkpoint
-            │   │   │   └── data_set
-            │   │   └── processing
-            │   │       ├── cpu
-            │   │       └── cuda
             │   ├── database
             │   └── documentation
             └── tests
 
 -   **api**
 
-    -   **endpoint_processing**
+    All functions for the API to interact with the server.
 
-        General functions to provice a http-server and to process request over the REST-api like
-        prechecks and so on, before triggering the endpoint-functions within the `http` directory
+    -   **http_endpoints**
 
-    -   **http**
-
-        Definitions of all API-endpoints
-
-    -   **websocket**
-
-        Functions to send and receive data via websocket in case of a dataset-upload or direct
-        interaction with a cluster
+        Definitions of all REST-API-endpoints
 
 -   **core**
 
-    -   **cluster**
-
-        Datastruture, initializing and state-machine for the clusters and there data
-
-    -   **io**
-
-        All functions for serialization and deserialization of information like datasets and
-        checkpoints
-
-    -   **processing**
-
-        Functions to process the data of a cluster
+    Functionality to interact with the c++-core-libraries for the neural networks. Also contains the handling of cluster-tasks.
 
 -   **database**
 
     Contains the definitions of the database-tables and all functions to interact with the
     SQL-database
-
--   **documentation**
-
-    Code for generating the documenation (open-api docu, config docu, ...)

@@ -48,7 +48,7 @@ This document should help to setup a local environment for development.
     `/etc/openhanami/hanami_testing.conf`.
 
 -   Exectute the binary without any flags. It uses by default the config of
-    `/etc/openhanami/hanami.conf` and the values of the example-config are enough for testing. The
+    `/etc/openhanami/hanami.toml` and the values of the example-config are enough for testing. The
     SQLite-database-file `/etc/openhanami/hanami_db` is automatically created by the initial start.
 
 ## Testing

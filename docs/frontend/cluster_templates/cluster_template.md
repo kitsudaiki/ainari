@@ -12,26 +12,26 @@ General structure of the file:
 ```
 version: 1
 settings:
-    neuron_cooldown: <COOL_DOWN>
-    refractory_time: <REFRACTORY_TIME>
-    max_connection_distance: <MAX_DISTANCE>
+    neuron_cooldown: <COOL_DOWN>;
+    refractory_time: <REFRACTORY_TIME>;
+    max_connection_distance: <MAX_DISTANCE>;
 
 hexagons:
-    X,Y,Z
-    X,Y,Z
+    X,Y,Z;
+    X,Y,Z;
     ...
-    X,Y,Z
+    X,Y,Z;
 
 axons:
-    X,Y,Z -> X,Y,Z
+    X,Y,Z -> X,Y,Z;
 
 inputs:
-    <NAME>: X,Y,Z
-    <NAME>: X,Y,Z
+    <NAME>: X,Y,Z;
+    <NAME>: X,Y,Z;
 
 outputs:
-    <NAME>: X,Y,Z
-    <NAME>: X,Y,Z (float)
+    <NAME>: X,Y,Z;
+    <NAME>: X,Y,Z (float);
 ```
 
 In the template the position, type and name of the hexagons has to be defined. The size of the input
@@ -90,9 +90,9 @@ Use the `(bool)`, `(float)` or `(int)` to modify the output.
 
 ```
 outputs:
-    <NAME>: X,Y,Z (bool)
-    <NAME>: X,Y,Z (float)
-    <NAME>: X,Y,Z (int)
+    <NAME>: X,Y,Z (bool);
+    <NAME>: X,Y,Z (float);
+    <NAME>: X,Y,Z (int);
 ```
 
 - `(bool)`: outputs can only have value 0 or 1 and nothing between
@@ -110,23 +110,23 @@ The following is a minimal example for a cluster-template.
 ```
 version: 1
 settings:
-    neuron_cooldown: 100000000000.0
-    refractory_time: 1
-    max_connection_distance: 1
+    neuron_cooldown: 100000000000.0;
+    refractory_time: 1;
+    max_connection_distance: 1;
 
 hexagons:
-    1,1,1
-    3,1,1
-    4,1,1
+    1,1,1;
+    3,1,1;
+    4,1,1;
 
 axons:
-    1,1,1 -> 3,1,1
+    1,1,1 -> 3,1,1;
 
 inputs:
-    input_hexagon: 1,1,1
+    input_hexagon: 1,1,1;
 
 outputs:
-    output_hexagon: 4,1,1
+    output_hexagon: 4,1,1;
 ```
 
 It defines 3 hexagons. It contains an input-hexagon with the name `test_input` and an output-hexagon

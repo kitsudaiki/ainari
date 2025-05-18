@@ -29,7 +29,7 @@ nav:
     - frontend/rest_api_documentation.md
     - frontend/cli_sdk_docu.md
     - frontend/cluster_templates/cluster_template.md
-    - frontend/websockets/websocket_workflow.md
+    # - frontend/websockets/websocket_workflow.md
     - frontend/dashboard/dashboard.md
   - Backend:
     - backend/installation.md
@@ -50,16 +50,6 @@ nav:
     - repo/code_styling.md
     - repo/git_workflow.md
     - repo/glossar.md
-    - Libraries (Archive):
-      - repo/libraries/hanami_args.md
-      - repo/libraries/hanami_common.md
-      - repo/libraries/hanami_config.md
-      - repo/libraries/hanami_cpu.md
-      - repo/libraries/hanami_crypto.md
-      - repo/libraries/hanami_ini.md
-      - repo/libraries/hanami_obj.md
-      - repo/libraries/hanami_opencl.md
-      - repo/libraries/hanami_sqlite.md
 
 plugins:
     - swagger-ui-tag

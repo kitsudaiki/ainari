@@ -120,17 +120,8 @@ and multi-tenancy.
 
 -   **Network-input**
 
-    There are 2-variants, how it interact with the neural networks:
-
-    1. Uploading the dataset and starting an asynchronous task based on this dataset over the API
-
-        See [OpenAPI-docu](https://docs.openhanami.com/frontend/rest_api_documentation/)
-
-    2. Directly communicate with the neural network via websocket. In this case not a whole dataset
-       is push through the synapse, but instead only a single network-input is send. The call is
-       blocking, until the network returns the output, which gives more control.
-
-        See [Websocket-docu](https://docs.openhanami.com/frontend/websockets/websocket_workflow/)
+    Interaction with the network by direct synchronous requests or with asynchronous task in a 
+    task-queue. Both types of interactions can be done in parallel.
 
 -   **Installation on Kubernetes**
 
@@ -143,11 +134,10 @@ and multi-tenancy.
 The concept is not perfekt and also has some disadvantages, which are the result of the architecture
 itself:
 
--   Very inefficient for binary input, where inputs of single nodes of the network can only be 0 or
-    1, without values in between
-
 -   A single synapse needs more memory than in a classical network. The hope is, in bigger tests, it
     becomes much more efficient compared to fully meshed layered networks.
+
+-   No gpu-support at the moment.
 
 ## Summary important links
 

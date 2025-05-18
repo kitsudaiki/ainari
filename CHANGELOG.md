@@ -13,8 +13,12 @@ Translate big parts of the program from C++ into Rust:
 #### API-Breaking
 
 - IDs of API-requests of now in the query-path instead of the body
-- OAuth-styling of token-requests
+- general changes, based on the new api-framework
+- datasets are now uploaded over the REST-API instead of websockets
+- OAuth-styling of token-requests for a more standardized styling and behaviour
 - upload files of datasets via API-endpoint instead of websocket
+- removed direct- and task-mode separation, because it is not necessary anymore the with the new architecture
+- removed websocket-connections in general
 
 #### Template-Breaking
 
@@ -27,6 +31,19 @@ Translate big parts of the program from C++ into Rust:
 #### Database-Breaking
 
 - updated database-schemas in confext of the code-translation
+
+#### Config-Breaking
+
+- switched to toml-config
+- some restructuring and changes, based on the new toml-format and the new Rust-implemenation
+
+### Added
+
+- New REST-API endpoint to interact directly with a cluster for trainging and requests
+
+### Changed
+
+- Direct-requests against the cluster can now be done in parallel to active tasks
 
 
 
