@@ -7,23 +7,22 @@ data:
     log_path = ""
 
     [storage]
-    dataset_location = "/etc/openhanami/datasets"
-    checkpoint_location = "/etc/openhanami/checkpoints"
-    tempfile_location = "/etc/openhanami/tempfiles"
-    tempfile_timeout = 10
+    dataset_location = "/etc/openhanami/data/datasets"
+    checkpoint_location = "/etc/openhanami/data/checkpoints"
+    tempfile_location = "/etc/openhanami/data/tempfiles"
 
     [processing]
-    use_of_free_memory = 0.2
+    use_of_free_memory = {{ .Values.processing.use_of_free_memory }}
 
     [auth]
     token_key_path = "/etc/openhanami/token_key"
-    token_expire_time = 36000
+    token_expire_time = {{ .Values.token.expire_time }}
 
     [api]
-    ip = "0.0.0.0"
+    ip = "127.0.0.1"
     port = 11418
 
     [database]
-    file_path = "/etc/openhanami/hanami_db"
+    file_path = "/etc/openhanami/data/hanami_db"
 
 kind: ConfigMap

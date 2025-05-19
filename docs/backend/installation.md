@@ -10,22 +10,19 @@ For the installation on a kubernetes `helm` is used.
 
 | Supported versions                                  |
 | --------------------------------------------------- |
-| [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
-| [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
-| [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
-| [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
 | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
+| [![kubernetes-1_31][img_kubernetes-1_31]][Workflow] |
+| [![kubernetes-1_32][img_kubernetes-1_32]][Workflow] |
+| [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
 
-[img_kubernetes-1_26]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_26/shields.json&style=flat-square
-[img_kubernetes-1_27]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_27/shields.json&style=flat-square
-[img_kubernetes-1_28]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_28/shields.json&style=flat-square
-[img_kubernetes-1_29]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_29/shields.json&style=flat-square
 [img_kubernetes-1_30]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+[img_kubernetes-1_31]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
+[img_kubernetes-1_32]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
+[img_kubernetes-1_33]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
 [Workflow]: https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml
 
 ### Requirements

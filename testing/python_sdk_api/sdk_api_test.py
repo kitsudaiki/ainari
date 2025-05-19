@@ -328,11 +328,27 @@ def test_workflow():
 
     # init
     cluster_uuid = cluster.create_cluster(
-        token, address, cluster_name, cluster_template, False)["uuid"]
-    train_dataset_uuid = dataset.upload_mnist_files(
-        token, address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
-    request_dataset_uuid = dataset.upload_mnist_files(
-        token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+            token, address, cluster_name, cluster_template, False)["uuid"]
+    train_dataset_uuid = ""
+    request_dataset_uuid = ""
+    try:
+        train_dataset_uuid = dataset.upload_mnist_files(
+            token, address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+        time.sleep(1)
+        request_dataset_uuid = dataset.upload_mnist_files(
+            token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+        time.sleep(1)
+    except:
+        # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why. 
+        #                    Maybe because of the limited resources. So it will be given a second
+        #                    chance to make it right.
+        train_dataset_uuid = dataset.upload_mnist_files(
+            token, address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+        time.sleep(1)
+        request_dataset_uuid = dataset.upload_mnist_files(
+            token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+        time.sleep(1)
+
 
     # hosts_json = hosts.list_hosts(token, address, False)["body"]
     # if len(hosts_json) > 1:
