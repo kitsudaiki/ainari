@@ -33,11 +33,11 @@ and multi-tenancy.
 
 | C++ Core-Library                                              | Python-SDK                                  | Deployment                                          |
 | ------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
-| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_26][img_kubernetes-1_26]][Workflow] |
-| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_27][img_kubernetes-1_27]][Workflow] |
-| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_28][img_kubernetes-1_28]][Workflow] |
-| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] |                                             | [![kubernetes-1_29][img_kubernetes-1_29]][Workflow] |
-| [![ubuntu-2404_clang-16][img_ubuntu-2404_clang-16]][Workflow] |                                             | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
+| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
+| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][Workflow] |
+| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][Workflow] |
+| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] |                                             | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
+| [![ubuntu-2404_clang-16][img_ubuntu-2404_clang-16]][Workflow] |                                             |                                                     |
 | [![ubuntu-2404_clang-17][img_ubuntu-2404_clang-17]][Workflow] |                                             |                                                     |
 | [![ubuntu-2404_clang-18][img_ubuntu-2404_clang-18]][Workflow] |                                             |                                                     |
 | [![ubuntu-2204_gcc-10][img_ubuntu-2204_gcc-10]][Workflow]     |                                             |                                                     |
@@ -79,16 +79,14 @@ and multi-tenancy.
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_11/shields.json&style=flat-square
 [img_python-3_12]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_12/shields.json&style=flat-square
-[img_kubernetes-1_26]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_26/shields.json&style=flat-square
-[img_kubernetes-1_27]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_27/shields.json&style=flat-square
-[img_kubernetes-1_28]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_28/shields.json&style=flat-square
-[img_kubernetes-1_29]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_29/shields.json&style=flat-square
 [img_kubernetes-1_30]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+[img_kubernetes-1_31]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
+[img_kubernetes-1_32]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
+[img_kubernetes-1_33]:
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
 [Workflow]: https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml
 
 ## Current prototypically implemented features

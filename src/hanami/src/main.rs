@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::env;
+use std::fs;
 
 mod api;
 mod database;
@@ -50,6 +51,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if enable_debug_log == false {
         log::set_max_level(LevelFilter::Info);
     } 
+
+    // create directories if they not exist
+    let checkpoint_dir = config::CONFIG.storage.checkpoint_location.clone();
+    fs::create_dir_all(checkpoint_dir)?;
+    let dataset_dir = config::CONFIG.storage.dataset_location.clone();
+    fs::create_dir_all(dataset_dir)?;
+    let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
+    fs::create_dir_all(tempfile_dir)?;
 
     // Initialize hanami-core
     let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();

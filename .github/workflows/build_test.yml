@@ -971,18 +971,16 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes_version:
-          - { tag: "kubernetes-1_26", name: "Kubernetes 1.26", version: "1.26.15"}
-          - { tag: "kubernetes-1_27", name: "Kubernetes 1.27", version: "1.27.15"}
-          - { tag: "kubernetes-1_28", name: "Kubernetes 1.28", version: "1.28.11"}
-          - { tag: "kubernetes-1_29", name: "Kubernetes 1.29", version: "1.29.6"}
-          - { tag: "kubernetes-1_30", name: "Kubernetes 1.30", version: "1.30.2"}
+          - { tag: "kubernetes-1_30", name: "Kubernetes 1.30", version: "1.30.12"}
+          - { tag: "kubernetes-1_31", name: "Kubernetes 1.31", version: "1.31.8"}
+          - { tag: "kubernetes-1_32", name: "Kubernetes 1.32", version: "1.32.4"}
+          - { tag: "kubernetes-1_33", name: "Kubernetes 1.33", version: "1.33.0"}
     name: "${{ matrix.kubernetes_version.name }}"
     outputs:
-      kubernetes-1_26: ${{ steps.status.outputs.kubernetes-1_26 }}
-      kubernetes-1_27: ${{ steps.status.outputs.kubernetes-1_27 }}
-      kubernetes-1_28: ${{ steps.status.outputs.kubernetes-1_28 }}
-      kubernetes-1_29: ${{ steps.status.outputs.kubernetes-1_29 }}
       kubernetes-1_30: ${{ steps.status.outputs.kubernetes-1_30 }}
+      kubernetes-1_31: ${{ steps.status.outputs.kubernetes-1_31 }}
+      kubernetes-1_32: ${{ steps.status.outputs.kubernetes-1_32 }}
+      kubernetes-1_33: ${{ steps.status.outputs.kubernetes-1_33 }}
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     steps:
@@ -1151,6 +1149,10 @@ jobs:
           cp test_values.py test_dir/
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
+      -
+        name: Print logs of the pod to make debugging easier in case of an error
+        if: ${{ always() }}
+        run: kubectl logs -c hanami $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^hanami-')
       -
         name: Update Result
         id: status
