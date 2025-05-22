@@ -142,6 +142,9 @@ def test_dataset():
     dataset.list_datasets(token, address, False)
     dataset.get_dataset(token, address, dataset_uuid, False)
 
+    dataset.upload_csv_files(
+        token, address, "csv_test", "./csv_test.csv", False)
+
     try:
         dataset.get_dataset(token, address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
     except hanami_exceptions.NotFoundException:
@@ -212,7 +215,8 @@ def _creat_and_resore_checkpoint(cluster_uuid):
     cluster_uuid = cluster.create_cluster(
         token, address, cluster_name, cluster_template, False)["uuid"]
 
-    task.create_checkpoint_restore_task(token, address, cluster_uuid, "restore", checkpoint_uuid, False)
+    task.create_checkpoint_restore_task(
+        token, address, cluster_uuid, "restore", checkpoint_uuid, False)
     time.sleep(2)
     checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
     try:
@@ -328,7 +332,7 @@ def test_workflow():
 
     # init
     cluster_uuid = cluster.create_cluster(
-            token, address, cluster_name, cluster_template, False)["uuid"]
+        token, address, cluster_name, cluster_template, False)["uuid"]
     train_dataset_uuid = ""
     request_dataset_uuid = ""
     try:
@@ -339,7 +343,7 @@ def test_workflow():
             token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
     except:
-        # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why. 
+        # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why.
         #                    Maybe because of the limited resources. So it will be given a second
         #                    chance to make it right.
         train_dataset_uuid = dataset.upload_mnist_files(
@@ -348,7 +352,6 @@ def test_workflow():
         request_dataset_uuid = dataset.upload_mnist_files(
             token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
-
 
     # hosts_json = hosts.list_hosts(token, address, False)["body"]
     # if len(hosts_json) > 1:

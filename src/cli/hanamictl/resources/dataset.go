@@ -56,29 +56,23 @@ var createMnistDatasetCmd = &cobra.Command{
 	},
 }
 
-// var createCsvDatasetCmd = &cobra.Command{
-// 	Use:   "csv -i INPUT_FILE_PATH DATASET_NAME",
-// 	Short: "Upload new csv dataset.",
-// 	Args:  cobra.ExactArgs(1),
-// 	Run: func(cmd *cobra.Command, args []string) {
-// 		token := Login()
-// 		address := os.Getenv("HANAMI_ADDRESS")
-// 		datasetName := args[0]
-// 		uuid, err := hanami_sdk.UploadCsvFiles(address, token, datasetName, inputFilePath, hanamictl_common.DisableTlsVerification)
-// 		if err != nil {
-// 			fmt.Println(err)
-// 			os.Exit(1)
-// 		}
-
-// 		content, err := hanami_sdk.GetDataset(address, token, uuid, hanamictl_common.DisableTlsVerification)
-// 		if err == nil {
-// 			hanamictl_common.PrintSingle(content)
-// 		} else {
-// 			fmt.Println(err)
-// 			os.Exit(1)
-// 		}
-// 	},
-// }
+var createCsvDatasetCmd = &cobra.Command{
+	Use:   "csv -i INPUT_FILE_PATH DATASET_NAME",
+	Short: "Upload new csv dataset.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		datasetName := args[0]
+		content, err := hanami_sdk.CreateCsvDataset(address, token, datasetName, inputFilePath, hanamictl_common.DisableTlsVerification)
+		if err == nil {
+			hanamictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
 
 var checkDatasetCmd = &cobra.Command{
 	Use:   "check -r REFERENCE_DATASET_UUID DATASET_UUID",
@@ -189,9 +183,9 @@ func Init_Dataset_Commands(rootCmd *cobra.Command) {
 	createMnistDatasetCmd.MarkFlagRequired("input")
 	createMnistDatasetCmd.MarkFlagRequired("label")
 
-	// createDatasetCmd.AddCommand(createCsvDatasetCmd)
-	// createCsvDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	// createCsvDatasetCmd.MarkFlagRequired("input")
+	createDatasetCmd.AddCommand(createCsvDatasetCmd)
+	createCsvDatasetCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
+	createCsvDatasetCmd.MarkFlagRequired("input")
 
 	datasetCmd.AddCommand(checkDatasetCmd)
 	checkDatasetCmd.Flags().StringVarP(&referenceDatasetUuid, "reference", "r", "", "UUID of the dataset, which works as reference (mandatory)")

@@ -32,6 +32,12 @@ func CreateMnistDataset(address, token, datasetName, imageFilePath, labelFilePat
 	return UploadFiles(address, token, path, files, skipTlsVerification)
 }
 
+func CreateCsvDataset(address, token, datasetName, filePath string, skipTlsVerification bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/dataset/csv/%s", datasetName)
+	files := []string{filePath}
+	return UploadFiles(address, token, path, files, skipTlsVerification)
+}
+
 func GetDataset(address, token, datasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
 	vars := map[string]interface{}{}

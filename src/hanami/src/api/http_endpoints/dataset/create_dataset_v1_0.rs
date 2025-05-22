@@ -29,7 +29,7 @@ use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 use crate::config;
 
-use hanami_dataset::converter::load_mnist_images;
+use hanami_dataset::converter::{load_mnist_images, load_csv_file};
 use hanami_common::error::HanamiError;
 
 use super::dataset_structs::DatasetResp;
@@ -162,6 +162,30 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             dataset_uuid.clone(),
             name.clone(),
             None) 
+        {
+            Ok(()) => {},
+            Err(e) => match e.downcast_ref::<HanamiError>() {
+                Some(HanamiError::InputError(e)) => {
+                    let msg = format!("{}", e);
+                    return Err(ErrorResponse::BadRequest(msg));
+                },
+                _ => {
+                    error!("{}", e);
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            },
+        };
+    } else if dataset_type == "csv" {
+        let path_len = temp_file_paths.len();
+        if temp_file_paths.len() != 1 {
+            let msg = format!("CSV-dataset expect 1 uploaded files, but there were {path_len} files found.");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        match load_csv_file(
+            &temp_file_paths[0], 
+            &target_filepath,
+            dataset_uuid.clone(),
+            name.clone()) 
         {
             Ok(()) => {},
             Err(e) => match e.downcast_ref::<HanamiError>() {
