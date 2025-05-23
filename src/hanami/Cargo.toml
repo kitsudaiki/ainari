@@ -37,7 +37,7 @@ lazy_static = "1.4"
 chrono = "0.4.40"
 futures = "0.3"
 bytes = "1"
-uuid = { version = "1.16.0", features = ["v4"] }
+uuid = { version = "1.17.0", features = ["v4"] }
 sanitize-filename = "0.6"
 byteorder = "1.5"
 bincode = "2.0"
