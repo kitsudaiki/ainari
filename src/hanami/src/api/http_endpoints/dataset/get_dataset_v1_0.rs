@@ -16,11 +16,14 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use std::path::PathBuf;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
+
 use hanami_common::enums;
+use hanami_dataset::dataset_io::read_data_set_file;
 
 use super::dataset_structs::DatasetResp;
 
@@ -34,19 +37,8 @@ use super::dataset_structs::DatasetResp;
     error_code = 500
 )]
 pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetResp>, ErrorResponse> {
-    match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset) => {
-            let resp = DatasetResp {
-                uuid: dataset_uuid.clone(),
-                name: dataset.name.clone(),
-                created_by: dataset.created_by.clone(),
-                created_at: dataset.created_at.clone(),
-                updated_by: dataset.updated_by.clone(),
-                updated_at: dataset.updated_at.clone(),
-            };
-        
-            return Ok(Json(resp));
-        },
+    let dataset_data = match dataset_table::get_dataset(&dataset_uuid, &context) {
+        Ok(dataset_data) => dataset_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         },
@@ -55,4 +47,24 @@ pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Resu
             return Err(ErrorResponse::NotFound(msg));
         }
     };
+
+    let file_handle = match read_data_set_file(&PathBuf::from(dataset_data.file_path)) {
+        Ok(file_handle) => file_handle,
+        Err(_) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    let resp = DatasetResp {
+        uuid: dataset_uuid.clone(),
+        name: dataset_data.name.clone(),
+        number_of_rows: file_handle.get_number_of_rows(),
+        number_of_columns: file_handle.header.columns.len() as u64,
+        created_by: dataset_data.created_by.clone(),
+        created_at: dataset_data.created_at.clone(),
+        updated_by: dataset_data.updated_by.clone(),
+        updated_at: dataset_data.updated_at.clone(),
+    };
+
+    return Ok(Json(resp));
 }

@@ -619,6 +619,7 @@ jobs:
           mkdir -p test_dir
           cp sdk_api_test.py test_dir/
           cp test_values.py test_dir/
+          cp csv_test.csv test_dir/
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
 

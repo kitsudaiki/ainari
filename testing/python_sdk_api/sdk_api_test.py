@@ -137,21 +137,29 @@ def test_dataset():
 
     result = dataset.upload_mnist_files(
         token, address, train_dataset_name, train_inputs, train_labels, False)
-    dataset_uuid = result["uuid"]
+    mnist_dataset_uuid = result["uuid"]
 
     dataset.list_datasets(token, address, False)
-    dataset.get_dataset(token, address, dataset_uuid, False)
+    mnist_dataset = dataset.get_dataset(token, address, mnist_dataset_uuid, False)
+    assert mnist_dataset["number_of_rows"] == 60000
+    assert mnist_dataset["number_of_columns"] == 2
 
-    dataset.upload_csv_files(
+    result = dataset.upload_csv_files(
         token, address, "csv_test", "./csv_test.csv", False)
+    csv_dataset_uuid = result["uuid"]
+
+    csv_dataset = dataset.get_dataset(token, address, csv_dataset_uuid, False)
+    assert csv_dataset["number_of_rows"] == 3
+    assert csv_dataset["number_of_columns"] == 3
 
     try:
         dataset.get_dataset(token, address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
     except hanami_exceptions.NotFoundException:
         pass
-    dataset.delete_dataset(token, address, dataset_uuid, False)
+    dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
+    dataset.delete_dataset(token, address, csv_dataset_uuid, False)
     try:
-        dataset.delete_dataset(token, address, dataset_uuid, False)
+        dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
     except hanami_exceptions.NotFoundException:
         pass
 

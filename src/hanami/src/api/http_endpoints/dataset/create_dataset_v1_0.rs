@@ -30,6 +30,7 @@ use crate::database::dataset_table;
 use crate::config;
 
 use hanami_dataset::converter::{load_mnist_images, load_csv_file};
+use hanami_dataset::dataset_io::read_data_set_file;
 use hanami_common::error::HanamiError;
 
 use super::dataset_structs::DatasetResp;
@@ -231,10 +232,19 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         }
     }
 
+    let file_handle = match read_data_set_file(&target_filepath) {
+        Ok(file_handle) => file_handle,
+        Err(_) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
     // create response
     let resp = DatasetResp {
         uuid: dataset_uuid.clone(),
         name: dataset.name.clone(),
+        number_of_rows: file_handle.get_number_of_rows(),
+        number_of_columns: file_handle.header.columns.len() as u64,
         created_by: dataset.created_by.clone(),
         created_at: dataset.created_at.clone(),
         updated_by: dataset.updated_by.clone(),
