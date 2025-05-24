@@ -104,3 +104,18 @@ def upload_mnist_files(token: str,
                                        path,
                                        files,
                                        verify=verify_connection)
+
+
+def upload_csv_files(token: str,
+                     address: str,
+                     name: str,
+                     input_file_path: str,
+                     verify_connection: bool = True) -> str:
+    path = f"/v1alpha/dataset/csv/{name}"
+    files = [input_file_path]
+
+    return hanami_request.upload_files(token,
+                                       address,
+                                       path,
+                                       files,
+                                       verify=verify_connection)

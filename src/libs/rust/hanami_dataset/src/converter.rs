@@ -15,11 +15,11 @@
 use std::error::Error;
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Write, Read};
 use std::collections::HashMap;
 use byteorder::{ReadBytesExt, BigEndian};
 use uuid::Uuid;
-use std::io::Write;
+use csv::ReaderBuilder;
 
 use super::dataset_io::*;
 
@@ -140,3 +140,56 @@ pub fn load_mnist_images(
     Ok(())
 }
 
+pub fn load_csv_file(
+    file_path: &PathBuf,
+    target_filepath: &PathBuf,
+    uuid: Uuid,
+    name: String,
+) -> Result<(), Box<dyn Error>> {
+    let file = File::open(file_path)?;
+    let mut rdr = ReaderBuilder::new().has_headers(true).from_reader(file);
+
+    // get number of columns from header
+    let headers = rdr.headers()?;
+    let num_columns = headers.len();
+
+    // get column-names from header
+    let mut columns: HashMap<String, Column> = HashMap::new();
+    for (i, name) in headers.iter().enumerate() {
+        let col = Column {
+            start: i as u64,
+            end: i as u64 + 1,
+        };
+        columns.insert(name.to_string(), col);
+    }
+
+    // init dataset
+    let mut dataset_handle = init_new_data_set_file(
+        &target_filepath, 
+        uuid,
+        name, 
+        "".to_string(),
+        num_columns as u64,
+        columns,
+        DataSetType::FloatType)?; // TODO: use u8-type
+
+    // read body into the dataset-file
+    for result in rdr.records() {
+        let record = result?;
+
+        let row = record.iter()
+            .map(|field| field.parse::<f32>().unwrap_or(0.0))
+            .collect::<Vec<f32>>();
+
+        let row_bytes = unsafe {
+            std::slice::from_raw_parts(
+                row.as_ptr() as *const u8,
+                row.len() * std::mem::size_of::<f32>(),
+            )
+        };
+
+        dataset_handle.target_file.write_all(&row_bytes)?;
+    }
+
+    Ok(())
+}

@@ -27,6 +27,8 @@ pub struct DatasetCreateReq {
 pub struct DatasetResp {
     pub uuid: Uuid,
     pub name: String,
+    pub number_of_rows: u64,
+    pub number_of_columns: u64,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
