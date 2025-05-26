@@ -66,10 +66,64 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         None => return Err(ErrorResponse::InternalError("".to_string()))
     };
 
+
+    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
+    let upload_dir = PathBuf::from(&upload_dir_path);
+    let target_filepath: PathBuf = upload_dir.join(&task_uuid.to_string());
+    let description = task_uuid.to_string().clone();
+    let mut columns: HashMap<String, Column> = HashMap::new();
+    let name = body.name.clone();
+
+    // add new dataset to datbase
+    let file_path_str: String = target_filepath.to_string_lossy().into();
+    match dataset_table::add_new_dataset(&task_uuid, &name, &file_path_str, &context) {
+        Ok(_) => {},
+        Err(_) => {
+            let msg = format!("Failed to add dataset with ID '{task_uuid}' to database.");
+            error!("{}", msg);
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // prepare outputs for task
+    let mut total_output_size: u64 = 0;
+    for output in &body.results {
+        let size = match cluster_handle.get_output_size(&output.hexagon) {
+            Ok(size) => size,
+            Err(msg) => {
+                return Err(ErrorResponse::NotFound(msg));
+            }
+        };
+
+        let col = Column {
+            start: total_output_size,
+            end: total_output_size + size,
+        };
+        columns.insert(output.hexagon.clone(),col);
+
+        total_output_size += size;
+    }
+
+    // create new dataset for the resulting data
+    let result_file_handle = match init_new_data_set_file(
+        &PathBuf::from(target_filepath), 
+        task_uuid,
+        name,
+        description,
+        total_output_size,
+        columns,
+        DataSetType::FloatType) 
+    {
+        Ok(file_handle) => file_handle,
+        Err(_) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
     // prepare task-info
     let mut info = RequestInfo {
         inputs: HashMap::new(),
-        results: HashMap::new(),
+        results: result_file_handle,
         number_of_cycles: 0,
         time_length: 1,
     };
@@ -105,52 +159,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
 
     info.number_of_cycles = number_of_cycles;
 
-    // prepare outputs for task
-    for output in &body.results {
-        let result_uuid = Uuid::new_v4();
-        let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
-        let upload_dir = PathBuf::from(&upload_dir_path);
-        let target_filepath: PathBuf = upload_dir.join(&result_uuid.to_string());
-        let description = "".to_string();
-        let mut columns: HashMap<String, Column> = HashMap::new();
-        let name = "poi".to_string();
-        let row_size: u64 = 0;
 
-        // add new dataset to datbase
-        let file_path_str: String = target_filepath.to_string_lossy().into();
-        match dataset_table::add_new_dataset(&result_uuid, &name, &file_path_str, &context) {
-            Ok(_) => {},
-            Err(_) => {
-                let msg = format!("Failed to add dataset with ID '{result_uuid}' to database.");
-                error!("{}", msg);
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
-        let col = Column {
-            start: 0,
-            end: 10,
-        };
-        columns.insert(output.dataset_column.clone(),col);
-
-        match init_new_data_set_file(
-            &PathBuf::from(target_filepath), 
-            result_uuid,
-            name,
-            description,
-            row_size,
-            columns,
-            DataSetType::FloatType) 
-        {
-            Ok(mut file_handle) => {
-                file_handle.selected_column = output.dataset_column.clone();
-                info.results.insert(output.hexagon.clone(), file_handle);
-            },
-            Err(_) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-    }
 
     // add new task to database
     match task_table::add_new_task(
@@ -172,7 +181,6 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: TaskType::RequestTask,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),

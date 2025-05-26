@@ -59,17 +59,24 @@ def delete_all_datasets(token: str,
         delete_dataset(token, address, entry["uuid"], verify_connection)
 
 
-def check_mnist_dataset(token: str,
-                        address: str,
-                        dataset_uuid: str,
-                        reference_dataset_uuid: str,
-                        verify_connection: bool = True) -> dict:
-    path = "/v1alpha/dataset/check"
-    values = f'uuid={dataset_uuid}&reference_uuid={reference_dataset_uuid}'
-    return hanami_request.send_get_request(token,
+def check_dataset(token: str,
+                  address: str,
+                  dataset_uuid: str,
+                  dataset_column: str,
+                  reference_uuid: str,
+                  reference_column: str,
+                  verify_connection: bool = True) -> dict:
+    path = f"/v1alpha/dataset/{dataset_uuid}/check"
+    json_body = {
+        "dataset_column": dataset_column,
+        "reference_uuid": reference_uuid,
+        "reference_column": reference_column,
+    }
+
+    return hanami_request.send_put_request(token,
                                            address,
                                            path,
-                                           values,
+                                           json_body,
                                            verify=verify_connection)
 
 

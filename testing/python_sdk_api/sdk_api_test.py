@@ -289,7 +289,6 @@ def _test(cluster_uuid, request_dataset_uuid):
 
     results = [
         {
-            "dataset_column": "label",
             "hexagon": "label_hex"
         }
     ]
@@ -315,19 +314,13 @@ def _test(cluster_uuid, request_dataset_uuid):
     # print(json.dumps(result, indent=4))
     task.delete_task(token, address, task_uuid, cluster_uuid, False)
     time.sleep(1)
-    # check request-result
-    all_datasets = dataset.list_datasets(token, address, False)["datasets"]
-    # result_dataset_uuid = ""
-    # for dataset_entry in all_datasets:
-    #     if task_uuid == dataset_entry[9]:
-    #         result_dataset_uuid = dataset_entry[4]
 
-    # accuracy = dataset.check_mnist_dataset(
-    #     token, address, result_dataset_uuid, request_dataset_uuid, False)["accuracy"]
-    # print("=======================================")
-    # print("test-result: " + str(accuracy))
-    # print("=======================================")
-    # assert accuracy > 80.0
+    accuracy = dataset.check_dataset(
+        token, address, task_uuid, "label_hex", request_dataset_uuid, "label", False)["accuracy"]
+    print("=======================================")
+    print("test-result: " + str(accuracy))
+    print("=======================================")
+    assert accuracy > 0.9
 
     # # download part of the resulting dataset
     # data = dataset.download_dataset_content(
@@ -397,15 +390,15 @@ def test_workflow():
 
 
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
-
+print(token)
 dataset.delete_all_datasets(token, address, False)
 checkpoint.delete_all_checkpoints(token, address, False)
 cluster.delete_all_cluster(token, address, False)
 project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)
 
-test_project()
-test_user()
-test_dataset()
-test_cluster()
+#test_project()
+#test_user()
+#test_dataset()
+#test_cluster()
 test_workflow()

@@ -103,7 +103,6 @@ pub struct TaskDatasetLink {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskDatasetResultLink {
-    pub dataset_column: String,
     pub hexagon: String,
 }
 

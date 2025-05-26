@@ -93,7 +93,6 @@ pub struct DataSetFileWriteHandleV1_0 {
     pub header: DataSetHeaderV1_0,
     pub target_file: BufWriter<fs::File>,
     pub payload_offset: u64,
-    pub selected_column: String,
 }
 
 #[derive(Debug)]
@@ -157,7 +156,6 @@ pub fn init_new_data_set_file(
         header: header,
         target_file: BufWriter::new(file),
         payload_offset: 0,
-        selected_column: "".to_string(),
     };
 
     // write base-header to file

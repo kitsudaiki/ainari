@@ -45,3 +45,15 @@ pub struct DatasetBasicResp {
 pub struct DatasetListResp {
     pub datasets: Vec<DatasetBasicResp>
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct DatasetCheckReq {
+    pub dataset_column: String,
+    pub reference_uuid: Uuid,
+    pub reference_column: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct DatasetCheckResp {
+    pub accuracy: f32,
+}
