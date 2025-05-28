@@ -24,7 +24,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -42,7 +42,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -76,7 +76,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -128,7 +128,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -243,7 +243,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -285,7 +285,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -327,7 +327,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -517,7 +517,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -852,7 +852,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -1230,7 +1230,7 @@ jobs:
       -
         name: insteall earthly
         run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
