@@ -22,9 +22,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -40,9 +40,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -74,9 +74,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -126,9 +126,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -241,9 +241,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -283,9 +283,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -325,9 +325,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -515,9 +515,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -849,9 +849,9 @@ jobs:
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
@@ -1226,9 +1226,9 @@ jobs:
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
       -
-        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-        with:
-          version: v0.8.0
+        name: insteall earthly
+        run: |
+          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
       -
         name: Checkout repository
         run: |
