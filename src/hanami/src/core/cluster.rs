@@ -91,35 +91,27 @@ fn get_values(
 }
 
 fn write_values(
-    hexagon_name: &String, 
     file_handle: &mut DataSetFileWriteHandleV1_0, 
     cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
 {
     // get column-description from the dataset
-    let column = &file_handle.selected_column;
-    let col_get = match file_handle.header.columns.get(column) {
-        Some(col) => col,
-        _ => {
-            let msg = format!("Column with name '{column}' not found in dataset.");
-            return Err(msg);
+    for (hexagon_name, col_get) in &file_handle.header.columns {  
+        let size_output = (col_get.end - col_get.start) as usize;
+        let mut output_read = vec![0.0f32; size_output];
+        let output_ptr: *mut f32 = output_read.as_mut_ptr();
+    
+        // get output from the c++ backend
+        cxx::let_cxx_string!(cxx_name = hexagon_name); 
+        unsafe {
+            if cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64) == false {
+                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                return Err(msg);
+            }
         }
+    
+        let output_bytes = cast_slice(&output_read);
+        let _ = file_handle.target_file.write_all(&output_bytes);
     };
-
-    let size_output = (col_get.end - col_get.start) as usize;
-    let mut output_read = vec![0.0f32; size_output];
-    let output_ptr: *mut f32 = output_read.as_mut_ptr();
-
-    // get output from the c++ backend
-    cxx::let_cxx_string!(cxx_name = hexagon_name); 
-    unsafe {
-        if cluster_link.pin_mut().getOutput(&cxx_name, output_ptr, size_output as u64) == false {
-            let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
-            return Err(msg);
-        }
-    }
-
-    let output_bytes = cast_slice(&output_read);
-    let _ = file_handle.target_file.write_all(&output_bytes);
 
     Ok(())
 }
@@ -220,13 +212,11 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handl
             link.cluster_link.pin_mut().doRequest();
 
             // get output-values form backend and write them into the dataset
-            for (hexagon_name, file_handle) in &mut task_info.results {  
-                match write_values(hexagon_name, file_handle, &mut link.cluster_link) {
-                    Ok(()) => {},
-                    Err(e) => {
-                        let _ = task_table::set_error_state(&task_uuid, &e);
-                        return;
-                    }
+            match write_values(&mut task_info.results, &mut link.cluster_link) {
+                Ok(()) => {},
+                Err(e) => {
+                    let _ = task_table::set_error_state(&task_uuid, &e);
+                    return;
                 }
             }
 
@@ -424,6 +414,19 @@ impl Cluster {
         link.cluster_link.pin_mut().doTrain();
 
         Ok(())
+    }
+
+    pub fn get_output_size(&mut self, hexagon_name: &String) -> Result<u64, String> {
+        let mut link = self.link_handle.lock().unwrap();
+
+        cxx::let_cxx_string!(cxx_name = hexagon_name); 
+        let size: u64 = link.cluster_link.pin_mut().getOutputHexagonSize(&cxx_name);
+        if size == 0xFFFFFFFFFFFFFFFF {
+            let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+            return Err(msg);
+        }
+
+        Ok(size)
     }
 }
 

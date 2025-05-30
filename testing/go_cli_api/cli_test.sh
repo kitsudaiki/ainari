@@ -123,13 +123,7 @@ done
 
 ./hanamictl dataset list --insecure
 
-# echo "debug $(./hanamictl dataset list --insecure -j)"
-# result_uuid=$(./hanamictl dataset list --insecure -j | jq -r '.body[] | select(.[8] == "cli_request_test_task") | .[4]')
-# echo "Result-Dataset-UUID: $result_uuid"
-
-# ./hanamictl dataset get --insecure $result_uuid
-
-# ./hanamictl dataset check --insecure -r $request_dataset_uuid $result_uuid
+# ./hanamictl dataset check --insecure -r $request_dataset_uuid $req_task_uuid
 
 # content=$(./hanamictl dataset content --insecure -j -c cli_test_output -o 100 -n 10 $result_uuid | jq -r 'length')
 # if [[ "$content" != 10 ]]; then
@@ -138,7 +132,7 @@ done
 
 # # clear all test-resources
 # ./hanamictl checkpoint delete --insecure $checkpoint_uuid
-# ./hanamictl cluster delete --insecure $cluster_uuid
-# ./hanamictl dataset delete --insecure $train_dataset_uuid
-# ./hanamictl dataset delete --insecure $request_dataset_uuid
-# ./hanamictl dataset delete --insecure $result_uuid
+./hanamictl cluster delete --insecure $cluster_uuid
+./hanamictl dataset delete --insecure $train_dataset_uuid
+./hanamictl dataset delete --insecure $request_dataset_uuid
+./hanamictl dataset delete --insecure $req_task_uuid

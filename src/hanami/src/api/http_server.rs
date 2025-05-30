@@ -73,17 +73,21 @@ fn v1alpha_routes() -> Scope {
         .service(
             scope("/dataset")
                 .service(
-                    resource("/{type}/{name}")
-                        .route(post().to(create_dataset_v1_0::upload_binary))
+                    resource("/{dataset_uuid}")
+                        .route(get().to(get_dataset_v1_0::get_dataset))
+                        .route(delete().to(delete_dataset_v1_0::delete_dataset))
+                )
+                .service(
+                    resource("/{dataset_uuid}/check")
+                        .route(put().to(check_dataset_v1_0::check_dataset))
                 )
                 .service(
                     resource("")
                         .route(get().to(list_dataset_v1_0::list_dataset))
                 )
                 .service(
-                    resource("/{dataset_uuid}")
-                        .route(get().to(get_dataset_v1_0::get_dataset))
-                        .route(delete().to(delete_dataset_v1_0::delete_dataset))
+                    resource("/{type}/{name}")
+                        .route(post().to(create_dataset_v1_0::upload_binary))
                 )
         )
         .service(

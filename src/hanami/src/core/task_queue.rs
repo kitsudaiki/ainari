@@ -69,7 +69,6 @@ mod tests {
 
         let task1 = Task {
             uuid: uuid1.clone(),
-            task_type: TaskType::TrainTask,
             name: "task1".to_string(),
             user_id: "user0815".to_string(),
             project_id: "project0815".to_string(),
@@ -77,7 +76,6 @@ mod tests {
         };
         let task2 = Task {
             uuid: uuid2.clone(),
-            task_type: TaskType::RequestTask,
             name: "task2".to_string(),
             user_id: "user0816".to_string(),
             project_id: "project0816".to_string(),

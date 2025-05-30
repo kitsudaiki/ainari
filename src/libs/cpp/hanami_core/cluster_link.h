@@ -44,6 +44,7 @@ class ClusterLink
     bool fillExpected(const std::string& hexagonName,
                       const float* output,
                       const uint64_t numberOfOutputs);
+    uint64_t getOutputHexagonSize(const std::string& hexagonName);
     bool getOutput(const std::string& hexagonName, float* output, const uint64_t numberOfOutputs);
     uint64_t getSize(const std::string& hexagonName);
 

@@ -148,7 +148,6 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: TaskType::TrainTask,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),

@@ -101,7 +101,6 @@ pub async fn checkpoint_restore_task(body: Json<TaskCheckpointRestoreReq>, clust
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
-        task_type: TaskType::CheckpointRestoreTask,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),

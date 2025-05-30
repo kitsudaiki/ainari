@@ -139,6 +139,24 @@ ClusterLink::fillExpected(const std::string& hexagonName,
 }
 
 /**
+ * @brief get the size of an output-hexagon
+ *
+ * @param hexagonName name of the hexagon
+ *
+ * @return number of outputs of the hexagon
+ */
+uint64_t
+ClusterLink::getOutputHexagonSize(const std::string& hexagonName)
+{
+    auto it = m_cluster->outputInterfaces.find(hexagonName);
+    if (it == m_cluster->outputInterfaces.end()) {
+        return UNINIT_STATE_64;
+    }
+
+    return it->second.outputNeurons.size();
+}
+
+/**
  * @brief get resulting values of an output-hexagon
  *
  * @param hexagonName name of the hexagon

@@ -32,7 +32,7 @@ pub struct TrainInfo {
 #[derive(Debug)]
 pub struct RequestInfo {
     pub inputs: HashMap<String, DataSetFileReadHandleV1_0>,
-    pub results: HashMap<String, DataSetFileWriteHandleV1_0>,
+    pub results: DataSetFileWriteHandleV1_0,
 
     pub number_of_cycles: u64,
     pub time_length: u64,
@@ -59,7 +59,6 @@ pub enum TaskVariant {
 #[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
-    pub task_type: TaskType,
     pub name: String,
     pub user_id: String,
     pub project_id: String,
