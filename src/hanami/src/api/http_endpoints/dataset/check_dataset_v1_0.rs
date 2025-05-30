@@ -159,7 +159,7 @@ fn get_highest_pos_in_row(file_handle: &mut DataSetFileReadHandleV1_0,
     file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
     let _ = file_handle.target_file.read_exact(byte_slice_input);
 
-    println!("{:?}", input_read);
+    // println!("{:?}", input_read);
     if let Some((index, _)) = input_read
         .iter()
         .enumerate()

@@ -14,12 +14,11 @@
 
 use log::{debug, error};
 use uuid::Uuid;
-use bytemuck::{cast_slice, cast_slice_mut};
+use bytemuck::cast_slice;
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::SeekFrom;
-use std::io::{Read, Write, Seek};
+use std::io::Write;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 
@@ -42,42 +41,25 @@ pub struct ClusterLinkHanle {
 }
 
 fn get_values(
-    buffer: &mut Vec<f32>,
     hexagon_name: &String, 
     file_handle: &mut DataSetFileReadHandleV1_0, 
     cycle_count: &u64, 
     cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
     is_expected: bool) -> Result<(), String> 
 {
-    // get column-description from the dataset
-    let column = &file_handle.selected_column;
-    let col_get = match file_handle.header.columns.get(column) {
-        Some(col) => col,
-        _ => {
-            let msg = format!("Column with name '{column}' not found in dataset.");
+    let (input_ptr, size_input) = match file_handle.get_data_from_file(cycle_count) {
+        Ok((input_ptr, size_input)) => (input_ptr, size_input),
+        Err(msg) => {
             return Err(msg);
         }
     };
-
-    // calculate position in dataset-file
-    let size_input = (col_get.end - col_get.start) as usize;
-    let mut offset_bytes = (file_handle.header.row_size) * 4 * cycle_count;
-    offset_bytes += col_get.start * 4;
-
-    if buffer.len() < size_input {
-        buffer.resize(size_input, 0f32);
-    }
-    let byte_slice_input: &mut [u8] = cast_slice_mut(buffer.as_mut_slice());
-    file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
-    let _ = file_handle.target_file.read_exact(byte_slice_input);
-    let input_ptr: *mut f32 = buffer.as_mut_ptr();
 
     // tigger action in c++ code
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     if is_expected == false {
         unsafe {
             if cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64) == false {
-                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                let msg: String = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
                 return Err(msg);
             }
         }
@@ -127,7 +109,6 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
 
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
-    let mut buffer: Vec<f32> = Vec::new();
 
     for epoch_count in 0..1 {
         for cycle_count in 0..task_info.number_of_cycles {
@@ -147,7 +128,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
 
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(&mut buffer, hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -158,7 +139,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
 
             // push output-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.outputs {  
-                match get_values(&mut buffer, hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, true) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, true) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -185,7 +166,6 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handl
     
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
-    let mut buffer: Vec<f32> = Vec::new();
 
     for epoch_count in 0..1 {
         for cycle_count in 0..task_info.number_of_cycles {
@@ -205,7 +185,7 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handl
 
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(&mut buffer, hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
+                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);

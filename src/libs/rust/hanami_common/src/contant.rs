@@ -1,1 +1,0 @@
-pub const UNINIT_POINT_32: u32 = 0x0FFFFFFF;
