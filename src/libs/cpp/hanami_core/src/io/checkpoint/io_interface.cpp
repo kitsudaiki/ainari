@@ -336,7 +336,7 @@ IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& e
             return INVALID_INPUT;
         }
         outputEntry.type = hexagon.outputInterface->type;
-        outputEntry.numberOfOutputs = hexagon.outputInterface->ioBuffer.size();
+        outputEntry.numberOfOutputs = hexagon.outputInterface->size;
         outputEntry.targetHexagonId = hexagon.header.hexagonId;
         outputEntry.numberOfWeightBlocks = hexagon.outputInterface->weightBlocks.size();
         if (addObjectToLocalBuffer(&outputEntry, error) == false) {
@@ -476,7 +476,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
         inputIf.targetHexagonId = hexagon.header.hexagonId;
 
         inputIf.inputAxons.resize(inputEntry.numberOfInputs);
-        inputIf.ioBuffer.resize(inputEntry.numberOfInputs);
+        inputIf.size = inputEntry.numberOfInputs;
         for (AxonBlock& inputAxon : inputIf.inputAxons) {
             ret = getObjectFromLocalBuffer(positionPtr, &inputAxon, error);
             if (ret != OK) {
