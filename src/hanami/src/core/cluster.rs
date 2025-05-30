@@ -14,12 +14,11 @@
 
 use log::{debug, error};
 use uuid::Uuid;
-use bytemuck::{cast_slice, cast_slice_mut};
+use bytemuck::cast_slice;
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::SeekFrom;
-use std::io::{Read, Write, Seek};
+use std::io::Write;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 
@@ -48,33 +47,19 @@ fn get_values(
     cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
     is_expected: bool) -> Result<(), String> 
 {
-    // get column-description from the dataset
-    let column = &file_handle.selected_column;
-    let col_get = match file_handle.header.columns.get(column) {
-        Some(col) => col,
-        _ => {
-            let msg = format!("Column with name '{column}' not found in dataset.");
+    let (input_ptr, size_input) = match file_handle.get_data_from_file(cycle_count) {
+        Ok((input_ptr, size_input)) => (input_ptr, size_input),
+        Err(msg) => {
             return Err(msg);
         }
     };
-
-    // calculate position in dataset-file
-    let size_input = (col_get.end - col_get.start) as usize;
-    let mut offset_bytes = (file_handle.header.row_size) * 4 * cycle_count;
-    offset_bytes += col_get.start * 4;
-
-    let mut input_read = vec![0.0f32; size_input];
-    let byte_slice_input: &mut [u8] = cast_slice_mut(input_read.as_mut_slice());
-    file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
-    let _ = file_handle.target_file.read_exact(byte_slice_input);
-    let input_ptr: *mut f32 = input_read.as_mut_ptr();
 
     // tigger action in c++ code
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
     if is_expected == false {
         unsafe {
             if cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64) == false {
-                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                let msg: String = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
                 return Err(msg);
             }
         }

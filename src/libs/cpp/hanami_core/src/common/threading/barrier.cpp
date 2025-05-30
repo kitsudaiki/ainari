@@ -50,6 +50,7 @@ Barrier::triggerBarrier()
     if (m_counter == 0) {
         m_counter = m_numberOfThreads;
         m_spin_lock.clear(std::memory_order_release);
+        // TODO: check if this sleep is really necessary to avoid race-conditions
         usleep(1);
         m_cond.notify_all();
     }

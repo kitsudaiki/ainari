@@ -20,11 +20,13 @@ use std::io::{Read, Seek, BufWriter, BufReader};
 use std::path::PathBuf;
 use std::collections::HashMap;
 use uuid::Uuid;
-
+use bytemuck::cast_slice_mut;
+use std::io::SeekFrom;
 use serde::{Serialize, Deserialize};
 use bincode::{config, Decode, Encode};
 
 use hanami_common::error::HanamiError;
+use hanami_common::constant::*;
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -101,6 +103,9 @@ pub struct DataSetFileReadHandleV1_0 {
     pub target_file: BufReader<fs::File>,
     pub payload_offset: u64,
     pub selected_column: String,
+    read_buffer: Vec<f32>,
+    buffer_start_row: u64,
+    buffer_end_row: u64,
 }
 
 impl DataSetFileReadHandleV1_0 {
@@ -115,6 +120,51 @@ impl DataSetFileReadHandleV1_0 {
                 0
             }
         }
+    }
+
+    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(*mut f32, u64), String>{
+        let column = &self.selected_column;
+        let col_get = match self.header.columns.get(column) {
+            Some(col) => col,
+            _ => {
+                let msg = format!("Column with name '{column}' not found in dataset.");
+                return Err(msg);
+            }
+        };
+
+        // cget pointer to the requested position in the buffer
+        let row_col_size = col_get.end - col_get.start;               
+        let buffer_offset = ((row - self.buffer_start_row) * self.header.row_size) + col_get.start;
+        let input_ptr: *mut f32 = unsafe { self.read_buffer.as_mut_ptr().add(buffer_offset as usize) };
+
+        Ok((input_ptr, row_col_size))
+    }
+
+    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(*mut f32, u64), String>
+    {
+        if row >= &self.buffer_start_row && row < &self.buffer_end_row {
+            return self.get_data_from_buffer(row);
+        }
+
+        // calculate new buffer-dimensions
+        let max_rows = self.get_number_of_rows();
+        if row >= &max_rows {
+            let msg = format!("Row-number {row} is too big for the dataset.");
+            return Err(msg);
+        }
+        self.buffer_start_row = row - (row % ROWS_IN_READ_BUFFER);
+        self.buffer_end_row = self.buffer_start_row + ROWS_IN_READ_BUFFER;
+        if self.buffer_end_row > max_rows {
+            self.buffer_end_row = max_rows;
+        }
+
+        // read selected block from file into the read-buffer
+        let offset_bytes = (self.header.row_size) * self.buffer_start_row * 4;
+        let byte_slice_input: &mut [u8] = cast_slice_mut(self.read_buffer.as_mut_slice());
+        self.target_file.seek(SeekFrom::Start(self.payload_offset + offset_bytes)).unwrap();
+        let _ = self.target_file.read_exact(byte_slice_input);
+
+        return self.get_data_from_buffer(row);
     }
 }
 
@@ -198,6 +248,9 @@ pub fn read_data_set_file(
         target_file: BufReader::with_capacity(4096, file),
         payload_offset: 0,
         selected_column: "".to_string(),
+        read_buffer: Vec::new(),
+        buffer_start_row: 0,
+        buffer_end_row: 0,
     };
 
     // read base-header-length
@@ -221,6 +274,9 @@ pub fn read_data_set_file(
     let _ = result.target_file.read_exact(&mut header_buf)?;
     let (header, _): (DataSetHeaderV1_0, usize) = bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
     result.header = header;
+
+    // TODO: make buffer-size configurable
+    result.read_buffer.resize(ROWS_IN_READ_BUFFER as usize * result.header.row_size as usize, 0f32);
 
     // get current byte-position within the file after reading the header
     result.payload_offset = result.target_file.stream_position()?;

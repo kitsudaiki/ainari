@@ -276,15 +276,15 @@ struct OutputInterface {
     std::vector<OutputNeuron> outputNeurons;
     std::vector<OutputWeightBlock> weightBlocks;
     std::vector<AxonBlock> targetAxonBlocks;
-    std::vector<float> ioBuffer;
+    uint64_t size = 0;
     OutputType type = PLAIN_OUTPUT;
 
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
         assert(timeLength >= 1);
         expectedSize += (timeLength - 1);
-        if (ioBuffer.size() != expectedSize) {
-            ioBuffer.resize(expectedSize);
+        if (size != expectedSize) {
+            size = expectedSize;
 
             if (type == FLOAT_OUTPUT) {
                 expectedSize *= 32;
@@ -303,13 +303,13 @@ struct InputInterface {
     std::string name = "";
     uint32_t targetHexagonId = UNINIT_STATE_32;
     std::vector<AxonBlock> inputAxons;
-    std::vector<float> ioBuffer;
+    uint64_t size = 0;
 
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
         assert(timeLength >= 1);
-        if (ioBuffer.size() != expectedSize) {
-            ioBuffer.resize(expectedSize);
+        if (size != expectedSize) {
+            size = expectedSize;
             expectedSize += (timeLength - 1);  // respect time-length of the input
             expectedSize *= 2;  // double length to also hold a negative value for the inputs
             expectedSize /= NEURONS_PER_BLOCK;  // convert entries to blocks

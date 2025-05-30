@@ -12,8 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod constant;
-pub mod enums;
-pub mod error;
-pub mod functions;
-pub mod objects;
+pub const UNINIT_POINT_32: u32 = 0x0FFFFFFF;
+pub const ROWS_IN_READ_BUFFER: u64 = 1000;

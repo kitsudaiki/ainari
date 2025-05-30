@@ -43,7 +43,10 @@ ClusterIOConvert_Test::convertPlain_test()
     testInterface.type = PLAIN_OUTPUT;
     testInterface.initBuffer(4, 1);
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
+    std::vector<float> buffer;
+    buffer.resize(4);
+
+    TEST_EQUAL(testInterface.size, 4);
     TEST_EQUAL(testInterface.outputNeurons.size(), 4);
 
     testInterface.outputNeurons[0].outputVal = 42.0f;
@@ -51,19 +54,17 @@ ClusterIOConvert_Test::convertPlain_test()
     testInterface.outputNeurons[2].outputVal = 44.0f;
     testInterface.outputNeurons[3].outputVal = 45.0f;
 
-    convertOutputToBuffer(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertOutputToBuffer(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
-    TEST_EQUAL(testInterface.ioBuffer[0], 42.0f);
-    TEST_EQUAL(testInterface.ioBuffer[1], 43.0f);
-    TEST_EQUAL(testInterface.ioBuffer[2], 44.0f);
-    TEST_EQUAL(testInterface.ioBuffer[3], 45.0f);
+    TEST_EQUAL(buffer.size(), 4);
+    TEST_EQUAL(buffer[0], 42.0f);
+    TEST_EQUAL(buffer[1], 43.0f);
+    TEST_EQUAL(buffer[2], 44.0f);
+    TEST_EQUAL(buffer[3], 45.0f);
 
-    convertBufferToExpected(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertBufferToExpected(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
+    TEST_EQUAL(buffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons[0].exprectedVal, 42.0f);
     TEST_EQUAL(testInterface.outputNeurons[1].exprectedVal, 43.0f);
     TEST_EQUAL(testInterface.outputNeurons[2].exprectedVal, 44.0f);
@@ -80,7 +81,10 @@ ClusterIOConvert_Test::convertBool_test()
     testInterface.type = BOOL_OUTPUT;
     testInterface.initBuffer(4, 1);
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
+    std::vector<float> buffer;
+    buffer.resize(4);
+
+    TEST_EQUAL(buffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons.size(), 4);
 
     testInterface.outputNeurons[0].outputVal = 0.1f;
@@ -88,24 +92,22 @@ ClusterIOConvert_Test::convertBool_test()
     testInterface.outputNeurons[2].outputVal = 0.3f;
     testInterface.outputNeurons[3].outputVal = 0.8f;
 
-    convertOutputToBuffer(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertOutputToBuffer(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
-    TEST_EQUAL(testInterface.ioBuffer[0], 0.0f);
-    TEST_EQUAL(testInterface.ioBuffer[1], 1.0f);
-    TEST_EQUAL(testInterface.ioBuffer[2], 0.0f);
-    TEST_EQUAL(testInterface.ioBuffer[3], 1.0f);
+    TEST_EQUAL(buffer.size(), 4);
+    TEST_EQUAL(buffer[0], 0.0f);
+    TEST_EQUAL(buffer[1], 1.0f);
+    TEST_EQUAL(buffer[2], 0.0f);
+    TEST_EQUAL(buffer[3], 1.0f);
 
-    testInterface.ioBuffer[0] = 0.1f;
-    testInterface.ioBuffer[1] = 0.6f;
-    testInterface.ioBuffer[2] = 0.3f;
-    testInterface.ioBuffer[3] = 0.8f;
+    buffer[0] = 0.1f;
+    buffer[1] = 0.6f;
+    buffer[2] = 0.3f;
+    buffer[3] = 0.8f;
 
-    convertBufferToExpected(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertBufferToExpected(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 4);
+    TEST_EQUAL(buffer.size(), 4);
     TEST_EQUAL(testInterface.outputNeurons[0].exprectedVal, 0.0f);
     TEST_EQUAL(testInterface.outputNeurons[1].exprectedVal, 1.0f);
     TEST_EQUAL(testInterface.outputNeurons[2].exprectedVal, 0.0f);
@@ -122,7 +124,10 @@ ClusterIOConvert_Test::convertFloat_test()
     testInterface.type = FLOAT_OUTPUT;
     testInterface.initBuffer(2, 1);
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
+    std::vector<float> buffer;
+    buffer.resize(2);
+
+    TEST_EQUAL(buffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons.size(), 64);
 
     testInterface.outputNeurons[15].outputVal = 0.6f;
@@ -130,15 +135,13 @@ ClusterIOConvert_Test::convertFloat_test()
     testInterface.outputNeurons[42].outputVal = 0.3f;
     testInterface.outputNeurons[43].outputVal = 0.8f;
 
-    convertOutputToBuffer(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertOutputToBuffer(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
+    TEST_EQUAL(buffer.size(), 2);
 
-    convertBufferToExpected(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertBufferToExpected(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
+    TEST_EQUAL(buffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons[15].exprectedVal, 1.0f);
     TEST_EQUAL(testInterface.outputNeurons[16].exprectedVal, 0.0f);
     TEST_EQUAL(testInterface.outputNeurons[42].exprectedVal, 0.0f);
@@ -155,7 +158,10 @@ ClusterIOConvert_Test::convertInt_test()
     testInterface.type = INT_OUTPUT;
     testInterface.initBuffer(2, 1);
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
+    std::vector<float> buffer;
+    buffer.resize(2);
+
+    TEST_EQUAL(buffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons.size(), 128);
 
     testInterface.outputNeurons[62].outputVal = 0.6f;
@@ -163,17 +169,15 @@ ClusterIOConvert_Test::convertInt_test()
     testInterface.outputNeurons[126].outputVal = 0.3f;
     testInterface.outputNeurons[127].outputVal = 0.8f;
 
-    convertOutputToBuffer(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertOutputToBuffer(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
-    TEST_EQUAL(testInterface.ioBuffer[0], 2.0f);
-    TEST_EQUAL(testInterface.ioBuffer[1], 1.0f);
+    TEST_EQUAL(buffer.size(), 2);
+    TEST_EQUAL(buffer[0], 2.0f);
+    TEST_EQUAL(buffer[1], 1.0f);
 
-    convertBufferToExpected(
-        &testInterface, &testInterface.ioBuffer[0], testInterface.ioBuffer.size());
+    convertBufferToExpected(&testInterface, &buffer[0], buffer.size());
 
-    TEST_EQUAL(testInterface.ioBuffer.size(), 2);
+    TEST_EQUAL(buffer.size(), 2);
     TEST_EQUAL(testInterface.outputNeurons[62].exprectedVal, 1.0f);
     TEST_EQUAL(testInterface.outputNeurons[63].exprectedVal, 0.0f);
     TEST_EQUAL(testInterface.outputNeurons[126].exprectedVal, 0.0f);
