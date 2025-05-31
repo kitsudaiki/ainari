@@ -35,7 +35,7 @@ type TaskResult struct {
 	DatasetColumnName  string `json:"dataset_column"`
 }
 
-func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs []TaskInput, timeLenght int, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int, skipTlsVerification bool) (map[string]interface{}, error) {
     var inputArray []interface{}
     for _, input := range inputs {
         inputArray = append(inputArray, input)
@@ -48,10 +48,11 @@ func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs [
 
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/train", clusterUuid)
 	jsonBody := map[string]interface{}{
-		"name":         name,
-		"inputs":       inputArray,
-		"outputs":      outputArray,
-		"time_length":  timeLenght,
+		"name":             name,
+		"number_of_epochs": number_of_epochs,
+		"inputs":           inputArray,
+		"outputs":          outputArray,
+		"time_length":      timeLenght,
 	}
 	return SendPost(address, token, path, jsonBody, skipTlsVerification)
 }

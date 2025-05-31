@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::api::http_endpoints::cluster::task::task_structs::TaskType;
 
 #[derive(Debug)]
 pub struct TrainInfo {
@@ -26,6 +26,7 @@ pub struct TrainInfo {
     pub outputs: HashMap<String, DataSetFileReadHandleV1_0>,
 
     pub number_of_cycles: u64,
+    pub number_of_epochs: u64,
     pub time_length: u64,
 }
 

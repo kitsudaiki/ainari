@@ -167,7 +167,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         &cluster_uuid,
         &body.name, 
         &task_type,
-        &1, // TODO: corrent number of epochs
+        &1,
         &number_of_cycles,
         &context) 
     {

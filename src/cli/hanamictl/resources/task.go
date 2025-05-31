@@ -32,11 +32,12 @@ import (
 )
 
 var (
-	clusterUuid string
+	clusterUuid    string
 	checkpointUuid string
-	inputData   []string
-	outputData  []string
-	timeLength  int
+	inputData      []string
+	outputData     []string
+	timeLength     int
+	numberOfEpochs int
 )
 
 func convertTaskIO(input []string) ([]hanami_sdk.TaskInput, error) {
@@ -106,7 +107,7 @@ func convertTaskResult(input []string) ([]hanami_sdk.TaskResult, error) {
 
 
 var createTrainTaskCmd = &cobra.Command{
-	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -c CLUSTER_UUID TASK_NAME",
+	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS -c CLUSTER_UUID TASK_NAME",
 	Short: "Create a new train task.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -123,7 +124,7 @@ var createTrainTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := hanami_sdk.CreateTrainTask(address, token, taskName, clusterUuid, taskInput, taskOutput, timeLength, hanamictl_common.DisableTlsVerification)
+		content, err := hanami_sdk.CreateTrainTask(address, token, taskName, clusterUuid, taskInput, taskOutput, numberOfEpochs, timeLength, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintSingle(content)
 		} else {
@@ -286,6 +287,7 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createTrainTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "Cluster input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "Cluster outputs, which are paris of '-o <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createTrainTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
+	createTrainTaskCmd.Flags().IntVarP(&numberOfEpochs, "epochs", "e", 1, "Number of epochs for the training")
 	createTrainTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
 	createTrainTaskCmd.MarkFlagRequired("cluster")
 	createTrainTaskCmd.MarkFlagRequired("input")

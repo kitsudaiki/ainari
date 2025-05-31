@@ -19,6 +19,7 @@ Translate big parts of the program from C++ into Rust:
 - upload files of datasets via API-endpoint instead of websocket
 - removed direct- and task-mode separation, because it is not necessary anymore the with the new architecture
 - removed websocket-connections in general
+- Allow the definition of multiple epochs in one single train-task
 
 #### Template-Breaking
 
