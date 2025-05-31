@@ -82,11 +82,18 @@ request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 
 
-def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█'):
-    percent = ("{0:.1f}").format(100 * (iteration / float(total)))
-    filled_length = int(length * iteration // total)
-    bar = fill * filled_length + '-' * (length - filled_length)
-    sys.stdout.write('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix))
+def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suffix_epoch='', prefix_cycle='', suffix_cycle='', length=50, fill='█'):
+    percent1 = "{0:.1f}".format(100 * (epoch / float(total_epochs)))
+    filled_length1 = int(length * epoch // total_epochs)
+    bar1 = fill * filled_length1 + '-' * (length - filled_length1)
+
+    percent2 = "{0:.1f}".format(100 * (cycle / float(total_cycles)))
+    filled_length2 = int(length * cycle // total_cycles)
+    bar2 = fill * filled_length2 + '-' * (length - filled_length2)
+
+    sys.stdout.write('\033[F')  # move cursor up one line
+    sys.stdout.write('\r%s |%s| %s%% %s\n' % (prefix_epoch, bar1, percent1, suffix_epoch))
+    sys.stdout.write('\r%s |%s| %s%% %s' % (prefix_cycle, bar2, percent2, suffix_cycle))
     sys.stdout.flush()
 
 
@@ -252,29 +259,32 @@ def _train(cluster_uuid, train_dataset_uuid):
         }
     ]
 
-    for i in range(0, 1):
-        task_uuid = task.create_train_task(
-            token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, False)["uuid"]
+    task_uuid = task.create_train_task(
+        token, address, generic_task_name, cluster_uuid, inputs, outputs, 3, 1, False)["uuid"]
 
-        finished = False
-        while not finished:
-            time.sleep(1)
-            result = task.get_task(token, address, task_uuid, cluster_uuid, False)
-            # print(json.dumps(result, indent=4))
-
-            finished = result["state"] == "Finished" or result["state"] == "Error"
-            progress_bar(result["current_cycle"],
-                         result["total_number_of_cycles"],
-                         prefix='Progress:',
-                         suffix='Complete',
-                         length=50)
-
+    finished = False
+    while not finished:
+        time.sleep(1)
         result = task.get_task(token, address, task_uuid, cluster_uuid, False)
         # print(json.dumps(result, indent=4))
 
-        print("\n")
-        result = cluster.get_cluster(token, address, cluster_uuid, False)
-        task.delete_task(token, address, task_uuid, cluster_uuid, False)
+        finished = result["state"] == "Finished" or result["state"] == "Error"
+        progress_bar(result["current_epoch"],
+                     result["total_number_of_epochs"],
+                     result["current_cycle"],
+                     result["total_number_of_cycles"],
+                     prefix_epoch='Epoch:',
+                     suffix_epoch='Complete',
+                     prefix_cycle='Cycle:',
+                     suffix_cycle='Complete',
+                     length=50)
+
+    result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+    # print(json.dumps(result, indent=4))
+
+    print("\n")
+    result = cluster.get_cluster(token, address, cluster_uuid, False)
+    task.delete_task(token, address, task_uuid, cluster_uuid, False)
 
 
 def _test(cluster_uuid, request_dataset_uuid):
@@ -303,10 +313,14 @@ def _test(cluster_uuid, request_dataset_uuid):
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
-        progress_bar(result["current_cycle"],
+        progress_bar(result["current_epoch"],
+                     result["total_number_of_epochs"],
+                     result["current_cycle"],
                      result["total_number_of_cycles"],
-                     prefix='Progress:',
-                     suffix='Complete',
+                     prefix_epoch='Epoch:',
+                     suffix_epoch='Complete',
+                     prefix_cycle='Cycle:',
+                     suffix_cycle='Complete',
                      length=50)
 
     print("\n")

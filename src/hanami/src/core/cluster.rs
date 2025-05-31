@@ -110,7 +110,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
 
-    for epoch_count in 0..1 {
+    for epoch_count in 0..task_info.number_of_epochs {
         for cycle_count in 0..task_info.number_of_cycles {
             // update current state in database at least after 1 second
             let now = Instant::now();
@@ -155,7 +155,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
     }
 
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(task_uuid, &(1 as i64), &(task_info.number_of_cycles as i64));
+    let _ = task_table::update_task_progress(task_uuid, &(task_info.number_of_epochs as i64), &(task_info.number_of_cycles as i64));
 }
 
 fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {

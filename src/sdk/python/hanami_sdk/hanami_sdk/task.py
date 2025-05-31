@@ -23,11 +23,13 @@ def create_train_task(token: str,
                       cluster_uuid: str,
                       inputs: list,
                       outputs: list,
+                      number_of_epochs: int = 1,
                       timeLength: int = 1,
                       verify_connection: bool = True) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/train"
     json_body = {
         "name": name,
+        "number_of_epochs": number_of_epochs,
         "inputs": inputs,
         "outputs": outputs,
         # "time_length": timeLength
