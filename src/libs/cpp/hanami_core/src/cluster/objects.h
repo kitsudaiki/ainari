@@ -279,10 +279,8 @@ struct OutputInterface {
     uint64_t size = 0;
     OutputType type = PLAIN_OUTPUT;
 
-    void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
+    void initBuffer(uint64_t expectedSize)
     {
-        assert(timeLength >= 1);
-        expectedSize += (timeLength - 1);
         if (size != expectedSize) {
             size = expectedSize;
 
@@ -308,15 +306,15 @@ struct InputInterface {
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
         assert(timeLength >= 1);
+        expectedSize += (timeLength - 1);  // respect time-length of the input
         if (size != expectedSize) {
             size = expectedSize;
-            expectedSize += (timeLength - 1);  // respect time-length of the input
             expectedSize *= 2;  // double length to also hold a negative value for the inputs
             expectedSize /= NEURONS_PER_BLOCK;  // convert entries to blocks
             expectedSize++;  // becaus of the line above to fix rounding-error add a new block
 
             if (inputAxons.size() < expectedSize) {
-                const uint64_t oldSize = 0;
+                const uint64_t oldSize = inputAxons.size();
                 inputAxons.resize(expectedSize);
                 for (uint64_t i = oldSize; i < inputAxons.size(); i++) {
                     inputAxons[i] = AxonBlock();

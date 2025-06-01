@@ -31,8 +31,6 @@
 
 #include <cmath>
 
-#include "hanami_root.h"
-
 /**
  * @brief backpropagate all neurons, which are not connected to
  *        an output-interface

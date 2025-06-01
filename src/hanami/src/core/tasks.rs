@@ -18,8 +18,6 @@ use uuid::Uuid;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
-use crate::api::http_endpoints::cluster::task::task_structs::TaskType;
-
 #[derive(Debug)]
 pub struct TrainInfo {
     pub inputs: HashMap<String, DataSetFileReadHandleV1_0>,

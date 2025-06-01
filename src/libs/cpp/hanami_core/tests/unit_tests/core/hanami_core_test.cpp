@@ -65,8 +65,8 @@ Hanami_Core_Test::core_test()
 
     // set input
     float inputData[8] = {10.0, 0.0, 10.0, 0.0, 10.0, 0.0, 10.0, 0.0};
-    TEST_EQUAL(link->fillInput("fail", inputData, 8), false);
-    TEST_EQUAL(link->fillInput("input", inputData, 8), true);
+    TEST_EQUAL(link->fillInput("fail", inputData, 8, 0, 1), false);
+    TEST_EQUAL(link->fillInput("input", inputData, 8, 0, 1), true);
 
     // set expected-values on the outputs
     float expectedData[4] = {0.0, 1.0, 0.0, 1.0};

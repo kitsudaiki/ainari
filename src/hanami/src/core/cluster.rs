@@ -40,14 +40,46 @@ pub struct ClusterLinkHanle {
     pub cluster_link: UniquePtr<ffi::ClusterLink>, 
 }
 
-fn get_values(
+fn get_input_from_dataset(
     hexagon_name: &String, 
     file_handle: &mut DataSetFileReadHandleV1_0, 
-    cycle_count: &u64, 
-    cluster_link: &mut UniquePtr<ffi::ClusterLink>, 
-    is_expected: bool) -> Result<(), String> 
+    cycle_count: u64, 
+    time_length: u64, 
+    cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
 {
-    let (input_ptr, size_input) = match file_handle.get_data_from_file(cycle_count) {
+    let mut pos_counter: u64 = 0;
+
+    for time_point in 0..time_length {
+        let (input_ptr, size_input) = match file_handle.get_data_from_file(&(cycle_count + time_point)) {
+            Ok((input_ptr, size_input)) => (input_ptr, size_input),
+            Err(msg) => {
+                return Err(msg);
+            }
+        };
+
+        // tigger action in c++ code
+        cxx::let_cxx_string!(cxx_name = hexagon_name); 
+        unsafe {
+            if cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64, pos_counter, time_length) == false {
+                let msg: String = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+                return Err(msg);
+            }
+        }
+
+        pos_counter += size_input as u64 * 2;
+    }
+
+    Ok(())
+} 
+
+fn get_expected_from_dataset(
+    hexagon_name: &String, 
+    file_handle: &mut DataSetFileReadHandleV1_0, 
+    cycle_count: u64, 
+    time_length: u64, 
+    cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
+{
+    let (input_ptr, size_input) = match file_handle.get_data_from_file(&(cycle_count + time_length - 1)) {
         Ok((input_ptr, size_input)) => (input_ptr, size_input),
         Err(msg) => {
             return Err(msg);
@@ -56,26 +88,17 @@ fn get_values(
 
     // tigger action in c++ code
     cxx::let_cxx_string!(cxx_name = hexagon_name); 
-    if is_expected == false {
-        unsafe {
-            if cluster_link.pin_mut().fillInput(&cxx_name, input_ptr, size_input as u64) == false {
-                let msg: String = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
-                return Err(msg);
-            }
-        }
-    } else {
-        unsafe {
-            if cluster_link.pin_mut().fillExpected(&cxx_name, input_ptr, size_input as u64) == false {
-                let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
-                return Err(msg);
-            }
+    unsafe {
+        if cluster_link.pin_mut().fillExpected(&cxx_name, input_ptr, size_input as u64) == false {
+            let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
+            return Err(msg);
         }
     }
 
     Ok(())
-}
+} 
 
-fn write_values(
+fn write_output_into_dataset(
     file_handle: &mut DataSetFileWriteHandleV1_0, 
     cluster_link: &mut UniquePtr<ffi::ClusterLink>) -> Result<(), String> 
 {
@@ -128,7 +151,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
 
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
+                match get_input_from_dataset(hexagon_name, file_handle, cycle_count, task_info.time_length, &mut link.cluster_link) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -139,7 +162,7 @@ fn handle_train_task(task_uuid: &Uuid, task_info: &mut TrainInfo, link_handle: &
 
             // push output-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.outputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, true) {
+                match get_expected_from_dataset(hexagon_name, file_handle, cycle_count, task_info.time_length, &mut link.cluster_link) {
                     Ok(()) => {},
                     Err(e) => {
                         let _ = task_table::set_error_state(&task_uuid, &e);
@@ -167,46 +190,44 @@ fn handle_request_task(task_uuid: &Uuid, task_info: &mut RequestInfo, link_handl
     let mut prev_timestamp = Instant::now();
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
 
-    for epoch_count in 0..1 {
-        for cycle_count in 0..task_info.number_of_cycles {
-            // update current state in database at least after 1 second
-            let now = Instant::now();
-            if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
-                prev_timestamp = now;
-                let _ = task_table::update_task_progress(task_uuid, &(epoch_count as i64), &(cycle_count as i64));
+    for cycle_count in 0..task_info.number_of_cycles {
+        // update current state in database at least after 1 second
+        let now = Instant::now();
+        if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
+            prev_timestamp = now;
+            let _ = task_table::update_task_progress(task_uuid, &0 , &(cycle_count as i64));
 
-                // check if task was aborted
-                if task_table::is_aborted(&task_uuid) {
-                    return;
-                }
+            // check if task was aborted
+            if task_table::is_aborted(&task_uuid) {
+                return;
             }
+        }
 
-            let mut link = link_handle.lock().unwrap();
+        let mut link = link_handle.lock().unwrap();
 
-            // push input-values form dataset into the backend
-            for (hexagon_name, file_handle) in &mut task_info.inputs {  
-                match get_values(hexagon_name, file_handle, &cycle_count, &mut link.cluster_link, false) {
-                    Ok(()) => {},
-                    Err(e) => {
-                        let _ = task_table::set_error_state(&task_uuid, &e);
-                        return;
-                    }
-                }
-            }
-
-            link.cluster_link.pin_mut().doRequest();
-
-            // get output-values form backend and write them into the dataset
-            match write_values(&mut task_info.results, &mut link.cluster_link) {
+        // push input-values form dataset into the backend
+        for (hexagon_name, file_handle) in &mut task_info.inputs {  
+            match get_input_from_dataset(hexagon_name, file_handle, cycle_count, task_info.time_length, &mut link.cluster_link) {
                 Ok(()) => {},
                 Err(e) => {
                     let _ = task_table::set_error_state(&task_uuid, &e);
                     return;
                 }
             }
-
-            drop(link);
         }
+
+        link.cluster_link.pin_mut().doRequest();
+
+        // get output-values form backend and write them into the dataset
+        match write_output_into_dataset(&mut task_info.results, &mut link.cluster_link) {
+            Ok(()) => {},
+            Err(e) => {
+                let _ = task_table::set_error_state(&task_uuid, &e);
+                return;
+            }
+        }
+
+        drop(link);
     }
 
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
@@ -295,14 +316,10 @@ impl Cluster {
         let handle = thread::spawn(move || {
             debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
-                // println!("Looping forever");
-
                 // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
                 let mut queue_handle = queue_clone.lock().unwrap();
                 if let Some(task) = queue_handle.get() {
                     drop(queue_handle);
-                    //println!("Popped from front: {:?}", task);
-
                     handle_task(task, &link_handle_clone);
                 } else {
                     drop(queue_handle);
@@ -339,9 +356,10 @@ impl Cluster {
         // push input-values form dataset into the backend
         for (hexagon_name, data) in inputs {  
             let data_ptr = data.as_ptr();
+
             cxx::let_cxx_string!(cxx_name = hexagon_name); 
             unsafe {
-                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64, 0, 1) == false {
                     let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
                     return Err(msg);
                 }
@@ -377,7 +395,7 @@ impl Cluster {
             let data_ptr = data.as_ptr();
             cxx::let_cxx_string!(cxx_name = hexagon_name); 
             unsafe {
-                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64) == false {
+                if link.cluster_link.pin_mut().fillInput(&cxx_name, data_ptr, data.len() as u64, 0, 1) == false {
                     let msg = format!("Hexagon with name '{hexagon_name}' not found in cluster.");
                     return Err(msg);
                 }

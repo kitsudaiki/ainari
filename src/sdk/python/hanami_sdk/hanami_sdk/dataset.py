@@ -80,23 +80,6 @@ def check_dataset(token: str,
                                            verify=verify_connection)
 
 
-def download_dataset_content(token: str,
-                             address: str,
-                             dataset_uuid: str,
-                             column_name: str,
-                             number_of_rows: int,
-                             row_offset: int = 0,
-                             verify_connection: bool = True) -> dict:
-    path = "/v1alpha/dataset/content"
-    values = f'uuid={dataset_uuid}&column_name={column_name}&row_offset={row_offset}' \
-        f'&number_of_rows={number_of_rows}'
-    return hanami_request.send_get_request(token,
-                                           address,
-                                           path,
-                                           values,
-                                           verify=verify_connection)
-
-
 def upload_mnist_files(token: str,
                        address: str,
                        name: str,

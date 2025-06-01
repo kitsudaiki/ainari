@@ -41,7 +41,7 @@ ClusterIOConvert_Test::convertPlain_test()
 {
     OutputInterface testInterface;
     testInterface.type = PLAIN_OUTPUT;
-    testInterface.initBuffer(4, 1);
+    testInterface.initBuffer(4);
 
     std::vector<float> buffer;
     buffer.resize(4);
@@ -79,7 +79,7 @@ ClusterIOConvert_Test::convertBool_test()
 {
     OutputInterface testInterface;
     testInterface.type = BOOL_OUTPUT;
-    testInterface.initBuffer(4, 1);
+    testInterface.initBuffer(4);
 
     std::vector<float> buffer;
     buffer.resize(4);
@@ -122,7 +122,7 @@ ClusterIOConvert_Test::convertFloat_test()
 {
     OutputInterface testInterface;
     testInterface.type = FLOAT_OUTPUT;
-    testInterface.initBuffer(2, 1);
+    testInterface.initBuffer(2);
 
     std::vector<float> buffer;
     buffer.resize(2);
@@ -156,7 +156,7 @@ ClusterIOConvert_Test::convertInt_test()
 {
     OutputInterface testInterface;
     testInterface.type = INT_OUTPUT;
-    testInterface.initBuffer(2, 1);
+    testInterface.initBuffer(2);
 
     std::vector<float> buffer;
     buffer.resize(2);

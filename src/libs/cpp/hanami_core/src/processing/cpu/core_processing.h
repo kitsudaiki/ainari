@@ -31,8 +31,6 @@
 
 #include <cmath>
 
-#include "hanami_root.h"
-
 /**
  * @brief process a single synapse-section
  *
