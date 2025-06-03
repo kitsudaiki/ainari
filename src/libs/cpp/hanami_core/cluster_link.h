@@ -40,7 +40,9 @@ class ClusterLink
 
     bool fillInput(const std::string& hexagonName,
                    const float* input,
-                   const uint64_t numberOfInputs);
+                   const uint64_t numberOfInputs,
+                   const uint64_t bufferOffset,
+                   const uint64_t totalTimeLength);
     bool fillExpected(const std::string& hexagonName,
                       const float* output,
                       const uint64_t numberOfOutputs);

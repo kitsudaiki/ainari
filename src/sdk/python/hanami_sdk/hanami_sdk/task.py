@@ -32,7 +32,7 @@ def create_train_task(token: str,
         "number_of_epochs": number_of_epochs,
         "inputs": inputs,
         "outputs": outputs,
-        # "time_length": timeLength
+        "time_length": timeLength,
     }
     return hanami_request.send_post_request(token,
                                             address,
@@ -54,7 +54,7 @@ def create_request_task(token: str,
         "name": name,
         "inputs": inputs,
         "results": results,
-        # "time_length": timeLength
+        "time_length": timeLength,
     }
     return hanami_request.send_post_request(token,
                                             address,

@@ -73,13 +73,17 @@ ClusterLink::restoreCheckpoint(const std::string& targetFilePath)
  * @param hexagonName name of the hexagon
  * @param input pointer to the list with the input-values
  * @param numberOfInputs number of input-values in the list
+ * @param bufferOffset offset within the input-buffer
+ * @param totalTimeLength total time-length to calculate the correct size of the buffer
  *
  * @return false, if hexagon with the name doesn't exist, else true
  */
 bool
 ClusterLink::fillInput(const std::string& hexagonName,
                        const float* input,
-                       const uint64_t numberOfInputs)
+                       const uint64_t numberOfInputs,
+                       const uint64_t bufferOffset,
+                       const uint64_t totalTimeLength)
 {
     auto it = m_cluster->inputInterfaces.find(hexagonName);
     if (it == m_cluster->inputInterfaces.end()) {
@@ -87,18 +91,17 @@ ClusterLink::fillInput(const std::string& hexagonName,
     }
 
     InputInterface* inputInterface = &it->second;
-    inputInterface->initBuffer(numberOfInputs, 1);
+    inputInterface->initBuffer(numberOfInputs, totalTimeLength);
 
     AxonBlock* axonBlock = nullptr;
     Axon* axon = nullptr;
     uint64_t blockId = 0;
     uint16_t axonId = 0;
-    uint64_t counter = 0;
+    uint64_t counter = bufferOffset;
     float val = 0.0f;
 
     for (uint64_t i = 0; i < numberOfInputs; ++i) {
         val = input[i];
-        // std::cout << "input: " << val << std::endl;
         blockId = counter / NEURONS_PER_BLOCK;
         axonId = counter % NEURONS_PER_BLOCK;
         axonBlock = &inputInterface->inputAxons[blockId];
@@ -108,7 +111,6 @@ ClusterLink::fillInput(const std::string& hexagonName,
         axon->potential = abs(val);
         counter += 2;
     }
-
     return true;
 }
 
@@ -132,7 +134,7 @@ ClusterLink::fillExpected(const std::string& hexagonName,
     }
 
     OutputInterface* outputInterface = &it->second;
-    outputInterface->initBuffer(numberOfOutputs, 1);
+    outputInterface->initBuffer(numberOfOutputs);
     convertBufferToExpected(outputInterface, output, numberOfOutputs);
 
     return true;

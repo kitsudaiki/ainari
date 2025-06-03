@@ -511,7 +511,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
         outputIf.name = outputEntry.name.getName();
         outputIf.type = outputEntry.type;
         outputIf.targetHexagonId = hexagon.header.hexagonId;
-        outputIf.initBuffer(outputEntry.numberOfOutputs, 1);
+        outputIf.initBuffer(outputEntry.numberOfOutputs);
         outputIf.weightBlocks.resize(outputEntry.numberOfWeightBlocks);
 
         // read weight-blocks

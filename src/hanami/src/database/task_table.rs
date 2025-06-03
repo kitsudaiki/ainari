@@ -74,7 +74,6 @@ pub struct TaskEntry {
 
 pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    error!("poi1");
     conn.batch_execute("CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
@@ -96,7 +95,6 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
         created_by VARCHAR(256)
     );")?;
 
-    error!("poi1");
     Ok(())
 }
 

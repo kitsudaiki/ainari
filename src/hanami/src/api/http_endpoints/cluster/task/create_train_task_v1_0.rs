@@ -70,8 +70,8 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         inputs: HashMap::new(),
         outputs: HashMap::new(),
         number_of_cycles: 0,
-        number_of_epochs: body.number_of_epochs.clone(),
-        time_length: 1,
+        number_of_epochs: body.number_of_epochs,
+        time_length: body.time_length,
     };
 
     let mut number_of_cycles =  u64::MAX;
@@ -125,6 +125,13 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
             }
         };
     }
+
+    // handle the time-lenght-value
+    if number_of_cycles < body.time_length {
+        let msg = format!("Time-length {} is bigger than at least of of the seleced datasets.", body.time_length);
+        return Err(ErrorResponse::BadRequest(msg));
+    }
+    number_of_cycles -= body.time_length - 1;
 
     info.number_of_cycles = number_of_cycles;
 

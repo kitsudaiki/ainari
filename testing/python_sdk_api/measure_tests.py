@@ -23,6 +23,26 @@ from hanami_sdk import task
 from hanami_sdk import direct_io
 import configparser
 import urllib3
+import time
+import sys
+import csv
+import json
+
+
+def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suffix_epoch='', prefix_cycle='', suffix_cycle='', length=50, fill='█'):
+    percent1 = "{0:.1f}".format(100 * (epoch / float(total_epochs)))
+    filled_length1 = int(length * epoch // total_epochs)
+    bar1 = fill * filled_length1 + '-' * (length - filled_length1)
+
+    percent2 = "{0:.1f}".format(100 * (cycle / float(total_cycles)))
+    filled_length2 = int(length * cycle // total_cycles)
+    bar2 = fill * filled_length2 + '-' * (length - filled_length2)
+
+    sys.stdout.write('\033[F')  # move cursor up one line
+    sys.stdout.write('\r%s |%s| %s%% %s\n' % (prefix_epoch, bar1, percent1, suffix_epoch))
+    sys.stdout.write('\r%s |%s| %s%% %s' % (prefix_cycle, bar2, percent2, suffix_cycle))
+    sys.stdout.flush()
+
 
 
 # the test use insecure connections, which is totally ok for the tests
@@ -39,26 +59,25 @@ address = config["connection"]["address"]
 test_user_id = config["connection"]["test_user"]
 test_user_pw = config["connection"]["test_passphrase"]
 
-train_inputs = "./train.csv"
-request_inputs = "./test.csv"
+train_inputs_file = "./train.csv"
+request_inputs_file = "./test.csv"
 
 cluster_template = \
-    "version: 1\n" \
-    "settings:\n" \
-    "   neuron_cooldown: 100000000.0\n" \
-    "   refractory_time: 1\n" \
-    "   max_connection_distance: 1\n" \
-    "    \n" \
-    "hexagons:\n" \
-    "    1,1,1\n" \
-    "    2,1,1\n" \
-    "    3,1,1\n" \
-    "    \n" \
-    "inputs:\n" \
-    "    test_input: 1,1,1\n" \
-    "\n" \
-    "outputs:\n" \
-    "    test_output: 3,1,1\n" \
+    "version: 42 " \
+    "settings: " \
+    "    neuron_cooldown: 1000000000.0; " \
+    "    refractory_time: 1; " \
+    "    max_connection_distance: 1; " \
+    "hexagons:  " \
+    "    1,1,1; " \
+    "    2,2,2; " \
+    "    3,2,2; " \
+    "axons: " \
+    "    1,1,1 -> 2,2,2;  " \
+    "inputs: " \
+    "    test_input: 1,1,1; " \
+    "outputs: " \
+    "    test_output: 3,2,2;"
 
 cluster_name = "test_cluster"
 generic_task_name = "test_task"
@@ -74,16 +93,16 @@ cluster.delete_all_cluster(token, address, False)
 
 # update dataset
 train_dataset_uuid = dataset.upload_csv_files(
-    token, address, train_dataset_name, train_inputs, False)
+    token, address, train_dataset_name, train_inputs_file, False)["uuid"]
 request_dataset_uuid = dataset.upload_csv_files(
-    token, address, request_dataset_name, request_inputs, False)
+    token, address, request_dataset_name, request_inputs_file, False)["uuid"]
 
 # define relations between data and cluster
 train_inputs = [
     {
         "dataset_uuid": train_dataset_uuid,
         "dataset_column": "test_input",
-        "hexagon_name": "test_input"
+        "hexagon": "test_input"
     }
 ]
 
@@ -91,29 +110,27 @@ train_outputs = [
     {
         "dataset_uuid": train_dataset_uuid,
         "dataset_column": "test_output",
-        "hexagon_name": "test_output"
+        "hexagon": "test_output"
     }
 ]
 
 request_inputs = [
     {
-        "dataset_uuid": request_dataset_uuid,
+        "dataset_uuid": train_dataset_uuid,
         "dataset_column": "test_input",
-        "hexagon_name": "test_input"
+        "hexagon": "test_input"
     }
 ]
 
-request_results = [
+request_outputs = [
     {
-        "dataset_column": "test_output",
-        "hexagon_name": "test_output"
+        "hexagon": "test_output"
     }
 ]
 
 replicas = 10
 cluster_uuids = [""] * 10
 task_uuids = [""] * 10
-result_outputs = [0.0] * 20
 flattened_list = [0.0] * 1750
 
 # create all cluster
@@ -122,35 +139,56 @@ for x in range(replicas):
         token, address, cluster_name + str(x), cluster_template, False)["uuid"]
 
 # train
-for i in range(0, 500):
-    for x in range(replicas):
-        print("poi: ", i)
-        task_uuids[x] = task.create_train_task(
-            token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 20, False)["uuid"]
+for x in range(replicas):
+    print("train replica: ", x)
+    print('\n')
+    task_uuids[x] = task.create_train_task(
+        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 500, 20, False)["uuid"]
+    finished = False
+    while not finished:
+        time.sleep(1)
+        result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
+        # print(json.dumps(result, indent=4))
 
-    for x in range(replicas):
-        task.wait_for_task_finished(token, address, task_uuids[x], cluster_uuids[x], 0.01, False)
-        result = task.delete_task(token, address, task_uuids[x], cluster_uuids[x], False)
-
+        finished = result["state"] == "Finished" or result["state"] == "Error"
+        progress_bar(result["current_epoch"],
+                     result["total_number_of_epochs"],
+                     result["current_cycle"],
+                     result["total_number_of_cycles"],
+                     prefix_epoch='Epoch:',
+                     suffix_epoch='Complete',
+                     prefix_cycle='Cycle:',
+                     suffix_cycle='Complete',
+                     length=50)
+    
 # test
 for x in range(replicas):
-    task_uuids[x] = task.create_request_task(
-        token, address, generic_task_name, cluster_uuids[x], request_inputs, request_results, 20, False)["uuid"]
-    task.wait_for_task_finished(token, address, task_uuids[x], cluster_uuids[x], 0.01, False)
+    print("test replica: ", x)
+    with open(request_inputs_file, mode='r') as file:
+        reader = csv.reader(file)
+        
+        # skip the header if there is one
+        next(reader)
+        output_names = ["test_output"]
 
-    data = dataset.download_dataset_content(
-        token, address, task_uuids[x], "test_output", 1700, 0, False)["data"]
+        # read all rows into a list
+        rows = list(reader)
+        
+        for index, _ in enumerate(rows[:-20]):
+            values = list()
+            for offset in range(0, 20):
+                values.append(float(rows[index + offset][0]))
+            inputs = dict()
+            inputs["test_input"] = values
 
-    # print(data)
-    temp_list = [item for sublist in data for item in sublist]
-    for r in range(len(temp_list)):
-        flattened_list[r] += temp_list[r]
+            output_values = cluster.request(token, address, cluster_uuids[x], inputs, output_names, False)
+            out_val = json.dumps(output_values["outputs"]["test_output"][0], indent=4)
+            flattened_list[index] += float(out_val)
 
 # delete everything again
 for x in range(replicas):
     cluster.delete_cluster(token, address, cluster_uuids[x], False)
 dataset.delete_dataset(token, address, train_dataset_uuid, False)
-dataset.delete_dataset(token, address, request_dataset_uuid, False)
 
 # update result
 for r in range(len(flattened_list)):
