@@ -44,6 +44,15 @@ use super::task_structs::{TaskCreateTrainReq, TaskResp, TaskType, TaskState};
 pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::TrainTask;
+    let time_length = match body.time_length {
+        Some(time_length) => time_length,
+        None => 1,
+    };
+
+    if time_length < 1 {
+        let msg = format!("Time-length must be 1 or bigger.");
+        return Err(ErrorResponse::BadRequest(msg));
+    }
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
@@ -70,7 +79,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         outputs: HashMap::new(),
         number_of_cycles: 0,
         number_of_epochs: body.number_of_epochs,
-        time_length: body.time_length,
+        time_length: time_length,
     };
 
     let mut number_of_cycles =  u64::MAX;
@@ -126,11 +135,11 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
     }
 
     // handle the time-lenght-value
-    if number_of_cycles < body.time_length {
-        let msg = format!("Time-length {} is bigger than at least of of the seleced datasets.", body.time_length);
+    if number_of_cycles < time_length {
+        let msg = format!("Time-length {time_length} is bigger than at least of of the seleced datasets.");
         return Err(ErrorResponse::BadRequest(msg));
     }
-    number_of_cycles -= body.time_length - 1;
+    number_of_cycles -= time_length - 1;
 
     info.number_of_cycles = number_of_cycles;
 
