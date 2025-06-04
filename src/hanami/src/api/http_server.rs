@@ -22,7 +22,6 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use std::error::Error;
-use log::{info, debug};
 
 use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::user::*;
@@ -158,11 +157,11 @@ fn v1alpha_routes() -> Scope {
 
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {
-    debug!("initialize server");
+    log::debug!("initialize server");
     // get server-address from config
     let ip = config::CONFIG.api.ip.clone();
     let port = config::CONFIG.api.port.clone();
-    info!("HTTP-server listen on {}:{}", ip, port);
+    log::info!("HTTP-server listen on {}:{}", ip, port);
     
     // init server with openapi-docu-generator
     HttpServer::new(move || {

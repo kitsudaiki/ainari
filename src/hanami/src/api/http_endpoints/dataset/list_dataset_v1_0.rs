@@ -15,7 +15,6 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
-use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -35,7 +34,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
     {
         Ok(datasets) => datasets,
         Err(e) => {
-            error!("Failed to get list of datasets form database: '{e}'");
+            log::error!("Failed to get list of datasets form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()))
         }
     };
@@ -49,7 +48,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
         let uuid = match Uuid::parse_str(&dataset.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                error!("Failed to convert dataset-uuid with error: '{e}'");
+                log::error!("Failed to convert dataset-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()))
             },
         };

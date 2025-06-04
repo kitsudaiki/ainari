@@ -110,7 +110,7 @@ pub struct TaskDatasetResultLink {
 pub struct TaskCreateTrainReq {
     pub name: String,
     pub number_of_epochs: u64,
-    pub time_length: u64,
+    pub time_length: Option<u64>,
     pub inputs: Vec<TaskDatasetLink>,
     pub outputs: Vec<TaskDatasetLink>,
 }
@@ -118,7 +118,7 @@ pub struct TaskCreateTrainReq {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskCreateRequestReq {
     pub name: String,
-    pub time_length: u64,
+    pub time_length: Option<u64>,
     pub inputs: Vec<TaskDatasetLink>,
     pub results: Vec<TaskDatasetResultLink>,
 }

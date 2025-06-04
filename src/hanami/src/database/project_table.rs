@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::error;
 use std::error::Error;
 
 use crate::database::db_handle;
@@ -55,7 +55,7 @@ pub struct ProjectEntry {
 pub fn init_project_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS projects (
-        id VARCHAR(256) PRIMARY KEY,
+        id VARCHAR(256),
         name VARCHAR(256),
         status VARCHAR(10),
         created_at VARCHAR(64),
@@ -70,7 +70,25 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_project(project_id: &String, project_name: &String, context: &UserContext) -> QueryResult<usize> {
-    
+    if context.is_admin == false {
+        return Err(diesel::result::Error::DatabaseError(
+            DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string())
+        ))
+    }
+
+    // check if project alredy exist in the database
+    // The same id is allowed multiple times in the table, but only one time active.
+    match get_project(&project_id, &context) {
+        Ok(_) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::UniqueViolation,
+                Box::new(format!("Project with ID '{project_id}' already exist."))
+            ))
+        },
+        Err(_) => {}
+    };
+
     let project = ProjectEntry{
         id: project_id.clone(),
         name: project_name.clone(),
@@ -108,7 +126,7 @@ pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project
         Ok(project) => Ok(project),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -139,7 +157,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

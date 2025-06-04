@@ -20,7 +20,6 @@ mod database;
 mod config;
 mod core;
 
-use log::{error, info};
 use log::LevelFilter;
 
 use core::cluster_handler;
@@ -64,10 +63,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
     if cluster_handle.init_hanami_root(use_of_free_memory) {
-        info!("Initilaized hanami-core")
+        log::info!("Initilaized hanami-core")
     } else {
         let msg = "Failed to initialize hanami-core".to_string();
-        error!("{}", msg);
+        log::error!("{}", msg);
         return Err(msg.into());
     }
     drop(cluster_handle);

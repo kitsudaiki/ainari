@@ -18,7 +18,6 @@ use actix_web::{
     middleware::Next,
     http::Method
 };
-use log::{info, debug};
 
 use crate::api::{token_handling, errors::ErrorResponse};
 use hanami_common::functions::split_bearer_token;
@@ -36,7 +35,7 @@ pub async fn authorization_middleware(
     skip_check |= uri == "/openapi.json" && req.method() == &Method::GET;
 
     if skip_check == false {
-        debug!("Check token for request against {uri}");
+        log::debug!("Check token for request against {uri}");
         // get token from header
         let token: &str;
         match req.headers().get("Authorization") {
@@ -57,23 +56,23 @@ pub async fn authorization_middleware(
         match token_handling::validate_token(token) {
             Ok(_) => {},
             Err(e) => {
-                debug!("{}", e);
+                log::debug!("{}", e);
                 return Err(ErrorResponse::Unauthorized(e).into());
             }
         }
     }
     //else {
-    //    debug!("skip token-check");
+    //    log::debug!("skip token-check");
     //}
 
-    info!("Api-call against URI: {uri}");
+    log::info!("Api-call against URI: {uri}");
 
     let resp = next.call(req).await;
 
     match resp {
         Ok(_) => {},
         Err(ref e) => {
-            info!("{}", e);
+            log::info!("{}", e);
         },
     };
 

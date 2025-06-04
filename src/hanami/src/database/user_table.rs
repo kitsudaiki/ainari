@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
 use std::env;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{
+    distr::Alphanumeric, 
+    Rng
+};
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
@@ -73,10 +76,10 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 
     let users = list_users(&fake_admin_context).unwrap();
     if users.len() != 0 {
-        debug!("Already existing user found, so no new admin will be created.");
+        log::debug!("Already existing user found, so no new admin will be created.");
         return Ok(());
     }
-    info!("No user found in user-table -> Create a new initial admin.");
+    log::info!("No user found in user-table -> Create a new initial admin.");
 
     let admin_id: String;
     let admin_name: String;
@@ -85,7 +88,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_ID") {
         Ok(val) => admin_id = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_ID");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_ID");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -93,7 +96,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_NAME") {
         Ok(val) => admin_name = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -101,7 +104,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_PASSPHRASE") {
         Ok(val) => admin_passphrase = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -114,7 +117,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(256) PRIMARY KEY,
+        id VARCHAR(256),
         name VARCHAR(256),
         is_admin BOOLEAN,
         pw_hash VARCHAR(64),
@@ -135,6 +138,25 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, is_admin: bool, context: &UserContext) -> QueryResult<usize> {
+    if context.is_admin == false {
+        return Err(diesel::result::Error::DatabaseError(
+            DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string())
+        ))
+    }
+
+    // check if user alredy exist in the database
+    // The same id is allowed multiple times in the table, but only one time active.
+    match get_user(&user_id, &context) {
+        Ok(_) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::UniqueViolation,
+                Box::new(format!("User with ID '{user_id}' already exist."))
+            ))
+        },
+        Err(_) => {}
+    };
+
     // salt passphrase
     let salt: String = rand::rng()
         .sample_iter(&Alphanumeric)
@@ -183,7 +205,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -204,7 +226,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -235,7 +257,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

@@ -14,7 +14,6 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use log::error;
 use uuid::Uuid;
 use std::str::FromStr;
 
@@ -52,7 +51,7 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
     {
         Ok(tasks) => tasks,
         Err(e) => {
-            error!("Failed to get list of tasks form database: '{}'", e);
+            log::error!("Failed to get list of tasks form database: '{}'", e);
             return Err(ErrorResponse::InternalError("".to_string()))
         }
     };
@@ -66,7 +65,7 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
         let uuid = match Uuid::parse_str(&task.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                error!("Failed to convert task-uuid with error: '{e}'");
+                log::error!("Failed to convert task-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()))
             },
         };

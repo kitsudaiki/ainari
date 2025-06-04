@@ -15,7 +15,6 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::error;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -154,7 +153,7 @@ pub fn get_task(task_uuid: &Uuid, cluster_uuid_in: &Uuid, context: &UserContext)
         Ok(task) => Ok(task),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -194,7 +193,7 @@ pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Resul
             return Err(());
         },
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             return Err(());
         }
     }
@@ -221,7 +220,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 },
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {:?}", e);
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -239,7 +238,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 },
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {:?}", e);
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -257,7 +256,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 },
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {:?}", e);
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -275,7 +274,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 },
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {:?}", e);
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -304,7 +303,7 @@ pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
             return Err(());
         },
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             return Err(());
         }
     }
@@ -331,7 +330,7 @@ pub fn is_aborted(task_uuid: &Uuid) -> bool {
         },
         Err(diesel::result::Error::NotFound) => false,
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             false
         }
     }

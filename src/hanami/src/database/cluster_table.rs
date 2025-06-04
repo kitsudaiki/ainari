@@ -15,7 +15,6 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::error;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -126,7 +125,7 @@ pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<Cluster
         Ok(cluster) => Ok(cluster),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -166,7 +165,27 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+pub fn delete_all_cluster() -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::clusters::dsl::*;
+    match diesel::update(clusters.filter(status.eq("ACTIVE")))
+        .set((
+            status.eq("DELETED"), 
+            deleted_at.eq(Utc::now().to_rfc3339()),
+            deleted_by.eq("HANAMI_START"),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

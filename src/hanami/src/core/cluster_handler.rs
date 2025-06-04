@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::error;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -135,7 +134,7 @@ impl ClusterHandler {
         let success = self.hanami_core.pin_mut().init(max_memory_usage, error_msg.pin_mut());
 
         if !success {
-            error!("Initializing hanami-core failed with error: {}", error_msg.to_string());
+            log::error!("Initializing hanami-core failed with error: {}", error_msg.to_string());
         }
 
         success

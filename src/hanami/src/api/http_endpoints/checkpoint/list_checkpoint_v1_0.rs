@@ -15,7 +15,6 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
-use log::error;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -35,7 +34,7 @@ pub async fn list_checkpoint(context: UserContext) -> Result<Json<CheckpointList
     {
         Ok(checkpoints) => checkpoints,
         Err(e) => {
-            error!("Failed to get list of checkpoints form database: '{:?}'", e);
+            log::error!("Failed to get list of checkpoints form database: '{:?}'", e);
             return Err(ErrorResponse::InternalError("".to_string()))
         }
     };
@@ -55,7 +54,7 @@ pub async fn list_checkpoint(context: UserContext) -> Result<Json<CheckpointList
                 resp.checkpoints.push(obj);
             },
             Err(e) => {
-                error!("Error while listing checkpoint: '{:?}'", e);
+                log::error!("Error while listing checkpoint: '{:?}'", e);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         }

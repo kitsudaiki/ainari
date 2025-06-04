@@ -15,7 +15,6 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use log::error;
 use uuid::Uuid;
 use std::str::FromStr;
 use std::path::PathBuf;
@@ -93,7 +92,7 @@ pub async fn checkpoint_restore_task(body: Json<TaskCheckpointRestoreReq>, clust
     {
         Ok(_) => {},
         Err(_) => {
-            error!("Failed to add task with UUID '{task_uuid}' to database.");
+            log::error!("Failed to add task with UUID '{task_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
