@@ -171,6 +171,26 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
+pub fn delete_all_cluster() -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    use self::clusters::dsl::*;
+    match diesel::update(clusters.filter(status.eq("ACTIVE")))
+        .set((
+            status.eq("DELETED"), 
+            deleted_at.eq(Utc::now().to_rfc3339()),
+            deleted_by.eq("HANAMI_START"),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {:?}", e);
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

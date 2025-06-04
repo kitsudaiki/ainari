@@ -20,6 +20,10 @@ pub mod task_table;
 pub mod project_table;
 pub mod checkpoint_table;
 
+use std::io;
+
+use hanami_common::enums;
+
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>>
 {
     // Initialize user-table
@@ -70,6 +74,23 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>>
             return Err(e);
         }
     };
+
+    // clear all cluster from the database. This is necessary, because after a restart,
+    // all cluster are broken and so the database doesn't match the real world.
+    // To "fix" this issue, all cluster have to be removed from the database as well.
+    match cluster_table::delete_all_cluster() {
+        Ok(_) => {},
+        Err(enums::DbError::InternalError) => {
+            let msg = format!("Error while deleting all cluster from DB");
+            log::error!("{msg}");
+            let error = io::Error::new(io::ErrorKind::Other, msg);
+            return Err(Box::new(error));
+        },
+        Err(enums::DbError::NotFound) => {
+            let error = io::Error::new(io::ErrorKind::Other, "".to_string());
+            return Err(Box::new(error));
+        }
+    }
 
     Ok(())
 }
