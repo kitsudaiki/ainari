@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use std::env;
@@ -116,7 +117,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(256) PRIMARY KEY,
+        id VARCHAR(256),
         name VARCHAR(256),
         is_admin BOOLEAN,
         pw_hash VARCHAR(64),
@@ -137,6 +138,25 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, is_admin: bool, context: &UserContext) -> QueryResult<usize> {
+    if context.is_admin == false {
+        return Err(diesel::result::Error::DatabaseError(
+            DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string())
+        ))
+    }
+
+    // check if user alredy exist in the database
+    // The same id is allowed multiple times in the table, but only one time active.
+    match get_user(&user_id, &context) {
+        Ok(_) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::UniqueViolation,
+                Box::new(format!("User with ID '{user_id}' already exist."))
+            ))
+        },
+        Err(_) => {}
+    };
+
     // salt passphrase
     let salt: String = rand::rng()
         .sample_iter(&Alphanumeric)

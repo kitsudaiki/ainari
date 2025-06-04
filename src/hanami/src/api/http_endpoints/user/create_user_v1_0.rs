@@ -56,8 +56,8 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     // add new user to datbase
     match user_table::add_new_user(&id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {},
-        Err(_) => {
-            log::error!("Failed to add user with ID '{id}' to database.");
+        Err(e) => {
+            log::error!("Failed to add user with ID '{id}' to database.: {}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

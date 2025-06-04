@@ -56,9 +56,8 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
     // add new project to datbase
     match project_table::add_new_project(&id, &body.name, &context) {
         Ok(_) => {},
-        Err(_) => {
-            let msg = format!("Failed to add project with ID '{id}' to database.");
-            log::error!("{}", msg);
+        Err(e) => {
+            log::error!("Failed to add project with ID '{id}' to database.: {}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
