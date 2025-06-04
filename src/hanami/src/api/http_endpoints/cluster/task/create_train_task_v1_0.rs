@@ -15,7 +15,6 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use log::error;
 use uuid::Uuid;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -148,7 +147,7 @@ pub async fn create_train_task(body: Json<TaskCreateTrainReq>, cluster_uuid: Pat
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add task with UUID '{task_uuid}' to database.");
-            error!("{}", msg);
+            log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

@@ -15,7 +15,6 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
-use log::error;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
@@ -58,7 +57,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
     match user_table::add_new_user(&id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {},
         Err(_) => {
-            error!("Failed to add user with ID '{id}' to database.");
+            log::error!("Failed to add user with ID '{id}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -80,7 +79,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
         },
         Err(_) => 
         {
-            error!("Failed to get user with ID '{id}' from database, even the user should exist");
+            log::error!("Failed to get user with ID '{id}' from database, even the user should exist");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

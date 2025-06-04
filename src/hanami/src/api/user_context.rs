@@ -18,7 +18,6 @@ use actix_web::{FromRequest, HttpRequest};
 use apistos::ApiSecurity;
 use futures::future::{ready, Ready};
 use serde::{Deserialize, Serialize};
-use log::debug;
 
 use hanami_common::functions::split_bearer_token;
 use crate::api::token_handling;
@@ -68,7 +67,7 @@ impl FromRequest for UserContext {
                 )
             },
             Err(e) => {
-                debug!("{}", e);
+                log::debug!("{}", e);
                 // should never be the case, because the middleware already checks the token
                 return ready(Ok(UserContext {
                     user_id: "".to_string(),

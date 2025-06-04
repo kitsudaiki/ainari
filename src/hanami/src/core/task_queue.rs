@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::debug;
 use std::collections::VecDeque;
 
 use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
@@ -27,7 +26,7 @@ pub struct TaskQueue {
 
 impl TaskQueue {
     pub fn add(&mut self, task: Task) {
-        debug!("added task to task-queue");
+        log::debug!("added task to task-queue");
         let _ = task_table::update_task_state(&task.uuid, &TaskState::Queued);
         self.queue.push_back(task);
     }

@@ -15,7 +15,6 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
-use log::error;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
@@ -59,7 +58,7 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add project with ID '{id}' to database.");
-            error!("{}", msg);
+            log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -81,7 +80,7 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
         Err(_) => 
         {
             let msg = format!("Failed to get project with ID '{id}' from database, even the project should exist.");
-            error!("{}", msg);
+            log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

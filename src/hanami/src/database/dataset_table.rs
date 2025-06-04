@@ -15,7 +15,6 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::error;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -127,7 +126,7 @@ pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<Dataset
         Ok(dataset) => Ok(dataset),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -168,7 +167,7 @@ pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

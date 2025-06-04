@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::fs;
-use log::error;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 use actix_web::web::Path;
@@ -49,7 +48,7 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
         Ok(_) => {},
         Err(_) => {
             let file_path = dataset.file_path;
-            error!("Failed to delete file '{file_path}' from disc");
+            log::error!("Failed to delete file '{file_path}' from disc");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }

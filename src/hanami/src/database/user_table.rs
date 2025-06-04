@@ -15,10 +15,12 @@
 use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
-use log::{info, debug, error};
 use std::env;
 use std::error::Error;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{
+    distr::Alphanumeric, 
+    Rng
+};
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
@@ -73,10 +75,10 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 
     let users = list_users(&fake_admin_context).unwrap();
     if users.len() != 0 {
-        debug!("Already existing user found, so no new admin will be created.");
+        log::debug!("Already existing user found, so no new admin will be created.");
         return Ok(());
     }
-    info!("No user found in user-table -> Create a new initial admin.");
+    log::info!("No user found in user-table -> Create a new initial admin.");
 
     let admin_id: String;
     let admin_name: String;
@@ -85,7 +87,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_ID") {
         Ok(val) => admin_id = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_ID");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_ID");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -93,7 +95,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_NAME") {
         Ok(val) => admin_name = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -101,7 +103,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     match env::var("HANAMI_ADMIN_PASSPHRASE") {
         Ok(val) => admin_passphrase = val,
         Err(_) => {
-            error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
+            log::error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
         },
     }
@@ -183,7 +185,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -204,7 +206,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }
@@ -235,7 +237,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            error!("Database-error: {:?}", e);
+            log::error!("Database-error: {:?}", e);
             Err(enums::DbError::InternalError)
         }
     }

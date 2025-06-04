@@ -306,7 +306,7 @@ struct InputInterface {
     void initBuffer(uint64_t expectedSize, const uint64_t timeLength)
     {
         assert(timeLength >= 1);
-        expectedSize += (timeLength - 1);  // respect time-length of the input
+        expectedSize += timeLength;  // respect time-length of the input
         if (size != expectedSize) {
             size = expectedSize;
             expectedSize *= 2;  // double length to also hold a negative value for the inputs

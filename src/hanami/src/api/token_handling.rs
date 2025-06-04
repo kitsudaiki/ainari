@@ -16,7 +16,6 @@ use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm, errors::ErrorKind
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use log::{error, debug};
 
 use crate::api::user_context::UserContext;
 use crate::config;
@@ -78,11 +77,11 @@ pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_pr
     let secret = config::TOKEN_KEY.as_bytes();
     match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)) {
         Ok(token) => {
-            debug!("Successfully created token for user-id '{user_id}' and project-id '{project_id}'");
+            log::debug!("Successfully created token for user-id '{user_id}' and project-id '{project_id}'");
             return Ok(token);
         },
         Err(e) => {
-            error!("Failed to create user-token {:?}", e);
+            log::error!("Failed to create user-token {:?}", e);
             return Err(());
         }
     }

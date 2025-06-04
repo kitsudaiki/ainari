@@ -15,7 +15,6 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
-use log::error;
 use uuid::Uuid;
 
 use crate::api::user_context::UserContext;
@@ -47,7 +46,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
             return Err(ErrorResponse::BadRequest(msg));
         },
         Err(HanamiError::Error(e)) => {
-            error!("{}", e);
+            log::error!("{}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -62,7 +61,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
         Ok(_) => {},
         Err(_) => {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
-            error!("{}", msg);
+            log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -73,7 +72,7 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
         Err(_) => 
         {
             let msg = format!("Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist.");
-            error!("{}", msg);
+            log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

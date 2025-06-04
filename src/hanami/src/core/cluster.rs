@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::{debug, error};
 use uuid::Uuid;
 use bytemuck::cast_slice;
 use std::thread::{self, JoinHandle};
@@ -254,7 +253,7 @@ fn handle_checkpoint_save_task(task_uuid: &Uuid, task_name: &String, user_id: &S
     match checkpoint_table::add_new_checkpoint(&task_uuid, &task_name, &file_path_str, context) {
         Ok(_) => {},
         Err(e) => {
-            error!("{}", e);
+            log::error!("{}", e);
             let _ = task_table::set_error_state(&task_uuid, &"Internal error".to_string());
             return;
         }
@@ -314,7 +313,7 @@ impl Cluster {
         let link_handle_clone = Arc::clone(&link_handle);
 
         let handle = thread::spawn(move || {
-            debug!("Started cluster-thread");
+            log::debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
                 let mut queue_handle = queue_clone.lock().unwrap();
@@ -326,7 +325,7 @@ impl Cluster {
                     thread::sleep(std::time::Duration::from_secs(1));
                 }
             }
-            debug!("Stopped cluster-thread");
+            log::debug!("Stopped cluster-thread");
         });
 
         Cluster {

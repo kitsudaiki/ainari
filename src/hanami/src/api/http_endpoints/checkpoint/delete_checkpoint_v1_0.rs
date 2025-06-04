@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::fs;
-use log::error;
 
 use apistos::actix::NoContent;
 use apistos::api_operation;
@@ -51,7 +50,7 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
         Ok(_) => {},
         Err(_) => {
             let file_path = checkpoint.file_path;
-            error!("Failed to delete file '{file_path}' from disc");
+            log::error!("Failed to delete file '{file_path}' from disc");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
@@ -59,7 +58,7 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
     match checkpoint_table::delete_checkpoint(&checkpoint_uuid, &context) {
         Ok(_) => {},
         Err(enums::DbError::InternalError) => {
-            error!("Error while deleting checkpoint from DB");
+            log::error!("Error while deleting checkpoint from DB");
             return Err(ErrorResponse::InternalError("".to_string()));
         },
         Err(enums::DbError::NotFound) => {

@@ -20,7 +20,6 @@ use apistos::api_operation;
 use futures_util::StreamExt;
 use tokio::io::AsyncWriteExt;
 use tokio::fs;
-use log::{error, debug};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -66,14 +65,14 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     match fs::create_dir_all(&tempfile_dir).await {
         Ok(_) => (),
         Err(e) => {
-            error!("Failed to create dataset-upload-directory '{tempfile_location}' with error: {e}");
+            log::error!("Failed to create dataset-upload-directory '{tempfile_location}' with error: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
     match fs::create_dir_all(&dataset_dir).await {
         Ok(_) => (),
         Err(e) => {
-            error!("Failed to create dataset-upload-directory '{dataset_location}' with error: {e}");
+            log::error!("Failed to create dataset-upload-directory '{dataset_location}' with error: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
@@ -108,7 +107,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             Err(e) => {
                 let path = temp_file_path.as_os_str().to_str().unwrap();
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
-                error!("{}", msg);
+                log::error!("{}", msg);
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -121,7 +120,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
                 let data = match chunk {
                     Ok(value) => value,
                     Err(e) => {
-                        error!("{}", e);
+                        log::error!("{}", e);
                         return Err(ErrorResponse::BadRequest("Failed to read chunk.".to_string()));
                     }
                 };
@@ -136,12 +135,12 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         match result {
             Ok(_) => {},
             Err(e) => {
-                debug!("Dataset-upload broken or canceled.");
+                log::debug!("Dataset-upload broken or canceled.");
                 match std::fs::remove_file(&temp_file_path) {
                     Ok(()) => {},
                     Err(e) => {
                         let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
-                        error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+                        log::error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
                     }
                 }
                 return Err(e);
@@ -171,7 +170,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
                     return Err(ErrorResponse::BadRequest(msg));
                 },
                 _ => {
-                    error!("{}", e);
+                    log::error!("{}", e);
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },
@@ -195,7 +194,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
                     return Err(ErrorResponse::BadRequest(msg));
                 },
                 _ => {
-                    error!("{}", e);
+                    log::error!("{}", e);
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },
@@ -207,7 +206,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
     match dataset_table::add_new_dataset(&dataset_uuid, &name, &file_path_str, &context) {
         Ok(_) => {},
         Err(_) => {
-            error!("Failed to add dataset with ID '{dataset_uuid}' to database.");
+            log::error!("Failed to add dataset with ID '{dataset_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -217,7 +216,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
         Ok(dataset) => dataset,
         Err(_) => 
         {
-            error!("Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist.");
+            log::error!("Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist.");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -227,7 +226,7 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             Ok(()) => {},
             Err(e) => {
                 let tempfile_path_str: String = file_path.to_string_lossy().into();
-                error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
+                log::error!("Failed to delete temp-file {tempfile_path_str} from disc with error {}.", e);
             }
         }
     }
