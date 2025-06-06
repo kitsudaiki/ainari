@@ -38,7 +38,7 @@
 
 WHITESPACE = _{ " " | "\t" | "\n" }
 
-file = { version_r ~ settings_r ~ hexagons_r ~ axons_r ~ inputs_r ~ outputs_r }
+file = { version_r ~ settings_r ~ hexagons_r ~ axons_r? ~ inputs_r ~ outputs_r }
 
 version_r = { "version" ~ ":" ~ _int_ }
 

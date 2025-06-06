@@ -382,6 +382,41 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_outputs_without_axons() {
+        let input = "version: 42 
+        settings:
+            neuron_cooldown: 1000000000.0;
+            refractory_time: 1;
+            max_connection_distance: 1;
+        hexagons: 
+            1,2,3; 
+            4,5,6; 
+        inputs: 
+            key1: 1,1,1; 
+            key2: 2,2,2; 
+        outputs: 
+            key3: 3,3,3 (float);
+            key4: 4,4,4;";
+
+        match parse_cluster_template(input) {
+            Ok(parsed) => {
+                assert_eq!(parsed.outputs.len(), 2);
+                assert_eq!(parsed.outputs[0].name, "key3");
+                assert_eq!(parsed.outputs[0].pos, Position(3, 3, 3));
+                assert_eq!(parsed.outputs[0].output_type, OutputType::FloatOutput);
+                assert_eq!(parsed.outputs[1].name, "key4");
+                assert_eq!(parsed.outputs[1].pos, Position(4, 4, 4));
+                assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
+            }
+            Err(e) => {
+                eprintln!("❌ Parsing Error: {}", e);
+                // should always fail here
+                assert_eq!(false, true);
+            }
+        }
+    }
+
+    #[test]
     fn test_empty_input() {
         let input = "";
         let result = parse_cluster_template(input);
