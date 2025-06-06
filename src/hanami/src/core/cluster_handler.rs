@@ -190,7 +190,7 @@ mod tests {
 
         let key = Uuid::new_v4();
         let name = "test_cluster".to_string();
-        let template = "version: 42 
+        let template = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;

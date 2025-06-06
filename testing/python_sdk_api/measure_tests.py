@@ -63,7 +63,7 @@ train_inputs_file = "./train.csv"
 request_inputs_file = "./test.csv"
 
 cluster_template = \
-    "version: 42 " \
+    "version: 1 " \
     "settings: " \
     "    neuron_cooldown: 1000000000.0; " \
     "    refractory_time: 1; " \

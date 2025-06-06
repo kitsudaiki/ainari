@@ -41,6 +41,11 @@ pub fn parse_cluster_template(source_text: &str) -> Result<ClusterMeta, String> 
             Rule::version_r => {
                 let number = section.into_inner().next().unwrap();
                 version = number.as_str().parse().unwrap();
+
+                if version != 1 {
+                    let msg = format!("Version {version} not supported");
+                    return Err(msg);
+                }
             }
             Rule::settings_r => {
                 for setting_pair in section.into_inner() {
@@ -144,7 +149,7 @@ mod tests {
     
     #[test]
     fn test_parse_version() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -162,7 +167,7 @@ mod tests {
 
         match parse_cluster_template(input) {
             Ok(parsed) => {
-                assert_eq!(parsed.version, 42);
+                assert_eq!(parsed.version, 1);
             }
             Err(e) => {
                 eprintln!("❌ Parsing Error: {}", e);
@@ -174,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_parse_settings() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 44;
@@ -206,7 +211,7 @@ mod tests {
     
     #[test]
     fn test_parse_tests() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -238,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_parse_axons() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -273,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_parse_inputs() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -309,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_parse_outputs() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -345,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_parse_outputs_with_extra() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -382,6 +387,41 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_outputs_without_axons() {
+        let input = "version: 1 
+        settings:
+            neuron_cooldown: 1000000000.0;
+            refractory_time: 1;
+            max_connection_distance: 1;
+        hexagons: 
+            1,2,3; 
+            4,5,6; 
+        inputs: 
+            key1: 1,1,1; 
+            key2: 2,2,2; 
+        outputs: 
+            key3: 3,3,3 (float);
+            key4: 4,4,4;";
+
+        match parse_cluster_template(input) {
+            Ok(parsed) => {
+                assert_eq!(parsed.outputs.len(), 2);
+                assert_eq!(parsed.outputs[0].name, "key3");
+                assert_eq!(parsed.outputs[0].pos, Position(3, 3, 3));
+                assert_eq!(parsed.outputs[0].output_type, OutputType::FloatOutput);
+                assert_eq!(parsed.outputs[1].name, "key4");
+                assert_eq!(parsed.outputs[1].pos, Position(4, 4, 4));
+                assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
+            }
+            Err(e) => {
+                eprintln!("❌ Parsing Error: {}", e);
+                // should always fail here
+                assert_eq!(false, true);
+            }
+        }
+    }
+
+    #[test]
     fn test_empty_input() {
         let input = "";
         let result = parse_cluster_template(input);
@@ -390,7 +430,7 @@ mod tests {
     
     #[test]
     fn test_invalid_input() {
-        let input = "version: 42 
+        let input = "version: 1 
         settings:
             neuron_cooldown: 1000000000.0;
             refractory_time: 1;
@@ -406,5 +446,33 @@ mod tests {
             key2: 2,2,2;";
         let result = parse_cluster_template(input);
         assert!(result.is_err(), "Invalid input should result in an error.");
+    }
+
+    #[test]
+    fn test_invalid_version() {
+        let input = "version: 2
+        settings:
+            neuron_cooldown: 1000000000.0;
+            refractory_time: 1;
+            max_connection_distance: 1;
+        hexagons: 
+            1,2,3; 
+            4,5,6; 
+        inputs: 
+            key1: 1,1,1; 
+            key2: 2,2,2; 
+        outputs: 
+            key3: 3,3,3 (float);
+            key4: 4,4,4;";
+        let result = parse_cluster_template(input);
+        assert!(result.is_err(), "Invalid version should result in an error.");
+        match result {
+            Ok(_) => {
+                assert!(false)
+            },
+            Err(msg) => {
+                assert!(msg == "Version 2 not supported");
+            }
+        }
     }
 }

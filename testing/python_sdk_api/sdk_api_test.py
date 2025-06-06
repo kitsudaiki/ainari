@@ -51,7 +51,7 @@ request_inputs = config["test_data"]["request_inputs"]
 request_labels = config["test_data"]["request_labels"]
 
 cluster_template = \
-    "version: 42 " \
+    "version: 1 " \
     "settings: " \
     "    neuron_cooldown: 1000000000.0; " \
     "    refractory_time: 1; " \
