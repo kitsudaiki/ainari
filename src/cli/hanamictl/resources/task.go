@@ -32,7 +32,6 @@ import (
 )
 
 var (
-	clusterUuid    string
 	checkpointUuid string
 	inputData      []string
 	outputData     []string
@@ -64,9 +63,6 @@ func convertTaskIO(input []string) ([]hanami_sdk.TaskInput, error) {
 			DatasetColumnName: columnName, 
 			DatasetUuid:       datasetUUID,
 		}
-		// fmt.Println("Dataset UUID:", datasetUUID)
-		// fmt.Println("Column Name:", columnName)
-		// fmt.Println("Hexagon Name:", hexagonName)
 
 		ret = append(ret, item)
 	}
@@ -96,8 +92,6 @@ func convertTaskResult(input []string) ([]hanami_sdk.TaskResult, error) {
 			HexagonName:       hexagonName, 
 			DatasetColumnName: columnName,
 		}
-		// fmt.Println("Column Name:", columnName)
-		// fmt.Println("Hexagon Name:", hexagonName)
 
 		ret = append(ret, item)
 	}
@@ -107,13 +101,14 @@ func convertTaskResult(input []string) ([]hanami_sdk.TaskResult, error) {
 
 
 var createTrainTaskCmd = &cobra.Command{
-	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS -c CLUSTER_UUID TASK_NAME",
+	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
 	Short: "Create a new train task.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskName := args[0]
+		clusterUuid := args[0]
+		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
 		if err != nil {
 			fmt.Println(err)
@@ -135,13 +130,14 @@ var createTrainTaskCmd = &cobra.Command{
 }
 
 var createRequestTaskCmd = &cobra.Command{
-	Use:   "request -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME -c CLUSTER_UUID TASK_NAME",
+	Use:   "request -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME CLUSTER_UUID TASK_NAME",
 	Short: "Create a new request task.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskName := args[0]
+		clusterUuid := args[0]
+		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
 		if err != nil {
 			fmt.Println(err)
@@ -163,13 +159,14 @@ var createRequestTaskCmd = &cobra.Command{
 }
 
 var createCheckpointSaveTaskCmd = &cobra.Command{
-	Use:   "save -c CLUSTER_UUID TASK_NAME",
+	Use:   "checkpoint_create CLUSTER_UUID TASK_NAME",
 	Short: "Create a new task to create a checkpoint from a cluster.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskName := args[0]
+		clusterUuid := args[0]
+		taskName := args[1]
 		content, err := hanami_sdk.CreateCheckpointSaveTask(address, token, taskName, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintSingle(content)
@@ -181,13 +178,14 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 }
 
 var createCheckpointRestoreTaskCmd = &cobra.Command{
-	Use:   "restore -c CLUSTER_UUID -s CHECKPOINT_UUID TASK_NAME",
-	Short: "Create a new task to create a checkpoint from a cluster.",
-	Args:  cobra.ExactArgs(1),
+	Use:   "checkpoint_restore -c CHECKPOINT_UUID CLUSTER_UUID TASK_NAME",
+	Short: "Create a new task to restore a checkpoint into a cluster.",
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskName := args[0]
+		clusterUuid := args[0]
+		taskName := args[1]
 		content, err := hanami_sdk.CreateCheckpointRestoreTask(address, token, taskName, clusterUuid, checkpointUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintSingle(content)
@@ -199,14 +197,15 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 }
 
 var getTaskCmd = &cobra.Command{
-	Use:   "get TASK_ID",
+	Use:   "get CLUSTER_UUID TASK_UUID",
 	Short: "Get information of a specific task.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskId := args[0]
-		content, err := hanami_sdk.GetTask(address, token, taskId, clusterUuid, hanamictl_common.DisableTlsVerification)
+		clusterUuid := args[0]
+		taskUuid := args[1]
+		content, err := hanami_sdk.GetTask(address, token, taskUuid, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintSingle(content)
 		} else {
@@ -217,11 +216,13 @@ var getTaskCmd = &cobra.Command{
 }
 
 var listTaskCmd = &cobra.Command{
-	Use:   "list",
+	Use:   "list CLUSTER_UUID",
 	Short: "List all task.",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
+		clusterUuid := args[0]
 		content, err := hanami_sdk.ListTask(address, token, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintList(content["tasks"].([]interface{}))
@@ -233,13 +234,14 @@ var listTaskCmd = &cobra.Command{
 }
 
 var deleteTaskCmd = &cobra.Command{
-	Use:   "delete TASK_ID",
+	Use:   "delete CLUSTER_UUID TASK_UUID",
 	Short: "Delete a specific task from the backend.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskUuid := args[0]
+		clusterUuid := args[0]
+		taskUuid := args[1]
 		_, err := hanami_sdk.DeleteTask(address, token, taskUuid, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			fmt.Printf("successfully deleted task '%v'\n", taskUuid)
@@ -251,13 +253,14 @@ var deleteTaskCmd = &cobra.Command{
 }
 
 var abortTaskCmd = &cobra.Command{
-	Use:   "abort TASK_ID",
+	Use:   "abort CLUSTER_UUID TASK_UUID",
 	Short: "Abort a specific task.",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
 		address := os.Getenv("HANAMI_ADDRESS")
-		taskUuid := args[0]
+		clusterUuid := args[0]
+		taskUuid := args[1]
 		content, err := hanami_sdk.AbortTask(address, token, taskUuid, clusterUuid, hanamictl_common.DisableTlsVerification)
 		if err == nil {
 			hanamictl_common.PrintSingle(content)
@@ -288,8 +291,6 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "Cluster outputs, which are paris of '-o <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createTrainTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
 	createTrainTaskCmd.Flags().IntVarP(&numberOfEpochs, "epochs", "e", 1, "Number of epochs for the training")
-	createTrainTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	createTrainTaskCmd.MarkFlagRequired("cluster")
 	createTrainTaskCmd.MarkFlagRequired("input")
 	createTrainTaskCmd.MarkFlagRequired("output")
 
@@ -297,34 +298,20 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createRequestTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "Cluster input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createRequestTaskCmd.Flags().StringSliceVarP(&outputData, "result", "r", []string{}, "Cluster result, which are paris of '-r <HEXAGON_NAME>:<COLUMN_NAME>' (mandatory)")
 	createRequestTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
-	createRequestTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	createRequestTaskCmd.MarkFlagRequired("cluster")
 	createRequestTaskCmd.MarkFlagRequired("input")
 	createRequestTaskCmd.MarkFlagRequired("result")
 
 	createTaskCmd.AddCommand(createCheckpointSaveTaskCmd)
-	createCheckpointSaveTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	createCheckpointSaveTaskCmd.MarkFlagRequired("cluster")
 
 	createTaskCmd.AddCommand(createCheckpointRestoreTaskCmd)
-	createCheckpointRestoreTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	createCheckpointRestoreTaskCmd.Flags().StringVarP(&checkpointUuid, "checkpoint_uuid", "s", "", "Checkpoint UUID UUID (mandatory)")
-	createCheckpointRestoreTaskCmd.MarkFlagRequired("cluster")
+	createCheckpointRestoreTaskCmd.Flags().StringVarP(&checkpointUuid, "checkpoint_uuid", "c", "", "Checkpoint UUID UUID (mandatory)")
 	createCheckpointRestoreTaskCmd.MarkFlagRequired("checkpoint_uuid")
 
 	taskCmd.AddCommand(getTaskCmd)
-	getTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	getTaskCmd.MarkFlagRequired("cluster")
 
 	taskCmd.AddCommand(listTaskCmd)
-	listTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	listTaskCmd.MarkFlagRequired("cluster")
 
 	taskCmd.AddCommand(deleteTaskCmd)
-	deleteTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	deleteTaskCmd.MarkFlagRequired("cluster")
 
 	taskCmd.AddCommand(abortTaskCmd)
-	abortTaskCmd.Flags().StringVarP(&clusterUuid, "cluster", "c", "", "Cluster UUID (mandatory)")
-	abortTaskCmd.MarkFlagRequired("cluster")
 }
