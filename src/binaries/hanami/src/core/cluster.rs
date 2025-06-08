@@ -22,10 +22,10 @@ use std::time::{Duration, Instant};
 use std::collections::HashMap;
 
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
+use hanami_structs::task_structs::TaskState;
 
 use crate::database::task_table;
 use crate::database::checkpoint_table;
-use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 use crate::api::user_context::UserContext;
 
 use super::task_queue::{TaskQueue, init_task_queue};

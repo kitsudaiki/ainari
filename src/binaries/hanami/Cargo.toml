@@ -7,6 +7,8 @@ edition = "2024"
 hanami_dataset = { path = "../../libs/rust/hanami_dataset" }
 hanami_common = { path = "../../libs/rust/hanami_common" }
 hanami_cluster_parser = { path = "../../libs/rust/hanami_cluster_parser" }
+hanami_structs = { path = "../../libs/rust/hanami_structs" }
+hanami_hardware = { path = "../../libs/rust/hanami_hardware" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"

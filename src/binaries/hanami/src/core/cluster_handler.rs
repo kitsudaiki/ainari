@@ -19,6 +19,9 @@ use uuid::Uuid;
 use hanami_cluster_parser::cluster_parser::parse_cluster_template;
 use hanami_cluster_parser::cluster_meta_structs::*;
 use hanami_common::error::HanamiError;
+use hanami_hardware::cpu::*;
+use hanami_hardware::memory::*;
+// use hanami_hardware::host::*;
 
 use super::cluster::Cluster;
 
@@ -130,14 +133,25 @@ impl ClusterHandler {
 
     pub fn init_hanami_root(&mut self, max_memory_usage: f32) -> bool {
         let mut error_msg = ffi::make_string("");
+        let number_of_threads = match get_number_of_cpu_threads() {
+            Ok(number_of_threads) => (number_of_threads as u64) - 2, // reserve 2 threads for other tasks
+            Err(e) => {
+                log::error!("Failed to get number of cpu-threads: {}", e.to_string());
+                return false;
+            }
+        };
+        let free_amount_of_memory = get_free_memory_amount();
+        let memory_usage = (free_amount_of_memory as f32 * max_memory_usage) as u64;
 
-        let success = self.hanami_core.pin_mut().init(max_memory_usage, error_msg.pin_mut());
+        if self.hanami_core.pin_mut().init(number_of_threads, memory_usage, error_msg.pin_mut()) {
+            log::debug!("Initialized {number_of_threads} cpu-threads for the core.");
+            log::debug!("Initialized {memory_usage} byte of memory for the core.");
 
-        if !success {
-            log::error!("Initializing hanami-core failed with error: {}", error_msg.to_string());
+            return true;
         }
 
-        success
+        log::error!("Initializing hanami-core failed with error: {}", error_msg.to_string());
+        false
     }
 
     fn add(&mut self, uuid: Uuid, cluster: Cluster) -> bool {

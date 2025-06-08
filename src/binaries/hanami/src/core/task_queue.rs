@@ -14,10 +14,11 @@
 
 use std::collections::VecDeque;
 
-use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 use crate::database::task_table;
 
 use super::tasks::Task;
+
+use hanami_structs::task_structs::TaskState;
 
 #[derive(Default, Debug)]
 pub struct TaskQueue {
@@ -49,7 +50,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
-    use crate::api::http_endpoints::cluster::task::task_structs::TaskType;
+    use hanami_structs::task_structs::TaskType;
     use super::*;
 
     #[test]

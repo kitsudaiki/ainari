@@ -20,8 +20,8 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 
+use hanami_structs::task_structs::{TaskState, TaskType};
 use hanami_common::enums;
 
 // Define the schema
