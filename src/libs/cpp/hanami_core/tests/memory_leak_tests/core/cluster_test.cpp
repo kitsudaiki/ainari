@@ -28,7 +28,6 @@
 #include <processing/physical_host.h>
 #include <src/cluster/cluster.h>
 #include <src/cluster/objects.h>
-#include <src/hardware/host.h>
 
 namespace Hanami
 {
@@ -77,11 +76,11 @@ void
 Cluster_Test::initHost_test()
 {
     bool success = false;
-    Hanami::ErrorContainer error;
+    std::string error;
 
     // init host
-    PhysicalHost physicalHost(0.05f);
-    physicalHost.init(error);
+    PhysicalHost physicalHost(100000000);
+    physicalHost.init(2, error);
     m_logicalHost = physicalHost.getFirstHost();
 }
 
@@ -92,7 +91,7 @@ void
 Cluster_Test::createCluster_test()
 {
     const std::string uuid = "ce8eaaf9-8798-42d6-b8a1-5ddbe073178a";
-    Hanami::ErrorContainer error;
+    std::string error;
     bool success = false;
 
     // parse template
@@ -116,7 +115,7 @@ void
 Cluster_Test::serialize_test()
 {
     const std::string uuid = "ce8eaaf9-8798-42d6-b8a1-5ddbe073178a";
-    Hanami::ErrorContainer error;
+    std::string error;
     bool success = false;
 
     // parse template

@@ -28,23 +28,21 @@
 #include <processing/cpu/cpu_worker_thread.h>
 #include <processing/cpu/output_backpropagation.h>
 #include <processing/cpu/output_processing.h>
-#include <src/hardware/cpu_core.h>
-#include <src/hardware/cpu_package.h>
-#include <src/hardware/cpu_thread.h>
-#include <src/hardware/host.h>
-#include <src/hardware/memory.h>
 
 /**
  * @brief constructor
  *
  * @param localId identifier starting with 0 within the physical host and with the type of host
  */
-CpuHost::CpuHost(const uint32_t localId, const float maxMemoryUsage) : LogicalHost(localId)
+CpuHost::CpuHost(const uint32_t localId,
+                 const uint64_t maxMemoryUsage,
+                 const uint64_t numberOfThreads)
+    : LogicalHost(localId)
 {
     m_hostType = CPU_HOST_TYPE;
 
     initBuffer(maxMemoryUsage);
-    initWorkerThreads();
+    initWorkerThreads(numberOfThreads);
 }
 
 /**
@@ -58,55 +56,31 @@ CpuHost::~CpuHost() {}
  * @param id local device-id
  */
 void
-CpuHost::initBuffer(const float maxMemoryUsage)
+CpuHost::initBuffer(const uint64_t maxMemoryUsage)
 {
-    m_totalMemory = Hanami::getFreeMemory();
-    bool success = false;
-    float memoryUsage = maxMemoryUsage;
-    // TODO: handle amound of min and max value by ranges inside of the config-lib
-    if (memoryUsage < 0.01f) {
-        memoryUsage = 0.01f;
-    }
-    if (memoryUsage > 0.9f) {
-        memoryUsage = 0.9f;
-    }
-    const uint64_t usedMemory = static_cast<float>(m_totalMemory) * memoryUsage;
     // one block can have up to 512 entries, but considering, that they are not all fully filled,
     // 256 was choosen to estimate the average fill rate
-    const uint64_t numberOfBlocks = usedMemory / (sizeof(Block) + (256 * sizeof(SynapseSection)));
+    const uint64_t numberOfBlocks
+        = maxMemoryUsage / (sizeof(Block) + (256 * sizeof(SynapseSection)));
     blocks.initBuffer(numberOfBlocks);
     blocks.deleteAll();
 
     sections.initBuffer(numberOfBlocks * 256);
     sections.deleteAll();
-
-    LOG_INFO("Initialized number of syanpse-blocks on cpu-device: "
-             + std::to_string(blocks.metaData.itemCapacity));
 }
 
 /**
  * @brief init processing-thread
  */
 bool
-CpuHost::initWorkerThreads()
+CpuHost::initWorkerThreads(const uint64_t numberOfThreads)
 {
-    Hanami::Host* host = Hanami::Host::getInstance();
-    Hanami::CpuPackage* package = host->cpuPackages.at(m_localId);
-    uint32_t threadCounter = 0;
-    for (uint32_t coreId = 1; coreId < package->cpuCores.size(); coreId++) {
-        for (uint32_t threadId = 0; threadId < package->cpuCores.at(coreId)->cpuThreads.size();
-             threadId++)
-        {
-            Hanami::CpuThread* thread = package->cpuCores.at(coreId)->cpuThreads.at(threadId);
-            CpuWorkerThread* newUnit = new CpuWorkerThread(this);
-            m_workerThreads.push_back(newUnit);
-            newUnit->startThread();
-            newUnit->bindThreadToCore(thread->threadId);
-            threadCounter++;
-        }
+    for (uint64_t i = 0; i < numberOfThreads; ++i) {
+        CpuWorkerThread* newUnit = new CpuWorkerThread(this);
+        m_workerThreads.push_back(newUnit);
+        newUnit->startThread();
+        newUnit->bindThreadToCore(i);
     }
-
-    LOG_INFO("Initialized " + std::to_string(threadCounter) + " cpu worker-threads");
 
     return true;
 }

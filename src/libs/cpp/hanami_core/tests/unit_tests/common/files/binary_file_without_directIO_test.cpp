@@ -24,6 +24,8 @@
 
 #include <src/common/files/binary_file.h>
 
+#include <filesystem>
+
 namespace Hanami
 {
 
@@ -62,7 +64,7 @@ BinaryFile_withoutDirectIO_Test::initTest()
 void
 BinaryFile_withoutDirectIO_Test::closeFile_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     // init buffer and file
     DataBuffer buffer;
@@ -81,7 +83,7 @@ BinaryFile_withoutDirectIO_Test::closeFile_test()
 void
 BinaryFile_withoutDirectIO_Test::updateFileSize_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     // init buffer and file
     DataBuffer buffer(5);
@@ -103,7 +105,7 @@ BinaryFile_withoutDirectIO_Test::updateFileSize_test()
 void
 BinaryFile_withoutDirectIO_Test::allocateStorage_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     // init buffer and file
     DataBuffer buffer;
@@ -131,7 +133,7 @@ BinaryFile_withoutDirectIO_Test::allocateStorage_test()
 void
 BinaryFile_withoutDirectIO_Test::writeCompleteFile_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     // init buffer and file
     DataBuffer buffer(5);
@@ -160,7 +162,7 @@ BinaryFile_withoutDirectIO_Test::writeCompleteFile_test()
 void
 BinaryFile_withoutDirectIO_Test::readCompleteFile_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     // init buffer and file
     DataBuffer sourceBuffer(5);
@@ -198,7 +200,7 @@ BinaryFile_withoutDirectIO_Test::readCompleteFile_test()
 void
 BinaryFile_withoutDirectIO_Test::writeDataIntoFile_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     DataBuffer targetBuffer(5);
 
@@ -239,7 +241,7 @@ BinaryFile_withoutDirectIO_Test::writeDataIntoFile_test()
 void
 BinaryFile_withoutDirectIO_Test::readDataFromFile_test()
 {
-    ErrorContainer error;
+    std::string error;
 
     DataBuffer targetBuffer(5);
 

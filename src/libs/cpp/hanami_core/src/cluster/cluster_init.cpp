@@ -27,7 +27,6 @@
 #include <routing_functions.h>
 #include <src/cluster/cluster.h>
 #include <src/cluster/objects.h>
-#include <src/common/logger.h>
 
 #include "hanami_root.h"
 

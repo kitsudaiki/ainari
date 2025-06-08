@@ -26,10 +26,11 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <src/common/buffer/data_buffer.h>
-#include <src/common/logger.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <string>
 
 namespace Hanami
 {
@@ -41,22 +42,22 @@ class BinaryFile
     ~BinaryFile();
 
     bool isOpen() const;
-    bool allocateStorage(const uint64_t numberOfBytes, ErrorContainer& error);
-    bool updateFileSize(ErrorContainer& error);
+    bool allocateStorage(const uint64_t numberOfBytes, std::string& error);
+    bool updateFileSize(std::string& error);
 
-    bool readCompleteFile(DataBuffer& buffer, ErrorContainer& error);
-    bool writeCompleteFile(DataBuffer& buffer, ErrorContainer& error);
+    bool readCompleteFile(DataBuffer& buffer, std::string& error);
+    bool writeCompleteFile(DataBuffer& buffer, std::string& error);
 
     bool writeDataIntoFile(const void* data,
                            const uint64_t startBytePosition,
                            const uint64_t numberOfBytes,
-                           ErrorContainer& error);
+                           std::string& error);
     bool readDataFromFile(void* data,
                           const uint64_t startBytePosition,
                           const uint64_t numberOfBytes,
-                          ErrorContainer& error);
+                          std::string& error);
 
-    bool closeFile(ErrorContainer& error);
+    bool closeFile(std::string& error);
 
     // public variables to avoid stupid getter
     uint64_t fileSize = 0;
@@ -65,7 +66,7 @@ class BinaryFile
    private:
     int m_fileDescriptor = -1;
 
-    bool initFile(ErrorContainer& error);
+    bool initFile(std::string& error);
 };
 
 }  // namespace Hanami

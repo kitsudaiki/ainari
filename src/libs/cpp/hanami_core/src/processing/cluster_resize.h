@@ -155,8 +155,6 @@ resizeBlocks(Hexagon* targetHexagon, Hanami::ItemBuffer<Block>* blockBuffer)
     targetHexagon->axonBlocks.resize(targetHexagon->header.numberOfBlocks);
     targetHexagon->cluster->metrics.numberOfBlocks++;
 
-    LOG_DEBUG("resized blocks to: " + std::to_string(targetHexagon->header.numberOfBlocks));
-
     // update content of list for the new size
     targetHexagon->blockLinks[targetHexagon->header.numberOfBlocks - 1] = synapseSectionPos;
     targetHexagon->axonBlocks[targetHexagon->header.numberOfBlocks - 1] = AxonBlock();

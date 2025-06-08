@@ -44,7 +44,7 @@ BufferIO::~BufferIO() {}
 ReturnStatus
 BufferIO::writeClusterIntoBuffer(Hanami::DataBuffer& target,
                                  const Cluster& cluster,
-                                 Hanami::ErrorContainer& error)
+                                 std::string& error)
 {
     m_buffer = &target;
 
@@ -65,7 +65,7 @@ ReturnStatus
 BufferIO::readClusterFromBuffer(Cluster& cluster,
                                 Hanami::DataBuffer& input,
                                 LogicalHost* host,
-                                Hanami::ErrorContainer& error)
+                                std::string& error)
 {
     m_buffer = &input;
 
@@ -81,10 +81,10 @@ BufferIO::readClusterFromBuffer(Cluster& cluster,
  * @return true, if successful, else false
  */
 bool
-BufferIO::initializeTarget(const uint64_t size, Hanami::ErrorContainer& error)
+BufferIO::initializeTarget(const uint64_t size, std::string& error)
 {
     if (Hanami::reset_DataBuffer(*m_buffer, Hanami::calcBytesToBlocks(size)) == false) {
-        error.addMessage("Failed to reset and initialize buffer");
+        error = "Failed to reset and initialize buffer";
         return false;
     }
 
@@ -100,7 +100,7 @@ BufferIO::initializeTarget(const uint64_t size, Hanami::ErrorContainer& error)
  * @return always true
  */
 bool
-BufferIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorContainer&)
+BufferIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, std::string&)
 {
     uint8_t* u8Data = static_cast<uint8_t*>(m_buffer->data);
     memcpy(&u8Data[localBuffer.startPos], localBuffer.cache, localBuffer.size);
@@ -118,7 +118,7 @@ BufferIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorCont
  * @return always true
  */
 bool
-BufferIO::readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer&)
+BufferIO::readToLocalBuffer(LocalBuffer& localBuffer, std::string&)
 {
     uint8_t* u8Data = static_cast<uint8_t*>(m_buffer->data);
     memcpy(localBuffer.cache, &u8Data[localBuffer.startPos], localBuffer.size);

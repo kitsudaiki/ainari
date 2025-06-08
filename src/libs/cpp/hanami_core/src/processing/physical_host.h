@@ -32,24 +32,19 @@ class CpuHost;
 class LogicalHost;
 using json = nlohmann::json;
 
-namespace Hanami
-{
-struct ErrorContainer;
-}
-
 class PhysicalHost
 {
    public:
-    PhysicalHost(const float maxMemoryUsage);
+    PhysicalHost(const uint64_t maxMemoryUsage);
 
-    bool init(Hanami::ErrorContainer& error);
+    bool init(const uint64_t numberOfThreads, std::string& error);
 
     LogicalHost* getFirstHost() const;
     LogicalHost* getHost(const std::string& uuid) const;
     json getAllHostsAsJson();
 
    private:
-    const float m_maxMemoryUsage;
+    const uint64_t m_maxMemoryUsage;
     std::vector<CudaHost*> m_cudaHosts;
     std::vector<CpuHost*> m_cpuHosts;
 };

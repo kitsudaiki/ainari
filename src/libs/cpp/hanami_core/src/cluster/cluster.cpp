@@ -24,10 +24,10 @@
 #include <processing/cuda/cuda_functions.h>
 #include <processing/logical_host.h>
 #include <src/cluster/cluster.h>
-#include <src/common/logger.h>
 #include <src/common/threading/thread.h>
 #include <src/io/checkpoint/disc/checkpoint_io.h>
 
+#include <filesystem>
 #include <iostream>
 
 /**
@@ -178,7 +178,7 @@ Cluster::finishCycle()
 ReturnStatus
 Cluster::createCheckpoint(const std::string& targetFilePath)
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     std::filesystem::path filePath = targetFilePath;
 
     for (Hexagon& hexagon : this->hexagons) {
@@ -190,7 +190,7 @@ Cluster::createCheckpoint(const std::string& targetFilePath)
     std::unique_ptr<CheckpointIO> clusterIO = std::make_unique<CheckpointIO>();
     ReturnStatus ret = clusterIO->writeClusterToFile(*this, targetFilePath, error);
     if (ret != OK) {
-        std::cout << "error: " << error.toString() << std::endl;
+        std::cout << "error: " << error << std::endl;
         return ret;
     }
 
@@ -207,7 +207,7 @@ Cluster::createCheckpoint(const std::string& targetFilePath)
 ReturnStatus
 Cluster::restoreCheckpoint(const std::string& targetFilePath)
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     std::filesystem::path filePath = targetFilePath;
 
     for (Hexagon& hexagon : hexagons) {
@@ -219,7 +219,7 @@ Cluster::restoreCheckpoint(const std::string& targetFilePath)
     std::unique_ptr<CheckpointIO> clusterIO = std::make_unique<CheckpointIO>();
     ReturnStatus ret = clusterIO->restoreClusterFromFile(*this, targetFilePath, error);
     if (ret != OK) {
-        std::cout << "error: " << error.toString() << std::endl;
+        std::cout << "error: " << error << std::endl;
         return ret;
     }
 

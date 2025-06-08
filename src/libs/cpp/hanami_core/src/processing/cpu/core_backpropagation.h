@@ -170,7 +170,7 @@ _backpropagateBlock(Hexagon* hexagon,
 inline void
 backpropagateBlock(Cluster* cluster, const uint32_t hexagonId, const uint32_t blockId)
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     Hexagon* hexagon = &cluster->hexagons[hexagonId];
     Block* blocks = Hanami::getItemData<Block>(hexagon->attachedHost->blocks);
     SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon->attachedHost->sections);

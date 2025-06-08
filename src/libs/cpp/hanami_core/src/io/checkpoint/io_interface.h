@@ -25,7 +25,6 @@
 
 #include <assert.h>
 #include <src/cluster/objects.h>
-#include <src/common/logger.h>
 #include <src/common/types.h>
 #include <stdint.h>
 
@@ -83,11 +82,11 @@ class IO_Interface
     IO_Interface();
     virtual ~IO_Interface();
 
-    ReturnStatus serialize(const Cluster& cluster, Hanami::ErrorContainer& error);
+    ReturnStatus serialize(const Cluster& cluster, std::string& error);
     ReturnStatus deserialize(Cluster& cluster,
                              const uint64_t totalSize,
                              LogicalHost* host,
-                             Hanami::ErrorContainer& error);
+                             std::string& error);
 
    private:
     /**
@@ -99,12 +98,12 @@ class IO_Interface
      * @return  true, if successful, else false
      */
     template <typename T>
-    inline bool addObjectToLocalBuffer(T* data, Hanami::ErrorContainer& error)
+    inline bool addObjectToLocalBuffer(T* data, std::string& error)
     {
         assert(sizeof(T) < LOCAL_BUFFER_SIZE);
         if (sizeof(T) + m_localBuffer.size > LOCAL_BUFFER_SIZE) {
             if (writeFromLocalBuffer(m_localBuffer, error) == false) {
-                error.addMessage("Failed to write local buffer to target");
+                error = "Failed to write local buffer to target";
                 return false;
             }
 
@@ -130,13 +129,13 @@ class IO_Interface
     template <typename T>
     inline ReturnStatus getObjectFromLocalBuffer(uint64_t& bytePosition,
                                                  T* data,
-                                                 Hanami::ErrorContainer& error)
+                                                 std::string& error)
     {
         if (bytePosition + sizeof(T) > m_localBuffer.size + m_localBuffer.startPos) {
             // update position in buffer
             m_localBuffer.startPos = bytePosition;
             if (m_localBuffer.startPos >= m_localBuffer.totalSize) {
-                error.addMessage("Input-data invalid");
+                error = "Input-data invalid";
                 return INVALID_INPUT;
             }
 
@@ -151,16 +150,16 @@ class IO_Interface
             // handle special-case, which should never appear, because when this function is called,
             // it is expected, that there are more data in the target
             if (size <= 0) {
-                error.addMessage("Input-data invalid");
+                error = "Input-data invalid";
                 return INVALID_INPUT;
             }
             if (m_localBuffer.totalSize < m_localBuffer.startPos + m_localBuffer.size) {
-                error.addMessage("Input-data invalid");
+                error = "Input-data invalid";
                 return INVALID_INPUT;
             }
 
             if (readToLocalBuffer(m_localBuffer, error) == false) {
-                error.addMessage("Failed to read cluster-data from target into local buffer");
+                error = "Failed to read cluster-data from target into local buffer";
                 return ERROR;
             }
         }
@@ -175,19 +174,16 @@ class IO_Interface
         return OK;
     }
 
-    virtual bool initializeTarget(const uint64_t size, Hanami::ErrorContainer& error) = 0;
-    virtual bool writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorContainer& error)
-        = 0;
-    virtual bool readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer& error) = 0;
+    virtual bool initializeTarget(const uint64_t size, std::string& error) = 0;
+    virtual bool writeFromLocalBuffer(const LocalBuffer& localBuffer, std::string& error) = 0;
+    virtual bool readToLocalBuffer(LocalBuffer& localBuffer, std::string& error) = 0;
 
     uint64_t getClusterSize(const Cluster& cluster) const;
     uint64_t getHexagonSize(const Hexagon& hexagon) const;
     uint64_t getBlockSize(const Hexagon& hexagon) const;
 
-    ReturnStatus serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& error);
-    ReturnStatus deserializeHexagon(Hexagon& hexagon,
-                                    uint64_t& positionPtr,
-                                    Hanami::ErrorContainer& error);
+    ReturnStatus serializeHexagon(const Hexagon& hexagon, std::string& error);
+    ReturnStatus deserializeHexagon(Hexagon& hexagon, uint64_t& positionPtr, std::string& error);
 
     bool checkHexagonEntry(const HexagonEntry& hexagonEntry);
     HexagonEntry createHexagonEntry(const Hexagon& hexagon);

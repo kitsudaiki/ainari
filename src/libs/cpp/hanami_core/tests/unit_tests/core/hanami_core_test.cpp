@@ -47,9 +47,9 @@ Hanami_Core_Test::core_test()
     const std::string uuid = "ce8eaaf9-8798-42d6-b8a1-5ddbe073178a";
     std::string errorMessage = "";
 
-    bool ret = core.init(0.01f, errorMessage);
+    bool ret = core.init(2, 100000000, errorMessage);
     TEST_EQUAL(ret, true);
-    ret = core.init(0.01f, errorMessage);
+    ret = core.init(2, 100000000, errorMessage);
     TEST_EQUAL(ret, false);
 
     // prepare information for the cluster

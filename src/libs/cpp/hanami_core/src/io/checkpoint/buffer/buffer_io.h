@@ -34,16 +34,16 @@ class BufferIO : public IO_Interface
 
     ReturnStatus writeClusterIntoBuffer(Hanami::DataBuffer& target,
                                         const Cluster& cluster,
-                                        Hanami::ErrorContainer& error);
+                                        std::string& error);
     ReturnStatus readClusterFromBuffer(Cluster& cluster,
                                        Hanami::DataBuffer& input,
                                        LogicalHost* host,
-                                       Hanami::ErrorContainer& error);
+                                       std::string& error);
 
    private:
-    bool initializeTarget(const uint64_t size, Hanami::ErrorContainer& error);
-    bool writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorContainer&);
-    bool readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer&);
+    bool initializeTarget(const uint64_t size, std::string& error);
+    bool writeFromLocalBuffer(const LocalBuffer& localBuffer, std::string&);
+    bool readToLocalBuffer(LocalBuffer& localBuffer, std::string&);
 
     Hanami::DataBuffer* m_buffer = nullptr;
 };

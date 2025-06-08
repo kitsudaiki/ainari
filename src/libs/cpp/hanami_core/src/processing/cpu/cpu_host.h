@@ -31,7 +31,7 @@ class CpuWorkerThread;
 class CpuHost : public LogicalHost
 {
    public:
-    CpuHost(const uint32_t localId, const float maxMemoryUsage);
+    CpuHost(const uint32_t localId, const uint64_t maxMemoryUsage, const uint64_t numberOfThreads);
     ~CpuHost();
 
     bool moveHexagon(Hexagon* hexagon);
@@ -39,10 +39,10 @@ class CpuHost : public LogicalHost
     void removeHexagon(Hexagon* hexagon);
 
    protected:
-    bool initWorkerThreads();
+    bool initWorkerThreads(const uint64_t numberOfThreads);
 
    private:
-    void initBuffer(const float maxMemoryUsage);
+    void initBuffer(const uint64_t maxMemoryUsage);
 };
 
 #endif  // CPUHOST_H
