@@ -25,7 +25,6 @@
 
 #include <io/checkpoint/io_interface.h>
 #include <src/common/files/binary_file.h>
-#include <src/common/logger.h>
 
 #include <string>
 
@@ -40,16 +39,16 @@ class CheckpointIO : public IO_Interface
 
     ReturnStatus writeClusterToFile(Cluster& cluster,
                                     const std::string& filePath,
-                                    Hanami::ErrorContainer& error);
+                                    std::string& error);
     ReturnStatus restoreClusterFromFile(Cluster& cluster,
                                         const std::string& fileLocation,
-                                        Hanami::ErrorContainer& error,
+                                        std::string& error,
                                         LogicalHost* host = nullptr);
 
    private:
-    bool initializeTarget(const uint64_t size, Hanami::ErrorContainer& error);
-    bool writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorContainer& error);
-    bool readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer& error);
+    bool initializeTarget(const uint64_t size, std::string& error);
+    bool writeFromLocalBuffer(const LocalBuffer& localBuffer, std::string& error);
+    bool readToLocalBuffer(LocalBuffer& localBuffer, std::string& error);
 
     Hanami::BinaryFile* m_checkpointFile = nullptr;
 };

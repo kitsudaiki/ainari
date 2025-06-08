@@ -61,7 +61,7 @@ ClusterHandler::removeCluster(const std::string uuid)
             // unregister cluster in websocket and close websocket, if direct connection is active
             /*if (it->second->msgClient != nullptr) {
                 it->second->msgClient->m_targetCluster = nullptr;
-                Hanami::ErrorContainer error;
+                std::string error;
                 //it->second->msgClient->closeClient();
             }*/
 

@@ -26,13 +26,10 @@
 #include <src/cluster/cluster_handler.h>
 #include <src/cluster/cluster_init.h>
 #include <src/common/files/binary_file.h>
-#include <src/common/functions/file_functions.h>
-#include <src/common/logger.h>
 #include <src/common/threading/thread_handler.h>
 #include <src/io/checkpoint/disc/checkpoint_io.h>
 #include <src/processing/logical_host.h>
 #include <src/processing/physical_host.h>
-#include <src/thread_binder.h>
 
 #include "cluster_link.h"
 
@@ -62,7 +59,9 @@ HanamiCore::~HanamiCore()
  * @return true, if successful, else false
  */
 bool
-HanamiCore::init(const float maxMemoryUsage, std::string& errorMessage)
+HanamiCore::init(const uint64_t numberOfThreads,
+                 const uint64_t maxMemoryUsage,
+                 std::string& errorMessage)
 {
     if (m_isInit) {
         return false;
@@ -71,24 +70,12 @@ HanamiCore::init(const float maxMemoryUsage, std::string& errorMessage)
     srand(time(NULL));
 
     // inti hosts
-    Hanami::ErrorContainer error;
+    std::string error;
     physicalHost = new PhysicalHost(maxMemoryUsage);
-    if (physicalHost->init(error) == false) {
+    if (physicalHost->init(numberOfThreads, errorMessage) == false) {
         delete physicalHost;
-        LOG_ERROR(error);
-        errorMessage = error.toString();
         return false;
     }
-
-    // create thread-binder
-    if (ThreadBinder::getInstance()->init(error) == false) {
-        error.addMessage("failed to init thread-binder");
-        delete physicalHost;
-        LOG_ERROR(error);
-        errorMessage = error.toString();
-        return false;
-    }
-    ThreadBinder::getInstance()->startThread();
 
     m_isInit = true;
 
@@ -111,34 +98,34 @@ HanamiCore::createCluster(const std::string& uuid,
                           const ClusterMeta& parsedCluster,
                           std::string& errorMessage)
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     std::lock_guard<std::mutex> guard(m_clusterMutex);
     Cluster* newCluster = nullptr;
 
     do {
         // check if cluster already exist
         if (ClusterHandler::getInstance()->getCluster(uuid) != nullptr) {
-            error.addMessage("Cluster with UUID '" + uuid + "' already exist.");
+            errorMessage = "Cluster with UUID '" + uuid + "' already exist.";
             break;
         }
 
         // create new cluster
         newCluster = new Cluster();
         if (newCluster->clusterHeader.name.setName(name) == false) {
-            error.addMessage("New cluster-name '" + name
-                             + "' too long, even this should be avoided by the API.");
+            errorMessage = "New cluster-name '" + name
+                           + "' too long, even this should be avoided by the API.";
             break;
         }
 
         // generate and initialize the cluster based on the cluster-templates
         if (newCluster->init(parsedCluster, uuid) == false) {
-            error.addMessage("Failed to initialize cluster based on a template");
+            errorMessage = "Failed to initialize cluster based on a template";
             break;
         }
 
         // add to cluster-handler
         if (ClusterHandler::getInstance()->addCluster(uuid, newCluster) == false) {
-            error.addMessage("Failed to add cluster to cluster-handler.");
+            errorMessage = "Failed to add cluster to cluster-handler.";
             break;
         }
 
@@ -151,7 +138,6 @@ HanamiCore::createCluster(const std::string& uuid,
     if (newCluster != nullptr) {
         delete newCluster;
     }
-    errorMessage = error.toString();
 
     return std::unique_ptr<ClusterLink>{nullptr};
 }

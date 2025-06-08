@@ -30,30 +30,13 @@ add_library(hanami_core_cpp STATIC
     src/common/buffer/item_buffer.h
     src/common/files/binary_file.cpp
     src/common/files/binary_file.h
-    src/common/files/binary_file_direct.cpp
-    src/common/files/binary_file_direct.h
     src/common/functions/common_functions.h
-    src/common/functions/file_functions.cpp
-    src/common/functions/file_functions.h
-    src/common/functions/string_functions.cpp
-    src/common/functions/string_functions.h
-    src/common/functions/time_functions.h
-    src/common/functions/vector_functions.cpp
-    src/common/functions/vector_functions.h
-    src/common/items/table_item.cpp
-    src/common/items/table_item.h
-    src/common/logger.cpp
-    src/common/logger.h
     src/common/memory_counter.cpp
     src/common/memory_counter.h
-    src/common/process_execution.cpp
-    src/common/process_execution.h
     src/common/test_helper/compare_test_helper.cpp
     src/common/test_helper/compare_test_helper.h
     src/common/test_helper/memory_leak_test_helper.cpp
     src/common/test_helper/memory_leak_test_helper.h
-    src/common/test_helper/speed_test_helper.cpp
-    src/common/test_helper/speed_test_helper.h
     src/common/threading/barrier.cpp
     src/common/threading/barrier.h
     src/common/threading/cleanup_thread.cpp
@@ -63,28 +46,6 @@ add_library(hanami_core_cpp STATIC
     src/common/threading/thread_handler.cpp
     src/common/threading/thread_handler.h
     src/hanami_root.cpp
-    src/hardware/cpu.cpp
-    src/hardware/cpu.h
-    src/hardware/cpu_core.cpp
-    src/hardware/cpu_core.h
-    src/hardware/cpu_package.cpp
-    src/hardware/cpu_package.h
-    src/hardware/cpu_thread.cpp
-    src/hardware/cpu_thread.h
-    src/hardware/host.cpp
-    src/hardware/host.h
-    src/hardware/memory.cpp
-    src/hardware/memory.h
-    src/hardware/power_measuring.cpp
-    src/hardware/power_measuring.h
-    src/hardware/rapl.cpp
-    src/hardware/rapl.h
-    src/hardware/speed_measuring.cpp
-    src/hardware/speed_measuring.h
-    src/hardware/temperature_measuring.cpp
-    src/hardware/temperature_measuring.h
-    src/hardware/value_container.cpp
-    src/hardware/value_container.h
     src/io/checkpoint/buffer/buffer_io.cpp
     src/io/checkpoint/buffer/buffer_io.h
     src/io/checkpoint/disc/checkpoint_io.cpp
@@ -116,8 +77,6 @@ add_library(hanami_core_cpp STATIC
     src/processing/worker_thread.cpp
     src/processing/worker_thread.h
     src/routing_functions.h
-    src/thread_binder.cpp
-    src/thread_binder.h
     tests/unit_tests/core/hanami_core_test.h tests/unit_tests/core/hanami_core_test.cpp
 )
 
@@ -139,20 +98,8 @@ if(run_tests)
         tests/unit_tests/common/buffer/data_buffer_test.h
         tests/unit_tests/common/buffer/item_buffer_test.cpp
         tests/unit_tests/common/buffer/item_buffer_test.h
-        tests/unit_tests/common/files/binary_file_with_directIO_test.cpp
-        tests/unit_tests/common/files/binary_file_with_directIO_test.h
         tests/unit_tests/common/files/binary_file_without_directIO_test.cpp
         tests/unit_tests/common/files/binary_file_without_directIO_test.h
-        tests/unit_tests/common/items/table_item_test.cpp
-        tests/unit_tests/common/items/table_item_test.h
-        tests/unit_tests/common/logger_test.cpp
-        tests/unit_tests/common/logger_test.h
-        tests/unit_tests/common/functions/file_functions_test.cpp
-        tests/unit_tests/common/functions/file_functions_test.h
-        tests/unit_tests/common/functions/string_functions_test.cpp
-        tests/unit_tests/common/functions/string_functions_test.h
-        tests/unit_tests/common/functions/vector_functions_test.cpp
-        tests/unit_tests/common/functions/vector_functions_test.h
         tests/unit_tests/common/threading/thread_handler_test.cpp
         tests/unit_tests/common/threading/thread_handler_test.h
         tests/unit_tests/main.cpp
@@ -173,10 +120,6 @@ if(run_tests)
         tests/memory_leak_tests/common/buffer/data_buffer_test.h
         tests/memory_leak_tests/common/buffer/item_buffer_test.cpp
         tests/memory_leak_tests/common/buffer/item_buffer_test.h
-        tests/memory_leak_tests/common/items/table_item_test.cpp
-        tests/memory_leak_tests/common/items/table_item_test.h
-
-
         tests/memory_leak_tests/common/threading/bogus_thread.cpp
         tests/memory_leak_tests/common/threading/bogus_thread.h
         tests/memory_leak_tests/common/threading/thread_test.cpp

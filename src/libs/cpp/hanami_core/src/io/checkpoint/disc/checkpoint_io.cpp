@@ -27,9 +27,6 @@
 #include <src/cluster/cluster.h>
 #include <src/cluster/objects.h>
 #include <src/common/buffer/item_buffer.h>
-#include <src/common/functions/file_functions.h>
-
-#include "hanami_root.h"
 
 struct CheckpointHeader {
     const char typeIdentifier[8] = "hanami";
@@ -51,7 +48,7 @@ CheckpointIO::CheckpointIO() : IO_Interface() {}
  */
 CheckpointIO::~CheckpointIO()
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     if (m_checkpointFile != nullptr) {
         m_checkpointFile->closeFile(error);
         delete m_checkpointFile;
@@ -68,15 +65,13 @@ CheckpointIO::~CheckpointIO()
  * @return OK-status, if successful, else ERROR-status
  */
 ReturnStatus
-CheckpointIO::writeClusterToFile(Cluster& cluster,
-                                 const std::string& filePath,
-                                 Hanami::ErrorContainer& error)
+CheckpointIO::writeClusterToFile(Cluster& cluster, const std::string& filePath, std::string& error)
 {
     m_checkpointFile = new Hanami::BinaryFile(filePath);
 
     const ReturnStatus status = serialize(cluster, error);
     if (status != OK) {
-        error.addMessage("Failed to create checkpoint");
+        error = "Failed to create checkpoint";
         return status;
     }
 
@@ -96,7 +91,7 @@ CheckpointIO::writeClusterToFile(Cluster& cluster,
 ReturnStatus
 CheckpointIO::restoreClusterFromFile(Cluster& cluster,
                                      const std::string& fileLocation,
-                                     Hanami::ErrorContainer& error,
+                                     std::string& error,
                                      LogicalHost* host)
 {
     // backup the original UUID of the cluster to apply this after reading the checkpoint,
@@ -107,15 +102,14 @@ CheckpointIO::restoreClusterFromFile(Cluster& cluster,
 
     // check for minimal-size to read at least the size of the checkpoint-header
     if (m_checkpointFile->fileSize < sizeof(CheckpointHeader)) {
-        error.addMessage("Given checkpoint-file '" + fileLocation
-                         + "' is too small or even empty.");
+        error = "Given checkpoint-file '" + fileLocation + "' is too small or even empty.";
         return INVALID_INPUT;
     }
 
     const ReturnStatus ret
         = deserialize(cluster, m_checkpointFile->fileSize - sizeof(CheckpointHeader), host, error);
     if (ret != OK) {
-        error.addMessage("Failed to read checkpoint");
+        error = "Failed to read checkpoint";
         return ret;
     }
 
@@ -147,20 +141,20 @@ CheckpointIO::restoreClusterFromFile(Cluster& cluster,
  * @return true, if successful, else false
  */
 bool
-CheckpointIO::initializeTarget(const uint64_t size, Hanami::ErrorContainer& error)
+CheckpointIO::initializeTarget(const uint64_t size, std::string& error)
 {
     // initialize checkpoint-file
     const uint64_t totalFileSize = size + sizeof(CheckpointHeader);
     if (m_checkpointFile->allocateStorage(totalFileSize, error) == false) {
-        error.addMessage("Failed to allocate '" + std::to_string(totalFileSize)
-                         + "' bytes for checkpointfile");
+        error
+            = "Failed to allocate '" + std::to_string(totalFileSize) + "' bytes for checkpointfile";
         return false;
     }
 
     // write header of cluster to file
     CheckpointHeader header;
     if (m_checkpointFile->writeDataIntoFile(&header, 0, sizeof(CheckpointHeader), error) == false) {
-        error.addMessage("Failed to write cluster-header for checkpoint into file");
+        error = "Failed to write cluster-header for checkpoint into file";
         return false;
     }
 
@@ -176,7 +170,7 @@ CheckpointIO::initializeTarget(const uint64_t size, Hanami::ErrorContainer& erro
  * @return true, if successful, else false
  */
 bool
-CheckpointIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::ErrorContainer& error)
+CheckpointIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, std::string& error)
 {
     if (m_checkpointFile->writeDataIntoFile(localBuffer.cache,
                                             localBuffer.startPos + sizeof(CheckpointHeader),
@@ -184,7 +178,7 @@ CheckpointIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::Error
                                             error)
         == false)
     {
-        error.addMessage("Failed to write cluster-payload from local-buffer into file");
+        error = "Failed to write cluster-payload from local-buffer into file";
         return false;
     }
 
@@ -200,7 +194,7 @@ CheckpointIO::writeFromLocalBuffer(const LocalBuffer& localBuffer, Hanami::Error
  * @return true, if successful, else false
  */
 bool
-CheckpointIO::readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer& error)
+CheckpointIO::readToLocalBuffer(LocalBuffer& localBuffer, std::string& error)
 {
     if (m_checkpointFile->readDataFromFile(localBuffer.cache,
                                            localBuffer.startPos + sizeof(CheckpointHeader),
@@ -208,7 +202,7 @@ CheckpointIO::readToLocalBuffer(LocalBuffer& localBuffer, Hanami::ErrorContainer
                                            error)
         == false)
     {
-        error.addMessage("Failed to read cluster-payload from file into local-buffer");
+        error = "Failed to read cluster-payload from file into local-buffer";
         return false;
     }
 

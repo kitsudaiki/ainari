@@ -25,13 +25,12 @@
 #include <processing/cpu/cpu_host.h>
 #include <processing/cuda/cuda_functions.h>
 #include <processing/cuda/cuda_host.h>
-#include <src/hardware/host.h>
 
 /**
  * @brief PhysicalHost::PhysicalHost
  * @param maxMemoryUsage
  */
-PhysicalHost::PhysicalHost(const float maxMemoryUsage) : m_maxMemoryUsage(maxMemoryUsage) {}
+PhysicalHost::PhysicalHost(const uint64_t maxMemoryUsage) : m_maxMemoryUsage(maxMemoryUsage) {}
 
 /**
  * @brief initialize all cpu's ang cuda gpu's of the physical host by creating a logical-host for
@@ -42,10 +41,8 @@ PhysicalHost::PhysicalHost(const float maxMemoryUsage) : m_maxMemoryUsage(maxMem
  * @return true, if successful, else false
  */
 bool
-PhysicalHost::init(Hanami::ErrorContainer& error)
+PhysicalHost::init(const uint64_t numberOfThreads, std::string& error)
 {
-    LOG_INFO("Please wait a few seconds, until hardware-resources are initialized...");
-
     // identify and init cuda gpu's
     // IMPORTANT: these are initialized first, because they also need memory on the host
     // TODO:enable gpu init here again
@@ -58,21 +55,12 @@ PhysicalHost::init(Hanami::ErrorContainer& error)
         m_cudaHosts.push_back(newHost);
     }*/
 
-    // get information of all available cpus and their threads
-    if (Hanami::Host::getInstance()->initHost(error) == false) {
-        return false;
-    }
-
     // identify and init cpu's
-    const uint32_t numberOfSockets = Hanami::Host::getInstance()->cpuPackages.size();
-    for (uint32_t i = 0; i < numberOfSockets; i++) {
-        CpuHost* newHost = new CpuHost(i, m_maxMemoryUsage);
+    for (uint32_t i = 0; i < 1; i++) {
+        CpuHost* newHost = new CpuHost(i, m_maxMemoryUsage, numberOfThreads);
         // this host ist not run as thead, because it has its worker-threads
         m_cpuHosts.push_back(newHost);
     }
-
-    LOG_INFO("Initialized " + std::to_string(m_cpuHosts.size()) + " CPU-sockets");
-    LOG_INFO("Initialized " + std::to_string(m_cudaHosts.size()) + " CUDA-GPUs");
 
     return true;
 }

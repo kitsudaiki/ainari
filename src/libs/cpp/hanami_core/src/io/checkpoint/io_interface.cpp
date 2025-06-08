@@ -48,12 +48,12 @@ IO_Interface::~IO_Interface() {}
  * @return OK-status, if successful, else ERROR-status
  */
 ReturnStatus
-IO_Interface::serialize(const Cluster& cluster, Hanami::ErrorContainer& error)
+IO_Interface::serialize(const Cluster& cluster, std::string& error)
 {
     const uint64_t totalClusterSize = getClusterSize(cluster);
     initLocalBuffer(totalClusterSize);
     if (initializeTarget(totalClusterSize, error) == false) {
-        error.addMessage("Failed to initialize target to serialize cluster");
+        error = "Failed to initialize target to serialize cluster";
         return ERROR;
     }
 
@@ -83,9 +83,9 @@ IO_Interface::serialize(const Cluster& cluster, Hanami::ErrorContainer& error)
 
     // final check. If this failes, then there is an error within the implementation
     if (m_localBuffer.startPos + m_localBuffer.size != totalClusterSize) {
-        error.addMessage("Failed to serialize cluster. Missmatch between expected size of "
-                         + std::to_string(totalClusterSize) + " Bytes and written size of "
-                         + std::to_string(m_localBuffer.startPos + m_localBuffer.size) + " Bytes");
+        error = "Failed to serialize cluster. Missmatch between expected size of "
+                + std::to_string(totalClusterSize) + " Bytes and written size of "
+                + std::to_string(m_localBuffer.startPos + m_localBuffer.size) + " Bytes";
         return ERROR;
     }
 
@@ -106,7 +106,7 @@ ReturnStatus
 IO_Interface::deserialize(Cluster& cluster,
                           const uint64_t totalSize,
                           LogicalHost* host,
-                          Hanami::ErrorContainer& error)
+                          std::string& error)
 {
     uint64_t positionPtr = 0;
     uint64_t numberOfHexagons = 0;
@@ -267,7 +267,7 @@ IO_Interface::getHexagonSize(const Hexagon& hexagon) const
  * @return OK-status, if successful, else ERROR-status
  */
 ReturnStatus
-IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& error)
+IO_Interface::serializeHexagon(const Hexagon& hexagon, std::string& error)
 {
     // hexagon-entry
     HexagonEntry hexagonEntry = createHexagonEntry(hexagon);
@@ -287,7 +287,7 @@ IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& e
     SynapseSection* sections = Hanami::getItemData<SynapseSection>(hexagon.attachedHost->sections);
     for (uint64_t blockLink : hexagon.blockLinks) {
         if (blockLink == UNINIT_STATE_64) {
-            error.addMessage("Synapse-block-position invalid");
+            error = "Synapse-block-position invalid";
             return ERROR;
         }
 
@@ -370,9 +370,7 @@ IO_Interface::serializeHexagon(const Hexagon& hexagon, Hanami::ErrorContainer& e
  * @return true, if successful, else false
  */
 ReturnStatus
-IO_Interface::deserializeHexagon(Hexagon& hexagon,
-                                 uint64_t& positionPtr,
-                                 Hanami::ErrorContainer& error)
+IO_Interface::deserializeHexagon(Hexagon& hexagon, uint64_t& positionPtr, std::string& error)
 {
     const uint64_t positionOffset = positionPtr;
     ReturnStatus ret = OK;
@@ -384,7 +382,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
         return ret;
     }
     if (checkHexagonEntry(hexagonEntry) == false) {
-        error.addMessage("Input-data invalid: Hexagon-check failed.");
+        error = "Input-data invalid: Hexagon-check failed.";
         return INVALID_INPUT;
     }
 
@@ -393,7 +391,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
     if (hexagonEntry.axonBlocksPos != 0) {
         // check current position
         if (positionPtr - positionOffset != hexagonEntry.axonBlocksPos) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -412,7 +410,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
     if (hexagonEntry.blocksPos != 0) {
         // check current position
         if (positionPtr - positionOffset != hexagonEntry.blocksPos) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -461,7 +459,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
     if (hexagonEntry.inputInterfacesPos != 0) {
         // check current position
         if (positionPtr - positionOffset != hexagonEntry.inputInterfacesPos) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -486,7 +484,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
 
         auto ret = hexagon.cluster->inputInterfaces.try_emplace(inputIf.name, inputIf);
         if (ret.second == false) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -497,7 +495,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
     if (hexagonEntry.outputsInterfacesPos != 0) {
         // check current position
         if (positionPtr - positionOffset != hexagonEntry.outputsInterfacesPos) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -532,7 +530,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
 
         auto ret = hexagon.cluster->outputInterfaces.try_emplace(outputIf.name, outputIf);
         if (ret.second == false) {
-            error.addMessage("Input-data invalid");
+            error = "Input-data invalid";
             return INVALID_INPUT;
         }
 
@@ -541,7 +539,7 @@ IO_Interface::deserializeHexagon(Hexagon& hexagon,
 
     // check current position
     if (positionPtr - positionOffset != hexagonEntry.hexagonSize) {
-        error.addMessage("Input-data invalid");
+        error = "Input-data invalid";
         return INVALID_INPUT;
     }
 

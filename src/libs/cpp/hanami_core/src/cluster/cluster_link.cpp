@@ -24,7 +24,6 @@
 
 #include <src/cluster/cluster.h>
 #include <src/cluster/cluster_io_convert.h>
-#include <src/common/logger.h>
 #include <src/processing/logical_host.h>
 
 /**

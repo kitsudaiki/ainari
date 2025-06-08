@@ -43,7 +43,9 @@ class HanamiCore
     HanamiCore();
     ~HanamiCore();
 
-    bool init(const float maxMemoryUsage, std::string& errorMessage);
+    bool init(const uint64_t numberOfThreads,
+              const uint64_t maxMemoryUsage,
+              std::string& errorMessage);
 
     std::unique_ptr<ClusterLink> createCluster(const std::string& clusterUuid,
                                                const std::string& name,

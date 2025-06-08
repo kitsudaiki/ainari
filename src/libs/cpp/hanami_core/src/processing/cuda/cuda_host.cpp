@@ -35,7 +35,6 @@ CudaHost::CudaHost(const uint32_t localId, const GpuInfo& gpuInfo) : LogicalHost
 {
     m_hostType = CUDA_HOST_TYPE;
     m_gpuInfo = gpuInfo;
-    m_totalMemory = gpuInfo.freeMemory;
 
     initBuffer();
     initWorkerThreads();
@@ -57,16 +56,13 @@ CudaHost::initBuffer()
     const std::lock_guard<std::mutex> lock(cudaMutex);
 
     // m_totalMemory = getAvailableMemory_CUDA(id);
-    const uint64_t usedMemory = (m_totalMemory / 100) * 80;  // use 80% for synapse-blocks
-    blocks.initBuffer(usedMemory / sizeof(Block));
-    blocks.deleteAll();
+    // const uint64_t usedMemory = (m_totalMemory / 100) * 80;  // use 80% for synapse-blocks
+    // blocks.initBuffer(usedMemory / sizeof(Block));
+    // blocks.deleteAll();
     // Block* cpuBlocks = Hanami::getItemData<Block>(blocks);
 
     // deviceBlocks = initDevice_CUDA(cpuBlocks,
     // blocks.metaData.numberOfItems);
-
-    LOG_INFO("Initialized number of syanpse-blocks on gpu-device: "
-             + std::to_string(blocks.metaData.itemCapacity));
 }
 
 /**
@@ -155,8 +151,6 @@ CudaHost::initWorkerThreads()
     m_workerThreads.push_back(newUnit);
     newUnit->startThread();
     newUnit->bindThreadToCore(0);
-
-    LOG_INFO("Initialized " + std::to_string(1) + " cuda worker-threads");
 
     return true;
 }

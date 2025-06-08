@@ -26,7 +26,6 @@
 #include <processing/worker_thread.h>
 #include <src/cluster/cluster.h>
 #include <src/common/buffer/item_buffer.h>
-#include <src/common/logger.h>
 #include <stdint.h>
 
 #include <deque>
@@ -50,7 +49,6 @@ class LogicalHost
 
     HostType getHostType() const;
     const std::string getUuid() const;
-    uint64_t getTotalMemory();
 
     virtual bool moveHexagon(Hexagon* hexagon) = 0;
     virtual void removeHexagon(Hexagon* hexagon) = 0;
@@ -70,7 +68,6 @@ class LogicalHost
     HostType m_hostType = UNDEFINED_HOST_TYPE;
     std::string m_uuid = "";
     uint32_t m_localId = 0;
-    uint64_t m_totalMemory = 0;
 
     std::vector<WorkerThread*> m_workerThreads;
     std::deque<Hanami::WorkerTask> m_workerTaskQueue;

@@ -64,15 +64,6 @@ LogicalHost::getUuid() const
 }
 
 /**
- * @brief get amount of initialy defined available memory
- */
-uint64_t
-LogicalHost::getTotalMemory()
-{
-    return m_totalMemory;
-}
-
-/**
  * @brief re-activate all blocked threads
  */
 void
@@ -125,7 +116,7 @@ LogicalHost::addWorkerTaskToQueue(const Hanami::WorkerTask task)
 void
 handleClientOutput(Cluster* cluster)
 {
-    Hanami::ErrorContainer error;
+    std::string error;
     // send output back if a client-connection is set
 
     /*Task* actualTask = cluster->getCurrentTask();
