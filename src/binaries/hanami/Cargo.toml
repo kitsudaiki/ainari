@@ -4,9 +4,9 @@ version = "0.8.0"
 edition = "2024"
 
 [dependencies]
-hanami_dataset = { path = "../libs/rust/hanami_dataset" }
-hanami_common = { path = "../libs/rust/hanami_common" }
-hanami_cluster_parser = { path = "../libs/rust/hanami_cluster_parser" }
+hanami_dataset = { path = "../../libs/rust/hanami_dataset" }
+hanami_common = { path = "../../libs/rust/hanami_common" }
+hanami_cluster_parser = { path = "../../libs/rust/hanami_cluster_parser" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"
