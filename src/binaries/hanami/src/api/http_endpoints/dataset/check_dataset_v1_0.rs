@@ -27,8 +27,7 @@ use crate::database::dataset_table;
 
 use hanami_common::enums;
 use hanami_dataset::dataset_io::read_data_set_file;
-
-use super::dataset_structs::{DatasetCheckResp, DatasetCheckReq};
+use hanami_structs::dataset_structs::{DatasetCheckResp, DatasetCheckReq};
 use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, Column};
 
 #[api_operation(

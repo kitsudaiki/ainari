@@ -31,8 +31,7 @@ use crate::core::tasks::{Task, TaskVariant, RequestInfo};
 
 use hanami_common::enums;
 use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
-
-use super::task_structs::{TaskCreateRequestReq, TaskResp, TaskType, TaskState};
+use hanami_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",

@@ -19,7 +19,7 @@ use crate::api::token_handling;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 
-use super::auth_structs::UserTokenResp;
+use hanami_structs::auth_structs::UserTokenResp;
 
 #[api_operation(
     tag = "auth",

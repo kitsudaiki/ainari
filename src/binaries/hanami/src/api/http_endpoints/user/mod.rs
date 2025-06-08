@@ -16,4 +16,3 @@ pub mod create_user_v1_0;
 pub mod list_user_v1_0;
 pub mod get_user_v1_0;
 pub mod delete_user_v1_0;
-mod user_structs;

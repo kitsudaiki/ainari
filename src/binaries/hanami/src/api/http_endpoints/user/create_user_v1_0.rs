@@ -19,9 +19,9 @@ use apistos::api_operation;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::user_table;
-use hanami_common::enums;
 
-use super::user_structs::{UserCreateReq, UserResp};
+use hanami_common::enums;
+use hanami_structs::user_structs::{UserCreateReq, UserResp};
 
 #[api_operation(
     tag = "user",

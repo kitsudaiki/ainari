@@ -28,8 +28,7 @@ use crate::core::cluster_handler;
 use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
 
 use hanami_common::enums;
-
-use super::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskType, TaskState};
+use hanami_structs::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",

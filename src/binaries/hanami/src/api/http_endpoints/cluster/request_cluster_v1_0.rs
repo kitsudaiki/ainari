@@ -18,14 +18,13 @@ use apistos::api_operation;
 use uuid::Uuid;
 use std::collections::HashMap;
 
-use hanami_common::enums;
-
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 use crate::core::cluster_handler;
 
-use super::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
+use hanami_common::enums;
+use hanami_structs::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
 
 #[api_operation(
     tag = "cluster",

@@ -17,13 +17,12 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use hanami_common::enums;
-
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 
-use super::cluster_structs::ClusterResp;
+use hanami_common::enums;
+use hanami_structs::cluster_structs::ClusterResp;
 
 #[api_operation(
     tag = "cluster",

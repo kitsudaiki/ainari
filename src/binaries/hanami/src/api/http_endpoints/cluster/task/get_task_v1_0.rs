@@ -24,8 +24,7 @@ use crate::database::task_table;
 use crate::database::cluster_table;
 
 use hanami_common::enums;
-
-use super::task_structs::{TaskResp, TaskType, TaskState};
+use hanami_structs::task_structs::{TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",

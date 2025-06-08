@@ -20,7 +20,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 
-use super::cluster_structs::{ClusterBasicResp, ClusterListResp};
+use hanami_structs::cluster_structs::{ClusterBasicResp, ClusterListResp};
 
 #[api_operation(
     tag = "cluster",

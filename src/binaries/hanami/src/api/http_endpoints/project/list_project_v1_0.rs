@@ -19,7 +19,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
-use super::project_structs::{ProjectBasicResp, ProjectListResp};
+use hanami_structs::project_structs::{ProjectBasicResp, ProjectListResp};
 
 #[api_operation(
     tag = "project",

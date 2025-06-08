@@ -20,9 +20,9 @@ use uuid::Uuid;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::checkpoint_table;
-use hanami_common::enums;
 
-use super::checkpoint_structs::CheckpointResp;
+use hanami_common::enums;
+use hanami_structs::checkpoint_structs::CheckpointResp;
 
 #[api_operation(
     tag = "checkpoint",

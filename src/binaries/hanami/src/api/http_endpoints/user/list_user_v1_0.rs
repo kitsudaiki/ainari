@@ -19,7 +19,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
-use super::user_structs::{UserBasicResp, UserListResp};
+use hanami_structs::user_structs::{UserBasicResp, UserListResp};
 
 #[api_operation(
     tag = "user",

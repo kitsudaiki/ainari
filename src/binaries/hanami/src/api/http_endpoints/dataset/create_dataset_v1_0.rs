@@ -31,8 +31,7 @@ use crate::config;
 use hanami_dataset::converter::{load_mnist_images, load_csv_file};
 use hanami_dataset::dataset_io::read_data_set_file;
 use hanami_common::error::HanamiError;
-
-use super::dataset_structs::DatasetResp;
+use hanami_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",

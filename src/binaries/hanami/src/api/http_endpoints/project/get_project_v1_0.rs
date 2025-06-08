@@ -19,9 +19,9 @@ use apistos::api_operation;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
-use hanami_common::enums;
 
-use super::project_structs::ProjectResp;
+use hanami_common::enums;
+use hanami_structs::project_structs::ProjectResp;
 
 #[api_operation(
     tag = "project",

@@ -21,8 +21,7 @@ use crate::database::user_table;
 use crate::config;
 
 use hanami_common::functions::sha256_hash;
-
-use super::auth_structs::{OAuth2Request, UserTokenResp};
+use hanami_structs::auth_structs::{OAuth2Request, UserTokenResp};
 
 #[api_operation(
     tag = "auth",
