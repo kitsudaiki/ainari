@@ -12,13 +12,10 @@ The infrastructure and stores the following information:
 -   `Cluster-Checkpoints`
     -   coming from Kyouko in order to backup a trained cluster
     -   metadata in database stored and binary-blob on disc
--   `Requests-Results`
-    -   coming from Kyouko as result of a `Request-Task`
-    -   stored completely within the database as json-formated string
--   `Audit-Log`
+<!-- -   `Audit-Log`
     -   coming from the Torii for each incoming REST-API-request
     -   stored within the database of Shiori
 -   `Error-Log`
     -   coming from each component in case of an error-message (every time when `LOG_ERROR` is
         triggered within the code)
-    -   stored within the database of Shiori
+    -   stored within the database of Shiori -->

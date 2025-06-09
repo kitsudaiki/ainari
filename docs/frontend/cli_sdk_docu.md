@@ -2,9 +2,9 @@
 
 The CLI and the SDK-library provides functions to interact with the API of the backend.
 
-!!! info
+!!! Warning
 
-    If you find any mistakes or mismatches in this documentation, then please create an issue on github, or fix it by yourself and create a pull request on github.
+    This documentation is **NOT** up-to-date at the moment. I'm very sorry, but because of a very limited amount of time I have for this project and because there coming some big changes in 0.9.0 again and because it seems that no one use the project at the moment anyway, I haven't updated the documenation of the SDK and CLI here for version 0.8.0. For the CLI you can use the --help output.
 
 ## Installation / Compile
 
@@ -1779,100 +1779,6 @@ will not be deleted.
     # see: https://docs.openhanami.com/api/sdk_library/#request-token
 
     task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, time_interval)
-    ```
-
-## Direct-IO
-
-It is possible to directly connect via websocket to the cluster on the server to make single
-requests much faster, because it doesn't use the REST-API. It is an alternative to the tasks.
-
-!!! info
-
-    To avoid conflicts, the activation of these direct interaction requires an empty task-queue of the related cluster.
-
-!!! warning
-
-    The websocket-connection is not bound to the expire-time of the token.
-
-### direct train
-
-=== "CLI"
-
-    (Not supported by the CLI)
-
-=== "Python-SDK"
-
-    ```python
-    from hanami_sdk import direct_io
-    import asyncio
-
-    async def main():
-        address = "http://127.0.0.1:11418"
-        cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-        input_values = [0.0, 2.0, 0.0, 10.0, 0.5]
-        exprected_values = [1.0, 0.0]
-
-        # request a token for a user, who has admin-permissions
-        # see: https://docs.openhanami.com/api/sdk_library/#request-token
-
-        # initial request of a websocket connection to a specific cluster
-        # this websocket can be used for multiple request
-        ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid)
-
-        # names "test_input" and "test_output" are the names of the hexagons within the cluster
-        # for the mapping of the input-data
-        # if the last argument is set to "True", it says that there are no more data to
-        # apply to the cluster and that the train-process can start
-        await direct_io.send_train_input(ws, "test_input", input_values, False)
-        await direct_io.send_train_input(ws, "test_output", exprected_values, True)
-
-        await ws.close()
-
-        cluster.switch_to_task_mode(token, address, cluster_uuid)
-
-
-    asyncio.run(main())
-    ```
-
-### Direct request
-
-=== "CLI"
-
-    (Not supported by the CLI)
-
-=== "Python-SDK"
-
-    ```python
-    from hanami_sdk import direct_io
-    import asyncio
-
-    async def main():
-        address = "http://127.0.0.1:11418"
-        cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-        input_values = [0.0, 2.0, 0.0, 10.0, 0.5]
-
-        # request a token for a user, who has admin-permissions
-        # see: https://docs.openhanami.com/api/sdk_library/#request-token
-
-        # initial request of a websocket connection to a specific cluster
-        # this websocket can be used for multiple request
-        ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid)
-
-        # names "test_input" is the names of the hexagons within the cluster
-        # for the mapping of the input-data
-        # if the last argument is set to "True", it says that there are no more data to
-        # apply to the cluster and that the train-process can start
-        output_values = await direct_io.send_request_input(ws, "test_input", input_values, True)
-
-        # output_values is an array like this:
-        #    [0.8, 0.0]
-
-        await ws.close()
-
-        cluster.switch_to_task_mode(token, address, cluster_uuid)
-
-
-    asyncio.run(main())
     ```
 
 ## Checkpoint
