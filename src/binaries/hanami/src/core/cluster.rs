@@ -258,14 +258,20 @@ fn handle_checkpoint_save_task(task_uuid: &Uuid, task_name: &String, user_id: &S
             return;
         }
     }
+
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }
 
-fn handle_checkpoint_restore_task(_: &Uuid, task_info: &mut CheckpointRestoreInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
+fn handle_checkpoint_restore_task(task_uuid: &Uuid, task_info: &mut CheckpointRestoreInfo, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {
     let mut link = link_handle.lock().unwrap();
 
     let file_path_str: String = task_info.path.to_string_lossy().into();
     cxx::let_cxx_string!(cxx_path = file_path_str);
     link.cluster_link.pin_mut().restoreCheckpoint(&cxx_path);
+
+    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }
 
 pub fn handle_task(task: Task, link_handle: &Arc<Mutex<ClusterLinkHanle>>) {

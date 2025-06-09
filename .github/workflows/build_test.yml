@@ -698,10 +698,10 @@ jobs:
           export HANAMI_ADDRESS=http://127.0.0.1:11418
           export HANAMI_USER=asdf
           export HANAMI_PASSPHRASE=asdfasdf
-          export train_inputs=/tmp/train-images-idx3-ubyte
-          export train_labels=/tmp/train-labels-idx1-ubyte
-          export request_inputs=/tmp/t10k-images-idx3-ubyte
-          export request_labels=/tmp/t10k-labels-idx1-ubyte
+          export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
+          export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
+          export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte
+          export REQUEST_LABELS=/tmp/t10k-labels-idx1-ubyte
           ./cli_test.sh
 
 
