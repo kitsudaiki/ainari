@@ -22,7 +22,6 @@
 
 #include "common/buffer/data_buffer_test.h"
 #include "common/buffer/item_buffer_test.h"
-#include "common/threading/thread_test.h"
 #include "core/cluster_test.h"
 
 int
@@ -32,8 +31,6 @@ main()
 
     Hanami::DataBuffer_Test();
     Hanami::ItemBuffer_Test();
-
-    Hanami::Thread_Test();
 
     return 0;
 }

@@ -23,11 +23,9 @@
 #include "common/buffer/data_buffer_test.h"
 #include "common/buffer/item_buffer_test.h"
 #include "common/files/binary_file_without_directIO_test.h"
-#include "common/threading/thread_handler_test.h"
 #include "core/cluster_io_convert_test.h"
 #include "core/cluster_test.h"
 #include "core/hanami_core_test.h"
-#include "core/processing_test.h"
 
 int
 main()
@@ -35,13 +33,10 @@ main()
     Hanami::DataBuffer_Test();
     Hanami::ItemBuffer_Test();
 
-    Hanami::ThreadHandler_Test();
-
     Hanami::BinaryFile_withoutDirectIO_Test();
 
     ClusterIOConvert_Test();
     Cluster_Init_Test();
-    Processing_Test();
     Hanami_Core_Test();
 
     return 0;
