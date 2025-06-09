@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
 use bytemuck::cast_slice_mut;
+use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -40,6 +41,15 @@ use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, Column};
     error_code = 500
 )]
 pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetCheckResp>, ErrorResponse> {
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+
     let dataset_uuid = dataset_uuid;
     let reference_uuid = body.reference_uuid;
     let dataset_column = body.dataset_column.clone();

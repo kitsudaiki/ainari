@@ -18,7 +18,7 @@ use schemars::JsonSchema;
 use uuid::Uuid;
 use std::str::FromStr;
 use std::fmt;
-
+use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub enum TaskType {
@@ -94,42 +94,56 @@ impl FromStr for TaskState {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskDatasetLink {
     pub dataset_uuid: Uuid,
+    #[validate(length(min = 4, max = 127))]
     pub dataset_column: String,
+    #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskDatasetResultLink {
+    #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskCreateTrainReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(range(min = 1, max = 1000000))]
     pub number_of_epochs: u64,
+    #[validate(range(min = 1, max = 100000000))]
     pub time_length: Option<u64>,
+    #[validate(nested, length(min = 1))]
     pub inputs: Vec<TaskDatasetLink>,
+    #[validate(nested, length(min = 1))]
     pub outputs: Vec<TaskDatasetLink>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskCreateRequestReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(range(min = 1, max = 100000000))]
     pub time_length: Option<u64>,
+    #[validate(nested, length(min = 1))]
     pub inputs: Vec<TaskDatasetLink>,
+    #[validate(nested, length(min = 1))]
     pub results: Vec<TaskDatasetResultLink>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskCheckpointSaveReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskCheckpointRestoreReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
     pub checkpoint_uuid: Uuid,
 }

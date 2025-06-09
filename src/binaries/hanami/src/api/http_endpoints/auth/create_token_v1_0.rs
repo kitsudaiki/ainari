@@ -14,6 +14,7 @@
 
 use apistos::api_operation;
 use actix_web::web::Json;
+use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
@@ -32,8 +33,6 @@ use hanami_structs::auth_structs::{OAuth2Request, UserTokenResp};
     error_code = 500
 )]
 pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResponse> {
-    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
-
     let parsed = match parse_oauth2_body(body.as_str()) {
         Ok(parsed) => parsed,
         Err(err) => {
@@ -41,6 +40,17 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
+
+    // validate incoming json
+    match parsed.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+
+    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
 
     // get and check token-format
     if parsed.token_format != "jwt" {

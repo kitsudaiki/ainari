@@ -7,7 +7,9 @@ edition = "2024"
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.5", features = ["extras"] }
+validator = { version = "0.20", features = ["derive"] }
 # json
 serde = { version = "1", features = ["derive"] }
 # common stuff
 uuid = { version = "1.17.0", features = ["v4"] }
+

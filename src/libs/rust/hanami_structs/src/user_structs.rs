@@ -15,11 +15,15 @@
 use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct UserCreateReq {
+    #[validate(length(min = 4, max = 127))]
     pub id: String,
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(length(min = 8, max = 4096))]
     pub passphrase: String,
     pub is_admin: bool,
 }

@@ -16,10 +16,13 @@ use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use uuid::Uuid;
+use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct CheckpointCreateReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(length(min = 10))]
     pub template: String,
 }
 
