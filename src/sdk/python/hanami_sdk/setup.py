@@ -30,7 +30,7 @@ setup(
     packages=['hanami_sdk', 'hanami_sdk.hanami_messages'],
     install_requires=['jsonschema==4.24.0',
                       'protobuf==3.20.3',
-                      'requests==2.32.3',
+                      'requests==2.32.4',
                       'simplejson==3.20.1',
                       'websockets==15.0.1',
                       'requests_toolbelt==1.0.0'],
