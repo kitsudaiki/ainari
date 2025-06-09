@@ -17,15 +17,14 @@ use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use uuid::Uuid;
 use std::collections::HashMap;
+use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ClusterCreateReq {
+    #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(length(min = 10))]
     pub template: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct ClusterModeSetReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -50,15 +49,19 @@ pub struct ClusterListResp {
     pub clusters: Vec<ClusterBasicResp>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ClusterTrainReq {
+    #[validate(length(min = 1))]
     pub inputs: HashMap<String, Vec<f32>>,
+    #[validate(length(min = 1))]
     pub outputs: HashMap<String, Vec<f32>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ClusterRequestReq {
+    #[validate(length(min = 1))]
     pub inputs: HashMap<String, Vec<f32>>,
+    #[validate(length(min = 1))]
     pub outputs: Vec<String>,
 }
 

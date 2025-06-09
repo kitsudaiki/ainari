@@ -17,6 +17,7 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -36,6 +37,15 @@ use hanami_structs::cluster_structs::{ClusterTrainReq};
     error_code = 500
 )]
 pub async fn train_cluster(body: Json<ClusterTrainReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+    
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(_) => {},

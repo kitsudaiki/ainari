@@ -15,6 +15,7 @@
 use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserTokenResp {
@@ -23,11 +24,13 @@ pub struct UserTokenResp {
     pub expires: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct OAuth2Request {
     pub token_format: String,
     pub grant_type: String,
+    #[validate(length(min = 4, max = 127))]
     pub client_id: String,
+    #[validate(length(min = 8, max = 4096))]
     pub client_secret: String,
     // pub username: Option<String>,
     // pub password: Option<String>,

@@ -17,6 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 use std::collections::HashMap;
+use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -36,6 +37,15 @@ use hanami_structs::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
     error_code = 500
 )]
 pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterRequestResp>, ErrorResponse> {
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(_) => {},

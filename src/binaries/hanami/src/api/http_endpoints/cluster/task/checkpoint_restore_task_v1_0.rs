@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use std::str::FromStr;
 use std::path::PathBuf;
+use validator::Validate;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
@@ -40,6 +41,15 @@ use hanami_structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskType,
     error_code = 500
 )]
 pub async fn checkpoint_restore_task(body: Json<TaskCheckpointRestoreReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointRestoreTask;
 

@@ -16,12 +16,7 @@ use apistos::ApiComponent;
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetCreateReq {
-    pub name: String,
-    pub template: String,
-}
+use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct DatasetResp {
@@ -46,10 +41,12 @@ pub struct DatasetListResp {
     pub datasets: Vec<DatasetBasicResp>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct DatasetCheckReq {
+    #[validate(length(min = 4, max = 127))]
     pub dataset_column: String,
     pub reference_uuid: Uuid,
+    #[validate(length(min = 4, max = 127))]
     pub reference_column: String,
 }
 

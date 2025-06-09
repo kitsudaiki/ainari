@@ -16,6 +16,7 @@ use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
@@ -34,6 +35,15 @@ use hanami_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
     error_code = 500
 )]
 pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
+
     let cluster_uuid = Uuid::new_v4();
 
     // parse cluster-template and create cluster from it

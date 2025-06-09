@@ -15,6 +15,7 @@
 use apistos::actix::CreatedJson;
 use actix_web::web::Json;
 use apistos::api_operation;
+use validator::Validate;
 
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
@@ -36,6 +37,15 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
     if context.is_admin == false {
         return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
     }
+
+    // validate incoming json
+    match body.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            let msg = format!("Invalid input: {}", e);
+            return Err(ErrorResponse::BadRequest(msg));
+        },
+    };
 
     let id = &body.id;
 
