@@ -92,16 +92,12 @@ if(run_tests)
         tests/unit_tests/core/cluster_io_convert_test.h
         tests/unit_tests/core/cluster_test.cpp
         tests/unit_tests/core/cluster_test.h
-        tests/unit_tests/core/processing_test.cpp
-        tests/unit_tests/core/processing_test.h
         tests/unit_tests/common/buffer/data_buffer_test.cpp
         tests/unit_tests/common/buffer/data_buffer_test.h
         tests/unit_tests/common/buffer/item_buffer_test.cpp
         tests/unit_tests/common/buffer/item_buffer_test.h
         tests/unit_tests/common/files/binary_file_without_directIO_test.cpp
         tests/unit_tests/common/files/binary_file_without_directIO_test.h
-        tests/unit_tests/common/threading/thread_handler_test.cpp
-        tests/unit_tests/common/threading/thread_handler_test.h
         tests/unit_tests/main.cpp
 
 
@@ -120,10 +116,6 @@ if(run_tests)
         tests/memory_leak_tests/common/buffer/data_buffer_test.h
         tests/memory_leak_tests/common/buffer/item_buffer_test.cpp
         tests/memory_leak_tests/common/buffer/item_buffer_test.h
-        tests/memory_leak_tests/common/threading/bogus_thread.cpp
-        tests/memory_leak_tests/common/threading/bogus_thread.h
-        tests/memory_leak_tests/common/threading/thread_test.cpp
-        tests/memory_leak_tests/common/threading/thread_test.h
         tests/memory_leak_tests/main.cpp
 
         # TODO:enable gpu init here again

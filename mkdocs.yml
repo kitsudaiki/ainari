@@ -29,7 +29,6 @@ nav:
     - frontend/rest_api_documentation.md
     - frontend/cli_sdk_docu.md
     - frontend/cluster_templates/cluster_template.md
-    # - frontend/websockets/websocket_workflow.md
     - frontend/dashboard/dashboard.md
   - Backend:
     - backend/installation.md

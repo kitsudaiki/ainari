@@ -54,12 +54,6 @@
 -   In case you also want to compile the unit-tests and so on, you have to add `-Drun_tests=ON` to
     the cmake-commands
 
--   Resulting binary
-
-    ```bash
-    ./src/hanami/hanami
-    ```
-
 ## Build hanami as docker-image
 
 ### With docker-build
@@ -111,14 +105,14 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
     sudo pip3 install wheel
     ```
 
--   build protobuf-messages and package
+<!-- -   build protobuf-messages and package
 
     ```bash
     cd ./src/sdk/python/hanami_sdk/hanami_sdk
     protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
     cd ..
     python3 setup.py bdist_wheel --universal
-    ```
+    ``` -->
 
 ## Prechecks
 
@@ -142,9 +136,9 @@ also line-numbers are marked. To update the file to get the test green again:
 
 -   update file with `detect-secrets scan > .secrets.baseline`
 
-### Ansible-lint
+<!-- ### Ansible-lint
 
--   run `earthly --ci +ansible-lint`
+-   run `earthly --ci +ansible-lint` -->
 
 ### Cpp-check
 

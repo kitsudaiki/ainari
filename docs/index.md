@@ -12,10 +12,6 @@
 
     # **IMPORTANT: his project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
-!!! danger "IMPORTANT"
-
-    # **IMPORTANT: The project is currently in a process of big reconstruction, by translating big parts of the backend from C++ into Rust code. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
-
 ## Intro
 
 OpenHanami contains in its core a custom experimental artificial neural network, which can work on
@@ -79,12 +75,6 @@ and multi-tenancy.
 
     The processing structure works also for multiple threads, which can work at the same time on the
     same network. (GPU-support with CUDA is disabled at the moment for various reasons).
-
--   **Usable performance**
-
-    The 60.000 training pictures of the MNIST handwritten letters can be trained on CPU in about 3
-    seconds for the first epoch, without any batch-processing of the input-data and results in an
-    accuracy of 91-93 % after this time.
 
 -   **Generated OpenAPI-Documentation**
 
@@ -215,6 +205,11 @@ added/enabled again in the near future:
     disappointing performance and some restrictions for the CPU-version too. There will be some
     further attempts in the future, to fix this issue and bring GPU support back into the project,
     but because there is no definite solution now, it is unknown when this happens.
+
+4. Roles
+
+    Until 0.7.0 there were policies and roles, which were removed for the moment, because they were
+    not translated into the new Rust code so far. 
 
 ## Author
 

@@ -25,8 +25,9 @@ it easier for a new person to understand the code.
     │   │       ├── common
     │   │       └── resources
     │   │
-    │   ├── hanami
-    │   │   └── (see below)
+    │   ├── binaries
+    │   │       └── hanami
+    │   │             └── (see below)
     │   │
     │   ├── libs
     │   │   ├── cpp

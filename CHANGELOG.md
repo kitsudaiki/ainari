@@ -1,14 +1,15 @@
 # Changelog
 
-## [Unreleased]
+## v0.8.0
 
-### BREAKING-CHANGES
+**Release-Date**: 2025-06-10
 
 Translate big parts of the program from C++ into Rust:
 - REST-API endpoints
 - Database-connection
 - Config-file
 - Cluster-Template-Parser
+- Task-handling
 
 #### API-Breaking
 
@@ -20,6 +21,7 @@ Translate big parts of the program from C++ into Rust:
 - removed direct- and task-mode separation, because it is not necessary anymore the with the new architecture
 - removed websocket-connections in general
 - Allow the definition of multiple epochs in one single train-task
+- Inputs of the CLI were in general updated by removing and changing a bunch of flags
 
 #### Template-Breaking
 
@@ -38,14 +40,20 @@ Translate big parts of the program from C++ into Rust:
 - switched to toml-config
 - some restructuring and changes, based on the new toml-format and the new Rust-implemenation
 
+#### Temorarily removed (will be added in the future again)
+
+- policies with roles for the endpoints (only admin and user at the moment)
+- attaching projects to users
+- visibility settings of resources
+- central audit and error logs in the database
+
 ### Added
 
-- New REST-API endpoint to interact directly with a cluster for trainging and requests
+- New REST-API endpoint to interact directly with a cluster for training and requests
 
 ### Changed
 
 - Direct-requests against the cluster can now be done in parallel to active tasks
-
 
 
 ## v0.7.0
