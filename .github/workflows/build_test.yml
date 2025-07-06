@@ -14,43 +14,6 @@ env:
   HANAMI_ADMIN_PASSPHRASE: asdfasdf
 
 jobs:
-
-  clang-format-check:
-    name: "Check clang-format"
-    runs-on: ubuntu-latest
-    env:
-      FORCE_COLOR: 1
-    steps:
-      -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-      -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      -
-        name: Run check
-        run: earthly --ci +clang-format
-
-
-
-  cpp-check:
-    name: "Run cpp-check"
-    runs-on: ubuntu-latest
-    env:
-      FORCE_COLOR: 1
-    steps:
-      -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-      -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      -
-        name: Run check
-        run: earthly --ci +cppcheck
-
-
-
   # ansible-lint:
   #   name: "Lint ansible playbook"
   #   runs-on: ubuntu-latest
@@ -139,7 +102,7 @@ jobs:
 
   build_python_package:
     name: "Build SDK python-package"
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -191,7 +154,7 @@ jobs:
 
   build_helm_package:
     name: "Build Helm package"
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -233,51 +196,9 @@ jobs:
 
 
 
-  build_hanami_core:
-    name: "Compile hanami-core (debug)"
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
-    env:
-      FORCE_COLOR: 1
-    steps:
-      -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
-      -
-        name: Checkout repository
-        run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
-          # branch can not be read by the git commands, which is necessary for the build-script
-          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
-          cd ${GITHUB_REPOSITORY#*/}
-          git checkout ${GITHUB_REF#refs/heads/}
-          git submodule init
-          git submodule update --recursive
-      -
-        name: Compile core-lib (Debug)
-        run: |
-          cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-core-lib-debug/tmp/hanami_core ./builds/binaries
-      -
-        name: Copy files
-        run: |
-          mkdir /tmp/Hanami_core_debug_build_result
-          cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/binaries/* /tmp/Hanami_core_debug_build_result/
-      -
-        name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
-        with:
-          name: Hanami_core_debug_build_result
-          path: /tmp/Hanami_core_debug_build_result
-          retention-days: 1
-
-
-
   build_hanami:
     name: "Compile hanami (debug)"
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -297,7 +218,7 @@ jobs:
           git submodule init
           git submodule update --recursive
       -
-        name: Compile core-lib (Debug)
+        name: Compile hanami
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           earthly --artifact +compile-hanami/tmp/hanami ./builds/
@@ -319,7 +240,7 @@ jobs:
 
   build_hanamictl:
     name: "Compile CLI"
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -359,157 +280,9 @@ jobs:
 
 
 
-  compiler_test:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    needs: [ cpp-check, clang-format-check, flake8-check, check-for-executables, commit-lint, detect-sectets  ]
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler:
-          - { tag: "ubuntu-2204_clang-13", name: "Ubuntu 22.04 Clang 13", cxx: "/usr/bin/clang++-13", cc: "/usr/bin/clang-13", runs-on: "ubuntu-22.04" }
-          - { tag: "ubuntu-2204_clang-14", name: "Ubuntu 22.04 Clang 14", cxx: "/usr/bin/clang++-14", cc: "/usr/bin/clang-14", runs-on: "ubuntu-22.04" }
-          - { tag: "ubuntu-2204_clang-15", name: "Ubuntu 22.04 Clang 15", cxx: "/usr/bin/clang++-15", cc: "/usr/bin/clang-15", runs-on: "ubuntu-22.04" } 
-          - { tag: "ubuntu-2404_clang-15", name: "Ubuntu 24.04 Clang 15", cxx: "/usr/bin/clang++-15", cc: "/usr/bin/clang-15", runs-on: "ubuntu-24.04" } 
-          - { tag: "ubuntu-2404_clang-16", name: "Ubuntu 24.04 Clang 16", cxx: "/usr/bin/clang++-16", cc: "/usr/bin/clang-16", runs-on: "ubuntu-24.04" } 
-          - { tag: "ubuntu-2404_clang-17", name: "Ubuntu 24.04 Clang 17", cxx: "/usr/bin/clang++-17", cc: "/usr/bin/clang-17", runs-on: "ubuntu-24.04" } 
-          - { tag: "ubuntu-2404_clang-18", name: "Ubuntu 24.04 Clang 18", cxx: "/usr/bin/clang++-18", cc: "/usr/bin/clang-18", runs-on: "ubuntu-24.04" } 
-          - { tag: "ubuntu-2204_gcc-10", name: "Ubuntu 22.04 G++ 10", cxx: "/usr/bin/g++-10", cc: "/usr/bin/gcc-10", runs-on: "ubuntu-22.04" }
-          - { tag: "ubuntu-2204_gcc-11", name: "Ubuntu 22.04 G++ 11", cxx: "/usr/bin/g++-11", cc: "/usr/bin/gcc-11", runs-on: "ubuntu-22.04" }
-          - { tag: "ubuntu-2204_gcc-12", name: "Ubuntu 22.04 G++ 12", cxx: "/usr/bin/g++-12", cc: "/usr/bin/gcc-12", runs-on: "ubuntu-22.04" }
-          - { tag: "ubuntu-2404_gcc-12", name: "Ubuntu 24.04 G++ 12", cxx: "/usr/bin/g++-12", cc: "/usr/bin/gcc-12", runs-on: "ubuntu-24.04" }
-          - { tag: "ubuntu-2404_gcc-13", name: "Ubuntu 24.04 G++ 13", cxx: "/usr/bin/g++-13", cc: "/usr/bin/gcc-13", runs-on: "ubuntu-24.04" }
-          - { tag: "ubuntu-2404_gcc-14", name: "Ubuntu 24.04 G++ 14", cxx: "/usr/bin/g++-14", cc: "/usr/bin/gcc-14", runs-on: "ubuntu-24.04" }
-    runs-on: ${{ matrix.compiler.runs-on }}
-    name: "${{ matrix.compiler.name }}"
-    env:
-      CXX: ${{ matrix.compiler.cxx }}
-      CC: ${{ matrix.compiler.cc }}
-    outputs:
-      ubuntu-2204_clang-13: ${{ steps.status.outputs.ubuntu-2204_clang-13 }}
-      ubuntu-2204_clang-14: ${{ steps.status.outputs.ubuntu-2204_clang-14 }}
-      ubuntu-2204_clang-15: ${{ steps.status.outputs.ubuntu-2204_clang-15 }}
-      ubuntu-2404_clang-15: ${{ steps.status.outputs.ubuntu-2404_clang-15 }}
-      ubuntu-2404_clang-16: ${{ steps.status.outputs.ubuntu-2404_clang-16 }}
-      ubuntu-2404_clang-17: ${{ steps.status.outputs.ubuntu-2404_clang-17 }}
-      ubuntu-2404_clang-18: ${{ steps.status.outputs.ubuntu-2404_clang-18 }}
-      ubuntu-2204_gcc-10: ${{ steps.status.outputs.ubuntu-2204_gcc-10 }}
-      ubuntu-2204_gcc-11: ${{ steps.status.outputs.ubuntu-2204_gcc-11 }}
-      ubuntu-2204_gcc-12: ${{ steps.status.outputs.ubuntu-2204_gcc-12 }}
-      ubuntu-2404_gcc-12: ${{ steps.status.outputs.ubuntu-2404_gcc-12 }}
-      ubuntu-2404_gcc-13: ${{ steps.status.outputs.ubuntu-2404_gcc-13 }}
-      ubuntu-2404_gcc-14: ${{ steps.status.outputs.ubuntu-2404_gcc-14 }}
-    steps:
-      -
-        name: Checkout repository
-        run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
-          # branch can not be read by the git commands, which is necessary for the build-script
-          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
-          cd ${GITHUB_REPOSITORY#*/}
-          git checkout ${GITHUB_REF#refs/heads/}
-          git submodule init
-          git submodule update --recursive
-      -
-        name: Install basic packages
-        run: |
-          sudo apt-get update && \
-          sudo apt-get install -y make \
-                           cmake \
-                           git \
-                           ssh \
-                           libssl-dev \
-                           nlohmann-json3-dev \
-                           libsqlite3-dev
-      -
-        name: Install clang on Ubuntu 22.04
-        if: (matrix.compiler.tag == 'ubuntu-2204_clang-14') || (matrix.compiler.tag == 'ubuntu-2204_clang-15')
-        run: |
-          sudo apt-get install -y clang-15 clang-14 clang-13
-      -
-        name: Install clang on Ubuntu 24.04
-        if: (matrix.compiler.tag == 'ubuntu-2404_clang-15') || (matrix.compiler.tag == 'ubuntu-2404_clang-16') || (matrix.compiler.tag == 'ubuntu-2404_clang-17') || (matrix.compiler.tag == 'ubuntu-2404_clang-18')
-        run: |
-          sudo apt-get install -y clang-15 clang-16 clang-17 clang-18
-      -
-        name: Install gcc on Ubuntu 22.04
-        if: (matrix.compiler.tag == 'ubuntu-2204_gcc-10') || (matrix.compiler.tag == 'ubuntu-2204_gcc-11') || (matrix.compiler.tag == 'ubuntu-2204_gcc-12')
-        run: |
-          sudo apt-get install -y gcc-10 g++-10 gcc-11 g++-11 gcc-12 g++-12
-      -
-        name: Install gcc on Ubuntu 24.04
-        if: (matrix.compiler.tag == 'ubuntu-2404_gcc-12') || (matrix.compiler.tag == 'ubuntu-2404_gcc-13') || (matrix.compiler.tag == 'ubuntu-2404_gcc-14')
-        run: |
-          sudo apt-get install -y gcc-12 g++-12 gcc-13 g++-13 gcc-14 g++-14
-      -
-        name: Compile code
-        run: |
-          cd ${GITHUB_REPOSITORY#*/} && \
-          cmake -DCMAKE_BUILD_TYPE=Release -Drun_tests=ON -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }}  . && \
-          make -j4
-      -
-        name: Run basic test
-        run: |
-          cd ${GITHUB_REPOSITORY#*/} 
-          ./src/libs/cpp/hanami_core/hanami_unittests
-      -
-        name: Update Result
-        id: status
-        if: ${{ always() }}
-        run: echo "${{ matrix.compiler.tag }}=${{ job.status }}" >> $GITHUB_OUTPUT
-
-
-
-  unit_tests:
-    name: "Unit-Tests (C++-libs)"
-    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:24.04
-    steps:
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: Hanami_core_debug_build_result
-          path: /tmp/Hanami_core_debug_build_result
-      -
-        name: "Check target-directory"
-        run: ls -l /tmp/Hanami_core_debug_build_result
-      -
-        name: "Run test: hanami"
-        run: |
-          chmod +x  /tmp/Hanami_core_debug_build_result/hanami_unittests
-          /tmp/Hanami_core_debug_build_result/hanami_unittests
-
-
-
-  memory_leak_tests:
-    name: "Memory-Leak-Tests (C++-libs)"
-    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:24.04
-    steps:
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: Hanami_core_debug_build_result
-          path: /tmp/Hanami_core_debug_build_result
-      -
-        name: "Check target-directory"
-        run: ls -l /tmp/Hanami_core_debug_build_result
-      -
-        name: "Run test: hanami"
-        run: |
-          chmod +x  /tmp/Hanami_core_debug_build_result/hanami_memory_leak_tests
-          /tmp/Hanami_core_debug_build_result/hanami_memory_leak_tests
-
-
-
   cargo_tests:
     name: "Cargo Test"
-    needs: [ build_hanami, build_hanami_core, build_hanamictl, build_helm_package, build_python_package ]
+    needs: [ build_hanami, build_hanamictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -538,7 +311,7 @@ jobs:
 
   sdk_api_tests:
     name: "SDK-API-Tests"
-    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
+    needs: [ cargo_tests ]
     runs-on: ubuntu-24.04
     steps:
       -
@@ -627,7 +400,7 @@ jobs:
 
   cli_api_tests:
     name: "CLI-API-Tests"
-    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
+    needs: [ cargo_tests ]
     runs-on: ubuntu-24.04
     steps:
       -
@@ -708,7 +481,7 @@ jobs:
 
   python_version_test:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    needs: [ cargo_tests, unit_tests, memory_leak_tests ]
+    needs: [ cargo_tests ]
     strategy:
       fail-fast: false
       matrix:
@@ -1166,7 +939,7 @@ jobs:
 
   badge-upload:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && always() }}
-    needs: [ kubernetes_test, python_version_test, compiler_test ]
+    needs: [ kubernetes_test, python_version_test ]
     runs-on: ubuntu-22.04
     name: Publish badges
     steps:
@@ -1181,14 +954,6 @@ jobs:
       -
         name: Checkout repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      -
-        name: Publish Compiler Badges
-        uses: ./.github/actions/badge
-        with:
-          category: compiler_version
-          badges: ${{ toJson(needs.compiler_test.outputs) }}
-          github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
-          branch_name: ${{ env.BRANCH_NAME }}
       -
         name: Publish Python Badges
         uses: ./.github/actions/badge
