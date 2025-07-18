@@ -28,7 +28,7 @@ setup(
     author_email='tobias.anker@kitsunemimi.moe',
     license='Apache 2.0',
     packages=['hanami_sdk', 'hanami_sdk.hanami_messages'],
-    install_requires=['jsonschema==4.24.0',
+    install_requires=['jsonschema==4.24.1',
                       'protobuf==3.20.3',
                       'requests==2.32.4',
                       'simplejson==3.20.1',
