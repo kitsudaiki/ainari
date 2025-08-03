@@ -168,7 +168,7 @@ mod tests {
 
         // check size of the resized buffers
         assert_eq!(input_block.input_links.len(), 16);
-        assert_eq!(input_block.axon_sections.len(), 1);
+        assert_eq!(input_block.block_io.output_buffer.len(), 1);
 
         // check input-links
         assert_eq!(input_block.input_links[4], 0);
@@ -181,13 +181,13 @@ mod tests {
         assert_eq!(input_block.input_links[11], 7);
 
         // check axons
-        assert_eq!(input_block.axon_sections[0].axons[0].potential, 1.0);
-        assert_eq!(input_block.axon_sections[0].axons[1].potential, 0.0);
-        assert_eq!(input_block.axon_sections[0].axons[2].potential, 2.0);
-        assert_eq!(input_block.axon_sections[0].axons[3].potential, 0.0);
-        assert_eq!(input_block.axon_sections[0].axons[4].potential, 0.0);
-        assert_eq!(input_block.axon_sections[0].axons[5].potential, 3.0);
-        assert_eq!(input_block.axon_sections[0].axons[6].potential, 4.0);
-        assert_eq!(input_block.axon_sections[0].axons[7].potential, 0.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[0].potential, 1.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[1].potential, 0.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[2].potential, 2.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[3].potential, 0.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[4].potential, 0.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[5].potential, 3.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[6].potential, 4.0);
+        assert_eq!(input_block.block_io.output_buffer[0].axons[7].potential, 0.0);
     }
 }

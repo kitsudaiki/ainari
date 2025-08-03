@@ -290,7 +290,7 @@ mod tests {
             output_buffer.output_neurons[3].output_value = 45.0f32;
         }
     
-        convert_output_to_buffer(&mut buffer, &output_buffer);
+        convert_output_to_buffer(&mut buffer, &mut output_buffer);
     
         assert_eq!(buffer.len(), 4);
         assert_eq!(buffer[0], 42.0f32);
@@ -328,7 +328,7 @@ mod tests {
             output_buffer.output_neurons[3].output_value = 0.8f32;
         }
     
-        convert_output_to_buffer(&mut buffer, &output_buffer);
+        convert_output_to_buffer(&mut buffer, &mut output_buffer);
     
         assert_eq!(buffer.len(), 4);
         assert_eq!(buffer[0], 0.0f32);
@@ -367,7 +367,7 @@ mod tests {
             output_buffer.output_neurons[43].output_value = 0.8f32;
         }
     
-        convert_output_to_buffer(&mut buffer, &output_buffer);
+        convert_output_to_buffer(&mut buffer, &mut output_buffer);
     
         assert_eq!(buffer.len(), 2);
     
@@ -402,7 +402,7 @@ mod tests {
             output_buffer.output_neurons[127].output_value = 0.8f32;
         }
     
-        convert_output_to_buffer(&mut buffer, &output_buffer);
+        convert_output_to_buffer(&mut buffer, &mut output_buffer);
     
         assert_eq!(buffer.len(), 2);
         assert_eq!(buffer[0], 2.0f32);

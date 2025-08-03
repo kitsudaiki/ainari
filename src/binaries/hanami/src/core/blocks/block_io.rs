@@ -22,7 +22,7 @@ use hanami_common::constants::*;
 
 use super::axons::*;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BlockIoBuffer {
     pub input_buffer: Vec<AxonSection>,
     pub output_buffer: Vec<AxonSection>,

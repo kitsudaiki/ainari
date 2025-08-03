@@ -27,6 +27,7 @@ use crate::core::blocks::input_block::*;
 use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
 use crate::core::processing::output_buffer::OutputBuffer;
+use crate::core::processing::worker_queue::*;
 
 use super::processing::cluster_interface::ClusterInterface;
 use super::blocks::block_trait::Block;
@@ -339,6 +340,24 @@ impl ClusterDataHandler {
 
         if let Some(interface) = &cluster_handle.cluster_interface {
             return Some(Arc::clone(interface));
+        } else {
+            return None;
+        }
+    }
+
+    /**
+     * 
+     */
+    pub fn get_finish_counter(&self, cluster_uuid: &Uuid) -> Option<Arc<Mutex<FinishCounter>>> {
+        let cluster_handle = if let Some(c) = self.clusters.get(&cluster_uuid) {
+            c
+        } else {
+            return None;
+        };
+
+        if let Some(cluster_interface_arc) = &cluster_handle.cluster_interface {
+            let cluster_interface = cluster_interface_arc.lock().unwrap();
+            return Some(Arc::clone(&cluster_interface.finish_counter));
         } else {
             return None;
         }

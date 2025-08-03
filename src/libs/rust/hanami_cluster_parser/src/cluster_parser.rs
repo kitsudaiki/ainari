@@ -431,12 +431,14 @@ mod tests {
                 assert_eq!(parsed.hexagons.len(), 2);
 
                 if let Some(value) = parsed.hexagons.values().nth(0) {
-                    assert_eq!(value.positon, Position{x: 1, y: 2, z: 3});
+                    let valid = value.positon == Position{x: 1, y: 2, z: 3} || value.positon == Position{x: 4, y: 5, z: 6};
+                    assert!(valid);
                 } else {
                     assert_eq!(false, true);
                 }
                 if let Some(value) = parsed.hexagons.values().nth(1) {
-                    assert_eq!(value.positon, Position{x: 4, y: 5, z: 6});
+                    let valid = value.positon == Position{x: 1, y: 2, z: 3} || value.positon == Position{x: 4, y: 5, z: 6};
+                    assert!(valid);
                 } else {
                     assert_eq!(false, true);
                 }

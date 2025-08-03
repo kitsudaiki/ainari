@@ -27,7 +27,7 @@ use super::super::processing::worker_queue::*;
 
 // ==================================================================================================
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Synapse {
     pub weight: f32,
     pub upper: f32,
@@ -63,6 +63,7 @@ impl Synapse {
 
 // ==================================================================================================
 
+#[derive(Clone, Copy)]
 pub struct Neuron {
     pub input: f32,
 
@@ -80,6 +81,7 @@ impl Neuron {
 
 // ==================================================================================================
 
+#[derive(Clone)]
 pub struct CoreBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -388,14 +390,14 @@ mod tests {
         let hexagon_uuid = Uuid::new_v4();
         let mut test_block = CoreBlock::new(&hexagon_uuid, &cluster_uuid);
         test_block.buffer[1].source_axon = 42;
-        let own = Arc::new(Mutex::new(&test_block));
+        let own: Arc<Mutex<dyn Block>> = Arc::new(Mutex::new(test_block.clone()));
 
         let mut test_axon = AxonSection::default();
         test_axon.axons[0].potential = 10.0f32;
 
-        test_block.input_buffer[0] = test_axon;
+        test_block.block_io.input_buffer[0] = test_axon;
 
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
 
         // check if buffer-processing works correctly
         assert_eq!(test_block.fill_size[1], 3);
@@ -404,28 +406,28 @@ mod tests {
         assert_eq!(test_block.synapse_counter, 257);
 
         // run processing in order to create new synapses
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 258);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 259);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 260);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 261);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 262);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 263);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 264);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 265);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 266);
         // after depth = 8, nothing more will be added
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 267);
-        test_block.train(42, own);
+        test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 267);
 
         // check fill-size
@@ -448,13 +450,13 @@ mod tests {
         assert_ne!(test_block.neurons[124].input, 0.0f32);
         assert_ne!(test_block.neurons[38].input, 0.0f32);
         assert_ne!(test_block.neurons[80].input, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[84].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[126].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[40].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[82].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[124].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[38].potential, 0.0f32);
-        assert_ne!(test_block.output_buffer[0].axons[80].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[84].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[126].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[40].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[82].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[124].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[38].potential, 0.0f32);
+        assert_ne!(test_block.block_io.output_buffer[0].axons[80].potential, 0.0f32);
 
         // check random other ones, that they have not input
         assert_eq!(test_block.neurons[0].input, 0.0f32);
@@ -463,29 +465,29 @@ mod tests {
         assert_eq!(test_block.neurons[10].input, 0.0f32);
 
         // set test-deltas
-        test_block.output_buffer[0].axons[42].delta = 0.5f32;
-        test_block.output_buffer[0].axons[84].delta = 0.5f32;
-        test_block.output_buffer[0].axons[126].delta = 0.5f32;
-        test_block.output_buffer[0].axons[40].delta = 0.5f32;
-        test_block.output_buffer[0].axons[82].delta = 0.5f32;
-        test_block.output_buffer[0].axons[124].delta = 0.5f32;
-        test_block.output_buffer[0].axons[38].delta = 0.5f32;
-        test_block.output_buffer[0].axons[80].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[42].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[84].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[126].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[40].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[82].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[124].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[38].delta = 0.5f32;
+        test_block.block_io.output_buffer[0].axons[80].delta = 0.5f32;
 
         test_block.backpropagate();
 
         // check that delta of the source-axon was modified
-        assert_ne!(test_block.input_buffer[0].axons[0].delta, 0.0f32);
+        assert_ne!(test_block.block_io.input_buffer[0].axons[0].delta, 0.0f32);
         // println!("{}", test_block.input_buffer[0].axons[0].delta);
 
         // check that all target-axons are reseted
-        assert_eq!(test_block.output_buffer[0].axons[42].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[84].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[126].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[40].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[82].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[124].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[38].delta, 0.0f32);
-        assert_eq!(test_block.output_buffer[0].axons[80].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[42].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[84].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[126].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[40].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[82].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[124].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[38].delta, 0.0f32);
+        assert_eq!(test_block.block_io.output_buffer[0].axons[80].delta, 0.0f32);
     }
 }
