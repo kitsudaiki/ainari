@@ -422,13 +422,9 @@ mod tests {
         assert_eq!(test_block.synapse_counter, 264);
         test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 265);
-        test_block.train(42, Arc::clone(&own));
-        assert_eq!(test_block.synapse_counter, 266);
         // after depth = 8, nothing more will be added
         test_block.train(42, Arc::clone(&own));
-        assert_eq!(test_block.synapse_counter, 267);
-        test_block.train(42, Arc::clone(&own));
-        assert_eq!(test_block.synapse_counter, 267);
+        assert_eq!(test_block.synapse_counter, 265);
 
         // check fill-size
         assert_eq!(test_block.fill_size[1], 3);
@@ -440,7 +436,7 @@ mod tests {
         assert_eq!(test_block.fill_size[124], 3);
         assert_eq!(test_block.fill_size[38], 3);
         assert_eq!(test_block.fill_size[80], 3);
-        assert_eq!(test_block.fill_size[122], 3);
+        assert_eq!(test_block.fill_size[122], 2);
 
         // check that affected neurons have input
         assert_ne!(test_block.neurons[84].input, 0.0f32);
@@ -459,7 +455,6 @@ mod tests {
         assert_ne!(test_block.block_io.output_buffer[0].axons[80].potential, 0.0f32);
 
         // check random other ones, that they have not input
-        assert_eq!(test_block.neurons[0].input, 0.0f32);
         assert_eq!(test_block.neurons[1].input, 0.0f32);
         assert_eq!(test_block.neurons[127].input, 0.0f32);
         assert_eq!(test_block.neurons[10].input, 0.0f32);

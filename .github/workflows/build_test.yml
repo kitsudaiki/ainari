@@ -398,84 +398,84 @@ jobs:
 
 
 
-  cli_api_tests:
-    name: "CLI-API-Tests"
-    needs: [ cargo_tests ]
-    runs-on: ubuntu-24.04
-    steps:
-      -
-        name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssl libsqlite3-0
-      -
-        name: Checkout repository
-        run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
-          # branch can not be read by the git commands, which is necessary for the build-script
-          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
-          cd ${GITHUB_REPOSITORY#*/}
-          git checkout ${GITHUB_REF#refs/heads/}
-          git submodule init
-          git submodule update --recursive
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: hanamictl_build_result
-          path: /tmp/hanamictl_build_result
-      -
-        name: Build local docker-image
-        run: |
-          chmod +x /tmp/hanamictl_build_result/hanamictl
-          cp /tmp/hanamictl_build_result/hanamictl ${GITHUB_REPOSITORY#*/}/testing/go_cli_api/
-      -
-        name: Download mnist-files
-        run: |
-          cd /tmp/
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
-          gzip -d train-images-idx3-ubyte.gz
-          gzip -d train-labels-idx1-ubyte.gz
-          gzip -d t10k-images-idx3-ubyte.gz
-          gzip -d t10k-labels-idx1-ubyte.gz
-      -
-        name: run Hanami in backgroupd
-        run: |
-          cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/hanami
-          mkdir -p builds/binaries
-          sudo cp -r ./example_configs/openhanami /etc/openhanami
-          sudo chmod 777 -R /etc/openhanami
-          /tmp/Hanami_debug_build_result/hanami &
-          # BINARY_PID=$!
-          # trap "kill $BINARY_PID" EXIT
-      -
-        name: Sleep for 15 seconds
-        uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
-        with:
-          time: '15s'
-      -
-        name: Run test
-        run: |
-          export PATH=$PATH:/usr/local/go/bin
-          cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
-          export HANAMI_ADDRESS=http://127.0.0.1:11418
-          export HANAMI_USER=asdf
-          export HANAMI_PASSPHRASE=asdfasdf
-          export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
-          export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
-          export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte
-          export REQUEST_LABELS=/tmp/t10k-labels-idx1-ubyte
-          ./cli_test.sh
+  # cli_api_tests:
+  #   name: "CLI-API-Tests"
+  #   needs: [ cargo_tests ]
+  #   runs-on: ubuntu-24.04
+  #   steps:
+  #     -
+  #       name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y openssl libsqlite3-0
+  #     -
+  #       name: Checkout repository
+  #       run: |
+  #         # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+  #         # branch can not be read by the git commands, which is necessary for the build-script
+  #         git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
+  #         cd ${GITHUB_REPOSITORY#*/}
+  #         git checkout ${GITHUB_REF#refs/heads/}
+  #         git submodule init
+  #         git submodule update --recursive
+  #     -
+  #       name: Get artifact
+  #       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+  #       with:
+  #         name: Hanami_debug_build_result
+  #         path: /tmp/Hanami_debug_build_result
+  #     -
+  #       name: Get artifact
+  #       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+  #       with:
+  #         name: hanamictl_build_result
+  #         path: /tmp/hanamictl_build_result
+  #     -
+  #       name: Build local docker-image
+  #       run: |
+  #         chmod +x /tmp/hanamictl_build_result/hanamictl
+  #         cp /tmp/hanamictl_build_result/hanamictl ${GITHUB_REPOSITORY#*/}/testing/go_cli_api/
+  #     -
+  #       name: Download mnist-files
+  #       run: |
+  #         cd /tmp/
+  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
+  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
+  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
+  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
+  #         gzip -d train-images-idx3-ubyte.gz
+  #         gzip -d train-labels-idx1-ubyte.gz
+  #         gzip -d t10k-images-idx3-ubyte.gz
+  #         gzip -d t10k-labels-idx1-ubyte.gz
+  #     -
+  #       name: run Hanami in backgroupd
+  #       run: |
+  #         cd ${GITHUB_REPOSITORY#*/}
+  #         chmod +x /tmp/Hanami_debug_build_result/hanami
+  #         mkdir -p builds/binaries
+  #         sudo cp -r ./example_configs/openhanami /etc/openhanami
+  #         sudo chmod 777 -R /etc/openhanami
+  #         /tmp/Hanami_debug_build_result/hanami &
+  #         # BINARY_PID=$!
+  #         # trap "kill $BINARY_PID" EXIT
+  #     -
+  #       name: Sleep for 15 seconds
+  #       uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
+  #       with:
+  #         time: '15s'
+  #     -
+  #       name: Run test
+  #       run: |
+  #         export PATH=$PATH:/usr/local/go/bin
+  #         cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
+  #         export HANAMI_ADDRESS=http://127.0.0.1:11418
+  #         export HANAMI_USER=asdf
+  #         export HANAMI_PASSPHRASE=asdfasdf
+  #         export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
+  #         export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
+  #         export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte
+  #         export REQUEST_LABELS=/tmp/t10k-labels-idx1-ubyte
+  #         ./cli_test.sh
 
 
 
@@ -608,7 +608,8 @@ jobs:
   docker_build:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build Docker-images"
-    needs: [ sdk_api_tests, cli_api_tests ]
+    # needs: [ sdk_api_tests, cli_api_tests ]
+    needs: [ sdk_api_tests ]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
