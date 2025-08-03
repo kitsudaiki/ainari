@@ -224,11 +224,11 @@ impl Block for CoreBlock {
                 let third = (synapse.upper - synapse.lower) / 3.0f32;
 
                 // update current synapse
-                let update = ((source_potential > synapse.lower) && (source_potential <= synapse.upper)) as u8;
+                let update = ((source_potential > synapse.lower)) as u8;
                 neuron.input += synapse.weight * update as f32;
                 synapse.active_counter += update * (synapse.active_counter < 254) as u8;
 
-                if synapse.layer < 8 {
+                if synapse.layer < 6 {
                     // handling first layer split
                     if synapse.layer == 0 && synapse.active_counter_top == 0 && source_potential > synapse.upper {
                         let mut new_synapse = Synapse::default();
@@ -279,7 +279,7 @@ impl Block for CoreBlock {
         self.apply_output();
         connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
         send_forward(&self.block_io, WorkerTaskType::Train);
-        println!("train core: {:?}", start.elapsed());
+        // println!("train core: {:?}", start.elapsed());
     }
 
     fn process(&mut self) {
@@ -302,7 +302,7 @@ impl Block for CoreBlock {
                 let source_weight = self.block_io.input_buffer[synapse.source_axon as usize / BLOCK_DIM].axons[synapse.source_axon as usize % BLOCK_DIM].potential;
 
                 // update current synapse
-                let update = ((source_weight > synapse.lower) && (source_weight <= synapse.upper)) as u8;
+                let update = ((source_weight > synapse.lower)) as u8;
                 neuron.input += synapse.weight * update as f32;
                 synapse.active_counter += update * (synapse.active_counter < 254) as u8;
             }
@@ -326,7 +326,7 @@ impl Block for CoreBlock {
             for y_offset in 0..(self.fill_size[x_offset] as usize) {
                 let synapse = &mut self.synapses[(x_offset * 2 * BLOCK_DIM) + y_offset];
                 let source_axon = &mut self.block_io.input_buffer[synapse.source_axon as usize / BLOCK_DIM].axons[synapse.source_axon as usize % BLOCK_DIM];
-                let update = ((source_axon.potential > synapse.lower) && (source_axon.potential <= synapse.upper)) as u8;
+                let update = ((source_axon.potential > synapse.lower)) as u8;
                 let delta = target_axon.delta * synapse.weight * update as f32;
                 synapse.weight -= train_value * target_axon.delta;
                 source_axon.delta += delta;

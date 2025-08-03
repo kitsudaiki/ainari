@@ -128,7 +128,7 @@ request_outputs = [
     }
 ]
 
-replicas = 10
+replicas = 5
 cluster_uuids = [""] * 10
 task_uuids = [""] * 10
 flattened_list = [0.0] * 1750
@@ -143,7 +143,7 @@ for x in range(replicas):
     print("train replica: ", x)
     print('\n')
     task_uuids[x] = task.create_train_task(
-        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 500, 20, False)["uuid"]
+        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 200, 20, False)["uuid"]
     finished = False
     while not finished:
         time.sleep(1)
@@ -192,7 +192,7 @@ dataset.delete_dataset(token, address, train_dataset_uuid, False)
 
 # update result
 for r in range(len(flattened_list)):
-    flattened_list[r] /= 10.0
+    flattened_list[r] /= 5.0
 
 # plot result
 plt.rcParams["figure.figsize"] = [10, 5]

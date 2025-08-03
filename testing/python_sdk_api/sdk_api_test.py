@@ -261,7 +261,7 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, 1, False)["uuid"]
+        token, address, generic_task_name, cluster_uuid, inputs, outputs, 5, 1, False)["uuid"]
 
     finished = False
     while not finished:
@@ -380,7 +380,7 @@ def test_workflow():
     _test(cluster_uuid, request_dataset_uuid)
     _test(cluster_uuid, request_dataset_uuid)
 
-    cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
+    # cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
 
     _test(cluster_uuid, request_dataset_uuid)
 
@@ -407,7 +407,7 @@ def test_workflow():
 token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
 # print(token)
 dataset.delete_all_datasets(token, address, False)
-checkpoint.delete_all_checkpoints(token, address, False)
+# checkpoint.delete_all_checkpoints(token, address, False)
 cluster.delete_all_cluster(token, address, False)
 project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)

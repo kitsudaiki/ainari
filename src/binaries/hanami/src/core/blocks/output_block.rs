@@ -169,7 +169,7 @@ impl Block for OutputBlock {
         if already_done {
             self.backpropagate();
         }
-        println!("train output: {:?}", start.elapsed());
+        // println!("train output: {:?}", start.elapsed());
     }
 
     fn process(&mut self) {
@@ -195,7 +195,7 @@ impl Block for OutputBlock {
                 output_buffer.finalize();
             }
         }
-        println!("process output: {:?}", start.elapsed());
+        //println!("process output: {:?}", start.elapsed());
     }
 
     fn backpropagate(&mut self) {
@@ -234,7 +234,7 @@ impl Block for OutputBlock {
         }
 
         send_backward(&self.block_io);
-        println!("backpropage output: {:?}", start.elapsed());
+        //println!("backpropage output: {:?}", start.elapsed());
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
