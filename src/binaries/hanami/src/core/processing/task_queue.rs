@@ -49,12 +49,12 @@ mod tests {
     use uuid::Uuid;
     use std::sync::{Arc, Mutex};
 
-    use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
-    use hanami_structs::task_structs::TaskType;
+    use crate::core::processing::tasks::{Task, TaskVariant, CheckpointSaveInfo};
     use super::*;
 
     #[test]
     fn test_add_and_get() {
+        let cluster_uuid = Uuid::new_v4();
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
         let mut queue = task_queue.lock().unwrap();
         let uuid1 = Uuid::new_v4();
@@ -69,6 +69,7 @@ mod tests {
 
         let task1 = Task {
             uuid: uuid1.clone(),
+            cluster_uuid: cluster_uuid.clone(),
             name: "task1".to_string(),
             user_id: "user0815".to_string(),
             project_id: "project0815".to_string(),
@@ -76,6 +77,7 @@ mod tests {
         };
         let task2 = Task {
             uuid: uuid2.clone(),
+            cluster_uuid: cluster_uuid.clone(),
             name: "task2".to_string(),
             user_id: "user0816".to_string(),
             project_id: "project0816".to_string(),

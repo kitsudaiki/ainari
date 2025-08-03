@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod processing;
-pub mod blocks;
-pub mod cluster_handler;
+use uuid::Uuid;
+use std::sync::{Arc, Mutex};
+
+use super::axons::*;
+use super::block_io::*;
+
+pub trait Block: Send + Sync {
+    fn train(&mut self, place_offset: usize, own: Arc<Mutex<dyn Block>>);
+    fn process(&mut self,);
+    fn backpropagate(&mut self);
+
+    fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool;
+    fn get_uuid(&self) -> Uuid;
+    fn get_hexagon_uud(&self) -> Uuid;
+    fn get_cluster_uud(&self) -> Uuid;
+
+    fn get_block_io(&mut self) -> &mut BlockIoBuffer;
+}

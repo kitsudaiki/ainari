@@ -58,6 +58,7 @@ pub enum TaskVariant {
 #[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
+    pub cluster_uuid: Uuid,
     pub name: String,
     pub user_id: String,
     pub project_id: String,

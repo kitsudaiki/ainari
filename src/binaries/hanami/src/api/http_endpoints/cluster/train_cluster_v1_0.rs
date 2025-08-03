@@ -59,17 +59,19 @@ pub async fn train_cluster(body: Json<ClusterTrainReq>, cluster_uuid: Path<Uuid>
     };
 
     // get cluster-handle
-    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
+    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.write().unwrap();
+    let cluster_handle = match cluster_handler.clusters.get_mut(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
         None => return Err(ErrorResponse::InternalError("".to_string()))
     };
 
     // run train-process in cluster
-    match cluster_handle.train(&body.inputs, &body.outputs) {
-        Ok(()) => {},
-        Err(msg) => {
-            return Err(ErrorResponse::NotFound(msg));
+        if let Some(interface) = &mut cluster_handle.cluster_interface {
+        match interface.lock().unwrap().train(&body.inputs, &body.outputs) {
+            Ok(()) => {},
+            Err(msg) => {
+                return Err(ErrorResponse::NotFound(msg));
+            }
         }
     }
 

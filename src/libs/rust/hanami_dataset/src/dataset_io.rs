@@ -26,7 +26,7 @@ use serde::{Serialize, Deserialize};
 use bincode::{config, Decode, Encode};
 
 use hanami_common::error::HanamiError;
-use hanami_common::constant::*;
+use hanami_common::constants::*;
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -122,7 +122,7 @@ impl DataSetFileReadHandleV1_0 {
         }
     }
 
-    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(*mut f32, u64), String>{
+    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), String>{
         let column = &self.selected_column;
         let col_get = match self.header.columns.get(column) {
             Some(col) => col,
@@ -135,12 +135,12 @@ impl DataSetFileReadHandleV1_0 {
         // cget pointer to the requested position in the buffer
         let row_col_size = col_get.end - col_get.start;               
         let buffer_offset = ((row - self.buffer_start_row) * self.header.row_size) + col_get.start;
-        let input_ptr: *mut f32 = unsafe { self.read_buffer.as_mut_ptr().add(buffer_offset as usize) };
+        let chunk: &[f32] = &self.read_buffer[(buffer_offset as usize)..((buffer_offset + row_col_size) as usize)];
 
-        Ok((input_ptr, row_col_size))
+        Ok((chunk, row_col_size))
     }
 
-    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(*mut f32, u64), String>
+    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), String>
     {
         if row >= &self.buffer_start_row && row < &self.buffer_end_row {
             return self.get_data_from_buffer(row);
