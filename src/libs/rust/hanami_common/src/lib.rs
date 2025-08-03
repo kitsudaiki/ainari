@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod constant;
+pub mod constants;
 pub mod enums;
 pub mod error;
 pub mod functions;
 pub mod objects;
+pub mod counter;

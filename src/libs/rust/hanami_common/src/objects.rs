@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constant::UNINIT_POINT_32;
+use super::constants::UNINIT_POINT_32;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Position {
     pub x: u32,
     pub y: u32,

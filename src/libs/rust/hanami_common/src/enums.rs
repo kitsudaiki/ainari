@@ -13,11 +13,16 @@
 // limitations under the License.
 
 use std::fmt;
+use serde::{Deserialize, Serialize};
+
+// ==================================================================================================
 
 pub enum DbError {
     NotFound,
     InternalError
 }
+
+// ==================================================================================================
 
 #[repr(i32)]
 #[derive(Debug, PartialEq)]
@@ -43,3 +48,18 @@ impl fmt::Display for ReturnStatus {
         write!(f, "{:?}", self)
     }
 }
+
+// ==================================================================================================
+
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum OutputType {
+    PlainOutput = 0,
+    BoolOutput = 1,
+    IntOutput = 2,
+    FloatOutput = 3,
+}
+impl Default for OutputType {
+    fn default() -> Self { OutputType::PlainOutput }
+}
+
+// ==================================================================================================

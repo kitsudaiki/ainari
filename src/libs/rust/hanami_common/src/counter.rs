@@ -12,30 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
+use std::sync::{Arc, Mutex};
 
-#[derive(Debug)]
-pub enum HanamiError {
-    InputError(String),
-    Error(String),
+pub struct Counter {
+    pub value: Arc<Mutex<usize>>,
+    compare: usize, 
 }
 
-impl fmt::Display for HanamiError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            HanamiError::InputError(ref msg) => write!(f, "Input-error: {msg}"),
-            HanamiError::Error(ref msg) => write!(f, "Internal error: {msg}"),
+impl Counter {
+    pub fn new(compare: usize) -> Self {
+        Counter {
+            value: Arc::new(Mutex::new(0)),
+            compare: compare,
         }
     }
-}
 
-impl PartialEq<&str> for HanamiError {
-    fn eq(&self, other: &&str) -> bool {
-        match self {
-            HanamiError::InputError(s) | HanamiError::Error(s) => s == other,
+    pub fn increase_check_reset(&self) -> bool {
+        let mut val = self.value.lock().unwrap();
+        *val += 1;
+        if *val == self.compare {
+            *val = 0;
+            return true;
         }
+        false
+    }
+
+    pub fn update_compare(&mut self, new_compare: usize) {
+        let lock = self.value.lock().unwrap();
+        self.compare = new_compare;
+        drop(lock);
     }
 }
-
-impl std::error::Error for HanamiError {}
-

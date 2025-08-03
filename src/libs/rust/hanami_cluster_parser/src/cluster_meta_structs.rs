@@ -12,60 +12,108 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub enum OutputType {
-    PlainOutput = 0,
-    BoolOutput = 1,
-    IntOutput = 2,
-    FloatOutput = 3,
-}
-impl Default for OutputType {
-    fn default() -> Self { OutputType::PlainOutput }
-}
+use uuid::Uuid;
 
-#[derive(Debug)]
+use hanami_common::enums::*;
+use hanami_common::objects::*;
+use hanami_common::constants::*;
+
+#[derive(Debug, Clone, Default)]
 pub struct Settings {
     pub neuron_cooldown: f32,
     pub refractory_time: u32,
     pub max_connection_distance: u32,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Position(pub u32, pub u32, pub u32);
-
-impl fmt::Display for Position {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.0, self.1, self.2)
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AxonMeta {
     pub from: Position,
     pub to: Position,
 }
 
-#[derive(Debug)]
-pub struct InputMeta {
+#[derive(Debug, Clone)]
+pub struct HexagonMeta {
+    pub uuid: Uuid,
+    pub positon: Position,
     pub name: String,
-    pub pos: Position,
+
+    pub is_input: bool,
+    pub is_output: bool,
+
+    pub axon_target: Uuid,
+
+    pub possible_hexagon_target_ids: [Uuid; NUMBER_OF_POSSIBLE_NEXT],
+    pub neighbors: [Uuid; 12],
 }
 
-#[derive(Debug)]
-pub struct OutputMeta {
+impl HexagonMeta {
+    pub fn new(positon: Position) -> Self {
+        let new_uuid = Uuid::new_v4();
+        HexagonMeta {
+            uuid: new_uuid.clone(),
+            positon: positon,
+            name: "".to_string(),
+
+            axon_target: new_uuid.clone(),
+
+            is_input: false,
+            is_output: false,
+
+            neighbors: [Uuid::nil(); 12],
+            possible_hexagon_target_ids: [Uuid::nil(); NUMBER_OF_POSSIBLE_NEXT],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InputMeta {
+    pub uuid: Uuid,
+    pub hexagon_uuid: Uuid,
     pub name: String,
-    pub pos: Position,
+    pub position: Position,
+}
+
+impl InputMeta {
+    pub fn new(name: String, position: Position) -> Self {
+        InputMeta {
+            uuid: Uuid::new_v4(),
+            hexagon_uuid: Uuid::nil(),
+            name: name,
+            position: position,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OutputMeta {
+    pub uuid: Uuid,
+    pub hexagon_uuid: Uuid,
+    pub name: String,
+    pub position: Position,
     pub output_type: OutputType,
 }
 
-#[derive(Debug)]
+impl OutputMeta {
+    pub fn new(name: String, position: Position, output_type: OutputType) -> Self {
+        OutputMeta {
+            uuid: Uuid::new_v4(),
+            hexagon_uuid: Uuid::nil(),
+            name: name,
+            position: position,
+            output_type: output_type,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct ClusterMeta {
+    pub uuid: Uuid,
+    pub name: String,
     pub version: i32,
     pub settings: Settings,
-    pub hexagons: Vec<Position>,
+    pub hexagons: HashMap<Uuid, HexagonMeta>,
     pub axons: Vec<AxonMeta>,
     pub inputs: Vec<InputMeta>,
     pub outputs: Vec<OutputMeta>,

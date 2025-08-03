@@ -1195,8 +1195,10 @@ dependencies = [
  "hanami_common",
  "pest",
  "pest_derive",
+ "rand 0.9.1",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]

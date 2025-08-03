@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use sha2::{Sha256, Digest};
+use super::objects::*;
 
 pub fn sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
@@ -49,6 +50,129 @@ pub fn pcg_hash(input: &mut u32) -> u32 {
     *input = (word >> 22) ^ word;
     *input
 }
+
+pub fn get_neighbor_pos(source_pos: &Position, side: usize) -> Position {
+    let mut result = Position { x: 0, y: 0, z: 0 };
+
+    match side {
+        0 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x - 1
+            } else {
+                source_pos.x
+            };
+            result.y = source_pos.y - 1;
+            result.z = source_pos.z - 1;
+        }
+        1 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x
+            } else {
+                source_pos.x + 1
+            };
+            result.y = source_pos.y - 1;
+            result.z = source_pos.z - 1;
+        }
+        2 => {
+            result.x = source_pos.x;
+            result.y = source_pos.y;
+            result.z = source_pos.z - 1;
+        }
+        3 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x
+            } else {
+                source_pos.x + 1
+            };
+            result.y = source_pos.y - 1;
+            result.z = source_pos.z;
+        }
+        4 => {
+            result.x = source_pos.x + 1;
+            result.y = source_pos.y;
+            result.z = source_pos.z;
+        }
+        5 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x
+            } else {
+                source_pos.x + 1
+            };
+            result.y = source_pos.y + 1;
+            result.z = source_pos.z;
+        }
+        6 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x - 1
+            } else {
+                source_pos.x
+            };
+            result.y = source_pos.y - 1;
+            result.z = source_pos.z;
+        }
+        7 => {
+            result.x = source_pos.x - 1;
+            result.y = source_pos.y;
+            result.z = source_pos.z;
+        }
+        8 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x - 1
+            } else {
+                source_pos.x
+            };
+            result.y = source_pos.y + 1;
+            result.z = source_pos.z;
+        }
+        9 => {
+            result.x = source_pos.x;
+            result.y = source_pos.y;
+            result.z = source_pos.z + 1;
+        }
+        10 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x - 1
+            } else {
+                source_pos.x
+            };
+            result.y = source_pos.y + 1;
+            result.z = source_pos.z + 1;
+        }
+        11 => {
+            result.x = if source_pos.y % 2 == 0 {
+                source_pos.x
+            } else {
+                source_pos.x + 1
+            };
+            result.y = source_pos.y + 1;
+            result.z = source_pos.z + 1;
+        }
+        _ => panic!("Invalid side value: {}", side),
+    }
+
+    result
+}
+
+pub fn get_next_sides(side: u8) -> [u8; 5] {
+    let sides = match side {
+        0 =>  [1,  4,  11, 5,  2 ],
+        1 =>  [2,  8,  10, 7,  0 ],
+        2 =>  [0,  6,  9,  3,  1 ],
+        3 =>  [5,  2,  8,  10, 7 ],
+        4 =>  [8,  10, 7,  0,  6 ],
+        5 =>  [7,  0,  6,  9,  3 ],
+        6 =>  [4,  11, 5,  2,  8 ],
+        7 =>  [3,  1,  4,  11, 5 ],
+        8 =>  [6,  9,  3,  1,  4 ],
+        9 =>  [11, 5,  2,  8,  10],
+        10 => [9,  3,  1,  4,  11],
+        11 => [10, 7,  0,  6,  9 ],
+        _ => panic!("Invalid side value: {}; This should never happen!", side),
+    };
+
+    sides
+}
+
 
 #[cfg(test)]
 mod tests {
