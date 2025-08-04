@@ -24,10 +24,9 @@ use hanami_common::constants::*;
 
 use crate::core::blocks::axons::AxonSection;
 use crate::core::blocks::input_block::*;
-use crate::core::blocks::new_core_block::*;
+use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
 use crate::core::processing::output_buffer::OutputBuffer;
-use crate::core::processing::worker_queue::*;
 
 use super::processing::cluster_interface::ClusterInterface;
 use super::blocks::block_trait::Block;
@@ -620,7 +619,6 @@ impl ClusterDataHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::blocks::new_core_block::CoreBlock;
     use hanami_common::enums::*;
     use serial_test::serial;
 

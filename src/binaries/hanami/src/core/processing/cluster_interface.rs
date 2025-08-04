@@ -239,7 +239,6 @@ fn handle_train_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Trai
                     }
                 }
             }
-            let start = Instant::now();
 
             // push input-values form dataset into the backend
             for (hexagon_name, file_handle) in &mut task_info.inputs {  
@@ -259,7 +258,6 @@ fn handle_train_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Trai
                     return;
                 }
             }
-            println!("++++++++++++++++++ train-iteration: {:?}", start.elapsed());
         }
     }
 
@@ -303,8 +301,6 @@ fn handle_request_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Re
         counter.counter = 0;
         drop(counter);
 
-        let start = Instant::now();
-
         // push input-values form dataset into the backend
         for (hexagon_name, file_handle) in &mut task_info.inputs {  
             match get_input_from_dataset(cluster_uuid, hexagon_name, file_handle, cycle_count, task_info.time_length, &task_type) {
@@ -332,7 +328,6 @@ fn handle_request_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Re
                 return;
             }
         }
-        println!("++++++++++++++++++ request-iteration: {:?}", start.elapsed());
     }
 
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);

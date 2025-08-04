@@ -82,17 +82,14 @@ impl OutputBuffer {
     }
 
     pub fn finalize(&mut self) {
-        print!("===================== finalize: ");
         for out in self.output_neurons.iter_mut() {
             if out.output_value != 0.0f32 {
                 out.output_value = 1.0f32 / (1.0f32 + (-1.0f32 * out.output_value).exp());
-                print!("{:.4}:({:.0}) ", out.output_value, out.expected_value);
             }
         }
         let mut finish_counter = self.finish_counter.lock().unwrap();
         finish_counter.counter += 1;
         self.already_finalized = true;
-        println!(" ");
 
         let mut worker_queue = WORKER_QUEUE.lock().unwrap();
         for block in self.unfinished_blocks.iter() {
@@ -163,12 +160,9 @@ pub fn convert_buffer_to_expected(output_buffer: &mut OutputBuffer, buffer: &[f3
 fn handle_plain_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
     
-    print!("output: ");
     for i in 0..number_of_outputs {
         buffer[i] = output_buffer.output_neurons[i].output_value;
-        print!("{} ", buffer[i]);
     }
-    println!("");
 
     number_of_outputs
 }

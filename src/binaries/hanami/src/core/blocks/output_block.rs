@@ -94,21 +94,20 @@ impl OutputBlock {
 
     fn process_block(&mut self) {
         // reset output-values
-        for i in 0..self.block_outputs.len() {
-            self.block_outputs[i].output_value = 0.0f32;
+        for output_neuron in self.block_outputs.iter_mut() {
+            output_neuron.output_value = 0.0f32;
         }
 
         let input_buffer = &mut self.block_io.input_buffer[0];
         // calculate block-internal output
-        for x in 0..BLOCK_DIM {
-            let axon = &mut input_buffer.axons[x];
+        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
             if axon.potential == 0.0f32 {
                 continue;
             }
 
             axon.potential = 1.0f32 / (1.0f32 + (-1.0f32 * axon.potential).exp());
-            for y in 0..self.block_outputs.len() {
-                self.block_outputs[y].output_value += self.weights[(y * BLOCK_DIM) + x] * input_buffer.axons[x].potential;
+            for (y, output_neuron) in self.block_outputs.iter_mut().enumerate() {
+                output_neuron.output_value += self.weights[(y * BLOCK_DIM) + x] * axon.potential;
             }
         }
     }
@@ -118,15 +117,7 @@ impl OutputBlock {
 
 impl Block for OutputBlock {
     fn train(&mut self, _: usize, own: Arc<Mutex<dyn Block>>) {
-        let start = Instant::now();
         self.connect_output_buffer();
-
-        // // debug-output
-        // println!("output-block-axons ({}): ", self.uuid);
-        // for axon in self.block_io.input_buffer.axons.iter_mut() {
-        //     print!("{} ", axon.potential);
-        // }
-        // println!(" ");
 
         // resize output and wights and get expected values from output-buffer
         if let Some(output_buffer_arc) = &self.output_buffer {
@@ -146,8 +137,8 @@ impl Block for OutputBlock {
         let mut already_done = false;
         if let Some(output_buffer_arc) = &self.output_buffer {
             let mut output_buffer = output_buffer_arc.lock().unwrap();
-            for i in 0..self.block_outputs.len() {
-                output_buffer.output_neurons[i].output_value += self.block_outputs[i].output_value;
+            for (i, local_neuron) in self.block_outputs.iter().enumerate() {
+                output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
 
             if output_buffer.already_finalized == false  {
@@ -169,25 +160,16 @@ impl Block for OutputBlock {
         if already_done {
             self.backpropagate();
         }
-        // println!("train output: {:?}", start.elapsed());
     }
 
     fn process(&mut self) {
-        let start = Instant::now();
-        // // debug-output
-        // println!("output-block-axons: ");
-        // for axon in self.block_io.input_buffer[0].axons.iter_mut() {
-        //     print!("{} ", axon.potential);
-        // }
-        // println!(" ");
-
         self.process_block();
 
         // process output-buffer
         if let Some(output_buffer_arc) = &self.output_buffer {
             let mut output_buffer = output_buffer_arc.lock().unwrap();
-            for i in 0..self.block_outputs.len() {
-                output_buffer.output_neurons[i].output_value += self.block_outputs[i].output_value;
+            for (i, local_neuron) in self.block_outputs.iter().enumerate() {
+                output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
             output_buffer.local_finish_counter += 1;
 
@@ -195,11 +177,9 @@ impl Block for OutputBlock {
                 output_buffer.finalize();
             }
         }
-        //println!("process output: {:?}", start.elapsed());
     }
 
     fn backpropagate(&mut self) {
-        let start = Instant::now();
         self.connect_output_buffer();
     
         // resize output and wights and get expected values from output-buffer
@@ -216,16 +196,15 @@ impl Block for OutputBlock {
         // backpropagate block
         let input_buffer = &mut self.block_io.input_buffer[0];
         let learn_value = 0.1f32;
-        for x in 0..BLOCK_DIM {
-            let axon = &mut input_buffer.axons[x];
+        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
             axon.delta = 0.0f32;
             if axon.potential == 0.0f32 {
                 continue;
             }
 
-            for y in 0..self.block_outputs.len() {
+            for (y, output_neuron) in self.block_outputs.iter_mut().enumerate() {
                 let weight = &mut self.weights[(y * BLOCK_DIM) + x];
-                let update = self.block_outputs[y].expected_value;
+                let update = output_neuron.expected_value;
                 axon.delta += update * (*weight);
                 *weight -= update * learn_value * axon.potential;
             }
@@ -234,7 +213,6 @@ impl Block for OutputBlock {
         }
 
         send_backward(&self.block_io);
-        //println!("backpropage output: {:?}", start.elapsed());
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
