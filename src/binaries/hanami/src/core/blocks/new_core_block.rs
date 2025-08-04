@@ -82,7 +82,7 @@ impl Neuron {
 // ==================================================================================================
 
 #[derive(Clone)]
-pub struct CoreBlock {
+pub struct NewCoreBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
     pub cluster_uuid: Uuid,
@@ -98,7 +98,7 @@ pub struct CoreBlock {
     pub block_io: BlockIoBuffer,
 }
 
-impl CoreBlock {
+impl NewCoreBlock {
     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid) -> Self {
 
         // internal visilization of the blocks:
@@ -131,7 +131,7 @@ impl CoreBlock {
             }
         }
 
-        let mut block = CoreBlock {
+        let mut block = NewCoreBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: hexagon_uuid.clone(),
             cluster_uuid: cluster_uuid.clone(),
@@ -195,7 +195,7 @@ impl CoreBlock {
 
 // ==================================================================================================
 
-impl Block for CoreBlock {
+impl Block for NewCoreBlock {
     fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) {
         let start = Instant::now();
         self.handle_buffer();
@@ -388,7 +388,7 @@ mod tests {
     fn test_process() {
         let cluster_uuid = Uuid::new_v4();
         let hexagon_uuid = Uuid::new_v4();
-        let mut test_block = CoreBlock::new(&hexagon_uuid, &cluster_uuid);
+        let mut test_block = NewCoreBlock::new(&hexagon_uuid, &cluster_uuid);
         test_block.buffer[1].source_axon = 42;
         let own: Arc<Mutex<dyn Block>> = Arc::new(Mutex::new(test_block.clone()));
 

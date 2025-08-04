@@ -14,7 +14,7 @@
 
 pub mod input_block;
 pub mod output_block;
-pub mod core_block;
+pub mod new_core_block;
 pub mod axons;
 pub mod block_trait;
 pub mod block_io;
