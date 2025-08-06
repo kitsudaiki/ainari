@@ -84,9 +84,9 @@ impl OutputBlock {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
             let root_handler = CLUSTER_HANDLER.read().unwrap();
-            if let Some(output_buffer_arc) = root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name) {
-                self.output_buffer = Some(output_buffer_arc.clone());
-                let mut output_buffer = output_buffer_arc.lock().unwrap();
+            if let Some(output_buffer_mutex) = root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name) {
+                self.output_buffer = Some(output_buffer_mutex.clone());
+                let mut output_buffer = output_buffer_mutex.lock().unwrap();
                 output_buffer.number_of_connected_blocks += 1;
             }
         }
@@ -120,10 +120,10 @@ impl Block for OutputBlock {
         self.connect_output_buffer();
 
         // resize output and wights and get expected values from output-buffer
-        if let Some(output_buffer_arc) = &self.output_buffer {
+        if let Some(output_buffer_mutex) = &self.output_buffer {
             let mut rng = rand::rng();
 
-            let output_buffer = output_buffer_arc.lock().unwrap();
+            let output_buffer = output_buffer_mutex.lock().unwrap();
             self.block_outputs.resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             let number_fo_weights = self.block_outputs.len() * BLOCK_DIM;
             self.weights.resize_with(number_fo_weights, || rng.random_range(-0.5..0.5));
@@ -135,8 +135,8 @@ impl Block for OutputBlock {
 
         // process output-buffer
         let mut already_done = false;
-        if let Some(output_buffer_arc) = &self.output_buffer {
-            let mut output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = &self.output_buffer {
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
             for (i, local_neuron) in self.block_outputs.iter().enumerate() {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
@@ -166,8 +166,8 @@ impl Block for OutputBlock {
         self.process_block();
 
         // process output-buffer
-        if let Some(output_buffer_arc) = &self.output_buffer {
-            let mut output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = &self.output_buffer {
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
             for (i, local_neuron) in self.block_outputs.iter().enumerate() {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
@@ -183,8 +183,8 @@ impl Block for OutputBlock {
         self.connect_output_buffer();
     
         // resize output and wights and get expected values from output-buffer
-        if let Some(output_buffer_arc) = &self.output_buffer {
-            let output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = &self.output_buffer {
+            let output_buffer = output_buffer_mutex.lock().unwrap();
             self.block_outputs.resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             for i in 0..self.block_outputs.len() {
                 self.block_outputs[i].expected_value = output_buffer.output_neurons[i].expected_value;

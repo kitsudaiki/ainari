@@ -127,9 +127,9 @@ impl ClusterDataHandler {
         };
 
         // get and init finish-counter
-        let finish_counter_arc = Arc::new(Mutex::new(FinishCounter::default()));
-        let mut finish_counter = finish_counter_arc.lock().unwrap();
-        let interface = Arc::new(Mutex::new(ClusterInterface::new(&cluster_uuid, &finish_counter_arc)));
+        let finish_counter_mutex = Arc::new(Mutex::new(FinishCounter::default()));
+        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        let interface = Arc::new(Mutex::new(ClusterInterface::new(&cluster_uuid, &finish_counter_mutex)));
 
         // add cluster to the cluster-handler
         parsed_cluster.uuid = cluster_uuid.clone();
@@ -140,8 +140,8 @@ impl ClusterDataHandler {
 
         // initialize input-blocks
         for input_meta in parsed_cluster.inputs.iter() {
-            let input_block_arc = Arc::new(Mutex::new(InputBlock::new(&input_meta.name, &input_meta.hexagon_uuid, &cluster_uuid, &finish_counter_arc)));
-            if self.add_input_block(&input_block_arc) == false {
+            let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(&input_meta.name, &input_meta.hexagon_uuid, &cluster_uuid, &finish_counter_mutex)));
+            if self.add_input_block(&input_block_mutex) == false {
                 let msg = format!("Failed to add input-block with name '{}' to cluster-handler", input_meta.name);
                 return Err(HanamiError::Error(msg));
             }
@@ -150,8 +150,8 @@ impl ClusterDataHandler {
 
         // initilize output-buffer
         for output_meta in parsed_cluster.outputs.iter() {
-            let output_buffer_arc = Arc::new(Mutex::new(OutputBuffer::new(&output_meta.name, &output_meta.hexagon_uuid, &cluster_uuid, &output_meta.output_type, &finish_counter_arc)));
-            if self.add_output_buffer(&output_buffer_arc) == false {
+            let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(&output_meta.name, &output_meta.hexagon_uuid, &cluster_uuid, &output_meta.output_type, &finish_counter_mutex)));
+            if self.add_output_buffer(&output_buffer_mutex) == false {
                 let msg = format!("Failed to add output-buffer with name '{}' to cluster-handler", output_meta.name);
                 return Err(HanamiError::Error(msg));
             }
@@ -183,22 +183,22 @@ impl ClusterDataHandler {
     /**
      * 
      */
-    pub fn add_core_block(&mut self, block_arc: &Arc<Mutex<CoreBlock>>) -> bool {
-        return self.add_block(&(block_arc.clone() as Arc<Mutex<dyn Block>>));
+    pub fn add_core_block(&mut self, block_mutex: &Arc<Mutex<CoreBlock>>) -> bool {
+        return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
 
     /**
      * 
      */
-    pub fn add_output_block(&mut self, block_arc: &Arc<Mutex<OutputBlock>>) -> bool {
-        return self.add_block(&(block_arc.clone() as Arc<Mutex<dyn Block>>));
+    pub fn add_output_block(&mut self, block_mutex: &Arc<Mutex<OutputBlock>>) -> bool {
+        return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
     
     /**
      * 
      */
-    fn add_input_block(&mut self, block_arc: &Arc<Mutex<InputBlock>>) -> bool {
-        let input_block = block_arc.lock().unwrap();
+    fn add_input_block(&mut self, block_mutex: &Arc<Mutex<InputBlock>>) -> bool {
+        let input_block = block_mutex.lock().unwrap();
         let cluster_uuid = input_block.get_cluster_uud();
         let hexagon_uuid = input_block.get_hexagon_uud();
         let block_name = input_block.name.clone();
@@ -244,8 +244,8 @@ impl ClusterDataHandler {
         // add new block
         let block_uuid = input_block.get_uuid();
         if hexgon_link.blocks.contains_key(&block_uuid) == false {
-            hexgon_link.blocks.insert(block_uuid.clone(), Arc::clone(block_arc) as Arc<Mutex<dyn Block>>);
-            hexgon_io.input_block = Some(block_arc.clone());
+            hexgon_link.blocks.insert(block_uuid.clone(), Arc::clone(block_mutex) as Arc<Mutex<dyn Block>>);
+            hexgon_io.input_block = Some(block_mutex.clone());
             return true;
         } 
 
@@ -255,8 +255,8 @@ impl ClusterDataHandler {
     /**
      * 
      */  
-    fn add_output_buffer(&mut self, block_arc: &Arc<Mutex<OutputBuffer >>) -> bool {
-        let output_buffer = block_arc.lock().unwrap();
+    fn add_output_buffer(&mut self, block_mutex: &Arc<Mutex<OutputBuffer >>) -> bool {
+        let output_buffer = block_mutex.lock().unwrap();
         let cluster_uuid = output_buffer.cluster_uuid.clone();
         let name = output_buffer.name.clone();
 
@@ -283,7 +283,7 @@ impl ClusterDataHandler {
 
         // add new block
         if hexgon_io.output_buffer.is_none() {
-            hexgon_io.output_buffer = Some(Arc::clone(block_arc));
+            hexgon_io.output_buffer = Some(Arc::clone(block_mutex));
             return true;
         } 
 
@@ -293,8 +293,8 @@ impl ClusterDataHandler {
     /**
      * 
      */
-    fn add_block(&mut self, block_arc: &Arc<Mutex<dyn Block>>) -> bool {
-        let block = block_arc.lock().unwrap();
+    fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> bool {
+        let block = block_mutex.lock().unwrap();
         let cluster_uuid = block.get_cluster_uud();
         let hexagon_uuid = block.get_hexagon_uud();
         let block_uuid = block.get_uuid();
@@ -320,7 +320,7 @@ impl ClusterDataHandler {
 
         // add new block
         if hexgon_link.blocks.contains_key(&block_uuid) == false {
-            hexgon_link.blocks.insert(block_uuid.clone(), Arc::clone(block_arc));
+            hexgon_link.blocks.insert(block_uuid.clone(), Arc::clone(block_mutex));
             return true;
         } 
 
@@ -354,8 +354,8 @@ impl ClusterDataHandler {
             return None;
         };
 
-        if let Some(cluster_interface_arc) = &cluster_handle.cluster_interface {
-            let cluster_interface = cluster_interface_arc.lock().unwrap();
+        if let Some(cluster_interface_mutex) = &cluster_handle.cluster_interface {
+            let cluster_interface = cluster_interface_mutex.lock().unwrap();
             return Some(Arc::clone(&cluster_interface.finish_counter));
         } else {
             return None;
@@ -403,8 +403,8 @@ impl ClusterDataHandler {
             return None;
         };
 
-        if let Some(input_block_arc) = &hexagon_link.input_block {
-            return Some(input_block_arc.clone());
+        if let Some(input_block_mutex) = &hexagon_link.input_block {
+            return Some(input_block_mutex.clone());
         }
 
         None
@@ -440,8 +440,8 @@ impl ClusterDataHandler {
             return None;
         };
 
-        if let Some(output_buffer_arc) = &hexagon_link.output_buffer {
-            return Some(output_buffer_arc.clone());
+        if let Some(output_buffer_mutex) = &hexagon_link.output_buffer {
+            return Some(output_buffer_mutex.clone());
         }
 
         None
@@ -577,10 +577,10 @@ impl ClusterDataHandler {
             };
 
             // search for a block, which has a free slot
-            for block_arc in target_hexagon_link.blocks.values() {
-                let mut block = block_arc.lock().unwrap();
+            for block_mutex in target_hexagon_link.blocks.values() {
+                let mut block = block_mutex.lock().unwrap();
                 if block.get_free_input(axon_section) != false {
-                    axon_section.target_block = Some(block_arc.clone());
+                    axon_section.target_block = Some(block_mutex.clone());
                     axon_section.source_block = Some(source_block);
                     return true;
                 }
@@ -589,24 +589,24 @@ impl ClusterDataHandler {
 
         // create new block
         if is_output_hexagon {
-            let output_block_arc = Arc::new(Mutex::new(OutputBlock::new(&target_hexagon_uuid, &axon_section.cluster_uuid, &output_hexagon_name)));
-            if self.add_output_block(&output_block_arc) == false {
+            let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(&target_hexagon_uuid, &axon_section.cluster_uuid, &output_hexagon_name)));
+            if self.add_output_block(&output_block_mutex) == false {
                 return false;
             }
-            let mut output_block = output_block_arc.lock().unwrap();
+            let mut output_block = output_block_mutex.lock().unwrap();
             if output_block.get_free_input(axon_section) {
-                axon_section.target_block = Some(output_block_arc.clone());
+                axon_section.target_block = Some(output_block_mutex.clone());
                 axon_section.source_block = Some(source_block);
                 return true;
             }
         } else {
-            let core_block_arc = Arc::new(Mutex::new(CoreBlock::new(&target_hexagon_uuid, &axon_section.cluster_uuid)));
-            if self.add_core_block(&core_block_arc) == false {
+            let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&target_hexagon_uuid, &axon_section.cluster_uuid)));
+            if self.add_core_block(&core_block_mutex) == false {
                 return false;
             }
-            let mut core_block = core_block_arc.lock().unwrap();
+            let mut core_block = core_block_mutex.lock().unwrap();
             if core_block.get_free_input(axon_section) {
-                axon_section.target_block = Some(core_block_arc.clone());
+                axon_section.target_block = Some(core_block_mutex.clone());
                 axon_section.source_block = Some(source_block);
                 return true;
             }
@@ -800,19 +800,19 @@ mod tests {
         }
 
         // prepare new blocks
-        let core_block_arc = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
-        let input_block_arc = Arc::new(Mutex::new(InputBlock::new(&input_name, &hexagon_uuid0, &cluster_uuid, &finish_counter)));
-        let output_block_arc = Arc::new(Mutex::new(OutputBlock::new( &hexagon_uuid1, &cluster_uuid, &output_name)));
-        let output_buffer_arc = Arc::new(Mutex::new(OutputBuffer::new(&output_name, &hexagon_uuid1, &cluster_uuid, &OutputType::PlainOutput, &finish_counter)));
+        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
+        let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(&input_name, &hexagon_uuid0, &cluster_uuid, &finish_counter)));
+        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new( &hexagon_uuid1, &cluster_uuid, &output_name)));
+        let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(&output_name, &hexagon_uuid1, &cluster_uuid, &OutputType::PlainOutput, &finish_counter)));
 
         // add blocks to cluster
-        root_handler.add_core_block(&core_block_arc);
-        root_handler.add_input_block(&input_block_arc);
-        root_handler.add_output_block(&output_block_arc);
-        root_handler.add_output_buffer(&output_buffer_arc);
+        root_handler.add_core_block(&core_block_mutex);
+        root_handler.add_input_block(&input_block_mutex);
+        root_handler.add_output_block(&output_block_mutex);
+        root_handler.add_output_buffer(&output_buffer_mutex);
 
         let mut test_section = AxonSection::default();
-        let core_block = core_block_arc.lock().unwrap();
+        let core_block = core_block_mutex.lock().unwrap();
         test_section.source_block_uuid = core_block.uuid.clone();
         test_section.source_hexagon_uuid = core_block.hexagon_uuid.clone();
         test_section.cluster_uuid = core_block.cluster_uuid.clone();

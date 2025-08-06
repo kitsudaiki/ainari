@@ -57,13 +57,13 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
     // send outputs to target
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     for axon_section in io_buffer.output_buffer.iter() {
-        let target_block_arc = if let Some(t) = &axon_section.target_block {
+        let target_block_mutex = if let Some(t) = &axon_section.target_block {
             t
         } else {
             continue;
         };
-        let block_clone = Arc::clone(&target_block_arc);
-        let mut target_block = target_block_arc.lock().unwrap();
+        let block_clone = Arc::clone(&target_block_mutex);
+        let mut target_block = target_block_mutex.lock().unwrap();
         let target_bock_io = target_block.get_block_io();
         target_bock_io.input_buffer[axon_section.target_pos as usize] = axon_section.clone();
         target_bock_io.input_buffer_counter += 1;
@@ -84,14 +84,14 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
 pub fn send_backward(io_buffer: &BlockIoBuffer) {
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     for axon_section in io_buffer.input_buffer.iter() {
-        let source_block_arc = if let Some(s) = &axon_section.source_block {
+        let source_block_mutex = if let Some(s) = &axon_section.source_block {
             s
         } else {
             continue;
         };
 
         // send axon-sections to target-block and create new worker-task
-        let mut source_block = source_block_arc.lock().unwrap();
+        let mut source_block = source_block_mutex.lock().unwrap();
         let target_bock_io = source_block.get_block_io();
         target_bock_io.output_buffer[axon_section.source_pos as usize] = axon_section.clone();
         target_bock_io.output_buffer_counter += 1;
@@ -101,7 +101,7 @@ pub fn send_backward(io_buffer: &BlockIoBuffer) {
 
             let worker_task = WorkerTask{
                 task_type: WorkerTaskType::Backpropagate,
-                block: Arc::clone(&source_block_arc),
+                block: Arc::clone(&source_block_mutex),
             };
             
             worker_queue.add(worker_task);

@@ -113,8 +113,8 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     for output in &body.results {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
         let size;
-        if let Some(output_buffer_arc) = cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
-            let output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
+            let output_buffer = output_buffer_mutex.lock().unwrap();
             size = output_buffer.output_neurons.len() as u64;
         } else {
             let msg = format!("Couldn't find output with name {}", output.hexagon);

@@ -46,13 +46,13 @@ fn apply_input(
     task_type: &WorkerTaskType) -> Result<(), String>
 {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    if let Some(input_block_arc) = cluster_handler.get_input_block(cluster_uuid, hexagon_name) {
-        let mut input_block = input_block_arc.lock().unwrap();
+    if let Some(input_block_mutex) = cluster_handler.get_input_block(cluster_uuid, hexagon_name) {
+        let mut input_block = input_block_mutex.lock().unwrap();
         input_block.apply_input(input_ptr, input_size as usize, pos_counter, time_length as usize);
         let mut worker_queue = WORKER_QUEUE.lock().unwrap();
         let worker_task = WorkerTask{
             task_type: task_type.clone(),
-            block: Arc::clone(&input_block_arc) as Arc<Mutex<dyn Block>>,
+            block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
         };
         worker_queue.add(worker_task);
     } else {
@@ -70,8 +70,8 @@ fn apply_expected(
     input_size: u64) -> Result<(), String>
 {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    if let Some(output_buffer_arc) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
-        let mut output_buffer = output_buffer_arc.lock().unwrap();
+    if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
+        let mut output_buffer = output_buffer_mutex.lock().unwrap();
         output_buffer.reset_output();
         convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
     } else {
@@ -82,9 +82,9 @@ fn apply_expected(
     Ok(())
 }
 
-fn run_train(cluster_uuid: &Uuid, finish_counter_arc: &Arc<Mutex<FinishCounter>>) -> Result<(), String> {
+fn run_train(cluster_uuid: &Uuid, finish_counter_mutex: &Arc<Mutex<FinishCounter>>) -> Result<(), String> {
     for _ in 0..10000000 {
-        let finish_counter = finish_counter_arc.lock().unwrap();
+        let finish_counter = finish_counter_mutex.lock().unwrap();
         if finish_counter.counter >= finish_counter.input_compare + finish_counter.output_compare {
             return Ok(());
         }
@@ -96,9 +96,9 @@ fn run_train(cluster_uuid: &Uuid, finish_counter_arc: &Arc<Mutex<FinishCounter>>
     return Err(msg);
 }
 
-fn run_process(cluster_uuid: &Uuid, finish_counter_arc: &Arc<Mutex<FinishCounter>>) -> Result<(), String> {
+fn run_process(cluster_uuid: &Uuid, finish_counter_mutex: &Arc<Mutex<FinishCounter>>) -> Result<(), String> {
     for _ in 0..10000000 {
-        let finish_counter = finish_counter_arc.lock().unwrap();
+        let finish_counter = finish_counter_mutex.lock().unwrap();
         if finish_counter.counter >= finish_counter.output_compare {
             return Ok(());
         }
@@ -120,7 +120,7 @@ fn get_input_from_dataset(
 {
     // get input-block
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    let input_block_arc = if let Some(i) = cluster_handler.get_input_block(cluster_uuid, hexagon_name) {
+    let input_block_mutex = if let Some(i) = cluster_handler.get_input_block(cluster_uuid, hexagon_name) {
         Arc::clone(&i)
     } else {
         let msg = format!("Input with name {hexagon_name} not found in cluster with uuid {cluster_uuid}");
@@ -128,7 +128,7 @@ fn get_input_from_dataset(
     };
     drop(cluster_handler);
 
-    let mut input_block = input_block_arc.lock().unwrap();
+    let mut input_block = input_block_mutex.lock().unwrap();
     
     // fill input with data from dataset
     let mut pos_counter: usize = 0;
@@ -149,7 +149,7 @@ fn get_input_from_dataset(
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     let worker_task = WorkerTask{
         task_type: task_type.clone(),
-        block: Arc::clone(&input_block_arc) as Arc<Mutex<dyn Block>>,
+        block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
     };
     worker_queue.add(worker_task);    
 
@@ -184,8 +184,8 @@ fn write_output_into_dataset(cluster_uuid: &Uuid, file_handle: &mut DataSetFileW
         let size_output = (col_get.end - col_get.start) as usize;
         let mut output_read = vec![0.0f32; size_output];
     
-        if let Some(output_buffer_arc) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
-            let mut output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
             convert_output_to_buffer(&mut output_read, &mut output_buffer);
             output_buffer.reset_output();
         } else {
@@ -263,8 +263,8 @@ fn handle_train_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Trai
 
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
     for (hexagon_name, _) in &mut task_info.outputs {  
-        if let Some(output_buffer_arc) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
-            let mut output_buffer = output_buffer_arc.lock().unwrap();
+        if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
             output_buffer.reset_output();
         }
     }
@@ -418,14 +418,14 @@ pub struct ClusterInterface {
 }
 
 impl ClusterInterface {
-    pub fn new(cluster_uuid: &Uuid, finish_counter_arc: &Arc<Mutex<FinishCounter>>) -> Self {
+    pub fn new(cluster_uuid: &Uuid, finish_counter_mutex: &Arc<Mutex<FinishCounter>>) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
 
         let queue = Arc::new(Mutex::new(init_task_queue()));
         let queue_clone = Arc::clone(&queue);
 
-        let finfinish_counter_clone = Arc::clone(finish_counter_arc);
+        let finfinish_counter_clone = Arc::clone(finish_counter_mutex);
 
         let handle = thread::spawn(move || {
             log::debug!("Started cluster-thread");
@@ -444,7 +444,7 @@ impl ClusterInterface {
         });
 
         ClusterInterface {
-            finish_counter: Arc::clone(finish_counter_arc),
+            finish_counter: Arc::clone(finish_counter_mutex),
             queue: queue, 
             handle: Some(handle),
             running,
@@ -474,8 +474,8 @@ impl ClusterInterface {
             let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
             for (hexagon_name, data) in outputs.iter_mut() {  
 
-                if let Some(output_buffer_arc) = cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name) {
-                    let mut output_buffer = output_buffer_arc.lock().unwrap();
+                if let Some(output_buffer_mutex) = cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name) {
+                    let mut output_buffer = output_buffer_mutex.lock().unwrap();
                     output_buffer.reset_output();
                 }        
             }
@@ -493,8 +493,8 @@ impl ClusterInterface {
         let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
         for (hexagon_name, data) in outputs.iter_mut() {  
 
-            if let Some(output_buffer_arc) = cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name) {
-                let mut output_buffer = output_buffer_arc.lock().unwrap();
+            if let Some(output_buffer_mutex) = cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name) {
+                let mut output_buffer = output_buffer_mutex.lock().unwrap();
                 data.resize(output_buffer.output_neurons.len(), 0.0f32);
                 convert_output_to_buffer(data, &mut output_buffer);
             }        
@@ -539,11 +539,11 @@ mod tests {
 
     use super::*;
 
-    fn run_single_iteration(cluster_uuid: &Uuid, finish_counter_arc: &Arc<Mutex<FinishCounter>>, input: &[f32;4], expected: &[f32;4]) {
+    fn run_single_iteration(cluster_uuid: &Uuid, finish_counter_mutex: &Arc<Mutex<FinishCounter>>, input: &[f32;4], expected: &[f32;4]) {
         let input_name = "test_input".to_string();
         let output_name = "test_output".to_string();
 
-        let mut counter = finish_counter_arc.lock().unwrap();
+        let mut counter = finish_counter_mutex.lock().unwrap();
         counter.counter = 0;
         drop(counter);
 
@@ -565,7 +565,7 @@ mod tests {
             },
         }
 
-        match run_train(cluster_uuid, finish_counter_arc) {
+        match run_train(cluster_uuid, finish_counter_mutex) {
             Ok(()) => {},
             Err(e) => {
                 println!("{e}");
@@ -612,12 +612,12 @@ mod tests {
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
         root_handler.delete_all_cluster();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
-        let finish_counter_arc = root_handler.get_finish_counter(&cluster_uuid).unwrap();
+        let finish_counter_mutex = root_handler.get_finish_counter(&cluster_uuid).unwrap();
         drop(root_handler);
 
         for _ in 0..100 {
-            run_single_iteration(&cluster_uuid, &finish_counter_arc, &input1, &expected1);
-            run_single_iteration(&cluster_uuid, &finish_counter_arc, &input2, &expected2);
+            run_single_iteration(&cluster_uuid, &finish_counter_mutex, &input1, &expected1);
+            run_single_iteration(&cluster_uuid, &finish_counter_mutex, &input2, &expected2);
         }
 
         println!("finished");

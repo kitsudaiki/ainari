@@ -61,7 +61,7 @@ pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<U
 
     // get cluster-interface
     let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
-    let cluster_interface_arc = if let Some(c) = cluster_handler.get_cluster_interface(&cluster_uuid) {
+    let cluster_interface_mutex = if let Some(c) = cluster_handler.get_cluster_interface(&cluster_uuid) {
         Arc::clone(&c)
     } else {
         return Err(ErrorResponse::InternalError("".to_string()));
@@ -77,7 +77,7 @@ pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<U
     }
 
     // run request-process in cluster
-    let mut cluster_interface = cluster_interface_arc.lock().unwrap();
+    let mut cluster_interface = cluster_interface_mutex.lock().unwrap();
     match cluster_interface.request(&body.inputs, &mut resp.outputs) {
         Ok(()) => {},
         Err(msg) => {
