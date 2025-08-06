@@ -28,7 +28,7 @@ use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
 use crate::core::processing::output_buffer::OutputBuffer;
 
-use super::processing::cluster_interface::ClusterInterface;
+use super::cluster_interface::ClusterInterface;
 use super::blocks::block_trait::Block;
 
 lazy_static::lazy_static! {

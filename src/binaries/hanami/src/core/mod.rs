@@ -15,3 +15,4 @@
 pub mod processing;
 pub mod blocks;
 pub mod cluster_handler;
+pub mod cluster_interface;
