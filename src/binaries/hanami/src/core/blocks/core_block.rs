@@ -44,8 +44,8 @@ pub struct Synapse {
 impl Synapse {
     pub fn default() -> Self {
         Synapse {
-            weight_1: rand::rng().random_range(-0.5..=0.5),
-            weight_2: rand::rng().random_range(-0.5..=0.5),
+            weight_1: 0.0f32,
+            weight_2: 0.0f32,
 
             border: 1.0f32,
             active_counter: 0,
@@ -198,8 +198,20 @@ impl CoreBlock {
 
 // ==================================================================================================
 
-fn create_new_synapse(synapse: &mut Synapse, remaining_weight: f32, number_of_output_blocks: usize,random_seed: &mut u32)
+fn create_new_synapse(synapse: &mut Synapse, remaining_weight: f32, number_of_output_blocks: usize, random_seed: &mut u32)
 {
+    let rand_max = RAND_MAX as f32;
+    let sig_neg = 0.5f32;
+    let mut sign_rand;
+
+    synapse.weight_1 = ((pcg_hash(random_seed) as f32) / rand_max) / 10.0f32;
+    sign_rand = (pcg_hash(random_seed) % 1000) as f32;
+    synapse.weight_1 *= 1.0f32 - (1000.0f32 * sig_neg > sign_rand) as u8 as f32 * 2.0f32;
+
+    synapse.weight_2 = ((pcg_hash(random_seed) as f32) / rand_max) / 10.0f32;
+    sign_rand = (pcg_hash(random_seed) % 1000) as f32;
+    synapse.weight_2 *= 1.0f32 - (1000.0f32 * sig_neg > sign_rand) as u8 as f32 * 2.0f32;
+
     synapse.border = remaining_weight;
     synapse.active_counter = 50;
     synapse.target_neuron_id = (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
@@ -368,10 +380,10 @@ fn backpropagate_section(
 // ==================================================================================================
 
 impl Block for CoreBlock {
-    fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) {
+    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
-        let mut random_seed = place_offset as u32;
+        let mut random_seed = rand::rng().random_range(1..(RAND_MAX-1)) as u32;
 
         for i in 0..(6 * BLOCK_DIM) {
             let conn = self.connections[i].clone();
