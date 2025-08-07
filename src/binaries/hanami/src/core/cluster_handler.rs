@@ -79,7 +79,8 @@ impl HexagonIO {
 pub struct ClusterContent {
     pub cluster_meta: ClusterMeta,
     pub hexagon_data: RwLock<HashMap<Uuid, HexagonData>>,
-    pub hexagon_io: RwLock<HashMap<String, HexagonIO>>,
+    pub inputs: RwLock<HashMap<String, Arc<Mutex<InputBlock>>>>,
+    pub outputs: RwLock<HashMap<String, Arc<Mutex<OutputBuffer>>>>,
     pub cluster_interface: Option<Arc<Mutex<ClusterInterface>>>,
 }
 
@@ -88,7 +89,8 @@ impl ClusterContent {
         ClusterContent {
             cluster_meta: cluster_meta,
             hexagon_data: RwLock::new(HashMap::new()),
-            hexagon_io: RwLock::new(HashMap::new()),
+            inputs: RwLock::new(HashMap::new()),
+            outputs: RwLock::new(HashMap::new()),
             cluster_interface: None,
         }
     }
@@ -223,21 +225,8 @@ impl ClusterDataHandler {
         };
 
         // get hexagon-io
-        let mut hexagon_io_map = cluster_link.hexagon_io.write().unwrap();
-        if hexagon_io_map.contains_key(&block_name) == false {
-            hexagon_io_map.insert(block_name.clone(), HexagonIO::new());
-        } else {
-            return false;
-        }
-
-        let hexgon_io = if let Some(h) = hexagon_io_map.get_mut(&block_name) {
-            h
-        } else {
-            return false;
-        };
-
-        // a hexagon can only have one input-block
-        if hexgon_io.input_block.is_none() == false {
+        let mut inputs = cluster_link.inputs.write().unwrap();
+        if inputs.contains_key(&block_name) {
             return false;
         }
 
@@ -245,7 +234,7 @@ impl ClusterDataHandler {
         let block_uuid = input_block.get_uuid();
         if hexgon_link.blocks.contains_key(&block_uuid) == false {
             hexgon_link.blocks.insert(block_uuid.clone(), Arc::clone(block_mutex) as Arc<Mutex<dyn Block>>);
-            hexgon_io.input_block = Some(block_mutex.clone());
+            inputs.insert(block_name.clone(),Arc::clone(block_mutex));
             return true;
         } 
 
@@ -268,26 +257,14 @@ impl ClusterDataHandler {
         };
 
         // get hexagon-io
-        let mut hexagon_io_map = cluster_link.hexagon_io.write().unwrap();
-        if hexagon_io_map.contains_key(&name) == false {
-            hexagon_io_map.insert(name.clone(), HexagonIO::new());
-        } else {
+        let mut outputs = cluster_link.outputs.write().unwrap();
+        if outputs.contains_key(&name) {
             return false;
         }
+        
+        outputs.insert(name.clone(), Arc::clone(block_mutex));
 
-        let hexgon_io = if let Some(h) = hexagon_io_map.get_mut(&name) {
-            h
-        } else {
-            return false;
-        };
-
-        // add new block
-        if hexgon_io.output_buffer.is_none() {
-            hexgon_io.output_buffer = Some(Arc::clone(block_mutex));
-            return true;
-        } 
-
-        false
+        true
     }
       
     /**
@@ -396,31 +373,23 @@ impl ClusterDataHandler {
             return None;
         };
 
-        let binding = cluster_link.hexagon_io.read().unwrap();
-        let hexagon_link = if let Some(h) = binding.get(name) {
-            h
+        let binding = cluster_link.inputs.read().unwrap();
+        if let Some(input_block_mutex) = binding.get(name) {
+            return Some(input_block_mutex.clone());
         } else {
             return None;
         };
-
-        if let Some(input_block_mutex) = &hexagon_link.input_block {
-            return Some(input_block_mutex.clone());
-        }
-
-        None
     }
 
     /**
      * 
      */
     pub fn get_number_of_io(&self, cluster_uuid: &Uuid) -> (usize, usize) {
-        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
-            c
-        } else {
-            return (0, 0);
-        };
-
-        (cluster_link.cluster_meta.inputs.len(), cluster_link.cluster_meta.outputs.len())
+        if let Some(cluster_link) = self.clusters.get(cluster_uuid) {
+            return (cluster_link.cluster_meta.inputs.len(), cluster_link.cluster_meta.outputs.len());
+        } 
+        
+        (0, 0)
     }
 
     /**
@@ -433,18 +402,12 @@ impl ClusterDataHandler {
             return None;
         };
 
-        let binding = cluster_link.hexagon_io.read().unwrap();
-        let hexagon_link = if let Some(h) = binding.get(name) {
-            h
+        let binding = cluster_link.outputs.read().unwrap();
+        if let Some(output_buffer_mutex) = binding.get(name) {
+            return Some(output_buffer_mutex.clone());
         } else {
             return None;
         };
-
-        if let Some(output_buffer_mutex) = &hexagon_link.output_buffer {
-            return Some(output_buffer_mutex.clone());
-        }
-
-        None
     }
 
     /**
@@ -722,19 +685,24 @@ mod tests {
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
             let hexagons = cluster.hexagon_data.read().unwrap();
-            let hexagons_io = cluster.hexagon_io.read().unwrap();
             assert_eq!(hexagons.len(), 2);
             // check hexagon 0
-            let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
-            assert_eq!(hexagon0.blocks.len(), 2);
-            assert_eq!(hexagons_io.get(&input_name).unwrap().input_block.is_none(), false);
-            assert_eq!(hexagons_io.get(&input_name).unwrap().output_buffer.is_none(), true);
+            {
+                let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
+                assert_eq!(hexagon0.blocks.len(), 2);
+                let inputs = cluster.inputs.read().unwrap();
+                assert!(inputs.contains_key(&input_name));
+            }
+
             // check hexagon 1
-            let hexagon1 = hexagons.get(&hexagon_uuid1).unwrap();
-            assert_eq!(hexagon1.blocks.len(), 1);
-            assert_eq!(hexagons_io.get(&output_name).unwrap().input_block.is_none(), true);
-            assert_eq!(hexagons_io.get(&output_name).unwrap().output_buffer.is_none(), false);
+            {
+                let hexagon1 = hexagons.get(&hexagon_uuid1).unwrap();
+                assert_eq!(hexagon1.blocks.len(), 1);
+                let outputs = cluster.outputs.read().unwrap();
+                assert!(outputs.contains_key(&output_name));
+            }
         }
+
         // check add blocks with the same ids again
         assert_eq!(root_handler.add_core_block(&core_block), false);
         assert_eq!(root_handler.add_input_block(&input_block), false);
