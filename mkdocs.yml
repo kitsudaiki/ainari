@@ -46,7 +46,6 @@ nav:
     - repo/build_guide.md
     - repo/development.md
     - repo/dependencies.md
-    - repo/code_styling.md
     - repo/git_workflow.md
     - repo/glossar.md
 
