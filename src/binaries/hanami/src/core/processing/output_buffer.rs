@@ -139,8 +139,8 @@ impl OutputBuffer {
     pub fn reset_output(&mut self) {
         for out in self.output_neurons.iter_mut() {
             out.output_value = 0.0f32;
-            self.local_finish_counter = 0;
         }
+        self.local_finish_counter = 0;
     }
 
     pub fn serailize(&self) -> Vec<u8> {

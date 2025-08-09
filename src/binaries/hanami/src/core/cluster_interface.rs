@@ -410,7 +410,7 @@ pub fn handle_task(task: Task, finish_counter: &Arc<Mutex<FinishCounter>>) {
 
 pub struct ClusterInterface {
     pub queue: Arc<Mutex<TaskQueue>>,
-    pub finish_counter: Arc<Mutex<FinishCounter>>,
+    pub finish_counter_mutex: Arc<Mutex<FinishCounter>>,
 
     pub handle: Option<JoinHandle<()>>,
     pub running: Arc<AtomicBool>,
@@ -445,7 +445,7 @@ impl ClusterInterface {
         });
 
         ClusterInterface {
-            finish_counter: Arc::clone(finish_counter_mutex),
+            finish_counter_mutex: Arc::clone(finish_counter_mutex),
             queue: queue, 
             handle: Some(handle),
             running,
@@ -466,11 +466,11 @@ impl ClusterInterface {
     }
 
     pub fn request(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &mut HashMap<String, Vec<f32>>) -> Result<(), String> {
-        let mut counter = self.finish_counter.lock().unwrap();
+        let mut counter = self.finish_counter_mutex.lock().unwrap();
         counter.counter = 0;
         drop(counter);
 
-        // get output-values from the backend
+        // reset output-values in the backend
         {
             let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
             for hexagon_name in outputs.keys() {  
@@ -482,12 +482,11 @@ impl ClusterInterface {
             }
         }
 
-        // push input-values form dataset into the backend
         for (hexagon_name, data) in inputs { 
             apply_input(&self.cluster_uuid, &hexagon_name, data.as_slice(), data.len() as u64, 0, 1, &WorkerTaskType::Process)?;
         }
 
-        run_process(&self.cluster_uuid, &self.finish_counter)?;
+        run_process(&self.cluster_uuid, &self.finish_counter_mutex)?;
 
 
         // get output-values from the backend
@@ -505,17 +504,26 @@ impl ClusterInterface {
     }
 
     pub fn train(&mut self, inputs: &HashMap<String, Vec<f32>>, outputs: &HashMap<String, Vec<f32>>) -> Result<(), String> {
-        // // push input-values form dataset into the backend
-        // for (hexagon_name, data) in inputs {  
-        //     fill_input(&self.cluster_handle, hexagon_name, data, data.len(), 0, 1)?;
-        // }
+        let mut counter = self.finish_counter_mutex.lock().unwrap();
+        counter.counter = 0;
+        drop(counter);
 
-        // // push output-values form dataset into the backend
-        // for (hexagon_name, data) in outputs {  
-        //     fill_expected(&self.cluster_handle, hexagon_name, data, data.len())?;
-        // }
+        for (hexagon_name, data) in outputs { 
+            let _ = apply_expected(&self.cluster_uuid, &hexagon_name, data.as_slice(), data.len() as u64); 
+        }
 
-        // do_train(&self.cluster_handle)
+        for (hexagon_name, data) in inputs { 
+            apply_input(
+                &self.cluster_uuid, 
+                &hexagon_name, 
+                data.as_slice(), 
+                data.len() as u64, 
+                0, 
+                1, 
+                &WorkerTaskType::Train)?;
+        }
+
+        run_train(&self.cluster_uuid, &self.finish_counter_mutex)?;
 
         Ok(())
     }
@@ -606,7 +614,7 @@ mod tests {
             test_output: 3,2,2;".to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
-        root_handler.delete_all_cluster();
+        root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
         let finish_counter_mutex = root_handler.get_finish_counter(&cluster_uuid).unwrap();
         drop(root_handler);

@@ -19,7 +19,7 @@ use rand::Rng;
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
-use std::io::{self, Write, Read, Seek, BufWriter, BufReader};
+use std::io::{self, Write, Read, BufWriter, BufReader};
 use std::path::PathBuf;
 
 use hanami_cluster_parser::cluster_parser::parse_cluster_template;
@@ -324,7 +324,7 @@ impl ClusterDataHandler {
 
         if let Some(cluster_interface_mutex) = &cluster_handle.cluster_interface {
             let cluster_interface = cluster_interface_mutex.lock().unwrap();
-            return Some(Arc::clone(&cluster_interface.finish_counter));
+            return Some(Arc::clone(&cluster_interface.finish_counter_mutex));
         } else {
             return None;
         }
@@ -393,6 +393,7 @@ impl ClusterDataHandler {
     /**
      * 
      */
+    #[allow(dead_code)]
     pub fn delete_block(&mut self, cluster_uuid: &Uuid, hexagon_uuid: &Uuid, block_uuid: &Uuid) -> bool {
         // get cluster
         let cluster_link = if let Some(c) = self.clusters.get_mut(cluster_uuid) {
@@ -594,7 +595,7 @@ impl ClusterDataHandler {
                     if let Some(interface_mutex) = &cluster_interface {
                         {
                             let interface = interface_mutex.lock().unwrap();
-                            finish_counter_mutex = Arc::clone(&interface.finish_counter);
+                            finish_counter_mutex = Arc::clone(&interface.finish_counter_mutex);
                         }
                         if self.register_cluster(&cluster_meta, Some(interface_mutex.clone())) == false {
                             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
@@ -694,13 +695,6 @@ impl ClusterDataHandler {
     /**
      * 
      */
-    pub fn delete_all_cluster(&mut self) {
-        self.clusters.clear();
-    }
-
-    /**
-     * 
-     */
     pub fn get_target(&mut self, axon_section: &mut AxonSection) -> bool {
         // pre-check
         if axon_section.cluster_uuid == Uuid::nil() 
@@ -774,6 +768,7 @@ impl ClusterDataHandler {
 
             // search for a block, which has a free slot
             for block_mutex in target_hexagon_link.blocks.values() {
+                // ERROR: can hang here
                 let mut block = block_mutex.lock().unwrap();
                 if block.get_free_input(axon_section) != false {
                     axon_section.target_block = Some(block_mutex.clone());
@@ -841,7 +836,7 @@ mod tests {
             key2: 2,2,2;".to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
-        root_handler.delete_all_cluster();
+        root_handler.clusters.clear();
 
         {
             let ret = root_handler.init_new_cluster(&cluster_uuid, &name, template);
@@ -888,7 +883,7 @@ mod tests {
             test_output: 2,2,2;".to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
-        root_handler.delete_all_cluster();
+        root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
         {
@@ -986,7 +981,7 @@ mod tests {
             key2: 2,2,2;".to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
-        root_handler.delete_all_cluster();
+        root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
         {
@@ -1061,7 +1056,7 @@ mod tests {
             test_output: 2,2,2;".to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
-        root_handler.delete_all_cluster();
+        root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
         {
