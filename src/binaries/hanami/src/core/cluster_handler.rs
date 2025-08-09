@@ -16,11 +16,17 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::collections::HashMap;
 use uuid::Uuid;
 use rand::Rng;
+use serde::Serialize;
+use std::fs;
+use std::path::Path;
+use std::io::{self, Write, Read, Seek, BufWriter, BufReader};
+use std::path::PathBuf;
 
 use hanami_cluster_parser::cluster_parser::parse_cluster_template;
 use hanami_cluster_parser::cluster_meta_structs::*;
 use hanami_common::error::HanamiError;
 use hanami_common::constants::*;
+use hanami_common::enums::*;
 
 use crate::core::blocks::axons::AxonSection;
 use crate::core::blocks::input_block::*;
@@ -37,7 +43,7 @@ lazy_static::lazy_static! {
 
 // ==================================================================================================
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FinishCounter {
     pub counter: usize,
     pub input_compare: usize, 
@@ -54,22 +60,6 @@ impl HexagonData {
     pub fn new() -> Self {
         HexagonData {
             blocks: HashMap::new(),
-        }
-    }
-}
-
-// ==================================================================================================
-
-pub struct HexagonIO {
-    pub input_block: Option<Arc<Mutex<InputBlock>>>,
-    pub output_buffer: Option<Arc<Mutex<OutputBuffer>>>,
-}
-
-impl HexagonIO {
-    pub fn new() -> Self {
-        HexagonIO {
-            input_block: None,
-            output_buffer: None,
         }
     }
 }
@@ -324,6 +314,7 @@ impl ClusterDataHandler {
     /**
      * 
      */
+    #[allow(dead_code)]
     pub fn get_finish_counter(&self, cluster_uuid: &Uuid) -> Option<Arc<Mutex<FinishCounter>>> {
         let cluster_handle = if let Some(c) = self.clusters.get(&cluster_uuid) {
             c
@@ -379,17 +370,6 @@ impl ClusterDataHandler {
         } else {
             return None;
         };
-    }
-
-    /**
-     * 
-     */
-    pub fn get_number_of_io(&self, cluster_uuid: &Uuid) -> (usize, usize) {
-        if let Some(cluster_link) = self.clusters.get(cluster_uuid) {
-            return (cluster_link.cluster_meta.inputs.len(), cluster_link.cluster_meta.outputs.len());
-        } 
-        
-        (0, 0)
     }
 
     /**
@@ -456,6 +436,259 @@ impl ClusterDataHandler {
         self.clusters.remove(cluster_uuid);
 
         true
+    }
+
+    /**
+     * 
+     */
+    fn write_struct_to_file<T: Serialize>(
+        &self, 
+        writer: &mut BufWriter<fs::File>,
+        struct_type: ObjectType,
+        value: &T) -> Result<(), Box<dyn std::error::Error>> 
+    {
+        let cfg = bincode::config::standard();
+        let data = bincode::serde::encode_to_vec(value, cfg)?;
+        let len = data.len() as u32;
+
+        writer.write_all(&[struct_type.to_u8()])?;
+        writer.write_all(&len.to_le_bytes())?;
+        writer.write_all(&data)?;
+
+        Ok(())
+    }
+
+    /**
+     * 
+     */
+    fn write_vec_to_file(
+        &self, 
+        writer: &mut BufWriter<fs::File>,
+        struct_type: ObjectType,
+        data: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> 
+    {
+        let len = data.len() as u32;
+
+        writer.write_all(&[struct_type.to_u8()])?;
+        writer.write_all(&len.to_le_bytes())?;
+        writer.write_all(&data)?;
+
+        Ok(())
+    }
+
+    /**
+     * 
+     */
+    pub fn create_checkpoint(&self, cluster_uuid: &Uuid, file_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        // get cluster
+        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
+            c
+        }
+        else {
+            let msg = format!("Cluster with uuid '{cluster_uuid}' not found.");
+            return Err(Box::new(HanamiError::Error(msg)));
+        };
+
+        let file_path_str: String = file_path.to_string_lossy().into();
+
+        // check if file already exist
+        if Path::new(file_path).exists() {
+            let msg = format!("Checkpoint file '{file_path_str}' already exists.");
+            // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
+            // so here should be an internal error instand of an input-error
+            return Err(Box::new(HanamiError::Error(msg)));
+        }
+
+        // initialize file
+        let file = fs::File::create(file_path)?;
+        let mut target_file = BufWriter::new(file);
+
+        // write cluster-meta into checkpoint-file
+        self.write_struct_to_file(&mut target_file, ObjectType::ClusterMeta, &cluster_link.cluster_meta)?;
+
+        // write blocks into checkpoint-file
+        let hexagon_data = cluster_link.hexagon_data.read().unwrap();
+        for hexagon in hexagon_data.values() {
+            for block_mutex in hexagon.blocks.values() {
+                let block = block_mutex.lock().unwrap();
+                self.write_vec_to_file(&mut target_file, block.get_type(), block.serailize())?;
+            }
+        }
+
+        // write output-buffers into checkpoint-file
+        let outputs = cluster_link.outputs.read().unwrap();
+        for output_mutex in outputs.values() {
+            let output = output_mutex.lock().unwrap();
+            self.write_vec_to_file(&mut target_file, ObjectType::OutputBuffer, output.serailize())?;
+        }
+
+        Ok(())
+    }
+
+    /**
+     * 
+     */
+    pub fn restore_checkpoint(&mut self, cluster_uuid: &Uuid, file_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        // in cluster with this uuid already exist, it fill be removed first in order to create it new from the checkpoint
+        let mut cluster_interface = None;
+        if self.clusters.contains_key(&cluster_uuid) {
+            if let Some(cluster_link) = self.clusters.get_mut(&cluster_uuid) {
+                if let Some(interface) = &cluster_link.cluster_interface {
+                    cluster_interface = Some(interface.clone());
+                }
+                cluster_link.cluster_interface = None;
+            }
+            self.clusters.remove(cluster_uuid);
+        }
+
+        // init file and other components for reading
+        let file = fs::File::open(file_path)?;
+        let mut reader = BufReader::with_capacity(10*1024*1024, file);
+        let cfg = bincode::config::standard();
+        let mut len_buf = [0u8; 4];
+
+        // init counter
+        let mut finish_counter_mutex = Arc::new(Mutex::new(FinishCounter::default()));
+        let mut cluster_meta_parsed = false;
+        let mut number_of_input_blocks = 0;
+        let mut number_of_output_buffer = 0;
+
+        loop {
+            // try to read the type byte
+            let mut type_buf = [0u8; 1];
+            match reader.read_exact(&mut type_buf) {
+                Ok(()) => {} // Got a byte, continue
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                    // EOF reached, no more objects!
+                    break;
+                }
+                Err(e) => return Err(e.into()),
+            }
+
+            let struct_type = ObjectType::from_u8(type_buf[0])
+                .ok_or("Unknown struct type in stream")?;
+
+            // read  (4 bytes)
+            reader.read_exact(&mut len_buf)?;
+            let len = u32::from_le_bytes(len_buf) as usize;
+
+            // read data bytes
+            let mut data_buf = vec![0u8; len];
+            reader.read_exact(&mut data_buf)?;
+
+            // deserialize based on type
+            match struct_type {
+                // Unknown
+                ObjectType::Unknown => {
+                    let msg = format!("Invalid object found in checkpoint-file.");
+                    return Err(Box::new(HanamiError::InputError(msg)));
+                }
+                // ClusterMeta
+                ObjectType::ClusterMeta => {
+                    if cluster_meta_parsed {
+                        let msg = format!("File has multiple cluster-meta objects.");
+                        return Err(Box::new(HanamiError::InputError(msg)));
+                    }
+                    let mut cluster_meta: ClusterMeta = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
+                    cluster_meta.uuid = cluster_uuid.clone();
+                    if let Some(interface_mutex) = &cluster_interface {
+                        {
+                            let interface = interface_mutex.lock().unwrap();
+                            finish_counter_mutex = Arc::clone(&interface.finish_counter);
+                        }
+                        if self.register_cluster(&cluster_meta, Some(interface_mutex.clone())) == false {
+                            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
+                            return Err(Box::new(HanamiError::Error(msg)));
+                        }
+                    }
+                    else {
+                        let interface = Arc::new(Mutex::new(ClusterInterface::new(&cluster_uuid, &finish_counter_mutex)));
+                        if self.register_cluster(&cluster_meta, Some(interface)) == false {
+                            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
+                            return Err(Box::new(HanamiError::Error(msg)));
+                        }
+                    }
+                    cluster_meta_parsed = true;
+                }
+                // HexagonData
+                ObjectType::HexagonData => {
+                    let msg = format!("Invalid object found in checkpoint-file.");
+                    return Err(Box::new(HanamiError::InputError(msg)));
+                }
+                // InputBlock
+                ObjectType::InputBlock => {
+                    if cluster_meta_parsed == false {
+                        let msg = format!("File has no cluster-meta object at the starting position.");
+                        return Err(Box::new(HanamiError::InputError(msg)));
+                    }
+                    let mut input_block: InputBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
+                    input_block.set_cluster_uuid(cluster_uuid);
+                    self.add_input_block(&Arc::new(Mutex::new(input_block)));
+                    number_of_input_blocks += 1;
+                }
+                // CoreBlock
+                ObjectType::CoreBlock => {
+                    if cluster_meta_parsed == false {
+                        let msg = format!("File has no cluster-meta object at the starting position.");
+                        return Err(Box::new(HanamiError::InputError(msg)));
+                    }
+                    let mut core_block: CoreBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
+                    core_block.set_cluster_uuid(cluster_uuid);
+                    self.add_core_block(&Arc::new(Mutex::new(core_block)));
+                }
+                // OutputBlock
+                ObjectType::OutputBlock => {
+                    if cluster_meta_parsed == false {
+                        let msg = format!("File has no cluster-meta object at the starting position.");
+                        return Err(Box::new(HanamiError::InputError(msg)));
+                    }
+                    let mut output_block: OutputBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
+                    output_block.set_cluster_uuid(cluster_uuid);
+                    self.add_output_block(&Arc::new(Mutex::new(output_block)));
+                }
+                // OutputBuffer
+                ObjectType::OutputBuffer => {
+                    if cluster_meta_parsed == false {
+                        let msg = format!("File has no cluster-meta object at the starting position.");
+                        return Err(Box::new(HanamiError::InputError(msg)));
+                    }
+                    let mut output_buffer: OutputBuffer = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
+                    output_buffer.cluster_uuid = cluster_uuid.clone();
+                    self.add_output_buffer(&Arc::new(Mutex::new(output_buffer)));
+                    number_of_output_buffer += 1;
+                }
+            };
+        }
+
+        // set initial values for the finish-counter
+        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        finish_counter.input_compare = number_of_input_blocks;
+        finish_counter.output_compare = number_of_output_buffer;
+
+        // get cluster
+        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
+            c
+        }
+        else {
+            let msg = format!("Cluster with uuid '{cluster_uuid}' not found after restore.");
+            return Err(Box::new(HanamiError::Error(msg)));
+        };
+        
+        // connect new finish-counter to inputs
+        let inputs = cluster_link.inputs.read().unwrap();
+        for input_mutex in inputs.values() {
+            let mut input = input_mutex.lock().unwrap();
+            input.finish_counter = Arc::clone(&finish_counter_mutex);
+        }
+
+        // connect new finish-counter to outputs
+        let outputs = cluster_link.outputs.read().unwrap();
+        for output_mutex in outputs.values() {
+            let mut output = output_mutex.lock().unwrap();
+            output.finish_counter = Arc::clone(&finish_counter_mutex);
+        }
+
+        Ok(())
     }
 
     /**
@@ -792,5 +1025,100 @@ mod tests {
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);
         assert_eq!(test_section.cluster_uuid, core_block.cluster_uuid);
         assert_eq!(test_section.source_pos, 0);
+    }
+
+    #[test]
+    #[serial]
+    fn test_create_restore_checkpoint() {
+        let file_path_str = "/tmp/test_checkpoint".to_string();
+        let file_path: PathBuf = PathBuf::from(&file_path_str);
+        match fs::remove_file(&file_path) {
+            Ok(_) => {},
+            Err(_) => {}
+        }
+
+        let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
+        let cluster_uuid = Uuid::new_v4();
+        let cluster_uuid_new = Uuid::new_v4();
+        let hexagon_uuid0;
+        let hexagon_uuid1;
+        let cluster_name = "test_cluster".to_string();
+        let input_name = "test_input".to_string();
+        let output_name = "test_output".to_string();
+        let template = "version: 1 
+        settings:
+            neuron_cooldown: 1000000000.0;
+            refractory_time: 1;
+            max_connection_distance: 1;
+        hexagons: 
+            1,1,1; 
+            2,2,2; 
+        axons: 
+            1,1,1 -> 2,2,2; 
+        inputs: 
+            test_input: 1,1,1; 
+        outputs: 
+            test_output: 2,2,2;".to_string();
+
+        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        root_handler.delete_all_cluster();
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
+
+        {
+            let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
+            if cluster.cluster_meta.hexagons.values().nth(0).unwrap().is_input {
+                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
+                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+            } else {
+                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
+                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+            }
+        }
+
+        // prepare new blocks
+        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
+        let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(&input_name, &hexagon_uuid0, &cluster_uuid, &finish_counter)));
+        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new( &hexagon_uuid1, &cluster_uuid, &output_name)));
+        let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(&output_name, &hexagon_uuid1, &cluster_uuid, &OutputType::PlainOutput, &finish_counter)));
+
+        // add blocks to cluster
+        root_handler.add_core_block(&core_block_mutex);
+        root_handler.add_input_block(&input_block_mutex);
+        root_handler.add_output_block(&output_block_mutex);
+        root_handler.add_output_buffer(&output_buffer_mutex);
+
+        // save and restore
+        let _ = root_handler.create_checkpoint(&cluster_uuid, &file_path);
+        let _ = root_handler.restore_checkpoint(&cluster_uuid_new, &file_path);
+
+        {
+            let cluster = root_handler.clusters.get(&cluster_uuid_new).unwrap();
+            let hexagons = cluster.hexagon_data.read().unwrap();
+            assert_eq!(hexagons.len(), 2);
+            // check hexagon 0
+            {
+                let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
+                assert_eq!(hexagon0.blocks.len(), 2);
+                let inputs = cluster.inputs.read().unwrap();
+                assert!(inputs.contains_key(&input_name));
+            }
+
+            // check hexagon 1
+            {
+                let hexagon1 = hexagons.get(&hexagon_uuid1).unwrap();
+                assert_eq!(hexagon1.blocks.len(), 1);
+                let outputs = cluster.outputs.read().unwrap();
+                assert!(outputs.contains_key(&output_name));
+            }
+        }
+
+        // check getter
+        assert_eq!(root_handler.get_input_block(&cluster_uuid_new, &input_name).is_none(), false);
+        assert_eq!(root_handler.get_input_block(&cluster_uuid_new, &output_name).is_none(), true);
+        assert_eq!(root_handler.get_output_buffer(&cluster_uuid_new, &input_name).is_none(), true);
+        assert_eq!(root_handler.get_output_buffer(&cluster_uuid_new, &output_name).is_none(), false);
+        assert_eq!(root_handler.get_block(&cluster_uuid_new, &hexagon_uuid0, &core_block_mutex.lock().unwrap().uuid).is_none(), false);
+        assert_eq!(root_handler.get_block(&cluster_uuid_new, &hexagon_uuid1, &Uuid::new_v4()).is_none(), true);
+
     }
 }

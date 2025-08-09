@@ -15,13 +15,12 @@
 use rand::Rng;
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
- 
-use crate::core::blocks::input_block;
-use crate::core::cluster_handler::*;
+use serde::{Serialize, Deserialize};
+use serde_big_array::BigArray;
 
 use hanami_common::constants::*;
 use hanami_common::functions::*;
+use hanami_common::enums::*;
 
 use super::axons::*;
 use super::block_trait::*;
@@ -31,7 +30,7 @@ use super::super::processing::worker_queue::*;
 
 // ==================================================================================================
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Synapse {
     pub border: f32,
     pub weight_1: f32,
@@ -56,8 +55,9 @@ impl Synapse {
 
 // ==================================================================================================
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SynapseSection {
+    #[serde(with = "BigArray")]
     pub synapses: [Synapse; BLOCK_DIM],
 }
 
@@ -68,6 +68,8 @@ impl SynapseSection {
         };
 
         section.synapses[0].target_neuron_id = rand::rng().random_range(0..BLOCK_DIM) as u16;
+        section.synapses[0].weight_1 = rand::rng().random_range(-0.5f32..0.5f32);
+        section.synapses[0].weight_2 = rand::rng().random_range(-0.5f32..0.5f32);
 
         section
     }
@@ -75,7 +77,7 @@ impl SynapseSection {
 
 // ==================================================================================================
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 struct Connection {
     pub lower_bound: f32,
     pub source_input: u16,
@@ -96,7 +98,7 @@ impl Connection {
 
 // ==================================================================================================
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Neuron {
     pub input: f32,
 
@@ -114,6 +116,7 @@ impl Neuron {
 
 // ==================================================================================================
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct CoreBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -123,7 +126,9 @@ pub struct CoreBlock {
 
     // HINT (kitsudaiki): this has to be a Box instead of a static array to avoid a stack-overflow, because the object is too big
     pub synapse_sections: Box<[SynapseSection]>,
+    #[serde(with = "BigArray")]
     pub neurons: [Neuron; BLOCK_DIM * 3],
+    #[serde(with = "BigArray")]
     connections: [Connection; BLOCK_DIM * 6],
 
     pub section_counter: u64,
@@ -140,7 +145,7 @@ impl CoreBlock {
         // | 0 | | 2 | | 4 |
         // +---+ +---+ +---+
         //
-        let capacity = BLOCK_DIM * 2 * BLOCK_DIM * 3;
+        let capacity = BLOCK_DIM * 2 * 3;
         let mut vec = Vec::with_capacity(capacity);
         for _ in 0..capacity {
             vec.push(SynapseSection::default());
@@ -345,7 +350,6 @@ fn backpropagate_section(
     axon: &mut Axon,
     output_buffer: &Vec<AxonSection>) 
 {
-    let mut pos = 0;
     let mut potential = axon.potential - connection.lower_bound;
     let mut delta;
     let train_value = 0.5f32;
@@ -447,6 +451,7 @@ impl Block for CoreBlock {
         }
 
         self.apply_output();
+        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
         send_forward(&self.block_io, WorkerTaskType::Process);
     }
 
@@ -503,5 +508,37 @@ impl Block for CoreBlock {
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         return &mut self.block_io;
+    }
+
+    fn get_type(&self) -> ObjectType {
+        ObjectType::CoreBlock
+    }
+
+    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
+        self.cluster_uuid = new_cluster_uuid.clone();
+    }
+
+    fn serailize(&self) -> Vec<u8> {
+        let cfg = bincode::config::standard();
+        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let original = CoreBlock::new(&Uuid::new_v4(), &Uuid::new_v4());
+
+        let cfg = bincode::config::standard()
+            .with_variable_int_encoding();
+        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: CoreBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+
+        println!("size: {}", serialized.len());
+
+        assert_eq!(original, deserialized);
     }
 }

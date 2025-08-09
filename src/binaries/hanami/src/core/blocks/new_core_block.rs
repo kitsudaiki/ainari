@@ -15,9 +15,9 @@
 use rand::Rng;
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
  
 use hanami_common::constants::*;
+use hanami_common::enums::*;
 
 use super::axons::*;
 use super::block_trait::*;
@@ -27,6 +27,7 @@ use super::super::processing::worker_queue::*;
 
 // ==================================================================================================
 
+#[derive(Debug)]
 #[derive(Clone, Copy)]
 pub struct Synapse {
     pub weight: f32,
@@ -63,6 +64,7 @@ impl Synapse {
 
 // ==================================================================================================
 
+#[derive(Debug)]
 #[derive(Clone, Copy)]
 pub struct Neuron {
     pub input: f32,
@@ -71,6 +73,7 @@ pub struct Neuron {
 }
 
 impl Neuron {
+    #[allow(dead_code)]
     pub fn default() -> Self {
         Neuron {
             input: 0.0f32,
@@ -81,7 +84,7 @@ impl Neuron {
 
 // ==================================================================================================
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NewCoreBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -99,6 +102,7 @@ pub struct NewCoreBlock {
 }
 
 impl NewCoreBlock {
+    #[allow(dead_code)]
     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid) -> Self {
 
         // internal visilization of the blocks:
@@ -197,7 +201,6 @@ impl NewCoreBlock {
 
 impl Block for NewCoreBlock {
     fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) {
-        let start = Instant::now();
         self.handle_buffer();
         self.check_and_resize_block();
 
@@ -373,6 +376,18 @@ impl Block for NewCoreBlock {
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         return &mut self.block_io;
+    }
+
+    fn get_type(&self) -> ObjectType {
+        ObjectType::Unknown
+    }
+
+    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
+        self.cluster_uuid = new_cluster_uuid.clone();
+    }
+
+    fn serailize(&self) -> Vec<u8> {
+        Vec::new()
     }
 }
 

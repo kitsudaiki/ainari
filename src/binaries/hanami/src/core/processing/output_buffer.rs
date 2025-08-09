@@ -15,6 +15,7 @@
 use std::sync::{Arc, Mutex};
 use std::cmp::min;
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 use hanami_common::enums::*;
 
@@ -24,6 +25,7 @@ use crate::core::processing::worker_queue::*;
 use super::super::blocks::block_trait::*;
 use super::super::blocks::output_block::*;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OutputBuffer {
     #[allow(dead_code)]
     pub uuid: Uuid,
@@ -39,9 +41,33 @@ pub struct OutputBuffer {
     pub already_finalized: bool,
     pub number_of_connected_blocks: u64,
     pub local_finish_counter: u64,
+    #[serde(skip, default = "init_finish_counter")]
     pub finish_counter: Arc<Mutex<FinishCounter>>,
-
+    #[serde(skip, default = "init_unfinished_blocks")]
     pub unfinished_blocks: Vec<Arc<Mutex<dyn Block>>>,
+}
+
+impl PartialEq for OutputBuffer {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid 
+            && self.hexagon_uuid == other.hexagon_uuid
+            && self.cluster_uuid == other.cluster_uuid
+            && self.name == other.name
+            && self.output_neurons == other.output_neurons
+            && self.output_type == other.output_type
+            && self.output_size == other.output_size
+            && self.already_finalized == other.already_finalized
+            && self.number_of_connected_blocks == other.number_of_connected_blocks
+            && self.local_finish_counter == other.local_finish_counter
+    }
+}
+
+fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
+    Arc::new(Mutex::new(FinishCounter::default()))
+}
+
+fn init_unfinished_blocks() -> Vec<Arc<Mutex<dyn Block>>> {
+    Vec::new()
 }
 
 impl OutputBuffer {
@@ -115,6 +141,11 @@ impl OutputBuffer {
             out.output_value = 0.0f32;
             self.local_finish_counter = 0;
         }
+    }
+
+    pub fn serailize(&self) -> Vec<u8> {
+        let cfg = bincode::config::standard();
+        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
     }
 }
 
@@ -411,5 +442,18 @@ mod tests {
             assert_eq!(output_buffer.output_neurons[126].expected_value, 0.0f32);
             assert_eq!(output_buffer.output_neurons[127].expected_value, 1.0f32);
         }
+    }
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
+        let original = OutputBuffer::new(&"test".to_string(), &Uuid::new_v4(), &Uuid::new_v4(), &OutputType::PlainOutput, &finish_counter);
+
+        let cfg = bincode::config::standard();
+        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: OutputBuffer = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        println!("size: {}", serialized.len());
+
+        assert_eq!(original, deserialized);
     }
 }

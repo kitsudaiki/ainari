@@ -19,10 +19,11 @@ actix-rt = "2.10"
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.6", features = ["extras"] }
 validator = { version = "0.20", features = ["derive"] }
-# json
+# serialize
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
+serde-big-array = "0.5"
 # jwt-token
 jsonwebtoken = "9"
 # config-file
@@ -40,10 +41,10 @@ lazy_static = "1.4"
 chrono = "0.4.40"
 futures = "0.3"
 bytes = "1"
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.17.0", features = ["serde", "fast-rng", "v4"] }
 sanitize-filename = "0.6"
 byteorder = "1.5"
-bincode = "2.0"
+bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.23"
 static_assertions = "1.1.0"
 

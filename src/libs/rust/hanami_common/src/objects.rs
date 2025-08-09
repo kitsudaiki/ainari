@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Serialize, Deserialize};
+
 use super::constants::UNINIT_POINT_32;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Position {
     pub x: u32,
     pub y: u32,

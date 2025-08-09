@@ -13,27 +13,27 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 use hanami_common::enums::*;
 use hanami_common::objects::*;
 use hanami_common::constants::*;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Settings {
     pub neuron_cooldown: f32,
     pub refractory_time: u32,
     pub max_connection_distance: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AxonMeta {
     pub from: Position,
     pub to: Position,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HexagonMeta {
     pub uuid: Uuid,
     pub positon: Position,
@@ -44,7 +44,7 @@ pub struct HexagonMeta {
 
     pub axon_target: Uuid,
 
-    pub possible_hexagon_target_ids: [Uuid; NUMBER_OF_POSSIBLE_NEXT],
+    pub possible_hexagon_target_ids: Vec<Uuid>,
     pub neighbors: [Uuid; 12],
 }
 
@@ -62,12 +62,12 @@ impl HexagonMeta {
             is_output: false,
 
             neighbors: [Uuid::nil(); 12],
-            possible_hexagon_target_ids: [Uuid::nil(); NUMBER_OF_POSSIBLE_NEXT],
+            possible_hexagon_target_ids: vec![Uuid::nil(); NUMBER_OF_POSSIBLE_NEXT],
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputMeta {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -86,7 +86,7 @@ impl InputMeta {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputMeta {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -107,7 +107,7 @@ impl OutputMeta {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ClusterMeta {
     pub uuid: Uuid,
     pub name: String,

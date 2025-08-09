@@ -14,6 +14,8 @@
 
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
+use serde_big_array::BigArray;
 
 use hanami_common::constants::*;
 
@@ -21,7 +23,7 @@ use super::block_trait::*;
 
 // ==================================================================================================
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Axon {
     pub potential: f32,
     pub delta: f32,
@@ -29,8 +31,9 @@ pub struct Axon {
 
 // ==================================================================================================
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AxonSection {
+    #[serde(with = "BigArray")]
     pub axons: [Axon; BLOCK_DIM],
 
     pub cluster_uuid: Uuid,
@@ -44,7 +47,9 @@ pub struct AxonSection {
     pub target_pos: u8,
     pub source_pos: u8,
 
+    #[serde(skip)]
     pub source_block: Option<Arc<Mutex<dyn Block>>>,
+    #[serde(skip)]
     pub target_block: Option<Arc<Mutex<dyn Block>>>,
 }
 
@@ -65,4 +70,48 @@ impl AxonSection {
     }
 }
 
+impl PartialEq for AxonSection {
+    fn eq(&self, other: &Self) -> bool {
+        self.axons == other.axons 
+            && self.cluster_uuid == other.cluster_uuid
+            && self.source_hexagon_uuid == other.source_hexagon_uuid
+            && self.target_hexagon_uuid == other.target_hexagon_uuid
+            && self.source_block_uuid == other.source_block_uuid
+            && self.target_block_uuid == other.target_block_uuid
+            && self.target_pos == other.target_pos
+            && self.source_pos == other.source_pos
+    }
+}
+
 // ==================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let mut original = AxonSection {
+            axons: std::array::from_fn(|_| Axon::default()),
+            cluster_uuid: Uuid::new_v4(),
+            source_hexagon_uuid: Uuid::new_v4(),
+            target_hexagon_uuid: Uuid::new_v4(),
+            source_block_uuid: Uuid::new_v4(),
+            target_block_uuid: Uuid::new_v4(),
+            target_pos: 42,
+            source_pos: 43,
+            source_block: None,
+            target_block: None,
+        };
+        original.axons[42].potential = 123.0f32;
+        original.axons[42].delta = 124.0f32;
+
+        let cfg = bincode::config::standard();
+        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: AxonSection = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+
+        println!("size: {}", serialized.len());
+
+        assert_eq!(original, deserialized);
+    }
+}

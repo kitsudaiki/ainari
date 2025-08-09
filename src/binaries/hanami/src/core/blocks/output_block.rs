@@ -15,9 +15,10 @@
 use std::sync::{Arc, Mutex};
 use rand::Rng;
 use uuid::Uuid;
-use std::time::Instant;
+use serde::{Serialize, Deserialize};
 
 use hanami_common::constants::*;
+use hanami_common::enums::*;
 
 use crate::core::processing::output_buffer::*;
 use crate::core::cluster_handler::*;
@@ -28,6 +29,7 @@ use super::block_io::*;
 
 // ==================================================================================================
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct OutputNeuron {
     pub output_value: f32,
     pub expected_value: f32,
@@ -44,6 +46,7 @@ impl OutputNeuron {
 
 // ==================================================================================================
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OutputBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -55,7 +58,23 @@ pub struct OutputBlock {
     pub block_outputs: Vec<OutputNeuron>,
 
     pub output_buffer_name: String,
+    pub was_already_connected: bool,
+
+    #[serde(skip)]
     pub output_buffer: Option<Arc<Mutex<OutputBuffer>>>,
+}
+
+impl PartialEq for OutputBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid 
+            && self.hexagon_uuid == other.hexagon_uuid
+            && self.cluster_uuid == other.cluster_uuid
+            && self.block_io == other.block_io
+            && self.weights == other.weights
+            && self.block_outputs == other.block_outputs
+            && self.output_buffer_name == other.output_buffer_name
+            && self.was_already_connected == other.was_already_connected
+    }
 }
 
 impl OutputBlock {
@@ -71,6 +90,8 @@ impl OutputBlock {
             block_outputs: Vec::new(),
 
             output_buffer_name: output_buffer_name.clone(),
+            was_already_connected: false,
+
             output_buffer: None,
         };
 
@@ -87,7 +108,12 @@ impl OutputBlock {
             if let Some(output_buffer_mutex) = root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name) {
                 self.output_buffer = Some(output_buffer_mutex.clone());
                 let mut output_buffer = output_buffer_mutex.lock().unwrap();
-                output_buffer.number_of_connected_blocks += 1;
+                // after a checkpoint-restore the block must be connected to the buffer again, 
+                // but is not allowed to increase the counter further
+                if self.was_already_connected == false {
+                    output_buffer.number_of_connected_blocks += 1;
+                }
+                self.was_already_connected = true;
             }
         }
     }
@@ -163,6 +189,7 @@ impl Block for OutputBlock {
     }
 
     fn process(&mut self) {
+        self.connect_output_buffer();
         self.process_block();
 
         // process output-buffer
@@ -241,5 +268,35 @@ impl Block for OutputBlock {
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         return &mut self.block_io;
+    }
+
+    fn get_type(&self) -> ObjectType {
+        ObjectType::OutputBlock
+    }
+
+    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
+        self.cluster_uuid = new_cluster_uuid.clone();
+    }
+
+    fn serailize(&self) -> Vec<u8> {
+        let cfg = bincode::config::standard();
+        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let original = OutputBlock::new(&Uuid::new_v4(), &Uuid::new_v4(), &"test".to_string());
+
+        let cfg = bincode::config::standard();
+        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: OutputBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        println!("size: {}", serialized.len());
+
+        assert_eq!(original, deserialized);
     }
 }

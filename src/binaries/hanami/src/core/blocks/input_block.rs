@@ -14,6 +14,7 @@
 
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
+use serde::{Serialize, Deserialize};
 
 use super::axons::*;
 use super::block_trait::*;
@@ -23,10 +24,11 @@ use super::block_io::*;
 use crate::core::cluster_handler::*;
 
 use hanami_common::constants::*;
+use hanami_common::enums::*;
 
 // ==================================================================================================
 
-#[derive(Default)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct InputBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
@@ -39,7 +41,25 @@ pub struct InputBlock {
     pub fill_position: u64,
 
     pub local_finish_counter: u64,
+    #[serde(skip, default = "init_finish_counter")]
     pub finish_counter: Arc<Mutex<FinishCounter>>,
+}
+
+impl PartialEq for InputBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid 
+            && self.hexagon_uuid == other.hexagon_uuid
+            && self.cluster_uuid == other.cluster_uuid
+            && self.block_io == other.block_io
+            && self.name == other.name
+            && self.input_links == other.input_links
+            && self.fill_position == other.fill_position
+            && self.local_finish_counter == other.local_finish_counter
+    }
+}
+
+fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
+    Arc::new(Mutex::new(FinishCounter::default()))
 }
 
 impl InputBlock {
@@ -121,6 +141,7 @@ impl Block for InputBlock {
 
     fn process(&mut self) {
         self.local_finish_counter = 0;
+        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
         send_forward(&self.block_io, WorkerTaskType::Process);
     }
 
@@ -147,6 +168,19 @@ impl Block for InputBlock {
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         return &mut self.block_io;
+    }
+
+    fn get_type(&self) -> ObjectType {
+        ObjectType::InputBlock
+    }
+
+    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
+        self.cluster_uuid = new_cluster_uuid.clone();
+    }
+
+    fn serailize(&self) -> Vec<u8> {
+        let cfg = bincode::config::standard();
+        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
     }
 }
 
@@ -189,5 +223,17 @@ mod tests {
         assert_eq!(input_block.block_io.output_buffer[0].axons[5].potential, 3.0);
         assert_eq!(input_block.block_io.output_buffer[0].axons[6].potential, 4.0);
         assert_eq!(input_block.block_io.output_buffer[0].axons[7].potential, 0.0);
+    }
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let original = InputBlock::default();
+
+        let cfg = bincode::config::standard();
+        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: InputBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        println!("size: {}", serialized.len());
+
+        assert_eq!(original, deserialized);
     }
 }

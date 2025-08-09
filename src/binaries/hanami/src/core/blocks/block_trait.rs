@@ -14,11 +14,14 @@
 
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
+use std::fmt::Debug;
+
+use hanami_common::enums::*;
 
 use super::axons::*;
 use super::block_io::*;
 
-pub trait Block: Send + Sync {
+pub trait Block: Send + Sync + Debug {
     fn train(&mut self, place_offset: usize, own: Arc<Mutex<dyn Block>>);
     fn process(&mut self,);
     fn backpropagate(&mut self);
@@ -27,6 +30,12 @@ pub trait Block: Send + Sync {
     fn get_uuid(&self) -> Uuid;
     fn get_hexagon_uud(&self) -> Uuid;
     fn get_cluster_uud(&self) -> Uuid;
+    #[allow(dead_code)]
+    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid);
+    #[allow(dead_code)]
+    fn get_type(&self) -> ObjectType;
+    #[allow(dead_code)]
+    fn serailize(&self) -> Vec<u8>;
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer;
 }

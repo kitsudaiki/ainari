@@ -63,3 +63,44 @@ impl Default for OutputType {
 }
 
 // ==================================================================================================
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum ObjectType {
+    Unknown,
+    ClusterMeta,
+    HexagonData,
+    InputBlock,
+    CoreBlock,
+    OutputBlock,
+    OutputBuffer,
+}
+
+
+impl ObjectType {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            ObjectType::Unknown => 0,
+            ObjectType::ClusterMeta => 1,
+            ObjectType::HexagonData => 2,
+            ObjectType::InputBlock => 3,
+            ObjectType::CoreBlock => 4,
+            ObjectType::OutputBlock => 5,
+            ObjectType::OutputBuffer => 6,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Option<ObjectType> {
+        match value {
+            0 => Some(ObjectType::Unknown),
+            1 => Some(ObjectType::ClusterMeta),
+            2 => Some(ObjectType::HexagonData),
+            3 => Some(ObjectType::InputBlock),
+            4 => Some(ObjectType::CoreBlock),
+            5 => Some(ObjectType::OutputBlock),
+            6 => Some(ObjectType::OutputBuffer),
+            _ => None,
+        }
+    }
+}
+
+// ==================================================================================================

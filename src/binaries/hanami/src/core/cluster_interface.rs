@@ -335,21 +335,20 @@ fn handle_request_task(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut Re
 }
 
 fn handle_checkpoint_save_task(
+    cluster_uuid: &Uuid, 
     task_uuid: &Uuid, 
     task_name: &String, 
     user_id: &String, 
     project_id: &String, 
     task_info: &mut CheckpointSaveInfo) 
 {
-
-    let file_path_str: String = task_info.path.to_string_lossy().into();
-
-    // match create_checkpoint(cluster, &file_path_str) {
-    //     Ok(()) => {},
-    //     Err(_) => {
-    //         return;
-    //     },
-    // }
+    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    match cluster_handler.create_checkpoint(cluster_uuid, &task_info.path) {
+        Ok(()) => {},
+        Err(_) => {
+            return;
+        },
+    }
 
     // create information for new database-entry
     let context = &UserContext { 
@@ -361,6 +360,7 @@ fn handle_checkpoint_save_task(
 
     // add information of new checkpoint to the database
     // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
+    let file_path_str: String = task_info.path.to_string_lossy().into();
     match checkpoint_table::add_new_checkpoint(&task_uuid, &task_name, &file_path_str, context) {
         Ok(_) => {},
         Err(e) => {
@@ -375,16 +375,17 @@ fn handle_checkpoint_save_task(
 }
 
 fn handle_checkpoint_restore_task(
+    cluster_uuid: &Uuid, 
     task_uuid: &Uuid, 
     task_info: &mut CheckpointRestoreInfo) 
 {
-    let file_path_str: String = task_info.path.to_string_lossy().into();
-    // match restore_checkpoint(cluster, &file_path_str) {
-    //     Ok(()) => {},
-    //     Err(_) => {
-    //         return;
-    //     },
-    // }
+    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+    match cluster_handler.restore_checkpoint(cluster_uuid, &task_info.path) {
+        Ok(()) => {},
+        Err(_) => {
+            return;
+        },
+    }
 
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
@@ -399,10 +400,10 @@ pub fn handle_task(task: Task, finish_counter: &Arc<Mutex<FinishCounter>>) {
             handle_request_task(&task.uuid, &task.cluster_uuid, &mut task_info, finish_counter);
         }, 
         TaskVariant::CheckpointSave(mut task_info) => {
-            // handle_checkpoint_save_task(&task.uuid, &task.name, &task.user_id, &task.project_id, &mut task_info, cluster_handle);
+            handle_checkpoint_save_task(&task.cluster_uuid, &task.uuid, &task.name, &task.user_id, &task.project_id, &mut task_info);
         }, 
         TaskVariant::CheckpointRestore(mut task_info) => {
-            // handle_checkpoint_restore_task(&task.uuid, &mut task_info, cluster_handle);
+            handle_checkpoint_restore_task(&task.cluster_uuid, &task.uuid, &mut task_info);
         }
     }
 }
@@ -472,7 +473,7 @@ impl ClusterInterface {
         // get output-values from the backend
         {
             let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
-            for (hexagon_name, data) in outputs.iter_mut() {  
+            for hexagon_name in outputs.keys() {  
 
                 if let Some(output_buffer_mutex) = cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name) {
                     let mut output_buffer = output_buffer_mutex.lock().unwrap();
@@ -517,11 +518,6 @@ impl ClusterInterface {
         // do_train(&self.cluster_handle)
 
         Ok(())
-    }
-
-    pub fn get_output_size(&mut self, hexagon_name: &String) -> Result<u64, String> {
-        // get_output_hexagon_size(&self.cluster_handle, hexagon_name)
-        Ok(0)
     }
 }
 
