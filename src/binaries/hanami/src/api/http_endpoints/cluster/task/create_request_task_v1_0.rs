@@ -28,7 +28,8 @@ use crate::database::task_table;
 use crate::database::dataset_table;
 use crate::config;
 use crate::core::cluster_handler;
-use crate::core::tasks::{Task, TaskVariant, RequestInfo};
+use crate::core::processing::tasks::{Task, TaskVariant, RequestInfo};
+use crate::core::cluster_handler::*;
 
 use hanami_common::enums;
 use hanami_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
@@ -77,12 +78,17 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     };
 
     // get cluster-handle
-    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
         None => return Err(ErrorResponse::InternalError("".to_string()))
     };
-
+    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
+        interface
+    } else {
+        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
+        return Err(ErrorResponse::NotFound(msg));
+    };
 
     let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
@@ -105,12 +111,15 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     // prepare outputs for task
     let mut total_output_size: u64 = 0;
     for output in &body.results {
-        let size = match cluster_handle.get_output_size(&output.hexagon) {
-            Ok(size) => size,
-            Err(msg) => {
-                return Err(ErrorResponse::NotFound(msg));
-            }
-        };
+        let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+        let size;
+        if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
+            let output_buffer = output_buffer_mutex.lock().unwrap();
+            size = output_buffer.output_neurons.len() as u64;
+        } else {
+            let msg = format!("Couldn't find output with name {}", output.hexagon);
+            return Err(ErrorResponse::NotFound(msg));
+        }
 
         let col = Column {
             start: total_output_size,
@@ -202,14 +211,13 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
+        cluster_uuid: cluster_uuid.clone(),
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         info: TaskVariant::Request(info),
     };
-
-    // add task to task-queue of the cluster
-    cluster_handle.add_task(task);
+    cluster_interface.lock().unwrap().add_task(task);
 
     // get new created task from database to get addtional information
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {

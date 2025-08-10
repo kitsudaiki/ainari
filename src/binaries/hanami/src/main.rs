@@ -22,20 +22,8 @@ mod core;
 
 use log::LevelFilter;
 
-use core::cluster_handler;
-
-autocxx::include_cpp! {
-    #include "hanami_root.h"
-    #include "hanami_structs.h"
-    #include "cluster_link.h"
-    safety!(unsafe_ffi)
-    generate!("HanamiCore")
-    generate!("ReturnStatus")
-    generate!("createRootObj")
-    generate!("ClusterMeta")
-    generate!("ClusterLink")
-}
-
+use core::cluster_handler::*;
+use core::processing::worker_handler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the logger
@@ -59,17 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
     fs::create_dir_all(tempfile_dir)?;
 
-    // Initialize hanami-core
-    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.init_hanami_root(use_of_free_memory) {
-        log::info!("Initilaized hanami-core")
-    } else {
-        let msg = "Failed to initialize hanami-core".to_string();
-        log::error!("{}", msg);
-        return Err(msg.into());
-    }
-    drop(cluster_handle);
+    // Initialize processing
+    let worker_handler = worker_handler::WORKER_HANDLER.lock().unwrap();
+    drop(worker_handler);
+    let cluster_data_handler = CLUSTER_HANDLER.write().unwrap();
+    drop(cluster_data_handler);
 
     database::init_database()?;
 

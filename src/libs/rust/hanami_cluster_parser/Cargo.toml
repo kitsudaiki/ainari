@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+hanami_common = { path = "../hanami_common" }
 # parser-generator
 pest = "2"
 pest_derive = "2"
@@ -11,3 +12,7 @@ pest_derive = "2"
 # json
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# common stuff
+uuid = { version = "1.17.0", features = ["v4"] }
+rand = "0.9.2"

@@ -13,11 +13,16 @@
 // limitations under the License.
 
 use std::fmt;
+use serde::{Deserialize, Serialize};
+
+// ==================================================================================================
 
 pub enum DbError {
     NotFound,
     InternalError
 }
+
+// ==================================================================================================
 
 #[repr(i32)]
 #[derive(Debug, PartialEq)]
@@ -43,3 +48,59 @@ impl fmt::Display for ReturnStatus {
         write!(f, "{:?}", self)
     }
 }
+
+// ==================================================================================================
+
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum OutputType {
+    PlainOutput = 0,
+    BoolOutput = 1,
+    IntOutput = 2,
+    FloatOutput = 3,
+}
+impl Default for OutputType {
+    fn default() -> Self { OutputType::PlainOutput }
+}
+
+// ==================================================================================================
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum ObjectType {
+    Unknown,
+    ClusterMeta,
+    HexagonData,
+    InputBlock,
+    CoreBlock,
+    OutputBlock,
+    OutputBuffer,
+}
+
+
+impl ObjectType {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            ObjectType::Unknown => 0,
+            ObjectType::ClusterMeta => 1,
+            ObjectType::HexagonData => 2,
+            ObjectType::InputBlock => 3,
+            ObjectType::CoreBlock => 4,
+            ObjectType::OutputBlock => 5,
+            ObjectType::OutputBuffer => 6,
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Option<ObjectType> {
+        match value {
+            0 => Some(ObjectType::Unknown),
+            1 => Some(ObjectType::ClusterMeta),
+            2 => Some(ObjectType::HexagonData),
+            3 => Some(ObjectType::InputBlock),
+            4 => Some(ObjectType::CoreBlock),
+            5 => Some(ObjectType::OutputBlock),
+            6 => Some(ObjectType::OutputBuffer),
+            _ => None,
+        }
+    }
+}
+
+// ==================================================================================================

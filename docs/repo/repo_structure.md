@@ -35,15 +35,14 @@ it easier for a new person to understand the code.
     │   │   ├── rust
     │   │   │   ├── hanami_cluster_parser
     │   │   │   ├── hanami_common
+    │   │   │   ├── hanami_hardware
+    │   │   │   ├── hanami_structs
     │   │   │   └── hanami_dataset
     │   │   └── protobuf
     │   │
-    │   ├── sdk
-    │   │   ├── go
-    │   │   └── python
-    │   │
-    │   └── third-party-libs
-    │       └── jwt-cpp
+    │   └── sdk
+    │       ├── go
+    │       └── python
     │
     └── testing
         ├── go_cli_api
@@ -80,12 +79,6 @@ it easier for a new person to understand the code.
     -   **libs**
 
         Libraries used by the binaries.
-        
-        -   **cpp**
-
-            -   **hanami_core**
-
-                Core-Library, which contains all functions to handle, process and interact with the neural networks
         
         -   **rust**
 
@@ -143,7 +136,7 @@ it easier for a new person to understand the code.
 
 -   **core**
 
-    Functionality to interact with the c++-core-libraries for the neural networks. Also contains the handling of cluster-tasks.
+    Core-functionality to handle and process the artificial neural networks
 
 -   **database**
 

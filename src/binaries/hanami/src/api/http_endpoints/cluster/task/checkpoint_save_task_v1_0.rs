@@ -26,7 +26,7 @@ use crate::database::cluster_table;
 use crate::database::task_table;
 use crate::config;
 use crate::core::cluster_handler;
-use crate::core::tasks::{Task, TaskVariant, CheckpointSaveInfo};
+use crate::core::processing::tasks::{Task, TaskVariant, CheckpointSaveInfo};
 
 use hanami_common::enums;
 use hanami_structs::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskType, TaskState};
@@ -69,10 +69,16 @@ pub async fn checkpoint_save_task(body: Json<TaskCheckpointSaveReq>, cluster_uui
     };
 
     // get cluster-handle
-    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
         None => return Err(ErrorResponse::InternalError("".to_string()))
+    };
+    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
+        interface
+    } else {
+        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
+        return Err(ErrorResponse::NotFound(msg));
     };
 
     // prepare task-info
@@ -100,14 +106,13 @@ pub async fn checkpoint_save_task(body: Json<TaskCheckpointSaveReq>, cluster_uui
     // create new task
     let task = Task {
         uuid: task_uuid.clone(),
+        cluster_uuid: cluster_uuid.clone(),
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         info: TaskVariant::CheckpointSave(info),
     };
-
-    // add task to task-queue of the cluster
-    cluster_handle.add_task(task);
+    cluster_interface.lock().unwrap().add_task(task);
 
     // get new created task from database to get addtional information
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {

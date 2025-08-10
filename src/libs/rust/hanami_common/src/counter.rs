@@ -12,31 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Serialize, Deserialize};
+use std::sync::{Arc, Mutex};
 
-use super::constants::UNINIT_POINT_32;
-
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct Position {
-    pub x: u32,
-    pub y: u32,
-    pub z: u32,
+pub struct Counter {
+    pub value: Arc<Mutex<usize>>,
+    compare: usize, 
 }
 
-impl Position {
-    pub fn new() -> Self {
-        Position {
-            x: UNINIT_POINT_32,
-            y: UNINIT_POINT_32,
-            z: UNINIT_POINT_32,
+impl Counter {
+    pub fn new(compare: usize) -> Self {
+        Counter {
+            value: Arc::new(Mutex::new(0)),
+            compare: compare,
         }
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.x != UNINIT_POINT_32 && self.y != UNINIT_POINT_32 && self.z != UNINIT_POINT_32
+    pub fn increase_check_reset(&self) -> bool {
+        let mut val = self.value.lock().unwrap();
+        *val += 1;
+        if *val == self.compare {
+            *val = 0;
+            return true;
+        }
+        false
     }
 
-    pub fn to_string(&self) -> String {
-        format!("[ {} , {} , {} ]", self.x, self.y, self.z)
+    pub fn update_compare(&mut self, new_compare: usize) {
+        let lock = self.value.lock().unwrap();
+        self.compare = new_compare;
+        drop(lock);
     }
 }

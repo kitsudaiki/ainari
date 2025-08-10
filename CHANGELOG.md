@@ -1,15 +1,39 @@
 # Changelog
 
+## [Unreleased]
+
+Translated the rest of the C++-code into Rust
+
+### BREAKING-CHANGES
+
+#### Checkpoint-Breaking
+
+- Because new core, the checkpoint-files have a complete new structure.
+
+### Added
+
+- central cluster-handler was added
+
+### Changed
+
+- refactored core into Rust-code
+- block can trigger other blocks more indepentantly
+- also some new concepts in the core as response to the behavior of Rust
+
+
+
 ## v0.8.0
 
 **Release-Date**: 2025-06-10
 
-Translate big parts of the program from C++ into Rust:
+Translated big parts of the program from C++ into Rust:
 - REST-API endpoints
 - Database-connection
 - Config-file
 - Cluster-Template-Parser
 - Task-handling
+
+### BREAKING-CHANGES
 
 #### API-Breaking
 

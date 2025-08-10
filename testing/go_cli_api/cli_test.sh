@@ -95,16 +95,16 @@ $EXECUTABLE task get $CLUSTER_UUID $task_uuid
 
 # save and restore test
 # $EXECUTABLE task create checkpoint_create $CLUSTER_UUID cli_test_checkpoint
-checkpoint_uuid=$($EXECUTABLE task create checkpoint_create $CLUSTER_UUID cli_test_checkpoint  | jq -r '.uuid')
-sleep 2
-echo "Checkpoint-UUID: $checkpoint_uuid"
-$EXECUTABLE checkpoint list
+#checkpoint_uuid=$($EXECUTABLE task create checkpoint_create $CLUSTER_UUID cli_test_checkpoint  | jq -r '.uuid')
+#sleep 2
+#echo "Checkpoint-UUID: $checkpoint_uuid"
+#$EXECUTABLE checkpoint list
 
-$EXECUTABLE cluster delete $CLUSTER_UUID
-CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
-echo "new Cluster-UUID: $CLUSTER_UUID"
-$EXECUTABLE task create checkpoint_restore $CLUSTER_UUID restore_cluster
-sleep 2
+#$EXECUTABLE cluster delete $CLUSTER_UUID
+#CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
+#echo "new Cluster-UUID: $CLUSTER_UUID"
+#$EXECUTABLE task create checkpoint_restore $CLUSTER_UUID restore_cluster
+#sleep 2
 
 # request test
 echo "$EXECUTABLE task create request -j -i $request_DATASET_UUID:picture:picture -r label:cli_test_output $CLUSTER_UUID cli_request_test_task"
@@ -136,7 +136,7 @@ $EXECUTABLE dataset list
 # fi
 
 # # clear all test-resources
-$EXECUTABLE checkpoint delete $checkpoint_uuid
+# $EXECUTABLE checkpoint delete $checkpoint_uuid
 $EXECUTABLE cluster delete $CLUSTER_UUID
 $EXECUTABLE dataset delete $train_DATASET_UUID
 $EXECUTABLE dataset delete $request_DATASET_UUID

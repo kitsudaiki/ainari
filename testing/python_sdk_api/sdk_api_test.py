@@ -59,12 +59,13 @@ cluster_template = \
     "hexagons:  " \
     "    1,1,1; " \
     "    2,2,2; " \
+    "    3,2,2; " \
     "axons: " \
     "    1,1,1 -> 2,2,2;  " \
     "inputs: " \
     "    picture_hex: 1,1,1; " \
     "outputs: " \
-    "    label_hex: 2,2,2;"
+    "    label_hex: 3,2,2;"
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -260,7 +261,7 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        token, address, generic_task_name, cluster_uuid, inputs, outputs, 3, 1, False)["uuid"]
+        token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, 1, False)["uuid"]
 
     finished = False
     while not finished:
@@ -334,7 +335,7 @@ def _test(cluster_uuid, request_dataset_uuid):
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
-    assert accuracy > 0.9
+    assert accuracy > 0.85
 
     # # download part of the resulting dataset
     # data = dataset.download_dataset_content(

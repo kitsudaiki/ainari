@@ -7,11 +7,10 @@
     -   For Ubuntu 22.04 and 24.04 (Debian should work too):
 
         ```bash
-        apt-get install gcc g++ clang-15 make cmake nlohmann-json3-dev libsqlite3-dev
+        apt-get install libsqlite3-dev
         ```
 
-    -   On Ubuntu 24.04 a new clang version than `15` can also be used or g++. See
-        [supported versions](/#supported-environment)
+-   Install Rust-compiler
 
 -   Clone repository with submodules
 
@@ -37,22 +36,6 @@
     ```bash
     ./target/release/hanami
     ```
-
-## Build hamami-core cpp-lib plain
-
--   Compile hanami
-
-    ```bash
-    cd OpenHanami
-    mkdir build
-    cd build
-
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make -j8
-    ```
-
--   In case you also want to compile the unit-tests and so on, you have to add `-Drun_tests=ON` to
-    the cmake-commands
 
 ## Build hanami as docker-image
 
@@ -101,7 +84,7 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 
     ```bash
     sudo apt-get update
-    sudo apt-get install -y protobuf-compiler python3 python3-pip
+    sudo apt-get install -y python3 python3-pip
     sudo pip3 install wheel
     ```
 
@@ -139,14 +122,6 @@ also line-numbers are marked. To update the file to get the test green again:
 <!-- ### Ansible-lint
 
 -   run `earthly --ci +ansible-lint` -->
-
-### Cpp-check
-
--   run `earthly --ci +cppcheck`
-
-### Clang-format check
-
--   run `earthly --ci +clang-format`
 
 ## Build docs
 

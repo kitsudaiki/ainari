@@ -29,5 +29,13 @@ impl fmt::Display for HanamiError {
     }
 }
 
+impl PartialEq<&str> for HanamiError {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            HanamiError::InputError(s) | HanamiError::Error(s) => s == other,
+        }
+    }
+}
+
 impl std::error::Error for HanamiError {}
 

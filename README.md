@@ -31,48 +31,22 @@ and multi-tenancy.
 
 ## Supported Environment
 
-| C++ Core-Library                                              | Python-SDK                                  | Deployment                                          |
-| ------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
-| [![ubuntu-2204_clang-13][img_ubuntu-2204_clang-13]][Workflow] | [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
-| [![ubuntu-2204_clang-14][img_ubuntu-2204_clang-14]][Workflow] | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][Workflow] |
-| [![ubuntu-2204_clang-15][img_ubuntu-2204_clang-15]][Workflow] | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][Workflow] |
-| [![ubuntu-2404_clang-15][img_ubuntu-2404_clang-15]][Workflow] |                                             | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
-| [![ubuntu-2404_clang-16][img_ubuntu-2404_clang-16]][Workflow] |                                             |                                                     |
-| [![ubuntu-2404_clang-17][img_ubuntu-2404_clang-17]][Workflow] |                                             |                                                     |
-| [![ubuntu-2404_clang-18][img_ubuntu-2404_clang-18]][Workflow] |                                             |                                                     |
-| [![ubuntu-2204_gcc-10][img_ubuntu-2204_gcc-10]][Workflow]     |                                             |                                                     |
-| [![ubuntu-2204_gcc-11][img_ubuntu-2204_gcc-11]][Workflow]     |                                             |                                                     |
-| [![ubuntu-2204_gcc-12][img_ubuntu-2204_gcc-12]][Workflow]     |                                             |                                                     |
-| [![ubuntu-2404_gcc-12][img_ubuntu-2404_gcc-12]][Workflow]     |                                             |                                                     |
-| [![ubuntu-2404_gcc-13][img_ubuntu-2404_gcc-13]][Workflow]     |                                             |                                                     |
-| [![ubuntu-2404_gcc-14][img_ubuntu-2404_gcc-14]][Workflow]     |                                             |                                                     |
+| Python-SDK                                  | Deployment                                          |
+| ------------------------------------------- | --------------------------------------------------- |
+| [![python-3_10][img_python-3_10]][Workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][Workflow] |
+| [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][Workflow] |
+| [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][Workflow] |
+|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
+|                                             |                                                     |
 
-[img_ubuntu-2204_clang-13]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_clang-13/shields.json&style=flat-square
-[img_ubuntu-2204_clang-14]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_clang-14/shields.json&style=flat-square
-[img_ubuntu-2204_clang-15]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_clang-15/shields.json&style=flat-square
-[img_ubuntu-2404_clang-15]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_clang-15/shields.json&style=flat-square
-[img_ubuntu-2404_clang-16]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_clang-16/shields.json&style=flat-square
-[img_ubuntu-2404_clang-17]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_clang-17/shields.json&style=flat-square
-[img_ubuntu-2404_clang-18]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_clang-18/shields.json&style=flat-square
-[img_ubuntu-2204_gcc-10]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_gcc-10/shields.json&style=flat-square
-[img_ubuntu-2204_gcc-11]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_gcc-11/shields.json&style=flat-square
-[img_ubuntu-2204_gcc-12]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2204_gcc-12/shields.json&style=flat-square
-[img_ubuntu-2404_gcc-12]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-12/shields.json&style=flat-square
-[img_ubuntu-2404_gcc-13]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-13/shields.json&style=flat-square
-[img_ubuntu-2404_gcc-14]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/compiler_version/ubuntu-2404_gcc-14/shields.json&style=flat-square
 [img_python-3_10]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:

@@ -47,10 +47,8 @@ pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> R
     };
 
     // delete cluster from core
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.delete(&cluster_uuid) == false {
-        return Err(ErrorResponse::InternalError("".to_string()));
-    }
+    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.write().unwrap();
+    cluster_handle.delete_cluster(&cluster_uuid);
 
     Ok(NoContent)   
 }

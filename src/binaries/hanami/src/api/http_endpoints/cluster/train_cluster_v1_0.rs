@@ -18,6 +18,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
+use std::sync::Arc;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -58,15 +59,18 @@ pub async fn train_cluster(body: Json<ClusterTrainReq>, cluster_uuid: Path<Uuid>
         }
     };
 
-    // get cluster-handle
-    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string()))
+    // get cluster-interface
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_interface_mutex = if let Some(c) = cluster_handler.get_cluster_interface(&cluster_uuid) {
+        Arc::clone(&c)
+    } else {
+        return Err(ErrorResponse::InternalError("".to_string()));
     };
+    drop(cluster_handler);
 
     // run train-process in cluster
-    match cluster_handle.train(&body.inputs, &body.outputs) {
+    let mut cluster_interface = cluster_interface_mutex.lock().unwrap();
+    match cluster_interface.train(&body.inputs, &body.outputs) {
         Ok(()) => {},
         Err(msg) => {
             return Err(ErrorResponse::NotFound(msg));

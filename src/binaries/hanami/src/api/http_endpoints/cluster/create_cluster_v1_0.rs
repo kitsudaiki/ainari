@@ -21,7 +21,7 @@ use validator::Validate;
 use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
-use crate::core::cluster_handler;
+use crate::core::cluster_handler::CLUSTER_HANDLER;
 
 use hanami_common::error::HanamiError;
 use hanami_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
@@ -47,8 +47,8 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     let cluster_uuid = Uuid::new_v4();
 
     // parse cluster-template and create cluster from it
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    match cluster_handle.create_cluster(cluster_uuid.clone(), body.name.clone(), body.template.clone()) {
+    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+    match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
         Ok(_) => {},
         Err(HanamiError::InputError(e)) => {
             let msg = format!("Invalid input: {}", e);
