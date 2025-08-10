@@ -5,16 +5,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 RUN apt-get update && \
-        apt-get install -y clang-19 \
-                           gcc \
-                           g++ \
-                           make \
-                           cmake \
-                           git \
+        apt-get install -y git \
                            ssh \
                            rustup \
-                           libsqlite3-dev \
-                           nlohmann-json3-dev
+                           libsqlite3-dev
 
 COPY . .
 

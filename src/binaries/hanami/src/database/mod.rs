@@ -22,7 +22,7 @@ pub mod checkpoint_table;
 
 use std::io;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>>
 {

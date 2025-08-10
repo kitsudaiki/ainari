@@ -21,8 +21,8 @@ use std::io::Write;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 
-use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
-use hanami_structs::task_structs::TaskState;
+use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
+use ainari_structs::task_structs::TaskState;
 
 use crate::database::task_table;
 use crate::database::checkpoint_table;

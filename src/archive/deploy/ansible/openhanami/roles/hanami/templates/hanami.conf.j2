@@ -1,26 +1,26 @@
 [DEFAULT] 
-debug = {{hanami_debug}} 
-log_path = {{hanami_log_dir}} 
-database = "/etc/openhanami/hanami_db" 
+debug = {{ainari_debug}} 
+log_path = {{ainari_log_dir}} 
+database = "/etc/ainari/ainari_db" 
 socket_path = "/tmp/hanami"
 
 [storage] 
-dataset_location = {{hanami_dataset_location}} 
-checkpoint_location = {{hanami_checkpoint_location}}
-tempfile_location = {{hanami_tempfile_location}}
+dataset_location = {{ainari_dataset_location}} 
+checkpoint_location = {{ainari_checkpoint_location}}
+tempfile_location = {{ainari_tempfile_location}}
 tempfile_timeout = 10
 
 [processing]
-use_of_free_memory = {{hanami_use_of_free_memory}}
+use_of_free_memory = {{ainari_use_of_free_memory}}
 
 [auth] 
-policies = "/etc/openhanami/policies" 
-token_key_path = {{hanami_token_key_path}} 
+policies = "/etc/ainari/policies" 
+token_key_path = {{ainari_token_key_path}} 
 token_expire_time = 3600
 
 [http] 
 enable = True 
-ip = {{hanami_listen_address}}
-certificate = {{hanami_ssl_cert_path}} 
-key = {{hanami_ssl_key_path}} 
+ip = {{ainari_listen_address}}
+certificate = {{ainari_ssl_cert_path}} 
+key = {{ainari_ssl_key_path}} 
 port = 11418

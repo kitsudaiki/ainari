@@ -23,12 +23,12 @@ This document should help to setup a local environment for development.
     directory
 
     ```bash
-    sudo cp -r ./OpenHanami/example_configs/openhanami
+    sudo cp -r ./Ainari/example_configs/ainari
 
-    sudo chown -R $(id -u):$(id -g) /etc/openhanami
+    sudo chown -R $(id -u):$(id -g) /etc/ainari
     ```
 
--   In file `/etc/openhanami/hanami_testing.conf` update the path to the 4 MNIST files, so they
+-   In file `/etc/ainari/hanami_testing.conf` update the path to the 4 MNIST files, so they
     point to the MNIST-files, which you downloaded eralier.
 
 ## Run project locally for testing
@@ -45,11 +45,11 @@ This document should help to setup a local environment for development.
     ```
 
     These are the default testing-configs, to match with the test-confic
-    `/etc/openhanami/hanami_testing.conf`.
+    `/etc/ainari/hanami_testing.conf`.
 
 -   Exectute the binary without any flags. It uses by default the config of
-    `/etc/openhanami/hanami.toml` and the values of the example-config are enough for testing. The
-    SQLite-database-file `/etc/openhanami/hanami_db` is automatically created by the initial start.
+    `/etc/ainari/hanami.toml` and the values of the example-config are enough for testing. The
+    SQLite-database-file `/etc/ainari/ainari_db` is automatically created by the initial start.
 
 ## Testing
 
@@ -68,16 +68,16 @@ API.
 
 -   go into the test-directory
 
-    `cd OpenHanami/testing/python_sdk_api`
+    `cd Ainari/testing/python_sdk_api`
 
 -   create and prepare python-env and install packages
 
     ```bash
-    python3 -m venv hanami_env
+    python3 -m venv ainari_env
 
-    source hanami_env/bin/activate
+    source ainari_env/bin/activate
 
-    cd OpenHanami/src/sdk/python/hanami_sdk
+    cd Ainari/src/sdk/python/ainari_sdk
 
     pip3 install -r requirements.txt
     ```
@@ -85,15 +85,15 @@ API.
 -   build proto-buffer messages
 
     ```bash
-    cd OpenHanami/src/sdk/python/hanami_sdk/hanami_sdk
+    cd Ainari/src/sdk/python/ainari_sdk/ainari_sdk
 
-    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  ainari_messages.proto3
     ```
 
 -   run tests
 
     ```bash
-    cd OpenHanami/testing/python_sdk_api
+    cd Ainari/testing/python_sdk_api
 
     ./sdk_api_test.py
     ```
@@ -113,7 +113,7 @@ API.
 -   go to the location
 
     ```
-    cd OpenHanami/testing/go_cli_api
+    cd Ainari/testing/go_cli_api
     ```
 
 -   export environment-variables

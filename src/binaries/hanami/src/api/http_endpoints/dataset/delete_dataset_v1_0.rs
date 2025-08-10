@@ -22,7 +22,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "dataset",

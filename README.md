@@ -1,29 +1,29 @@
-# OpenHanami
+# Ainari
 
-![Latest Release](https://img.shields.io/github/v/release/kitsudaiki/OpenHanami?include_prereleases&label=Version&style=flat-square)
-![License](https://img.shields.io/github/license/kitsudaiki/OpenHanami?style=flat-square)
+![Latest Release](https://img.shields.io/github/v/release/kitsudaiki/ainari?include_prereleases&label=Version&style=flat-square)
+![License](https://img.shields.io/github/license/kitsudaiki/ainari?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Linux-blue?style=flat-square)
 ![Architecture](https://img.shields.io/badge/Architecture-amd64%20%2B%20arm64-blue?style=flat-square)
 
-[![Github workflow status](https://img.shields.io/github/actions/workflow/status/kitsudaiki/OpenHanami/build_test.yml?branch=develop&style=flat-square&label=Build%20and%20Test)](https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml)
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/kitsudaiki/OpenHanami/codeql.yml?branch=develop&style=flat-square&label=CodeQL)](https://github.com/kitsudaiki/OpenHanami/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/OpenHanami?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/OpenHanami)
+[![Github workflow status](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/build_test.yml?branch=develop&style=flat-square&label=Build%20and%20Test)](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/codeql.yml?branch=develop&style=flat-square&label=CodeQL)](https://github.com/kitsudaiki/ainari/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
 <p align="center">
-  <img src="assets/hanami-logo-with-text.png" width="500" height="594" />
+  <img src="assets/ainari-logo-with-text.png" width="500" height="594" />
 </p>
 
 # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
-# **IMPORTANT: The project is currently in a process of big reconstruction, by translating big parts of the backend from C++ into Rust code. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
+# **IMPORTANT: The project is currently in a process of big reconstruction. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
 
 ## Intro
 
-OpenHanami contains in its core a custom experimental artificial neural network, which can work on
+Ainari contains in its core a custom experimental artificial neural network, which can work on
 unnormalized and unfiltered input-data, like sensor measurement data. The network growth over time
 by creating new nodes and connections between the nodes while learning new data. The base concept
 was created by myself and the code was written from scratch without any frameworks. The goal behind
-OpenHanami is to create something unique, which works more like the human brain. It wasn't targeted to
+Ainari is to create something unique, which works more like the human brain. It wasn't targeted to
 get a higher accuracy than classical artificial neural networks like Tensorflow, but to be more
 flexible and easier to use and more efficient in resource-consumption for big amounts of inputs and
 users. Additionally it also provides an as-a-Service architecture within a cloud native environment
@@ -48,20 +48,20 @@ and multi-tenancy.
 |                                             |                                                     |
 
 [img_python-3_10]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_11/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_11/shields.json&style=flat-square
 [img_python-3_12]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_12/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_12/shields.json&style=flat-square
 [img_kubernetes-1_30]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
 [img_kubernetes-1_31]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
 [img_kubernetes-1_32]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
 [img_kubernetes-1_33]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
-[Workflow]: https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
+[Workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
 
 ## Current prototypically implemented features
 
@@ -96,7 +96,7 @@ and multi-tenancy.
     single endpoint in the code automatically results in changes of the resulting documentation, to
     make sure, that code and documentation are in sync.
 
-    See [OpenAPI-docu](https://docs.openhanami.com/frontend/rest_api_documentation/)
+    See [OpenAPI-docu](https://docs.ainari.cloud/frontend/rest_api_documentation/)
 
 -   **Multi-user and multi-project**
 
@@ -105,7 +105,7 @@ and multi-tenancy.
     Each user can login by username and passphrase and gets an JWT-token to access the user- and
     project-specific resources.
 
-    See [Authentication-docu](https://docs.openhanami.com/inner_workings/user_and_projects/)
+    See [Authentication-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
 
 -   **Efficient resource-usage**
 
@@ -120,7 +120,7 @@ and multi-tenancy.
     3. Capability to regulate the cpu-frequencey and measure power-consumption. (disabled currently)
 
         See
-        [Monitoring-docu](https://docs.openhanami.com/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
+        [Monitoring-docu](https://docs.ainari.cloud/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
 
 -   **Network-input**
 
@@ -128,19 +128,19 @@ and multi-tenancy.
 
     1. Uploading the dataset and starting an asynchronous task based on this dataset over the API
 
-        See [OpenAPI-docu](https://docs.openhanami.com/frontend/rest_api_documentation/)
+        See [OpenAPI-docu](https://docs.ainari.cloud/frontend/rest_api_documentation/)
 
     2. Directly communicate with the neural network via websocket. In this case not a whole dataset
        is push through the synapse, but instead only a single network-input is send. The call is
        blocking, until the network returns the output, which gives more control.
 
-        See [Websocket-docu](https://docs.openhanami.com/frontend/websockets/websocket_workflow/)
+        See [Websocket-docu](https://docs.ainari.cloud/frontend/websockets/websocket_workflow/)
 
 -   **Installation on Kubernetes and with Ansible**
 
     The backend can be basically deployed on kubernetes via Helm-chart or plain via Ansible.
 
-    See [Installation-docu](https://docs.openhanami.com/backend/installation/)
+    See [Installation-docu](https://docs.ainari.cloud/backend/installation/)
 
 ## Further experimental features
 
@@ -155,8 +155,8 @@ and multi-tenancy.
     layer-structure can still be enforced.
 
     See
-    [short explanation](https://docs.openhanami.com/inner_workings/core/core/#no-strict-layer-structure)
-    and [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements)
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#no-strict-layer-structure)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
 
 -   **Reduction-Process**
 
@@ -166,7 +166,7 @@ and multi-tenancy.
     reach the threshold to be marked as persistent.
 
     See
-    [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements/#reduction_1)
+    [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements/#reduction_1)
 
 -   **Spiking neural network**
 
@@ -175,14 +175,14 @@ and multi-tenancy.
     older input, based on the time how long ago this input happened.
 
     See
-    [short explanation](https://docs.openhanami.com/inner_workings/core/core/#spiking-neural-network)
-    and [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements)
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#spiking-neural-network)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
 
 -   **3-dimensional networks**
 
     It is basically possible to define 3-dimensional networks. This was only added, because the
     human brain is also a 3D-object. This feature exist in the
-    [cluster-templates](https://docs.openhanami.com/frontend/cluster_templates/cluster_template/),
+    [cluster-templates](https://docs.ainari.cloud/frontend/cluster_templates/cluster_template/),
     but was never tested until now. Maybe in bigger tests in the future this feature could become
     useful to better mix information with each other.
 
@@ -196,33 +196,33 @@ itself:
 
 ## Getting started
 
--   [Example-Workflow](https://docs.openhanami.com/frontend/example_workflow/)
+-   [Example-Workflow](https://docs.ainari.cloud/frontend/example_workflow/)
 
--   [Installation-Guide](https://docs.openhanami.com/backend/installation/)
+-   [Installation-Guide](https://docs.ainari.cloud/backend/installation/)
 
--   [SDK and CLI documentation](https://docs.openhanami.com/frontend/cli_sdk_docu/)
+-   [SDK and CLI documentation](https://docs.ainari.cloud/frontend/cli_sdk_docu/)
 
--   [Automatic generated OpenAPI documentation](https://docs.openhanami.com/frontend/rest_api_documentation/)
+-   [Automatic generated OpenAPI documentation](https://docs.ainari.cloud/frontend/rest_api_documentation/)
 
 ## Development
 
--   [How to build](https://docs.openhanami.com/repo/build_guide/)
+-   [How to build](https://docs.ainari.cloud/repo/build_guide/)
 
--   [Development-Guide](https://docs.openhanami.com/repo/development/)
+-   [Development-Guide](https://docs.ainari.cloud/repo/development/)
 
--   [Contributing guide](https://github.com/kitsudaiki/OpenHanami/blob/develop/CONTRIBUTING.md)
+-   [Contributing guide](https://github.com/kitsudaiki/ainari/blob/develop/CONTRIBUTING.md)
 
--   [Dependency-Overview](https://docs.openhanami.com/repo/dependencies/)
+-   [Dependency-Overview](https://docs.ainari.cloud/repo/dependencies/)
 
 ## Pre-build objects
 
 All objects are automatically build and uploaded by the
-[CI-pipeline](https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml) for each merge
+[CI-pipeline](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml) for each merge
 on `develop`-branch and for each tag.
 
 -   [Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/hanami/tags)
 
--   [client, SDK and helm-chart](https://files.openhanami.com/)
+-   [client, SDK and helm-chart](https://files.ainari.cloud/)
 
 ## Currently disabled features
 
@@ -235,7 +235,7 @@ added/enabled again in the near future:
     old version in `v0.9.0` and re-write it again with Typescript and some additional frameworks.
     Until then, it is temporary disabled, because it would current cost too much time to keep this
     unused and prototypical version up-to-data. As reference see the example-workflow of the
-    PoC-dashboard: [Dashboard-docu](https://docs.openhanami.com/frontend/dashboard/dashboard/)
+    PoC-dashboard: [Dashboard-docu](https://docs.ainari.cloud/frontend/dashboard/dashboard/)
 
 2. Regulation of CPU-speed
 
@@ -255,7 +255,7 @@ added/enabled again in the near future:
 
 ## Roadmap
 
-see [Roadmap](https://github.com/kitsudaiki/OpenHanami/blob/develop/ROADMAP.md)
+see [Roadmap](https://github.com/kitsudaiki/ainari/blob/develop/ROADMAP.md)
 
 ## Author
 
@@ -266,4 +266,4 @@ eMail: tobias.anker@kitsunemimi.moe
 ## License
 
 The complete project is under
-[Apache 2 license](https://github.com/kitsudaiki/OpenHanami/blob/develop/LICENSE).
+[Apache 2 license](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE).

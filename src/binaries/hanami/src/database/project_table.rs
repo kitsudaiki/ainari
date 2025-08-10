@@ -21,7 +21,7 @@ use std::error::Error;
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 // Define the schema
 table! {

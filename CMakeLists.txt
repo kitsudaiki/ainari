@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(OpenHanami VERSION 0.3.3 LANGUAGES C CXX)
+project(Ainari VERSION 0.3.3 LANGUAGES C CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -10,4 +10,4 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -gdwarf-4")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gdwarf-4")
 
-add_subdirectory(src/libs/cpp/hanami_core)
+add_subdirectory(src/libs/cpp/ainari_core)

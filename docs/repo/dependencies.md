@@ -19,7 +19,7 @@
 ### Packages
 
 see
-[requirements.txt](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/sdk/python/hanami_sdk/requirements.txt)
+[requirements.txt](https://github.com/kitsudaiki/Ainari/blob/develop/src/sdk/python/ainari_sdk/requirements.txt)
 
 ### Suppored Python-versions
 
@@ -31,12 +31,12 @@ see
 
 ## Go CLI-client
 
-see [go.sum](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/cli/hanamictl/go.sum)
+see [go.sum](https://github.com/kitsudaiki/Ainari/blob/develop/src/cli/ainarictl/go.sum)
 
 [img_python-3_10]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_10/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_11/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/python_version/python-3_11/shields.json&style=flat-square
 [img_python-3_12]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/python_version/python-3_12/shields.json&style=flat-square
-[Workflow]: https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/python_version/python-3_12/shields.json&style=flat-square
+[Workflow]: https://github.com/kitsudaiki/Ainari/actions/workflows/build_test.yml

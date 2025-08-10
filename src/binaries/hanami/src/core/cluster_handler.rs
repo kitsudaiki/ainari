@@ -22,11 +22,11 @@ use std::path::Path;
 use std::io::{self, Write, Read, BufWriter, BufReader};
 use std::path::PathBuf;
 
-use hanami_cluster_parser::cluster_parser::parse_cluster_template;
-use hanami_cluster_parser::cluster_meta_structs::*;
-use hanami_common::error::HanamiError;
-use hanami_common::constants::*;
-use hanami_common::enums::*;
+use ainari_cluster_parser::cluster_parser::parse_cluster_template;
+use ainari_cluster_parser::cluster_meta_structs::*;
+use ainari_common::error::HanamiError;
+use ainari_common::constants::*;
+use ainari_common::enums::*;
 
 use crate::core::blocks::axons::AxonSection;
 use crate::core::blocks::input_block::*;
@@ -810,7 +810,7 @@ impl ClusterDataHandler {
 
 #[cfg(test)]
 mod tests {
-    use hanami_common::enums::*;
+    use ainari_common::enums::*;
     use serial_test::serial;
 
     use super::*;

@@ -20,8 +20,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
-use hanami_common::enums;
-use hanami_structs::project_structs::ProjectResp;
+use ainari_common::enums;
+use ainari_structs::project_structs::ProjectResp;
 
 #[api_operation(
     tag = "project",

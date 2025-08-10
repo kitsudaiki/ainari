@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use rand::Rng;
 
-use hanami_common::constants::*;
+use ainari_common::constants::*;
 
 use super::worker_queue::*;
 

@@ -1,0 +1,21 @@
+debug = true
+log_path = ""
+
+[storage]
+dataset_location = "/etc/ainari/datasets"
+checkpoint_location = "/etc/ainari/checkpoints"
+tempfile_location = "/etc/ainari/tempfiles"
+
+[processing]
+use_of_free_memory = 0.2
+
+[auth]
+token_key_path = "/etc/ainari/token_key"
+token_expire_time = 36000
+
+[api]
+ip = "0.0.0.0"
+port = 11418
+
+[database]
+file_path = "/etc/ainari/ainari_db"

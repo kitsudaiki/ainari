@@ -2,23 +2,25 @@
 
     This is the documentation of the develop-branch.
 
-# OpenHanami
+# Ainari
 
 <p align="center">
-  <img src="img/hanami-logo-with-text.png" width="500" height="594" />
+  <img src="img/ainari-logo-with-text.png" width="500" height="594" />
 </p>
 
 !!! danger "IMPORTANT"
 
     # **IMPORTANT: his project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
 
+    # **IMPORTANT: The project is currently in a process of big reconstruction. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
+
 ## Intro
 
-OpenHanami contains in its core a custom experimental artificial neural network, which can work on
+Ainari contains in its core a custom experimental artificial neural network, which can work on
 unnormalized and unfiltered input-data, like sensor measurement data. The network growth over time
 by creating new nodes and connections between the nodes while learning new data. The base concept
 was created by myself and the code was written from scratch without any frameworks. The goal behind
-OpenHanami is to create something unique, which works more like the human brain. It wasn't targeted
+Ainari is to create something unique, which works more like the human brain. It wasn't targeted
 to get a higher accuracy than classical artificial neural networks like Tensorflow, but to be more
 flexible and easier to use and more efficient in resource-consumption for big amounts of inputs and
 users. Additionally it also provides an as-a-Service architecture within a cloud native environment
@@ -46,8 +48,8 @@ and multi-tenancy.
     older input, based on the time how long ago this input happened.
 
     See
-    [short explanation](https://docs.openhanami.com/inner_workings/core/core/#spiking-neural-network)
-    and [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements)
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#spiking-neural-network)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
 
 -   **No strict layer structure**
 
@@ -60,14 +62,14 @@ and multi-tenancy.
     layer-structure can still be enforced.
 
     See
-    [short explanation](https://docs.openhanami.com/inner_workings/core/core/#no-strict-layer-structure)
-    and [measurement-examples](https://docs.openhanami.com/inner_workings/measurements/measurements)
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#no-strict-layer-structure)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
 
 -   **3-dimensional networks**
 
     It is basically possible to define 3-dimensional networks. This was only added, because the
     human brain is also a 3D-object. This feature exist in the
-    [cluster-templates](https://docs.openhanami.com/frontend/cluster_templates/cluster_template/),
+    [cluster-templates](https://docs.ainari.cloud/frontend/cluster_templates/cluster_template/),
     but was never tested until now. Maybe in bigger tests in the future this feature could become
     useful to better mix information with each other.
 
@@ -82,7 +84,7 @@ and multi-tenancy.
     single endpoint in the code automatically results in changes of the resulting documentation, to
     make sure, that code and documentation are in sync.
 
-    See [OpenAPI-docu](https://docs.openhanami.com/frontend/rest_api_documentation/)
+    See [OpenAPI-docu](https://docs.ainari.cloud/frontend/rest_api_documentation/)
 
 -   **Multi-user and multi-project**
 
@@ -91,7 +93,7 @@ and multi-tenancy.
     Each user can login by username and passphrase and gets an JWT-token to access the user- and
     project-specific resources.
 
-    See [Authentication-docu](https://docs.openhanami.com/inner_workings/user_and_projects/)
+    See [Authentication-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
 
 -   **Efficient resource-usage**
 
@@ -106,7 +108,7 @@ and multi-tenancy.
     3. Capability to regulate the cpu-frequencey and measure power-consumption. (disabled currently)
 
         See
-        [Monitoring-docu](https://docs.openhanami.com/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
+        [Monitoring-docu](https://docs.ainari.cloud/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
 
 -   **Network-input**
 
@@ -117,7 +119,7 @@ and multi-tenancy.
 
     The backend can be basically deployed on kubernetes via Helm-chart.
 
-    See [Installation-docu](https://docs.openhanami.com/backend/installation/)
+    See [Installation-docu](https://docs.ainari.cloud/backend/installation/)
 
 ## Known disadvantages
 
@@ -153,7 +155,7 @@ itself:
 
     [:octicons-arrow-right-24: Development-Guide](/repo/development/)
 
-    [:octicons-arrow-right-24: Contributing guide](https://github.com/kitsudaiki/OpenHanami/blob/develop/CONTRIBUTING.md)
+    [:octicons-arrow-right-24: Contributing guide](https://github.com/kitsudaiki/ainari/blob/develop/CONTRIBUTING.md)
 
     [:octicons-arrow-right-24: Dependency-Overview](/repo/dependencies/)
 
@@ -162,12 +164,12 @@ itself:
     ***
 
     All objects are automatically build and uploaded by the
-    [CI-pipeline](https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml) for
+    [CI-pipeline](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml) for
     each merge on `develop`-branch and for each tag.
 
     [:octicons-arrow-right-24: Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/hanami/tags)
 
-    [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.openhanami.com/)
+    [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.ainari.cloud/)
 
 -   :octicons-milestone-24:{ .lg .middle } **Roadmap**
 
@@ -188,7 +190,7 @@ added/enabled again in the near future:
     old version in `v0.9.0` and re-write it again with Typescript and some additional frameworks.
     Until then, it is temporary disabled, because it would current cost too much time to keep this
     unused and prototypical version up-to-data. As reference see the example-workflow of the
-    PoC-dashboard: [Dashboard-docu](https://docs.openhanami.com/frontend/dashboard/dashboard/)
+    PoC-dashboard: [Dashboard-docu](https://docs.ainari.cloud/frontend/dashboard/dashboard/)
 
 2. Regulation of CPU-speed
 
@@ -220,4 +222,4 @@ eMail: tobias.anker@kitsunemimi.moe
 ## License
 
 The complete project is under
-[Apache 2 license](https://github.com/kitsudaiki/OpenHanami/blob/develop/LICENSE).
+[Apache 2 license](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE).

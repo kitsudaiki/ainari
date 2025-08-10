@@ -3,7 +3,7 @@ name: Feature
 about: Use this template to request new features and improvements
 title: '[Feature]: '
 labels: New feature / Improvement, New issue
-projects: OpenHanami
+projects: Ainari
 assignees: kitsudaiki
 ---
 

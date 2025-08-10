@@ -20,8 +20,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
-use hanami_common::enums;
-use hanami_structs::user_structs::UserResp;
+use ainari_common::enums;
+use ainari_structs::user_structs::UserResp;
 
 #[api_operation(
     tag = "user",

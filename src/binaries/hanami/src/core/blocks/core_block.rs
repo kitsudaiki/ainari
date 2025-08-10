@@ -18,9 +18,9 @@ use std::sync::{Arc, Mutex};
 use serde::{Serialize, Deserialize};
 use serde_big_array::BigArray;
 
-use hanami_common::constants::*;
-use hanami_common::functions::*;
-use hanami_common::enums::*;
+use ainari_common::constants::*;
+use ainari_common::functions::*;
+use ainari_common::enums::*;
 
 use super::axons::*;
 use super::block_trait::*;

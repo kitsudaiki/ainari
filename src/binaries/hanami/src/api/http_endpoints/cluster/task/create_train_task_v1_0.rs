@@ -29,9 +29,9 @@ use crate::database::dataset_table;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{Task, TaskVariant, TrainInfo};
 
-use hanami_common::enums;
-use hanami_dataset::dataset_io::read_data_set_file;
-use hanami_structs::task_structs::{TaskCreateTrainReq, TaskResp, TaskType, TaskState};
+use ainari_common::enums;
+use ainari_dataset::dataset_io::read_data_set_file;
+use ainari_structs::task_structs::{TaskCreateTrainReq, TaskResp, TaskType, TaskState};
 
 #[api_operation(
     tag = "task",

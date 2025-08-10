@@ -31,7 +31,7 @@ cppcheck:
         apt-get install -y cppcheck
     COPY src src
     RUN rm -rf \
-          src/libs/protobuf/hanami_messages.proto3.pb.h
+          src/libs/protobuf/ainari_messages.proto3.pb.h
     RUN cppcheck --error-exitcode=1 src/libs/cpp
 
 
@@ -42,7 +42,7 @@ clang-format:
     RUN rm -rf \
           src/sdk/python \
           src/third-party-libs \
-          src/libs/protobuf/hanami_messages.proto3.pb.h
+          src/libs/protobuf/ainari_messages.proto3.pb.h
     COPY .clang-format .
     RUN find . -regex '.*\.\(h$\|c$\|hpp$\|cpp$\)' | while read f; do \
               clang-format-15 -style=file:.clang-format --dry-run --Werror $f; \
@@ -60,7 +60,7 @@ flake8:
     COPY src src
     COPY testing testing
     COPY .flake8 .flake8
-    RUN rm -rf src/sdk/python/hanami_sdk/hanami_sdk/hanami_messages/proto3_pb2.py src/sdk/python/hanami_sdk/hanami_env src/sdk/python/hanami_sdk/build
+    RUN rm -rf src/sdk/python/ainari_sdk/ainari_sdk/ainari_messages/proto3_pb2.py src/sdk/python/ainari_sdk/ainari_env src/sdk/python/ainari_sdk/build
     RUN flake8 src/sdk/python
 
 
@@ -72,7 +72,7 @@ ansible-lint:
     RUN pip3 install ansible-lint
     COPY deploy deploy
     COPY .ansible-lint .ansible-lint
-    RUN ansible-lint deploy/ansible/openhanami
+    RUN ansible-lint deploy/ansible/ainari
 
 
 secret-scan:
@@ -115,30 +115,30 @@ compile-cli:
         wget -c https://go.dev/dl/go1.22.5.linux-amd64.tar.gz && \
         tar -C /usr/local/ -xzf go1.22.5.linux-amd64.tar.gz
     COPY src src
-    # RUN cd ./src/sdk/go/hanami_sdk && \
-    #     protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
-    RUN cd src/cli/hanamictl && \
+    # RUN cd ./src/sdk/go/ainari_sdk && \
+    #     protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
+    RUN cd src/cli/ainarictl && \
         /usr/local/go/bin/go build .
-    SAVE ARTIFACT ./src/cli/hanamictl/hanamictl /tmp/hanamictl
+    SAVE ARTIFACT ./src/cli/ainarictl/ainarictl /tmp/ainarictl
 
 
 compile-core-lib:
     FROM +prepare-build-dependencies
     RUN cmake -DCMAKE_BUILD_TYPE=Release -Drun_tests=ON  .
     RUN make -j8
-    RUN mkdir /tmp/hanami_core && \
-        find src -type f -executable -exec cp {} /tmp/hanami_core \;
-    SAVE ARTIFACT /tmp/hanami_core /tmp/hanami_core
-    SAVE ARTIFACT /tmp/hanami_core AS LOCAL hanami_core
+    RUN mkdir /tmp/ainari_core && \
+        find src -type f -executable -exec cp {} /tmp/ainari_core \;
+    SAVE ARTIFACT /tmp/ainari_core /tmp/ainari_core
+    SAVE ARTIFACT /tmp/ainari_core AS LOCAL ainari_core
 
 compile-core-lib-debug:
     FROM +prepare-build-dependencies
     RUN cmake -DCMAKE_BUILD_TYPE=Debug -Drun_tests=ON  .
     RUN make -j8
-    RUN mkdir /tmp/hanami_core && \
-        find src -type f -executable -exec cp {} /tmp/hanami_core \;
-    SAVE ARTIFACT /tmp/hanami_core /tmp/hanami_core
-    SAVE ARTIFACT /tmp/hanami_core AS LOCAL hanami_core
+    RUN mkdir /tmp/ainari_core && \
+        find src -type f -executable -exec cp {} /tmp/ainari_core \;
+    SAVE ARTIFACT /tmp/ainari_core /tmp/ainari_core
+    SAVE ARTIFACT /tmp/ainari_core AS LOCAL ainari_core
 
 compile-hanami:
     FROM +prepare-build-dependencies
@@ -151,7 +151,7 @@ compile-hanami:
 
 test-hanami:
     FROM +prepare-build-dependencies
-    COPY example_configs/openhanami /etc/openhanami
+    COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
     RUN cargo test
@@ -166,7 +166,7 @@ build-image:
         apt-get autoremove --yes && \
         chmod +x /usr/bin/hanami
 
-    COPY +compile-code/hanami_core/hanami /usr/bin/
+    COPY +compile-code/ainari_core/hanami /usr/bin/
 
     # run hanami
     ENTRYPOINT ["/usr/bin/hanami"]
@@ -180,7 +180,7 @@ generate-docs:
     ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
 
     COPY +compile-hanami/hanami /tmp/hanami
-    COPY example_configs/openhanami /etc/openhanami
+    COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
         apt-get install -y openssl libsqlite3-0 libgbm-dev xvfb dbus
@@ -191,8 +191,8 @@ generate-docs:
                            python3-venv \
                            wget \
                            curl && \
-        python3 -m venv hanami_env && \
-        . hanami_env/bin/activate && \
+        python3 -m venv ainari_env && \
+        . ainari_env/bin/activate && \
         pip3 install hapless \
                      mkdocs \
                      mkdocs-material \
@@ -203,7 +203,7 @@ generate-docs:
         apt -f -y install ./drawio-amd64-*.deb
 
     RUN chmod +x /tmp/hanami
-    RUN . hanami_env/bin/activate && \
+    RUN . ainari_env/bin/activate && \
         hap run /tmp/hanami && \
         sleep 5 && \
         curl 127.0.0.1:11418/openapi.json > ./open_api_docu.json
@@ -217,7 +217,7 @@ generate-docs:
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
-    RUN . hanami_env/bin/activate && xvfb-run -a mkdocs build --clean
+    RUN . ainari_env/bin/activate && xvfb-run -a mkdocs build --clean
 
     SAVE ARTIFACT site AS LOCAL site
 
@@ -228,9 +228,9 @@ build-docs:
     RUN apt-get update && \
         apt-get install -y python3
 
-    COPY +generate-docs/site /openhanami_docs
+    COPY +generate-docs/site /ainari_docs
 
-    WORKDIR /openhanami_docs
+    WORKDIR /ainari_docs
 
     RUN chown -R ubuntu:ubuntu .
     USER ubuntu

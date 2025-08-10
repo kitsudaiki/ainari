@@ -60,7 +60,7 @@ pub struct Database {
 
 // Global singleton config
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/openhanami/hanami.toml";
+    let file_path = "/etc/ainari/hanami.toml";
     log::debug!("read config '{}'", file_path);
 
     match fs::read_to_string(&file_path) {

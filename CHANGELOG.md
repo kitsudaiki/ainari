@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-Translated the rest of the C++-code into Rust
+- Renamed project from OpenHanami to Ainari
+- Translated the rest of the C++-code into Rust
 
 ### BREAKING-CHANGES
 
@@ -169,7 +170,7 @@ Translated big parts of the program from C++ into Rust:
 
 ### Changed
 
-- renamed repo from `Hanami` to `OpenHanami`
+- renamed repo from `Hanami` to `Ainari`
 - tls-termination in kubernetes setup was moved from the ingress into a container within the same pod like the hanami-process
 - number of input- and output-neurons now scales with the given data, so defining them hard inside of the cluster-template is not longer necessary
 - moved converting user-context from the endpoints to a central position to avoid unnecessary redundant code
@@ -288,7 +289,7 @@ Translated big parts of the program from C++ into Rust:
 
 ### Removed
 
-- the `common`-directory in Hanami was removed and most of the functions were moved to the `hanami_common`-lib
+- the `common`-directory in Hanami was removed and most of the functions were moved to the `ainari_common`-lib
 - disabled CUDA-kernel, because at the moment it doesn't brings a performance increasement, but only slows down the development (will be added in the future again, after finding a better use-case for the GPU)
 - disabled dashboard and moved it to the archive subdirectory (will be added in the future again, after a complete refactoring of the code)
 - removed old OpenCL-kernel
@@ -468,7 +469,7 @@ Translated big parts of the program from C++ into Rust:
 ### Changed
 
 - Rename repository/project from `Hanami-AI` to `Hanami`
-- Renamed libraries to `hanami_...` and namespaces of the libraries to `Hanami`, because the originally naming and structure was from the time, when they were separate repositores and desired also for other projects. The new naming makes the names shorter and easier.
+- Renamed libraries to `ainari_...` and namespaces of the libraries to `Hanami`, because the originally naming and structure was from the time, when they were separate repositores and desired also for other projects. The new naming makes the names shorter and easier.
 - replace custom jwt lib by `jwt-cpp` (https://github.com/Thalhammer/jwt-cpp)
 - REST-API documentation is now generated as OpenAPI-specification and added to the documentation via swagger-ui
 - merged networking-libraries in context of the renaming

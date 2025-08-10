@@ -16,8 +16,8 @@ use rand::Rng;
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
  
-use hanami_common::constants::*;
-use hanami_common::enums::*;
+use ainari_common::constants::*;
+use ainari_common::enums::*;
 
 use super::axons::*;
 use super::block_trait::*;
@@ -395,7 +395,7 @@ impl Block for NewCoreBlock {
 mod tests {
     use uuid::Uuid;
 
-    use hanami_common::constants::*;
+    use ainari_common::constants::*;
 
     use super::*;
 

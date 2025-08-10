@@ -23,8 +23,8 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 
-use hanami_common::error::HanamiError;
-use hanami_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
+use ainari_common::error::HanamiError;
+use ainari_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
 
 #[api_operation(
     tag = "cluster",

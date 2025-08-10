@@ -35,7 +35,7 @@ At the moment only CPU related information are collected. The collected data are
 
 The only energy-optimization, at least for now, is thread-binding.
 
-Each thread, which is created with the thread-class of the library `hanami_common`, has a name
+Each thread, which is created with the thread-class of the library `ainari_common`, has a name
 attached. With this name the thread is accessible over the singleton thread-manager-class and can be
 accessed from anywhere in the code. Additionally the thread-class possess the ability to bind the
 thread to one or more CPU-threads to enforce the location on the CPU, where the thread should be

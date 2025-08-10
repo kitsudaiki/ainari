@@ -19,7 +19,7 @@ use serde::{Serialize, Deserialize};
 use crate::core::cluster_handler::*;
 use crate::core::processing::worker_queue::*;
 
-use hanami_common::constants::*;
+use ainari_common::constants::*;
 
 use super::axons::*;
 

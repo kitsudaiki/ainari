@@ -22,7 +22,7 @@ use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 use crate::core::cluster_handler;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "cluster",
