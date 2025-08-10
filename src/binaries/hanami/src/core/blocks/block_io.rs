@@ -18,6 +18,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::core::cluster_handler::*;
 use crate::core::processing::worker_queue::*;
+use crate::core::blocks::target_search::*;
 
 use ainari_common::constants::*;
 
@@ -39,7 +40,7 @@ pub fn connect_outputs(io_buffer: &mut BlockIoBuffer, cluster_uuid: &Uuid, sourc
     let mut counter = 0;
     for axon_section in io_buffer.output_buffer.iter_mut() {
         if axon_section.target_pos == UNINIT_STATE_8 {
-            let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+            // let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
             
             // set source-values for the axon-section
             axon_section.cluster_uuid = cluster_uuid.clone();
@@ -47,7 +48,8 @@ pub fn connect_outputs(io_buffer: &mut BlockIoBuffer, cluster_uuid: &Uuid, sourc
             axon_section.source_block_uuid = source_block_uuid.clone();
             axon_section.source_pos = counter;
 
-            cluster_handler.get_target(axon_section);
+            // cluster_handler.get_target(axon_section);
+            connect_to_target(axon_section);
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             let cluster_handler = CLUSTER_HANDLER.read().unwrap();
             axon_section.cluster_uuid = cluster_uuid.clone();

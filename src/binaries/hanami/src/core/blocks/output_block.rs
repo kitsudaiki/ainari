@@ -104,7 +104,6 @@ impl OutputBlock {
     fn connect_output_buffer(&mut self) {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
-            // ERROR: can hang here
             let root_handler = CLUSTER_HANDLER.read().unwrap();
             if let Some(output_buffer_mutex) = root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name) {
                 self.output_buffer = Some(output_buffer_mutex.clone());
