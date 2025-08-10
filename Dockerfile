@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && \
         apt-get install -y git \
                            ssh \
+                           gcc \
                            rustup \
                            libsqlite3-dev
 
