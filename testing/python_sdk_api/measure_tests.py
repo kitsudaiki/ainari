@@ -16,11 +16,11 @@
 
 import matplotlib
 import matplotlib.pyplot as plt
-from hanami_sdk import hanami_token
-from hanami_sdk import cluster
-from hanami_sdk import dataset
-from hanami_sdk import task
-from hanami_sdk import direct_io
+from ainari_sdk import ainari_token
+from ainari_sdk import cluster
+from ainari_sdk import dataset
+from ainari_sdk import task
+from ainari_sdk import direct_io
 import configparser
 import urllib3
 import time
@@ -53,7 +53,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 matplotlib.use('Qt5Agg')
 
 config = configparser.ConfigParser()
-config.read('/etc/openhanami/hanami_testing.conf')
+config.read('/etc/ainari/hanami_testing.conf')
 
 address = config["connection"]["address"]
 test_user_id = config["connection"]["test_user"]
@@ -85,7 +85,7 @@ template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 
-token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
+token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
 
 # initial cleanup for the case of leftovers from previous run
 dataset.delete_all_datasets(token, address, False)

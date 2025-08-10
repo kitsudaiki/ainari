@@ -26,7 +26,7 @@ runs:
       uses: peaceiris/actions-gh-pages@v4
       with:
         personal_token: ${{ inputs.github_token }}
-        external_repository: kitsudaiki/OpenHanami-badges
+        external_repository: kitsudaiki/Ainari-badges
         publish_branch: ${{ inputs.branch_name }}
         publish_dir: ./badges
         keep_files: true

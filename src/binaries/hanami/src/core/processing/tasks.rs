@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use hanami_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
+use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
 #[derive(Debug)]
 pub struct TrainInfo {

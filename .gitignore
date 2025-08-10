@@ -5,18 +5,18 @@ docs/drawio-exporter
 __pycache__
 
 docs_env
-hanami_env
+ainari_env
 target
 
-testing/go_cli_api/hanamictl
+testing/go_cli_api/ainarictl
 testing/ansible_deploy/.vagrant/
 
-src/cli/hanamictl/hanamictl
+src/cli/ainarictl/ainarictl
 src/sdk/python/sdk_test_env
-src/sdk/python/hanami_sdk/dist
-src/sdk/python/hanami_sdk/build
-src/sdk/python/hanami_sdk/hanami_sdk.egg-info
-src/sdk/python/hanami_sdk/hanami_messages
+src/sdk/python/ainari_sdk/dist
+src/sdk/python/ainari_sdk/build
+src/sdk/python/ainari_sdk/ainari_sdk.egg-info
+src/sdk/python/ainari_sdk/ainari_messages
 
 gitIdentityChange.sh
 proto3_pb2.py

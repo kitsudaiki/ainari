@@ -4,11 +4,11 @@ version = "0.8.0"
 edition = "2024"
 
 [dependencies]
-hanami_dataset = { path = "../../libs/rust/hanami_dataset" }
-hanami_common = { path = "../../libs/rust/hanami_common" }
-hanami_cluster_parser = { path = "../../libs/rust/hanami_cluster_parser" }
-hanami_structs = { path = "../../libs/rust/hanami_structs" }
-hanami_hardware = { path = "../../libs/rust/hanami_hardware" }
+ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
+ainari_common = { path = "../../libs/rust/ainari_common" }
+ainari_cluster_parser = { path = "../../libs/rust/ainari_cluster_parser" }
+ainari_structs = { path = "../../libs/rust/ainari_structs" }
+ainari_hardware = { path = "../../libs/rust/ainari_hardware" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"

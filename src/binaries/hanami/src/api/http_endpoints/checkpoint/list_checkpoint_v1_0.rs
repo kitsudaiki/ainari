@@ -20,7 +20,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::checkpoint_table;
 
-use hanami_structs::checkpoint_structs::{CheckpointBasicResp, CheckpointListResp};
+use ainari_structs::checkpoint_structs::{CheckpointBasicResp, CheckpointListResp};
 
 #[api_operation(
     tag = "checkpoint",

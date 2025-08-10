@@ -26,8 +26,8 @@ use rand::{
 use crate::database::db_handle;
 use crate::api::user_context::UserContext;
 
-use hanami_common::functions::sha256_hash;
-use hanami_common::enums;
+use ainari_common::functions::sha256_hash;
+use ainari_common::enums;
 
 // Define the schema
 table! {

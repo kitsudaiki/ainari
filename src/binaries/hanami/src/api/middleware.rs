@@ -20,7 +20,7 @@ use actix_web::{
 };
 
 use crate::api::{token_handling, errors::ErrorResponse};
-use hanami_common::functions::split_bearer_token;
+use ainari_common::functions::split_bearer_token;
 
 pub async fn authorization_middleware(
     req: ServiceRequest,

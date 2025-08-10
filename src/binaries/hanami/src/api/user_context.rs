@@ -19,7 +19,7 @@ use apistos::ApiSecurity;
 use futures::future::{ready, Ready};
 use serde::{Deserialize, Serialize};
 
-use hanami_common::functions::split_bearer_token;
+use ainari_common::functions::split_bearer_token;
 use crate::api::token_handling;
 
 #[derive(ApiSecurity, Debug, Serialize, Deserialize)]

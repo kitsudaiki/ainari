@@ -16,12 +16,12 @@ it easier for a new person to understand the code.
     ├── src
     │   ├── archive
     │   │   ├── frontend
-    │   │   │   └── OpenHanami-Dashboard
+    │   │   │   └── Ainari-Dashboard
     │   │   └── sdk
     │   │       └── javascript
     │   │
     │   ├── cli
-    │   │   └── hanamictl
+    │   │   └── ainarictl
     │   │       ├── common
     │   │       └── resources
     │   │
@@ -31,13 +31,13 @@ it easier for a new person to understand the code.
     │   │
     │   ├── libs
     │   │   ├── cpp
-    │   │   │   └── hanami_core
+    │   │   │   └── ainari_core
     │   │   ├── rust
-    │   │   │   ├── hanami_cluster_parser
-    │   │   │   ├── hanami_common
-    │   │   │   ├── hanami_hardware
-    │   │   │   ├── hanami_structs
-    │   │   │   └── hanami_dataset
+    │   │   │   ├── ainari_cluster_parser
+    │   │   │   ├── ainari_common
+    │   │   │   ├── ainari_hardware
+    │   │   │   ├── ainari_structs
+    │   │   │   └── ainari_dataset
     │   │   └── protobuf
     │   │
     │   └── sdk
@@ -82,15 +82,15 @@ it easier for a new person to understand the code.
         
         -   **rust**
 
-            -   **hanami_cluster_parser**
+            -   **ainari_cluster_parser**
 
                 Contains the parser for the cluster-templates.
 
-            -   **hanami_common**
+            -   **ainari_common**
 
                 Common rust-functions used in the project.
 
-            -   **hanami_dataset**
+            -   **ainari_dataset**
 
                 Contains functions to read and write dataset-files.
         

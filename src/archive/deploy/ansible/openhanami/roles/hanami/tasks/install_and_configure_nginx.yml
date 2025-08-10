@@ -10,20 +10,20 @@
 - name: Create nginx-config from template
   become: true
   template:
-    src: hanami_nginx.conf.j2
+    src: ainari_nginx.conf.j2
     dest: /etc/nginx/sites-enabled/hanami.conf
     mode: "0777"
 
 
 - name: Create private key for self-signed certificate
   community.crypto.openssl_privatekey:
-    path: "{{ hanami_ssl_key_path }}"
+    path: "{{ ainari_ssl_key_path }}"
     type: RSA
 
 - name: Create simple self-signed certificate
   community.crypto.x509_certificate:
-    path: "{{ hanami_ssl_cert_path }}"
-    privatekey_path: "{{ hanami_ssl_key_path }}"
+    path: "{{ ainari_ssl_cert_path }}"
+    privatekey_path: "{{ ainari_ssl_key_path }}"
     provider: selfsigned
 
 

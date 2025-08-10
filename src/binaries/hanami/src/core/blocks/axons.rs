@@ -17,7 +17,7 @@ use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use serde_big_array::BigArray;
 
-use hanami_common::constants::*;
+use ainari_common::constants::*;
 
 use super::block_trait::*;
 

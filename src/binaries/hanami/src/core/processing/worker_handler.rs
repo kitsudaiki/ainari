@@ -16,8 +16,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::config;
 
-use hanami_hardware::cpu::*;
-use hanami_hardware::memory::*;
+use ainari_hardware::cpu::*;
+use ainari_hardware::memory::*;
 
 use super::worker_thread::WorkerThread;
 

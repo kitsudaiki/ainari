@@ -1,0 +1,28 @@
+apiVersion: v1
+metadata:
+  name: hanami-config
+data:
+  hanami.toml: |+
+    debug = true
+    log_path = ""
+
+    [storage]
+    dataset_location = "/etc/ainari/data/datasets"
+    checkpoint_location = "/etc/ainari/data/checkpoints"
+    tempfile_location = "/etc/ainari/data/tempfiles"
+
+    [processing]
+    use_of_free_memory = {{ .Values.processing.use_of_free_memory }}
+
+    [auth]
+    token_key_path = "/etc/ainari/token_key"
+    token_expire_time = {{ .Values.token.expire_time }}
+
+    [api]
+    ip = "127.0.0.1"
+    port = 11418
+
+    [database]
+    file_path = "/etc/ainari/data/ainari_db"
+
+kind: ConfigMap

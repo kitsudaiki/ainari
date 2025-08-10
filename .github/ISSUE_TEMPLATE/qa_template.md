@@ -3,7 +3,7 @@ name: Quality Assurance
 about: Use this template for qulity improvements in source-code and documentation and minor fixes like typos, missing comments and so on, or other improvements, which doesn't affect the program itself.
 title: '[QA]: '
 labels: QA, New issue
-projects: OpenHanami
+projects: Ainari
 assignees: kitsudaiki
 ---
 

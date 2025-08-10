@@ -28,10 +28,10 @@ use crate::api::errors::ErrorResponse;
 use crate::database::dataset_table;
 use crate::config;
 
-use hanami_dataset::converter::{load_mnist_images, load_csv_file};
-use hanami_dataset::dataset_io::read_data_set_file;
-use hanami_common::error::HanamiError;
-use hanami_structs::dataset_structs::DatasetResp;
+use ainari_dataset::converter::{load_mnist_images, load_csv_file};
+use ainari_dataset::dataset_io::read_data_set_file;
+use ainari_common::error::HanamiError;
+use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",

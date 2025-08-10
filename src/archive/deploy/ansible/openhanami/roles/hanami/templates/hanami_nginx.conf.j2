@@ -2,21 +2,21 @@ server
 {
     listen 80;
     server_tokens off;
-    server_name {{hanami_listen_address}};
+    server_name {{ainari_listen_address}};
     return 301 https://$host$request_uri;
 }
 
 server
 {
     server_tokens off;
-    server_name {{hanami_listen_address}};
+    server_name {{ainari_listen_address}};
 
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
 
     #certs sent to the client in SERVER HELLO are concatenated in ssl_certificate
-    ssl_certificate {{ hanami_ssl_cert_path }};
-    ssl_certificate_key {{ hanami_ssl_key_path }};
+    ssl_certificate {{ ainari_ssl_cert_path }};
+    ssl_certificate_key {{ ainari_ssl_key_path }};
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:50m;
     ssl_session_tickets off;
@@ -42,8 +42,8 @@ server
 
     # resolver <IP DNS resolver>;
 
-    access_log /var/log/hanami/hanami_access.log;
-    error_log  /var/log/hanami/hanami_error.log;
+    access_log /var/log/hanami/ainari_access.log;
+    error_log  /var/log/hanami/ainari_error.log;
 
     location / {
         proxy_redirect      off;

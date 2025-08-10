@@ -3,7 +3,7 @@
   ansible.builtin.include_tasks:
     file: install_docker.yml
 
-- name: Deploy OpenHanami
+- name: Deploy Ainari
   ansible.builtin.include_tasks:
     file: deploy_hanami.yml
 

@@ -1,14 +1,14 @@
 # Core
 
 This is a short overview of the current state of the core-function. The concept is still under
-development and permanently updated while working on the code of OpenHanami.
+development and permanently updated while working on the code of Ainari.
 
 Reference implementation of the core functions, which are describe by this chapter:
 
--   [Processing](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/core_processing.h)
--   [Backpropagation](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/core_backpropagation.h)
--   [Output-Processing](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/output_processing.h)
--   [Output-Backpropagation](https://github.com/kitsudaiki/OpenHanami/blob/develop/src/hanami/src/core/processing/cpu/output_backpropagation.h)
+-   [Processing](https://github.com/kitsudaiki/Ainari/blob/develop/src/hanami/src/core/processing/cpu/core_processing.h)
+-   [Backpropagation](https://github.com/kitsudaiki/Ainari/blob/develop/src/hanami/src/core/processing/cpu/core_backpropagation.h)
+-   [Output-Processing](https://github.com/kitsudaiki/Ainari/blob/develop/src/hanami/src/core/processing/cpu/output_processing.h)
+-   [Output-Backpropagation](https://github.com/kitsudaiki/Ainari/blob/develop/src/hanami/src/core/processing/cpu/output_backpropagation.h)
 
 ## Basic architecture
 

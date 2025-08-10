@@ -2,7 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: pip
-    directory: "/src/sdk/python/hanami_sdk/"
+    directory: "/src/sdk/python/ainari_sdk/"
     schedule:
       interval: daily
       time: "12:00"
@@ -26,7 +26,7 @@ updates:
         versions: '> 3.20.3'
 
   - package-ecosystem: gomod
-    directory: "/src/cli/hanamictl/"
+    directory: "/src/cli/ainarictl/"
     schedule:
       interval: daily
       time: "12:00"

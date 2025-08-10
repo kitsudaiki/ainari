@@ -15,7 +15,7 @@
 -   Clone repository with submodules
 
     ```bash
-    git clone https://github.com/kitsudaiki/OpenHanami.git
+    git clone https://github.com/kitsudaiki/Ainari.git
     ```
 
 ## Build hamami plain
@@ -23,7 +23,7 @@
 -   Compile hanami
 
     ```bash
-    cd OpenHanami
+    cd Ainari
 
     cargo build --release
     ```
@@ -69,10 +69,10 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 
 -   Install [earthly](https://github.com/earthly/earthly)
 
--   build protobuf-messages within the hanami_sdk directory
+-   build protobuf-messages within the ainari_sdk directory
 
     ```bash
-    earthly --artifact +compile-cli/tmp/hanamictl ./builds/
+    earthly --artifact +compile-cli/tmp/ainarictl ./builds/
     ```
 
 -   then you have a new local directory `builds`, where the resulting binary of the build-process is
@@ -91,8 +91,8 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 <!-- -   build protobuf-messages and package
 
     ```bash
-    cd ./src/sdk/python/hanami_sdk/hanami_sdk
-    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
+    cd ./src/sdk/python/ainari_sdk/ainari_sdk
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  ainari_messages.proto3
     cd ..
     python3 setup.py bdist_wheel --universal
     ``` -->
@@ -134,14 +134,14 @@ also line-numbers are marked. To update the file to get the test green again:
     !!! example
 
         ```bash
-        earthly +docs --image_name=hanami_docs:test
+        earthly +docs --image_name=ainari_docs:test
         ```
 
 -   The documentation listen on port 8000 within the docker-container. So the port has to be
     forwarded into the container:
 
     ```bash
-    docker run -p 127.0.0.1:8080:8000 hanami_docs:test
+    docker run -p 127.0.0.1:8080:8000 ainari_docs:test
     ```
 
 -   After this within the browser the addess `127.0.0.1:8080` can be entered to call the
@@ -168,8 +168,8 @@ also line-numbers are marked. To update the file to get the test green again:
 -   checkout repository and run the local server
 
     ```bash
-    git clone --recurse-submodules https://github.com/kitsudaiki/OpenHanami.git
-    cd OpenHanami
+    git clone --recurse-submodules https://github.com/kitsudaiki/Ainari.git
+    cd Ainari
 
     mkdocs serve
     ```

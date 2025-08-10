@@ -29,11 +29,11 @@ directly with the neural network via the python-version of the SDK. See for furt
     ```
 
 -   Download the pre-build binary of the CLI-client from the
-    [file-share](https://files.openhanami.com/)
+    [file-share](https://files.ainari.cloud/)
 
     !!! info
 
-          Because the rollout still use self-signed certificates, for the following `hanamictl`-commands the `--insecure`-flag has to be used to avoid tls-check. Will be changed in the near future.
+          Because the rollout still use self-signed certificates, for the following `ainarictl`-commands the `--insecure`-flag has to be used to avoid tls-check. Will be changed in the near future.
 
 -   Export env-variables for connect and login-information:
 
@@ -57,16 +57,16 @@ directly with the neural network via the python-version of the SDK. See for furt
 
     ```bash
     # train-data
-    ./hanamictl dataset create mnist --insecure -i ./train-images-idx3-ubyte -l ./train-labels-idx1-ubyte train_data
+    ./ainarictl dataset create mnist --insecure -i ./train-images-idx3-ubyte -l ./train-labels-idx1-ubyte train_data
 
     # test-data
-    ./hanamictl dataset create mnist --insecure -i ./t10k-images-idx3-ubyte -l ./t10k-labels-idx1-ubyte test_data
+    ./ainarictl dataset create mnist --insecure -i ./t10k-images-idx3-ubyte -l ./t10k-labels-idx1-ubyte test_data
     ```
 
     !!! example
 
           ```bash
-          ./hanamictl dataset create mnist --insecure -i ./train-images-idx3-ubyte -l ./train-labels-idx1-ubyte train_data
+          ./ainarictl dataset create mnist --insecure -i ./train-images-idx3-ubyte -l ./train-labels-idx1-ubyte train_data
           +-------------------+-----------------------------------------------------------------------------------------------+
           | UUID              | ac404414-9bc3-4be6-85b6-1c76efad7c6e                                                          |
           | NAME              | train_data                                                                                    |
@@ -80,7 +80,7 @@ directly with the neural network via the python-version of the SDK. See for furt
           | CREATED AT        | 2024-08-11 13:16:54                                                                           |
           +-------------------+-----------------------------------------------------------------------------------------------+
 
-          ./hanamictl dataset create mnist --insecure -i ./t10k-images-idx3-ubyte -l ./t10k-labels-idx1-ubyte test_data
+          ./ainarictl dataset create mnist --insecure -i ./t10k-images-idx3-ubyte -l ./t10k-labels-idx1-ubyte test_data
           +-------------------+-----------------------------------------------------------------------------------------------+
           | UUID              | a42dce48-d4b6-40f9-a8d8-0c22d48e2a4d                                                          |
           | NAME              | test_data                                                                                     |
@@ -98,13 +98,13 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   Can be listed with
 
     ```bash
-    ./hanamictl dataset list --insecure
+    ./ainarictl dataset list --insecure
     ```
 
     !!! example
 
           ```bash
-          ./hanamictl dataset list --insecure
+          ./ainarictl dataset list --insecure
           +--------------------------------------+------------+------------+----------+------------+---------------------+
           |                 UUID                 |    NAME    | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
           +--------------------------------------+------------+------------+----------+------------+---------------------+
@@ -142,13 +142,13 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   Create cluster from the template
 
     ```bash
-    ./hanamictl cluster create --insecure -t ./cluster_template test_cluster
+    ./ainarictl cluster create --insecure -t ./cluster_template test_cluster
     ```
 
     !!! example
 
           ```
-          ./hanamictl cluster create --insecure -t ./cluster_template test_cluster
+          ./ainarictl cluster create --insecure -t ./cluster_template test_cluster
           +------------+--------------------------------------+
           | UUID       | c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 |
           | NAME       | test_cluster                         |
@@ -162,7 +162,7 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   create task to train the cluster
 
     ```bash
-    ./hanamictl task create train --insecure \
+    ./ainarictl task create train --insecure \
     -i <UUID_OF_THE_TRAIN_DATASET>:picture:picture_hexagon \
     -o <UUID_OF_THE_TRAIN_DATASET>:label:label_hexagon \
     -c <UUID_OF_THE_CLUSTER> \
@@ -176,7 +176,7 @@ directly with the neural network via the python-version of the SDK. See for furt
     !!! example
 
           ```bash
-          ./hanamictl task create train --insecure \
+          ./ainarictl task create train --insecure \
           -i 423ba6da-ca2a-4603-81bb-300326a10176:picture:picture_hexagon \
           -o 423ba6da-ca2a-4603-81bb-300326a10176:label:label_hexagon \
           -c c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 \
@@ -196,13 +196,13 @@ directly with the neural network via the python-version of the SDK. See for furt
     The task runs in the background by a task-queue. The status of the task can be checked with
 
     ```bash
-    ./hanamictl task get --insecure -c <CLUSTER_UUID> <TASK_UUID>
+    ./ainarictl task get --insecure -c <CLUSTER_UUID> <TASK_UUID>
     ```
 
     !!! example
 
           ```bash
-          ./hanamictl task get --insecure -c  c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 ae28638c-6856-439e-af3b-71ae509363e9
+          ./ainarictl task get --insecure -c  c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 ae28638c-6856-439e-af3b-71ae509363e9
           +------------------------+--------------------------------------+
           | UUID                   | ae28638c-6856-439e-af3b-71ae509363e9 |
           | STATE                  | finished                             |
@@ -221,7 +221,7 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   create task to test the cluster
 
     ```bash
-    ./hanamictl task create request --insecure \
+    ./ainarictl task create request --insecure \
     -i <UUID_OF_THE_TEST_DATASET>:picture:picture_hexagon \
     -r label_hexagon:test_output \
     -c <UUID_OF_THE_CLUSTER> \
@@ -234,7 +234,7 @@ directly with the neural network via the python-version of the SDK. See for furt
     !!! example
 
           ```bash
-          ./hanamictl task create request --insecure \
+          ./ainarictl task create request --insecure \
           -i a42dce48-d4b6-40f9-a8d8-0c22d48e2a4d:picture:picture_hexagon \
           -r label_hexagon:test_output \
           -c c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 \
@@ -254,7 +254,7 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   check accuracy of the new resulting dataset
 
     ```bash
-    ./hanamictl dataset check --insecure -r <UUID_OF_THE_TEST_DATASET> <UUID_OF_THE_NEW_CREATED_DATASET>
+    ./ainarictl dataset check --insecure -r <UUID_OF_THE_TEST_DATASET> <UUID_OF_THE_NEW_CREATED_DATASET>
     ```
 
     !!! info
@@ -264,7 +264,7 @@ directly with the neural network via the python-version of the SDK. See for furt
     !!! example
 
           ```bash
-          ./hanamictl dataset list --insecure
+          ./ainarictl dataset list --insecure
           +--------------------------------------+-------------+------------+----------+------------+---------------------+
           |                 UUID                 |    NAME     | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
           +--------------------------------------+-------------+------------+----------+------------+---------------------+
@@ -273,7 +273,7 @@ directly with the neural network via the python-version of the SDK. See for furt
           | 36f70489-c71c-48d7-9e08-a766507df5de | test_output | private    | asdf     | admin      | 2024-08-11 13:27:49 |
           +--------------------------------------+-------------+------------+----------+------------+---------------------+
 
-          ./hanamictl dataset check --insecure -r a42dce48-d4b6-40f9-a8d8-0c22d48e2a4d 36f70489-c71c-48d7-9e08-a766507df5de
+          ./ainarictl dataset check --insecure -r a42dce48-d4b6-40f9-a8d8-0c22d48e2a4d 36f70489-c71c-48d7-9e08-a766507df5de
           +----------+-------------------+
           | ACCURACY | 91.86000061035156 |
           +----------+-------------------+
@@ -284,7 +284,7 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   get the part of the resulting dataset
 
     ```bash
-    ./hanamictl dataset content --insecure -c test_output -o 100 -n 10 <UUID_OF_THE_NEW_CREATED_DATASET>
+    ./ainarictl dataset content --insecure -c test_output -o 100 -n 10 <UUID_OF_THE_NEW_CREATED_DATASET>
     ```
 
     This prints the data of the lines 100 - 110 of the segment names `test_output` of the dataset
@@ -292,7 +292,7 @@ directly with the neural network via the python-version of the SDK. See for furt
     !!! example
 
           ```bash
-          ./hanamictl dataset content --insecure -c test_output -o 100 -n 10  36f70489-c71c-48d7-9e08-a766507df5de
+          ./ainarictl dataset content --insecure -c test_output -o 100 -n 10  36f70489-c71c-48d7-9e08-a766507df5de
           +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
           |     |    0     |    1     |    2     |    3     |    4     |    5     |    6     |    7     |    8     |    9     |
           +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+

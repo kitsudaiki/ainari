@@ -48,7 +48,7 @@ Run in the root of the repository:
 ```bash
 cd deploy/ansible/
 
-ansible-playbook --connection=local -i openhanami/inventory.yml openhanami/deploy.yml
+ansible-playbook --connection=local -i ainari/inventory.yml ainari/deploy.yml
 ```
 
 The resulting setup will listen on `0.0.0.0` and port `443` and `80`.
@@ -74,5 +74,5 @@ cd testing/ansible_deploy
 vagrant up
 ```
 
-It will create a virtualbox-VM with ubuntu 22.04 and automatically deploy OpenHanami with the
+It will create a virtualbox-VM with ubuntu 22.04 and automatically deploy Ainari with the
 ansible-playbook.

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # build protobuffer for go sdk
-#pushd ../../src/sdk/go/hanami_sdk
-#protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
+#pushd ../../src/sdk/go/ainari_sdk
+#protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
 #popd
 
 # build cli-binarygolangci-lint
-pushd ../../src/cli/hanamictl
+pushd ../../src/cli/ainarictl
 go build .
 popd
-cp ../../src/cli/hanamictl/hanamictl .
+cp ../../src/cli/ainarictl/ainarictl .
 

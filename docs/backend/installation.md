@@ -16,14 +16,14 @@ For the installation on a kubernetes `helm` is used.
 | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
 
 [img_kubernetes-1_30]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
 [img_kubernetes-1_31]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
 [img_kubernetes-1_32]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
 [img_kubernetes-1_33]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/OpenHanami-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
-[Workflow]: https://github.com/kitsudaiki/OpenHanami/actions/workflows/build_test.yml
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
+[Workflow]: https://github.com/kitsudaiki/Ainari/actions/workflows/build_test.yml
 
 ### Requirements
 
@@ -103,7 +103,7 @@ For the installation on a kubernetes `helm` is used.
 
     !!! info
 
-        At the moment OpenHanami is only a single-node application. This will change in the near future, but at the moment it doesn't make sense to label more than one node.
+        At the moment Ainari is only a single-node application. This will change in the near future, but at the moment it doesn't make sense to label more than one node.
 
 <!-- 3. If measuring of the cpu power consumption should be available, then the following requirements must be fulfilled on the hosts of the kubernetes-deployment:
 
@@ -121,9 +121,9 @@ For the installation on a kubernetes `helm` is used.
 **From repository**
 
 ```bash
-git clone https://github.com/kitsudaiki/OpenHanami.git
+git clone https://github.com/kitsudaiki/Ainari.git
 
-cd OpenHanami/deploy/k8s
+cd Ainari/deploy/k8s
 
 helm install \
     --set docker.tag=DOCKER_IMAGE_TAG \
@@ -132,13 +132,13 @@ helm install \
     --set user.passphrase=PASSPHRASE  \
     --set token.data=TOKEN_KEY  \
     --set api.domain=DOMAIN_NAME  \
-    openhanami \
-    ./openhanami/
+    ainari \
+    ./ainari/
 ```
 
 **From pre-build**
 
-Download the helm-chart from the [file-share](https://files.openhanami.com/)
+Download the helm-chart from the [file-share](https://files.ainari.cloud/)
 
 ```bash
 helm install \
@@ -148,8 +148,8 @@ helm install \
     --set user.passphrase=PASSPHRASE  \
     --set token.data=TOKEN_KEY  \
     --set api.domain=DOMAIN_NAME  \
-    openhanami \
-    openhanami-x.y.z.tgz
+    ainari \
+    ainari-x.y.z.tgz
 ```
 
 The `--set`-flag defining the login-information for the initial admin-user of the instance:
@@ -242,5 +242,5 @@ system.
 
     !!! note
 
-        Persistent data of hanami (checkpoints and so on) within the pod are mounted into the host directory `/etc/openhanami_data`, in case you want to save or delete them.
+        Persistent data of hanami (checkpoints and so on) within the pod are mounted into the host directory `/etc/ainari_data`, in case you want to save or delete them.
 

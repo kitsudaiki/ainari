@@ -22,9 +22,9 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use hanami_common::enums;
-use hanami_dataset::dataset_io::read_data_set_file;
-use hanami_structs::dataset_structs::DatasetResp;
+use ainari_common::enums;
+use ainari_dataset::dataset_io::read_data_set_file;
+use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",
