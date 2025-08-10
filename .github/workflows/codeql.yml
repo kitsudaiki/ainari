@@ -49,8 +49,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - language: c-cpp
-          build-mode: autobuild
+        # - language: c-cpp
+        #   build-mode: autobuild
         - language: go
           build-mode: autobuild
         # - language: javascript-typescript
@@ -90,17 +90,17 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - if: matrix.language == 'c-cpp'
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install bison \
-                           flex \
-                           libssl-dev \
-                           nlohmann-json3-dev \
-                           uuid-dev  \
-                           libsqlite3-dev \
-                           protobuf-compiler
+    # - if: matrix.language == 'c-cpp'
+    #   shell: bash
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install bison \
+    #                        flex \
+    #                        libssl-dev \
+    #                        nlohmann-json3-dev \
+    #                        uuid-dev  \
+    #                        libsqlite3-dev \
+    #                        protobuf-compiler
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
