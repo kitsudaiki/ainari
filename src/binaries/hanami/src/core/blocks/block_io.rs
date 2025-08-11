@@ -21,6 +21,7 @@ use crate::core::cluster_handler::*;
 use crate::core::processing::worker_queue::*;
 
 use ainari_common::constants::*;
+use ainari_common::error::AinariError;
 
 use super::axons::*;
 
@@ -40,7 +41,7 @@ pub fn connect_outputs(
     cluster_uuid: &Uuid,
     source_hexagon_uuid: &Uuid,
     source_block_uuid: &Uuid,
-) {
+) -> Result<(), AinariError> {
     // in case of training, get targets for all not-connected axon-sections
     let mut counter = 0;
     for axon_section in io_buffer.output_buffer.iter_mut() {
@@ -54,24 +55,26 @@ pub fn connect_outputs(
             axon_section.source_pos = counter;
 
             // cluster_handler.get_target(axon_section);
-            connect_to_target(axon_section);
+            connect_to_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             let cluster_handler = CLUSTER_HANDLER.read().unwrap();
             axon_section.cluster_uuid = cluster_uuid.clone();
-            axon_section.source_block = cluster_handler.get_block(
+            axon_section.source_block = Some(cluster_handler.get_block(
                 &cluster_uuid,
                 &axon_section.source_hexagon_uuid,
                 &axon_section.source_block_uuid,
-            );
-            axon_section.target_block = cluster_handler.get_block(
+            )?);
+            axon_section.target_block = Some(cluster_handler.get_block(
                 &cluster_uuid,
                 &axon_section.target_hexagon_uuid,
                 &axon_section.target_block_uuid,
-            );
+            )?);
         }
 
         counter += 1;
     }
+
+    Ok(())
 }
 
 pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {

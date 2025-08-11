@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 use ainari_common::functions::*;
 
 use super::axons::*;
@@ -404,7 +405,7 @@ fn backpropagate_section(
 // ==================================================================================================
 
 impl Block for CoreBlock {
-    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
+    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
         let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
@@ -458,11 +459,13 @@ impl Block for CoreBlock {
             &self.cluster_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        );
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Train);
+
+        Ok(())
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<(), AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
 
@@ -495,11 +498,13 @@ impl Block for CoreBlock {
             &self.cluster_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        );
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Process);
+
+        Ok(())
     }
 
-    fn backpropagate(&mut self) {
+    fn backpropagate(&mut self) -> Result<(), AinariError> {
         for (i, conn) in self.connections.iter_mut().enumerate() {
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
@@ -515,6 +520,8 @@ impl Block for CoreBlock {
         }
 
         send_backward(&self.block_io);
+
+        Ok(())
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {

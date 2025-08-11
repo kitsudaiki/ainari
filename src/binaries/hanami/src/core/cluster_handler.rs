@@ -130,11 +130,7 @@ impl ClusterDataHandler {
 
         // add cluster to the cluster-handler
         parsed_cluster.uuid = cluster_uuid.clone();
-        if self.register_cluster(&parsed_cluster, Some(interface)) == false {
-            let msg =
-                format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
-            return Err(AinariError::Error(msg));
-        }
+        self.register_cluster(&parsed_cluster, Some(interface))?;
 
         // initialize input-blocks
         for input_meta in parsed_cluster.inputs.iter() {
@@ -144,13 +140,7 @@ impl ClusterDataHandler {
                 &cluster_uuid,
                 &finish_counter_mutex,
             )));
-            if self.add_input_block(&input_block_mutex) == false {
-                let msg = format!(
-                    "Failed to add input-block with name '{}' to cluster-handler",
-                    input_meta.name
-                );
-                return Err(AinariError::Error(msg));
-            }
+            self.add_input_block(&input_block_mutex)?;
         }
         finish_counter.input_compare = parsed_cluster.inputs.len();
 
@@ -163,13 +153,7 @@ impl ClusterDataHandler {
                 &output_meta.output_type,
                 &finish_counter_mutex,
             )));
-            if self.add_output_buffer(&output_buffer_mutex) == false {
-                let msg = format!(
-                    "Failed to add output-buffer with name '{}' to cluster-handler",
-                    output_meta.name
-                );
-                return Err(AinariError::Error(msg));
-            }
+            self.add_output_buffer(&output_buffer_mutex)?;
         }
         finish_counter.output_compare = parsed_cluster.outputs.len();
 
@@ -183,53 +167,84 @@ impl ClusterDataHandler {
         &mut self,
         cluster_meta: &ClusterMeta,
         interface: Option<Arc<Mutex<ClusterInterface>>>,
-    ) -> bool {
+    ) -> Result<(), AinariError> {
         if self.clusters.contains_key(&cluster_meta.uuid) {
-            return false;
+            let msg = format!("Cluster with uuid '{}' already exist.", cluster_meta.uuid);
+            return Err(AinariError::InvalidInput(msg));
         }
 
         let cluster_uuid = cluster_meta.uuid.clone();
         let mut content = ClusterContent::new(cluster_meta.clone());
         content.cluster_interface = interface;
 
-        if self.clusters.insert(cluster_uuid, content).is_none() == false {
-            return false;
-        }
+        self.clusters.insert(cluster_uuid, content);
 
-        true
+        Ok(())
     }
 
     /**
      *
      */
-    pub fn add_core_block(&mut self, block_mutex: &Arc<Mutex<CoreBlock>>) -> bool {
+    pub fn get_cluster(&self, cluster_uuid: &Uuid) -> Result<&ClusterContent, AinariError> {
+        if let Some(cluster) = self.clusters.get(cluster_uuid) {
+            return Ok(cluster);
+        } else {
+            let msg = format!("Cluster with uuid '{cluster_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
+        };
+    }
+
+    /**
+     *
+     */
+    pub fn get_cluster_mut(
+        &mut self,
+        cluster_uuid: &Uuid,
+    ) -> Result<&mut ClusterContent, AinariError> {
+        if let Some(cluster) = self.clusters.get_mut(cluster_uuid) {
+            return Ok(cluster);
+        } else {
+            let msg = format!("Cluster with uuid '{cluster_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
+        };
+    }
+
+    /**
+     *
+     */
+    pub fn add_core_block(
+        &mut self,
+        block_mutex: &Arc<Mutex<CoreBlock>>,
+    ) -> Result<(), AinariError> {
         return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
 
     /**
      *
      */
-    pub fn add_output_block(&mut self, block_mutex: &Arc<Mutex<OutputBlock>>) -> bool {
+    pub fn add_output_block(
+        &mut self,
+        block_mutex: &Arc<Mutex<OutputBlock>>,
+    ) -> Result<(), AinariError> {
         return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
 
     /**
      *
      */
-    pub fn add_input_block(&mut self, block_mutex: &Arc<Mutex<InputBlock>>) -> bool {
+    pub fn add_input_block(
+        &mut self,
+        block_mutex: &Arc<Mutex<InputBlock>>,
+    ) -> Result<(), AinariError> {
         let input_block = block_mutex.lock().unwrap();
         let cluster_uuid = input_block.get_cluster_uud();
         let hexagon_uuid = input_block.get_hexagon_uud();
         let block_name = input_block.name.clone();
+        let block_uuid = input_block.get_uuid();
 
-        // get cluster
-        let cluster_link = if let Some(c) = self.clusters.get_mut(&cluster_uuid) {
-            c
-        } else {
-            return false;
-        };
+        let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
-        // get hexagon from cluster
+        // add hexagon, if not already exist
         let mut hexagon_data_map = cluster_link.hexagon_data.write().unwrap();
         if hexagon_data_map.contains_key(&hexagon_uuid) == false {
             hexagon_data_map.insert(
@@ -238,73 +253,70 @@ impl ClusterDataHandler {
             );
         }
 
+        // get hexagon
         let mut hexgon_link = if let Some(h) = hexagon_data_map.get_mut(&hexagon_uuid) {
             h.lock().unwrap()
         } else {
-            return false;
+            let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
 
-        // get hexagon-io
+        // check if block with name already exist
         let mut inputs = cluster_link.inputs.write().unwrap();
         if inputs.contains_key(&block_name) {
-            return false;
+            let msg = format!("Input-block with name '{block_name}' already exist.");
+            return Err(AinariError::InvalidInput(msg));
+        }
+        if hexgon_link.blocks.contains_key(&block_uuid) {
+            let msg = format!("Input-block with name '{block_name}' already exist.");
+            return Err(AinariError::InvalidInput(msg));
         }
 
         // add new block
-        let block_uuid = input_block.get_uuid();
-        if hexgon_link.blocks.contains_key(&block_uuid) == false {
-            hexgon_link.blocks.insert(
-                block_uuid.clone(),
-                Arc::clone(block_mutex) as Arc<Mutex<dyn Block>>,
-            );
-            inputs.insert(block_name.clone(), Arc::clone(block_mutex));
-            return true;
-        }
+        hexgon_link.blocks.insert(
+            block_uuid.clone(),
+            Arc::clone(block_mutex) as Arc<Mutex<dyn Block>>,
+        );
+        inputs.insert(block_name.clone(), Arc::clone(block_mutex));
 
-        false
+        Ok(())
     }
 
     /**
      *
      */
-    pub fn add_output_buffer(&mut self, block_mutex: &Arc<Mutex<OutputBuffer>>) -> bool {
+    pub fn add_output_buffer(
+        &mut self,
+        block_mutex: &Arc<Mutex<OutputBuffer>>,
+    ) -> Result<(), AinariError> {
         let output_buffer = block_mutex.lock().unwrap();
         let cluster_uuid = output_buffer.cluster_uuid.clone();
         let name = output_buffer.name.clone();
 
-        // get cluster
-        let cluster_link = if let Some(c) = self.clusters.get_mut(&cluster_uuid) {
-            c
-        } else {
-            return false;
-        };
+        let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // get hexagon-io
         let mut outputs = cluster_link.outputs.write().unwrap();
         if outputs.contains_key(&name) {
-            return false;
+            let msg = format!("Output-buffer with name '{name}' already exist.");
+            return Err(AinariError::InvalidInput(msg));
         }
 
         outputs.insert(name.clone(), Arc::clone(block_mutex));
 
-        true
+        Ok(())
     }
 
     /**
      *
      */
-    fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> bool {
+    fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         let block = block_mutex.lock().unwrap();
         let cluster_uuid = block.get_cluster_uud();
         let hexagon_uuid = block.get_hexagon_uud();
         let block_uuid = block.get_uuid();
 
-        // get cluster
-        let cluster_link = if let Some(c) = self.clusters.get_mut(&cluster_uuid) {
-            c
-        } else {
-            return false;
-        };
+        let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // get hexagon from cluster
         let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
@@ -318,18 +330,20 @@ impl ClusterDataHandler {
         let mut hexgon_link = if let Some(h) = hexagon_data.get_mut(&hexagon_uuid) {
             h.lock().unwrap()
         } else {
-            return false;
+            let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
 
         // add new block
-        if hexgon_link.blocks.contains_key(&block_uuid) == false {
-            hexgon_link
-                .blocks
-                .insert(block_uuid.clone(), Arc::clone(block_mutex));
-            return true;
+        if hexgon_link.blocks.contains_key(&block_uuid) {
+            let msg = format!("Block with uuid '{block_uuid}' already exist.");
+            return Err(AinariError::InvalidInput(msg));
         }
 
-        false
+        hexgon_link
+            .blocks
+            .insert(block_uuid.clone(), Arc::clone(block_mutex));
+        Ok(())
     }
 
     /**
@@ -338,17 +352,13 @@ impl ClusterDataHandler {
     pub fn get_cluster_interface(
         &self,
         cluster_uuid: &Uuid,
-    ) -> Option<Arc<Mutex<ClusterInterface>>> {
-        let cluster_handle = if let Some(c) = self.clusters.get(&cluster_uuid) {
-            c
+    ) -> Result<Arc<Mutex<ClusterInterface>>, AinariError> {
+        let cluster_link = self.get_cluster(&cluster_uuid)?;
+        if let Some(cluster_interface_mutex) = &cluster_link.cluster_interface {
+            return Ok(cluster_interface_mutex.clone());
         } else {
-            return None;
-        };
-
-        if let Some(interface) = &cluster_handle.cluster_interface {
-            return Some(Arc::clone(interface));
-        } else {
-            return None;
+            let msg = format!("No interface for '{cluster_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         }
     }
 
@@ -356,19 +366,14 @@ impl ClusterDataHandler {
      *
      */
     #[allow(dead_code)]
-    pub fn get_finish_counter(&self, cluster_uuid: &Uuid) -> Option<Arc<Mutex<FinishCounter>>> {
-        let cluster_handle = if let Some(c) = self.clusters.get(&cluster_uuid) {
-            c
-        } else {
-            return None;
-        };
+    pub fn get_finish_counter(
+        &self,
+        cluster_uuid: &Uuid,
+    ) -> Result<Arc<Mutex<FinishCounter>>, AinariError> {
+        let cluster_interface_mutex = self.get_cluster_interface(&cluster_uuid)?;
+        let cluster_interface = cluster_interface_mutex.lock().unwrap();
 
-        if let Some(cluster_interface_mutex) = &cluster_handle.cluster_interface {
-            let cluster_interface = cluster_interface_mutex.lock().unwrap();
-            return Some(Arc::clone(&cluster_interface.finish_counter_mutex));
-        } else {
-            return None;
-        }
+        Ok(cluster_interface.finish_counter_mutex.clone())
     }
 
     /**
@@ -379,25 +384,23 @@ impl ClusterDataHandler {
         cluster_uuid: &Uuid,
         hexagon_uuid: &Uuid,
         block_uuid: &Uuid,
-    ) -> Option<Arc<Mutex<dyn Block>>> {
-        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
-            c
-        } else {
-            return None;
-        };
+    ) -> Result<Arc<Mutex<dyn Block>>, AinariError> {
+        let cluster_link = self.get_cluster(&cluster_uuid)?;
 
         let binding = cluster_link.hexagon_data.read().unwrap();
         let hexagon_link = if let Some(h) = binding.get(&hexagon_uuid) {
             h.lock().unwrap()
         } else {
-            return None;
+            let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
 
-        if let Some(block_link) = hexagon_link.blocks.get(block_uuid) {
-            return Some(Arc::clone(block_link));
+        if let Some(block_mutex) = hexagon_link.blocks.get(block_uuid) {
+            return Ok(block_mutex.clone());
         }
 
-        None
+        let msg = format!("Block with uuid '{block_uuid}' not found.");
+        return Err(AinariError::InvalidInput(msg));
     }
 
     /**
@@ -407,18 +410,15 @@ impl ClusterDataHandler {
         &self,
         cluster_uuid: &Uuid,
         name: &String,
-    ) -> Option<Arc<Mutex<InputBlock>>> {
-        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
-            c
-        } else {
-            return None;
-        };
+    ) -> Result<Arc<Mutex<InputBlock>>, AinariError> {
+        let cluster_link = self.get_cluster(&cluster_uuid)?;
 
         let binding = cluster_link.inputs.read().unwrap();
         if let Some(input_block_mutex) = binding.get(name) {
-            return Some(input_block_mutex.clone());
+            return Ok(input_block_mutex.clone());
         } else {
-            return None;
+            let msg = format!("Input-Block with name '{name}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
     }
 
@@ -429,18 +429,15 @@ impl ClusterDataHandler {
         &self,
         cluster_uuid: &Uuid,
         name: &String,
-    ) -> Option<Arc<Mutex<OutputBuffer>>> {
-        let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
-            c
-        } else {
-            return None;
-        };
+    ) -> Result<Arc<Mutex<OutputBuffer>>, AinariError> {
+        let cluster_link = self.get_cluster(&cluster_uuid)?;
 
         let binding = cluster_link.outputs.read().unwrap();
         if let Some(output_buffer_mutex) = binding.get(name) {
-            return Some(output_buffer_mutex.clone());
+            return Ok(output_buffer_mutex.clone());
         } else {
-            return None;
+            let msg = format!("Output-buffer with name '{name}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
     }
 
@@ -453,25 +450,22 @@ impl ClusterDataHandler {
         cluster_uuid: &Uuid,
         hexagon_uuid: &Uuid,
         block_uuid: &Uuid,
-    ) -> bool {
-        // get cluster
-        let cluster_link = if let Some(c) = self.clusters.get_mut(cluster_uuid) {
-            c
-        } else {
-            return false;
-        };
+    ) -> Result<(), AinariError> {
+        let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // get hexagon from cluster
         let mut binding = cluster_link.hexagon_data.write().unwrap();
         let mut hexagon_link = if let Some(h) = binding.get_mut(&hexagon_uuid) {
             h.lock().unwrap()
         } else {
-            return false;
+            let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         };
 
         // delete block
         if hexagon_link.blocks.contains_key(block_uuid) == false {
-            return false;
+            let msg = format!("Block with uuid '{block_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         }
         hexagon_link.blocks.remove(block_uuid);
 
@@ -484,20 +478,21 @@ impl ClusterDataHandler {
                 .remove(hexagon_uuid);
         }
 
-        return true;
+        Ok(())
     }
 
     /**
      *
      */
-    pub fn delete_cluster(&mut self, cluster_uuid: &Uuid) -> bool {
+    pub fn delete_cluster(&mut self, cluster_uuid: &Uuid) -> Result<(), AinariError> {
         if self.clusters.contains_key(&cluster_uuid) == false {
-            return false;
+            let msg = format!("Cluster with uuid '{cluster_uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
         }
 
         self.clusters.remove(cluster_uuid);
 
-        true
+        Ok(())
     }
 
     /**
@@ -676,25 +671,13 @@ impl ClusterDataHandler {
                             let interface = interface_mutex.lock().unwrap();
                             finish_counter_mutex = Arc::clone(&interface.finish_counter_mutex);
                         }
-                        if self.register_cluster(&cluster_meta, Some(interface_mutex.clone()))
-                            == false
-                        {
-                            let msg = format!(
-                                "Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler"
-                            );
-                            return Err(Box::new(AinariError::Error(msg)));
-                        }
+                        self.register_cluster(&cluster_meta, Some(interface_mutex.clone()))?;
                     } else {
                         let interface = Arc::new(Mutex::new(ClusterInterface::new(
                             &cluster_uuid,
                             &finish_counter_mutex,
                         )));
-                        if self.register_cluster(&cluster_meta, Some(interface)) == false {
-                            let msg = format!(
-                                "Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler"
-                            );
-                            return Err(Box::new(AinariError::Error(msg)));
-                        }
+                        self.register_cluster(&cluster_meta, Some(interface))?;
                     }
                     cluster_meta_parsed = true;
                 }
@@ -715,7 +698,7 @@ impl ClusterDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     input_block.set_cluster_uuid(cluster_uuid);
-                    self.add_input_block(&Arc::new(Mutex::new(input_block)));
+                    self.add_input_block(&Arc::new(Mutex::new(input_block)))?;
                     number_of_input_blocks += 1;
                 }
                 // CoreBlock
@@ -730,7 +713,7 @@ impl ClusterDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     core_block.set_cluster_uuid(cluster_uuid);
-                    self.add_core_block(&Arc::new(Mutex::new(core_block)));
+                    self.add_core_block(&Arc::new(Mutex::new(core_block)))?;
                 }
                 // OutputBlock
                 ObjectType::OutputBlock => {
@@ -744,7 +727,7 @@ impl ClusterDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     output_block.set_cluster_uuid(cluster_uuid);
-                    self.add_output_block(&Arc::new(Mutex::new(output_block)));
+                    self.add_output_block(&Arc::new(Mutex::new(output_block)))?;
                 }
                 // OutputBuffer
                 ObjectType::OutputBuffer => {
@@ -758,7 +741,7 @@ impl ClusterDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     output_buffer.cluster_uuid = cluster_uuid.clone();
-                    self.add_output_buffer(&Arc::new(Mutex::new(output_buffer)));
+                    self.add_output_buffer(&Arc::new(Mutex::new(output_buffer)))?;
                     number_of_output_buffer += 1;
                 }
             };
@@ -841,8 +824,8 @@ mod tests {
             assert_eq!(hexagons.len(), 1);
         }
 
-        assert_eq!(root_handler.delete_cluster(&cluster_uuid), true);
-        assert_eq!(root_handler.delete_cluster(&cluster_uuid), false);
+        assert_eq!(root_handler.delete_cluster(&cluster_uuid).is_ok(), true);
+        assert_eq!(root_handler.delete_cluster(&cluster_uuid).is_ok(), false);
     }
 
     #[test]
@@ -915,12 +898,12 @@ mod tests {
         )));
 
         // input-block and output-buffer are already added by initilizing of the cluster, so the names can not be added again
-        assert_eq!(root_handler.add_output_buffer(&output_buffer), false);
-        assert_eq!(root_handler.add_input_block(&input_block), false);
+        assert_eq!(root_handler.add_output_buffer(&output_buffer).is_ok(), false);
+        assert_eq!(root_handler.add_input_block(&input_block).is_ok(), false);
 
         // add blocks to cluster
-        assert_eq!(root_handler.add_core_block(&core_block), true);
-        assert_eq!(root_handler.add_output_block(&output_block), true);
+        assert_eq!(root_handler.add_core_block(&core_block).is_ok(), true);
+        assert_eq!(root_handler.add_output_block(&output_block).is_ok(), true);
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
             let hexagons = cluster.hexagon_data.read().unwrap();
@@ -943,35 +926,35 @@ mod tests {
         }
 
         // check add blocks with the same ids again
-        assert_eq!(root_handler.add_core_block(&core_block), false);
-        assert_eq!(root_handler.add_input_block(&input_block), false);
-        assert_eq!(root_handler.add_output_block(&output_block), false);
-        assert_eq!(root_handler.add_output_buffer(&output_buffer), false);
+        assert_eq!(root_handler.add_core_block(&core_block).is_ok(), false);
+        assert_eq!(root_handler.add_input_block(&input_block).is_ok(), false);
+        assert_eq!(root_handler.add_output_block(&output_block).is_ok(), false);
+        assert_eq!(root_handler.add_output_buffer(&output_buffer).is_ok(), false);
 
         // check getter
         assert_eq!(
             root_handler
                 .get_input_block(&cluster_uuid, &input_name)
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
                 .get_input_block(&cluster_uuid, &output_name)
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
         assert_eq!(
             root_handler
                 .get_output_buffer(&cluster_uuid, &input_name)
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
         assert_eq!(
             root_handler
                 .get_output_buffer(&cluster_uuid, &output_name)
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
@@ -980,19 +963,19 @@ mod tests {
                     &hexagon_uuid0,
                     &core_block.lock().unwrap().uuid
                 )
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
                 .get_block(&cluster_uuid, &hexagon_uuid1, &Uuid::new_v4())
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
 
         // delete block and check again
         {
-            root_handler.delete_block(
+            let _ = root_handler.delete_block(
                 &cluster_uuid,
                 &hexagon_uuid0,
                 &core_block.lock().unwrap().uuid,
@@ -1082,10 +1065,10 @@ mod tests {
         )));
 
         // add blocks to cluster
-        root_handler.add_core_block(&core_block_mutex);
-        root_handler.add_input_block(&input_block_mutex);
-        root_handler.add_output_block(&output_block_mutex);
-        root_handler.add_output_buffer(&output_buffer_mutex);
+        let _ = root_handler.add_core_block(&core_block_mutex);
+        let _ = root_handler.add_input_block(&input_block_mutex);
+        let _ = root_handler.add_output_block(&output_block_mutex);
+        let _ = root_handler.add_output_buffer(&output_buffer_mutex);
 
         // save and restore
         let _ = root_handler.create_checkpoint(&cluster_uuid, &file_path);
@@ -1116,26 +1099,26 @@ mod tests {
         assert_eq!(
             root_handler
                 .get_input_block(&cluster_uuid_new, &input_name)
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
                 .get_input_block(&cluster_uuid_new, &output_name)
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
         assert_eq!(
             root_handler
                 .get_output_buffer(&cluster_uuid_new, &input_name)
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
         assert_eq!(
             root_handler
                 .get_output_buffer(&cluster_uuid_new, &output_name)
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
@@ -1144,14 +1127,14 @@ mod tests {
                     &hexagon_uuid0,
                     &core_block_mutex.lock().unwrap().uuid
                 )
-                .is_none(),
-            false
+                .is_ok(),
+            true
         );
         assert_eq!(
             root_handler
                 .get_block(&cluster_uuid_new, &hexagon_uuid1, &Uuid::new_v4())
-                .is_none(),
-            true
+                .is_ok(),
+            false
         );
     }
 }

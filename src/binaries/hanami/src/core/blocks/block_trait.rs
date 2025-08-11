@@ -17,14 +17,16 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 
 use super::axons::*;
 use super::block_io::*;
 
 pub trait Block: Send + Sync + Debug {
-    fn train(&mut self, place_offset: usize, own: Arc<Mutex<dyn Block>>);
-    fn process(&mut self);
-    fn backpropagate(&mut self);
+    fn train(&mut self, place_offset: usize, own: Arc<Mutex<dyn Block>>)
+    -> Result<(), AinariError>;
+    fn process(&mut self) -> Result<(), AinariError>;
+    fn backpropagate(&mut self) -> Result<(), AinariError>;
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool;
     fn get_uuid(&self) -> Uuid;

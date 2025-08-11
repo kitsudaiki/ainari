@@ -16,8 +16,8 @@ use rand::Rng;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-// use ainari_common::error::AinariError;
 use ainari_common::constants::*;
+use ainari_common::error::AinariError;
 
 use crate::core::blocks::axons::AxonSection;
 use crate::core::blocks::block_trait::Block;
@@ -35,34 +35,16 @@ struct TargetInformation {
 /**
  *
  */
-pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
-    // pre-check
-    if axon_section.cluster_uuid == Uuid::nil()
-        || axon_section.source_block_uuid == Uuid::nil()
-        || axon_section.source_hexagon_uuid == Uuid::nil()
-        || axon_section.source_pos == UNINIT_STATE_8
-    {
-        return false;
-    }
+pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+    check_axon_setion(axon_section)?;
 
-    let target_information = if let Some(target_information) = get_target(axon_section) {
-        target_information
-    } else {
-        return false;
-    };
+    let target_information = get_target(axon_section)?;
 
     let source_block;
 
     {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-
-        // get cluster
-        let cluster_link =
-            if let Some(c) = cluster_handler.clusters.get_mut(&axon_section.cluster_uuid) {
-                c
-            } else {
-                return false;
-            };
+        let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
         // get target-hexagon from cluster
         let mut binding = cluster_link.hexagon_data.write().unwrap();
@@ -78,29 +60,22 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
 
         // get source-block
-        source_block = if let Some(s) = cluster_handler.get_block(
+        source_block = cluster_handler.get_block(
             &axon_section.cluster_uuid,
             &axon_section.source_hexagon_uuid,
             &axon_section.source_block_uuid,
-        ) {
-            s
-        } else {
-            return false;
-        };
+        )?;
 
-        // get cluster
-        let cluster_link = if let Some(c) = cluster_handler.clusters.get(&axon_section.cluster_uuid)
-        {
-            c
-        } else {
-            return false;
-        };
-
+        let cluster_link = cluster_handler.get_cluster(&axon_section.cluster_uuid)?;
         let binding = cluster_link.hexagon_data.read().unwrap();
         let target_hexagon_link = if let Some(h) = binding.get(&target_information.hexagon_uuid) {
             h.lock().unwrap()
         } else {
-            return false;
+            let msg = format!(
+                "Hexagon with uuid '{}' not found.",
+                target_information.hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
 
         // search for a block, which has a free slot
@@ -110,7 +85,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
             if block.get_free_input(axon_section) != false {
                 axon_section.target_block = Some(block_mutex.clone());
                 axon_section.source_block = Some(source_block);
-                return true;
+                return Ok(());
             }
         }
     }
@@ -123,15 +98,13 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
             &axon_section.cluster_uuid,
             &target_information.output_hexagon_name,
         )));
-        if cluster_handler.add_output_block(&output_block_mutex) == false {
-            return false;
-        }
+        cluster_handler.add_output_block(&output_block_mutex)?;
         drop(cluster_handler);
         let mut output_block = output_block_mutex.lock().unwrap();
         if output_block.get_free_input(axon_section) {
             axon_section.target_block = Some(output_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return true;
+            return Ok(());
         }
     } else {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
@@ -139,32 +112,41 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
             &target_information.hexagon_uuid,
             &axon_section.cluster_uuid,
         )));
-        if cluster_handler.add_core_block(&core_block_mutex) == false {
-            return false;
-        }
+        cluster_handler.add_core_block(&core_block_mutex)?;
         drop(cluster_handler);
         let mut core_block = core_block_mutex.lock().unwrap();
         if core_block.get_free_input(axon_section) {
             axon_section.target_block = Some(core_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return true;
+            return Ok(());
         }
     }
 
-    false
+    let msg = format!(
+        "Failed to connect block with uuid '{}' with a target.",
+        axon_section.source_block_uuid
+    );
+    return Err(AinariError::Error(msg));
 }
 
-fn get_target(axon_section: &mut AxonSection) -> Option<TargetInformation> {
+fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+    // pre-check
+    if axon_section.cluster_uuid == Uuid::nil()
+        || axon_section.source_block_uuid == Uuid::nil()
+        || axon_section.source_hexagon_uuid == Uuid::nil()
+        || axon_section.source_pos == UNINIT_STATE_8
+    {
+        let msg = format!("Got invalid Axon-setion.");
+        return Err(AinariError::Error(msg));
+    }
+
+    Ok(())
+}
+
+fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
     let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
     let mut target_information = TargetInformation::default();
-
-    // get cluster
-    let cluster_link = if let Some(c) = cluster_handler.clusters.get_mut(&axon_section.cluster_uuid)
-    {
-        c
-    } else {
-        return None;
-    };
+    let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
     // get the uuid of the target-hexagon
     {
@@ -177,7 +159,11 @@ fn get_target(axon_section: &mut AxonSection) -> Option<TargetInformation> {
             target_information.hexagon_uuid =
                 source_hexagon_meta.possible_hexagon_target_ids[random_pos].clone();
         } else {
-            return None;
+            let msg = format!(
+                "Hexagon with uuid '{}' not found in cluster-meta.",
+                axon_section.source_hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
 
         if let Some(target_hexagon_meta) = cluster_link
@@ -190,10 +176,18 @@ fn get_target(axon_section: &mut AxonSection) -> Option<TargetInformation> {
 
             // input-hexagons are not allowed to be a target
             if target_hexagon_meta.is_input {
-                return None;
+                let msg = format!(
+                    "Hexagon with uuid '{}' is input-hexagon and can not be used as output.",
+                    target_information.hexagon_uuid
+                );
+                return Err(AinariError::InvalidInput(msg));
             }
         } else {
-            return None;
+            let msg = format!(
+                "Hexagon with uuid '{}' not found in cluster-meta.",
+                target_information.hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
     }
 
@@ -206,7 +200,7 @@ fn get_target(axon_section: &mut AxonSection) -> Option<TargetInformation> {
         );
     }
 
-    return Some(target_information);
+    Ok(target_information)
 }
 
 #[cfg(test)]
@@ -286,10 +280,10 @@ mod tests {
         )));
 
         // add blocks to cluster
-        root_handler.add_core_block(&core_block_mutex);
-        root_handler.add_input_block(&input_block_mutex);
-        root_handler.add_output_block(&output_block_mutex);
-        root_handler.add_output_buffer(&output_buffer_mutex);
+        let _ = root_handler.add_core_block(&core_block_mutex);
+        let _ = root_handler.add_input_block(&input_block_mutex);
+        let _ = root_handler.add_output_block(&output_block_mutex);
+        let _ = root_handler.add_output_buffer(&output_buffer_mutex);
         drop(root_handler);
 
         let mut test_section = AxonSection::default();
@@ -299,7 +293,7 @@ mod tests {
         test_section.cluster_uuid = core_block.cluster_uuid.clone();
         test_section.source_pos = 0;
 
-        assert_eq!(connect_to_target(&mut test_section), true);
+        assert_eq!(connect_to_target(&mut test_section).is_ok(), true);
 
         assert_eq!(test_section.source_block_uuid, core_block.uuid);
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);

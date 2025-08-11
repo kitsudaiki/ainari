@@ -23,6 +23,7 @@ use crate::core::cluster_handler;
 use crate::database::cluster_table;
 
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -51,7 +52,17 @@ pub async fn delete_cluster(
 
     // delete cluster from core
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.write().unwrap();
-    cluster_handle.delete_cluster(&cluster_uuid);
+    match cluster_handle.delete_cluster(&cluster_uuid) {
+        Ok(()) => {}
+        Err(AinariError::InvalidInput(msg)) => {
+            let msg = format!("Invalid input: {}", msg);
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{}", msg);
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    }
 
     Ok(NoContent)
 }

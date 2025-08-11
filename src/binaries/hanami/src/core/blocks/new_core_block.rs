@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 
 use super::axons::*;
 use super::block_io::*;
@@ -200,7 +201,7 @@ impl NewCoreBlock {
 // ==================================================================================================
 
 impl Block for NewCoreBlock {
-    fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) {
+    fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         self.handle_buffer();
         self.check_and_resize_block();
 
@@ -298,12 +299,13 @@ impl Block for NewCoreBlock {
             &self.cluster_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        );
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Train);
-        // println!("train core: {:?}", start.elapsed());
+
+        Ok(())
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<(), AinariError> {
         // // debug-output
         // println!("core-buffer-axons: ");
         // for axon in self.input_buffer[0].axons.iter_mut() {
@@ -335,9 +337,11 @@ impl Block for NewCoreBlock {
         }
         self.apply_output();
         send_forward(&self.block_io, WorkerTaskType::Process);
+
+        Ok(())
     }
 
-    fn backpropagate(&mut self) {
+    fn backpropagate(&mut self) -> Result<(), AinariError> {
         let train_value = 0.1f32;
 
         let number_of_output_blocks = self.block_io.output_buffer.len();
@@ -363,6 +367,8 @@ impl Block for NewCoreBlock {
         }
 
         send_backward(&self.block_io);
+
+        Ok(())
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
@@ -436,7 +442,7 @@ mod tests {
 
         test_block.block_io.input_buffer[0] = test_axon;
 
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
 
         // check if buffer-processing works correctly
         assert_eq!(test_block.fill_size[1], 3);
@@ -445,24 +451,24 @@ mod tests {
         assert_eq!(test_block.synapse_counter, 257);
 
         // run processing in order to create new synapses
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 258);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 259);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 260);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 261);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 262);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 263);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 264);
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 265);
         // after depth = 8, nothing more will be added
-        test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own));
         assert_eq!(test_block.synapse_counter, 265);
 
         // check fill-size
@@ -529,7 +535,7 @@ mod tests {
         test_block.block_io.output_buffer[0].axons[38].delta = 0.5f32;
         test_block.block_io.output_buffer[0].axons[80].delta = 0.5f32;
 
-        test_block.backpropagate();
+        let _ = test_block.backpropagate();
 
         // check that delta of the source-axon was modified
         assert_ne!(test_block.block_io.input_buffer[0].axons[0].delta, 0.0f32);

@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 
 use crate::core::cluster_handler::*;
 use crate::core::processing::output_buffer::*;
@@ -101,23 +102,24 @@ impl OutputBlock {
         block
     }
 
-    fn connect_output_buffer(&mut self) {
+    fn connect_output_buffer(&mut self) -> Result<(), AinariError> {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
             let root_handler = CLUSTER_HANDLER.read().unwrap();
-            if let Some(output_buffer_mutex) =
-                root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name)
-            {
-                self.output_buffer = Some(output_buffer_mutex.clone());
-                let mut output_buffer = output_buffer_mutex.lock().unwrap();
-                // after a checkpoint-restore the block must be connected to the buffer again,
-                // but is not allowed to increase the counter further
-                if self.was_already_connected == false {
-                    output_buffer.number_of_connected_blocks += 1;
-                }
-                self.was_already_connected = true;
+            let output_buffer_mutex =
+                root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name)?;
+
+            self.output_buffer = Some(output_buffer_mutex.clone());
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            // after a checkpoint-restore the block must be connected to the buffer again,
+            // but is not allowed to increase the counter further
+            if self.was_already_connected == false {
+                output_buffer.number_of_connected_blocks += 1;
             }
+            self.was_already_connected = true;
         }
+
+        Ok(())
     }
 
     fn process_block(&mut self) {
@@ -144,8 +146,8 @@ impl OutputBlock {
 // ==================================================================================================
 
 impl Block for OutputBlock {
-    fn train(&mut self, _: usize, own: Arc<Mutex<dyn Block>>) {
-        self.connect_output_buffer();
+    fn train(&mut self, _: usize, own: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
+        self.connect_output_buffer()?;
 
         // resize output and wights and get expected values from output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
@@ -186,12 +188,14 @@ impl Block for OutputBlock {
         }
 
         if already_done {
-            self.backpropagate();
+            self.backpropagate()?;
         }
+
+        Ok(())
     }
 
-    fn process(&mut self) {
-        self.connect_output_buffer();
+    fn process(&mut self) -> Result<(), AinariError> {
+        self.connect_output_buffer()?;
         self.process_block();
 
         // process output-buffer
@@ -206,10 +210,12 @@ impl Block for OutputBlock {
                 output_buffer.finalize();
             }
         }
+
+        Ok(())
     }
 
-    fn backpropagate(&mut self) {
-        self.connect_output_buffer();
+    fn backpropagate(&mut self) -> Result<(), AinariError> {
+        self.connect_output_buffer()?;
 
         // resize output and wights and get expected values from output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
@@ -244,6 +250,8 @@ impl Block for OutputBlock {
         }
 
         send_backward(&self.block_io);
+
+        Ok(())
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {

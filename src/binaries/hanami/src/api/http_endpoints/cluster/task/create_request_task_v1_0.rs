@@ -32,6 +32,7 @@ use crate::database::dataset_table;
 use crate::database::task_table;
 
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
 use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
 
@@ -116,16 +117,21 @@ pub async fn create_request_task(
     let mut total_output_size: u64 = 0;
     for output in &body.results {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-        let size;
-        if let Some(output_buffer_mutex) =
-            cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon)
-        {
-            let output_buffer = output_buffer_mutex.lock().unwrap();
-            size = output_buffer.output_neurons.len() as u64;
-        } else {
-            let msg = format!("Couldn't find output with name {}", output.hexagon);
-            return Err(ErrorResponse::NotFound(msg));
-        }
+
+        let size = match cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
+            Ok(output_buffer_mutex) => {
+                let output_buffer = output_buffer_mutex.lock().unwrap();
+                output_buffer.output_neurons.len() as u64
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                let msg = format!("Invalid input: {}", msg);
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{}", msg);
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
         let col = Column {
             start: total_output_size,

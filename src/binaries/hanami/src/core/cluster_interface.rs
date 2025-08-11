@@ -21,6 +21,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 use ainari_structs::task_structs::TaskState;
 
@@ -45,27 +46,24 @@ fn apply_input(
     pos_counter: usize,
     time_length: u64,
     task_type: &WorkerTaskType,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    if let Some(input_block_mutex) = cluster_handler.get_input_block(cluster_uuid, hexagon_name) {
-        let mut input_block = input_block_mutex.lock().unwrap();
-        input_block.apply_input(
-            input_ptr,
-            input_size as usize,
-            pos_counter,
-            time_length as usize,
-        );
-        let mut worker_queue = WORKER_QUEUE.lock().unwrap();
-        let worker_task = WorkerTask {
-            task_type: task_type.clone(),
-            block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
-        };
-        worker_queue.add(worker_task);
-    } else {
-        let msg =
-            format!("Input with name {hexagon_name} not found in cluster with uuid {cluster_uuid}");
-        return Err(msg);
-    }
+    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
+
+    let mut input_block = input_block_mutex.lock().unwrap();
+    input_block.apply_input(
+        input_ptr,
+        input_size as usize,
+        pos_counter,
+        time_length as usize,
+    );
+
+    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+    let worker_task = WorkerTask {
+        task_type: task_type.clone(),
+        block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
+    };
+    worker_queue.add(worker_task);
 
     Ok(())
 }
@@ -75,18 +73,13 @@ fn apply_expected(
     hexagon_name: &String,
     input_ptr: &[f32],
     input_size: u64,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)
-    {
-        let mut output_buffer = output_buffer_mutex.lock().unwrap();
-        output_buffer.reset_output();
-        convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
-    } else {
-        let msg =
-            format!("Input with name {hexagon_name} not found in cluster with uuid {cluster_uuid}");
-        return Err(msg);
-    }
+    let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
+
+    let mut output_buffer = output_buffer_mutex.lock().unwrap();
+    output_buffer.reset_output();
+    convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
 
     Ok(())
 }
@@ -94,7 +87,7 @@ fn apply_expected(
 fn run_train(
     cluster_uuid: &Uuid,
     finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     for _ in 0..10000000 {
         let finish_counter = finish_counter_mutex.lock().unwrap();
         if finish_counter.counter >= finish_counter.input_compare + finish_counter.output_compare {
@@ -105,13 +98,13 @@ fn run_train(
     }
 
     let msg = format!("Timeout while training cluster with uuid {cluster_uuid}");
-    return Err(msg);
+    return Err(AinariError::Error(msg));
 }
 
 fn run_process(
     cluster_uuid: &Uuid,
     finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     for _ in 0..10000000 {
         let finish_counter = finish_counter_mutex.lock().unwrap();
         if finish_counter.counter >= finish_counter.output_compare {
@@ -122,7 +115,7 @@ fn run_process(
     }
 
     let msg = format!("Timeout while requesting cluster with uuid {cluster_uuid}");
-    return Err(msg);
+    return Err(AinariError::Error(msg));
 }
 
 fn get_input_from_dataset(
@@ -132,18 +125,10 @@ fn get_input_from_dataset(
     cycle_count: u64,
     time_length: u64,
     task_type: &WorkerTaskType,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     // get input-block
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    let input_block_mutex = if let Some(i) =
-        cluster_handler.get_input_block(cluster_uuid, hexagon_name)
-    {
-        Arc::clone(&i)
-    } else {
-        let msg =
-            format!("Input with name {hexagon_name} not found in cluster with uuid {cluster_uuid}");
-        return Err(msg);
-    };
+    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
     drop(cluster_handler);
 
     let mut input_block = input_block_mutex.lock().unwrap();
@@ -155,7 +140,7 @@ fn get_input_from_dataset(
             match file_handle.get_data_from_file(&(cycle_count + time_point)) {
                 Ok((input_ptr, input_size)) => (input_ptr, input_size),
                 Err(msg) => {
-                    return Err(msg);
+                    return Err(AinariError::Error(msg));
                 }
             };
 
@@ -186,12 +171,12 @@ fn get_expected_from_dataset(
     file_handle: &mut DataSetFileReadHandleV1_0,
     cycle_count: u64,
     time_length: u64,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     let (input_ptr, input_size) =
         match file_handle.get_data_from_file(&(cycle_count + time_length - 1)) {
             Ok((input_ptr, input_size)) => (input_ptr, input_size),
             Err(msg) => {
-                return Err(msg);
+                return Err(AinariError::Error(msg));
             }
         };
 
@@ -203,7 +188,7 @@ fn get_expected_from_dataset(
 fn write_output_into_dataset(
     cluster_uuid: &Uuid,
     file_handle: &mut DataSetFileWriteHandleV1_0,
-) -> Result<(), String> {
+) -> Result<(), AinariError> {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
 
     // get column-description from the dataset
@@ -211,18 +196,11 @@ fn write_output_into_dataset(
         let size_output = (col_get.end - col_get.start) as usize;
         let mut output_read = vec![0.0f32; size_output];
 
-        if let Some(output_buffer_mutex) =
-            cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)
-        {
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
-            convert_output_to_buffer(&mut output_read, &mut output_buffer);
-            output_buffer.reset_output();
-        } else {
-            let msg = format!(
-                "Input with name {hexagon_name} not found in cluster with uuid {cluster_uuid}"
-            );
-            return Err(msg);
-        }
+        let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
+
+        let mut output_buffer = output_buffer_mutex.lock().unwrap();
+        convert_output_to_buffer(&mut output_read, &mut output_buffer);
+        output_buffer.reset_output();
 
         let output_bytes = cast_slice(&output_read);
         let _ = file_handle.target_file.write_all(&output_bytes);
@@ -279,8 +257,14 @@ fn handle_train_task(
                     task_info.time_length,
                 ) {
                     Ok(()) => {}
-                    Err(e) => {
-                        let _ = task_table::set_error_state(&task_uuid, &e);
+                    Err(AinariError::InvalidInput(msg)) => {
+                        let _ = task_table::set_error_state(&task_uuid, &msg);
+                        return;
+                    }
+                    Err(AinariError::Error(msg)) => {
+                        log::error!("{}", msg);
+                        let db_msg = "internal error".to_string();
+                        let _ = task_table::set_error_state(&task_uuid, &db_msg);
                         return;
                     }
                 }
@@ -297,8 +281,14 @@ fn handle_train_task(
                     &task_type,
                 ) {
                     Ok(()) => {}
-                    Err(e) => {
-                        let _ = task_table::set_error_state(&task_uuid, &e);
+                    Err(AinariError::InvalidInput(msg)) => {
+                        let _ = task_table::set_error_state(&task_uuid, &msg);
+                        return;
+                    }
+                    Err(AinariError::Error(msg)) => {
+                        log::error!("{}", msg);
+                        let db_msg = "internal error".to_string();
+                        let _ = task_table::set_error_state(&task_uuid, &db_msg);
                         return;
                     }
                 }
@@ -306,8 +296,14 @@ fn handle_train_task(
 
             match run_train(cluster_uuid, finish_counter) {
                 Ok(()) => {}
-                Err(e) => {
-                    let _ = task_table::set_error_state(&task_uuid, &e);
+                Err(AinariError::InvalidInput(msg)) => {
+                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    return;
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{}", msg);
+                    let db_msg = "internal error".to_string();
+                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
                     return;
                 }
             }
@@ -316,12 +312,23 @@ fn handle_train_task(
 
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
     for (hexagon_name, _) in &mut task_info.outputs {
-        if let Some(output_buffer_mutex) =
-            cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)
-        {
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
-            output_buffer.reset_output();
-        }
+        let output_buffer_mutex =
+            match cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
+                Ok(output_buffer_mutex) => output_buffer_mutex,
+                Err(AinariError::InvalidInput(msg)) => {
+                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    return;
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{}", msg);
+                    let db_msg = "internal error".to_string();
+                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                    return;
+                }
+            };
+
+        let mut output_buffer = output_buffer_mutex.lock().unwrap();
+        output_buffer.reset_output();
     }
 
     let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
@@ -376,8 +383,14 @@ fn handle_request_task(
                 &task_type,
             ) {
                 Ok(()) => {}
-                Err(e) => {
-                    let _ = task_table::set_error_state(&task_uuid, &e);
+                Err(AinariError::InvalidInput(msg)) => {
+                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    return;
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{}", msg);
+                    let db_msg = "internal error".to_string();
+                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
                     return;
                 }
             }
@@ -385,8 +398,14 @@ fn handle_request_task(
 
         match run_process(cluster_uuid, finish_counter) {
             Ok(()) => {}
-            Err(e) => {
-                let _ = task_table::set_error_state(&task_uuid, &e);
+            Err(AinariError::InvalidInput(msg)) => {
+                let _ = task_table::set_error_state(&task_uuid, &msg);
+                return;
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{}", msg);
+                let db_msg = "internal error".to_string();
+                let _ = task_table::set_error_state(&task_uuid, &db_msg);
                 return;
             }
         }
@@ -394,8 +413,14 @@ fn handle_request_task(
         // get output-values form backend and write them into the dataset
         match write_output_into_dataset(cluster_uuid, &mut task_info.results) {
             Ok(()) => {}
-            Err(e) => {
-                let _ = task_table::set_error_state(&task_uuid, &e);
+            Err(AinariError::InvalidInput(msg)) => {
+                let _ = task_table::set_error_state(&task_uuid, &msg);
+                return;
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{}", msg);
+                let db_msg = "internal error".to_string();
+                let _ = task_table::set_error_state(&task_uuid, &db_msg);
                 return;
             }
         }
@@ -561,7 +586,7 @@ impl ClusterInterface {
         &mut self,
         inputs: &HashMap<String, Vec<f32>>,
         outputs: &mut HashMap<String, Vec<f32>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AinariError> {
         let mut counter = self.finish_counter_mutex.lock().unwrap();
         counter.counter = 0;
         drop(counter);
@@ -570,12 +595,10 @@ impl ClusterInterface {
         {
             let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
             for hexagon_name in outputs.keys() {
-                if let Some(output_buffer_mutex) =
-                    cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)
-                {
-                    let mut output_buffer = output_buffer_mutex.lock().unwrap();
-                    output_buffer.reset_output();
-                }
+                let output_buffer_mutex =
+                    cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)?;
+                let mut output_buffer = output_buffer_mutex.lock().unwrap();
+                output_buffer.reset_output();
             }
         }
 
@@ -596,13 +619,12 @@ impl ClusterInterface {
         // get output-values from the backend
         let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
         for (hexagon_name, data) in outputs.iter_mut() {
-            if let Some(output_buffer_mutex) =
-                cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)
-            {
-                let mut output_buffer = output_buffer_mutex.lock().unwrap();
-                data.resize(output_buffer.output_neurons.len(), 0.0f32);
-                convert_output_to_buffer(data, &mut output_buffer);
-            }
+            let output_buffer_mutex =
+                cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)?;
+
+            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            data.resize(output_buffer.output_neurons.len(), 0.0f32);
+            convert_output_to_buffer(data, &mut output_buffer);
         }
 
         Ok(())
@@ -612,7 +634,7 @@ impl ClusterInterface {
         &mut self,
         inputs: &HashMap<String, Vec<f32>>,
         outputs: &HashMap<String, Vec<f32>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AinariError> {
         let mut counter = self.finish_counter_mutex.lock().unwrap();
         counter.counter = 0;
         drop(counter);

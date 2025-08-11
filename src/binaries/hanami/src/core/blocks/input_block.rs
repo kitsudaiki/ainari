@@ -25,6 +25,7 @@ use crate::core::cluster_handler::*;
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 
 // ==================================================================================================
 
@@ -145,31 +146,37 @@ impl InputBlock {
 }
 
 impl Block for InputBlock {
-    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
+    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         self.local_finish_counter = 0;
         connect_outputs(
             &mut self.block_io,
             &self.cluster_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        );
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Train);
+
+        Ok(())
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<(), AinariError> {
         self.local_finish_counter = 0;
         connect_outputs(
             &mut self.block_io,
             &self.cluster_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        );
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Process);
+
+        Ok(())
     }
 
-    fn backpropagate(&mut self) {
+    fn backpropagate(&mut self) -> Result<(), AinariError> {
         let mut finish_counter = self.finish_counter.lock().unwrap();
         finish_counter.counter += 1;
+
+        Ok(())
     }
 
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {
