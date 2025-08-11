@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 use rand::Rng;
 
-// use ainari_common::error::HanamiError;
+// use ainari_common::error::AinariError;
 use ainari_common::constants::*;
 
 use crate::core::blocks::axons::AxonSection;

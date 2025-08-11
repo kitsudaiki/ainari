@@ -15,27 +15,27 @@
 use std::fmt;
 
 #[derive(Debug)]
-pub enum HanamiError {
-    InputError(String),
+pub enum AinariError {
+    InvalidInput(String),
     Error(String),
 }
 
-impl fmt::Display for HanamiError {
+impl fmt::Display for AinariError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HanamiError::InputError(ref msg) => write!(f, "Input-error: {msg}"),
-            HanamiError::Error(ref msg) => write!(f, "Internal error: {msg}"),
+            AinariError::InvalidInput(ref msg) => write!(f, "Invalid input: {msg}"),
+            AinariError::Error(ref msg) => write!(f, "Internal error: {msg}"),
         }
     }
 }
 
-impl PartialEq<&str> for HanamiError {
+impl PartialEq<&str> for AinariError {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            HanamiError::InputError(s) | HanamiError::Error(s) => s == other,
+            AinariError::InvalidInput(s) | AinariError::Error(s) => s == other,
         }
     }
 }
 
-impl std::error::Error for HanamiError {}
+impl std::error::Error for AinariError {}
 

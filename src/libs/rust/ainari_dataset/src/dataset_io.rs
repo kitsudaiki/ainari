@@ -25,7 +25,7 @@ use std::io::SeekFrom;
 use serde::{Serialize, Deserialize};
 use bincode::{config, Decode, Encode};
 
-use ainari_common::error::HanamiError;
+use ainari_common::error::AinariError;
 use ainari_common::constants::*;
 
 #[repr(u8)]
@@ -183,7 +183,7 @@ pub fn init_new_data_set_file(
 
     // check give dataset-type
     if data_type == DataSetType::UndefinedType {
-        return Err(Box::new(HanamiError::InputError("Invalid dataset-type".to_string())));
+        return Err(Box::new(AinariError::InvalidInput("Invalid dataset-type".to_string())));
     }
 
     // check if file already exist
@@ -191,7 +191,7 @@ pub fn init_new_data_set_file(
         let msg = format!("Dataset file '{file_path_str}' already exists.");
         // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
         // so here should be an internal error instand of an input-error
-        return Err(Box::new(HanamiError::Error(msg)));
+        return Err(Box::new(AinariError::Error(msg)));
     }
 
     // initialize file
@@ -238,7 +238,7 @@ pub fn read_data_set_file(
         let msg = format!("Dataset file '{file_path_str}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user, 
         // so here should be an internal error instand of an input-error
-        return Err(Box::new(HanamiError::Error(msg)));
+        return Err(Box::new(AinariError::Error(msg)));
     }
 
     let file = fs::File::open(file_path)?;

@@ -23,7 +23,7 @@ use crate::api::errors::ErrorResponse;
 use crate::database::cluster_table;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 
-use ainari_common::error::HanamiError;
+use ainari_common::error::AinariError;
 use ainari_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
 
 #[api_operation(
@@ -50,11 +50,11 @@ pub async fn create_cluster(body: Json<ClusterCreateReq>, context: UserContext) 
     let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
     match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
         Ok(_) => {},
-        Err(HanamiError::InputError(e)) => {
+        Err(AinariError::InvalidInput(e)) => {
             let msg = format!("Invalid input: {}", e);
             return Err(ErrorResponse::BadRequest(msg));
         },
-        Err(HanamiError::Error(e)) => {
+        Err(AinariError::Error(e)) => {
             log::error!("{}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

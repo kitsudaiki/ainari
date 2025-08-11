@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 use ainari_cluster_parser::cluster_meta_structs::*;
-use ainari_common::error::HanamiError;
+use ainari_common::error::AinariError;
 use ainari_common::enums::*;
 
 use crate::core::blocks::input_block::*;
@@ -105,13 +105,13 @@ impl ClusterDataHandler {
     /**
      * 
      */
-    pub fn init_new_cluster(&mut self, cluster_uuid: &Uuid, name: &String, cluster_template: String) -> Result<(), HanamiError> {
+    pub fn init_new_cluster(&mut self, cluster_uuid: &Uuid, name: &String, cluster_template: String) -> Result<(), AinariError> {
         // parse cluster-template
         let mut parsed_cluster: ClusterMeta = match parse_cluster_template(name, cluster_template.as_str()) {
             Ok(parsed) => parsed,
             Err(e) => {
                 let msg = format!("Can not create cluster: {:?}", e);
-                return Err(HanamiError::InputError(msg));
+                return Err(AinariError::InvalidInput(msg));
             }
         };
 
@@ -124,7 +124,7 @@ impl ClusterDataHandler {
         parsed_cluster.uuid = cluster_uuid.clone();
         if self.register_cluster(&parsed_cluster, Some(interface)) == false {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
-            return Err(HanamiError::Error(msg));
+            return Err(AinariError::Error(msg));
         }
 
         // initialize input-blocks
@@ -132,7 +132,7 @@ impl ClusterDataHandler {
             let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(&input_meta.name, &input_meta.hexagon_uuid, &cluster_uuid, &finish_counter_mutex)));
             if self.add_input_block(&input_block_mutex) == false {
                 let msg = format!("Failed to add input-block with name '{}' to cluster-handler", input_meta.name);
-                return Err(HanamiError::Error(msg));
+                return Err(AinariError::Error(msg));
             }
         }
         finish_counter.input_compare = parsed_cluster.inputs.len();
@@ -142,7 +142,7 @@ impl ClusterDataHandler {
             let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(&output_meta.name, &output_meta.hexagon_uuid, &cluster_uuid, &output_meta.output_type, &finish_counter_mutex)));
             if self.add_output_buffer(&output_buffer_mutex) == false {
                 let msg = format!("Failed to add output-buffer with name '{}' to cluster-handler", output_meta.name);
-                return Err(HanamiError::Error(msg));
+                return Err(AinariError::Error(msg));
             }
         }
         finish_counter.output_compare = parsed_cluster.outputs.len();
@@ -484,7 +484,7 @@ impl ClusterDataHandler {
         }
         else {
             let msg = format!("Cluster with uuid '{cluster_uuid}' not found.");
-            return Err(Box::new(HanamiError::Error(msg)));
+            return Err(Box::new(AinariError::Error(msg)));
         };
 
         let file_path_str: String = file_path.to_string_lossy().into();
@@ -494,7 +494,7 @@ impl ClusterDataHandler {
             let msg = format!("Checkpoint file '{file_path_str}' already exists.");
             // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
             // so here should be an internal error instand of an input-error
-            return Err(Box::new(HanamiError::Error(msg)));
+            return Err(Box::new(AinariError::Error(msg)));
         }
 
         // initialize file
@@ -579,13 +579,13 @@ impl ClusterDataHandler {
                 // Unknown
                 ObjectType::Unknown => {
                     let msg = format!("Invalid object found in checkpoint-file.");
-                    return Err(Box::new(HanamiError::InputError(msg)));
+                    return Err(Box::new(AinariError::InvalidInput(msg)));
                 }
                 // ClusterMeta
                 ObjectType::ClusterMeta => {
                     if cluster_meta_parsed {
                         let msg = format!("File has multiple cluster-meta objects.");
-                        return Err(Box::new(HanamiError::InputError(msg)));
+                        return Err(Box::new(AinariError::InvalidInput(msg)));
                     }
                     let mut cluster_meta: ClusterMeta = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
                     cluster_meta.uuid = cluster_uuid.clone();
@@ -596,14 +596,14 @@ impl ClusterDataHandler {
                         }
                         if self.register_cluster(&cluster_meta, Some(interface_mutex.clone())) == false {
                             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
-                            return Err(Box::new(HanamiError::Error(msg)));
+                            return Err(Box::new(AinariError::Error(msg)));
                         }
                     }
                     else {
                         let interface = Arc::new(Mutex::new(ClusterInterface::new(&cluster_uuid, &finish_counter_mutex)));
                         if self.register_cluster(&cluster_meta, Some(interface)) == false {
                             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to cluster-handler");
-                            return Err(Box::new(HanamiError::Error(msg)));
+                            return Err(Box::new(AinariError::Error(msg)));
                         }
                     }
                     cluster_meta_parsed = true;
@@ -611,13 +611,13 @@ impl ClusterDataHandler {
                 // HexagonData
                 ObjectType::HexagonData => {
                     let msg = format!("Invalid object found in checkpoint-file.");
-                    return Err(Box::new(HanamiError::InputError(msg)));
+                    return Err(Box::new(AinariError::InvalidInput(msg)));
                 }
                 // InputBlock
                 ObjectType::InputBlock => {
                     if cluster_meta_parsed == false {
                         let msg = format!("File has no cluster-meta object at the starting position.");
-                        return Err(Box::new(HanamiError::InputError(msg)));
+                        return Err(Box::new(AinariError::InvalidInput(msg)));
                     }
                     let mut input_block: InputBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
                     input_block.set_cluster_uuid(cluster_uuid);
@@ -628,7 +628,7 @@ impl ClusterDataHandler {
                 ObjectType::CoreBlock => {
                     if cluster_meta_parsed == false {
                         let msg = format!("File has no cluster-meta object at the starting position.");
-                        return Err(Box::new(HanamiError::InputError(msg)));
+                        return Err(Box::new(AinariError::InvalidInput(msg)));
                     }
                     let mut core_block: CoreBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
                     core_block.set_cluster_uuid(cluster_uuid);
@@ -638,7 +638,7 @@ impl ClusterDataHandler {
                 ObjectType::OutputBlock => {
                     if cluster_meta_parsed == false {
                         let msg = format!("File has no cluster-meta object at the starting position.");
-                        return Err(Box::new(HanamiError::InputError(msg)));
+                        return Err(Box::new(AinariError::InvalidInput(msg)));
                     }
                     let mut output_block: OutputBlock = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
                     output_block.set_cluster_uuid(cluster_uuid);
@@ -648,7 +648,7 @@ impl ClusterDataHandler {
                 ObjectType::OutputBuffer => {
                     if cluster_meta_parsed == false {
                         let msg = format!("File has no cluster-meta object at the starting position.");
-                        return Err(Box::new(HanamiError::InputError(msg)));
+                        return Err(Box::new(AinariError::InvalidInput(msg)));
                     }
                     let mut output_buffer: OutputBuffer = bincode::serde::decode_from_slice(&data_buf, cfg).expect("Failed to deserialize").0;
                     output_buffer.cluster_uuid = cluster_uuid.clone();
@@ -669,7 +669,7 @@ impl ClusterDataHandler {
         }
         else {
             let msg = format!("Cluster with uuid '{cluster_uuid}' not found after restore.");
-            return Err(Box::new(HanamiError::Error(msg)));
+            return Err(Box::new(AinariError::Error(msg)));
         };
         
         // connect new finish-counter to inputs

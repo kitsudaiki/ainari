@@ -23,7 +23,7 @@ use super::cluster_meta_structs::*;
 
 use ainari_common::enums::*;
 use ainari_common::objects::*;
-use ainari_common::error::HanamiError;
+use ainari_common::error::AinariError;
 use ainari_common::constants::*;
 use ainari_common::functions::*;
 
@@ -31,9 +31,9 @@ use ainari_common::functions::*;
 #[grammar = "cluster_parser.pest"]
 pub struct ClusterParser;
 
-pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<ClusterMeta, HanamiError> {
+pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<ClusterMeta, AinariError> {
     let file_pair = ClusterParser::parse(Rule::file, source_text)
-        .map_err(|e| HanamiError::InputError(format!("Failed to parse parsed_cluster-template with error: {}", e)))?
+        .map_err(|e| AinariError::InvalidInput(format!("Failed to parse parsed_cluster-template with error: {}", e)))?
         .next().unwrap();
 
     let mut version: i32 = 0;
@@ -55,7 +55,7 @@ pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<Cluste
 
                 if version != 1 {
                     let msg = format!("Version {version} not supported");
-                    return Err(HanamiError::InputError(msg));
+                    return Err(AinariError::InvalidInput(msg));
                 }
             }
             Rule::settings_r => {
@@ -127,7 +127,7 @@ pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<Cluste
                         _       => {
 
                             let msg = format!("Invalid output extra value: '{extra_field}'");
-                            return Err(HanamiError::InputError(msg));
+                            return Err(AinariError::InvalidInput(msg));
                         }
                     };
 
@@ -164,7 +164,7 @@ fn parse_position(pair: pest::iterators::Pair<Rule>) -> Position {
     }
 }
 
-fn init_cluster(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn init_cluster(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     initialize_hexagons(parsed_cluster)?;
     update_axons(parsed_cluster)?;
     initialize_inputs(parsed_cluster)?;
@@ -173,7 +173,7 @@ fn init_cluster(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
     Ok(())
 }
 
-fn search_hexagon(hexagons_meta: &HashMap<Uuid, HexagonMeta>, position: &Position, type_name: &str) -> Result<Uuid, HanamiError> {
+fn search_hexagon(hexagons_meta: &HashMap<Uuid, HexagonMeta>, position: &Position, type_name: &str) -> Result<Uuid, AinariError> {
     for h in hexagons_meta.values() {
         if h.positon == *position {
             return Ok(h.uuid.clone());
@@ -181,23 +181,23 @@ fn search_hexagon(hexagons_meta: &HashMap<Uuid, HexagonMeta>, position: &Positio
     }
     
     let msg = format!("Invalid {type_name} position: {}", position.to_string());
-    Err(HanamiError::InputError(msg))
+    Err(AinariError::InvalidInput(msg))
 }
 
-fn initialize_inputs(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn initialize_inputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for input_meta in parsed_cluster.inputs.iter_mut() {
         let hexagon_uuid  = search_hexagon(&parsed_cluster.hexagons, &input_meta.position, "input")?;
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
             obj.is_input = true;
             input_meta.hexagon_uuid = hexagon_uuid.clone();
         } else {
-            return Err(HanamiError::Error(format!("Can not find input-hexagon with ID {hexagon_uuid}, even it should exist.")));
+            return Err(AinariError::Error(format!("Can not find input-hexagon with ID {hexagon_uuid}, even it should exist.")));
         }
     }
     Ok(())
 }
 
-fn initialize_outputs(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn initialize_outputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for output_meta in parsed_cluster.outputs.iter_mut() {
         let hexagon_uuid  = search_hexagon(&parsed_cluster.hexagons, &output_meta.position, "output")?;
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
@@ -205,13 +205,13 @@ fn initialize_outputs(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiErro
             obj.name = output_meta.name.clone();
             output_meta.hexagon_uuid = hexagon_uuid.clone();
         } else {
-            return Err(HanamiError::Error(format!("Can not find output-hexagon with ID {hexagon_uuid}, even it should exist.")));
+            return Err(AinariError::Error(format!("Can not find output-hexagon with ID {hexagon_uuid}, even it should exist.")));
         }
     }
     Ok(())
 }
 
-fn initialize_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn initialize_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     update_axons(parsed_cluster)?;
     connect_all_hexagons(parsed_cluster)?;
     initialize_target_hexagon_list(parsed_cluster)?;
@@ -219,7 +219,7 @@ fn initialize_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiErr
     Ok(())
 }
 
-fn update_axons(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn update_axons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for axon in parsed_cluster.axons.clone() {
         let from_id = search_hexagon(&parsed_cluster.hexagons, &axon.from, &"axon with source")?;
         let target_id = search_hexagon(&parsed_cluster.hexagons, &axon.to, &"axon with target")?;
@@ -237,7 +237,7 @@ fn connect_hexagon(
     hexagon_copy: &HashMap<Uuid, HexagonMeta>,
     source_id: &Uuid, 
     source_pos: &Position, 
-    side: usize) -> Result<(), HanamiError> 
+    side: usize) -> Result<(), AinariError> 
 {
     let next = get_neighbor_pos(&source_pos, side);
     if next.is_valid() {
@@ -257,7 +257,7 @@ fn connect_hexagon(
     Ok(())
 }
 
-fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> 
+fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> 
 {
     let hexagon_copy = parsed_cluster.hexagons.clone();
     for (source_id, source_hexagon) in hexagon_copy.iter() {
@@ -274,7 +274,7 @@ fn go_to_next_hexagon(
     hexagons_static_copy: &HashMap<Uuid, HexagonMeta>, 
     current_hexagon: &HexagonMeta,
     source_id: &Uuid, 
-    max_path_length: &mut i32) -> Result<Uuid, HanamiError> 
+    max_path_length: &mut i32) -> Result<Uuid, AinariError> 
 {
     // check path-length to not go too far
     *max_path_length -= 1;
@@ -311,7 +311,7 @@ fn go_to_next_hexagon(
     }
 }
 
-fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<(), HanamiError> {
+fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     let hexagons_static_copy = parsed_cluster.hexagons.clone();
     for (source_uuid, source_hexagon) in parsed_cluster.hexagons.iter_mut() {
         for counter in 0..NUMBER_OF_POSSIBLE_NEXT {

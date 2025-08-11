@@ -30,7 +30,7 @@ use crate::config;
 
 use ainari_dataset::converter::{load_mnist_images, load_csv_file};
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_common::error::HanamiError;
+use ainari_common::error::AinariError;
 use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
@@ -163,8 +163,8 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             None) 
         {
             Ok(()) => {},
-            Err(e) => match e.downcast_ref::<HanamiError>() {
-                Some(HanamiError::InputError(e)) => {
+            Err(e) => match e.downcast_ref::<AinariError>() {
+                Some(AinariError::InvalidInput(e)) => {
                     let msg = format!("{}", e);
                     return Err(ErrorResponse::BadRequest(msg));
                 },
@@ -187,8 +187,8 @@ pub async fn upload_binary(mut payload: Multipart, path: Path<(String, String)>,
             name.clone()) 
         {
             Ok(()) => {},
-            Err(e) => match e.downcast_ref::<HanamiError>() {
-                Some(HanamiError::InputError(e)) => {
+            Err(e) => match e.downcast_ref::<AinariError>() {
+                Some(AinariError::InvalidInput(e)) => {
                     let msg = format!("{}", e);
                     return Err(ErrorResponse::BadRequest(msg));
                 },
