@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sha2::{Sha256, Digest};
 use super::objects::*;
+use sha2::{Digest, Sha256};
 
 pub fn sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
@@ -35,11 +35,7 @@ pub fn fast_mem_copy<T: Copy>(src: &Vec<T>, dst: &mut Vec<T>) {
     assert_eq!(src.len(), dst.len(), "Vectors must be the same length!");
 
     unsafe {
-        std::ptr::copy_nonoverlapping(
-            src.as_ptr(),
-            dst.as_mut_ptr(),
-            src.len(),
-        );
+        std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), src.len());
     }
 }
 
@@ -155,29 +151,28 @@ pub fn get_neighbor_pos(source_pos: &Position, side: usize) -> Position {
 
 pub fn get_next_sides(side: u8) -> [u8; 5] {
     let sides = match side {
-        0 =>  [1,  4,  11, 5,  2 ],
-        1 =>  [2,  8,  10, 7,  0 ],
-        2 =>  [0,  6,  9,  3,  1 ],
-        3 =>  [5,  2,  8,  10, 7 ],
-        4 =>  [8,  10, 7,  0,  6 ],
-        5 =>  [7,  0,  6,  9,  3 ],
-        6 =>  [4,  11, 5,  2,  8 ],
-        7 =>  [3,  1,  4,  11, 5 ],
-        8 =>  [6,  9,  3,  1,  4 ],
-        9 =>  [11, 5,  2,  8,  10],
-        10 => [9,  3,  1,  4,  11],
-        11 => [10, 7,  0,  6,  9 ],
+        0 => [1, 4, 11, 5, 2],
+        1 => [2, 8, 10, 7, 0],
+        2 => [0, 6, 9, 3, 1],
+        3 => [5, 2, 8, 10, 7],
+        4 => [8, 10, 7, 0, 6],
+        5 => [7, 0, 6, 9, 3],
+        6 => [4, 11, 5, 2, 8],
+        7 => [3, 1, 4, 11, 5],
+        8 => [6, 9, 3, 1, 4],
+        9 => [11, 5, 2, 8, 10],
+        10 => [9, 3, 1, 4, 11],
+        11 => [10, 7, 0, 6, 9],
         _ => panic!("Invalid side value: {}; This should never happen!", side),
     };
 
     sides
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_fast_mem_copy() {
         let source_vec = vec![1.0f32, 2.0f32, 3.0f32];

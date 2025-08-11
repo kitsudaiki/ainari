@@ -14,12 +14,12 @@
 
 pub const UNINIT_POINT_32: u32 = 0x0FFFFFFF;
 pub const ROWS_IN_READ_BUFFER: u64 = 1000;
-pub const RAND_MAX: u32 = 	2147483647;
+pub const RAND_MAX: u32 = 2147483647;
 
-pub const UNINIT_STATE_64: u64 =  0xFFFFFFFFFFFFFFFF;
-pub const UNINIT_STATE_32: u32 =  0xFFFFFFFF;
-pub const UNINIT_STATE_16: u16 =  0xFFFF;
-pub const UNINIT_STATE_8: u8 =  0xFF;
+pub const UNINIT_STATE_64: u64 = 0xFFFFFFFFFFFFFFFF;
+pub const UNINIT_STATE_32: u32 = 0xFFFFFFFF;
+pub const UNINIT_STATE_16: u16 = 0xFFFF;
+pub const UNINIT_STATE_8: u8 = 0xFF;
 
 // network-predefines
 pub const BLOCK_DIM: usize = 128;

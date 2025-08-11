@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 
 pub struct Counter {
     pub value: Arc<Mutex<usize>>,
-    compare: usize, 
+    compare: usize,
 }
 
 impl Counter {

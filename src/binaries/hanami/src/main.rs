@@ -16,9 +16,9 @@ use std::env;
 use std::fs;
 
 mod api;
-mod database;
 mod config;
 mod core;
+mod database;
 
 use log::LevelFilter;
 
@@ -31,13 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // HINT (kitsudaiki): on my test-environment the rust-compile required the 'unsafe'-marker
         env::set_var("RUST_LOG", "debug");
     }
-    
-    env_logger::init(); 
+
+    env_logger::init();
 
     let enable_debug_log = config::CONFIG.debug;
     if enable_debug_log == false {
         log::set_max_level(LevelFilter::Info);
-    } 
+    }
 
     // create directories if they not exist
     let checkpoint_dir = config::CONFIG.storage.checkpoint_location.clone();
@@ -56,6 +56,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     database::init_database()?;
 
     api::http_server::run_server()?;
-    
+
     Ok(())
 }

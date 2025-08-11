@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::{Arc, Mutex};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
 
-use crate::core::processing::output_buffer::*;
 use crate::core::cluster_handler::*;
+use crate::core::processing::output_buffer::*;
 
 use super::axons::*;
-use super::block_trait::*;
 use super::block_io::*;
+use super::block_trait::*;
 
 // ==================================================================================================
 
@@ -66,7 +66,7 @@ pub struct OutputBlock {
 
 impl PartialEq for OutputBlock {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid 
+        self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
             && self.cluster_uuid == other.cluster_uuid
             && self.block_io == other.block_io
@@ -105,10 +105,12 @@ impl OutputBlock {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
             let root_handler = CLUSTER_HANDLER.read().unwrap();
-            if let Some(output_buffer_mutex) = root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name) {
+            if let Some(output_buffer_mutex) =
+                root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name)
+            {
                 self.output_buffer = Some(output_buffer_mutex.clone());
                 let mut output_buffer = output_buffer_mutex.lock().unwrap();
-                // after a checkpoint-restore the block must be connected to the buffer again, 
+                // after a checkpoint-restore the block must be connected to the buffer again,
                 // but is not allowed to increase the counter further
                 if self.was_already_connected == false {
                     output_buffer.number_of_connected_blocks += 1;
@@ -150,9 +152,11 @@ impl Block for OutputBlock {
             let mut rng = rand::rng();
 
             let output_buffer = output_buffer_mutex.lock().unwrap();
-            self.block_outputs.resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
+            self.block_outputs
+                .resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             let number_fo_weights = self.block_outputs.len() * BLOCK_DIM;
-            self.weights.resize_with(number_fo_weights, || rng.random_range(-0.5..0.5));
+            self.weights
+                .resize_with(number_fo_weights, || rng.random_range(-0.5..0.5));
         } else {
             // TODO: error handling
         }
@@ -167,18 +171,16 @@ impl Block for OutputBlock {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
 
-            if output_buffer.already_finalized == false  {
+            if output_buffer.already_finalized == false {
                 output_buffer.local_finish_counter += 1;
-                if output_buffer.local_finish_counter == output_buffer.number_of_connected_blocks 
-                {
+                if output_buffer.local_finish_counter == output_buffer.number_of_connected_blocks {
                     output_buffer.finalize();
                     output_buffer.backpropagate();
                     already_done = true;
                 } else {
                     output_buffer.unfinished_blocks.push(own);
                 }
-            }
-            else {
+            } else {
                 already_done = true;
             }
         }
@@ -208,13 +210,15 @@ impl Block for OutputBlock {
 
     fn backpropagate(&mut self) {
         self.connect_output_buffer();
-    
+
         // resize output and wights and get expected values from output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
             let output_buffer = output_buffer_mutex.lock().unwrap();
-            self.block_outputs.resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
+            self.block_outputs
+                .resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             for i in 0..self.block_outputs.len() {
-                self.block_outputs[i].expected_value = output_buffer.output_neurons[i].expected_value;
+                self.block_outputs[i].expected_value =
+                    output_buffer.output_neurons[i].expected_value;
             }
         } else {
             // TODO: error
@@ -293,8 +297,11 @@ mod tests {
         let original = OutputBlock::new(&Uuid::new_v4(), &Uuid::new_v4(), &"test".to_string());
 
         let cfg = bincode::config::standard();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: OutputBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: OutputBlock = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
         println!("size: {}", serialized.len());
 
         assert_eq!(original, deserialized);

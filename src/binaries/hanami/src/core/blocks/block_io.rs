@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
-use std::sync::{Arc};
-use serde::{Serialize, Deserialize};
 
+use crate::core::blocks::target_search::*;
 use crate::core::cluster_handler::*;
 use crate::core::processing::worker_queue::*;
-use crate::core::blocks::target_search::*;
 
 use ainari_common::constants::*;
 
@@ -35,13 +35,18 @@ pub struct BlockIoBuffer {
     pub inputs_in_use: u64,
 }
 
-pub fn connect_outputs(io_buffer: &mut BlockIoBuffer, cluster_uuid: &Uuid, source_hexagon_uuid: &Uuid, source_block_uuid: &Uuid) {
+pub fn connect_outputs(
+    io_buffer: &mut BlockIoBuffer,
+    cluster_uuid: &Uuid,
+    source_hexagon_uuid: &Uuid,
+    source_block_uuid: &Uuid,
+) {
     // in case of training, get targets for all not-connected axon-sections
     let mut counter = 0;
     for axon_section in io_buffer.output_buffer.iter_mut() {
         if axon_section.target_pos == UNINIT_STATE_8 {
             // let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-            
+
             // set source-values for the axon-section
             axon_section.cluster_uuid = cluster_uuid.clone();
             axon_section.source_hexagon_uuid = source_hexagon_uuid.clone();
@@ -53,8 +58,16 @@ pub fn connect_outputs(io_buffer: &mut BlockIoBuffer, cluster_uuid: &Uuid, sourc
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             let cluster_handler = CLUSTER_HANDLER.read().unwrap();
             axon_section.cluster_uuid = cluster_uuid.clone();
-            axon_section.source_block = cluster_handler.get_block(&cluster_uuid, &axon_section.source_hexagon_uuid, &axon_section.source_block_uuid);
-            axon_section.target_block = cluster_handler.get_block(&cluster_uuid, &axon_section.target_hexagon_uuid, &axon_section.target_block_uuid);
+            axon_section.source_block = cluster_handler.get_block(
+                &cluster_uuid,
+                &axon_section.source_hexagon_uuid,
+                &axon_section.source_block_uuid,
+            );
+            axon_section.target_block = cluster_handler.get_block(
+                &cluster_uuid,
+                &axon_section.target_hexagon_uuid,
+                &axon_section.target_block_uuid,
+            );
         }
 
         counter += 1;
@@ -78,12 +91,12 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
 
         if target_bock_io.input_buffer_counter >= target_bock_io.inputs_in_use as u64 {
             target_bock_io.input_buffer_counter = 0;
-            
-            let worker_task = WorkerTask{
+
+            let worker_task = WorkerTask {
                 task_type: task_type.clone(),
                 block: block_clone,
             };
-            
+
             worker_queue.add(worker_task);
         }
     }
@@ -107,11 +120,11 @@ pub fn send_backward(io_buffer: &BlockIoBuffer) {
         if target_bock_io.output_buffer_counter >= target_bock_io.output_buffer.len() as u64 {
             target_bock_io.output_buffer_counter = 0;
 
-            let worker_task = WorkerTask{
+            let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
                 block: Arc::clone(&source_block_mutex),
             };
-            
+
             worker_queue.add(worker_task);
         }
     }
@@ -127,8 +140,11 @@ mod tests {
         original.input_buffer.push(AxonSection::default());
 
         let cfg = bincode::config::standard();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: BlockIoBuffer = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: BlockIoBuffer = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
 
         println!("size: {}", serialized.len());
 

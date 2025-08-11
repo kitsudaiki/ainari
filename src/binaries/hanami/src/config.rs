@@ -69,16 +69,15 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             match toml::from_str(&content) {
                 Ok(v) => {
                     log::info!("successfully loaded config '{file_path}'");
-                    return v;        
-                },
+                    return v;
+                }
                 Err(e) => {
-
                     log::error!("Failed to parse '{}'", e);
                     log::error!("{}", e);
                     process::exit(1);
                 }
-            }       
-        },
+            }
+        }
         Err(e) => {
             log::error!("Failed read config-file '{file_path}'");
             log::error!("{}", e);
@@ -94,8 +93,8 @@ pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
     match fs::read_to_string(&file_path) {
         Ok(content) => {
             log::debug!("successfully read token-key-file '{file_path}'");
-            content    
-        },
+            content
+        }
         Err(e) => {
             log::error!("Failed read token-key-file '{file_path}'");
             log::error!("{}", e);

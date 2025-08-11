@@ -16,25 +16,34 @@ use std::collections::HashMap;
 
 use pest::Parser;
 use pest_derive::Parser;
-use uuid::Uuid;
 use rand::Rng;
+use uuid::Uuid;
 
 use super::cluster_meta_structs::*;
 
-use ainari_common::enums::*;
-use ainari_common::objects::*;
-use ainari_common::error::AinariError;
 use ainari_common::constants::*;
+use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 use ainari_common::functions::*;
+use ainari_common::objects::*;
 
 #[derive(Parser)]
 #[grammar = "cluster_parser.pest"]
 pub struct ClusterParser;
 
-pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<ClusterMeta, AinariError> {
+pub fn parse_cluster_template(
+    name: &String,
+    source_text: &str,
+) -> Result<ClusterMeta, AinariError> {
     let file_pair = ClusterParser::parse(Rule::file, source_text)
-        .map_err(|e| AinariError::InvalidInput(format!("Failed to parse parsed_cluster-template with error: {}", e)))?
-        .next().unwrap();
+        .map_err(|e| {
+            AinariError::InvalidInput(format!(
+                "Failed to parse parsed_cluster-template with error: {}",
+                e
+            ))
+        })?
+        .next()
+        .unwrap();
 
     let mut version: i32 = 0;
     let mut settings = Settings {
@@ -104,10 +113,10 @@ pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<Cluste
             Rule::outputs_r => {
                 for out in section.into_inner() {
                     let mut inner = out.into_inner();
-            
+
                     let name_str = inner.next().unwrap().as_str().to_string();
                     let position = parse_position(inner.next().unwrap());
-            
+
                     // get optional output-type, "plain" is default
                     let next = inner.next();
                     let extra_field = match next {
@@ -117,15 +126,14 @@ pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<Cluste
                         }
                         _ => "plain",
                     };
-                
+
                     // convert output-type
                     let output_type = match extra_field {
                         "plain" => OutputType::PlainOutput,
                         "float" => OutputType::FloatOutput,
-                        "int"   => OutputType::IntOutput,
-                        "bool"  => OutputType::BoolOutput,
-                        _       => {
-
+                        "int" => OutputType::IntOutput,
+                        "bool" => OutputType::BoolOutput,
+                        _ => {
                             let msg = format!("Invalid output extra value: '{extra_field}'");
                             return Err(AinariError::InvalidInput(msg));
                         }
@@ -154,9 +162,10 @@ pub fn parse_cluster_template(name: &String, source_text: &str) -> Result<Cluste
     Ok(parsed_cluster)
 }
 
-
 fn parse_position(pair: pest::iterators::Pair<Rule>) -> Position {
-    let mut coords = pair.into_inner().map(|n| n.as_str().parse::<u32>().unwrap());
+    let mut coords = pair
+        .into_inner()
+        .map(|n| n.as_str().parse::<u32>().unwrap());
     Position {
         x: coords.next().unwrap(),
         y: coords.next().unwrap(),
@@ -173,25 +182,31 @@ fn init_cluster(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     Ok(())
 }
 
-fn search_hexagon(hexagons_meta: &HashMap<Uuid, HexagonMeta>, position: &Position, type_name: &str) -> Result<Uuid, AinariError> {
+fn search_hexagon(
+    hexagons_meta: &HashMap<Uuid, HexagonMeta>,
+    position: &Position,
+    type_name: &str,
+) -> Result<Uuid, AinariError> {
     for h in hexagons_meta.values() {
         if h.positon == *position {
             return Ok(h.uuid.clone());
         }
     }
-    
+
     let msg = format!("Invalid {type_name} position: {}", position.to_string());
     Err(AinariError::InvalidInput(msg))
 }
 
 fn initialize_inputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for input_meta in parsed_cluster.inputs.iter_mut() {
-        let hexagon_uuid  = search_hexagon(&parsed_cluster.hexagons, &input_meta.position, "input")?;
+        let hexagon_uuid = search_hexagon(&parsed_cluster.hexagons, &input_meta.position, "input")?;
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
             obj.is_input = true;
             input_meta.hexagon_uuid = hexagon_uuid.clone();
         } else {
-            return Err(AinariError::Error(format!("Can not find input-hexagon with ID {hexagon_uuid}, even it should exist.")));
+            return Err(AinariError::Error(format!(
+                "Can not find input-hexagon with ID {hexagon_uuid}, even it should exist."
+            )));
         }
     }
     Ok(())
@@ -199,13 +214,16 @@ fn initialize_inputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError
 
 fn initialize_outputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for output_meta in parsed_cluster.outputs.iter_mut() {
-        let hexagon_uuid  = search_hexagon(&parsed_cluster.hexagons, &output_meta.position, "output")?;
+        let hexagon_uuid =
+            search_hexagon(&parsed_cluster.hexagons, &output_meta.position, "output")?;
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
             obj.is_output = true;
             obj.name = output_meta.name.clone();
             output_meta.hexagon_uuid = hexagon_uuid.clone();
         } else {
-            return Err(AinariError::Error(format!("Can not find output-hexagon with ID {hexagon_uuid}, even it should exist.")));
+            return Err(AinariError::Error(format!(
+                "Can not find output-hexagon with ID {hexagon_uuid}, even it should exist."
+            )));
         }
     }
     Ok(())
@@ -233,12 +251,12 @@ fn update_axons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
 }
 
 fn connect_hexagon(
-    parsed_cluster: &mut ClusterMeta, 
+    parsed_cluster: &mut ClusterMeta,
     hexagon_copy: &HashMap<Uuid, HexagonMeta>,
-    source_id: &Uuid, 
-    source_pos: &Position, 
-    side: usize) -> Result<(), AinariError> 
-{
+    source_id: &Uuid,
+    source_pos: &Position,
+    side: usize,
+) -> Result<(), AinariError> {
     let next = get_neighbor_pos(&source_pos, side);
     if next.is_valid() {
         for (target_id, hexagon) in hexagon_copy.iter() {
@@ -257,8 +275,7 @@ fn connect_hexagon(
     Ok(())
 }
 
-fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> 
-{
+fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     let hexagon_copy = parsed_cluster.hexagons.clone();
     for (source_id, source_hexagon) in hexagon_copy.iter() {
         let source_pos = &source_hexagon.positon;
@@ -271,18 +288,18 @@ fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariEr
 }
 
 fn go_to_next_hexagon(
-    hexagons_static_copy: &HashMap<Uuid, HexagonMeta>, 
+    hexagons_static_copy: &HashMap<Uuid, HexagonMeta>,
     current_hexagon: &HexagonMeta,
-    source_id: &Uuid, 
-    max_path_length: &mut i32) -> Result<Uuid, AinariError> 
-{
+    source_id: &Uuid,
+    max_path_length: &mut i32,
+) -> Result<Uuid, AinariError> {
     // check path-length to not go too far
     *max_path_length -= 1;
     if *max_path_length < 0 {
         return Ok(current_hexagon.uuid.clone());
     }
 
-    let chance_for_next = 0.5f32;  // TODO: make hard-coded value configurable
+    let chance_for_next = 0.5f32; // TODO: make hard-coded value configurable
     let num = rand::rng().random_range(0..1000) as f32;
     if (chance_for_next * 1000.0f32 < num) && source_id != &current_hexagon.uuid {
         return Ok(current_hexagon.uuid.clone());
@@ -315,15 +332,23 @@ fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<()
     let hexagons_static_copy = parsed_cluster.hexagons.clone();
     for (source_uuid, source_hexagon) in parsed_cluster.hexagons.iter_mut() {
         for counter in 0..NUMBER_OF_POSSIBLE_NEXT {
-            let mut max_path_length = parsed_cluster.settings.max_connection_distance.clone() as i32;
+            let mut max_path_length =
+                parsed_cluster.settings.max_connection_distance.clone() as i32;
 
             // hexagons with a different axon-target have an advantage, so they reduced by one step to be equal to other hexagons
-            if source_uuid != &source_hexagon.axon_target  {
+            if source_uuid != &source_hexagon.axon_target {
                 max_path_length -= 1;
             }
 
-            let base_hexagon = &hexagons_static_copy.get(&source_hexagon.axon_target).unwrap();
-            let target_hexagon_id = go_to_next_hexagon(&hexagons_static_copy, &base_hexagon, &source_uuid, &mut max_path_length)?;
+            let base_hexagon = &hexagons_static_copy
+                .get(&source_hexagon.axon_target)
+                .unwrap();
+            let target_hexagon_id = go_to_next_hexagon(
+                &hexagons_static_copy,
+                &base_hexagon,
+                &source_uuid,
+                &mut max_path_length,
+            )?;
 
             // handle result
             if &target_hexagon_id != source_uuid {
@@ -337,12 +362,10 @@ fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<()
     Ok(())
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_version() {
         let name = "test-cluster".to_string();
@@ -360,7 +383,6 @@ mod tests {
             key1: 1,2,3; 
         outputs: 
             key2: 4,5,6;";
-            
 
         match parse_cluster_template(&name, input) {
             Ok(parsed) => {
@@ -371,7 +393,7 @@ mod tests {
                 // should always fail here
                 assert_eq!(false, true);
             }
-        }        
+        }
     }
 
     #[test]
@@ -391,7 +413,6 @@ mod tests {
             key1: 1,2,3; 
         outputs: 
             key2: 4,5,6;";
-            
 
         match parse_cluster_template(&name, input) {
             Ok(parsed) => {
@@ -404,9 +425,9 @@ mod tests {
                 // should always fail here
                 assert_eq!(false, true);
             }
-        }        
+        }
     }
-    
+
     #[test]
     fn test_parse_tests() {
         let name = "test-cluster".to_string();
@@ -424,20 +445,21 @@ mod tests {
             key1: 1,2,3; 
         outputs: 
             key2: 4,5,6;";
-            
 
         match parse_cluster_template(&name, input) {
             Ok(parsed) => {
                 assert_eq!(parsed.hexagons.len(), 2);
 
                 if let Some(value) = parsed.hexagons.values().nth(0) {
-                    let valid = value.positon == Position{x: 1, y: 2, z: 3} || value.positon == Position{x: 4, y: 5, z: 6};
+                    let valid = value.positon == Position { x: 1, y: 2, z: 3 }
+                        || value.positon == Position { x: 4, y: 5, z: 6 };
                     assert!(valid);
                 } else {
                     assert_eq!(false, true);
                 }
                 if let Some(value) = parsed.hexagons.values().nth(1) {
-                    let valid = value.positon == Position{x: 1, y: 2, z: 3} || value.positon == Position{x: 4, y: 5, z: 6};
+                    let valid = value.positon == Position { x: 1, y: 2, z: 3 }
+                        || value.positon == Position { x: 4, y: 5, z: 6 };
                     assert!(valid);
                 } else {
                     assert_eq!(false, true);
@@ -448,7 +470,7 @@ mod tests {
                 // should always fail here
                 assert_eq!(false, true);
             }
-        }  
+        }
     }
 
     #[test]
@@ -470,14 +492,14 @@ mod tests {
             key1: 1,2,3; 
         outputs: 
             key2: 4,5,6;";
-            
+
         match parse_cluster_template(&name, input) {
             Ok(parsed) => {
                 assert_eq!(parsed.axons.len(), 2);
-                assert_eq!(parsed.axons[0].from, Position{x: 1, y: 2, z: 3});
-                assert_eq!(parsed.axons[0].to,   Position{x: 2, y: 2, z: 2});
-                assert_eq!(parsed.axons[1].from, Position{x: 2, y: 2, z: 2});
-                assert_eq!(parsed.axons[1].to,   Position{x: 4, y: 5, z: 6});
+                assert_eq!(parsed.axons[0].from, Position { x: 1, y: 2, z: 3 });
+                assert_eq!(parsed.axons[0].to, Position { x: 2, y: 2, z: 2 });
+                assert_eq!(parsed.axons[1].from, Position { x: 2, y: 2, z: 2 });
+                assert_eq!(parsed.axons[1].to, Position { x: 4, y: 5, z: 6 });
             }
             Err(e) => {
                 eprintln!("❌ Parsing Error: {}", e);
@@ -511,14 +533,14 @@ mod tests {
         outputs: 
             key3: 3,3,3;
             key4: 4,4,4;";
-            
+
         match parse_cluster_template(&name, input) {
             Ok(parsed) => {
                 assert_eq!(parsed.inputs.len(), 2);
                 assert_eq!(parsed.inputs[0].name, "key1");
-                assert_eq!(parsed.inputs[0].position, Position{x: 1, y: 1, z: 1});
+                assert_eq!(parsed.inputs[0].position, Position { x: 1, y: 1, z: 1 });
                 assert_eq!(parsed.inputs[1].name, "key2");
-                assert_eq!(parsed.inputs[1].position, Position{x: 2, y: 2, z: 2});
+                assert_eq!(parsed.inputs[1].position, Position { x: 2, y: 2, z: 2 });
             }
             Err(e) => {
                 eprintln!("❌ Parsing Error: {}", e);
@@ -557,9 +579,9 @@ mod tests {
             Ok(parsed) => {
                 assert_eq!(parsed.outputs.len(), 2);
                 assert_eq!(parsed.outputs[0].name, "key3");
-                assert_eq!(parsed.outputs[0].position, Position{x: 3, y: 3, z: 3});
+                assert_eq!(parsed.outputs[0].position, Position { x: 3, y: 3, z: 3 });
                 assert_eq!(parsed.outputs[1].name, "key4");
-                assert_eq!(parsed.outputs[1].position, Position{x: 4, y: 4, z: 4});
+                assert_eq!(parsed.outputs[1].position, Position { x: 4, y: 4, z: 4 });
             }
             Err(e) => {
                 eprintln!("❌ Parsing Error: {}", e);
@@ -598,10 +620,10 @@ mod tests {
             Ok(parsed) => {
                 assert_eq!(parsed.outputs.len(), 2);
                 assert_eq!(parsed.outputs[0].name, "key3");
-                assert_eq!(parsed.outputs[0].position, Position{x: 3, y: 3, z: 3});
+                assert_eq!(parsed.outputs[0].position, Position { x: 3, y: 3, z: 3 });
                 assert_eq!(parsed.outputs[0].output_type, OutputType::FloatOutput);
                 assert_eq!(parsed.outputs[1].name, "key4");
-                assert_eq!(parsed.outputs[1].position, Position{x: 4, y: 4, z: 4});
+                assert_eq!(parsed.outputs[1].position, Position { x: 4, y: 4, z: 4 });
                 assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
             }
             Err(e) => {
@@ -638,10 +660,10 @@ mod tests {
             Ok(parsed) => {
                 assert_eq!(parsed.outputs.len(), 2);
                 assert_eq!(parsed.outputs[0].name, "key3");
-                assert_eq!(parsed.outputs[0].position, Position{x: 3, y: 3, z: 3});
+                assert_eq!(parsed.outputs[0].position, Position { x: 3, y: 3, z: 3 });
                 assert_eq!(parsed.outputs[0].output_type, OutputType::FloatOutput);
                 assert_eq!(parsed.outputs[1].name, "key4");
-                assert_eq!(parsed.outputs[1].position, Position{x: 4, y: 4, z: 4});
+                assert_eq!(parsed.outputs[1].position, Position { x: 4, y: 4, z: 4 });
                 assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
             }
             Err(e) => {
@@ -659,7 +681,7 @@ mod tests {
         let result = parse_cluster_template(&name, input);
         assert!(result.is_err(), "Empty input should result in an error.");
     }
-    
+
     #[test]
     fn test_invalid_input() {
         let name = "test-cluster".to_string();
@@ -699,11 +721,14 @@ mod tests {
             key3: 3,3,3 (float);
             key4: 4,4,4;";
         let result = parse_cluster_template(&name, input);
-        assert!(result.is_err(), "Invalid version should result in an error.");
+        assert!(
+            result.is_err(),
+            "Invalid version should result in an error."
+        );
         match result {
             Ok(_) => {
                 assert!(false)
-            },
+            }
             Err(msg) => {
                 assert!(msg == "Version 2 not supported");
             }
@@ -712,21 +737,36 @@ mod tests {
 
     #[test]
     fn test_init_cluster() {
-
-        let hexagon0 = HexagonMeta::new(Position{x: 1, y: 1, z: 1});
-        let hexagon1 = HexagonMeta::new(Position{x: 3, y: 1, z: 1});
-        let hexagon2 = HexagonMeta::new(Position{x: 4, y: 1, z: 1});
+        let hexagon0 = HexagonMeta::new(Position { x: 1, y: 1, z: 1 });
+        let hexagon1 = HexagonMeta::new(Position { x: 3, y: 1, z: 1 });
+        let hexagon2 = HexagonMeta::new(Position { x: 4, y: 1, z: 1 });
         let mut parsed_cluster = ClusterMeta::default();
         parsed_cluster.version = 1;
         parsed_cluster.settings.refractory_time = 2;
         parsed_cluster.settings.neuron_cooldown = 10000000.0f32;
         parsed_cluster.settings.max_connection_distance = 1;
-        parsed_cluster.hexagons.insert(hexagon0.uuid, hexagon0.clone());
-        parsed_cluster.hexagons.insert(hexagon1.uuid, hexagon1.clone());
-        parsed_cluster.hexagons.insert(hexagon2.uuid, hexagon2.clone());
-        parsed_cluster.axons.push(AxonMeta{from: Position{x: 1, y: 1, z: 1}, to: Position{x: 3, y: 1, z: 1}});
-        parsed_cluster.inputs.push(InputMeta::new("input_hexagon".to_string(), Position{x: 1, y: 1, z: 1}));
-        parsed_cluster.outputs.push(OutputMeta::new("output_hexagon".to_string(), Position{x: 4, y: 1, z: 1}, OutputType::PlainOutput));
+        parsed_cluster
+            .hexagons
+            .insert(hexagon0.uuid, hexagon0.clone());
+        parsed_cluster
+            .hexagons
+            .insert(hexagon1.uuid, hexagon1.clone());
+        parsed_cluster
+            .hexagons
+            .insert(hexagon2.uuid, hexagon2.clone());
+        parsed_cluster.axons.push(AxonMeta {
+            from: Position { x: 1, y: 1, z: 1 },
+            to: Position { x: 3, y: 1, z: 1 },
+        });
+        parsed_cluster.inputs.push(InputMeta::new(
+            "input_hexagon".to_string(),
+            Position { x: 1, y: 1, z: 1 },
+        ));
+        parsed_cluster.outputs.push(OutputMeta::new(
+            "output_hexagon".to_string(),
+            Position { x: 4, y: 1, z: 1 },
+            OutputType::PlainOutput,
+        ));
 
         assert!(init_cluster(&mut parsed_cluster).is_ok());
 
@@ -761,10 +801,9 @@ mod tests {
         let mut success = true;
         for i in 0..NUMBER_OF_POSSIBLE_NEXT {
             success &= parsed_hexagon0.possible_hexagon_target_ids[i] == parsed_hexagon1.uuid
-                    && parsed_hexagon0.possible_hexagon_target_ids[i] != parsed_hexagon0.uuid;
+                && parsed_hexagon0.possible_hexagon_target_ids[i] != parsed_hexagon0.uuid;
         }
         assert_eq!(success, true);
-
 
         assert_eq!(parsed_hexagon1.is_input, false);
         assert_eq!(parsed_hexagon1.is_output, false);
@@ -786,7 +825,7 @@ mod tests {
         let mut success = true;
         for i in 0..NUMBER_OF_POSSIBLE_NEXT {
             success &= parsed_hexagon1.possible_hexagon_target_ids[i] == parsed_hexagon2.uuid
-                    && parsed_hexagon1.possible_hexagon_target_ids[i] != parsed_hexagon1.uuid;
+                && parsed_hexagon1.possible_hexagon_target_ids[i] != parsed_hexagon1.uuid;
         }
         assert_eq!(success, true);
 
@@ -811,6 +850,5 @@ mod tests {
             success &= parsed_hexagon2.possible_hexagon_target_ids[i] == Uuid::nil();
         }
         assert_eq!(success, true);
-
     }
 }

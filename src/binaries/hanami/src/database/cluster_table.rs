@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::database::db_handle;
 
 use ainari_common::enums;
 
@@ -60,7 +60,8 @@ pub struct ClusterEntry {
 
 pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS clusters (
+    let _ = conn.batch_execute(
+        "CREATE TABLE IF NOT EXISTS clusters (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         template TEXT,
@@ -73,13 +74,19 @@ pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );")?;
+    );",
+    )?;
 
     Ok(())
 }
 
-pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_template: &String, context: &UserContext) -> QueryResult<usize> {
-    let cluster = ClusterEntry{
+pub fn add_new_cluster(
+    cluster_uuid: &Uuid,
+    cluster_name: &String,
+    cluster_template: &String,
+    context: &UserContext,
+) -> QueryResult<usize> {
+    let cluster = ClusterEntry {
         uuid: cluster_uuid.to_string().clone(),
         name: cluster_name.clone(),
         template: cluster_template.clone(),
@@ -100,10 +107,15 @@ pub fn add_new_cluster(cluster_uuid: &Uuid, cluster_name: &String, cluster_templ
 pub fn add_cluster(cluster: &ClusterEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
-    diesel::insert_into(clusters).values(cluster).execute(&mut *conn)
+    diesel::insert_into(clusters)
+        .values(cluster)
+        .execute(&mut *conn)
 }
 
-pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<ClusterEntry, enums::DbError> {
+pub fn get_cluster(
+    cluster_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<ClusterEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
 
@@ -115,7 +127,7 @@ pub fn get_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<Cluster
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin == false {
             query = query.filter(owner_id.eq(context.user_id.clone()));
-        } 
+        }
     }
 
     match query
@@ -135,9 +147,7 @@ pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
 
-    let mut query = clusters
-        .filter(status.eq("ACTIVE"))
-        .into_boxed();
+    let mut query = clusters.filter(status.eq("ACTIVE")).into_boxed();
 
     if context.is_admin == false {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -156,7 +166,7 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
     use self::clusters::dsl::*;
     match diesel::update(clusters.filter(uuid.eq(cluster_uuid.to_string())))
         .set((
-            status.eq("DELETED"), 
+            status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
             deleted_by.eq(context.user_id.clone()),
         ))
@@ -176,7 +186,7 @@ pub fn delete_all_cluster() -> Result<(), enums::DbError> {
     use self::clusters::dsl::*;
     match diesel::update(clusters.filter(status.eq("ACTIVE")))
         .set((
-            status.eq("DELETED"), 
+            status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
             deleted_by.eq("HANAMI_START"),
         ))
@@ -199,9 +209,10 @@ mod tests {
     fn hard_delete_cluster(cluster_uuid: &Uuid) {
         use self::clusters::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
-        let _ = diesel::delete(clusters.filter(uuid.eq(cluster_uuid.to_string()))).execute(&mut *conn);
+        let _ =
+            diesel::delete(clusters.filter(uuid.eq(cluster_uuid.to_string()))).execute(&mut *conn);
     }
-    
+
     #[test]
     #[serial]
     fn test_add_get_cluster() {
@@ -247,7 +258,7 @@ mod tests {
                 assert_eq!(retrieved_cluster.updated_by, cluster.updated_by);
                 assert_eq!(retrieved_cluster.deleted_at, cluster.deleted_at);
                 assert_eq!(retrieved_cluster.deleted_by, cluster.deleted_by);
-            },
+            }
             Err(_) => {
                 assert_eq!(true, false);
             }
@@ -286,7 +297,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -301,7 +312,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_cluster(&uuid1);
         hard_delete_cluster(&uuid2);
 
@@ -373,7 +384,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -388,7 +399,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-                
+
         let cluster3 = ClusterEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
@@ -403,7 +414,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_cluster(&uuid1);
         hard_delete_cluster(&uuid2);
         hard_delete_cluster(&uuid3);
@@ -452,7 +463,7 @@ mod tests {
         match get_cluster(&uuid1, &context) {
             Ok(retrieved_cluster) => {
                 assert_eq!(retrieved_cluster.uuid, uuid1.to_string());
-            },
+            }
             Err(_) => {
                 assert_eq!(true, false);
             }
@@ -468,10 +479,10 @@ mod tests {
         match get_cluster(&uuid3, &context) {
             Ok(_) => {
                 assert_eq!(true, false);
-            },
+            }
             Err(_) => {}
         };
-        
+
         // delete-test normal user false uuid
         let context = UserContext {
             user_id: "test-user-42".to_string(),
@@ -482,7 +493,7 @@ mod tests {
         match delete_cluster(&uuid3, &context) {
             Ok(_) => {
                 assert_eq!(true, false);
-            },
+            }
             Err(_) => {}
         };
 

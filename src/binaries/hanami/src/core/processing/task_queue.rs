@@ -46,11 +46,11 @@ pub fn init_task_queue() -> TaskQueue {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
     use std::sync::{Arc, Mutex};
+    use uuid::Uuid;
 
-    use crate::core::processing::tasks::{Task, TaskVariant, CheckpointSaveInfo};
     use super::*;
+    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskVariant};
 
     #[test]
     fn test_add_and_get() {

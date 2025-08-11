@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
+use rand::{Rng, distr::Alphanumeric};
 use std::env;
 use std::error::Error;
-use rand::{
-    distr::Alphanumeric, 
-    Rng
-};
 
-use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::database::db_handle;
 
-use ainari_common::functions::sha256_hash;
 use ainari_common::enums;
+use ainari_common::functions::sha256_hash;
 
 // Define the schema
 table! {
@@ -66,7 +63,7 @@ pub struct UserEntry {
     pub deleted_by: Option<String>,
 }
 
-pub fn init_admin() -> Result<(), Box<dyn Error>> {   
+pub fn init_admin() -> Result<(), Box<dyn Error>> {
     let fake_admin_context = UserContext {
         user_id: "HANAMI_INIT".to_string(),
         project_id: "HANAMI_INIT".to_string(),
@@ -90,7 +87,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_ID");
             return Err("An error occurred while initializing new admin-user".into());
-        },
+        }
     }
 
     match env::var("HANAMI_ADMIN_NAME") {
@@ -98,7 +95,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
             return Err("An error occurred while initializing new admin-user".into());
-        },
+        }
     }
 
     match env::var("HANAMI_ADMIN_PASSPHRASE") {
@@ -106,17 +103,24 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
-        },
+        }
     }
 
-    add_new_user(&admin_id, &admin_name, &admin_passphrase, true, &fake_admin_context)?;
+    add_new_user(
+        &admin_id,
+        &admin_name,
+        &admin_passphrase,
+        true,
+        &fake_admin_context,
+    )?;
 
     Ok(())
 }
 
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS users (
+    let _ = conn.batch_execute(
+        "CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(256),
         name VARCHAR(256),
         is_admin BOOLEAN,
@@ -130,19 +134,26 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );")?;
+    );",
+    )?;
     // release lock on the connection to avoid dead-lock
     drop(conn);
 
     init_admin()
 }
 
-pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, is_admin: bool, context: &UserContext) -> QueryResult<usize> {
+pub fn add_new_user(
+    user_id: &String,
+    user_name: &String,
+    passphrase: &String,
+    is_admin: bool,
+    context: &UserContext,
+) -> QueryResult<usize> {
     if context.is_admin == false {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string())
-        ))
+            Box::new("Permission denied.".to_string()),
+        ));
     }
 
     // check if user alredy exist in the database
@@ -151,9 +162,9 @@ pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, i
         Ok(_) => {
             return Err(diesel::result::Error::DatabaseError(
                 DatabaseErrorKind::UniqueViolation,
-                Box::new(format!("User with ID '{user_id}' already exist."))
-            ))
-        },
+                Box::new(format!("User with ID '{user_id}' already exist.")),
+            ));
+        }
         Err(_) => {}
     };
 
@@ -168,7 +179,7 @@ pub fn add_new_user(user_id: &String, user_name: &String, passphrase: &String, i
     // create sha256-hash from the salted passphrase to store the hash in the database
     let pw_hash = sha256_hash(salted_passphrase.as_str());
 
-    let user = UserEntry{
+    let user = UserEntry {
         id: user_id.clone(),
         name: user_name.clone(),
         projects: "[]".to_string(),
@@ -240,7 +251,10 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::users::dsl::*;
-    users.filter(status.eq("ACTIVE")).select(UserEntry::as_select()).load(&mut *conn)
+    users
+        .filter(status.eq("ACTIVE"))
+        .select(UserEntry::as_select())
+        .load(&mut *conn)
 }
 
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
@@ -273,7 +287,7 @@ mod tests {
         let mut conn = db_handle::DB_CONN.lock().unwrap();
         let _ = diesel::delete(users.filter(id.eq(user_id))).execute(&mut *conn);
     }
-    
+
     #[test]
     #[serial]
     fn test_add_get_user() {
@@ -319,7 +333,7 @@ mod tests {
                 assert_eq!(retrieved_user.updated_by, user.updated_by);
                 assert_eq!(retrieved_user.deleted_at, user.deleted_at);
                 assert_eq!(retrieved_user.deleted_by, user.deleted_by);
-            },
+            }
             Err(_) => {}
         };
 
@@ -355,7 +369,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let user2 = UserEntry {
             id: owner_id2.clone(),
             name: "Bob".to_string(),
@@ -371,7 +385,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_user(&user1.id);
         hard_delete_user(&user2.id);
 

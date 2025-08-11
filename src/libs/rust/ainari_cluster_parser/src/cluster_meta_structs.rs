@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
+use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::objects::*;
-use ainari_common::constants::*;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Settings {

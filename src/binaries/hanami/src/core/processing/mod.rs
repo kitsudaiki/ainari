@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod worker_thread;
-pub mod worker_queue;
-pub mod worker_handler;
 pub mod output_buffer;
 pub mod task_queue;
 pub mod tasks;
+pub mod worker_handler;
+pub mod worker_queue;
+pub mod worker_thread;

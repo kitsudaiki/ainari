@@ -38,4 +38,3 @@ impl PartialEq<&str> for AinariError {
 }
 
 impl std::error::Error for AinariError {}
-

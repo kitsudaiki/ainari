@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str;
-use std::fs;
-use std::path::Path;
-use std::io::Write;
-use std::io::{Read, Seek, BufWriter, BufReader};
-use std::path::PathBuf;
-use std::collections::HashMap;
-use uuid::Uuid;
+use bincode::{Decode, Encode, config};
 use bytemuck::cast_slice_mut;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
 use std::io::SeekFrom;
-use serde::{Serialize, Deserialize};
-use bincode::{config, Decode, Encode};
+use std::io::Write;
+use std::io::{BufReader, BufWriter, Read, Seek};
+use std::path::Path;
+use std::path::PathBuf;
+use std::str;
+use uuid::Uuid;
 
-use ainari_common::error::AinariError;
 use ainari_common::constants::*;
+use ainari_common::error::AinariError;
 
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -77,7 +77,14 @@ pub struct DataSetHeaderV1_0 {
 }
 
 impl DataSetHeaderV1_0 {
-    pub fn new(uuid: Uuid, name: String, description: String, dataset_type: DataSetType, row_size: u64, columns: HashMap<String, Column>) -> Self {
+    pub fn new(
+        uuid: Uuid,
+        name: String,
+        description: String,
+        dataset_type: DataSetType,
+        row_size: u64,
+        columns: HashMap<String, Column>,
+    ) -> Self {
         DataSetHeaderV1_0 {
             uuid: uuid.to_string(),
             name: name,
@@ -114,7 +121,7 @@ impl DataSetFileReadHandleV1_0 {
             Ok(metadata) => {
                 let content_size = metadata.len() as u64 - self.payload_offset;
                 content_size / (self.header.row_size * 4)
-            },
+            }
             Err(_) => {
                 // TODO: handle error-case better
                 0
@@ -122,7 +129,7 @@ impl DataSetFileReadHandleV1_0 {
         }
     }
 
-    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), String>{
+    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), String> {
         let column = &self.selected_column;
         let col_get = match self.header.columns.get(column) {
             Some(col) => col,
@@ -133,15 +140,15 @@ impl DataSetFileReadHandleV1_0 {
         };
 
         // cget pointer to the requested position in the buffer
-        let row_col_size = col_get.end - col_get.start;               
+        let row_col_size = col_get.end - col_get.start;
         let buffer_offset = ((row - self.buffer_start_row) * self.header.row_size) + col_get.start;
-        let chunk: &[f32] = &self.read_buffer[(buffer_offset as usize)..((buffer_offset + row_col_size) as usize)];
+        let chunk: &[f32] =
+            &self.read_buffer[(buffer_offset as usize)..((buffer_offset + row_col_size) as usize)];
 
         Ok((chunk, row_col_size))
     }
 
-    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), String>
-    {
+    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), String> {
         if row >= &self.buffer_start_row && row < &self.buffer_end_row {
             return self.get_data_from_buffer(row);
         }
@@ -161,7 +168,9 @@ impl DataSetFileReadHandleV1_0 {
         // read selected block from file into the read-buffer
         let offset_bytes = (self.header.row_size) * self.buffer_start_row * 4;
         let byte_slice_input: &mut [u8] = cast_slice_mut(self.read_buffer.as_mut_slice());
-        self.target_file.seek(SeekFrom::Start(self.payload_offset + offset_bytes)).unwrap();
+        self.target_file
+            .seek(SeekFrom::Start(self.payload_offset + offset_bytes))
+            .unwrap();
         let _ = self.target_file.read_exact(byte_slice_input);
 
         return self.get_data_from_buffer(row);
@@ -177,19 +186,20 @@ pub fn init_new_data_set_file(
     columns: HashMap<String, Column>,
     data_type: DataSetType,
 ) -> Result<DataSetFileWriteHandleV1_0, Box<dyn std::error::Error>> {
-
     let file_path_str: String = file_path.to_string_lossy().into();
     let bincode_config = config::standard();
 
     // check give dataset-type
     if data_type == DataSetType::UndefinedType {
-        return Err(Box::new(AinariError::InvalidInput("Invalid dataset-type".to_string())));
+        return Err(Box::new(AinariError::InvalidInput(
+            "Invalid dataset-type".to_string(),
+        )));
     }
 
     // check if file already exist
     if Path::new(file_path).exists() {
         let msg = format!("Dataset file '{file_path_str}' already exists.");
-        // HINT (kitsudaki): the path is defined by the backend itself and not by the user, 
+        // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
         // so here should be an internal error instand of an input-error
         return Err(Box::new(AinariError::Error(msg)));
     }
@@ -210,12 +220,16 @@ pub fn init_new_data_set_file(
 
     // write base-header to file
     let encoded_base = bincode::encode_to_vec(&base_header, bincode_config).unwrap();
-    let _ = result.target_file.write_all(&(encoded_base.len() as u64).to_le_bytes())?;
+    let _ = result
+        .target_file
+        .write_all(&(encoded_base.len() as u64).to_le_bytes())?;
     let _ = result.target_file.write_all(&encoded_base)?;
 
     // write header to file
     let encoded_header = bincode::encode_to_vec(&result.header, bincode_config).unwrap();
-    let _ = result.target_file.write_all(&(encoded_header.len() as u64).to_le_bytes())?;
+    let _ = result
+        .target_file
+        .write_all(&(encoded_header.len() as u64).to_le_bytes())?;
     let _ = result.target_file.write_all(&encoded_header)?;
 
     // flush file-buffer, to ensure, that the data are written to the disc
@@ -236,7 +250,7 @@ pub fn read_data_set_file(
     // check if file even exist
     if Path::new(file_path).exists() == false {
         let msg = format!("Dataset file '{file_path_str}' does not exists.");
-        // HINT (kitsudaki): the path comes from the database and not from the user, 
+        // HINT (kitsudaki): the path comes from the database and not from the user,
         // so here should be an internal error instand of an input-error
         return Err(Box::new(AinariError::Error(msg)));
     }
@@ -262,8 +276,9 @@ pub fn read_data_set_file(
     let mut base_buf = vec![0u8; base_len as usize];
     let _ = result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
-    let (_, _): (DataSetBaseHeader, usize) = bincode::decode_from_slice(&base_buf[..], bincode_config).unwrap();
-    
+    let (_, _): (DataSetBaseHeader, usize) =
+        bincode::decode_from_slice(&base_buf[..], bincode_config).unwrap();
+
     // read header-length
     let mut header_len_buf = [0u8; 8];
     let _ = result.target_file.read_exact(&mut header_len_buf)?;
@@ -272,11 +287,15 @@ pub fn read_data_set_file(
     // read header-length
     let mut header_buf = vec![0u8; header_len as usize];
     let _ = result.target_file.read_exact(&mut header_buf)?;
-    let (header, _): (DataSetHeaderV1_0, usize) = bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
+    let (header, _): (DataSetHeaderV1_0, usize) =
+        bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
     result.header = header;
 
     // TODO: make buffer-size configurable
-    result.read_buffer.resize(ROWS_IN_READ_BUFFER as usize * result.header.row_size as usize, 0f32);
+    result.read_buffer.resize(
+        ROWS_IN_READ_BUFFER as usize * result.header.row_size as usize,
+        0f32,
+    );
 
     // get current byte-position within the file after reading the header
     result.payload_offset = result.target_file.stream_position()?;
@@ -296,26 +315,20 @@ mod tests {
         let file_path: PathBuf = PathBuf::from(&file_path_str);
 
         match fs::remove_file(&file_path) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(_) => {}
         }
 
         let uuid = Uuid::new_v4();
         let name = "test_dataset".to_string();
-        let description= "This is a test-dataset".to_string();
+        let description = "This is a test-dataset".to_string();
         let mut columns: HashMap<String, Column> = HashMap::new();
         let data_type = DataSetType::FloatType;
 
-        let test_col1= Column {
-            start: 0,
-            end: 10,
-        };
+        let test_col1 = Column { start: 0, end: 10 };
         columns.insert("col1".to_string(), test_col1);
 
-        let test_col2= Column {
-            start: 10,
-            end: 15,
-        };
+        let test_col2 = Column { start: 10, end: 15 };
         columns.insert("col2".to_string(), test_col2);
         let row_size = 15;
 
@@ -326,17 +339,27 @@ mod tests {
             description.clone(),
             row_size,
             columns.clone(),
-            data_type.clone()).unwrap();
+            data_type.clone(),
+        )
+        .unwrap();
 
         // write date for first column
-        let col1: Vec<f32> = vec![4.0f32, 0.0f32, 2.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
+        let col1: Vec<f32> = vec![
+            4.0f32, 0.0f32, 2.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32,
+        ];
         let col1_bytes = cast_slice(&col1);
-        let _ = write_dataset_handle.target_file.write_all(&col1_bytes).unwrap();
+        let _ = write_dataset_handle
+            .target_file
+            .write_all(&col1_bytes)
+            .unwrap();
 
         // write date for second column
         let col2: Vec<f32> = vec![0.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32];
         let col2_bytes = cast_slice(&col2);
-        let _ = write_dataset_handle.target_file.write_all(&col2_bytes).unwrap();
+        let _ = write_dataset_handle
+            .target_file
+            .write_all(&col2_bytes)
+            .unwrap();
 
         // buffer must be flush, so the written columns are in the file on the disc and can be read again
         let _ = write_dataset_handle.target_file.flush();
@@ -355,7 +378,10 @@ mod tests {
 
         // compare written and read header
         assert_eq!(write_dataset_handle.header, read_dataset_handle.header);
-        assert_eq!(write_dataset_handle.payload_offset, read_dataset_handle.payload_offset);
+        assert_eq!(
+            write_dataset_handle.payload_offset,
+            read_dataset_handle.payload_offset
+        );
 
         // read and compare frist column
         let col_get1 = match read_dataset_handle.header.columns.get(&"col1".to_string()) {
@@ -376,7 +402,10 @@ mod tests {
         let size_col1 = (col_get1.end - col_get1.start) as usize;
         let mut col1_read = vec![0.0f32; size_col1];
         let byte_slice_col1: &mut [u8] = cast_slice_mut(col1_read.as_mut_slice());
-        read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset)).unwrap();
+        read_dataset_handle
+            .target_file
+            .seek(SeekFrom::Start(read_dataset_handle.payload_offset))
+            .unwrap();
         let _ = read_dataset_handle.target_file.read_exact(byte_slice_col1);
         assert_eq!(col1_read, col1);
 
@@ -384,9 +413,14 @@ mod tests {
         let size_col2 = (col_get2.end - col_get2.start) as usize;
         let mut col2_read = vec![0.0f32; size_col2];
         let byte_slice_col2: &mut [u8] = cast_slice_mut(col2_read.as_mut_slice());
-        read_dataset_handle.target_file.seek(SeekFrom::Start(read_dataset_handle.payload_offset + 40)).unwrap();
-        let _ = read_dataset_handle.target_file.read_exact(byte_slice_col2).unwrap();
+        read_dataset_handle
+            .target_file
+            .seek(SeekFrom::Start(read_dataset_handle.payload_offset + 40))
+            .unwrap();
+        let _ = read_dataset_handle
+            .target_file
+            .read_exact(byte_slice_col2)
+            .unwrap();
         assert_eq!(col2_read, col2);
-
     }
 }

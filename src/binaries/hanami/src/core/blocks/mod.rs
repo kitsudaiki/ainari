@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod input_block;
-pub mod output_block;
-pub mod core_block;
-pub mod new_core_block;
 pub mod axons;
-pub mod block_trait;
 pub mod block_io;
+pub mod block_trait;
+pub mod core_block;
+pub mod input_block;
+pub mod new_core_block;
+pub mod output_block;
 pub mod target_search;

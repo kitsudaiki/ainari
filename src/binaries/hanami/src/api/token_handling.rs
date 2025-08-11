@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm, errors::ErrorKind};
-use jsonwebtoken::{encode, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, errors::ErrorKind};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -27,11 +27,11 @@ pub struct Claims {
     pub is_admin: bool,
     pub is_project_admin: bool,
     //pub aud: String,         // Optional. Audience
-    pub exp: usize,          // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
-    pub iat: usize,          // Optional. Issued at (as UTC timestamp)
-    pub iss: String,         // Optional. Issuer
-    //pub nbf: usize,          // Optional. Not Before (as UTC timestamp)
-    //pub sub: String,         // Optional. Subject (whom token refers to)
+    pub exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
+    pub iat: usize, // Optional. Issued at (as UTC timestamp)
+    pub iss: String, // Optional. Issuer
+                    //pub nbf: usize,          // Optional. Not Before (as UTC timestamp)
+                    //pub sub: String,         // Optional. Subject (whom token refers to)
 }
 
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
@@ -42,17 +42,18 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
     match decode::<UserContext>(token, &key, &validation) {
         Ok(context) => Ok(context.claims),
         Err(e) => match *e.kind() {
-            ErrorKind::ExpiredSignature => {
-                Err(format!("Token expired"))
-            },
-            _ => {
-                Err(format!("Invalid token"))
-            }
-        }
+            ErrorKind::ExpiredSignature => Err(format!("Token expired")),
+            _ => Err(format!("Invalid token")),
+        },
     }
 }
 
-pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_project_admin: bool) -> Result<String, ()> {
+pub fn create_token(
+    user_id: &String,
+    project_id: &String,
+    is_admin: bool,
+    is_project_admin: bool,
+) -> Result<String, ()> {
     let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
 
     // get timestamps for token
@@ -75,11 +76,17 @@ pub fn create_token(user_id: &String, project_id: &String, is_admin: bool, is_pr
 
     // create token
     let secret = config::TOKEN_KEY.as_bytes();
-    match encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)) {
+    match encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret),
+    ) {
         Ok(token) => {
-            log::debug!("Successfully created token for user-id '{user_id}' and project-id '{project_id}'");
+            log::debug!(
+                "Successfully created token for user-id '{user_id}' and project-id '{project_id}'"
+            );
             return Ok(token);
-        },
+        }
         Err(e) => {
             log::error!("Failed to create user-token {:?}", e);
             return Err(());

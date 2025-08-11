@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use std::error::Error;
 
-use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::database::db_handle;
 
 use ainari_common::enums;
 
@@ -54,7 +54,8 @@ pub struct ProjectEntry {
 
 pub fn init_project_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS projects (
+    let _ = conn.batch_execute(
+        "CREATE TABLE IF NOT EXISTS projects (
         id VARCHAR(256),
         name VARCHAR(256),
         status VARCHAR(10),
@@ -64,17 +65,22 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );")?;
+    );",
+    )?;
 
     Ok(())
 }
 
-pub fn add_new_project(project_id: &String, project_name: &String, context: &UserContext) -> QueryResult<usize> {
+pub fn add_new_project(
+    project_id: &String,
+    project_name: &String,
+    context: &UserContext,
+) -> QueryResult<usize> {
     if context.is_admin == false {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string())
-        ))
+            Box::new("Permission denied.".to_string()),
+        ));
     }
 
     // check if project alredy exist in the database
@@ -83,13 +89,13 @@ pub fn add_new_project(project_id: &String, project_name: &String, context: &Use
         Ok(_) => {
             return Err(diesel::result::Error::DatabaseError(
                 DatabaseErrorKind::UniqueViolation,
-                Box::new(format!("Project with ID '{project_id}' already exist."))
-            ))
-        },
+                Box::new(format!("Project with ID '{project_id}' already exist.")),
+            ));
+        }
         Err(_) => {}
     };
 
-    let project = ProjectEntry{
+    let project = ProjectEntry {
         id: project_id.clone(),
         name: project_name.clone(),
         status: "ACTIVE".to_string(),
@@ -108,10 +114,15 @@ pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
 
-    diesel::insert_into(projects).values(project).execute(&mut *conn)
+    diesel::insert_into(projects)
+        .values(project)
+        .execute(&mut *conn)
 }
 
-pub fn get_project(project_id: &String, context: &UserContext) -> Result<ProjectEntry, enums::DbError> {
+pub fn get_project(
+    project_id: &String,
+    context: &UserContext,
+) -> Result<ProjectEntry, enums::DbError> {
     if context.is_admin == false {
         return Err(enums::DbError::NotFound);
     }
@@ -132,7 +143,7 @@ pub fn get_project(project_id: &String, context: &UserContext) -> Result<Project
     }
 }
 
-pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {  
+pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
     if context.is_admin == false {
         let dummy: QueryResult<Vec<ProjectEntry>> = Ok(vec![]);
         return dummy;
@@ -140,7 +151,10 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::projects::dsl::*;
-    projects.filter(status.eq("ACTIVE")).select(ProjectEntry::as_select()).load(&mut *conn)
+    projects
+        .filter(status.eq("ACTIVE"))
+        .select(ProjectEntry::as_select())
+        .load(&mut *conn)
 }
 
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
@@ -173,7 +187,7 @@ mod tests {
         let mut conn = db_handle::DB_CONN.lock().unwrap();
         let _ = diesel::delete(projects.filter(id.eq(project_id))).execute(&mut *conn);
     }
-    
+
     #[test]
     #[serial]
     fn test_add_get_project() {
@@ -211,7 +225,7 @@ mod tests {
                 assert_eq!(retrieved_project.updated_by, project.updated_by);
                 assert_eq!(retrieved_project.deleted_at, project.deleted_at);
                 assert_eq!(retrieved_project.deleted_by, project.deleted_by);
-            },
+            }
             Err(_) => {}
         };
 
@@ -243,7 +257,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let project2 = ProjectEntry {
             id: project_id2.clone(),
             name: "Bob".to_string(),
@@ -255,7 +269,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_project(&project1.id);
         hard_delete_project(&project2.id);
 

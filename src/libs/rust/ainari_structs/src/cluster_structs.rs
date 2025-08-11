@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -46,7 +46,7 @@ pub struct ClusterBasicResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ClusterListResp {
-    pub clusters: Vec<ClusterBasicResp>
+    pub clusters: Vec<ClusterBasicResp>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -69,4 +69,3 @@ pub struct ClusterRequestReq {
 pub struct ClusterRequestResp {
     pub outputs: HashMap<String, Vec<f32>>,
 }
-

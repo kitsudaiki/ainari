@@ -12,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::CreatedJson;
 use actix_web::web::{Json, Path};
+use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use uuid::Uuid;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::path::PathBuf;
+use std::str::FromStr;
+use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
-use crate::database::cluster_table;
-use crate::database::task_table;
-use crate::database::dataset_table;
+use crate::api::user_context::UserContext;
 use crate::config;
 use crate::core::cluster_handler;
-use crate::core::processing::tasks::{Task, TaskVariant, RequestInfo};
 use crate::core::cluster_handler::*;
+use crate::core::processing::tasks::{RequestInfo, Task, TaskVariant};
+use crate::database::cluster_table;
+use crate::database::dataset_table;
+use crate::database::task_table;
 
 use ainari_common::enums;
-use ainari_dataset::dataset_io::{init_new_data_set_file, read_data_set_file, DataSetType, Column};
-use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskType, TaskState};
+use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
+use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -43,14 +43,18 @@ use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskType, Tas
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
+pub async fn create_request_task(
+    body: Json<TaskCreateRequestReq>,
+    cluster_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     // validate incoming json
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
             let msg = format!("Invalid input: {}", e);
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
     let task_uuid = Uuid::new_v4();
@@ -67,10 +71,10 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
             return Err(ErrorResponse::NotFound(msg));
@@ -81,7 +85,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
     let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string()))
+        None => return Err(ErrorResponse::InternalError("".to_string())),
     };
     let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
         interface
@@ -100,7 +104,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     // add new dataset to datbase
     let file_path_str: String = target_filepath.to_string_lossy().into();
     match dataset_table::add_new_dataset(&task_uuid, &name, &file_path_str, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add dataset with ID '{task_uuid}' to database.");
             log::error!("{}", msg);
@@ -113,7 +117,9 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     for output in &body.results {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
         let size;
-        if let Some(output_buffer_mutex) = cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
+        if let Some(output_buffer_mutex) =
+            cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon)
+        {
             let output_buffer = output_buffer_mutex.lock().unwrap();
             size = output_buffer.output_neurons.len() as u64;
         } else {
@@ -125,21 +131,21 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
             start: total_output_size,
             end: total_output_size + size,
         };
-        columns.insert(output.hexagon.clone(),col);
+        columns.insert(output.hexagon.clone(), col);
 
         total_output_size += size;
     }
 
     // create new dataset for the resulting data
     let result_file_handle = match init_new_data_set_file(
-        &PathBuf::from(target_filepath), 
+        &PathBuf::from(target_filepath),
         task_uuid,
         name,
         description,
         total_output_size,
         columns,
-        DataSetType::FloatType) 
-    {
+        DataSetType::FloatType,
+    ) {
         Ok(file_handle) => file_handle,
         Err(_) => {
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -154,8 +160,8 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         time_length: time_length,
     };
 
-    let mut number_of_cycles =  u64::MAX;
-    
+    let mut number_of_cycles = u64::MAX;
+
     // prepare inputs for task
     for input in &body.inputs {
         let dataset = match dataset_table::get_dataset(&input.dataset_uuid, &context) {
@@ -176,7 +182,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
                 file_handle.selected_column = input.dataset_column.clone();
 
                 info.inputs.insert(input.hexagon.clone(), file_handle);
-            },
+            }
             Err(_) => {
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
@@ -184,7 +190,9 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
     }
 
     if number_of_cycles < time_length {
-        let msg = format!("Time-length {time_length} is bigger than at least of of the seleced datasets.");
+        let msg = format!(
+            "Time-length {time_length} is bigger than at least of of the seleced datasets."
+        );
         return Err(ErrorResponse::BadRequest(msg));
     }
     number_of_cycles -= time_length - 1;
@@ -193,15 +201,15 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
 
     // add new task to database
     match task_table::add_new_task(
-        &task_uuid, 
+        &task_uuid,
         &cluster_uuid,
-        &body.name, 
+        &body.name,
         &task_type,
         &1,
         &number_of_cycles,
-        &context) 
-    {
-        Ok(_) => {},
+        &context,
+    ) {
+        Ok(_) => {}
         Err(_) => {
             log::error!("Failed to add task with UUID '{task_uuid}' to database.");
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -224,7 +232,7 @@ pub async fn create_request_task(body: Json<TaskCreateRequestReq>, cluster_uuid:
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             return Err(ErrorResponse::NotFound("".to_string()));
         }

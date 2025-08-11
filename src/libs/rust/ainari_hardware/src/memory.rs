@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sysinfo::{System, RefreshKind, MemoryRefreshKind};
+use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
 pub fn get_total_memory_amount() -> u64 {
     let mut sys = System::new_all();
-    sys.refresh_specifics(
-        RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()),
-    );
+    sys.refresh_specifics(RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()));
     sys.total_memory()
 }
 
 pub fn get_free_memory_amount() -> u64 {
     let mut sys = System::new_all();
-    sys.refresh_specifics(
-        RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()),
-    );
+    sys.refresh_specifics(RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()));
     sys.available_memory()
 }
 

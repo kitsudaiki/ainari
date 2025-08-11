@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use actix_web::web::Path;
 use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
 use crate::core::cluster_handler;
+use crate::database::cluster_table;
 
 use ainari_common::enums;
 
@@ -33,13 +33,16 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_cluster(
+    cluster_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<NoContent, ErrorResponse> {
     // delete cluster from database
     match cluster_table::delete_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -50,5 +53,5 @@ pub async fn delete_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> R
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.write().unwrap();
     cluster_handle.delete_cluster(&cluster_uuid);
 
-    Ok(NoContent)   
+    Ok(NoContent)
 }

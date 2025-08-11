@@ -12,27 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::http::StatusCode;
 use actix_web::ResponseError;
+use actix_web::http::StatusCode;
 use apistos::ApiErrorComponent;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Serialize, Deserialize, Clone, ApiErrorComponent)]
 #[openapi_error(
-  status(code = 400, description = "Bad request"),
-  status(code = 401, description = "Unauthorized"),
-  status(code = 403, description = "Forbidden"),
-  status(code = 404, description = "Requested object not found"),
-  status(code = 405, description = "Method not allowed"),
-  status(code = 406, description = "Not acceptable"),
-  status(code = 407, description = "Proxy authentication required"),
-  status(code = 408, description = "Request timeout"),
-  status(code = 409, description = "Conflict with existing resources"),
-  status(code = 410, description = "Gone"),
-  status(code = 412, description = "Precondition failed"),
-  status(code = 413, description = "Payload too large"),
-  status(code = 500, description = "Internal error")
+    status(code = 400, description = "Bad request"),
+    status(code = 401, description = "Unauthorized"),
+    status(code = 403, description = "Forbidden"),
+    status(code = 404, description = "Requested object not found"),
+    status(code = 405, description = "Method not allowed"),
+    status(code = 406, description = "Not acceptable"),
+    status(code = 407, description = "Proxy authentication required"),
+    status(code = 408, description = "Request timeout"),
+    status(code = 409, description = "Conflict with existing resources"),
+    status(code = 410, description = "Gone"),
+    status(code = 412, description = "Precondition failed"),
+    status(code = 413, description = "Payload too large"),
+    status(code = 500, description = "Internal error")
 )]
 pub enum ErrorResponse {
     BadRequest(String),
@@ -103,7 +103,9 @@ impl ResponseError for ErrorResponse {
             ErrorResponse::NotFound(_) => StatusCode::NOT_FOUND,
             ErrorResponse::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED,
             ErrorResponse::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
-            ErrorResponse::ProxyAuthenticationRequired(_) => StatusCode::PROXY_AUTHENTICATION_REQUIRED,
+            ErrorResponse::ProxyAuthenticationRequired(_) => {
+                StatusCode::PROXY_AUTHENTICATION_REQUIRED
+            }
             ErrorResponse::RequestTimeout(_) => StatusCode::REQUEST_TIMEOUT,
             ErrorResponse::Conflict(_) => StatusCode::CONFLICT,
             ErrorResponse::Gone(_) => StatusCode::GONE,

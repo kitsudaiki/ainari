@@ -14,9 +14,9 @@
 
 use std::fs;
 
+use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use actix_web::web::Path;
 use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
@@ -34,12 +34,15 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_checkpoint(
+    checkpoint_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<NoContent, ErrorResponse> {
     let checkpoint = match checkpoint_table::get_checkpoint(&checkpoint_uuid, &context) {
         Ok(checkpoint) => checkpoint,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -47,7 +50,7 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
     };
 
     match fs::remove_file(&checkpoint.file_path) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {
             let file_path = checkpoint.file_path;
             log::error!("Failed to delete file '{file_path}' from disc");
@@ -56,16 +59,16 @@ pub async fn delete_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext
     }
 
     match checkpoint_table::delete_checkpoint(&checkpoint_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             log::error!("Error while deleting checkpoint from DB");
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
 
-    Ok(NoContent)   
+    Ok(NoContent)
 }

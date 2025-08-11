@@ -14,8 +14,8 @@
 
 use crate::cpu::*;
 
-use std::io::{self};
 use serde::Serialize;
+use std::io::{self};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CpuThread {
@@ -24,12 +24,12 @@ pub struct CpuThread {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CpuCore {
-    pub threads: Vec<CpuThread>
+    pub threads: Vec<CpuThread>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CpuPackage {
-    pub cores: Vec<CpuCore>
+    pub cores: Vec<CpuCore>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -40,9 +40,7 @@ pub struct Host {
 
 impl CpuThread {
     pub fn new() -> Self {
-        CpuThread {
-            id: 0,
-        }
+        CpuThread { id: 0 }
     }
 }
 
@@ -56,9 +54,7 @@ impl CpuCore {
 
 impl CpuPackage {
     pub fn new() -> Self {
-        CpuPackage {
-            cores: Vec::new(),
-        }
+        CpuPackage { cores: Vec::new() }
     }
 }
 
@@ -101,7 +97,9 @@ pub fn init_host() -> io::Result<Host> {
         let core_id = get_core_id(thread_id)?;
         let patckage_id = get_package_id(thread_id)?;
 
-        host.packages[patckage_id].cores[core_id].threads.push(CpuThread { id: thread_id });
+        host.packages[patckage_id].cores[core_id]
+            .threads
+            .push(CpuThread { id: thread_id });
     }
 
     Ok(host)
@@ -117,7 +115,6 @@ mod tests {
         let host = init_host().unwrap();
 
         let j = serde_json::to_string_pretty(&host).unwrap();
-        println!("{}", j);    
+        println!("{}", j);
     }
 }
-

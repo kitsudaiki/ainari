@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod db_handle;
-pub mod user_table;
+pub mod checkpoint_table;
 pub mod cluster_table;
 pub mod dataset_table;
-pub mod task_table;
+pub mod db_handle;
 pub mod project_table;
-pub mod checkpoint_table;
+pub mod task_table;
+pub mod user_table;
 
 use std::io;
 
 use ainari_common::enums;
 
-pub fn init_database() -> Result<(), Box<dyn std::error::Error>>
-{
+pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize user-table
     match user_table::init_user_table() {
         Ok(_) => log::info!("Initilaized user-database-table"),
@@ -79,13 +78,13 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>>
     // all cluster are broken and so the database doesn't match the real world.
     // To "fix" this issue, all cluster have to be removed from the database as well.
     match cluster_table::delete_all_cluster() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             let msg = format!("Error while deleting all cluster from DB");
             log::error!("{msg}");
             let error = io::Error::new(io::ErrorKind::Other, msg);
             return Err(Box::new(error));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let error = io::Error::new(io::ErrorKind::Other, "".to_string());
             return Err(Box::new(error));

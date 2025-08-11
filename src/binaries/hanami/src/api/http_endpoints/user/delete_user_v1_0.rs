@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use actix_web::web::Path;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
@@ -31,23 +31,30 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_user(user_id: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_user(
+    user_id: Path<String>,
+    context: UserContext,
+) -> Result<NoContent, ErrorResponse> {
     if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
 
     if context.user_id == user_id.to_string() {
-        return Err(ErrorResponse::Conflict("A user can not delete himself.".to_string()));
+        return Err(ErrorResponse::Conflict(
+            "A user can not delete himself.".to_string(),
+        ));
     }
 
     // get new created user from database to get addtional information
     match user_table::delete_user(&user_id, &context) {
         Ok(_) => {
             return Ok(NoContent);
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("User with ID '{user_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));

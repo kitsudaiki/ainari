@@ -30,14 +30,14 @@ use ainari_structs::user_structs::{UserBasicResp, UserListResp};
 )]
 pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
     if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
-    
+
     let users = user_table::list_users(&context).unwrap();
 
-    let mut resp = UserListResp {
-        users: Vec::new(),
-    };
+    let mut resp = UserListResp { users: Vec::new() };
 
     for user in users {
         let obj = UserBasicResp {

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::CreatedJson;
 use actix_web::web::Json;
+use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
+use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
 use ainari_common::enums;
@@ -33,9 +33,14 @@ use ainari_structs::project_structs::{ProjectCreateReq, ProjectResp};
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {
+pub async fn create_project(
+    body: Json<ProjectCreateReq>,
+    context: UserContext,
+) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {
     if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
 
     // validate incoming json
@@ -44,7 +49,7 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
         Err(e) => {
             let msg = format!("Invalid input: {}", e);
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
     let id = &body.id;
@@ -54,10 +59,10 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
         Ok(_) => {
             let msg = format!("Project with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             // it is desired, that the project not already exist, so this error will be ignored
         }
@@ -65,7 +70,7 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
 
     // add new project to datbase
     match project_table::add_new_project(&id, &body.name, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             log::error!("Failed to add project with ID '{id}' to database.: {}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -83,12 +88,13 @@ pub async fn create_project(body: Json<ProjectCreateReq>, context: UserContext) 
                 updated_by: project.updated_by.clone(),
                 updated_at: project.updated_at.clone(),
             };
-        
+
             return Ok(CreatedJson(resp));
-        },
-        Err(_) => 
-        {
-            let msg = format!("Failed to get project with ID '{id}' from database, even the project should exist.");
+        }
+        Err(_) => {
+            let msg = format!(
+                "Failed to get project with ID '{id}' from database, even the project should exist."
+            );
             log::error!("{}", msg);
             return Err(ErrorResponse::InternalError("".to_string()));
         }

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use serde_big_array::BigArray;
 
 use ainari_common::constants::*;
 
@@ -72,7 +72,7 @@ impl AxonSection {
 
 impl PartialEq for AxonSection {
     fn eq(&self, other: &Self) -> bool {
-        self.axons == other.axons 
+        self.axons == other.axons
             && self.cluster_uuid == other.cluster_uuid
             && self.source_hexagon_uuid == other.source_hexagon_uuid
             && self.target_hexagon_uuid == other.target_hexagon_uuid
@@ -107,8 +107,11 @@ mod tests {
         original.axons[42].delta = 124.0f32;
 
         let cfg = bincode::config::standard();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: AxonSection = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: AxonSection = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
 
         println!("size: {}", serialized.len());
 

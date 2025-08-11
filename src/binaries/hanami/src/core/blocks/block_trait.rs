@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use uuid::Uuid;
-use std::sync::{Arc, Mutex};
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 use ainari_common::enums::*;
 
@@ -23,7 +23,7 @@ use super::block_io::*;
 
 pub trait Block: Send + Sync + Debug {
     fn train(&mut self, place_offset: usize, own: Arc<Mutex<dyn Block>>);
-    fn process(&mut self,);
+    fn process(&mut self);
     fn backpropagate(&mut self);
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool;

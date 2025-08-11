@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::actix::CreatedJson;
 use actix_web::web::Json;
+use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
+use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
 use ainari_common::enums;
@@ -33,10 +33,15 @@ use ainari_structs::user_structs::{UserCreateReq, UserResp};
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Result<CreatedJson<UserResp>, ErrorResponse> {
+pub async fn create_user(
+    body: Json<UserCreateReq>,
+    context: UserContext,
+) -> Result<CreatedJson<UserResp>, ErrorResponse> {
     if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
-    }   
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
 
     // validate incoming json
     match body.validate() {
@@ -44,7 +49,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
         Err(e) => {
             let msg = format!("Invalid input: {}", e);
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
     let id = &body.id;
@@ -54,10 +59,10 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
         Ok(_) => {
             let msg = format!("User with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             // it is desired, that the user not already exist, so this error will be ignored
         }
@@ -65,7 +70,7 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
 
     // add new user to datbase
     match user_table::add_new_user(&id, &body.name, &body.passphrase, body.is_admin, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             log::error!("Failed to add user with ID '{id}' to database.: {}", e);
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -84,12 +89,13 @@ pub async fn create_user(body: Json<UserCreateReq>, context: UserContext) -> Res
                 updated_by: user.updated_by.clone(),
                 updated_at: user.updated_at.clone(),
             };
-        
+
             return Ok(CreatedJson(resp));
-        },
-        Err(_) => 
-        {
-            log::error!("Failed to get user with ID '{id}' from database, even the user should exist");
+        }
+        Err(_) => {
+            log::error!(
+                "Failed to get user with ID '{id}' from database, even the user should exist"
+            );
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

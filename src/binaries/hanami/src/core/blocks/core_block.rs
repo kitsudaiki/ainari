@@ -13,18 +13,18 @@
 // limitations under the License.
 
 use rand::Rng;
-use uuid::Uuid;
-use std::sync::{Arc, Mutex};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 use ainari_common::constants::*;
-use ainari_common::functions::*;
 use ainari_common::enums::*;
+use ainari_common::functions::*;
 
 use super::axons::*;
-use super::block_trait::*;
 use super::block_io::*;
+use super::block_trait::*;
 
 use super::super::processing::worker_queue::*;
 
@@ -101,7 +101,6 @@ impl Connection {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Neuron {
     pub input: f32,
-
     // pub refraction_time: u8,
 }
 
@@ -136,7 +135,6 @@ pub struct CoreBlock {
 
 impl CoreBlock {
     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid) -> Self {
-
         // internal visilization of the blocks:
         //
         // +---+ +---+ +---+
@@ -181,10 +179,14 @@ impl CoreBlock {
 
     fn check_and_resize_block(&mut self) {
         // resize block in case it is filled enough
-        if self.block_io.output_buffer.len() == 1 && self.section_counter as f32 >= ((2 * BLOCK_DIM) as f32 * 0.9f32) {
+        if self.block_io.output_buffer.len() == 1
+            && self.section_counter as f32 >= ((2 * BLOCK_DIM) as f32 * 0.9f32)
+        {
             self.block_io.output_buffer.push(AxonSection::default());
         }
-        if self.block_io.output_buffer.len() == 2 && self.section_counter as f32 >= ((4 * BLOCK_DIM) as f32 * 0.9f32) {
+        if self.block_io.output_buffer.len() == 2
+            && self.section_counter as f32 >= ((4 * BLOCK_DIM) as f32 * 0.9f32)
+        {
             self.block_io.output_buffer.push(AxonSection::default());
         }
     }
@@ -203,8 +205,12 @@ impl CoreBlock {
 
 // ==================================================================================================
 
-fn create_new_synapse(synapse: &mut Synapse, remaining_weight: f32, number_of_output_blocks: usize, random_seed: &mut u32)
-{
+fn create_new_synapse(
+    synapse: &mut Synapse,
+    remaining_weight: f32,
+    number_of_output_blocks: usize,
+    random_seed: &mut u32,
+) {
     let rand_max = RAND_MAX as f32;
     let sig_neg = 0.5f32;
     let mut sign_rand;
@@ -219,7 +225,8 @@ fn create_new_synapse(synapse: &mut Synapse, remaining_weight: f32, number_of_ou
 
     synapse.border = remaining_weight;
     synapse.active_counter = 50;
-    synapse.target_neuron_id = (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
+    synapse.target_neuron_id =
+        (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
 }
 
 fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
@@ -235,14 +242,14 @@ fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
 }
 
 fn train_section(
-    section: &mut SynapseSection, 
-    connection: &Connection, 
-    neurons: &mut [Neuron; BLOCK_DIM * 3], 
+    section: &mut SynapseSection,
+    connection: &Connection,
+    neurons: &mut [Neuron; BLOCK_DIM * 3],
     axon: &Axon,
     number_of_output_blocks: usize,
     random_seed: &mut u32,
-    connections: &mut [Connection; BLOCK_DIM * 6]) -> bool
-{
+    connections: &mut [Connection; BLOCK_DIM * 6],
+) -> bool {
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
     let mut condition;
@@ -250,7 +257,7 @@ fn train_section(
     let mut prev_border = 0.0f32;
 
     // iterate over all synapses in the section
-    for (pos ,synapse) in section.synapses.iter_mut().enumerate() {
+    for (pos, synapse) in section.synapses.iter_mut().enumerate() {
         if potential <= POTENTIAL_BORDER {
             break;
         }
@@ -261,17 +268,22 @@ fn train_section(
             // always be filled
             assert!(pos > 0);
             let remaining_weight = prev_border * 2.0f32;
-            create_new_synapse(synapse, remaining_weight, number_of_output_blocks, random_seed);
+            create_new_synapse(
+                synapse,
+                remaining_weight,
+                number_of_output_blocks,
+                random_seed,
+            );
         }
 
         if potential < synapse.border {
             condition = potential < (1.0f32 - create_border) * synapse.border
-                        && potential > create_border * synapse.border
-                        && potential < synapse.border - create_border
-                        && potential > create_border;
+                && potential > create_border * synapse.border
+                && potential < synapse.border - create_border
+                && potential > create_border;
 
             synapse.border = synapse.border * (condition == false) as u8 as f32
-                            + (synapse.border / 2.0f32) * (condition) as u8 as f32;
+                + (synapse.border / 2.0f32) * (condition) as u8 as f32;
         }
 
         prev_border = synapse.border;
@@ -281,10 +293,13 @@ fn train_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons[(synapse.target_neuron_id % (number_of_output_blocks*BLOCK_DIM) as u16) as usize];
+        let mut target_neuron = &mut neurons
+            [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
-        target_neuron = &mut neurons[((synapse.target_neuron_id + 1) % (number_of_output_blocks*BLOCK_DIM) as u16) as usize];
+        target_neuron = &mut neurons[((synapse.target_neuron_id + 1)
+            % (number_of_output_blocks * BLOCK_DIM) as u16)
+            as usize];
         target_neuron.input += synapse.weight_2 * ratio * (potential > synapse.border) as u8 as f32;
 
         // update loop-counter
@@ -308,12 +323,12 @@ fn train_section(
 }
 
 fn process_section(
-    section: &mut SynapseSection, 
-    connection: &Connection, 
-    neurons: &mut [Neuron; BLOCK_DIM * 3], 
+    section: &mut SynapseSection,
+    connection: &Connection,
+    neurons: &mut [Neuron; BLOCK_DIM * 3],
     axon: &Axon,
-    number_of_output_blocks: usize) 
-{
+    number_of_output_blocks: usize,
+) {
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
 
@@ -333,10 +348,13 @@ fn process_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons[(synapse.target_neuron_id % (number_of_output_blocks*BLOCK_DIM) as u16) as usize];
+        let mut target_neuron = &mut neurons
+            [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
-        target_neuron = &mut neurons[((synapse.target_neuron_id + 1) % (number_of_output_blocks*BLOCK_DIM) as u16) as usize];
+        target_neuron = &mut neurons[((synapse.target_neuron_id + 1)
+            % (number_of_output_blocks * BLOCK_DIM) as u16)
+            as usize];
         target_neuron.input += synapse.weight_2 * ratio * (potential > synapse.border) as u8 as f32;
 
         // update loop-counter
@@ -345,11 +363,11 @@ fn process_section(
 }
 
 fn backpropagate_section(
-    section: &mut SynapseSection, 
-    connection: &mut Connection, 
+    section: &mut SynapseSection,
+    connection: &mut Connection,
     axon: &mut Axon,
-    output_buffer: &Vec<AxonSection>) 
-{
+    output_buffer: &Vec<AxonSection>,
+) {
     let mut potential = axon.potential - connection.lower_bound;
     let mut delta;
     let train_value = 0.5f32;
@@ -363,14 +381,16 @@ fn backpropagate_section(
             break;
         }
 
-        output_block_id = ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
+        output_block_id =
+            ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
         synapse.weight_1 -= train_value * target_axon.delta;
         axon.delta += delta;
 
-        output_block_id = (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
+        output_block_id =
+            (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = ((synapse.target_neuron_id + 1) % BLOCK_DIM as u16) as usize;
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
@@ -387,7 +407,7 @@ impl Block for CoreBlock {
     fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
-        let mut random_seed = rand::rng().random_range(1..(RAND_MAX-1)) as u32;
+        let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
 
         for i in 0..(6 * BLOCK_DIM) {
             let conn = self.connections[i].clone();
@@ -405,7 +425,15 @@ impl Block for CoreBlock {
                     temp_conn.used = true;
                 }
                 let section = &mut self.synapse_sections[i];
-                let need_next = train_section(section, &conn, &mut self.neurons, axon, number_of_output_blocks, &mut random_seed, &mut self.connections);
+                let need_next = train_section(
+                    section,
+                    &conn,
+                    &mut self.neurons,
+                    axon,
+                    number_of_output_blocks,
+                    &mut random_seed,
+                    &mut self.connections,
+                );
                 if need_next {
                     let next = search_free_connection(&self.connections) as u16;
                     let mut temp_conn = &mut self.connections[i];
@@ -425,7 +453,12 @@ impl Block for CoreBlock {
         }
 
         self.apply_output();
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        );
         send_forward(&self.block_io, WorkerTaskType::Train);
     }
 
@@ -446,12 +479,23 @@ impl Block for CoreBlock {
                     continue;
                 }
                 let section = &mut self.synapse_sections[i];
-                process_section(section, &conn, &mut self.neurons, axon, number_of_output_blocks);
+                process_section(
+                    section,
+                    &conn,
+                    &mut self.neurons,
+                    axon,
+                    number_of_output_blocks,
+                );
             }
         }
 
         self.apply_output();
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        );
         send_forward(&self.block_io, WorkerTaskType::Process);
     }
 
@@ -482,7 +526,7 @@ impl Block for CoreBlock {
             self.block_io.inputs_in_use = 1;
             return true;
         }
-        
+
         if self.block_io.inputs_in_use == 1 {
             axon_section.target_block_uuid = self.uuid.clone();
             axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
@@ -532,10 +576,12 @@ mod tests {
     fn test_serialize_deserialize() {
         let original = CoreBlock::new(&Uuid::new_v4(), &Uuid::new_v4());
 
-        let cfg = bincode::config::standard()
-            .with_variable_int_encoding();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: CoreBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let cfg = bincode::config::standard().with_variable_int_encoding();
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: CoreBlock = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
 
         println!("size: {}", serialized.len());
 

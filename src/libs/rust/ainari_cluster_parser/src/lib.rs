@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster_parser;
 pub mod cluster_meta_structs;
+pub mod cluster_parser;

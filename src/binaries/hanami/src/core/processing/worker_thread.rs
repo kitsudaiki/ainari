@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::thread::{self, JoinHandle};
+use rand::Rng;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use rand::Rng;
 
 use ainari_common::constants::*;
 
@@ -50,7 +50,6 @@ impl WorkerThread {
     pub fn new(thread_id: u64) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
-
 
         let handle = thread::spawn(move || {
             log::debug!("Started worker-thread");

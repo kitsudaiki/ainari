@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ==================================================================================================
 
 pub enum DbError {
     NotFound,
-    InternalError
+    InternalError,
 }
 
 // ==================================================================================================
@@ -59,7 +59,9 @@ pub enum OutputType {
     FloatOutput = 3,
 }
 impl Default for OutputType {
-    fn default() -> Self { OutputType::PlainOutput }
+    fn default() -> Self {
+        OutputType::PlainOutput
+    }
 }
 
 // ==================================================================================================
@@ -74,7 +76,6 @@ pub enum ObjectType {
     OutputBlock,
     OutputBuffer,
 }
-
 
 impl ObjectType {
     pub fn to_u8(&self) -> u8 {

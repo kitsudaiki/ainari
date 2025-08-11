@@ -30,9 +30,11 @@ use ainari_structs::project_structs::{ProjectBasicResp, ProjectListResp};
 )]
 pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>, ErrorResponse> {
     if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
-    
+
     let projects = project_table::list_projects(&context).unwrap();
 
     let mut resp = ProjectListResp {

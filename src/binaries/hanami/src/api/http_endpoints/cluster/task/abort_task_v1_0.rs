@@ -15,16 +15,16 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use uuid::Uuid;
 use std::str::FromStr;
+use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::task_table;
 use crate::database::cluster_table;
+use crate::database::task_table;
 
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskResp, TaskType, TaskState};
+use ainari_structs::task_structs::{TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -36,15 +36,18 @@ use ainari_structs::task_structs::{TaskResp, TaskType, TaskState};
     error_code = 409,
     error_code = 500
 )]
-pub async fn abort_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+pub async fn abort_task(
+    uuids: Path<(Uuid, Uuid)>,
+    context: UserContext,
+) -> Result<Json<TaskResp>, ErrorResponse> {
     let (cluster_uuid, task_uuid) = uuids.into_inner();
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -54,18 +57,20 @@ pub async fn abort_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Resu
     // check current state of the task to avoid to abort finished and errored tasks
     match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => {
-            if task_data.task_state == TaskState::Aborted.to_string() 
-                || task_data.task_state == TaskState::Error.to_string() 
-                || task_data.task_state == TaskState::Finished.to_string() 
+            if task_data.task_state == TaskState::Aborted.to_string()
+                || task_data.task_state == TaskState::Error.to_string()
+                || task_data.task_state == TaskState::Finished.to_string()
             {
                 let state_str = task_data.task_state.to_string();
-                let msg = format!("Task with UUID '{task_uuid}' is in state '{state_str}' can not be aborted.");
+                let msg = format!(
+                    "Task with UUID '{task_uuid}' is in state '{state_str}' can not be aborted."
+                );
                 return Err(ErrorResponse::Conflict(msg));
             }
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -74,10 +79,10 @@ pub async fn abort_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Resu
 
     // set abort-state in database
     match task_table::update_task_state(&task_uuid, &TaskState::Aborted) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -89,7 +94,7 @@ pub async fn abort_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Resu
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));

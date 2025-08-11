@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use serde::{Serialize, Deserialize};
+use uuid::Uuid;
 
-use super::axons::*;
-use super::block_trait::*;
 use super::super::processing::worker_queue::*;
+use super::axons::*;
 use super::block_io::*;
+use super::block_trait::*;
 
 use crate::core::cluster_handler::*;
 
@@ -47,7 +47,7 @@ pub struct InputBlock {
 
 impl PartialEq for InputBlock {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid 
+        self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
             && self.cluster_uuid == other.cluster_uuid
             && self.block_io == other.block_io
@@ -63,7 +63,12 @@ fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
 }
 
 impl InputBlock {
-    pub fn new(name: &String, hexagon_uuid: &Uuid, cluster_uuid: &Uuid, finish_counter: &Arc<Mutex<FinishCounter>>) -> Self {
+    pub fn new(
+        name: &String,
+        hexagon_uuid: &Uuid,
+        cluster_uuid: &Uuid,
+        finish_counter: &Arc<Mutex<FinishCounter>>,
+    ) -> Self {
         let mut block = InputBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: hexagon_uuid.clone(),
@@ -88,11 +93,18 @@ impl InputBlock {
 
     // ==================================================================================================
 
-    pub fn apply_input(&mut self, input_ptr: &[f32], input_size: usize, offset: usize, time_length: usize) {
+    pub fn apply_input(
+        &mut self,
+        input_ptr: &[f32],
+        input_size: usize,
+        offset: usize,
+        time_length: usize,
+    ) {
         // resize links, if necessary
         let maximum_size = input_size * 2 * time_length;
         if self.input_links.len() < maximum_size {
-            self.input_links.resize(maximum_size as usize, UNINIT_STATE_64);
+            self.input_links
+                .resize(maximum_size as usize, UNINIT_STATE_64);
         }
 
         // reset potentials
@@ -135,13 +147,23 @@ impl InputBlock {
 impl Block for InputBlock {
     fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
         self.local_finish_counter = 0;
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        );
         send_forward(&self.block_io, WorkerTaskType::Train);
     }
 
     fn process(&mut self) {
         self.local_finish_counter = 0;
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        );
         send_forward(&self.block_io, WorkerTaskType::Process);
     }
 
@@ -215,14 +237,38 @@ mod tests {
         assert_eq!(input_block.input_links[11], 7);
 
         // check axons
-        assert_eq!(input_block.block_io.output_buffer[0].axons[0].potential, 1.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[1].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[2].potential, 2.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[3].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[4].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[5].potential, 3.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[6].potential, 4.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[7].potential, 0.0);
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[0].potential,
+            1.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[1].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[2].potential,
+            2.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[3].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[4].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[5].potential,
+            3.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[6].potential,
+            4.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[7].potential,
+            0.0
+        );
     }
 
     #[test]
@@ -230,8 +276,11 @@ mod tests {
         let original = InputBlock::default();
 
         let cfg = bincode::config::standard();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: InputBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: InputBlock = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
         println!("size: {}", serialized.len());
 
         assert_eq!(original, deserialized);
