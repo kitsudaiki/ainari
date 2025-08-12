@@ -78,14 +78,14 @@ pub async fn get_task(
     };
 
     let resp = TaskResp {
-        uuid: task_uuid.clone(),
+        uuid: task_uuid,
         name: task_data.name.clone(),
-        task_type: task_type,
+        task_type,
         state: task_state,
-        total_number_of_epochs: task_data.total_number_of_epochs.clone(),
-        current_epoch: task_data.current_epoch.clone(),
-        total_number_of_cycles: task_data.total_number_of_cycles.clone(),
-        current_cycle: task_data.current_cycle.clone(),
+        total_number_of_epochs: task_data.total_number_of_epochs,
+        current_epoch: task_data.current_epoch,
+        total_number_of_cycles: task_data.total_number_of_cycles,
+        current_cycle: task_data.current_cycle,
         queued_at: task_data.queued_at.clone(),
         started_at: task_data.started_at.clone(),
         finished_at: task_data.finished_at.clone(),

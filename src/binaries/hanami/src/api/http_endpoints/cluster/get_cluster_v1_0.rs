@@ -49,7 +49,7 @@ pub async fn get_cluster(
     };
 
     let resp = ClusterResp {
-        uuid: cluster_uuid.clone(),
+        uuid: *cluster_uuid,
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
         created_by: cluster_data.created_by.clone(),

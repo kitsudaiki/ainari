@@ -35,7 +35,7 @@ pub async fn list_checkpoint(
     let checkpoints = match checkpoint_table::list_checkpoints(&context) {
         Ok(checkpoints) => checkpoints,
         Err(e) => {
-            log::error!("Failed to get list of checkpoints form database: '{:?}'", e);
+            log::error!("Failed to get list of checkpoints form database: '{e:?}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -48,14 +48,14 @@ pub async fn list_checkpoint(
         match Uuid::parse_str(&checkpoint.uuid) {
             Ok(uuid) => {
                 let obj = CheckpointBasicResp {
-                    uuid: uuid,
+                    uuid,
                     name: checkpoint.name.clone(),
                 };
 
                 resp.checkpoints.push(obj);
             }
             Err(e) => {
-                log::error!("Error while listing checkpoint: '{:?}'", e);
+                log::error!("Error while listing checkpoint: '{e:?}'");
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         }

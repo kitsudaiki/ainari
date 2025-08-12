@@ -46,7 +46,7 @@ pub async fn train_cluster(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
@@ -68,11 +68,11 @@ pub async fn train_cluster(
     let cluster_interface_mutex = match cluster_handler.get_cluster_interface(&cluster_uuid) {
         Ok(cluster_interface_mutex) => cluster_interface_mutex,
         Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {}", msg);
+            let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));
         }
         Err(AinariError::Error(msg)) => {
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -83,11 +83,11 @@ pub async fn train_cluster(
     match cluster_interface.train(&body.inputs, &body.outputs) {
         Ok(()) => {}
         Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {}", msg);
+            let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));
         }
         Err(AinariError::Error(msg)) => {
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }

@@ -43,35 +43,32 @@ pub fn connect_outputs(
     source_block_uuid: &Uuid,
 ) -> Result<(), AinariError> {
     // in case of training, get targets for all not-connected axon-sections
-    let mut counter = 0;
-    for axon_section in io_buffer.output_buffer.iter_mut() {
+    for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
         if axon_section.target_pos == UNINIT_STATE_8 {
             // let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
 
             // set source-values for the axon-section
-            axon_section.cluster_uuid = cluster_uuid.clone();
-            axon_section.source_hexagon_uuid = source_hexagon_uuid.clone();
-            axon_section.source_block_uuid = source_block_uuid.clone();
-            axon_section.source_pos = counter;
+            axon_section.cluster_uuid = *cluster_uuid;
+            axon_section.source_hexagon_uuid = *source_hexagon_uuid;
+            axon_section.source_block_uuid = *source_block_uuid;
+            axon_section.source_pos = i as u8;
 
             // cluster_handler.get_target(axon_section);
             connect_to_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-            axon_section.cluster_uuid = cluster_uuid.clone();
+            axon_section.cluster_uuid = *cluster_uuid;
             axon_section.source_block = Some(cluster_handler.get_block(
-                &cluster_uuid,
+                cluster_uuid,
                 &axon_section.source_hexagon_uuid,
                 &axon_section.source_block_uuid,
             )?);
             axon_section.target_block = Some(cluster_handler.get_block(
-                &cluster_uuid,
+                cluster_uuid,
                 &axon_section.target_hexagon_uuid,
                 &axon_section.target_block_uuid,
             )?);
         }
-
-        counter += 1;
     }
 
     Ok(())
@@ -86,13 +83,13 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
         } else {
             continue;
         };
-        let block_clone = Arc::clone(&target_block_mutex);
+        let block_clone = Arc::clone(target_block_mutex);
         let mut target_block = target_block_mutex.lock().unwrap();
         let target_bock_io = target_block.get_block_io();
         target_bock_io.input_buffer[axon_section.target_pos as usize] = axon_section.clone();
         target_bock_io.input_buffer_counter += 1;
 
-        if target_bock_io.input_buffer_counter >= target_bock_io.inputs_in_use as u64 {
+        if target_bock_io.input_buffer_counter >= target_bock_io.inputs_in_use {
             target_bock_io.input_buffer_counter = 0;
 
             let worker_task = WorkerTask {
@@ -125,7 +122,7 @@ pub fn send_backward(io_buffer: &BlockIoBuffer) {
 
             let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
-                block: Arc::clone(&source_block_mutex),
+                block: Arc::clone(source_block_mutex),
             };
 
             worker_queue.add(worker_task);

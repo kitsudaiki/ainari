@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Serialize, Deserialize, Clone, ApiErrorComponent)]
+#[allow(clippy::duplicated_attributes)]
 #[openapi_error(
     status(code = 400, description = "Bad request"),
     status(code = 401, description = "Unauthorized"),

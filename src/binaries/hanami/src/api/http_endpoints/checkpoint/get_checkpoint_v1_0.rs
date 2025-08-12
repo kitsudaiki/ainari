@@ -40,7 +40,7 @@ pub async fn get_checkpoint(
     match checkpoint_table::get_checkpoint(&checkpoint_uuid, &context) {
         Ok(checkpoint) => {
             let resp = CheckpointResp {
-                uuid: checkpoint_uuid.clone(),
+                uuid: *checkpoint_uuid,
                 name: checkpoint.name.clone(),
                 created_by: checkpoint.created_by.clone(),
                 created_at: checkpoint.created_at.clone(),

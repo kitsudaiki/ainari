@@ -52,7 +52,7 @@ pub async fn list_task(
     let tasks = match task_table::list_tasks(&cluster_uuid, &context) {
         Ok(tasks) => tasks,
         Err(e) => {
-            log::error!("Failed to get list of tasks form database: '{}'", e);
+            log::error!("Failed to get list of tasks form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -86,9 +86,9 @@ pub async fn list_task(
         };
 
         let obj = TaskBasicResp {
-            uuid: uuid,
+            uuid,
             name: task.name.clone(),
-            task_type: task_type,
+            task_type,
             state: task_state,
         };
 

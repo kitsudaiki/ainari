@@ -98,7 +98,7 @@ fn run_train(
     }
 
     let msg = format!("Timeout while training cluster with uuid {cluster_uuid}");
-    return Err(AinariError::Error(msg));
+    Err(AinariError::Error(msg))
 }
 
 fn run_process(
@@ -115,7 +115,7 @@ fn run_process(
     }
 
     let msg = format!("Timeout while requesting cluster with uuid {cluster_uuid}");
-    return Err(AinariError::Error(msg));
+    Err(AinariError::Error(msg))
 }
 
 fn get_input_from_dataset(
@@ -180,7 +180,7 @@ fn get_expected_from_dataset(
             }
         };
 
-    let _ = apply_expected(cluster_uuid, hexagon_name, input_ptr, input_size)?;
+    apply_expected(cluster_uuid, hexagon_name, input_ptr, input_size)?;
 
     Ok(())
 }
@@ -203,7 +203,7 @@ fn write_output_into_dataset(
         output_buffer.reset_output();
 
         let output_bytes = cast_slice(&output_read);
-        let _ = file_handle.target_file.write_all(&output_bytes);
+        let _ = file_handle.target_file.write_all(output_bytes);
     }
 
     Ok(())
@@ -216,13 +216,13 @@ fn handle_train_task(
     finish_counter: &Arc<Mutex<FinishCounter>>,
 ) {
     // check if task was aborted
-    if task_table::is_aborted(&task_uuid) {
+    if task_table::is_aborted(task_uuid) {
         return;
     }
 
     let task_type = WorkerTaskType::Train;
     let mut prev_timestamp = Instant::now();
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Active);
 
     for epoch_count in 0..task_info.number_of_epochs {
         for cycle_count in 0..task_info.number_of_cycles {
@@ -231,13 +231,13 @@ fn handle_train_task(
             if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
                 prev_timestamp = now;
                 let _ = task_table::update_task_progress(
-                    &task_uuid,
+                    task_uuid,
                     &(epoch_count as i64),
                     &(cycle_count as i64),
                 );
 
                 // check if task was aborted
-                if task_table::is_aborted(&task_uuid) {
+                if task_table::is_aborted(task_uuid) {
                     return;
                 }
             }
@@ -258,13 +258,13 @@ fn handle_train_task(
                 ) {
                     Ok(()) => {}
                     Err(AinariError::InvalidInput(msg)) => {
-                        let _ = task_table::set_error_state(&task_uuid, &msg);
+                        let _ = task_table::set_error_state(task_uuid, &msg);
                         return;
                     }
                     Err(AinariError::Error(msg)) => {
-                        log::error!("{}", msg);
+                        log::error!("{msg}");
                         let db_msg = "internal error".to_string();
-                        let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                        let _ = task_table::set_error_state(task_uuid, &db_msg);
                         return;
                     }
                 }
@@ -282,13 +282,13 @@ fn handle_train_task(
                 ) {
                     Ok(()) => {}
                     Err(AinariError::InvalidInput(msg)) => {
-                        let _ = task_table::set_error_state(&task_uuid, &msg);
+                        let _ = task_table::set_error_state(task_uuid, &msg);
                         return;
                     }
                     Err(AinariError::Error(msg)) => {
-                        log::error!("{}", msg);
+                        log::error!("{msg}");
                         let db_msg = "internal error".to_string();
-                        let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                        let _ = task_table::set_error_state(task_uuid, &db_msg);
                         return;
                     }
                 }
@@ -297,13 +297,13 @@ fn handle_train_task(
             match run_train(cluster_uuid, finish_counter) {
                 Ok(()) => {}
                 Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    let _ = task_table::set_error_state(task_uuid, &msg);
                     return;
                 }
                 Err(AinariError::Error(msg)) => {
-                    log::error!("{}", msg);
+                    log::error!("{msg}");
                     let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                    let _ = task_table::set_error_state(task_uuid, &db_msg);
                     return;
                 }
             }
@@ -311,18 +311,18 @@ fn handle_train_task(
     }
 
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    for (hexagon_name, _) in &mut task_info.outputs {
+    for hexagon_name in task_info.outputs.keys() {
         let output_buffer_mutex =
             match cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
                 Ok(output_buffer_mutex) => output_buffer_mutex,
                 Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    let _ = task_table::set_error_state(task_uuid, &msg);
                     return;
                 }
                 Err(AinariError::Error(msg)) => {
-                    log::error!("{}", msg);
+                    log::error!("{msg}");
                     let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                    let _ = task_table::set_error_state(task_uuid, &db_msg);
                     return;
                 }
             };
@@ -331,7 +331,7 @@ fn handle_train_task(
         output_buffer.reset_output();
     }
 
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(
         task_uuid,
         &(task_info.number_of_epochs as i64),
@@ -346,13 +346,13 @@ fn handle_request_task(
     finish_counter: &Arc<Mutex<FinishCounter>>,
 ) {
     // check if task was aborted
-    if task_table::is_aborted(&task_uuid) {
+    if task_table::is_aborted(task_uuid) {
         return;
     }
 
     let task_type = WorkerTaskType::Process;
     let mut prev_timestamp = Instant::now();
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Active);
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Active);
 
     for cycle_count in 0..task_info.number_of_cycles {
         // update current state in database at least after 1 second
@@ -362,7 +362,7 @@ fn handle_request_task(
             let _ = task_table::update_task_progress(task_uuid, &0, &(cycle_count as i64));
 
             // check if task was aborted
-            if task_table::is_aborted(&task_uuid) {
+            if task_table::is_aborted(task_uuid) {
                 return;
             }
         }
@@ -384,13 +384,13 @@ fn handle_request_task(
             ) {
                 Ok(()) => {}
                 Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(&task_uuid, &msg);
+                    let _ = task_table::set_error_state(task_uuid, &msg);
                     return;
                 }
                 Err(AinariError::Error(msg)) => {
-                    log::error!("{}", msg);
+                    log::error!("{msg}");
                     let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                    let _ = task_table::set_error_state(task_uuid, &db_msg);
                     return;
                 }
             }
@@ -399,13 +399,13 @@ fn handle_request_task(
         match run_process(cluster_uuid, finish_counter) {
             Ok(()) => {}
             Err(AinariError::InvalidInput(msg)) => {
-                let _ = task_table::set_error_state(&task_uuid, &msg);
+                let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
             }
             Err(AinariError::Error(msg)) => {
-                log::error!("{}", msg);
+                log::error!("{msg}");
                 let db_msg = "internal error".to_string();
-                let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                let _ = task_table::set_error_state(task_uuid, &db_msg);
                 return;
             }
         }
@@ -414,32 +414,29 @@ fn handle_request_task(
         match write_output_into_dataset(cluster_uuid, &mut task_info.results) {
             Ok(()) => {}
             Err(AinariError::InvalidInput(msg)) => {
-                let _ = task_table::set_error_state(&task_uuid, &msg);
+                let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
             }
             Err(AinariError::Error(msg)) => {
-                log::error!("{}", msg);
+                log::error!("{msg}");
                 let db_msg = "internal error".to_string();
-                let _ = task_table::set_error_state(&task_uuid, &db_msg);
+                let _ = task_table::set_error_state(task_uuid, &db_msg);
                 return;
             }
         }
     }
 
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(
-        task_uuid,
-        &(1 as i64),
-        &(task_info.number_of_cycles as i64),
-    );
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
+    let _ =
+        task_table::update_task_progress(task_uuid, &1_i64, &(task_info.number_of_cycles as i64));
 }
 
 fn handle_checkpoint_save_task(
     cluster_uuid: &Uuid,
     task_uuid: &Uuid,
-    task_name: &String,
-    user_id: &String,
-    project_id: &String,
+    task_name: &str,
+    user_id: &str,
+    project_id: &str,
     task_info: &mut CheckpointSaveInfo,
 ) {
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
@@ -452,8 +449,8 @@ fn handle_checkpoint_save_task(
 
     // create information for new database-entry
     let context = &UserContext {
-        user_id: user_id.clone(),
-        project_id: project_id.clone(),
+        user_id: user_id.to_owned(),
+        project_id: project_id.to_owned(),
         is_admin: false,
         is_project_admin: false,
     };
@@ -461,16 +458,16 @@ fn handle_checkpoint_save_task(
     // add information of new checkpoint to the database
     // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
     let file_path_str: String = task_info.path.to_string_lossy().into();
-    match checkpoint_table::add_new_checkpoint(&task_uuid, &task_name, &file_path_str, context) {
+    match checkpoint_table::add_new_checkpoint(task_uuid, task_name, &file_path_str, context) {
         Ok(_) => {}
         Err(e) => {
-            log::error!("{}", e);
-            let _ = task_table::set_error_state(&task_uuid, &"Internal error".to_string());
+            log::error!("{e}");
+            let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
             return;
         }
     }
 
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }
 
@@ -487,7 +484,7 @@ fn handle_checkpoint_restore_task(
         }
     }
 
-    let _ = task_table::update_task_state(&task_uuid, &TaskState::Finished);
+    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }
 
@@ -563,10 +560,10 @@ impl ClusterInterface {
 
         ClusterInterface {
             finish_counter_mutex: Arc::clone(finish_counter_mutex),
-            queue: queue,
+            queue,
             handle: Some(handle),
             running,
-            cluster_uuid: cluster_uuid.clone(),
+            cluster_uuid: *cluster_uuid,
         }
     }
 
@@ -596,7 +593,7 @@ impl ClusterInterface {
             let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
             for hexagon_name in outputs.keys() {
                 let output_buffer_mutex =
-                    cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)?;
+                    cluster_data_handler.get_output_buffer(&self.cluster_uuid, hexagon_name)?;
                 let mut output_buffer = output_buffer_mutex.lock().unwrap();
                 output_buffer.reset_output();
             }
@@ -605,7 +602,7 @@ impl ClusterInterface {
         for (hexagon_name, data) in inputs {
             apply_input(
                 &self.cluster_uuid,
-                &hexagon_name,
+                hexagon_name,
                 data.as_slice(),
                 data.len() as u64,
                 0,
@@ -620,7 +617,7 @@ impl ClusterInterface {
         let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
         for (hexagon_name, data) in outputs.iter_mut() {
             let output_buffer_mutex =
-                cluster_data_handler.get_output_buffer(&self.cluster_uuid, &hexagon_name)?;
+                cluster_data_handler.get_output_buffer(&self.cluster_uuid, hexagon_name)?;
 
             let mut output_buffer = output_buffer_mutex.lock().unwrap();
             data.resize(output_buffer.output_neurons.len(), 0.0f32);
@@ -642,7 +639,7 @@ impl ClusterInterface {
         for (hexagon_name, data) in outputs {
             let _ = apply_expected(
                 &self.cluster_uuid,
-                &hexagon_name,
+                hexagon_name,
                 data.as_slice(),
                 data.len() as u64,
             );
@@ -651,7 +648,7 @@ impl ClusterInterface {
         for (hexagon_name, data) in inputs {
             apply_input(
                 &self.cluster_uuid,
-                &hexagon_name,
+                hexagon_name,
                 data.as_slice(),
                 data.len() as u64,
                 0,
@@ -705,8 +702,7 @@ mod tests {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");
-                assert!(false);
-                return;
+                panic!();
             }
         }
 
@@ -714,8 +710,7 @@ mod tests {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");
-                assert!(false);
-                return;
+                panic!();
             }
         }
 
@@ -723,8 +718,7 @@ mod tests {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");
-                assert!(false);
-                return;
+                panic!();
             }
         }
     }

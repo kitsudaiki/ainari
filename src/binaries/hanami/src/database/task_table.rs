@@ -102,7 +102,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_task(
     task_uuid: &Uuid,
     cluster_uuid: &Uuid,
-    task_name: &String,
+    task_name: &str,
     task_type: &TaskType,
     total_number_of_epochs: &u64,
     total_number_of_cycles: &u64,
@@ -110,13 +110,13 @@ pub fn add_new_task(
 ) -> QueryResult<usize> {
     let task = TaskEntry {
         uuid: task_uuid.to_string().clone(),
-        name: task_name.clone(),
+        name: task_name.to_owned(),
         cluster_uuid: cluster_uuid.to_string().clone(),
         task_type: task_type.to_string(),
         task_state: TaskState::Created.to_string(),
-        total_number_of_epochs: total_number_of_epochs.clone() as i64,
+        total_number_of_epochs: *total_number_of_epochs as i64,
         current_epoch: 0,
-        total_number_of_cycles: total_number_of_cycles.clone() as i64,
+        total_number_of_cycles: *total_number_of_cycles as i64,
         current_cycle: 0,
         queued_at: None,
         started_at: None,
@@ -156,9 +156,9 @@ pub fn get_task(
         )
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -170,7 +170,7 @@ pub fn get_task(
         Ok(task) => Ok(task),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -184,9 +184,9 @@ pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<
         .filter(cluster_uuid.eq(cluster_uuid_in.to_string()))
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -203,12 +203,10 @@ pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Resul
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => {
-            return Err(());
-        }
+        Err(diesel::result::Error::NotFound) => Err(()),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
-            return Err(());
+            log::error!("Database-error: {e:?}");
+            Err(())
         }
     }
 }
@@ -218,9 +216,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
     use self::tasks::dsl::*;
 
     match new_state {
-        TaskState::Created => {
-            return Ok(());
-        }
+        TaskState::Created => Ok(()),
         TaskState::Queued => {
             match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
                 .set((
@@ -229,12 +225,10 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 ))
                 .execute(&mut *conn)
             {
-                Ok(_) => {
-                    return Ok(());
-                }
+                Ok(_) => Ok(()),
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    log::error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {e:?}");
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -247,12 +241,10 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 ))
                 .execute(&mut *conn)
             {
-                Ok(_) => {
-                    return Ok(());
-                }
+                Ok(_) => Ok(()),
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    log::error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {e:?}");
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -265,12 +257,10 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 ))
                 .execute(&mut *conn)
             {
-                Ok(_) => {
-                    return Ok(());
-                }
+                Ok(_) => Ok(()),
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    log::error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {e:?}");
                     Err(enums::DbError::InternalError)
                 }
             }
@@ -283,19 +273,15 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
                 ))
                 .execute(&mut *conn)
             {
-                Ok(_) => {
-                    return Ok(());
-                }
+                Ok(_) => Ok(()),
                 Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
                 Err(e) => {
-                    log::error!("Database-error: {:?}", e);
+                    log::error!("Database-error: {e:?}");
                     Err(enums::DbError::InternalError)
                 }
             }
         }
-        TaskState::Error => {
-            return Ok(());
-        }
+        TaskState::Error => Ok(()),
     }
 }
 
@@ -310,15 +296,11 @@ pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
         ))
         .execute(&mut *conn)
     {
-        Ok(_) => {
-            return Ok(());
-        }
-        Err(diesel::result::Error::NotFound) => {
-            return Err(());
-        }
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(()),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
-            return Err(());
+            log::error!("Database-error: {e:?}");
+            Err(())
         }
     }
 }
@@ -333,16 +315,10 @@ pub fn is_aborted(task_uuid: &Uuid) -> bool {
         .select(TaskEntry::as_select())
         .first::<TaskEntry>(&mut *conn)
     {
-        Ok(task) => {
-            if task.task_state == TaskState::Aborted.to_string() {
-                true
-            } else {
-                false
-            }
-        }
+        Ok(task) => task.task_state == TaskState::Aborted.to_string(),
         Err(diesel::result::Error::NotFound) => false,
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             false
         }
     }
@@ -399,16 +375,13 @@ mod tests {
         hard_delete_task(&uuid1);
 
         add_task(&task).unwrap();
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.uuid, task.uuid);
-                assert_eq!(retrieved_task.name, task.name);
-                assert_eq!(retrieved_task.created_by, task.created_by);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.uuid, task.uuid);
+            assert_eq!(retrieved_task.name, task.name);
+            assert_eq!(retrieved_task.created_by, task.created_by);
         };
 
-        let _ = hard_delete_task(&uuid1);
+        hard_delete_task(&uuid1);
     }
 
     #[test]
@@ -477,8 +450,8 @@ mod tests {
         add_task(&task2).unwrap();
         let tasks = list_tasks(&cluster_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 2);
-        let _ = hard_delete_task(&uuid1);
-        let _ = hard_delete_task(&uuid2);
+        hard_delete_task(&uuid1);
+        hard_delete_task(&uuid2);
     }
 
     #[test]
@@ -614,16 +587,13 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_task(&uuid3, &cluster_uuid, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            }
-            Err(_) => {}
+        if get_task(&uuid3, &cluster_uuid, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
-        let _ = hard_delete_task(&uuid1);
-        let _ = hard_delete_task(&uuid2);
-        let _ = hard_delete_task(&uuid3);
+        hard_delete_task(&uuid1);
+        hard_delete_task(&uuid2);
+        hard_delete_task(&uuid3);
     }
 
     #[test]
@@ -669,70 +639,55 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Created);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Created.to_string());
-                assert_eq!(retrieved_task.queued_at, None);
-                assert_eq!(retrieved_task.started_at, None);
-                assert_eq!(retrieved_task.aborted_at, None);
-                assert_eq!(retrieved_task.finished_at, None);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Created.to_string());
+            assert_eq!(retrieved_task.queued_at, None);
+            assert_eq!(retrieved_task.started_at, None);
+            assert_eq!(retrieved_task.aborted_at, None);
+            assert_eq!(retrieved_task.finished_at, None);
         };
 
         let _ = update_task_state(&uuid1, &TaskState::Queued);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Queued.to_string());
-                assert_ne!(retrieved_task.queued_at, None);
-                assert_eq!(retrieved_task.started_at, None);
-                assert_eq!(retrieved_task.aborted_at, None);
-                assert_eq!(retrieved_task.finished_at, None);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Queued.to_string());
+            assert_ne!(retrieved_task.queued_at, None);
+            assert_eq!(retrieved_task.started_at, None);
+            assert_eq!(retrieved_task.aborted_at, None);
+            assert_eq!(retrieved_task.finished_at, None);
         };
 
         let _ = update_task_state(&uuid1, &TaskState::Active);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Active.to_string());
-                assert_ne!(retrieved_task.queued_at, None);
-                assert_ne!(retrieved_task.started_at, None);
-                assert_eq!(retrieved_task.aborted_at, None);
-                assert_eq!(retrieved_task.finished_at, None);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Active.to_string());
+            assert_ne!(retrieved_task.queued_at, None);
+            assert_ne!(retrieved_task.started_at, None);
+            assert_eq!(retrieved_task.aborted_at, None);
+            assert_eq!(retrieved_task.finished_at, None);
         };
 
         let _ = update_task_state(&uuid1, &TaskState::Aborted);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Aborted.to_string());
-                assert_ne!(retrieved_task.queued_at, None);
-                assert_ne!(retrieved_task.started_at, None);
-                assert_ne!(retrieved_task.aborted_at, None);
-                assert_eq!(retrieved_task.finished_at, None);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Aborted.to_string());
+            assert_ne!(retrieved_task.queued_at, None);
+            assert_ne!(retrieved_task.started_at, None);
+            assert_ne!(retrieved_task.aborted_at, None);
+            assert_eq!(retrieved_task.finished_at, None);
         };
 
         let _ = update_task_state(&uuid1, &TaskState::Finished);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Finished.to_string());
-                assert_ne!(retrieved_task.queued_at, None);
-                assert_ne!(retrieved_task.started_at, None);
-                assert_ne!(retrieved_task.aborted_at, None);
-                assert_ne!(retrieved_task.finished_at, None);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Finished.to_string());
+            assert_ne!(retrieved_task.queued_at, None);
+            assert_ne!(retrieved_task.started_at, None);
+            assert_ne!(retrieved_task.aborted_at, None);
+            assert_ne!(retrieved_task.finished_at, None);
         };
 
-        let _ = hard_delete_task(&uuid1);
+        hard_delete_task(&uuid1);
     }
 
     #[test]
@@ -778,15 +733,12 @@ mod tests {
 
         update_task_progress(&uuid1, &123, &42).unwrap();
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.current_cycle, 42);
-                assert_eq!(retrieved_task.current_epoch, 123);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.current_cycle, 42);
+            assert_eq!(retrieved_task.current_epoch, 123);
         };
 
-        let _ = hard_delete_task(&uuid1);
+        hard_delete_task(&uuid1);
     }
 
     #[test]
@@ -835,15 +787,12 @@ mod tests {
 
         let _ = set_error_state(&uuid1, &error_msg);
 
-        match get_task(&uuid1, &cluster_uuid, &context) {
-            Ok(retrieved_task) => {
-                assert_eq!(retrieved_task.task_state, TaskState::Error.to_string());
-                assert_eq!(retrieved_task.error_message, Some(error_msg));
-            }
-            Err(_) => {}
+        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+            assert_eq!(retrieved_task.task_state, TaskState::Error.to_string());
+            assert_eq!(retrieved_task.error_message, Some(error_msg));
         };
 
-        let _ = hard_delete_task(&uuid1);
+        hard_delete_task(&uuid1);
     }
 
     #[test]
@@ -881,12 +830,12 @@ mod tests {
 
         add_task(&task).unwrap();
 
-        assert_eq!(is_aborted(&uuid1), false);
+        assert!(!is_aborted(&uuid1));
 
         let _ = update_task_state(&uuid1, &TaskState::Aborted);
 
-        assert_eq!(is_aborted(&uuid1), true);
+        assert!(is_aborted(&uuid1));
 
-        let _ = hard_delete_task(&uuid1);
+        hard_delete_task(&uuid1);
     }
 }

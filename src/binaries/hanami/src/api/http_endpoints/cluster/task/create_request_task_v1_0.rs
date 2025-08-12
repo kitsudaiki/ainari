@@ -53,20 +53,17 @@ pub async fn create_request_task(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::RequestTask;
-    let time_length = match body.time_length {
-        Some(time_length) => time_length,
-        None => 1,
-    };
+    let time_length = body.time_length.unwrap_or(1);
 
     if time_length < 1 {
-        let msg = format!("Time-length must be 1 or bigger.");
+        let msg = "Time-length must be 1 or bigger.".to_string();
         return Err(ErrorResponse::BadRequest(msg));
     }
 
@@ -77,7 +74,7 @@ pub async fn create_request_task(
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{}' not found.", cluster_uuid);
+            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
@@ -97,7 +94,7 @@ pub async fn create_request_task(
 
     let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(&task_uuid.to_string());
+    let target_filepath: PathBuf = upload_dir.join(task_uuid.to_string());
     let description = task_uuid.to_string().clone();
     let mut columns: HashMap<String, Column> = HashMap::new();
     let name = body.name.clone();
@@ -108,7 +105,7 @@ pub async fn create_request_task(
         Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add dataset with ID '{task_uuid}' to database.");
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -124,11 +121,11 @@ pub async fn create_request_task(
                 output_buffer.output_neurons.len() as u64
             }
             Err(AinariError::InvalidInput(msg)) => {
-                let msg = format!("Invalid input: {}", msg);
+                let msg = format!("Invalid input: {msg}");
                 return Err(ErrorResponse::BadRequest(msg));
             }
             Err(AinariError::Error(msg)) => {
-                log::error!("{}", msg);
+                log::error!("{msg}");
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -144,7 +141,7 @@ pub async fn create_request_task(
 
     // create new dataset for the resulting data
     let result_file_handle = match init_new_data_set_file(
-        &PathBuf::from(target_filepath),
+        &target_filepath,
         task_uuid,
         name,
         description,
@@ -163,7 +160,7 @@ pub async fn create_request_task(
         inputs: HashMap::new(),
         results: result_file_handle,
         number_of_cycles: 0,
-        time_length: time_length,
+        time_length,
     };
 
     let mut number_of_cycles = u64::MAX;
@@ -224,8 +221,8 @@ pub async fn create_request_task(
 
     // create new task
     let task = Task {
-        uuid: task_uuid.clone(),
-        cluster_uuid: cluster_uuid.clone(),
+        uuid: task_uuid,
+        cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -260,14 +257,14 @@ pub async fn create_request_task(
     };
 
     let resp = TaskResp {
-        uuid: task_uuid.clone(),
+        uuid: task_uuid,
         name: task_data.name.clone(),
-        task_type: task_type,
+        task_type,
         state: task_state,
-        total_number_of_epochs: task_data.total_number_of_epochs.clone(),
-        current_epoch: task_data.current_epoch.clone(),
-        total_number_of_cycles: task_data.total_number_of_cycles.clone(),
-        current_cycle: task_data.current_cycle.clone(),
+        total_number_of_epochs: task_data.total_number_of_epochs,
+        current_epoch: task_data.current_epoch,
+        total_number_of_cycles: task_data.total_number_of_cycles,
+        current_cycle: task_data.current_cycle,
         queued_at: task_data.queued_at.clone(),
         started_at: task_data.started_at.clone(),
         finished_at: task_data.finished_at.clone(),

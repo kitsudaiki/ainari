@@ -36,7 +36,7 @@ impl fmt::Display for TaskType {
             TaskType::CheckpointSaveTask => "CheckpointSaveTask",
             TaskType::CheckpointRestoreTask => "CheckpointRestoreTask",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -74,7 +74,7 @@ impl fmt::Display for TaskState {
             TaskState::Finished => "FINISHED",
             TaskState::Error => "ERROR",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

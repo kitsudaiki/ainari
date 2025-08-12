@@ -63,11 +63,11 @@ impl WorkerThread {
                     match process_task(&task) {
                         Ok(()) => {}
                         Err(AinariError::InvalidInput(msg)) => {
-                            log::error!("{}", msg);
+                            log::error!("{msg}");
                             // TODO: better error-handling
                         }
                         Err(AinariError::Error(msg)) => {
-                            log::error!("{}", msg);
+                            log::error!("{msg}");
                             // TODO: better error-handling
                         }
                     };
@@ -80,7 +80,7 @@ impl WorkerThread {
         });
 
         WorkerThread {
-            thread_id: thread_id,
+            thread_id,
             handle: Some(handle),
             running,
         }

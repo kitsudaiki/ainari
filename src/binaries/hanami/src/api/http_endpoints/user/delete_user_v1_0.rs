@@ -35,7 +35,7 @@ pub async fn delete_user(
     user_id: Path<String>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));

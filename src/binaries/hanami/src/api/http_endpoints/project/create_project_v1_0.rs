@@ -37,7 +37,7 @@ pub async fn create_project(
     body: Json<ProjectCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
@@ -47,7 +47,7 @@ pub async fn create_project(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
@@ -55,7 +55,7 @@ pub async fn create_project(
     let id = &body.id;
 
     // check if project already exist within the database
-    match project_table::get_project(&id, &context) {
+    match project_table::get_project(id, &context) {
         Ok(_) => {
             let msg = format!("Project with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
@@ -69,16 +69,16 @@ pub async fn create_project(
     };
 
     // add new project to datbase
-    match project_table::add_new_project(&id, &body.name, &context) {
+    match project_table::add_new_project(id, &body.name, &context) {
         Ok(_) => {}
         Err(e) => {
-            log::error!("Failed to add project with ID '{id}' to database.: {}", e);
+            log::error!("Failed to add project with ID '{id}' to database.: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     // get new created project from database to get addtional information
-    match project_table::get_project(&id, &context) {
+    match project_table::get_project(id, &context) {
         Ok(project) => {
             let resp = ProjectResp {
                 id: project.id.clone(),
@@ -95,7 +95,7 @@ pub async fn create_project(
             let msg = format!(
                 "Failed to get project with ID '{id}' from database, even the project should exist."
             );
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };

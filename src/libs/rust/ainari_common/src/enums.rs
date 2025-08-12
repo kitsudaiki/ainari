@@ -45,23 +45,19 @@ impl ReturnStatus {
 
 impl fmt::Display for ReturnStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 // ==================================================================================================
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
 pub enum OutputType {
+    #[default]
     PlainOutput = 0,
     BoolOutput = 1,
     IntOutput = 2,
     FloatOutput = 3,
-}
-impl Default for OutputType {
-    fn default() -> Self {
-        OutputType::PlainOutput
-    }
 }
 
 // ==================================================================================================

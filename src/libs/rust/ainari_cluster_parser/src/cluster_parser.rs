@@ -31,15 +31,11 @@ use ainari_common::objects::*;
 #[grammar = "cluster_parser.pest"]
 pub struct ClusterParser;
 
-pub fn parse_cluster_template(
-    name: &String,
-    source_text: &str,
-) -> Result<ClusterMeta, AinariError> {
+pub fn parse_cluster_template(name: &str, source_text: &str) -> Result<ClusterMeta, AinariError> {
     let file_pair = ClusterParser::parse(Rule::file, source_text)
         .map_err(|e| {
             AinariError::InvalidInput(format!(
-                "Failed to parse parsed_cluster-template with error: {}",
-                e
+                "Failed to parse parsed_cluster-template with error: {e}",
             ))
         })?
         .next()
@@ -90,7 +86,7 @@ pub fn parse_cluster_template(
                 for position in section.into_inner().flat_map(|list| list.into_inner()) {
                     if position.as_rule() == Rule::position {
                         let hexagon_meta = HexagonMeta::new(parse_position(position));
-                        hexagons.insert(hexagon_meta.uuid.clone(), hexagon_meta);
+                        hexagons.insert(hexagon_meta.uuid, hexagon_meta);
                     }
                 }
             }
@@ -148,7 +144,7 @@ pub fn parse_cluster_template(
 
     let mut parsed_cluster = ClusterMeta {
         uuid: Uuid::nil(),
-        name: name.clone(),
+        name: name.to_owned(),
         version,
         settings,
         hexagons,
@@ -189,11 +185,11 @@ fn search_hexagon(
 ) -> Result<Uuid, AinariError> {
     for h in hexagons_meta.values() {
         if h.positon == *position {
-            return Ok(h.uuid.clone());
+            return Ok(h.uuid);
         }
     }
 
-    let msg = format!("Invalid {type_name} position: {}", position.to_string());
+    let msg = format!("Invalid {type_name} position: {position}");
     Err(AinariError::InvalidInput(msg))
 }
 
@@ -202,7 +198,7 @@ fn initialize_inputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError
         let hexagon_uuid = search_hexagon(&parsed_cluster.hexagons, &input_meta.position, "input")?;
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
             obj.is_input = true;
-            input_meta.hexagon_uuid = hexagon_uuid.clone();
+            input_meta.hexagon_uuid = hexagon_uuid;
         } else {
             return Err(AinariError::Error(format!(
                 "Can not find input-hexagon with ID {hexagon_uuid}, even it should exist."
@@ -219,7 +215,7 @@ fn initialize_outputs(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariErro
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&hexagon_uuid) {
             obj.is_output = true;
             obj.name = output_meta.name.clone();
-            output_meta.hexagon_uuid = hexagon_uuid.clone();
+            output_meta.hexagon_uuid = hexagon_uuid;
         } else {
             return Err(AinariError::Error(format!(
                 "Can not find output-hexagon with ID {hexagon_uuid}, even it should exist."
@@ -239,8 +235,8 @@ fn initialize_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariErr
 
 fn update_axons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariError> {
     for axon in parsed_cluster.axons.clone() {
-        let from_id = search_hexagon(&parsed_cluster.hexagons, &axon.from, &"axon with source")?;
-        let target_id = search_hexagon(&parsed_cluster.hexagons, &axon.to, &"axon with target")?;
+        let from_id = search_hexagon(&parsed_cluster.hexagons, &axon.from, "axon with source")?;
+        let target_id = search_hexagon(&parsed_cluster.hexagons, &axon.to, "axon with target")?;
 
         if let Some(obj) = parsed_cluster.hexagons.get_mut(&from_id) {
             obj.axon_target = target_id;
@@ -257,16 +253,16 @@ fn connect_hexagon(
     source_pos: &Position,
     side: usize,
 ) -> Result<(), AinariError> {
-    let next = get_neighbor_pos(&source_pos, side);
+    let next = get_neighbor_pos(source_pos, side);
     if next.is_valid() {
         for (target_id, hexagon) in hexagon_copy.iter() {
             let target_pos = &hexagon.positon;
             if *target_pos == next {
                 if let Some(source_obj) = parsed_cluster.hexagons.get_mut(&source_id.clone()) {
-                    source_obj.neighbors[side] = target_id.clone();
+                    source_obj.neighbors[side] = *target_id;
                 }
-                if let Some(target_obj) = parsed_cluster.hexagons.get_mut(&target_id) {
-                    target_obj.neighbors[11 - side] = source_id.clone();
+                if let Some(target_obj) = parsed_cluster.hexagons.get_mut(target_id) {
+                    target_obj.neighbors[11 - side] = *source_id;
                 }
             }
         }
@@ -280,7 +276,7 @@ fn connect_all_hexagons(parsed_cluster: &mut ClusterMeta) -> Result<(), AinariEr
     for (source_id, source_hexagon) in hexagon_copy.iter() {
         let source_pos = &source_hexagon.positon;
         for side in 0..12 {
-            connect_hexagon(parsed_cluster, &hexagon_copy, &source_id, source_pos, side)?;
+            connect_hexagon(parsed_cluster, &hexagon_copy, source_id, source_pos, side)?;
         }
     }
 
@@ -296,35 +292,35 @@ fn go_to_next_hexagon(
     // check path-length to not go too far
     *max_path_length -= 1;
     if *max_path_length < 0 {
-        return Ok(current_hexagon.uuid.clone());
+        return Ok(current_hexagon.uuid);
     }
 
     let chance_for_next = 0.5f32; // TODO: make hard-coded value configurable
     let num = rand::rng().random_range(0..1000) as f32;
     if (chance_for_next * 1000.0f32 < num) && source_id != &current_hexagon.uuid {
-        return Ok(current_hexagon.uuid.clone());
+        return Ok(current_hexagon.uuid);
     }
 
     let mut available_next: Vec<Uuid> = vec![];
     let possible_next_sides = [9, 3, 1, 4, 11, 5, 2];
     for side in possible_next_sides {
-        let next_hexagon_id = current_hexagon.neighbors[side].clone();
+        let next_hexagon_id = current_hexagon.neighbors[side];
         if next_hexagon_id != Uuid::nil() {
             available_next.push(next_hexagon_id);
         }
     }
 
-    if available_next.len() == 0 {
-        return Ok(current_hexagon.uuid.clone());
+    if available_next.is_empty() {
+        return Ok(current_hexagon.uuid);
     }
 
     let next_select = rand::rng().random_range(0..available_next.len());
     let selected_next_id = &available_next[next_select];
 
     if let Some(obj) = hexagons_static_copy.get(selected_next_id) {
-        return go_to_next_hexagon(hexagons_static_copy, &obj, &source_id, max_path_length);
+        go_to_next_hexagon(hexagons_static_copy, obj, source_id, max_path_length)
     } else {
-        return Ok(current_hexagon.uuid.clone());
+        Ok(current_hexagon.uuid)
     }
 }
 
@@ -332,8 +328,7 @@ fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<()
     let hexagons_static_copy = parsed_cluster.hexagons.clone();
     for (source_uuid, source_hexagon) in parsed_cluster.hexagons.iter_mut() {
         for counter in 0..NUMBER_OF_POSSIBLE_NEXT {
-            let mut max_path_length =
-                parsed_cluster.settings.max_connection_distance.clone() as i32;
+            let mut max_path_length = parsed_cluster.settings.max_connection_distance as i32;
 
             // hexagons with a different axon-target have an advantage, so they reduced by one step to be equal to other hexagons
             if source_uuid != &source_hexagon.axon_target {
@@ -345,8 +340,8 @@ fn initialize_target_hexagon_list(parsed_cluster: &mut ClusterMeta) -> Result<()
                 .unwrap();
             let target_hexagon_id = go_to_next_hexagon(
                 &hexagons_static_copy,
-                &base_hexagon,
-                &source_uuid,
+                base_hexagon,
+                source_uuid,
                 &mut max_path_length,
             )?;
 
@@ -389,7 +384,7 @@ mod tests {
                 assert_eq!(parsed.version, 1);
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -421,7 +416,7 @@ mod tests {
                 assert_eq!(parsed.settings.max_connection_distance, 43);
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -450,7 +445,7 @@ mod tests {
             Ok(parsed) => {
                 assert_eq!(parsed.hexagons.len(), 2);
 
-                if let Some(value) = parsed.hexagons.values().nth(0) {
+                if let Some(value) = parsed.hexagons.values().next() {
                     let valid = value.positon == Position { x: 1, y: 2, z: 3 }
                         || value.positon == Position { x: 4, y: 5, z: 6 };
                     assert!(valid);
@@ -466,7 +461,7 @@ mod tests {
                 }
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -502,7 +497,7 @@ mod tests {
                 assert_eq!(parsed.axons[1].to, Position { x: 4, y: 5, z: 6 });
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -543,7 +538,7 @@ mod tests {
                 assert_eq!(parsed.inputs[1].position, Position { x: 2, y: 2, z: 2 });
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -584,7 +579,7 @@ mod tests {
                 assert_eq!(parsed.outputs[1].position, Position { x: 4, y: 4, z: 4 });
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -627,7 +622,7 @@ mod tests {
                 assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -667,7 +662,7 @@ mod tests {
                 assert_eq!(parsed.outputs[1].output_type, OutputType::PlainOutput);
             }
             Err(e) => {
-                eprintln!("❌ Parsing Error: {}", e);
+                eprintln!("❌ Parsing Error: {e}");
                 // should always fail here
                 assert_eq!(false, true);
             }
@@ -727,7 +722,7 @@ mod tests {
         );
         match result {
             Ok(_) => {
-                assert!(false)
+                panic!();
             }
             Err(msg) => {
                 assert!(msg == "Version 2 not supported");
@@ -740,8 +735,10 @@ mod tests {
         let hexagon0 = HexagonMeta::new(Position { x: 1, y: 1, z: 1 });
         let hexagon1 = HexagonMeta::new(Position { x: 3, y: 1, z: 1 });
         let hexagon2 = HexagonMeta::new(Position { x: 4, y: 1, z: 1 });
-        let mut parsed_cluster = ClusterMeta::default();
-        parsed_cluster.version = 1;
+        let mut parsed_cluster = ClusterMeta {
+            version: 1,
+            ..Default::default()
+        };
         parsed_cluster.settings.refractory_time = 2;
         parsed_cluster.settings.neuron_cooldown = 10000000.0f32;
         parsed_cluster.settings.max_connection_distance = 1;
@@ -781,8 +778,8 @@ mod tests {
         let parsed_hexagon1 = parsed_cluster.hexagons.get(&hexagon1.uuid).unwrap();
         let parsed_hexagon2 = parsed_cluster.hexagons.get(&hexagon2.uuid).unwrap();
 
-        assert_eq!(parsed_hexagon0.is_input, true);
-        assert_eq!(parsed_hexagon0.is_output, false);
+        assert!(parsed_hexagon0.is_input);
+        assert!(!parsed_hexagon0.is_output);
         // test neighbors of hexagon 0
         assert_eq!(parsed_hexagon0.neighbors[0], Uuid::nil());
         assert_eq!(parsed_hexagon0.neighbors[1], Uuid::nil());
@@ -803,10 +800,10 @@ mod tests {
             success &= parsed_hexagon0.possible_hexagon_target_ids[i] == parsed_hexagon1.uuid
                 && parsed_hexagon0.possible_hexagon_target_ids[i] != parsed_hexagon0.uuid;
         }
-        assert_eq!(success, true);
+        assert!(success);
 
-        assert_eq!(parsed_hexagon1.is_input, false);
-        assert_eq!(parsed_hexagon1.is_output, false);
+        assert!(!parsed_hexagon1.is_input);
+        assert!(!parsed_hexagon1.is_output);
         // test neighbors of hexagon 1
         assert_eq!(parsed_hexagon1.neighbors[0], Uuid::nil());
         assert_eq!(parsed_hexagon1.neighbors[1], Uuid::nil());
@@ -827,10 +824,10 @@ mod tests {
             success &= parsed_hexagon1.possible_hexagon_target_ids[i] == parsed_hexagon2.uuid
                 && parsed_hexagon1.possible_hexagon_target_ids[i] != parsed_hexagon1.uuid;
         }
-        assert_eq!(success, true);
+        assert!(success);
 
-        assert_eq!(parsed_hexagon2.is_input, false);
-        assert_eq!(parsed_hexagon2.is_output, true);
+        assert!(!parsed_hexagon2.is_input);
+        assert!(parsed_hexagon2.is_output);
         // test neighbors of hexagon 2
         assert_eq!(parsed_hexagon2.neighbors[0], Uuid::nil());
         assert_eq!(parsed_hexagon2.neighbors[1], Uuid::nil());
@@ -849,6 +846,6 @@ mod tests {
         for i in 0..NUMBER_OF_POSSIBLE_NEXT {
             success &= parsed_hexagon2.possible_hexagon_target_ids[i] == Uuid::nil();
         }
-        assert_eq!(success, true);
+        assert!(success);
     }
 }

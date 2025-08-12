@@ -29,7 +29,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match user_table::init_user_table() {
         Ok(_) => log::info!("Initilaized user-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize user-database-table: {}", e);
+            log::error!("Failed to initialize user-database-table: {e}");
             return Err(e);
         }
     };
@@ -37,7 +37,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match project_table::init_project_table() {
         Ok(_) => log::info!("Initilaized project-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize project-database-table: {}", e);
+            log::error!("Failed to initialize project-database-table: {e}");
             return Err(e);
         }
     };
@@ -45,7 +45,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match cluster_table::init_cluster_table() {
         Ok(_) => log::info!("Initilaized cluster-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize cluster-database-table: {}", e);
+            log::error!("Failed to initialize cluster-database-table: {e}");
             return Err(e);
         }
     };
@@ -53,7 +53,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match dataset_table::init_dataset_table() {
         Ok(_) => log::info!("Initilaized dataset-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize dataset-database-table: {}", e);
+            log::error!("Failed to initialize dataset-database-table: {e}");
             return Err(e);
         }
     };
@@ -61,7 +61,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match task_table::init_task_table() {
         Ok(_) => log::info!("Initilaized task-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize task-database-table: {}", e);
+            log::error!("Failed to initialize task-database-table: {e}");
             return Err(e);
         }
     };
@@ -69,7 +69,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match checkpoint_table::init_checkpoint_table() {
         Ok(_) => log::info!("Initilaized checkpoint-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize checkpoint-database-table: {}", e);
+            log::error!("Failed to initialize checkpoint-database-table: {e}");
             return Err(e);
         }
     };
@@ -80,13 +80,13 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     match cluster_table::delete_all_cluster() {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            let msg = format!("Error while deleting all cluster from DB");
+            let msg = "Error while deleting all cluster from DB".to_string();
             log::error!("{msg}");
-            let error = io::Error::new(io::ErrorKind::Other, msg);
+            let error = io::Error::other(msg);
             return Err(Box::new(error));
         }
         Err(enums::DbError::NotFound) => {
-            let error = io::Error::new(io::ErrorKind::Other, "".to_string());
+            let error = io::Error::other("".to_string());
             return Err(Box::new(error));
         }
     }

@@ -38,9 +38,21 @@ pub struct Host {
     pub hyperthreading_enabled: bool,
 }
 
+impl Default for CpuThread {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CpuThread {
     pub fn new() -> Self {
         CpuThread { id: 0 }
+    }
+}
+
+impl Default for CpuCore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -52,9 +64,21 @@ impl CpuCore {
     }
 }
 
+impl Default for CpuPackage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CpuPackage {
     pub fn new() -> Self {
         CpuPackage { cores: Vec::new() }
+    }
+}
+
+impl Default for Host {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -115,6 +139,6 @@ mod tests {
         let host = init_host().unwrap();
 
         let j = serde_json::to_string_pretty(&host).unwrap();
-        println!("{}", j);
+        println!("{j}");
     }
 }

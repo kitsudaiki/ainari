@@ -79,18 +79,18 @@ impl PartialEq for OutputBlock {
 }
 
 impl OutputBlock {
-    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, output_buffer_name: &String) -> Self {
+    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, output_buffer_name: &str) -> Self {
         let mut block = OutputBlock {
             uuid: Uuid::new_v4(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
 
             block_io: BlockIoBuffer::default(),
 
             weights: Vec::new(),
             block_outputs: Vec::new(),
 
-            output_buffer_name: output_buffer_name.clone(),
+            output_buffer_name: output_buffer_name.to_owned(),
             was_already_connected: false,
 
             output_buffer: None,
@@ -113,7 +113,7 @@ impl OutputBlock {
             let mut output_buffer = output_buffer_mutex.lock().unwrap();
             // after a checkpoint-restore the block must be connected to the buffer again,
             // but is not allowed to increase the counter further
-            if self.was_already_connected == false {
+            if !self.was_already_connected {
                 output_buffer.number_of_connected_blocks += 1;
             }
             self.was_already_connected = true;
@@ -135,7 +135,7 @@ impl OutputBlock {
                 continue;
             }
 
-            axon.potential = 1.0f32 / (1.0f32 + (-1.0f32 * axon.potential).exp());
+            axon.potential = 1.0f32 / (1.0f32 + (-axon.potential).exp());
             for (y, output_neuron) in self.block_outputs.iter_mut().enumerate() {
                 output_neuron.output_value += self.weights[(y * BLOCK_DIM) + x] * axon.potential;
             }
@@ -173,7 +173,7 @@ impl Block for OutputBlock {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
 
-            if output_buffer.already_finalized == false {
+            if !output_buffer.already_finalized {
                 output_buffer.local_finish_counter += 1;
                 if output_buffer.local_finish_counter == output_buffer.number_of_connected_blocks {
                     output_buffer.finalize();
@@ -256,8 +256,8 @@ impl Block for OutputBlock {
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
         if self.block_io.inputs_in_use == 0 {
-            axon_section.target_block_uuid = self.uuid.clone();
-            axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
+            axon_section.target_block_uuid = self.uuid;
+            axon_section.target_hexagon_uuid = self.hexagon_uuid;
             axon_section.target_pos = 0;
             self.block_io.input_buffer[0] = axon_section.clone();
             self.block_io.inputs_in_use = 1;
@@ -268,18 +268,18 @@ impl Block for OutputBlock {
     }
 
     fn get_uuid(&self) -> Uuid {
-        self.uuid.clone()
+        self.uuid
     }
 
     fn get_hexagon_uud(&self) -> Uuid {
-        self.hexagon_uuid.clone()
+        self.hexagon_uuid
     }
     fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid.clone()
+        self.cluster_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
-        return &mut self.block_io;
+        &mut self.block_io
     }
 
     fn get_type(&self) -> ObjectType {
@@ -287,12 +287,12 @@ impl Block for OutputBlock {
     }
 
     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = new_cluster_uuid.clone();
+        self.cluster_uuid = *new_cluster_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
-        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+        bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 }
 
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize() {
-        let original = OutputBlock::new(&Uuid::new_v4(), &Uuid::new_v4(), &"test".to_string());
+        let original = OutputBlock::new(&Uuid::new_v4(), &Uuid::new_v4(), "test");
 
         let cfg = bincode::config::standard();
         let serialized: Vec<u8> =

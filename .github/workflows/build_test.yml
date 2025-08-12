@@ -12,6 +12,7 @@ env:
   HANAMI_ADMIN_ID: asdf
   HANAMI_ADMIN_NAME: asdf
   HANAMI_ADMIN_PASSPHRASE: asdfasdf
+  RUSTFLAGS: "-Dwarnings"
 
 jobs:
   # ansible-lint:
@@ -28,6 +29,17 @@ jobs:
   #       name: Run check
   #       run: earthly --ci +ansible-lint
 
+  clippy-check:
+    name: cargo clippy
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - 
+        name: Run Clippy
+        run: cargo clippy --all-targets --all-features
+
+
   rustfmt-check:
     name: cargo fmt
     runs-on: ubuntu-latest
@@ -41,7 +53,6 @@ jobs:
       -
         name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@559aa3035a47390ba96088dffa783b5d26da9326
-
 
 
   flake8-check:
@@ -116,7 +127,7 @@ jobs:
 
   build_python_package:
     name: "Build SDK python-package"
-    needs: [ rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -168,7 +179,7 @@ jobs:
 
   build_helm_package:
     name: "Build Helm package"
-    needs: [ rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -212,7 +223,7 @@ jobs:
 
   build_hanami:
     name: "Compile hanami (debug)"
-    needs: [ rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -254,7 +265,7 @@ jobs:
 
   build_ainarictl:
     name: "Compile CLI"
-    needs: [ rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1

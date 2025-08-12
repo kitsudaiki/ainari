@@ -29,17 +29,12 @@ use ainari_common::constants::*;
 use ainari_common::error::AinariError;
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, Default)]
 pub enum DataSetType {
+    #[default]
     UndefinedType = 0,
     Uint8Type = 1,
     FloatType = 4,
-}
-
-impl Default for DataSetType {
-    fn default() -> Self {
-        DataSetType::UndefinedType
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -53,6 +48,12 @@ pub struct DataSetBaseHeader {
     pub type_identifier: String,
     pub version: String,
     pub minor_version: String,
+}
+
+impl Default for DataSetBaseHeader {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DataSetBaseHeader {
@@ -87,12 +88,12 @@ impl DataSetHeaderV1_0 {
     ) -> Self {
         DataSetHeaderV1_0 {
             uuid: uuid.to_string(),
-            name: name,
-            description: description,
+            name,
+            description,
             data_type: dataset_type.clone(),
             type_size: dataset_type as u8,
-            row_size: row_size,
-            columns: columns,
+            row_size,
+            columns,
         }
     }
 }
@@ -119,7 +120,7 @@ impl DataSetFileReadHandleV1_0 {
     pub fn get_number_of_rows(&self) -> u64 {
         match self.target_file.get_ref().metadata() {
             Ok(metadata) => {
-                let content_size = metadata.len() as u64 - self.payload_offset;
+                let content_size = metadata.len() - self.payload_offset;
                 content_size / (self.header.row_size * 4)
             }
             Err(_) => {
@@ -173,7 +174,7 @@ impl DataSetFileReadHandleV1_0 {
             .unwrap();
         let _ = self.target_file.read_exact(byte_slice_input);
 
-        return self.get_data_from_buffer(row);
+        self.get_data_from_buffer(row)
     }
 }
 
@@ -213,27 +214,27 @@ pub fn init_new_data_set_file(
 
     // initialize resulting file-handle
     let mut result = DataSetFileWriteHandleV1_0 {
-        header: header,
+        header,
         target_file: BufWriter::new(file),
         payload_offset: 0,
     };
 
     // write base-header to file
     let encoded_base = bincode::encode_to_vec(&base_header, bincode_config).unwrap();
-    let _ = result
+    result
         .target_file
         .write_all(&(encoded_base.len() as u64).to_le_bytes())?;
-    let _ = result.target_file.write_all(&encoded_base)?;
+    result.target_file.write_all(&encoded_base)?;
 
     // write header to file
     let encoded_header = bincode::encode_to_vec(&result.header, bincode_config).unwrap();
-    let _ = result
+    result
         .target_file
         .write_all(&(encoded_header.len() as u64).to_le_bytes())?;
-    let _ = result.target_file.write_all(&encoded_header)?;
+    result.target_file.write_all(&encoded_header)?;
 
     // flush file-buffer, to ensure, that the data are written to the disc
-    let _ = result.target_file.flush()?;
+    result.target_file.flush()?;
 
     // get current byte-position within the file after writing the header
     result.payload_offset = result.target_file.stream_position()?;
@@ -248,7 +249,7 @@ pub fn read_data_set_file(
     let bincode_config = config::standard();
 
     // check if file even exist
-    if Path::new(file_path).exists() == false {
+    if !Path::new(file_path).exists() {
         let msg = format!("Dataset file '{file_path_str}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user,
         // so here should be an internal error instand of an input-error
@@ -274,19 +275,19 @@ pub fn read_data_set_file(
 
     // read base-header-length
     let mut base_buf = vec![0u8; base_len as usize];
-    let _ = result.target_file.read_exact(&mut base_buf)?;
+    result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
     let (_, _): (DataSetBaseHeader, usize) =
         bincode::decode_from_slice(&base_buf[..], bincode_config).unwrap();
 
     // read header-length
     let mut header_len_buf = [0u8; 8];
-    let _ = result.target_file.read_exact(&mut header_len_buf)?;
+    result.target_file.read_exact(&mut header_len_buf)?;
     let header_len = u64::from_le_bytes(header_len_buf);
 
     // read header-length
     let mut header_buf = vec![0u8; header_len as usize];
-    let _ = result.target_file.read_exact(&mut header_buf)?;
+    result.target_file.read_exact(&mut header_buf)?;
     let (header, _): (DataSetHeaderV1_0, usize) =
         bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
     result.header = header;
@@ -314,10 +315,7 @@ mod tests {
         let file_path_str = "/tmp/test".to_string();
         let file_path: PathBuf = PathBuf::from(&file_path_str);
 
-        match fs::remove_file(&file_path) {
-            Ok(_) => {}
-            Err(_) => {}
-        }
+        let _ = fs::remove_file(&file_path).is_ok();
 
         let uuid = Uuid::new_v4();
         let name = "test_dataset".to_string();
@@ -334,7 +332,7 @@ mod tests {
 
         let mut write_dataset_handle = init_new_data_set_file(
             &file_path,
-            uuid.clone(),
+            uuid,
             name.clone(),
             description.clone(),
             row_size,
@@ -348,23 +346,23 @@ mod tests {
             4.0f32, 0.0f32, 2.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32,
         ];
         let col1_bytes = cast_slice(&col1);
-        let _ = write_dataset_handle
+        write_dataset_handle
             .target_file
-            .write_all(&col1_bytes)
+            .write_all(col1_bytes)
             .unwrap();
 
         // write date for second column
         let col2: Vec<f32> = vec![0.0f32, 0.0f32, 1.0f32, 0.0f32, 0.0f32];
         let col2_bytes = cast_slice(&col2);
-        let _ = write_dataset_handle
+        write_dataset_handle
             .target_file
-            .write_all(&col2_bytes)
+            .write_all(col2_bytes)
             .unwrap();
 
         // buffer must be flush, so the written columns are in the file on the disc and can be read again
         let _ = write_dataset_handle.target_file.flush();
 
-        assert_eq!(Path::new(&file_path_str).exists(), true);
+        assert!(Path::new(&file_path_str).exists());
 
         // check single fields of the created header
         assert_eq!(write_dataset_handle.header.uuid, uuid.to_string());
@@ -384,18 +382,16 @@ mod tests {
         );
 
         // read and compare frist column
-        let col_get1 = match read_dataset_handle.header.columns.get(&"col1".to_string()) {
+        let col_get1 = match read_dataset_handle.header.columns.get("col1") {
             Some(col) => col,
             _ => {
-                assert_eq!(true, false);
-                return;
+                panic!();
             }
         };
-        let col_get2 = match read_dataset_handle.header.columns.get(&"col2".to_string()) {
+        let col_get2 = match read_dataset_handle.header.columns.get("col2") {
             Some(col) => col,
             _ => {
-                assert_eq!(true, false);
-                return;
+                panic!();
             }
         };
 
@@ -417,7 +413,7 @@ mod tests {
             .target_file
             .seek(SeekFrom::Start(read_dataset_handle.payload_offset + 40))
             .unwrap();
-        let _ = read_dataset_handle
+        read_dataset_handle
             .target_file
             .read_exact(byte_slice_col2)
             .unwrap();

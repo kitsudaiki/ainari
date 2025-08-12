@@ -37,7 +37,7 @@ pub async fn create_user(
     body: Json<UserCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<UserResp>, ErrorResponse> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
@@ -47,7 +47,7 @@ pub async fn create_user(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
@@ -55,7 +55,7 @@ pub async fn create_user(
     let id = &body.id;
 
     // check if user already exist within the database
-    match user_table::get_user(&id, &context) {
+    match user_table::get_user(id, &context) {
         Ok(_) => {
             let msg = format!("User with ID '{id}' already exist.");
             return Err(ErrorResponse::Conflict(msg));
@@ -69,16 +69,16 @@ pub async fn create_user(
     };
 
     // add new user to datbase
-    match user_table::add_new_user(&id, &body.name, &body.passphrase, body.is_admin, &context) {
+    match user_table::add_new_user(id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {}
         Err(e) => {
-            log::error!("Failed to add user with ID '{id}' to database.: {}", e);
+            log::error!("Failed to add user with ID '{id}' to database.: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     // get new created user from database to get addtional information
-    match user_table::get_user(&id, &context) {
+    match user_table::get_user(id, &context) {
         Ok(user) => {
             let resp = UserResp {
                 id: user.id.clone(),

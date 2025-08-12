@@ -29,10 +29,9 @@ pub enum WorkerTaskType {
 }
 
 pub fn init_worker_queue() -> WorkerQueue {
-    let worker_queue = WorkerQueue {
+    WorkerQueue {
         queue: VecDeque::new(),
-    };
-    worker_queue
+    }
 }
 
 pub struct WorkerTask {

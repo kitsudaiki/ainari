@@ -117,11 +117,11 @@ impl NewCoreBlock {
         }
 
         // set initial state
-        let mut counter = 0 as usize;
+        let mut counter = 0_usize;
         let mut fill_size = std::array::from_fn(|_| 0u8);
-        for x_offset in 0..BLOCK_DIM {
-            fill_size[x_offset] = 2;
-            for y_offset in 0..(fill_size[x_offset] as usize) {
+        for (x_offset, fill_size) in fill_size.iter_mut().enumerate().take(BLOCK_DIM) {
+            *fill_size = 2;
+            for y_offset in 0..(*fill_size as usize) {
                 let synapse_pos = (x_offset * 2 * BLOCK_DIM) + y_offset;
                 let synapse = &mut vec[synapse_pos];
                 synapse.source_axon = counter as u8;
@@ -134,15 +134,15 @@ impl NewCoreBlock {
 
         let mut block = NewCoreBlock {
             uuid: Uuid::new_v4(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
 
             block_io: BlockIoBuffer::default(),
 
             synapses: vec.into_boxed_slice(),
             buffer: std::array::from_fn(|_| Synapse::default()),
             neurons: std::array::from_fn(|_| Neuron::default()),
-            fill_size: fill_size,
+            fill_size,
 
             // pre-initialized number of synapses, one for each possible input-axon
             synapse_counter: 256,
@@ -163,7 +163,7 @@ impl NewCoreBlock {
 
                 if current_fill_size < ((2 * BLOCK_DIM) - 2) as u8 {
                     let synapse_offset = (x_offset * 2 * BLOCK_DIM) + current_fill_size as usize;
-                    self.synapses[synapse_offset] = self.buffer[x_offset].clone();
+                    self.synapses[synapse_offset] = self.buffer[x_offset];
                     self.buffer[x_offset] = Synapse::default();
 
                     self.fill_size[x_offset] += 1;
@@ -373,8 +373,8 @@ impl Block for NewCoreBlock {
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
         if self.block_io.inputs_in_use == 0 {
-            axon_section.target_block_uuid = self.uuid.clone();
-            axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
+            axon_section.target_block_uuid = self.uuid;
+            axon_section.target_hexagon_uuid = self.hexagon_uuid;
             axon_section.target_pos = 0;
             self.block_io.input_buffer[0] = axon_section.clone();
             self.block_io.inputs_in_use = 1;
@@ -382,8 +382,8 @@ impl Block for NewCoreBlock {
         }
 
         if self.block_io.inputs_in_use == 1 {
-            axon_section.target_block_uuid = self.uuid.clone();
-            axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
+            axon_section.target_block_uuid = self.uuid;
+            axon_section.target_hexagon_uuid = self.hexagon_uuid;
             axon_section.target_pos = 1;
             self.block_io.input_buffer[1] = axon_section.clone();
             self.block_io.inputs_in_use = 2;
@@ -394,18 +394,18 @@ impl Block for NewCoreBlock {
     }
 
     fn get_uuid(&self) -> Uuid {
-        self.uuid.clone()
+        self.uuid
     }
 
     fn get_hexagon_uud(&self) -> Uuid {
-        self.hexagon_uuid.clone()
+        self.hexagon_uuid
     }
     fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid.clone()
+        self.cluster_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
-        return &mut self.block_io;
+        &mut self.block_io
     }
 
     fn get_type(&self) -> ObjectType {
@@ -413,7 +413,7 @@ impl Block for NewCoreBlock {
     }
 
     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = new_cluster_uuid.clone();
+        self.cluster_uuid = *new_cluster_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {

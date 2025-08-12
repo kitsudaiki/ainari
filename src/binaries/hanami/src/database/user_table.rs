@@ -72,39 +72,35 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     };
 
     let users = list_users(&fake_admin_context).unwrap();
-    if users.len() != 0 {
+    if !users.is_empty() {
         log::debug!("Already existing user found, so no new admin will be created.");
         return Ok(());
     }
     log::info!("No user found in user-table -> Create a new initial admin.");
 
-    let admin_id: String;
-    let admin_name: String;
-    let admin_passphrase: String;
-
-    match env::var("HANAMI_ADMIN_ID") {
-        Ok(val) => admin_id = val,
+    let admin_id: String = match env::var("HANAMI_ADMIN_ID") {
+        Ok(val) => val,
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_ID");
             return Err("An error occurred while initializing new admin-user".into());
         }
-    }
+    };
 
-    match env::var("HANAMI_ADMIN_NAME") {
-        Ok(val) => admin_name = val,
+    let admin_name: String = match env::var("HANAMI_ADMIN_NAME") {
+        Ok(val) => val,
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_NAME");
             return Err("An error occurred while initializing new admin-user".into());
         }
-    }
+    };
 
-    match env::var("HANAMI_ADMIN_PASSPHRASE") {
-        Ok(val) => admin_passphrase = val,
+    let admin_passphrase: String = match env::var("HANAMI_ADMIN_PASSPHRASE") {
+        Ok(val) => val,
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
         }
-    }
+    };
 
     add_new_user(
         &admin_id,
@@ -119,7 +115,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute(
+    conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(256),
         name VARCHAR(256),
@@ -144,12 +140,12 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_user(
     user_id: &String,
-    user_name: &String,
+    user_name: &str,
     passphrase: &String,
     is_admin: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
             Box::new("Permission denied.".to_string()),
@@ -158,14 +154,11 @@ pub fn add_new_user(
 
     // check if user alredy exist in the database
     // The same id is allowed multiple times in the table, but only one time active.
-    match get_user(&user_id, &context) {
-        Ok(_) => {
-            return Err(diesel::result::Error::DatabaseError(
-                DatabaseErrorKind::UniqueViolation,
-                Box::new(format!("User with ID '{user_id}' already exist.")),
-            ));
-        }
-        Err(_) => {}
+    if get_user(user_id, context).is_ok() {
+        return Err(diesel::result::Error::DatabaseError(
+            DatabaseErrorKind::UniqueViolation,
+            Box::new(format!("User with ID '{user_id}' already exist.")),
+        ));
     };
 
     // salt passphrase
@@ -174,18 +167,18 @@ pub fn add_new_user(
         .take(64)
         .map(char::from)
         .collect();
-    let salted_passphrase = format!("{}{}", passphrase, salt);
+    let salted_passphrase = format!("{passphrase}{salt}");
 
     // create sha256-hash from the salted passphrase to store the hash in the database
     let pw_hash = sha256_hash(salted_passphrase.as_str());
 
     let user = UserEntry {
         id: user_id.clone(),
-        name: user_name.clone(),
+        name: user_name.to_owned(),
         projects: "[]".to_string(),
-        is_admin: is_admin,
-        pw_hash: pw_hash,
-        salt: salt,
+        is_admin,
+        pw_hash,
+        salt,
         status: "ACTIVE".to_string(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
@@ -216,14 +209,14 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
 }
 
 pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, enums::DbError> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(enums::DbError::NotFound);
     }
 
@@ -237,14 +230,14 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
         Ok(user) => Ok(user),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
 }
 
 pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
-    if context.is_admin == false {
+    if !context.is_admin {
         let dummy: QueryResult<Vec<UserEntry>> = Ok(vec![]);
         return dummy;
     }
@@ -258,7 +251,7 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 }
 
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(enums::DbError::NotFound);
     }
 
@@ -271,7 +264,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -320,21 +313,18 @@ mod tests {
         hard_delete_user(&user.id);
 
         add_user(&user).unwrap();
-        match get_user(&owner_id, &context) {
-            Ok(retrieved_user) => {
-                assert_eq!(retrieved_user.id, user.id);
-                assert_eq!(retrieved_user.name, user.name);
-                assert_eq!(retrieved_user.projects, user.projects);
-                assert_eq!(retrieved_user.is_admin, user.is_admin);
-                assert_eq!(retrieved_user.pw_hash, user.pw_hash);
-                assert_eq!(retrieved_user.salt, user.salt);
-                assert_eq!(retrieved_user.status, user.status);
-                assert_eq!(retrieved_user.created_by, user.created_by);
-                assert_eq!(retrieved_user.updated_by, user.updated_by);
-                assert_eq!(retrieved_user.deleted_at, user.deleted_at);
-                assert_eq!(retrieved_user.deleted_by, user.deleted_by);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_user) = get_user(&owner_id, &context) {
+            assert_eq!(retrieved_user.id, user.id);
+            assert_eq!(retrieved_user.name, user.name);
+            assert_eq!(retrieved_user.projects, user.projects);
+            assert_eq!(retrieved_user.is_admin, user.is_admin);
+            assert_eq!(retrieved_user.pw_hash, user.pw_hash);
+            assert_eq!(retrieved_user.salt, user.salt);
+            assert_eq!(retrieved_user.status, user.status);
+            assert_eq!(retrieved_user.created_by, user.created_by);
+            assert_eq!(retrieved_user.updated_by, user.updated_by);
+            assert_eq!(retrieved_user.deleted_at, user.deleted_at);
+            assert_eq!(retrieved_user.deleted_by, user.deleted_by);
         };
 
         let _ = delete_user(&user.id, &context);

@@ -53,13 +53,13 @@ pub async fn upload_binary(
     let dataset_dir = PathBuf::from(&dataset_location);
 
     let dataset_uuid = Uuid::new_v4();
-    let target_filepath: PathBuf = dataset_dir.join(&dataset_uuid.to_string());
+    let target_filepath: PathBuf = dataset_dir.join(dataset_uuid.to_string());
 
     let (dataset_type_str, name) = path.into_inner();
     let dataset_type = dataset_type_str.to_string();
 
     // check given type
-    if ["mnist", "csv"].contains(&dataset_type.as_str()) == false {
+    if !["mnist", "csv"].contains(&dataset_type.as_str()) {
         let msg = format!("Type '{dataset_type}' is not in list [ mnist, csv ]");
         return Err(ErrorResponse::BadRequest(msg.to_string()));
     }
@@ -121,7 +121,7 @@ pub async fn upload_binary(
             Err(e) => {
                 let path = temp_file_path.as_os_str().to_str().unwrap();
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
-                log::error!("{}", msg);
+                log::error!("{msg}");
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -134,7 +134,7 @@ pub async fn upload_binary(
                 let data = match chunk {
                     Ok(value) => value,
                     Err(e) => {
-                        log::error!("{}", e);
+                        log::error!("{e}");
                         return Err(ErrorResponse::BadRequest(
                             "Failed to read chunk.".to_string(),
                         ));
@@ -157,8 +157,7 @@ pub async fn upload_binary(
                     Err(e) => {
                         let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
                         log::error!(
-                            "Failed to delete temp-file {tempfile_path_str} from disc with error {}.",
-                            e
+                            "Failed to delete temp-file {tempfile_path_str} from disc with error {e}."
                         );
                     }
                 }
@@ -180,18 +179,18 @@ pub async fn upload_binary(
             &temp_file_paths[0],
             &temp_file_paths[1],
             &target_filepath,
-            dataset_uuid.clone(),
+            dataset_uuid,
             name.clone(),
             None,
         ) {
             Ok(()) => {}
             Err(e) => match e.downcast_ref::<AinariError>() {
                 Some(AinariError::InvalidInput(e)) => {
-                    let msg = format!("{}", e);
+                    let msg = e.to_string();
                     return Err(ErrorResponse::BadRequest(msg));
                 }
                 _ => {
-                    log::error!("{}", e);
+                    log::error!("{e}");
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },
@@ -207,17 +206,17 @@ pub async fn upload_binary(
         match load_csv_file(
             &temp_file_paths[0],
             &target_filepath,
-            dataset_uuid.clone(),
+            dataset_uuid,
             name.clone(),
         ) {
             Ok(()) => {}
             Err(e) => match e.downcast_ref::<AinariError>() {
                 Some(AinariError::InvalidInput(e)) => {
-                    let msg = format!("{}", e);
+                    let msg = e.to_string();
                     return Err(ErrorResponse::BadRequest(msg));
                 }
                 _ => {
-                    log::error!("{}", e);
+                    log::error!("{e}");
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },
@@ -251,8 +250,7 @@ pub async fn upload_binary(
             Err(e) => {
                 let tempfile_path_str: String = file_path.to_string_lossy().into();
                 log::error!(
-                    "Failed to delete temp-file {tempfile_path_str} from disc with error {}.",
-                    e
+                    "Failed to delete temp-file {tempfile_path_str} from disc with error {e}."
                 );
             }
         }
@@ -267,7 +265,7 @@ pub async fn upload_binary(
 
     // create response
     let resp = DatasetResp {
-        uuid: dataset_uuid.clone(),
+        uuid: dataset_uuid,
         name: dataset.name.clone(),
         number_of_rows: file_handle.get_number_of_rows(),
         number_of_columns: file_handle.header.columns.len() as u64,

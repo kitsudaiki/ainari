@@ -30,10 +30,12 @@ pub async fn authorization_middleware(
     let uri = req.uri();
 
     // skip check for specific endpoints
-    skip_check |= uri == "/v1alpha/token" && req.method() == &Method::POST;
-    skip_check |= uri == "/openapi.json" && req.method() == &Method::GET;
+    let is_post_req = *req.method() == Method::POST;
+    let is_get_req = *req.method() == Method::GET;
+    skip_check |= uri == "/v1alpha/token" && is_post_req;
+    skip_check |= uri == "/openapi.json" && is_get_req;
 
-    if skip_check == false {
+    if !skip_check {
         log::debug!("Check token for request against {uri}");
         // get token from header
         let token: &str;
@@ -57,7 +59,7 @@ pub async fn authorization_middleware(
         match token_handling::validate_token(token) {
             Ok(_) => {}
             Err(e) => {
-                log::debug!("{}", e);
+                log::debug!("{e}");
                 return Err(ErrorResponse::Unauthorized(e).into());
             }
         }
@@ -73,9 +75,9 @@ pub async fn authorization_middleware(
     match resp {
         Ok(_) => {}
         Err(ref e) => {
-            log::info!("{}", e);
+            log::info!("{e}");
         }
     };
 
-    return resp;
+    resp
 }

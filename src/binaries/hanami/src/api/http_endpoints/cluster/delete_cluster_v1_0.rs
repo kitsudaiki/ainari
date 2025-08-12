@@ -55,11 +55,11 @@ pub async fn delete_cluster(
     match cluster_handle.delete_cluster(&cluster_uuid) {
         Ok(()) => {}
         Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {}", msg);
+            let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));
         }
         Err(AinariError::Error(msg)) => {
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }

@@ -65,17 +65,17 @@ fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
 
 impl InputBlock {
     pub fn new(
-        name: &String,
+        name: &str,
         hexagon_uuid: &Uuid,
         cluster_uuid: &Uuid,
         finish_counter: &Arc<Mutex<FinishCounter>>,
     ) -> Self {
         let mut block = InputBlock {
             uuid: Uuid::new_v4(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
 
-            name: name.clone(),
+            name: name.to_owned(),
 
             block_io: BlockIoBuffer::default(),
 
@@ -104,8 +104,7 @@ impl InputBlock {
         // resize links, if necessary
         let maximum_size = input_size * 2 * time_length;
         if self.input_links.len() < maximum_size {
-            self.input_links
-                .resize(maximum_size as usize, UNINIT_STATE_64);
+            self.input_links.resize(maximum_size, UNINIT_STATE_64);
         }
 
         // reset potentials
@@ -117,13 +116,11 @@ impl InputBlock {
             }
         }
 
-        for i in 0..input_size {
-            let val = input_ptr[i];
-
+        for (i, val) in input_ptr.iter().enumerate().take(input_size) {
             // update links
             let total_position = (offset + i) * 2;
 
-            if val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
+            if *val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
                 self.input_links[total_position] = self.fill_position;
                 self.input_links[total_position + 1] = self.fill_position + 1;
                 self.fill_position += 2;
@@ -134,8 +131,8 @@ impl InputBlock {
                 self.block_io.output_buffer.push(AxonSection::default());
             }
 
-            if val != 0.0f32 && self.input_links[total_position] != UNINIT_STATE_64 {
-                let neg = (val < 0.0f32) as usize;
+            if *val != 0.0f32 && self.input_links[total_position] != UNINIT_STATE_64 {
+                let neg = (*val < 0.0f32) as usize;
                 let target = self.input_links[total_position + neg] as usize;
                 let block_pos = target / BLOCK_DIM;
                 let pos_in_block = target % BLOCK_DIM;
@@ -184,19 +181,19 @@ impl Block for InputBlock {
     }
 
     fn get_uuid(&self) -> Uuid {
-        self.uuid.clone()
+        self.uuid
     }
 
     fn get_hexagon_uud(&self) -> Uuid {
-        self.hexagon_uuid.clone()
+        self.hexagon_uuid
     }
 
     fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid.clone()
+        self.cluster_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
-        return &mut self.block_io;
+        &mut self.block_io
     }
 
     fn get_type(&self) -> ObjectType {
@@ -204,12 +201,12 @@ impl Block for InputBlock {
     }
 
     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = new_cluster_uuid.clone();
+        self.cluster_uuid = *new_cluster_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
-        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+        bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 }
 

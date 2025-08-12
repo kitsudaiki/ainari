@@ -52,11 +52,11 @@ impl HexagonMeta {
     pub fn new(positon: Position) -> Self {
         let new_uuid = Uuid::new_v4();
         HexagonMeta {
-            uuid: new_uuid.clone(),
-            positon: positon,
+            uuid: new_uuid,
+            positon,
             name: "".to_string(),
 
-            axon_target: new_uuid.clone(),
+            axon_target: new_uuid,
 
             is_input: false,
             is_output: false,
@@ -80,8 +80,8 @@ impl InputMeta {
         InputMeta {
             uuid: Uuid::new_v4(),
             hexagon_uuid: Uuid::nil(),
-            name: name,
-            position: position,
+            name,
+            position,
         }
     }
 }
@@ -100,9 +100,9 @@ impl OutputMeta {
         OutputMeta {
             uuid: Uuid::new_v4(),
             hexagon_uuid: Uuid::nil(),
-            name: name,
-            position: position,
-            output_type: output_type,
+            name,
+            position,
+            output_type,
         }
     }
 }

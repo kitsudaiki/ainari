@@ -144,8 +144,8 @@ pub async fn run_server() -> Result<(), impl Error> {
     log::debug!("initialize server");
     // get server-address from config
     let ip = config::CONFIG.api.ip.clone();
-    let port = config::CONFIG.api.port.clone();
-    log::info!("HTTP-server listen on {}:{}", ip, port);
+    let port = config::CONFIG.api.port;
+    log::info!("HTTP-server listen on {ip}:{port}");
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {

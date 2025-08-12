@@ -54,7 +54,7 @@ pub struct ProjectEntry {
 
 pub fn init_project_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute(
+    conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS projects (
         id VARCHAR(256),
         name VARCHAR(256),
@@ -73,10 +73,10 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_project(
     project_id: &String,
-    project_name: &String,
+    project_name: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
             Box::new("Permission denied.".to_string()),
@@ -85,19 +85,16 @@ pub fn add_new_project(
 
     // check if project alredy exist in the database
     // The same id is allowed multiple times in the table, but only one time active.
-    match get_project(&project_id, &context) {
-        Ok(_) => {
-            return Err(diesel::result::Error::DatabaseError(
-                DatabaseErrorKind::UniqueViolation,
-                Box::new(format!("Project with ID '{project_id}' already exist.")),
-            ));
-        }
-        Err(_) => {}
+    if get_project(project_id, context).is_ok() {
+        return Err(diesel::result::Error::DatabaseError(
+            DatabaseErrorKind::UniqueViolation,
+            Box::new(format!("Project with ID '{project_id}' already exist.")),
+        ));
     };
 
     let project = ProjectEntry {
         id: project_id.clone(),
-        name: project_name.clone(),
+        name: project_name.to_owned(),
         status: "ACTIVE".to_string(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
@@ -123,7 +120,7 @@ pub fn get_project(
     project_id: &String,
     context: &UserContext,
 ) -> Result<ProjectEntry, enums::DbError> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(enums::DbError::NotFound);
     }
 
@@ -137,14 +134,14 @@ pub fn get_project(
         Ok(project) => Ok(project),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
 }
 
 pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
-    if context.is_admin == false {
+    if !context.is_admin {
         let dummy: QueryResult<Vec<ProjectEntry>> = Ok(vec![]);
         return dummy;
     }
@@ -158,7 +155,7 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 }
 
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(enums::DbError::NotFound);
     }
 
@@ -171,7 +168,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -216,17 +213,14 @@ mod tests {
         hard_delete_project(&project.id);
 
         add_project(&project).unwrap();
-        match get_project(&project_id, &context) {
-            Ok(retrieved_project) => {
-                assert_eq!(retrieved_project.id, project.id);
-                assert_eq!(retrieved_project.name, project.name);
-                assert_eq!(retrieved_project.status, project.status);
-                assert_eq!(retrieved_project.created_by, project.created_by);
-                assert_eq!(retrieved_project.updated_by, project.updated_by);
-                assert_eq!(retrieved_project.deleted_at, project.deleted_at);
-                assert_eq!(retrieved_project.deleted_by, project.deleted_by);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_project) = get_project(&project_id, &context) {
+            assert_eq!(retrieved_project.id, project.id);
+            assert_eq!(retrieved_project.name, project.name);
+            assert_eq!(retrieved_project.status, project.status);
+            assert_eq!(retrieved_project.created_by, project.created_by);
+            assert_eq!(retrieved_project.updated_by, project.updated_by);
+            assert_eq!(retrieved_project.deleted_at, project.deleted_at);
+            assert_eq!(retrieved_project.deleted_by, project.deleted_by);
         };
 
         let _ = delete_project(&project.id, &context);

@@ -60,7 +60,7 @@ pub struct CheckpointEntry {
 
 pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute(
+    conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS checkpoints (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
@@ -82,14 +82,14 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_checkpoint(
     checkpoint_uuid: &Uuid,
-    checkpoint_name: &String,
-    file_path: &String,
+    checkpoint_name: &str,
+    file_path: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let checkpoint = CheckpointEntry {
         uuid: checkpoint_uuid.to_string().clone(),
-        name: checkpoint_name.clone(),
-        file_path: file_path.clone(),
+        name: checkpoint_name.to_owned(),
+        file_path: file_path.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -127,9 +127,9 @@ pub fn get_checkpoint(
         )
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -141,7 +141,7 @@ pub fn get_checkpoint(
         Ok(checkpoint) => Ok(checkpoint),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -153,9 +153,9 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntr
 
     let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -167,7 +167,7 @@ pub fn delete_checkpoint(
     checkpoint_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
-    get_checkpoint(&checkpoint_uuid, &context)?;
+    get_checkpoint(checkpoint_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
@@ -183,7 +183,7 @@ pub fn delete_checkpoint(
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -234,21 +234,18 @@ mod tests {
         hard_delete_checkpoint(&uuid1);
 
         add_checkpoint(&checkpoint).unwrap();
-        match get_checkpoint(&uuid1, &context) {
-            Ok(retrieved_checkpoint) => {
-                assert_eq!(retrieved_checkpoint.uuid, checkpoint.uuid);
-                assert_eq!(retrieved_checkpoint.name, checkpoint.name);
-                assert_eq!(retrieved_checkpoint.file_path, checkpoint.file_path);
-                assert_eq!(retrieved_checkpoint.status, checkpoint.status);
-                assert_eq!(retrieved_checkpoint.created_by, checkpoint.created_by);
-                assert_eq!(retrieved_checkpoint.updated_by, checkpoint.updated_by);
-                assert_eq!(retrieved_checkpoint.deleted_at, checkpoint.deleted_at);
-                assert_eq!(retrieved_checkpoint.deleted_by, checkpoint.deleted_by);
-            }
-            Err(_) => {}
+        if let Ok(retrieved_checkpoint) = get_checkpoint(&uuid1, &context) {
+            assert_eq!(retrieved_checkpoint.uuid, checkpoint.uuid);
+            assert_eq!(retrieved_checkpoint.name, checkpoint.name);
+            assert_eq!(retrieved_checkpoint.file_path, checkpoint.file_path);
+            assert_eq!(retrieved_checkpoint.status, checkpoint.status);
+            assert_eq!(retrieved_checkpoint.created_by, checkpoint.created_by);
+            assert_eq!(retrieved_checkpoint.updated_by, checkpoint.updated_by);
+            assert_eq!(retrieved_checkpoint.deleted_at, checkpoint.deleted_at);
+            assert_eq!(retrieved_checkpoint.deleted_by, checkpoint.deleted_by);
         };
 
-        let _ = hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid1);
     }
 
     #[test]
@@ -304,8 +301,8 @@ mod tests {
         add_checkpoint(&checkpoint2).unwrap();
         let checkpoints = list_checkpoints(&context).unwrap();
         assert_eq!(checkpoints.len(), 1);
-        let _ = hard_delete_checkpoint(&uuid1);
-        let _ = hard_delete_checkpoint(&uuid2);
+        hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid2);
     }
 
     #[test]
@@ -460,11 +457,8 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_checkpoint(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            }
-            Err(_) => {}
+        if get_checkpoint(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
         // delete-test normal user false uuid
@@ -474,15 +468,12 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match delete_checkpoint(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            }
-            Err(_) => {}
+        if delete_checkpoint(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
-        let _ = hard_delete_checkpoint(&uuid1);
-        let _ = hard_delete_checkpoint(&uuid2);
-        let _ = hard_delete_checkpoint(&uuid3);
+        hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid2);
+        hard_delete_checkpoint(&uuid3);
     }
 }

@@ -31,7 +31,7 @@ pub fn split_bearer_token(token: &str) -> Option<&str> {
     }
 }
 
-pub fn fast_mem_copy<T: Copy>(src: &Vec<T>, dst: &mut Vec<T>) {
+pub fn fast_mem_copy<T: Copy>(src: &[T], dst: &mut Vec<T>) {
     assert_eq!(src.len(), dst.len(), "Vectors must be the same length!");
 
     unsafe {
@@ -143,14 +143,14 @@ pub fn get_neighbor_pos(source_pos: &Position, side: usize) -> Position {
             result.y = source_pos.y + 1;
             result.z = source_pos.z + 1;
         }
-        _ => panic!("Invalid side value: {}", side),
+        _ => panic!("Invalid side value: {side}"),
     }
 
     result
 }
 
 pub fn get_next_sides(side: u8) -> [u8; 5] {
-    let sides = match side {
+    match side {
         0 => [1, 4, 11, 5, 2],
         1 => [2, 8, 10, 7, 0],
         2 => [0, 6, 9, 3, 1],
@@ -163,10 +163,8 @@ pub fn get_next_sides(side: u8) -> [u8; 5] {
         9 => [11, 5, 2, 8, 10],
         10 => [9, 3, 1, 4, 11],
         11 => [10, 7, 0, 6, 9],
-        _ => panic!("Invalid side value: {}; This should never happen!", side),
-    };
-
-    sides
+        _ => panic!("Invalid side value: {side}; This should never happen!"),
+    }
 }
 
 #[cfg(test)]

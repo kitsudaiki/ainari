@@ -53,7 +53,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         };
 
         let obj = ClusterBasicResp {
-            uuid: uuid,
+            uuid,
             name: cluster.name.clone(),
         };
 

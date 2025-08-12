@@ -45,12 +45,12 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     match parsed.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
 
-    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
+    let token_expire_time = config::CONFIG.auth.token_expire_time;
 
     // get and check token-format
     if parsed.token_format != "jwt" {
@@ -70,15 +70,15 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     }
 
     // get user from database
-    let user: user_table::UserEntry;
-    match user_table::get_auth_user(&parsed.client_id) {
-        Ok(val) => user = val,
+
+    let user: user_table::UserEntry = match user_table::get_auth_user(&parsed.client_id) {
+        Ok(val) => val,
         Err(_) => {
             return Err(ErrorResponse::Unauthorized(
                 "Invalid user-id or passphrase".to_string(),
             ));
         }
-    }
+    };
 
     // check passphrase
     let salted_passphrase = format!("{}{}", &parsed.client_secret, user.salt);

@@ -58,7 +58,7 @@ pub async fn get_dataset(
     };
 
     let resp = DatasetResp {
-        uuid: dataset_uuid.clone(),
+        uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
         number_of_rows: file_handle.get_number_of_rows(),
         number_of_columns: file_handle.header.columns.len() as u64,

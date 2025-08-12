@@ -23,7 +23,7 @@ impl Counter {
     pub fn new(compare: usize) -> Self {
         Counter {
             value: Arc::new(Mutex::new(0)),
-            compare: compare,
+            compare,
         }
     }
 

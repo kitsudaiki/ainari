@@ -52,14 +52,14 @@ impl FromRequest for UserContext {
         match token_handling::validate_token(token) {
             Ok(context) => ready(Ok(context)),
             Err(e) => {
-                log::debug!("{}", e);
+                log::debug!("{e}");
                 // should never be the case, because the middleware already checks the token
-                return ready(Ok(UserContext {
+                ready(Ok(UserContext {
                     user_id: "".to_string(),
                     project_id: "".to_string(),
                     is_admin: false,
                     is_project_admin: false,
-                }));
+                }))
             }
         }
     }

@@ -42,8 +42,8 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
     match decode::<UserContext>(token, &key, &validation) {
         Ok(context) => Ok(context.claims),
         Err(e) => match *e.kind() {
-            ErrorKind::ExpiredSignature => Err(format!("Token expired")),
-            _ => Err(format!("Invalid token")),
+            ErrorKind::ExpiredSignature => Err("Token expired".to_string()),
+            _ => Err("Invalid token".to_string()),
         },
     }
 }
@@ -54,7 +54,7 @@ pub fn create_token(
     is_admin: bool,
     is_project_admin: bool,
 ) -> Result<String, ()> {
-    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
+    let token_expire_time = config::CONFIG.auth.token_expire_time;
 
     // get timestamps for token
     let current = SystemTime::now()
@@ -67,8 +67,8 @@ pub fn create_token(
     let claims = Claims {
         user_id: user_id.clone(),
         project_id: project_id.clone(),
-        is_admin: is_admin,
-        is_project_admin: is_project_admin,
+        is_admin,
+        is_project_admin,
         exp: expiration as usize,
         iat: current as usize,
         iss: "hanami".to_string(),
@@ -85,11 +85,11 @@ pub fn create_token(
             log::debug!(
                 "Successfully created token for user-id '{user_id}' and project-id '{project_id}'"
             );
-            return Ok(token);
+            Ok(token)
         }
         Err(e) => {
-            log::error!("Failed to create user-token {:?}", e);
-            return Err(());
+            log::error!("Failed to create user-token {e:?}");
+            Err(())
         }
     }
 }

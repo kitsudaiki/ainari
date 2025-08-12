@@ -49,7 +49,7 @@ pub async fn check_dataset(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
@@ -132,8 +132,7 @@ pub async fn check_dataset(
             &mut reference_file_handle,
             &ref_col_get,
             i,
-        ) == true
-        {
+        ) {
             accuracy += 1f32;
         }
     }
@@ -187,8 +186,8 @@ fn get_highest_pos_in_row(
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
     {
-        return index as u64;
+        index as u64
     } else {
-        return 0;
+        0
     }
 }

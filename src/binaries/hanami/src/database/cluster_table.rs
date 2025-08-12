@@ -60,7 +60,7 @@ pub struct ClusterEntry {
 
 pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute(
+    conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS clusters (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
@@ -82,14 +82,14 @@ pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_cluster(
     cluster_uuid: &Uuid,
-    cluster_name: &String,
-    cluster_template: &String,
+    cluster_name: &str,
+    cluster_template: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let cluster = ClusterEntry {
         uuid: cluster_uuid.to_string().clone(),
-        name: cluster_name.clone(),
-        template: cluster_template.clone(),
+        name: cluster_name.to_owned(),
+        template: cluster_template.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -123,9 +123,9 @@ pub fn get_cluster(
         .filter(uuid.eq(cluster_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -137,7 +137,7 @@ pub fn get_cluster(
         Ok(cluster) => Ok(cluster),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -149,9 +149,9 @@ pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
 
     let mut query = clusters.filter(status.eq("ACTIVE")).into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -160,7 +160,7 @@ pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
 }
 
 pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
-    get_cluster(&cluster_uuid, &context)?;
+    get_cluster(cluster_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::clusters::dsl::*;
@@ -175,7 +175,7 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -195,7 +195,7 @@ pub fn delete_all_cluster() -> Result<(), enums::DbError> {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -264,7 +264,7 @@ mod tests {
             }
         };
 
-        let _ = hard_delete_cluster(&uuid1);
+        hard_delete_cluster(&uuid1);
     }
 
     #[test]
@@ -320,8 +320,8 @@ mod tests {
         add_cluster(&cluster2).unwrap();
         let clusters = list_clusters(&context).unwrap();
         assert_eq!(clusters.len(), 1);
-        let _ = hard_delete_cluster(&uuid1);
-        let _ = hard_delete_cluster(&uuid2);
+        hard_delete_cluster(&uuid1);
+        hard_delete_cluster(&uuid2);
     }
 
     #[test]
@@ -476,11 +476,8 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_cluster(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            }
-            Err(_) => {}
+        if get_cluster(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
         // delete-test normal user false uuid
@@ -490,15 +487,12 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match delete_cluster(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            }
-            Err(_) => {}
+        if delete_cluster(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
-        let _ = hard_delete_cluster(&uuid1);
-        let _ = hard_delete_cluster(&uuid2);
-        let _ = hard_delete_cluster(&uuid3);
+        hard_delete_cluster(&uuid1);
+        hard_delete_cluster(&uuid2);
+        hard_delete_cluster(&uuid3);
     }
 }

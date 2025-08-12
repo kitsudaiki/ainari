@@ -32,9 +32,6 @@ struct TargetInformation {
     output_hexagon_name: String,
 }
 
-/**
- *
- */
 pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     check_axon_setion(axon_section)?;
 
@@ -48,12 +45,9 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
 
         // get target-hexagon from cluster
         let mut binding = cluster_link.hexagon_data.write().unwrap();
-        if binding.contains_key(&target_information.hexagon_uuid) == false {
-            binding.insert(
-                target_information.hexagon_uuid.clone(),
-                Arc::new(Mutex::new(HexagonData::new())),
-            );
-        }
+        binding
+            .entry(target_information.hexagon_uuid)
+            .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
     }
 
     {
@@ -82,7 +76,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
         for block_mutex in target_hexagon_link.blocks.values() {
             // ERROR: can hang here
             let mut block = block_mutex.lock().unwrap();
-            if block.get_free_input(axon_section) != false {
+            if block.get_free_input(axon_section) {
                 axon_section.target_block = Some(block_mutex.clone());
                 axon_section.source_block = Some(source_block);
                 return Ok(());
@@ -126,7 +120,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
         "Failed to connect block with uuid '{}' with a target.",
         axon_section.source_block_uuid
     );
-    return Err(AinariError::Error(msg));
+    Err(AinariError::Error(msg))
 }
 
 fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
@@ -136,7 +130,7 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
         || axon_section.source_hexagon_uuid == Uuid::nil()
         || axon_section.source_pos == UNINIT_STATE_8
     {
-        let msg = format!("Got invalid Axon-setion.");
+        let msg = "Got invalid Axon-setion.".to_string();
         return Err(AinariError::Error(msg));
     }
 
@@ -157,7 +151,7 @@ fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, Ainar
         {
             let random_pos = rand::rng().random_range(0..NUMBER_OF_POSSIBLE_NEXT) as usize;
             target_information.hexagon_uuid =
-                source_hexagon_meta.possible_hexagon_target_ids[random_pos].clone();
+                source_hexagon_meta.possible_hexagon_target_ids[random_pos];
         } else {
             let msg = format!(
                 "Hexagon with uuid '{}' not found in cluster-meta.",
@@ -193,12 +187,9 @@ fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, Ainar
 
     // add hexagon if necessary
     let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
-    if hexagon_data.contains_key(&target_information.hexagon_uuid) == false {
-        hexagon_data.insert(
-            target_information.hexagon_uuid.clone(),
-            Arc::new(Mutex::new(HexagonData::new())),
-        );
-    }
+    hexagon_data
+        .entry(target_information.hexagon_uuid)
+        .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
 
     Ok(target_information)
 }
@@ -246,15 +237,15 @@ mod tests {
                 .cluster_meta
                 .hexagons
                 .values()
-                .nth(0)
+                .next()
                 .unwrap()
                 .is_input
             {
-                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
-                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
             } else {
-                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
-                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
             }
         }
 
@@ -288,19 +279,19 @@ mod tests {
 
         let mut test_section = AxonSection::default();
         let core_block = core_block_mutex.lock().unwrap();
-        test_section.source_block_uuid = core_block.uuid.clone();
-        test_section.source_hexagon_uuid = core_block.hexagon_uuid.clone();
-        test_section.cluster_uuid = core_block.cluster_uuid.clone();
+        test_section.source_block_uuid = core_block.uuid;
+        test_section.source_hexagon_uuid = core_block.hexagon_uuid;
+        test_section.cluster_uuid = core_block.cluster_uuid;
         test_section.source_pos = 0;
 
-        assert_eq!(connect_to_target(&mut test_section).is_ok(), true);
+        assert!(connect_to_target(&mut test_section).is_ok());
 
         assert_eq!(test_section.source_block_uuid, core_block.uuid);
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);
         assert_eq!(test_section.cluster_uuid, core_block.cluster_uuid);
         assert_eq!(test_section.source_pos, 0);
         assert_eq!(test_section.target_hexagon_uuid, hexagon_uuid1);
-        assert_eq!(test_section.source_block.is_none(), false);
-        assert_eq!(test_section.target_block.is_none(), false);
+        assert!(test_section.source_block.is_some());
+        assert!(test_section.target_block.is_some());
     }
 }

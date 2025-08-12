@@ -72,17 +72,17 @@ fn init_unfinished_blocks() -> Vec<Arc<Mutex<dyn Block>>> {
 
 impl OutputBuffer {
     pub fn new(
-        name: &String,
+        name: &str,
         hexagon_uuid: &Uuid,
         cluster_uuid: &Uuid,
         output_type: &OutputType,
         finish_counter: &Arc<Mutex<FinishCounter>>,
     ) -> Self {
         OutputBuffer {
-            uuid: hexagon_uuid.clone(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
-            name: name.clone(),
+            uuid: *hexagon_uuid,
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
+            name: name.to_owned(),
 
             output_neurons: Vec::new(),
             output_type: output_type.clone(),
@@ -97,7 +97,7 @@ impl OutputBuffer {
     }
 
     pub fn update_buffer(&mut self, number_of_outputs: usize) {
-        let mut number_of_outputs_copy = number_of_outputs.clone();
+        let mut number_of_outputs_copy = number_of_outputs;
 
         if self.output_size < number_of_outputs_copy as u64 {
             self.output_size = number_of_outputs_copy as u64;
@@ -117,7 +117,7 @@ impl OutputBuffer {
     pub fn finalize(&mut self) {
         for out in self.output_neurons.iter_mut() {
             if out.output_value != 0.0f32 {
-                out.output_value = 1.0f32 / (1.0f32 + (-1.0f32 * out.output_value).exp());
+                out.output_value = 1.0f32 / (1.0f32 + (-out.output_value).exp());
             }
         }
         let mut finish_counter = self.finish_counter.lock().unwrap();
@@ -128,7 +128,7 @@ impl OutputBuffer {
         for block in self.unfinished_blocks.iter() {
             let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
-                block: Arc::clone(&block),
+                block: Arc::clone(block),
             };
 
             worker_queue.add(worker_task);
@@ -152,25 +152,17 @@ impl OutputBuffer {
 
     pub fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
-        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+        bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 }
 
-pub fn convert_output_to_buffer(buffer: &mut Vec<f32>, output_buffer: &mut OutputBuffer) -> usize {
+pub fn convert_output_to_buffer(buffer: &mut [f32], output_buffer: &mut OutputBuffer) -> usize {
     output_buffer.already_finalized = false;
     match output_buffer.output_type {
-        OutputType::PlainOutput => {
-            return handle_plain_output(buffer, output_buffer);
-        }
-        OutputType::BoolOutput => {
-            return handle_bool_output(buffer, output_buffer);
-        }
-        OutputType::IntOutput => {
-            return handle_int_output(buffer, output_buffer);
-        }
-        OutputType::FloatOutput => {
-            return handle_float_output(buffer, output_buffer);
-        }
+        OutputType::PlainOutput => handle_plain_output(buffer, output_buffer),
+        OutputType::BoolOutput => handle_bool_output(buffer, output_buffer),
+        OutputType::IntOutput => handle_int_output(buffer, output_buffer),
+        OutputType::FloatOutput => handle_float_output(buffer, output_buffer),
     }
 }
 
@@ -182,45 +174,37 @@ pub fn convert_buffer_to_expected(
     output_buffer.update_buffer(buffer.len());
     output_buffer.already_finalized = false;
     match output_buffer.output_type {
-        OutputType::PlainOutput => {
-            return handle_plain_expected(output_buffer, buffer, buffer_size);
-        }
-        OutputType::BoolOutput => {
-            return handle_bool_expected(output_buffer, buffer, buffer_size);
-        }
-        OutputType::IntOutput => {
-            return handle_int_expected(output_buffer, buffer, buffer_size);
-        }
-        OutputType::FloatOutput => {
-            return handle_float_expected(output_buffer, buffer, buffer_size);
-        }
+        OutputType::PlainOutput => handle_plain_expected(output_buffer, buffer, buffer_size),
+        OutputType::BoolOutput => handle_bool_expected(output_buffer, buffer, buffer_size),
+        OutputType::IntOutput => handle_int_expected(output_buffer, buffer, buffer_size),
+        OutputType::FloatOutput => handle_float_expected(output_buffer, buffer, buffer_size),
     }
 }
 
-fn handle_plain_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+fn handle_plain_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
-    for i in 0..number_of_outputs {
-        buffer[i] = output_buffer.output_neurons[i].output_value;
+    for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
+        *buffer = output_buffer.output_neurons[i].output_value;
     }
 
     number_of_outputs
 }
 
-fn handle_bool_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+fn handle_bool_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
-    for i in 0..number_of_outputs {
-        buffer[i] = (output_buffer.output_neurons[i].output_value >= 0.5f32) as u8 as f32;
+    for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
+        *buffer = (output_buffer.output_neurons[i].output_value >= 0.5f32) as u8 as f32;
     }
 
     number_of_outputs
 }
 
-fn handle_int_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+fn handle_int_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 64);
 
-    for i in 0..number_of_outputs {
+    for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
         let mut val: u32 = 0;
 
         for offset in 0..64 {
@@ -228,16 +212,16 @@ fn handle_int_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usi
             val = (val << 1) | ((neuron.output_value >= 0.5) as u32);
         }
 
-        buffer[i] = val as f32;
+        *buffer = val as f32;
     }
 
     number_of_outputs
 }
 
-fn handle_float_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+fn handle_float_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 32);
 
-    for i in 0..number_of_outputs {
+    for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
         let mut val: u32 = 0;
 
         for offset in 0..32 {
@@ -245,7 +229,7 @@ fn handle_float_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> u
             val = (val << 1) | ((neuron.output_value >= 0.5) as u32);
         }
 
-        buffer[i] = f32::from_bits(val);
+        *buffer = f32::from_bits(val);
     }
 
     number_of_outputs
@@ -322,7 +306,7 @@ mod tests {
         let hexagon_uuid = Uuid::new_v4();
         let cluster_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
-            &"test".to_string(),
+            "test",
             &hexagon_uuid,
             &cluster_uuid,
             &OutputType::PlainOutput,
@@ -366,7 +350,7 @@ mod tests {
         let hexagon_uuid = Uuid::new_v4();
         let cluster_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
-            &"test".to_string(),
+            "test",
             &hexagon_uuid,
             &cluster_uuid,
             &OutputType::BoolOutput,
@@ -410,7 +394,7 @@ mod tests {
         let hexagon_uuid = Uuid::new_v4();
         let cluster_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
-            &"test".to_string(),
+            "test",
             &hexagon_uuid,
             &cluster_uuid,
             &OutputType::FloatOutput,
@@ -451,7 +435,7 @@ mod tests {
         let hexagon_uuid = Uuid::new_v4();
         let cluster_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
-            &"test".to_string(),
+            "test",
             &hexagon_uuid,
             &cluster_uuid,
             &OutputType::IntOutput,
@@ -491,7 +475,7 @@ mod tests {
     fn test_serialize_deserialize() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let original = OutputBuffer::new(
-            &"test".to_string(),
+            "test",
             &Uuid::new_v4(),
             &Uuid::new_v4(),
             &OutputType::PlainOutput,

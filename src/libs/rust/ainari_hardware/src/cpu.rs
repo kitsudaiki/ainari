@@ -71,7 +71,7 @@ pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
 }
 
 pub fn get_number_of_cpu_packages() -> io::Result<usize> {
-    let path = format!("/sys/devices/system/node/possible");
+    let path = "/sys/devices/system/node/possible".to_string();
     let file_path = Path::new(path.as_str());
     match fs::read_to_string(file_path) {
         Ok(content) => Ok(get_range_info(content.as_str().trim())),
@@ -80,7 +80,7 @@ pub fn get_number_of_cpu_packages() -> io::Result<usize> {
 }
 
 pub fn get_number_of_cpu_threads() -> io::Result<usize> {
-    let path = format!("/sys/devices/system/cpu/present");
+    let path = "/sys/devices/system/cpu/present".to_string();
     let file_path = Path::new(path.as_str());
     match fs::read_to_string(file_path) {
         Ok(content) => Ok(get_range_info(content.as_str().trim())),
@@ -92,7 +92,7 @@ pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     // siblings exists only when hyperthreading is enabled
     match is_hyperthreading_enabled() {
         Ok(enabled) => {
-            if enabled == false {
+            if !enabled {
                 return Ok(thread_id);
             }
         }
@@ -212,9 +212,8 @@ pub fn get_pkg_temperature_ids() -> Result<Vec<usize>, String> {
     let mut found = false;
 
     loop {
-        let file_path = format!("{}{}", base_path, counter);
-        let type_path = format!("{}/type", file_path);
-
+        let file_path = format!("{base_path}{counter}");
+        let type_path = format!("{file_path}/type");
         // break-rule to avoid endless-loop
         if !Path::new(&type_path).exists() {
             if !found {
@@ -261,14 +260,11 @@ fn find_k10temp_hwmon() -> io::Result<Vec<PathBuf>> {
 }
 
 fn get_amd_ryzen_teperature(pkg_file_id: usize) -> io::Result<f64> {
-    let k10temp = match find_k10temp_hwmon() {
-        Ok(dirs) => dirs,
-        Err(_) => Vec::new(),
-    };
+    let k10temp = find_k10temp_hwmon().unwrap_or_default();
 
     if pkg_file_id >= k10temp.len() {
         let error = format!("package-id {pkg_file_id} is too big.");
-        return Err(io::Error::new(io::ErrorKind::Other, error));
+        return Err(io::Error::other(error));
     }
 
     let mut file_path: PathBuf = k10temp[pkg_file_id].clone();
@@ -303,11 +299,8 @@ mod tests {
 
     #[test]
     fn test_cpu() {
-        let is_ryzen = match is_amd_ryzen() {
-            Ok(is_ryzen) => is_ryzen,
-            Err(_) => false,
-        };
-        println!("Is cpu an AMD Ryzen: {}", is_ryzen);
+        let is_ryzen = is_amd_ryzen().unwrap_or_default();
+        println!("Is cpu an AMD Ryzen: {is_ryzen}");
 
         println!(
             "Hyperthreading enabled: {}",

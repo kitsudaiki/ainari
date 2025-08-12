@@ -53,7 +53,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
         };
 
         let obj = DatasetBasicResp {
-            uuid: uuid,
+            uuid,
             name: dataset.name.clone(),
         };
 

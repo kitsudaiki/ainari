@@ -42,7 +42,7 @@ pub async fn create_cluster(
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
@@ -54,11 +54,11 @@ pub async fn create_cluster(
     match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
         Ok(_) => {}
         Err(AinariError::InvalidInput(e)) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
         }
         Err(AinariError::Error(e)) => {
-            log::error!("{}", e);
+            log::error!("{e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -68,7 +68,7 @@ pub async fn create_cluster(
         Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -83,13 +83,13 @@ pub async fn create_cluster(
             let msg = format!(
                 "Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist."
             );
-            log::error!("{}", msg);
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     let resp = ClusterResp {
-        uuid: cluster_uuid.clone(),
+        uuid: cluster_uuid,
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
         created_by: cluster_data.created_by.clone(),

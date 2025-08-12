@@ -29,7 +29,7 @@ pub struct MnistImage {
     pub pixels: Vec<u8>, // 28x28 = 784 pixels
 }
 
-fn convert_vec_u8_to_f32(vec_u8: &Vec<u8>) -> Vec<f32> {
+fn convert_vec_u8_to_f32(vec_u8: &[u8]) -> Vec<f32> {
     vec_u8.iter().map(|&x| x as f32).collect()
 }
 
@@ -99,11 +99,11 @@ pub fn load_mnist_images(
 
     let row_size = picture_size + 10;
     let mut dataset_handle = init_new_data_set_file(
-        &target_filepath,
+        target_filepath,
         uuid,
         name,
         "".to_string(),
-        row_size as u64,
+        row_size,
         columns,
         DataSetType::FloatType,
     )?; // TODO: use u8-type
@@ -111,7 +111,7 @@ pub fn load_mnist_images(
     let mut label_data: Vec<f32> = vec![
         0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32,
     ];
-    for (_, img) in images.iter().enumerate() {
+    for img in images.iter() {
         // println!("Image {}: Label = {}", i, img.label);
         label_data[usize::from(img.label)] = 1.0f32;
 
@@ -131,8 +131,8 @@ pub fn load_mnist_images(
             )
         };
 
-        dataset_handle.target_file.write_all(&image_bytes)?;
-        dataset_handle.target_file.write_all(&label_bytes)?;
+        dataset_handle.target_file.write_all(image_bytes)?;
+        dataset_handle.target_file.write_all(label_bytes)?;
 
         label_data[usize::from(img.label)] = 0.0f32;
     }
@@ -170,7 +170,7 @@ pub fn load_csv_file(
 
     // init dataset
     let mut dataset_handle = init_new_data_set_file(
-        &target_filepath,
+        target_filepath,
         uuid,
         name,
         "".to_string(),
@@ -195,7 +195,7 @@ pub fn load_csv_file(
             )
         };
 
-        dataset_handle.target_file.write_all(&row_bytes)?;
+        dataset_handle.target_file.write_all(row_bytes)?;
     }
 
     Ok(())

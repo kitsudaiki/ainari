@@ -152,8 +152,8 @@ impl CoreBlock {
 
         let mut block = CoreBlock {
             uuid: Uuid::new_v4(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
 
             block_io: BlockIoBuffer::default(),
 
@@ -231,12 +231,10 @@ fn create_new_synapse(
 }
 
 fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
-    let mut counter = 0;
-    for conn in connections.iter() {
+    for (i, conn) in connections.iter().enumerate() {
         if conn.source_input == UNINIT_STATE_16 {
-            return counter;
+            return i;
         }
-        counter += 1;
     }
 
     UNINIT_STATE_16 as usize
@@ -283,7 +281,7 @@ fn train_section(
                 && potential < synapse.border - create_border
                 && potential > create_border;
 
-            synapse.border = synapse.border * (condition == false) as u8 as f32
+            synapse.border = synapse.border * (!condition) as u8 as f32
                 + (synapse.border / 2.0f32) * (condition) as u8 as f32;
         }
 
@@ -367,7 +365,7 @@ fn backpropagate_section(
     section: &mut SynapseSection,
     connection: &mut Connection,
     axon: &mut Axon,
-    output_buffer: &Vec<AxonSection>,
+    output_buffer: &[AxonSection],
 ) {
     let mut potential = axon.potential - connection.lower_bound;
     let mut delta;
@@ -411,7 +409,7 @@ impl Block for CoreBlock {
         let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
 
         for i in 0..(6 * BLOCK_DIM) {
-            let conn = self.connections[i].clone();
+            let conn = self.connections[i];
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
             }
@@ -420,7 +418,7 @@ impl Block for CoreBlock {
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
             let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
             if axon.potential != 0.0f32 {
-                if conn.used == false {
+                if !conn.used {
                     self.section_counter += 1;
                     let temp_conn = &mut self.connections[i];
                     temp_conn.used = true;
@@ -478,13 +476,13 @@ impl Block for CoreBlock {
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
             let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
             if axon.potential != 0.0f32 {
-                if conn.used == false {
+                if !conn.used {
                     continue;
                 }
                 let section = &mut self.synapse_sections[i];
                 process_section(
                     section,
-                    &conn,
+                    conn,
                     &mut self.neurons,
                     axon,
                     number_of_output_blocks,
@@ -526,8 +524,8 @@ impl Block for CoreBlock {
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
         if self.block_io.inputs_in_use == 0 {
-            axon_section.target_block_uuid = self.uuid.clone();
-            axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
+            axon_section.target_block_uuid = self.uuid;
+            axon_section.target_hexagon_uuid = self.hexagon_uuid;
             axon_section.target_pos = 0;
             self.block_io.input_buffer[0] = axon_section.clone();
             self.block_io.inputs_in_use = 1;
@@ -535,8 +533,8 @@ impl Block for CoreBlock {
         }
 
         if self.block_io.inputs_in_use == 1 {
-            axon_section.target_block_uuid = self.uuid.clone();
-            axon_section.target_hexagon_uuid = self.hexagon_uuid.clone();
+            axon_section.target_block_uuid = self.uuid;
+            axon_section.target_hexagon_uuid = self.hexagon_uuid;
             axon_section.target_pos = 1;
             self.block_io.input_buffer[1] = axon_section.clone();
             self.block_io.inputs_in_use = 2;
@@ -547,18 +545,18 @@ impl Block for CoreBlock {
     }
 
     fn get_uuid(&self) -> Uuid {
-        self.uuid.clone()
+        self.uuid
     }
 
     fn get_hexagon_uud(&self) -> Uuid {
-        self.hexagon_uuid.clone()
+        self.hexagon_uuid
     }
     fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid.clone()
+        self.cluster_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
-        return &mut self.block_io;
+        &mut self.block_io
     }
 
     fn get_type(&self) -> ObjectType {
@@ -566,12 +564,12 @@ impl Block for CoreBlock {
     }
 
     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = new_cluster_uuid.clone();
+        self.cluster_uuid = *new_cluster_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
-        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+        bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 }
 

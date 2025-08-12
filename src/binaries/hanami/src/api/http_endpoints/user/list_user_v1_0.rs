@@ -29,7 +29,7 @@ use ainari_structs::user_structs::{UserBasicResp, UserListResp};
     error_code = 500
 )]
 pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
-    if context.is_admin == false {
+    if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
