@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -43,5 +43,5 @@ pub struct ProjectBasicResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ProjectListResp {
-    pub projects: Vec<ProjectBasicResp>
+    pub projects: Vec<ProjectBasicResp>,
 }

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::api_operation;
 use actix_web::web::Json;
+use apistos::api_operation;
 use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
-use crate::database::user_table;
 use crate::config;
+use crate::database::user_table;
 
 use ainari_common::functions::sha256_hash;
 use ainari_structs::auth_structs::{OAuth2Request, UserTokenResp};
@@ -45,49 +45,52 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     match parsed.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
-    let token_expire_time = config::CONFIG.auth.token_expire_time.clone();
+    let token_expire_time = config::CONFIG.auth.token_expire_time;
 
     // get and check token-format
     if parsed.token_format != "jwt" {
         let token_format = parsed.token_format;
-        let msg = format!("Token-format '{token_format}' is not supported. Supported formats: [ jwt ]");
+        let msg =
+            format!("Token-format '{token_format}' is not supported. Supported formats: [ jwt ]");
         return Err(ErrorResponse::BadRequest(msg));
     }
 
     // get and check grant-type
     if parsed.grant_type != "client_credentials" {
         let grant_type = parsed.grant_type;
-        let msg = format!("Grant-type '{grant_type}' is not supported. Supported types: [ client_credentials ]");
+        let msg = format!(
+            "Grant-type '{grant_type}' is not supported. Supported types: [ client_credentials ]"
+        );
         return Err(ErrorResponse::BadRequest(msg));
     }
 
     // get user from database
-    let user: user_table::UserEntry;
-    match user_table::get_auth_user(&parsed.client_id) {
-        Ok(val) => user = val,
+
+    let user: user_table::UserEntry = match user_table::get_auth_user(&parsed.client_id) {
+        Ok(val) => val,
         Err(_) => {
-            return Err(ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()));
+            return Err(ErrorResponse::Unauthorized(
+                "Invalid user-id or passphrase".to_string(),
+            ));
         }
-    }
+    };
 
     // check passphrase
     let salted_passphrase = format!("{}{}", &parsed.client_secret, user.salt);
     let pw_hash = sha256_hash(salted_passphrase.as_str());
     if pw_hash != user.pw_hash {
-        return Err(ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Invalid user-id or passphrase".to_string(),
+        ));
     }
 
     // create token based for the user
-    let token = match token_handling::create_token(
-        &user.id, 
-        &"".to_string(), 
-        user.is_admin, 
-        false)
+    let token = match token_handling::create_token(&user.id, &"".to_string(), user.is_admin, false)
     {
         Ok(token) => token,
         Err(_) => {
@@ -95,7 +98,7 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
         }
     };
 
-    let response = UserTokenResp{
+    let response = UserTokenResp {
         access_token: token,
         token_type: "bearer".to_string(),
         expires: token_expire_time,

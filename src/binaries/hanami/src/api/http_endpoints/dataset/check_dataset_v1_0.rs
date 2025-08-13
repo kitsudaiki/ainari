@@ -14,12 +14,12 @@
 
 use actix_web::web::Json;
 use actix_web::web::Path;
-use uuid::Uuid;
 use apistos::api_operation;
-use std::path::PathBuf;
+use bytemuck::cast_slice_mut;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
-use bytemuck::cast_slice_mut;
+use std::path::PathBuf;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
@@ -28,8 +28,8 @@ use crate::database::dataset_table;
 
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_structs::dataset_structs::{DatasetCheckResp, DatasetCheckReq};
-use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, Column};
+use ainari_dataset::dataset_io::{Column, DataSetFileReadHandleV1_0};
+use ainari_structs::dataset_structs::{DatasetCheckReq, DatasetCheckResp};
 
 #[api_operation(
     tag = "dataset",
@@ -40,14 +40,18 @@ use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, Column};
     error_code = 404,
     error_code = 500
 )]
-pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetCheckResp>, ErrorResponse> {
+pub async fn check_dataset(
+    body: Json<DatasetCheckReq>,
+    dataset_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<DatasetCheckResp>, ErrorResponse> {
     // validate incoming json
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
     let dataset_uuid = dataset_uuid;
@@ -60,7 +64,7 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
         Ok(dataset_data) => dataset_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -71,7 +75,7 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
         Ok(reference_data) => reference_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{reference_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -86,12 +90,13 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
         }
     };
 
-    let mut reference_file_handle = match read_data_set_file(&PathBuf::from(reference_data.file_path)) {
-        Ok(reference_file_handle) => reference_file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let mut reference_file_handle =
+        match read_data_set_file(&PathBuf::from(reference_data.file_path)) {
+            Ok(reference_file_handle) => reference_file_handle,
+            Err(_) => {
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
     // get column-information
     let dataset_col_get = match dataset_file_handle.header.columns.get(&dataset_column) {
@@ -105,11 +110,11 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
     let ref_col_get = match reference_file_handle.header.columns.get(&reference_column) {
         Some(col) => col.clone(),
         _ => {
-            let msg = format!("Column with name '{reference_column}' not found in reference-dataset.");
+            let msg =
+                format!("Column with name '{reference_column}' not found in reference-dataset.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
-
 
     // get number of rows to check
     let mut row_count = dataset_file_handle.get_number_of_rows();
@@ -121,11 +126,13 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
     let mut accuracy = 0f32;
 
     for i in 0..row_count {
-        if check_row(&mut dataset_file_handle, 
-            &dataset_col_get, 
-                     &mut reference_file_handle, 
-                     &ref_col_get, 
-                     i) == true {
+        if check_row(
+            &mut dataset_file_handle,
+            &dataset_col_get,
+            &mut reference_file_handle,
+            &ref_col_get,
+            i,
+        ) {
             accuracy += 1f32;
         }
     }
@@ -137,14 +144,15 @@ pub async fn check_dataset(body: Json<DatasetCheckReq>, dataset_uuid: Path<Uuid>
     return Ok(Json(resp));
 }
 
-fn check_row(dataset_file_handle: &mut DataSetFileReadHandleV1_0,
-             dataset_column: &Column,
-             reference_file_handle: &mut DataSetFileReadHandleV1_0,
-             reference_columns: &Column,
-             row: u64) -> bool 
-{
-    let dataset_row = get_highest_pos_in_row(dataset_file_handle, dataset_column, row); 
-    let reference_row = get_highest_pos_in_row(reference_file_handle, reference_columns, row); 
+fn check_row(
+    dataset_file_handle: &mut DataSetFileReadHandleV1_0,
+    dataset_column: &Column,
+    reference_file_handle: &mut DataSetFileReadHandleV1_0,
+    reference_columns: &Column,
+    row: u64,
+) -> bool {
+    let dataset_row = get_highest_pos_in_row(dataset_file_handle, dataset_column, row);
+    let reference_row = get_highest_pos_in_row(reference_file_handle, reference_columns, row);
     // println!("row: {row}    dataset_row: {dataset_row}  reference_row: {reference_row}");
 
     if dataset_row != reference_row {
@@ -154,10 +162,11 @@ fn check_row(dataset_file_handle: &mut DataSetFileReadHandleV1_0,
     true
 }
 
-fn get_highest_pos_in_row(file_handle: &mut DataSetFileReadHandleV1_0,
-                          col_get: &Column,
-                          row: u64) -> u64
-{
+fn get_highest_pos_in_row(
+    file_handle: &mut DataSetFileReadHandleV1_0,
+    col_get: &Column,
+    row: u64,
+) -> u64 {
     // calculate position in dataset-file
     let size_input = (col_get.end - col_get.start) as usize;
     let mut offset_bytes = (file_handle.header.row_size) * 4 * row;
@@ -165,7 +174,10 @@ fn get_highest_pos_in_row(file_handle: &mut DataSetFileReadHandleV1_0,
 
     let mut input_read = vec![0.0f32; size_input];
     let byte_slice_input: &mut [u8] = cast_slice_mut(input_read.as_mut_slice());
-    file_handle.target_file.seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes)).unwrap();
+    file_handle
+        .target_file
+        .seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes))
+        .unwrap();
     let _ = file_handle.target_file.read_exact(byte_slice_input);
 
     // println!("{:?}", input_read);
@@ -174,8 +186,8 @@ fn get_highest_pos_in_row(file_handle: &mut DataSetFileReadHandleV1_0,
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
     {
-        return index as u64;
+        index as u64
     } else {
-        return 0;
+        0
     }
 }

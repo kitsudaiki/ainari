@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Serialize, Deserialize};
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
 
 use super::constants::UNINIT_POINT_32;
 
@@ -35,8 +37,10 @@ impl Position {
     pub fn is_valid(&self) -> bool {
         self.x != UNINIT_POINT_32 && self.y != UNINIT_POINT_32 && self.z != UNINIT_POINT_32
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("[ {} , {} , {} ]", self.x, self.y, self.z)
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[ {} , {} , {} ]", self.x, self.y, self.z)
     }
 }

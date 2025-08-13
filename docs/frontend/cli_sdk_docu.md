@@ -27,7 +27,7 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
     ```bash
     # clone repository
-    git clone https://github.com/kitsudaiki/Ainari.git
+    git clone https://github.com/kitsudaiki/ainari.git
 
     # create python-env (optional)
     python3 -m venv ainari_sdk_env

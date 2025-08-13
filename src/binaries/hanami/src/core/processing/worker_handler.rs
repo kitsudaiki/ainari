@@ -37,13 +37,13 @@ pub fn init_worker_handler() -> WorkerHandler {
     let number_of_threads = match get_number_of_cpu_threads() {
         Ok(number_of_threads) => (number_of_threads as u64) - 2, // reserve 2 threads for other tasks
         Err(e) => {
-            let msg = format!("Failed to get number of cpu-threads: {}", e.to_string());
+            let msg = format!("Failed to get number of cpu-threads: {e}");
             log::error!("{msg}");
             panic!("{msg}");
         }
     };
 
-    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();
+    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory;
     let free_amount_of_memory = get_free_memory_amount();
     let memory_usage = (free_amount_of_memory as f32 * use_of_free_memory) as u64;
 

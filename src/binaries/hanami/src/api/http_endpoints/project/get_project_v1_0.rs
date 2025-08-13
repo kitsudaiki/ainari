@@ -32,9 +32,14 @@ use ainari_structs::project_structs::ProjectResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_project(project_id: Path<String>, context: UserContext) -> Result<Json<ProjectResp>, ErrorResponse> {
-    if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+pub async fn get_project(
+    project_id: Path<String>,
+    context: UserContext,
+) -> Result<Json<ProjectResp>, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
 
     // get new created project from database to get addtional information
@@ -48,12 +53,12 @@ pub async fn get_project(project_id: Path<String>, context: UserContext) -> Resu
                 updated_by: project.updated_by.clone(),
                 updated_at: project.updated_at.clone(),
             };
-        
+
             return Ok(Json(resp));
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Project with ID '{project_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));

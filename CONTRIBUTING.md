@@ -27,9 +27,9 @@ Typo's, broken-links in documentation and other similar small fixes don't requir
 
 ## Any contributions you make will be under the Apache 2 License
 
-In short, when you submit code changes, your submissions are understood to be under the same [Apache 2 License](https://github.com/kitsudaiki/Ainari/blob/develop/LICENSE) that covers the project. Feel free to contact the maintainers by eMail or `Question`-issue, if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [Apache 2 License](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE) that covers the project. Feel free to contact the maintainers by eMail or `Question`-issue, if that's a concern.
 
-## Report bugs using Github's [issues](https://github.com/kitsudaiki/Ainari/issues)
+## Report bugs using Github's [issues](https://github.com/kitsudaiki/ainari/issues)
 
 GitHub issues are used to track public bugs. Report a bug by opening a new issue with the `Bug Report` template.
 
@@ -43,9 +43,15 @@ To setup a local environment to work on the code, see the [deveolper documentati
 
 ## Use a consistent coding style
 
-Please follow the [Code Styling Guide](https://docs.ainari.cloud/repo/code_styling/) as good as possible. If you see any improvements, like feature which makes the code cleaner or something like this, then please open a `Quality Assurance` issue and describe what could/should be changed.
+Following checks are required and are also enforced by the CI pipeline.
+
+- Rust:
+    - cargo fmt
+    - cargo clippy
+- Python:
+    - flake8
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its [Apache 2 License](https://github.com/kitsudaiki/Ainari/blob/develop/LICENSE)
+By contributing, you agree that your contributions will be licensed under its [Apache 2 License](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE)
 

@@ -14,6 +14,8 @@
 ### Added
 
 - central cluster-handler was added
+- added rust fmt check to CI-pipeline
+- added rust clippy check to CI-pipeline
 
 ### Changed
 

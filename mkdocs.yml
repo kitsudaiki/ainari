@@ -3,7 +3,7 @@ site_author: Tobias Anker
 site_url: https://docs.ainari.cloud
 
 repo_name: kitsudaiki/Ainari
-repo_url: https://github.com/kitsudaiki/Ainari
+repo_url: https://github.com/kitsudaiki/ainari
 
 theme:
   name: material

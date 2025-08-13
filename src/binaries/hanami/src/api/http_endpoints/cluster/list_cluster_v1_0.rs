@@ -30,12 +30,11 @@ use ainari_structs::cluster_structs::{ClusterBasicResp, ClusterListResp};
     error_code = 500
 )]
 pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
-    let clusters = match cluster_table::list_clusters(&context)
-    {
+    let clusters = match cluster_table::list_clusters(&context) {
         Ok(clusters) => clusters,
         Err(e) => {
             log::error!("Failed to get list of clusters form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()))
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
@@ -49,12 +48,12 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert cluster-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()))
-            },
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
         };
 
         let obj = ClusterBasicResp {
-            uuid: uuid,
+            uuid,
             name: cluster.name.clone(),
         };
 

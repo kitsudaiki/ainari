@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::thread::{self, JoinHandle};
+use rand::Rng;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use rand::Rng;
 
 use ainari_common::constants::*;
+use ainari_common::error::AinariError;
 
 use super::worker_queue::*;
 
@@ -30,20 +31,22 @@ pub struct WorkerThread {
     pub running: Arc<AtomicBool>,
 }
 
-fn process_task(task: &WorkerTask) {
+fn process_task(task: &WorkerTask) -> Result<(), AinariError> {
     let mut block = task.block.lock().unwrap();
     match task.task_type {
         WorkerTaskType::Train => {
             let random_pos = rand::rng().random_range(0..BLOCK_DIM);
-            block.train(random_pos, Arc::clone(&task.block));
+            block.train(random_pos, Arc::clone(&task.block))?;
         }
         WorkerTaskType::Process => {
-            block.process();
+            block.process()?;
         }
         WorkerTaskType::Backpropagate => {
-            block.backpropagate();
+            block.backpropagate()?;
         }
     }
+
+    Ok(())
 }
 
 impl WorkerThread {
@@ -51,14 +54,23 @@ impl WorkerThread {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
 
-
         let handle = thread::spawn(move || {
             log::debug!("Started worker-thread");
             while running_clone.load(Ordering::Relaxed) {
                 let mut worker_queue = WORKER_QUEUE.lock().unwrap();
                 if let Some(task) = worker_queue.get() {
                     drop(worker_queue);
-                    process_task(&task);
+                    match process_task(&task) {
+                        Ok(()) => {}
+                        Err(AinariError::InvalidInput(msg)) => {
+                            log::error!("{msg}");
+                            // TODO: better error-handling
+                        }
+                        Err(AinariError::Error(msg)) => {
+                            log::error!("{msg}");
+                            // TODO: better error-handling
+                        }
+                    };
                 } else {
                     drop(worker_queue);
                     thread::sleep(Duration::from_millis(1));
@@ -68,7 +80,7 @@ impl WorkerThread {
         });
 
         WorkerThread {
-            thread_id: thread_id,
+            thread_id,
             handle: Some(handle),
             running,
         }

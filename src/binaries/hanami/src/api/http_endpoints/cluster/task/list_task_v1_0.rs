@@ -14,16 +14,16 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 use std::str::FromStr;
+use uuid::Uuid;
 
-use crate::api::user_context::UserContext;
 use crate::api::errors::ErrorResponse;
-use crate::database::task_table;
+use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
+use crate::database::task_table;
 
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskBasicResp, TaskListResp, TaskType, TaskState};
+use ainari_structs::task_structs::{TaskBasicResp, TaskListResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -33,31 +33,31 @@ use ainari_structs::task_structs::{TaskBasicResp, TaskListResp, TaskType, TaskSt
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
+pub async fn list_task(
+    cluster_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<TaskListResp>, ErrorResponse> {
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
 
-    let tasks = match task_table::list_tasks(&cluster_uuid, &context)
-    {
+    let tasks = match task_table::list_tasks(&cluster_uuid, &context) {
         Ok(tasks) => tasks,
         Err(e) => {
-            log::error!("Failed to get list of tasks form database: '{}'", e);
-            return Err(ErrorResponse::InternalError("".to_string()))
+            log::error!("Failed to get list of tasks form database: '{e}'");
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut resp = TaskListResp {
-        tasks: Vec::new(),
-    };
+    let mut resp = TaskListResp { tasks: Vec::new() };
 
     for task in tasks {
         // parse-uuid-string coming from the database
@@ -65,8 +65,8 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert task-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()))
-            },
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
         };
 
         // convert task-type
@@ -84,11 +84,11 @@ pub async fn list_task(cluster_uuid: Path<Uuid>, context: UserContext) -> Result
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
-        
+
         let obj = TaskBasicResp {
-            uuid: uuid,
+            uuid,
             name: task.name.clone(),
-            task_type: task_type,
+            task_type,
             state: task_state,
         };
 

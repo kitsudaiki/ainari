@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod dataset_io;
 pub mod converter;
+pub mod dataset_io;

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -44,5 +44,5 @@ pub struct CheckpointBasicResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct CheckpointListResp {
-    pub checkpoints: Vec<CheckpointBasicResp>
+    pub checkpoints: Vec<CheckpointBasicResp>,
 }

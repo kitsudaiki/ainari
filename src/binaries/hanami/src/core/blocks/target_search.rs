@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use rand::Rng;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-use rand::Rng;
 
-// use ainari_common::error::HanamiError;
 use ainari_common::constants::*;
+use ainari_common::error::AinariError;
 
 use crate::core::blocks::axons::AxonSection;
+use crate::core::blocks::block_trait::Block;
 use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
-use crate::core::blocks::block_trait::Block;
 use crate::core::cluster_handler::*;
 
 #[derive(Default, Debug)]
@@ -32,80 +32,54 @@ struct TargetInformation {
     output_hexagon_name: String,
 }
 
-/**
- * 
- */
-pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
+pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+    check_axon_setion(axon_section)?;
 
-    // pre-check
-    if axon_section.cluster_uuid == Uuid::nil() 
-        || axon_section.source_block_uuid == Uuid::nil() 
-        || axon_section.source_hexagon_uuid == Uuid::nil() 
-        || axon_section.source_pos == UNINIT_STATE_8 
-    {
-        return false;
-    }
-
-    let target_information = if let Some(target_information) = get_target(axon_section) {
-        target_information
-    } else {
-        return false;
-    };
+    let target_information = get_target(axon_section)?;
 
     let source_block;
 
     {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-
-        // get cluster
-        let cluster_link = if let Some(c) = cluster_handler.clusters.get_mut(&axon_section.cluster_uuid) {
-            c
-        }
-        else {
-            return false;
-        };
+        let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
         // get target-hexagon from cluster
         let mut binding = cluster_link.hexagon_data.write().unwrap();
-        if binding.contains_key(&target_information.hexagon_uuid) == false {
-            binding.insert(target_information.hexagon_uuid.clone(), Arc::new(Mutex::new(HexagonData::new())));
-        }
+        binding
+            .entry(target_information.hexagon_uuid)
+            .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
     }
 
     {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
 
         // get source-block
-        source_block = if let Some(s) = cluster_handler.get_block(&axon_section.cluster_uuid, &axon_section.source_hexagon_uuid, &axon_section.source_block_uuid) {
-            s
-        } else {
-            return false;
-        };
+        source_block = cluster_handler.get_block(
+            &axon_section.cluster_uuid,
+            &axon_section.source_hexagon_uuid,
+            &axon_section.source_block_uuid,
+        )?;
 
-        // get cluster
-        let cluster_link = if let Some(c) = cluster_handler.clusters.get(&axon_section.cluster_uuid) {
-            c
-        }
-        else {
-            return false;
-        };
-
+        let cluster_link = cluster_handler.get_cluster(&axon_section.cluster_uuid)?;
         let binding = cluster_link.hexagon_data.read().unwrap();
         let target_hexagon_link = if let Some(h) = binding.get(&target_information.hexagon_uuid) {
             h.lock().unwrap()
-        }
-        else {
-            return false;
+        } else {
+            let msg = format!(
+                "Hexagon with uuid '{}' not found.",
+                target_information.hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
 
         // search for a block, which has a free slot
         for block_mutex in target_hexagon_link.blocks.values() {
             // ERROR: can hang here
             let mut block = block_mutex.lock().unwrap();
-            if block.get_free_input(axon_section) != false {
+            if block.get_free_input(axon_section) {
                 axon_section.target_block = Some(block_mutex.clone());
                 axon_section.source_block = Some(source_block);
-                return true;
+                return Ok(());
             }
         }
     }
@@ -113,83 +87,118 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> bool {
     // create new block
     if target_information.is_output {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(&target_information.hexagon_uuid, &axon_section.cluster_uuid, &target_information.output_hexagon_name)));
-        if cluster_handler.add_output_block(&output_block_mutex) == false {
-            return false;
-        }
+        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
+            &target_information.hexagon_uuid,
+            &axon_section.cluster_uuid,
+            &target_information.output_hexagon_name,
+        )));
+        cluster_handler.add_output_block(&output_block_mutex)?;
         drop(cluster_handler);
         let mut output_block = output_block_mutex.lock().unwrap();
         if output_block.get_free_input(axon_section) {
             axon_section.target_block = Some(output_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return true;
+            return Ok(());
         }
     } else {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&target_information.hexagon_uuid, &axon_section.cluster_uuid)));
-        if cluster_handler.add_core_block(&core_block_mutex) == false {
-            return false;
-        }
+        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
+            &target_information.hexagon_uuid,
+            &axon_section.cluster_uuid,
+        )));
+        cluster_handler.add_core_block(&core_block_mutex)?;
         drop(cluster_handler);
         let mut core_block = core_block_mutex.lock().unwrap();
         if core_block.get_free_input(axon_section) {
             axon_section.target_block = Some(core_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return true;
+            return Ok(());
         }
     }
 
-    false
+    let msg = format!(
+        "Failed to connect block with uuid '{}' with a target.",
+        axon_section.source_block_uuid
+    );
+    Err(AinariError::Error(msg))
 }
 
-fn get_target(axon_section: &mut AxonSection) -> Option<TargetInformation> {
+fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+    // pre-check
+    if axon_section.cluster_uuid == Uuid::nil()
+        || axon_section.source_block_uuid == Uuid::nil()
+        || axon_section.source_hexagon_uuid == Uuid::nil()
+        || axon_section.source_pos == UNINIT_STATE_8
+    {
+        let msg = "Got invalid Axon-setion.".to_string();
+        return Err(AinariError::Error(msg));
+    }
+
+    Ok(())
+}
+
+fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
     let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
     let mut target_information = TargetInformation::default();
-
-    // get cluster
-    let cluster_link = if let Some(c) = cluster_handler.clusters.get_mut(&axon_section.cluster_uuid) {
-        c
-    }
-    else {
-        return None;
-    };
+    let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
     // get the uuid of the target-hexagon
     {
-        if let Some(source_hexagon_meta) = cluster_link.cluster_meta.hexagons.get(&axon_section.source_hexagon_uuid) {
+        if let Some(source_hexagon_meta) = cluster_link
+            .cluster_meta
+            .hexagons
+            .get(&axon_section.source_hexagon_uuid)
+        {
             let random_pos = rand::rng().random_range(0..NUMBER_OF_POSSIBLE_NEXT) as usize;
-            target_information.hexagon_uuid = source_hexagon_meta.possible_hexagon_target_ids[random_pos].clone();
+            target_information.hexagon_uuid =
+                source_hexagon_meta.possible_hexagon_target_ids[random_pos];
         } else {
-            return None;
+            let msg = format!(
+                "Hexagon with uuid '{}' not found in cluster-meta.",
+                axon_section.source_hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
 
-        if let Some(target_hexagon_meta) = cluster_link.cluster_meta.hexagons.get(&target_information.hexagon_uuid) {
+        if let Some(target_hexagon_meta) = cluster_link
+            .cluster_meta
+            .hexagons
+            .get(&target_information.hexagon_uuid)
+        {
             target_information.is_output = target_hexagon_meta.is_output;
             target_information.output_hexagon_name = target_hexagon_meta.name.clone();
 
             // input-hexagons are not allowed to be a target
             if target_hexagon_meta.is_input {
-                return None;
+                let msg = format!(
+                    "Hexagon with uuid '{}' is input-hexagon and can not be used as output.",
+                    target_information.hexagon_uuid
+                );
+                return Err(AinariError::InvalidInput(msg));
             }
         } else {
-            return None;
+            let msg = format!(
+                "Hexagon with uuid '{}' not found in cluster-meta.",
+                target_information.hexagon_uuid
+            );
+            return Err(AinariError::InvalidInput(msg));
         };
     }
 
     // add hexagon if necessary
     let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
-    if hexagon_data.contains_key(&target_information.hexagon_uuid) == false {
-        hexagon_data.insert(target_information.hexagon_uuid.clone(), Arc::new(Mutex::new(HexagonData::new())));
-    }
+    hexagon_data
+        .entry(target_information.hexagon_uuid)
+        .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
 
-    return Some(target_information);
+    Ok(target_information)
 }
 
 #[cfg(test)]
 mod tests {
-    use ainari_common::enums::*;
     use crate::core::blocks::input_block::*;
     use crate::core::processing::output_buffer::*;
+    use ainari_common::enums::*;
 
     use super::*;
 
@@ -215,7 +224,8 @@ mod tests {
         inputs: 
             key1: 1,1,1; 
         outputs: 
-            key2: 2,2,2;".to_string();
+            key2: 2,2,2;"
+            .to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().unwrap();
         root_handler.clusters.clear();
@@ -223,43 +233,65 @@ mod tests {
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
-            if cluster.cluster_meta.hexagons.values().nth(0).unwrap().is_input {
-                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
-                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+            if cluster
+                .cluster_meta
+                .hexagons
+                .values()
+                .next()
+                .unwrap()
+                .is_input
+            {
+                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
             } else {
-                hexagon_uuid1 = cluster.cluster_meta.hexagons.keys().nth(0).unwrap().clone();
-                hexagon_uuid0 = cluster.cluster_meta.hexagons.keys().nth(1).unwrap().clone();
+                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
             }
         }
 
         // prepare new blocks
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
-        let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(&input_name, &hexagon_uuid0, &cluster_uuid, &finish_counter)));
-        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new( &hexagon_uuid1, &cluster_uuid, &output_name)));
-        let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(&output_name, &hexagon_uuid1, &cluster_uuid, &OutputType::PlainOutput, &finish_counter)));
+        let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(
+            &input_name,
+            &hexagon_uuid0,
+            &cluster_uuid,
+            &finish_counter,
+        )));
+        let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
+            &hexagon_uuid1,
+            &cluster_uuid,
+            &output_name,
+        )));
+        let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(
+            &output_name,
+            &hexagon_uuid1,
+            &cluster_uuid,
+            &OutputType::PlainOutput,
+            &finish_counter,
+        )));
 
         // add blocks to cluster
-        root_handler.add_core_block(&core_block_mutex);
-        root_handler.add_input_block(&input_block_mutex);
-        root_handler.add_output_block(&output_block_mutex);
-        root_handler.add_output_buffer(&output_buffer_mutex);
+        let _ = root_handler.add_core_block(&core_block_mutex);
+        let _ = root_handler.add_input_block(&input_block_mutex);
+        let _ = root_handler.add_output_block(&output_block_mutex);
+        let _ = root_handler.add_output_buffer(&output_buffer_mutex);
         drop(root_handler);
 
         let mut test_section = AxonSection::default();
         let core_block = core_block_mutex.lock().unwrap();
-        test_section.source_block_uuid = core_block.uuid.clone();
-        test_section.source_hexagon_uuid = core_block.hexagon_uuid.clone();
-        test_section.cluster_uuid = core_block.cluster_uuid.clone();
+        test_section.source_block_uuid = core_block.uuid;
+        test_section.source_hexagon_uuid = core_block.hexagon_uuid;
+        test_section.cluster_uuid = core_block.cluster_uuid;
         test_section.source_pos = 0;
 
-        assert_eq!(connect_to_target(&mut test_section), true);
+        assert!(connect_to_target(&mut test_section).is_ok());
 
         assert_eq!(test_section.source_block_uuid, core_block.uuid);
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);
         assert_eq!(test_section.cluster_uuid, core_block.cluster_uuid);
         assert_eq!(test_section.source_pos, 0);
         assert_eq!(test_section.target_hexagon_uuid, hexagon_uuid1);
-        assert_eq!(test_section.source_block.is_none(), false);
-        assert_eq!(test_section.target_block.is_none(), false);
+        assert!(test_section.source_block.is_some());
+        assert!(test_section.target_block.is_some());
     }
 }

@@ -23,7 +23,7 @@ For the installation on a kubernetes `helm` is used.
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
 [img_kubernetes-1_33]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
-[Workflow]: https://github.com/kitsudaiki/Ainari/actions/workflows/build_test.yml
+[Workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
 
 ### Requirements
 
@@ -121,7 +121,7 @@ For the installation on a kubernetes `helm` is used.
 **From repository**
 
 ```bash
-git clone https://github.com/kitsudaiki/Ainari.git
+git clone https://github.com/kitsudaiki/ainari.git
 
 cd Ainari/deploy/k8s
 

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error::Error;
-use std::path::PathBuf;
-use std::fs::File;
-use std::io::{BufReader, Write, Read};
-use std::collections::HashMap;
-use byteorder::{ReadBytesExt, BigEndian};
-use uuid::Uuid;
+use byteorder::{BigEndian, ReadBytesExt};
 use csv::ReaderBuilder;
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs::File;
+use std::io::{BufReader, Read, Write};
+use std::path::PathBuf;
+use uuid::Uuid;
 
 use super::dataset_io::*;
 
@@ -29,7 +29,7 @@ pub struct MnistImage {
     pub pixels: Vec<u8>, // 28x28 = 784 pixels
 }
 
-fn convert_vec_u8_to_f32(vec_u8: &Vec<u8>) -> Vec<f32> {
+fn convert_vec_u8_to_f32(vec_u8: &[u8]) -> Vec<f32> {
     vec_u8.iter().map(|&x| x as f32).collect()
 }
 
@@ -67,7 +67,9 @@ pub fn load_mnist_images(
         return Err("Image and label count mismatch!".into());
     }
     // prepare buffer
-    let count = limit.unwrap_or(num_images as usize).min(num_images as usize);
+    let count = limit
+        .unwrap_or(num_images as usize)
+        .min(num_images as usize);
     let mut images = Vec::with_capacity(count);
 
     // read images and labels from files
@@ -87,26 +89,29 @@ pub fn load_mnist_images(
         start: 0,
         end: picture_size,
     };
-    columns.insert("picture".to_string(),pictures);
+    columns.insert("picture".to_string(), pictures);
 
     let labels = Column {
         start: picture_size,
         end: picture_size + 10,
     };
-    columns.insert("label".to_string(),labels);
+    columns.insert("label".to_string(), labels);
 
     let row_size = picture_size + 10;
     let mut dataset_handle = init_new_data_set_file(
-        &target_filepath, 
+        target_filepath,
         uuid,
-        name, 
+        name,
         "".to_string(),
-        row_size as u64,
+        row_size,
         columns,
-        DataSetType::FloatType)?; // TODO: use u8-type
+        DataSetType::FloatType,
+    )?; // TODO: use u8-type
 
-    let mut label_data: Vec<f32> = vec![0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32];
-    for (_, img) in images.iter().enumerate() {
+    let mut label_data: Vec<f32> = vec![
+        0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32,
+    ];
+    for img in images.iter() {
         // println!("Image {}: Label = {}", i, img.label);
         label_data[usize::from(img.label)] = 1.0f32;
 
@@ -125,9 +130,9 @@ pub fn load_mnist_images(
                 label_data.len() * std::mem::size_of::<f32>(),
             )
         };
-    
-        dataset_handle.target_file.write_all(&image_bytes)?;
-        dataset_handle.target_file.write_all(&label_bytes)?;
+
+        dataset_handle.target_file.write_all(image_bytes)?;
+        dataset_handle.target_file.write_all(label_bytes)?;
 
         label_data[usize::from(img.label)] = 0.0f32;
     }
@@ -165,19 +170,21 @@ pub fn load_csv_file(
 
     // init dataset
     let mut dataset_handle = init_new_data_set_file(
-        &target_filepath, 
+        target_filepath,
         uuid,
-        name, 
+        name,
         "".to_string(),
         num_columns as u64,
         columns,
-        DataSetType::FloatType)?; // TODO: use u8-type
+        DataSetType::FloatType,
+    )?; // TODO: use u8-type
 
     // read body into the dataset-file
     for result in rdr.records() {
         let record = result?;
 
-        let row = record.iter()
+        let row = record
+            .iter()
             .map(|field| field.parse::<f32>().unwrap_or(0.0))
             .collect::<Vec<f32>>();
 
@@ -188,7 +195,7 @@ pub fn load_csv_file(
             )
         };
 
-        dataset_handle.target_file.write_all(&row_bytes)?;
+        dataset_handle.target_file.write_all(row_bytes)?;
     }
 
     Ok(())

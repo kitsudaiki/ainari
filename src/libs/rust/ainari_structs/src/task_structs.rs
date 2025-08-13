@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
-use uuid::Uuid;
-use std::str::FromStr;
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -36,7 +36,7 @@ impl fmt::Display for TaskType {
             TaskType::CheckpointSaveTask => "CheckpointSaveTask",
             TaskType::CheckpointRestoreTask => "CheckpointRestoreTask",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -74,7 +74,7 @@ impl fmt::Display for TaskState {
             TaskState::Finished => "FINISHED",
             TaskState::Error => "ERROR",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -176,5 +176,5 @@ pub struct TaskBasicResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskListResp {
-    pub tasks: Vec<TaskBasicResp>
+    pub tasks: Vec<TaskBasicResp>,
 }

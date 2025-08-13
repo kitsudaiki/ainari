@@ -33,12 +33,15 @@ use ainari_structs::cluster_structs::ClusterResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterResp>, ErrorResponse> {
+pub async fn get_cluster(
+    cluster_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<ClusterResp>, ErrorResponse> {
     let cluster_data = match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(cluster_data) => cluster_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -46,7 +49,7 @@ pub async fn get_cluster(cluster_uuid: Path<Uuid>, context: UserContext) -> Resu
     };
 
     let resp = ClusterResp {
-        uuid: cluster_uuid.clone(),
+        uuid: *cluster_uuid,
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
         created_by: cluster_data.created_by.clone(),

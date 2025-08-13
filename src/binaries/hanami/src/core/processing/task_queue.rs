@@ -38,19 +38,18 @@ impl TaskQueue {
 }
 
 pub fn init_task_queue() -> TaskQueue {
-    let task_queue = TaskQueue {
+    TaskQueue {
         queue: VecDeque::new(),
-    };
-    task_queue
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
     use std::sync::{Arc, Mutex};
+    use uuid::Uuid;
 
-    use crate::core::processing::tasks::{Task, TaskVariant, CheckpointSaveInfo};
     use super::*;
+    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskVariant};
 
     #[test]
     fn test_add_and_get() {
@@ -68,16 +67,16 @@ mod tests {
         };
 
         let task1 = Task {
-            uuid: uuid1.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            uuid: uuid1,
+            cluster_uuid,
             name: "task1".to_string(),
             user_id: "user0815".to_string(),
             project_id: "project0815".to_string(),
             info: TaskVariant::CheckpointSave(info1),
         };
         let task2 = Task {
-            uuid: uuid2.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            uuid: uuid2,
+            cluster_uuid,
             name: "task2".to_string(),
             user_id: "user0816".to_string(),
             project_id: "project0816".to_string(),

@@ -16,14 +16,14 @@ use std::sync::{Arc, Mutex};
 
 pub struct Counter {
     pub value: Arc<Mutex<usize>>,
-    compare: usize, 
+    compare: usize,
 }
 
 impl Counter {
     pub fn new(compare: usize) -> Self {
         Counter {
             value: Arc::new(Mutex::new(0)),
-            compare: compare,
+            compare,
         }
     }
 

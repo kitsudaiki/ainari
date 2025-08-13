@@ -15,48 +15,51 @@
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
+    http::Method,
     middleware::Next,
-    http::Method
 };
 
-use crate::api::{token_handling, errors::ErrorResponse};
+use crate::api::{errors::ErrorResponse, token_handling};
 use ainari_common::functions::split_bearer_token;
 
 pub async fn authorization_middleware(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
-
     let mut skip_check = false;
     let uri = req.uri();
 
     // skip check for specific endpoints
-    skip_check |= uri == "/v1alpha/token" && req.method() == &Method::POST;
-    skip_check |= uri == "/openapi.json" && req.method() == &Method::GET;
+    let is_post_req = *req.method() == Method::POST;
+    let is_get_req = *req.method() == Method::GET;
+    skip_check |= uri == "/v1alpha/token" && is_post_req;
+    skip_check |= uri == "/openapi.json" && is_get_req;
 
-    if skip_check == false {
+    if !skip_check {
         log::debug!("Check token for request against {uri}");
         // get token from header
         let token: &str;
         match req.headers().get("Authorization") {
-            Some(value) => {
-                match split_bearer_token(value.to_str().unwrap()) {
-                    Some(val) => token = val,
-                    None => {
-                        println!("Invalid token format");
-                        return Err(ErrorResponse::Unauthorized("Missing token in header".to_string()).into());
-                    },
+            Some(value) => match split_bearer_token(value.to_str().unwrap()) {
+                Some(val) => token = val,
+                None => {
+                    println!("Invalid token format");
+                    return Err(
+                        ErrorResponse::Unauthorized("Missing token in header".to_string()).into(),
+                    );
                 }
-            }
+            },
             _ => {
-                return Err(ErrorResponse::Unauthorized("Missing token in header".to_string()).into());
+                return Err(
+                    ErrorResponse::Unauthorized("Missing token in header".to_string()).into(),
+                );
             }
         }
 
         match token_handling::validate_token(token) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                log::debug!("{}", e);
+                log::debug!("{e}");
                 return Err(ErrorResponse::Unauthorized(e).into());
             }
         }
@@ -70,11 +73,11 @@ pub async fn authorization_middleware(
     let resp = next.call(req).await;
 
     match resp {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(ref e) => {
-            log::info!("{}", e);
-        },
+            log::info!("{e}");
+        }
     };
 
-    return resp;
+    resp
 }

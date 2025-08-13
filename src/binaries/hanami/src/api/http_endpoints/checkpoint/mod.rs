@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod delete_checkpoint_v1_0;
 pub mod get_checkpoint_v1_0;
 pub mod list_checkpoint_v1_0;
-pub mod delete_checkpoint_v1_0;

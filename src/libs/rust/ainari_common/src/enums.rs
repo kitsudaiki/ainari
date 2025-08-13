@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ==================================================================================================
 
 pub enum DbError {
     NotFound,
-    InternalError
+    InternalError,
 }
 
 // ==================================================================================================
@@ -45,21 +45,19 @@ impl ReturnStatus {
 
 impl fmt::Display for ReturnStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 // ==================================================================================================
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
 pub enum OutputType {
+    #[default]
     PlainOutput = 0,
     BoolOutput = 1,
     IntOutput = 2,
     FloatOutput = 3,
-}
-impl Default for OutputType {
-    fn default() -> Self { OutputType::PlainOutput }
 }
 
 // ==================================================================================================
@@ -74,7 +72,6 @@ pub enum ObjectType {
     OutputBlock,
     OutputBuffer,
 }
-
 
 impl ObjectType {
     pub fn to_u8(&self) -> u8 {

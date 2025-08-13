@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::fs::{self, File};
-use std::path::{Path, PathBuf};
 use std::io::{self, Read};
+use std::path::{Path, PathBuf};
 
 pub fn is_amd_ryzen() -> io::Result<bool> {
     let mut file = File::open("/proc/cpuinfo")?;
@@ -45,8 +45,10 @@ pub fn is_hyperthreading_supported() -> io::Result<bool> {
 pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
     // ryzen cpus neeed speacial handling
     match is_amd_ryzen() {
-        Ok(is_ryzen) => if is_ryzen {
-            return get_amd_ryzen_teperature(pkg_file_id);
+        Ok(is_ryzen) => {
+            if is_ryzen {
+                return get_amd_ryzen_teperature(pkg_file_id);
+            }
         }
         Err(_) => {
             return Ok(0.0);
@@ -56,7 +58,7 @@ pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
     // get temparature for other cpu-types
     let thermal_path = format!("/sys/class/thermal/thermal_zone{pkg_file_id}/temp");
     let file_path = Path::new(thermal_path.as_str());
-    match fs::read_to_string(file_path){
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             if let Ok(temp) = content.trim().parse::<i64>() {
                 Ok(temp as f64 / 1000.0)
@@ -69,23 +71,19 @@ pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
 }
 
 pub fn get_number_of_cpu_packages() -> io::Result<usize> {
-    let path = format!("/sys/devices/system/node/possible");
+    let path = "/sys/devices/system/node/possible".to_string();
     let file_path = Path::new(path.as_str());
-    match fs::read_to_string(file_path){
-        Ok(content) => {
-            Ok(get_range_info(content.as_str().trim()))
-        }
+    match fs::read_to_string(file_path) {
+        Ok(content) => Ok(get_range_info(content.as_str().trim())),
         Err(e) => Err(e),
     }
 }
 
 pub fn get_number_of_cpu_threads() -> io::Result<usize> {
-    let path = format!("/sys/devices/system/cpu/present");
+    let path = "/sys/devices/system/cpu/present".to_string();
     let file_path = Path::new(path.as_str());
-    match fs::read_to_string(file_path){
-        Ok(content) => {
-            Ok(get_range_info(content.as_str().trim()))
-        }
+    match fs::read_to_string(file_path) {
+        Ok(content) => Ok(get_range_info(content.as_str().trim())),
         Err(e) => Err(e),
     }
 }
@@ -93,9 +91,11 @@ pub fn get_number_of_cpu_threads() -> io::Result<usize> {
 pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     // siblings exists only when hyperthreading is enabled
     match is_hyperthreading_enabled() {
-        Ok(enabled) => if enabled == false {
-            return Ok(thread_id);
-        },
+        Ok(enabled) => {
+            if !enabled {
+                return Ok(thread_id);
+            }
+        }
         // error here can also mean, that hyperthreading is not available on the system and so the file doesn't exist
         Err(e) => {
             return Err(e);
@@ -105,7 +105,7 @@ pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     // get list of siblings for the thread
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/topology/thread_siblings_list");
     let file_path = Path::new(path.as_str());
-    let content = match fs::read_to_string(file_path){
+    let content = match fs::read_to_string(file_path) {
         Ok(content) => content,
         Err(_) => {
             return Ok(0);
@@ -113,7 +113,9 @@ pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     };
 
     // process file-content
-    let numbers: Result<Vec<usize>, _> = content.as_str().trim()
+    let numbers: Result<Vec<usize>, _> = content
+        .as_str()
+        .trim()
         .split(',')
         .map(|num_str| num_str.parse::<usize>())
         .collect();
@@ -122,7 +124,7 @@ pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
         Ok(values) => values,
         Err(_) => {
             return Ok(thread_id);
-        },
+        }
     };
 
     // 2 values in the file are required. that thread-id itself and its sibling-id
@@ -161,7 +163,7 @@ pub fn get_maximum_speed(thread_id: usize) -> io::Result<usize> {
 pub fn get_package_id(thread_id: usize) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/topology/physical_package_id");
     let file_path = Path::new(path.as_str());
-    match fs::read_to_string(file_path){
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             if let Ok(val) = content.trim().parse::<usize>() {
                 Ok(val)
@@ -176,7 +178,7 @@ pub fn get_package_id(thread_id: usize) -> io::Result<usize> {
 pub fn get_core_id(thread_id: usize) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/topology/core_id");
     let file_path = Path::new(path.as_str());
-    match fs::read_to_string(file_path){
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             if let Ok(val) = content.trim().parse::<usize>() {
                 Ok(val)
@@ -191,7 +193,7 @@ pub fn get_core_id(thread_id: usize) -> io::Result<usize> {
 fn get_speed(thread_id: usize, speed_type: &str) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/cpufreq/{speed_type}");
     let file_path = Path::new(path.as_str());
-    match fs::read_to_string(file_path){
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             if let Ok(val) = content.trim().parse::<usize>() {
                 Ok(val)
@@ -210,13 +212,15 @@ pub fn get_pkg_temperature_ids() -> Result<Vec<usize>, String> {
     let mut found = false;
 
     loop {
-        let file_path = format!("{}{}", base_path, counter);
-        let type_path = format!("{}/type", file_path);
-
+        let file_path = format!("{base_path}{counter}");
+        let type_path = format!("{file_path}/type");
         // break-rule to avoid endless-loop
         if !Path::new(&type_path).exists() {
             if !found {
-                return Err("No files found with relevant temperature-information about the CPU".to_string());
+                return Err(
+                    "No files found with relevant temperature-information about the CPU"
+                        .to_string(),
+                );
             }
             return Ok(ids);
         }
@@ -256,21 +260,16 @@ fn find_k10temp_hwmon() -> io::Result<Vec<PathBuf>> {
 }
 
 fn get_amd_ryzen_teperature(pkg_file_id: usize) -> io::Result<f64> {
-    let k10temp = match find_k10temp_hwmon() {
-        Ok(dirs) => dirs,
-        Err(_) => {
-            Vec::new()
-        }
-    };
+    let k10temp = find_k10temp_hwmon().unwrap_or_default();
 
     if pkg_file_id >= k10temp.len() {
         let error = format!("package-id {pkg_file_id} is too big.");
-        return Err(io::Error::new(io::ErrorKind::Other, error));
+        return Err(io::Error::other(error));
     }
 
-    let mut file_path: PathBuf=  k10temp[pkg_file_id].clone();
+    let mut file_path: PathBuf = k10temp[pkg_file_id].clone();
     file_path.push("temp1_input");
-    match fs::read_to_string(file_path){
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             if let Ok(temp) = content.trim().parse::<i64>() {
                 Ok(temp as f64 / 1000.0)
@@ -287,7 +286,7 @@ fn get_range_info(input: &str) -> usize {
         if let Ok(value) = second_part.parse::<usize>() {
             value + 1
         } else {
-           1
+            1
         }
     } else {
         1
@@ -300,23 +299,44 @@ mod tests {
 
     #[test]
     fn test_cpu() {
-        let is_ryzen = match is_amd_ryzen() {
-            Ok(is_ryzen) => is_ryzen,
-            Err(_) => false,
-        };
-        println!("Is cpu an AMD Ryzen: {}", is_ryzen);
+        let is_ryzen = is_amd_ryzen().unwrap_or_default();
+        println!("Is cpu an AMD Ryzen: {is_ryzen}");
 
-        println!("Hyperthreading enabled: {}", is_hyperthreading_enabled().unwrap());
-        println!("Hyperthreading supported: {}", is_hyperthreading_supported().unwrap());
+        println!(
+            "Hyperthreading enabled: {}",
+            is_hyperthreading_enabled().unwrap()
+        );
+        println!(
+            "Hyperthreading supported: {}",
+            is_hyperthreading_supported().unwrap()
+        );
 
-        println!("Number of cpu-packages: {}", get_number_of_cpu_packages().unwrap());
-        println!("Number of cpu-threads: {}", get_number_of_cpu_threads().unwrap());
-        println!("Get sibling-id for thread 2: {}", get_cpu_sibling_id(2).unwrap());
+        println!(
+            "Number of cpu-packages: {}",
+            get_number_of_cpu_packages().unwrap()
+        );
+        println!(
+            "Number of cpu-threads: {}",
+            get_number_of_cpu_threads().unwrap()
+        );
+        println!(
+            "Get sibling-id for thread 2: {}",
+            get_cpu_sibling_id(2).unwrap()
+        );
         println!("Get core-id for thread 2: {}", get_core_id(2).unwrap());
-        println!("Get package-id for thread 2: {}", get_package_id(2).unwrap());
+        println!(
+            "Get package-id for thread 2: {}",
+            get_package_id(2).unwrap()
+        );
 
-        println!("Current minimum speed: {}", get_current_minimum_speed(0).unwrap());
-        println!("Current maximum speed: {}", get_current_maximum_speed(0).unwrap());
+        println!(
+            "Current minimum speed: {}",
+            get_current_minimum_speed(0).unwrap()
+        );
+        println!(
+            "Current maximum speed: {}",
+            get_current_maximum_speed(0).unwrap()
+        );
         println!("Current speed: {}", get_current_speed(0).unwrap());
         println!("Minimum speed: {}", get_minimum_speed(0).unwrap());
         println!("Maximum speed: {}", get_maximum_speed(0).unwrap());

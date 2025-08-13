@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use serde::{Serialize, Deserialize};
+use uuid::Uuid;
 
-use super::axons::*;
-use super::block_trait::*;
 use super::super::processing::worker_queue::*;
+use super::axons::*;
 use super::block_io::*;
+use super::block_trait::*;
 
 use crate::core::cluster_handler::*;
 
 use ainari_common::constants::*;
 use ainari_common::enums::*;
+use ainari_common::error::AinariError;
 
 // ==================================================================================================
 
@@ -47,7 +48,7 @@ pub struct InputBlock {
 
 impl PartialEq for InputBlock {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid 
+        self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
             && self.cluster_uuid == other.cluster_uuid
             && self.block_io == other.block_io
@@ -63,13 +64,18 @@ fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
 }
 
 impl InputBlock {
-    pub fn new(name: &String, hexagon_uuid: &Uuid, cluster_uuid: &Uuid, finish_counter: &Arc<Mutex<FinishCounter>>) -> Self {
+    pub fn new(
+        name: &str,
+        hexagon_uuid: &Uuid,
+        cluster_uuid: &Uuid,
+        finish_counter: &Arc<Mutex<FinishCounter>>,
+    ) -> Self {
         let mut block = InputBlock {
             uuid: Uuid::new_v4(),
-            hexagon_uuid: hexagon_uuid.clone(),
-            cluster_uuid: cluster_uuid.clone(),
+            hexagon_uuid: *hexagon_uuid,
+            cluster_uuid: *cluster_uuid,
 
-            name: name.clone(),
+            name: name.to_owned(),
 
             block_io: BlockIoBuffer::default(),
 
@@ -88,11 +94,17 @@ impl InputBlock {
 
     // ==================================================================================================
 
-    pub fn apply_input(&mut self, input_ptr: &[f32], input_size: usize, offset: usize, time_length: usize) {
+    pub fn apply_input(
+        &mut self,
+        input_ptr: &[f32],
+        input_size: usize,
+        offset: usize,
+        time_length: usize,
+    ) {
         // resize links, if necessary
         let maximum_size = input_size * 2 * time_length;
         if self.input_links.len() < maximum_size {
-            self.input_links.resize(maximum_size as usize, UNINIT_STATE_64);
+            self.input_links.resize(maximum_size, UNINIT_STATE_64);
         }
 
         // reset potentials
@@ -104,13 +116,11 @@ impl InputBlock {
             }
         }
 
-        for i in 0..input_size {
-            let val = input_ptr[i];
-
+        for (i, val) in input_ptr.iter().enumerate().take(input_size) {
             // update links
             let total_position = (offset + i) * 2;
 
-            if val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
+            if *val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
                 self.input_links[total_position] = self.fill_position;
                 self.input_links[total_position + 1] = self.fill_position + 1;
                 self.fill_position += 2;
@@ -121,8 +131,8 @@ impl InputBlock {
                 self.block_io.output_buffer.push(AxonSection::default());
             }
 
-            if val != 0.0f32 && self.input_links[total_position] != UNINIT_STATE_64 {
-                let neg = (val < 0.0f32) as usize;
+            if *val != 0.0f32 && self.input_links[total_position] != UNINIT_STATE_64 {
+                let neg = (*val < 0.0f32) as usize;
                 let target = self.input_links[total_position + neg] as usize;
                 let block_pos = target / BLOCK_DIM;
                 let pos_in_block = target % BLOCK_DIM;
@@ -133,21 +143,37 @@ impl InputBlock {
 }
 
 impl Block for InputBlock {
-    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) {
+    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         self.local_finish_counter = 0;
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Train);
+
+        Ok(())
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<(), AinariError> {
         self.local_finish_counter = 0;
-        connect_outputs(&mut self.block_io, &self.cluster_uuid, &self.hexagon_uuid, &self.uuid);
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        )?;
         send_forward(&self.block_io, WorkerTaskType::Process);
+
+        Ok(())
     }
 
-    fn backpropagate(&mut self) {
+    fn backpropagate(&mut self) -> Result<(), AinariError> {
         let mut finish_counter = self.finish_counter.lock().unwrap();
         finish_counter.counter += 1;
+
+        Ok(())
     }
 
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {
@@ -155,19 +181,19 @@ impl Block for InputBlock {
     }
 
     fn get_uuid(&self) -> Uuid {
-        self.uuid.clone()
+        self.uuid
     }
 
     fn get_hexagon_uud(&self) -> Uuid {
-        self.hexagon_uuid.clone()
+        self.hexagon_uuid
     }
 
     fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid.clone()
+        self.cluster_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
-        return &mut self.block_io;
+        &mut self.block_io
     }
 
     fn get_type(&self) -> ObjectType {
@@ -175,12 +201,12 @@ impl Block for InputBlock {
     }
 
     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = new_cluster_uuid.clone();
+        self.cluster_uuid = *new_cluster_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
-        bincode::serde::encode_to_vec(&self, cfg).expect("Failed to serialize")
+        bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 }
 
@@ -215,14 +241,38 @@ mod tests {
         assert_eq!(input_block.input_links[11], 7);
 
         // check axons
-        assert_eq!(input_block.block_io.output_buffer[0].axons[0].potential, 1.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[1].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[2].potential, 2.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[3].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[4].potential, 0.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[5].potential, 3.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[6].potential, 4.0);
-        assert_eq!(input_block.block_io.output_buffer[0].axons[7].potential, 0.0);
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[0].potential,
+            1.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[1].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[2].potential,
+            2.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[3].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[4].potential,
+            0.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[5].potential,
+            3.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[6].potential,
+            4.0
+        );
+        assert_eq!(
+            input_block.block_io.output_buffer[0].axons[7].potential,
+            0.0
+        );
     }
 
     #[test]
@@ -230,8 +280,11 @@ mod tests {
         let original = InputBlock::default();
 
         let cfg = bincode::config::standard();
-        let serialized: Vec<u8> = bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
-        let deserialized: InputBlock = bincode::serde::decode_from_slice(&serialized, cfg).expect("Failed to deserialize").0;
+        let serialized: Vec<u8> =
+            bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
+        let deserialized: InputBlock = bincode::serde::decode_from_slice(&serialized, cfg)
+            .expect("Failed to deserialize")
+            .0;
         println!("size: {}", serialized.len());
 
         assert_eq!(original, deserialized);

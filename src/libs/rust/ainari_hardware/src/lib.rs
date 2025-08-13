@@ -13,5 +13,5 @@
 // limitations under the License.
 
 pub mod cpu;
-pub mod memory;
 pub mod host;
+pub mod memory;

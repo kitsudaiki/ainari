@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use super::super::blocks::block_trait::*;
 
@@ -29,10 +29,9 @@ pub enum WorkerTaskType {
 }
 
 pub fn init_worker_queue() -> WorkerQueue {
-    let worker_queue = WorkerQueue {
+    WorkerQueue {
         queue: VecDeque::new(),
-    };
-    worker_queue
+    }
 }
 
 pub struct WorkerTask {
