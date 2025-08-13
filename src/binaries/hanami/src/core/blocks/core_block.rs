@@ -18,6 +18,7 @@ use serde_big_array::BigArray;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+use ainari_cluster_parser::cluster_meta_structs::Settings;
 use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
@@ -102,14 +103,14 @@ impl Connection {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Neuron {
     pub input: f32,
-    // pub refraction_time: u8,
+    pub refractory_time: u32,
 }
 
 impl Neuron {
     pub fn default() -> Self {
         Neuron {
             input: 0.0f32,
-            // refraction_time: 0,
+            refractory_time: 0,
         }
     }
 }
@@ -123,6 +124,7 @@ pub struct CoreBlock {
     pub cluster_uuid: Uuid,
 
     pub block_io: BlockIoBuffer,
+    cluster_settings: Settings,
 
     // HINT (kitsudaiki): this has to be a Box instead of a static array to avoid a stack-overflow, because the object is too big
     pub synapse_sections: Box<[SynapseSection]>,
@@ -135,7 +137,7 @@ pub struct CoreBlock {
 }
 
 impl CoreBlock {
-    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid) -> Self {
+    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, cluster_settings: &Settings) -> Self {
         // internal visilization of the blocks:
         //
         // +---+ +---+ +---+
@@ -156,6 +158,7 @@ impl CoreBlock {
             cluster_uuid: *cluster_uuid,
 
             block_io: BlockIoBuffer::default(),
+            cluster_settings: cluster_settings.clone(),
 
             synapse_sections: vec.into_boxed_slice(),
             neurons: std::array::from_fn(|_| Neuron::default()),
@@ -194,10 +197,25 @@ impl CoreBlock {
 
     fn apply_output(&mut self) {
         let mut counter = 0;
+        let mut neuron;
         for buffer in self.block_io.output_buffer.iter_mut() {
             for axon in buffer.axons.iter_mut() {
-                axon.potential = self.neurons[counter].input;
-                self.neurons[counter].input = 0.0f32;
+                neuron = &mut self.neurons[counter];
+
+                axon.potential /= self.cluster_settings.neuron_cooldown;
+                neuron.refractory_time >>= 1;
+
+                if neuron.refractory_time == 0 {
+                    neuron.refractory_time = self.cluster_settings.refractory_time;
+                }
+
+                // // experimental stuff
+                // axon.potential = neuron.input.signum() * (neuron.input.abs().log2() + 1.0f32);
+                axon.potential = neuron.input;
+
+                neuron.input = 0.0f32;
+                axon.delta = 0.0f32;
+
                 counter += 1;
             }
         }
@@ -364,10 +382,10 @@ fn process_section(
 fn backpropagate_section(
     section: &mut SynapseSection,
     connection: &mut Connection,
-    axon: &mut Axon,
+    source_axon: &mut Axon,
     output_buffer: &[AxonSection],
 ) {
-    let mut potential = axon.potential - connection.lower_bound;
+    let mut potential = source_axon.potential - connection.lower_bound;
     let mut delta;
     let train_value = 0.5f32;
     let mut target_axon;
@@ -386,7 +404,7 @@ fn backpropagate_section(
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
         synapse.weight_1 -= train_value * target_axon.delta;
-        axon.delta += delta;
+        source_axon.delta += delta;
 
         output_block_id =
             (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
@@ -394,7 +412,7 @@ fn backpropagate_section(
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
         synapse.weight_2 -= train_value * target_axon.delta;
-        axon.delta += delta;
+        source_axon.delta += delta;
 
         potential -= synapse.border;
     }
@@ -503,6 +521,13 @@ impl Block for CoreBlock {
     }
 
     fn backpropagate(&mut self) -> Result<(), AinariError> {
+        // // experimental stuff
+        // for axon_section in self.block_io.input_buffer.iter_mut() {
+        //     for axon in axon_section.axons.iter_mut() {
+        //         axon.delta *= 1.4427f32 * (0.5f32).powf(axon.potential);
+        //     }
+        // }
+
         for (i, conn) in self.connections.iter_mut().enumerate() {
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
@@ -510,10 +535,10 @@ impl Block for CoreBlock {
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let axon = &mut self.block_io.input_buffer[input_block_id].axons[axon_id];
-            if axon.potential != 0.0f32 {
+            let source_axon = &mut self.block_io.input_buffer[input_block_id].axons[axon_id];
+            if source_axon.potential > 0.0f32 {
                 let section = &mut self.synapse_sections[i];
-                backpropagate_section(section, conn, axon, &self.block_io.output_buffer);
+                backpropagate_section(section, conn, source_axon, &self.block_io.output_buffer);
             }
         }
 
@@ -579,7 +604,8 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize() {
-        let original = CoreBlock::new(&Uuid::new_v4(), &Uuid::new_v4());
+        let settings = Settings::default();
+        let original = CoreBlock::new(&Uuid::new_v4(), &Uuid::new_v4(), &settings);
 
         let cfg = bincode::config::standard().with_variable_int_encoding();
         let serialized: Vec<u8> =
