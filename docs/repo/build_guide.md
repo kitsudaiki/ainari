@@ -15,7 +15,7 @@
 -   Clone repository with submodules
 
     ```bash
-    git clone https://github.com/kitsudaiki/Ainari.git
+    git clone https://github.com/kitsudaiki/ainari.git
     ```
 
 ## Build hamami plain
@@ -168,7 +168,7 @@ also line-numbers are marked. To update the file to get the test green again:
 -   checkout repository and run the local server
 
     ```bash
-    git clone --recurse-submodules https://github.com/kitsudaiki/Ainari.git
+    git clone --recurse-submodules https://github.com/kitsudaiki/ainari.git
     cd Ainari
 
     mkdocs serve

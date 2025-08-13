@@ -27,7 +27,7 @@ import (
 	"strings"
 	"syscall"
 
-	ainari_sdk "github.com/kitsudaiki/Ainari"
+	ainari_sdk "github.com/kitsudaiki/ainari"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"

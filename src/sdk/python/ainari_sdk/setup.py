@@ -23,7 +23,7 @@ setup(
     name='ainari_sdk',
     version=version,
     description='SDK library for Ainari',
-    url='https://github.com/kitsudaiki/Ainari',
+    url='https://github.com/kitsudaiki/ainari',
     author='Tobias Anker',
     author_email='tobias.anker@kitsunemimi.moe',
     license='Apache 2.0',

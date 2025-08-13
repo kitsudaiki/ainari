@@ -2,10 +2,10 @@ module ainarictl
 
 go 1.23.0
 
-replace github.com/kitsudaiki/Ainari => ../../sdk/go/ainari_sdk
+replace github.com/kitsudaiki/ainari => ../../sdk/go/ainari_sdk
 
 require (
-	github.com/kitsudaiki/Ainari v0.3.1-0.20230916184520-abb03e487e58
+	github.com/kitsudaiki/ainari v0.3.1-0.20230916184520-abb03e487e58
 	github.com/olekukonko/tablewriter v1.0.7
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/term v0.32.0

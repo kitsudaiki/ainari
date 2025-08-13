@@ -25,7 +25,7 @@ import (
 	ainarictl_common "ainarictl/common"
 	"os"
 
-	ainari_sdk "github.com/kitsudaiki/Ainari"
+	ainari_sdk "github.com/kitsudaiki/ainari"
 	"github.com/spf13/cobra"
 )
 

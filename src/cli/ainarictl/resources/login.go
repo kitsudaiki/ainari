@@ -24,7 +24,7 @@ import (
 	ainarictl_common "ainarictl/common"
 	"os"
 
-	ainari_sdk "github.com/kitsudaiki/Ainari"
+	ainari_sdk "github.com/kitsudaiki/ainari"
 )
 
 func Login() string {
