@@ -712,6 +712,7 @@ impl ClusterDataHandler {
 
 #[cfg(test)]
 mod tests {
+    use ainari_cluster_parser::cluster_meta_structs::Settings;
     use ainari_common::enums::*;
     use serial_test::serial;
 
@@ -809,7 +810,12 @@ mod tests {
         }
 
         // prepare new blocks
-        let core_block = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
+        let settings = Settings::default();
+        let core_block = Arc::new(Mutex::new(CoreBlock::new(
+            &hexagon_uuid0,
+            &cluster_uuid,
+            &settings,
+        )));
         let input_block = Arc::new(Mutex::new(InputBlock::new(
             &input_name,
             &hexagon_uuid0,
@@ -966,7 +972,12 @@ mod tests {
         }
 
         // prepare new blocks
-        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
+        let settings = Settings::default();
+        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
+            &hexagon_uuid0,
+            &cluster_uuid,
+            &settings,
+        )));
         let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(
             &input_name,
             &hexagon_uuid0,

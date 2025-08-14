@@ -20,7 +20,7 @@ use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::objects::*;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     pub neuron_cooldown: f32,
     pub refractory_time: u32,

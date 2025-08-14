@@ -38,6 +38,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
     let target_information = get_target(axon_section)?;
 
     let source_block;
+    let cluster_settings;
 
     {
         let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
@@ -61,6 +62,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
         )?;
 
         let cluster_link = cluster_handler.get_cluster(&axon_section.cluster_uuid)?;
+        cluster_settings = cluster_link.cluster_meta.settings.clone();
         let binding = cluster_link.hexagon_data.read().unwrap();
         let target_hexagon_link = if let Some(h) = binding.get(&target_information.hexagon_uuid) {
             h.lock().unwrap()
@@ -105,6 +107,7 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
             &target_information.hexagon_uuid,
             &axon_section.cluster_uuid,
+            &cluster_settings,
         )));
         cluster_handler.add_core_block(&core_block_mutex)?;
         drop(cluster_handler);
@@ -198,6 +201,7 @@ fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, Ainar
 mod tests {
     use crate::core::blocks::input_block::*;
     use crate::core::processing::output_buffer::*;
+    use ainari_cluster_parser::cluster_meta_structs::Settings;
     use ainari_common::enums::*;
 
     use super::*;
@@ -250,7 +254,12 @@ mod tests {
         }
 
         // prepare new blocks
-        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(&hexagon_uuid0, &cluster_uuid)));
+        let settings = Settings::default();
+        let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
+            &hexagon_uuid0,
+            &cluster_uuid,
+            &settings,
+        )));
         let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(
             &input_name,
             &hexagon_uuid0,
@@ -284,7 +293,13 @@ mod tests {
         test_section.cluster_uuid = core_block.cluster_uuid;
         test_section.source_pos = 0;
 
-        assert!(connect_to_target(&mut test_section).is_ok());
+        match connect_to_target(&mut test_section) {
+            Ok(()) => {}
+            Err(e) => {
+                println!("{e}");
+                panic!();
+            }
+        }
 
         assert_eq!(test_section.source_block_uuid, core_block.uuid);
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);
