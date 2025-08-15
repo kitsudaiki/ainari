@@ -23,6 +23,7 @@ from ainari_sdk import hosts
 from ainari_sdk import project
 from ainari_sdk import task
 from ainari_sdk import user
+from ainari_sdk import common
 from ainari_sdk import ainari_exceptions
 import test_values
 import json
@@ -411,6 +412,9 @@ checkpoint.delete_all_checkpoints(token, address, False)
 cluster.delete_all_cluster(token, address, False)
 project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)
+
+version = common.get_version(token, address, False)
+print(f"version: {version}")
 
 test_project()
 test_user()

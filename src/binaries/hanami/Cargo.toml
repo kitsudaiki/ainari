@@ -2,6 +2,7 @@
 name = "hanami"
 version = "0.8.0"
 edition = "2024"
+build = "build.rs"
 
 [dependencies]
 ainari_dataset = { path = "../../libs/rust/ainari_dataset" }

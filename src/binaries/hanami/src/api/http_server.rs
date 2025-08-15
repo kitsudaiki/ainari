@@ -27,6 +27,7 @@ use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::cluster::task::*;
 use crate::api::http_endpoints::cluster::*;
+use crate::api::http_endpoints::common::*;
 use crate::api::http_endpoints::dataset::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::user::*;
@@ -35,6 +36,9 @@ use crate::config;
 
 fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
+        .service(
+            scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
+        )
         .service(
             scope("/token").service(
                 resource("")

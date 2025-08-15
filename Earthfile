@@ -154,7 +154,8 @@ test-hanami:
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
-    RUN cargo test
+    # only one test-thread to avoid conflicts between tests, which access the same singleton
+    RUN cargo test -- --test-threads=1
 
 
 build-image:

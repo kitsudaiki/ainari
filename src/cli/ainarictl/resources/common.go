@@ -18,35 +18,33 @@
  *      limitations under the License.
  */
 
-package main
+package ainari_resources
 
 import (
 	"fmt"
 	ainarictl_common "ainarictl/common"
-	ainari_resources "ainarictl/resources"
 	"os"
 
+	ainari_sdk "github.com/kitsudaiki/ainari"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{Use: "ainarictl"}
-
-func init() {
-	rootCmd.PersistentFlags().BoolVarP(&ainarictl_common.PrintAsJson, "json_output", "j", false, "Return output as json")
-	rootCmd.PersistentFlags().BoolVar(&ainarictl_common.DisableTlsVerification, "insecure", false, "Disable the TLS-verification")
-
-	ainari_resources.Init_Common_Commands(rootCmd)
-	ainari_resources.Init_User_Commands(rootCmd)
-	ainari_resources.Init_Project_Commands(rootCmd)
-	ainari_resources.Init_Checkpoint_Commands(rootCmd)
-	ainari_resources.Init_Task_Commands(rootCmd)
-	ainari_resources.Init_Cluster_Commands(rootCmd)
-	ainari_resources.Init_Dataset_Commands(rootCmd)
+var getVersionCmd = &cobra.Command{
+	Use:   "get version",
+	Short: "Get version of the backend.",
+	Run: func(cmd *cobra.Command, args []string) {
+		token := Login()
+		address := os.Getenv("HANAMI_ADDRESS")
+		content, err := ainari_sdk.GetVersion(address, token, ainarictl_common.DisableTlsVerification)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
 }
 
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+
+func Init_Common_Commands(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(getVersionCmd)
 }
