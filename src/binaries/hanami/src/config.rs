@@ -102,3 +102,8 @@ pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
         }
     }
 });
+
+pub static VERSION: Lazy<String> = Lazy::new(|| {
+    let git_version = option_env!("GIT_VERSION").unwrap_or("unknown");
+    git_version.to_string()
+});

@@ -12,11 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth_structs;
-pub mod checkpoint_structs;
-pub mod cluster_structs;
-pub mod common_structs;
-pub mod dataset_structs;
-pub mod project_structs;
-pub mod task_structs;
-pub mod user_structs;
+pub mod get_version_v1_0;
