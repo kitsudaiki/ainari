@@ -35,6 +35,7 @@ pub fn init_worker_queue() -> WorkerQueue {
 }
 
 pub struct WorkerTask {
+    pub cycle_number: u64,
     pub task_type: WorkerTaskType,
     pub block: Arc<Mutex<dyn Block>>,
 }

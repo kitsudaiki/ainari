@@ -26,7 +26,7 @@ use crate::api::user_context::UserContext;
 use crate::config;
 use crate::core::cluster_handler;
 use crate::core::cluster_handler::*;
-use crate::core::processing::tasks::{RequestInfo, Task, TaskVariant};
+use crate::core::processing::tasks::{RequestInfo, Task, TaskMeta, TaskVariant};
 use crate::database::cluster_table;
 use crate::database::dataset_table;
 use crate::database::task_table;
@@ -159,8 +159,6 @@ pub async fn create_request_task(
     let mut info = RequestInfo {
         inputs: HashMap::new(),
         results: result_file_handle,
-        number_of_cycles: 0,
-        time_length,
     };
 
     let mut number_of_cycles = u64::MAX;
@@ -200,8 +198,6 @@ pub async fn create_request_task(
     }
     number_of_cycles -= time_length - 1;
 
-    info.number_of_cycles = number_of_cycles;
-
     // add new task to database
     match task_table::add_new_task(
         &task_uuid,
@@ -227,6 +223,7 @@ pub async fn create_request_task(
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         info: TaskVariant::Request(info),
+        meta: TaskMeta::new(number_of_cycles, 1, time_length),
     };
     cluster_interface.lock().unwrap().add_task(task);
 

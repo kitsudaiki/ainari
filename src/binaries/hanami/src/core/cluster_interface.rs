@@ -12,515 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytemuck::cast_slice;
 use std::collections::HashMap;
-use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use ainari_common::error::AinariError;
-use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
-use ainari_structs::task_structs::TaskState;
 
-use crate::api::user_context::UserContext;
-use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
-use crate::database::checkpoint_table;
-use crate::database::task_table;
 
 use super::processing::output_buffer::*;
 use super::processing::task_queue::{TaskQueue, init_task_queue};
-use super::processing::tasks::{
-    CheckpointRestoreInfo, CheckpointSaveInfo, RequestInfo, Task, TaskVariant, TrainInfo,
-};
+use super::processing::tasks::{self, Task, TaskVariant};
 use super::processing::worker_queue::*;
-
-fn apply_input(
-    cluster_uuid: &Uuid,
-    hexagon_name: &String,
-    input_ptr: &[f32],
-    input_size: u64,
-    pos_counter: usize,
-    time_length: u64,
-    task_type: &WorkerTaskType,
-) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
-
-    let mut input_block = input_block_mutex.lock().unwrap();
-    input_block.apply_input(
-        input_ptr,
-        input_size as usize,
-        pos_counter,
-        time_length as usize,
-    );
-
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
-    let worker_task = WorkerTask {
-        task_type: task_type.clone(),
-        block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
-    };
-    worker_queue.add(worker_task);
-
-    Ok(())
-}
-
-fn apply_expected(
-    cluster_uuid: &Uuid,
-    hexagon_name: &String,
-    input_ptr: &[f32],
-    input_size: u64,
-) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
-
-    let mut output_buffer = output_buffer_mutex.lock().unwrap();
-    output_buffer.reset_output();
-    convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
-
-    Ok(())
-}
-
-fn run_train(
-    cluster_uuid: &Uuid,
-    finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
-) -> Result<(), AinariError> {
-    for _ in 0..10000000 {
-        let finish_counter = finish_counter_mutex.lock().unwrap();
-        if finish_counter.counter >= finish_counter.input_compare + finish_counter.output_compare {
-            return Ok(());
-        }
-        drop(finish_counter);
-        thread::sleep(std::time::Duration::from_micros(1));
-    }
-
-    let msg = format!("Timeout while training cluster with uuid {cluster_uuid}");
-    Err(AinariError::Error(msg))
-}
-
-fn run_process(
-    cluster_uuid: &Uuid,
-    finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
-) -> Result<(), AinariError> {
-    for _ in 0..10000000 {
-        let finish_counter = finish_counter_mutex.lock().unwrap();
-        if finish_counter.counter >= finish_counter.output_compare {
-            return Ok(());
-        }
-        drop(finish_counter);
-        thread::sleep(std::time::Duration::from_millis(1));
-    }
-
-    let msg = format!("Timeout while requesting cluster with uuid {cluster_uuid}");
-    Err(AinariError::Error(msg))
-}
-
-fn get_input_from_dataset(
-    cluster_uuid: &Uuid,
-    hexagon_name: &String,
-    file_handle: &mut DataSetFileReadHandleV1_0,
-    cycle_count: u64,
-    time_length: u64,
-    task_type: &WorkerTaskType,
-) -> Result<(), AinariError> {
-    // get input-block
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
-    drop(cluster_handler);
-
-    let mut input_block = input_block_mutex.lock().unwrap();
-
-    // fill input with data from dataset
-    let mut pos_counter: usize = 0;
-    for time_point in 0..time_length {
-        let (input_ptr, input_size) =
-            match file_handle.get_data_from_file(&(cycle_count + time_point)) {
-                Ok((input_ptr, input_size)) => (input_ptr, input_size),
-                Err(msg) => {
-                    return Err(AinariError::Error(msg));
-                }
-            };
-
-        input_block.apply_input(
-            input_ptr,
-            input_size as usize,
-            pos_counter,
-            time_length as usize,
-        );
-
-        pos_counter += input_size as usize;
-    }
-
-    // add input-block to worker-queue
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
-    let worker_task = WorkerTask {
-        task_type: task_type.clone(),
-        block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
-    };
-    worker_queue.add(worker_task);
-
-    Ok(())
-}
-
-fn get_expected_from_dataset(
-    cluster_uuid: &Uuid,
-    hexagon_name: &String,
-    file_handle: &mut DataSetFileReadHandleV1_0,
-    cycle_count: u64,
-    time_length: u64,
-) -> Result<(), AinariError> {
-    let (input_ptr, input_size) =
-        match file_handle.get_data_from_file(&(cycle_count + time_length - 1)) {
-            Ok((input_ptr, input_size)) => (input_ptr, input_size),
-            Err(msg) => {
-                return Err(AinariError::Error(msg));
-            }
-        };
-
-    apply_expected(cluster_uuid, hexagon_name, input_ptr, input_size)?;
-
-    Ok(())
-}
-
-fn write_output_into_dataset(
-    cluster_uuid: &Uuid,
-    file_handle: &mut DataSetFileWriteHandleV1_0,
-) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-
-    // get column-description from the dataset
-    for (hexagon_name, col_get) in &file_handle.header.columns {
-        let size_output = (col_get.end - col_get.start) as usize;
-        let mut output_read = vec![0.0f32; size_output];
-
-        let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
-
-        let mut output_buffer = output_buffer_mutex.lock().unwrap();
-        convert_output_to_buffer(&mut output_read, &mut output_buffer);
-        output_buffer.reset_output();
-
-        let output_bytes = cast_slice(&output_read);
-        let _ = file_handle.target_file.write_all(output_bytes);
-    }
-
-    Ok(())
-}
-
-fn handle_train_task(
-    task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
-    task_info: &mut TrainInfo,
-    finish_counter: &Arc<Mutex<FinishCounter>>,
-) {
-    // check if task was aborted
-    if task_table::is_aborted(task_uuid) {
-        return;
-    }
-
-    let task_type = WorkerTaskType::Train;
-    let mut prev_timestamp = Instant::now();
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Active);
-
-    for epoch_count in 0..task_info.number_of_epochs {
-        for cycle_count in 0..task_info.number_of_cycles {
-            // update current state in database at least after 1 second
-            let now = Instant::now();
-            if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
-                prev_timestamp = now;
-                let _ = task_table::update_task_progress(
-                    task_uuid,
-                    &(epoch_count as i64),
-                    &(cycle_count as i64),
-                );
-
-                // check if task was aborted
-                if task_table::is_aborted(task_uuid) {
-                    return;
-                }
-            }
-
-            // reset finsih-counter
-            let mut counter = finish_counter.lock().unwrap();
-            counter.counter = 0;
-            drop(counter);
-
-            // push output-values form dataset into the backend
-            for (hexagon_name, file_handle) in &mut task_info.outputs {
-                match get_expected_from_dataset(
-                    cluster_uuid,
-                    hexagon_name,
-                    file_handle,
-                    cycle_count,
-                    task_info.time_length,
-                ) {
-                    Ok(()) => {}
-                    Err(AinariError::InvalidInput(msg)) => {
-                        let _ = task_table::set_error_state(task_uuid, &msg);
-                        return;
-                    }
-                    Err(AinariError::Error(msg)) => {
-                        log::error!("{msg}");
-                        let db_msg = "internal error".to_string();
-                        let _ = task_table::set_error_state(task_uuid, &db_msg);
-                        return;
-                    }
-                }
-            }
-
-            // push input-values form dataset into the backend
-            for (hexagon_name, file_handle) in &mut task_info.inputs {
-                match get_input_from_dataset(
-                    cluster_uuid,
-                    hexagon_name,
-                    file_handle,
-                    cycle_count,
-                    task_info.time_length,
-                    &task_type,
-                ) {
-                    Ok(()) => {}
-                    Err(AinariError::InvalidInput(msg)) => {
-                        let _ = task_table::set_error_state(task_uuid, &msg);
-                        return;
-                    }
-                    Err(AinariError::Error(msg)) => {
-                        log::error!("{msg}");
-                        let db_msg = "internal error".to_string();
-                        let _ = task_table::set_error_state(task_uuid, &db_msg);
-                        return;
-                    }
-                }
-            }
-
-            match run_train(cluster_uuid, finish_counter) {
-                Ok(()) => {}
-                Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(task_uuid, &msg);
-                    return;
-                }
-                Err(AinariError::Error(msg)) => {
-                    log::error!("{msg}");
-                    let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(task_uuid, &db_msg);
-                    return;
-                }
-            }
-        }
-    }
-
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    for hexagon_name in task_info.outputs.keys() {
-        let output_buffer_mutex =
-            match cluster_handler.get_output_buffer(cluster_uuid, hexagon_name) {
-                Ok(output_buffer_mutex) => output_buffer_mutex,
-                Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(task_uuid, &msg);
-                    return;
-                }
-                Err(AinariError::Error(msg)) => {
-                    log::error!("{msg}");
-                    let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(task_uuid, &db_msg);
-                    return;
-                }
-            };
-
-        let mut output_buffer = output_buffer_mutex.lock().unwrap();
-        output_buffer.reset_output();
-    }
-
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(
-        task_uuid,
-        &(task_info.number_of_epochs as i64),
-        &(task_info.number_of_cycles as i64),
-    );
-}
-
-fn handle_request_task(
-    task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
-    task_info: &mut RequestInfo,
-    finish_counter: &Arc<Mutex<FinishCounter>>,
-) {
-    // check if task was aborted
-    if task_table::is_aborted(task_uuid) {
-        return;
-    }
-
-    let task_type = WorkerTaskType::Process;
-    let mut prev_timestamp = Instant::now();
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Active);
-
-    for cycle_count in 0..task_info.number_of_cycles {
-        // update current state in database at least after 1 second
-        let now = Instant::now();
-        if now.duration_since(prev_timestamp) >= Duration::from_secs(1) {
-            prev_timestamp = now;
-            let _ = task_table::update_task_progress(task_uuid, &0, &(cycle_count as i64));
-
-            // check if task was aborted
-            if task_table::is_aborted(task_uuid) {
-                return;
-            }
-        }
-
-        // reset finsih-counter
-        let mut counter = finish_counter.lock().unwrap();
-        counter.counter = 0;
-        drop(counter);
-
-        // push input-values form dataset into the backend
-        for (hexagon_name, file_handle) in &mut task_info.inputs {
-            match get_input_from_dataset(
-                cluster_uuid,
-                hexagon_name,
-                file_handle,
-                cycle_count,
-                task_info.time_length,
-                &task_type,
-            ) {
-                Ok(()) => {}
-                Err(AinariError::InvalidInput(msg)) => {
-                    let _ = task_table::set_error_state(task_uuid, &msg);
-                    return;
-                }
-                Err(AinariError::Error(msg)) => {
-                    log::error!("{msg}");
-                    let db_msg = "internal error".to_string();
-                    let _ = task_table::set_error_state(task_uuid, &db_msg);
-                    return;
-                }
-            }
-        }
-
-        match run_process(cluster_uuid, finish_counter) {
-            Ok(()) => {}
-            Err(AinariError::InvalidInput(msg)) => {
-                let _ = task_table::set_error_state(task_uuid, &msg);
-                return;
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                let db_msg = "internal error".to_string();
-                let _ = task_table::set_error_state(task_uuid, &db_msg);
-                return;
-            }
-        }
-
-        // get output-values form backend and write them into the dataset
-        match write_output_into_dataset(cluster_uuid, &mut task_info.results) {
-            Ok(()) => {}
-            Err(AinariError::InvalidInput(msg)) => {
-                let _ = task_table::set_error_state(task_uuid, &msg);
-                return;
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                let db_msg = "internal error".to_string();
-                let _ = task_table::set_error_state(task_uuid, &db_msg);
-                return;
-            }
-        }
-    }
-
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ =
-        task_table::update_task_progress(task_uuid, &1_i64, &(task_info.number_of_cycles as i64));
-}
-
-fn handle_checkpoint_save_task(
-    cluster_uuid: &Uuid,
-    task_uuid: &Uuid,
-    task_name: &str,
-    user_id: &str,
-    project_id: &str,
-    task_info: &mut CheckpointSaveInfo,
-) {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
-    match cluster_handler.create_checkpoint(cluster_uuid, &task_info.path) {
-        Ok(()) => {}
-        Err(_) => {
-            return;
-        }
-    }
-
-    // create information for new database-entry
-    let context = &UserContext {
-        user_id: user_id.to_owned(),
-        project_id: project_id.to_owned(),
-        is_admin: false,
-        is_project_admin: false,
-    };
-
-    // add information of new checkpoint to the database
-    // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
-    let file_path_str: String = task_info.path.to_string_lossy().into();
-    match checkpoint_table::add_new_checkpoint(task_uuid, task_name, &file_path_str, context) {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("{e}");
-            let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
-            return;
-        }
-    }
-
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(task_uuid, &1, &1);
-}
-
-fn handle_checkpoint_restore_task(
-    cluster_uuid: &Uuid,
-    task_uuid: &Uuid,
-    task_info: &mut CheckpointRestoreInfo,
-) {
-    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-    match cluster_handler.restore_checkpoint(cluster_uuid, &task_info.path) {
-        Ok(()) => {}
-        Err(_) => {
-            return;
-        }
-    }
-
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(task_uuid, &1, &1);
-}
-
-pub fn handle_task(task: Task, finish_counter: &Arc<Mutex<FinishCounter>>) {
-    match task.info {
-        TaskVariant::Training(mut task_info) => {
-            handle_train_task(
-                &task.uuid,
-                &task.cluster_uuid,
-                &mut task_info,
-                finish_counter,
-            );
-        }
-        TaskVariant::Request(mut task_info) => {
-            handle_request_task(
-                &task.uuid,
-                &task.cluster_uuid,
-                &mut task_info,
-                finish_counter,
-            );
-        }
-        TaskVariant::CheckpointSave(mut task_info) => {
-            handle_checkpoint_save_task(
-                &task.cluster_uuid,
-                &task.uuid,
-                &task.name,
-                &task.user_id,
-                &task.project_id,
-                &mut task_info,
-            );
-        }
-        TaskVariant::CheckpointRestore(mut task_info) => {
-            handle_checkpoint_restore_task(&task.cluster_uuid, &task.uuid, &mut task_info);
-        }
-    }
-}
 
 pub struct ClusterInterface {
     pub queue: Arc<Mutex<TaskQueue>>,
@@ -540,16 +45,51 @@ impl ClusterInterface {
         let queue = Arc::new(Mutex::new(init_task_queue()));
         let queue_clone = Arc::clone(&queue);
 
-        let finfinish_counter_clone = Arc::clone(finish_counter_mutex);
+        let finish_counter_clone = Arc::clone(finish_counter_mutex);
 
         let handle = thread::spawn(move || {
             log::debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
                 let mut queue_handle = queue_clone.lock().unwrap();
-                if let Some(task) = queue_handle.get() {
+                if let Some(task_mutex) = queue_handle.get() {
                     drop(queue_handle);
-                    handle_task(task, &finfinish_counter_clone);
+
+                    // prepare task
+                    let wait_for_finish;
+                    {
+                        let mut task = task_mutex.lock().unwrap();
+                        {
+                            let mut finish_counter = finish_counter_clone.lock().unwrap();
+                            if matches!(task.info, TaskVariant::Training(_)) {
+                                let task_compare =
+                                    finish_counter.input_compare + finish_counter.output_compare;
+                                finish_counter.reset(task_compare, 0);
+                            } else {
+                                let task_compare = finish_counter.output_compare;
+                                finish_counter.reset(task_compare, 0);
+                            }
+                            finish_counter.task = Some(task_mutex.clone());
+                        }
+
+                        wait_for_finish = task.start_task();
+                    }
+
+                    // wait until task is finished
+                    if wait_for_finish {
+                        for _ in 0..10000000 {
+                            let mut task = task_mutex.lock().unwrap();
+                            if task.is_task_finished() {
+                                task.finalize_task();
+                                break;
+                            }
+                            drop(task);
+                            thread::sleep(std::time::Duration::from_millis(10));
+                        }
+                    } else {
+                        let mut task = task_mutex.lock().unwrap();
+                        task.finalize_task();
+                    }
                 } else {
                     drop(queue_handle);
                     thread::sleep(std::time::Duration::from_secs(1));
@@ -585,7 +125,8 @@ impl ClusterInterface {
         outputs: &mut HashMap<String, Vec<f32>>,
     ) -> Result<(), AinariError> {
         let mut counter = self.finish_counter_mutex.lock().unwrap();
-        counter.counter = 0;
+        let task_compare = counter.output_compare;
+        counter.reset(task_compare, 0);
         drop(counter);
 
         // reset output-values in the backend
@@ -600,7 +141,7 @@ impl ClusterInterface {
         }
 
         for (hexagon_name, data) in inputs {
-            apply_input(
+            tasks::apply_plain_input(
                 &self.cluster_uuid,
                 hexagon_name,
                 data.as_slice(),
@@ -611,7 +152,7 @@ impl ClusterInterface {
             )?;
         }
 
-        run_process(&self.cluster_uuid, &self.finish_counter_mutex)?;
+        run_iteration(&self.cluster_uuid, &self.finish_counter_mutex)?;
 
         // get output-values from the backend
         let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
@@ -633,11 +174,12 @@ impl ClusterInterface {
         outputs: &HashMap<String, Vec<f32>>,
     ) -> Result<(), AinariError> {
         let mut counter = self.finish_counter_mutex.lock().unwrap();
-        counter.counter = 0;
+        let task_compare = counter.input_compare + counter.output_compare;
+        counter.reset(task_compare, 0);
         drop(counter);
 
         for (hexagon_name, data) in outputs {
-            let _ = apply_expected(
+            let _ = tasks::apply_expected(
                 &self.cluster_uuid,
                 hexagon_name,
                 data.as_slice(),
@@ -646,7 +188,7 @@ impl ClusterInterface {
         }
 
         for (hexagon_name, data) in inputs {
-            apply_input(
+            tasks::apply_plain_input(
                 &self.cluster_uuid,
                 hexagon_name,
                 data.as_slice(),
@@ -657,7 +199,7 @@ impl ClusterInterface {
             )?;
         }
 
-        run_train(&self.cluster_uuid, &self.finish_counter_mutex)?;
+        run_iteration(&self.cluster_uuid, &self.finish_counter_mutex)?;
 
         Ok(())
     }
@@ -667,6 +209,23 @@ impl Drop for ClusterInterface {
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }
+}
+
+fn run_iteration(
+    cluster_uuid: &Uuid,
+    finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
+) -> Result<(), AinariError> {
+    for _ in 0..10000000 {
+        let finish_counter = finish_counter_mutex.lock().unwrap();
+        if finish_counter.is_finished() {
+            return Ok(());
+        }
+        drop(finish_counter);
+        thread::sleep(std::time::Duration::from_micros(1));
+    }
+
+    let msg = format!("Timeout while processing cluster with uuid {cluster_uuid}");
+    Err(AinariError::Error(msg))
 }
 
 #[cfg(test)]
@@ -687,10 +246,11 @@ mod tests {
         let output_name = "test_output".to_string();
 
         let mut counter = finish_counter_mutex.lock().unwrap();
-        counter.counter = 0;
+        let task_compare = counter.input_compare + counter.output_compare;
+        counter.reset(task_compare, 0);
         drop(counter);
 
-        match apply_input(
+        match tasks::apply_plain_input(
             cluster_uuid,
             &input_name,
             input,
@@ -706,7 +266,7 @@ mod tests {
             }
         }
 
-        match apply_expected(cluster_uuid, &output_name, expected, expected.len() as u64) {
+        match tasks::apply_expected(cluster_uuid, &output_name, expected, expected.len() as u64) {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");
@@ -714,7 +274,7 @@ mod tests {
             }
         }
 
-        match run_train(cluster_uuid, finish_counter_mutex) {
+        match run_iteration(cluster_uuid, finish_counter_mutex) {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");

@@ -143,7 +143,12 @@ impl InputBlock {
 }
 
 impl Block for InputBlock {
-    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
+    fn train(
+        &mut self,
+        _: usize,
+        _: Arc<Mutex<dyn Block>>,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.local_finish_counter = 0;
         connect_outputs(
             &mut self.block_io,
@@ -151,12 +156,15 @@ impl Block for InputBlock {
             &self.hexagon_uuid,
             &self.uuid,
         )?;
-        send_forward(&self.block_io, WorkerTaskType::Train);
+        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn process(&mut self) -> Result<(), AinariError> {
+    fn process(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.local_finish_counter = 0;
         connect_outputs(
             &mut self.block_io,
@@ -164,16 +172,13 @@ impl Block for InputBlock {
             &self.hexagon_uuid,
             &self.uuid,
         )?;
-        send_forward(&self.block_io, WorkerTaskType::Process);
+        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn backpropagate(&mut self) -> Result<(), AinariError> {
-        let mut finish_counter = self.finish_counter.lock().unwrap();
-        finish_counter.counter += 1;
-
-        Ok(())
+    fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
+        Ok(Some(self.finish_counter.clone()))
     }
 
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {

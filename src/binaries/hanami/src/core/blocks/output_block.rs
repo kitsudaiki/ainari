@@ -146,7 +146,12 @@ impl OutputBlock {
 // ==================================================================================================
 
 impl Block for OutputBlock {
-    fn train(&mut self, _: usize, own: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
+    fn train(
+        &mut self,
+        _: usize,
+        own: Arc<Mutex<dyn Block>>,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.connect_output_buffer()?;
 
         // resize output and wights and get expected values from output-buffer
@@ -166,6 +171,7 @@ impl Block for OutputBlock {
         self.process_block();
 
         // process output-buffer
+        let mut finish_counter_option = None;
         let mut already_done = false;
         if let Some(output_buffer_mutex) = &self.output_buffer {
             let mut output_buffer = output_buffer_mutex.lock().unwrap();
@@ -174,10 +180,10 @@ impl Block for OutputBlock {
             }
 
             if !output_buffer.already_finalized {
-                output_buffer.local_finish_counter += 1;
-                if output_buffer.local_finish_counter == output_buffer.number_of_connected_blocks {
-                    output_buffer.finalize();
-                    output_buffer.backpropagate();
+                if output_buffer.update_finish_counter(cycle_number) {
+                    output_buffer.finalize_train();
+                    output_buffer.backpropagate(cycle_number);
+                    finish_counter_option = Some(output_buffer.finish_counter_mutex.clone());
                     already_done = true;
                 } else {
                     output_buffer.unfinished_blocks.push(own);
@@ -188,15 +194,20 @@ impl Block for OutputBlock {
         }
 
         if already_done {
-            self.backpropagate()?;
+            self.backpropagate(cycle_number)?;
         }
 
-        Ok(())
+        Ok(finish_counter_option)
     }
 
-    fn process(&mut self) -> Result<(), AinariError> {
+    fn process(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.connect_output_buffer()?;
         self.process_block();
+
+        let mut finish_counter_option = None;
 
         // process output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
@@ -204,17 +215,20 @@ impl Block for OutputBlock {
             for (i, local_neuron) in self.block_outputs.iter().enumerate() {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
-            output_buffer.local_finish_counter += 1;
 
-            if output_buffer.local_finish_counter >= output_buffer.number_of_connected_blocks {
-                output_buffer.finalize();
+            if output_buffer.update_finish_counter(cycle_number) {
+                output_buffer.finalize_processing();
+                finish_counter_option = Some(output_buffer.finish_counter_mutex.clone());
             }
         }
 
-        Ok(())
+        Ok(finish_counter_option)
     }
 
-    fn backpropagate(&mut self) -> Result<(), AinariError> {
+    fn backpropagate(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.connect_output_buffer()?;
 
         // resize output and wights and get expected values from output-buffer
@@ -249,9 +263,9 @@ impl Block for OutputBlock {
             axon.delta *= axon.potential * (1.0f32 - axon.potential);
         }
 
-        send_backward(&self.block_io);
+        send_backward(&self.block_io, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {

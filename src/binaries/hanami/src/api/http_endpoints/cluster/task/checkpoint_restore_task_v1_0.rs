@@ -23,7 +23,7 @@ use validator::Validate;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::core::cluster_handler;
-use crate::core::processing::tasks::{CheckpointRestoreInfo, Task, TaskVariant};
+use crate::core::processing::tasks::{CheckpointRestoreInfo, Task, TaskMeta, TaskVariant};
 use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
@@ -124,6 +124,7 @@ pub async fn checkpoint_restore_task(
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         info: TaskVariant::CheckpointRestore(info),
+        meta: TaskMeta::new(1, 1, 1),
     };
     cluster_interface.lock().unwrap().add_task(task);
 

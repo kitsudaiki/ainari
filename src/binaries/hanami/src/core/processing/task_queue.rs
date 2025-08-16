@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use crate::database::task_table;
 
@@ -22,17 +23,17 @@ use ainari_structs::task_structs::TaskState;
 
 #[derive(Default, Debug)]
 pub struct TaskQueue {
-    pub queue: VecDeque<Task>,
+    pub queue: VecDeque<Arc<Mutex<Task>>>,
 }
 
 impl TaskQueue {
     pub fn add(&mut self, task: Task) {
         log::debug!("added task to task-queue");
         let _ = task_table::update_task_state(&task.uuid, &TaskState::Queued);
-        self.queue.push_back(task);
+        self.queue.push_back(Arc::new(Mutex::new(task)));
     }
 
-    pub fn get(&mut self) -> Option<Task> {
+    pub fn get(&mut self) -> Option<Arc<Mutex<Task>>> {
         self.queue.pop_front()
     }
 }
@@ -49,7 +50,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskVariant};
+    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
 
     #[test]
     fn test_add_and_get() {
@@ -73,6 +74,7 @@ mod tests {
             user_id: "user0815".to_string(),
             project_id: "project0815".to_string(),
             info: TaskVariant::CheckpointSave(info1),
+            meta: TaskMeta::new(1, 1, 1),
         };
         let task2 = Task {
             uuid: uuid2,
@@ -81,14 +83,15 @@ mod tests {
             user_id: "user0816".to_string(),
             project_id: "project0816".to_string(),
             info: TaskVariant::CheckpointSave(info2),
+            meta: TaskMeta::new(1, 1, 1),
         };
 
         queue.add(task1);
         queue.add(task2);
 
         let task1 = queue.get().unwrap();
-        assert_eq!(task1.uuid, uuid1);
+        assert_eq!(task1.lock().unwrap().uuid, uuid1);
         let task2 = queue.get().unwrap();
-        assert_eq!(task2.uuid, uuid2);
+        assert_eq!(task2.lock().unwrap().uuid, uuid2);
     }
 }

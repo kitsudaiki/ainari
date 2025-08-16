@@ -33,6 +33,7 @@ use crate::core::processing::output_buffer::OutputBuffer;
 
 use super::blocks::block_trait::Block;
 use super::cluster_interface::ClusterInterface;
+use super::processing::tasks::Task;
 
 lazy_static::lazy_static! {
     pub static ref CLUSTER_HANDLER: RwLock<ClusterDataHandler> = RwLock::new(init_cluster_data_handler());
@@ -42,9 +43,55 @@ lazy_static::lazy_static! {
 
 #[derive(Default, Debug)]
 pub struct FinishCounter {
-    pub counter: usize,
     pub input_compare: usize,
     pub output_compare: usize,
+    task_compare: usize,
+    counter: usize,
+
+    expected_cycle_number: u64,
+    already_finished: bool,
+
+    pub task: Option<Arc<Mutex<Task>>>,
+}
+
+impl FinishCounter {
+    pub fn reset(&mut self, task_compare: usize, expected_cycle_number: u64) {
+        self.expected_cycle_number = expected_cycle_number;
+        self.counter = 0;
+        self.already_finished = false;
+        self.task_compare = task_compare;
+        self.task = None;
+    }
+
+    pub fn update(&mut self, cycle_number: u64) {
+        if cycle_number == self.expected_cycle_number {
+            self.counter += 1;
+
+            if self.is_finished() && !self.already_finished {
+                self.already_finished = true;
+                if let Some(task_mutex) = &self.task {
+                    let mut task = task_mutex.lock().unwrap();
+                    task.finisch_cycle();
+                    let next_cycle = self.expected_cycle_number + 1;
+                    self.expected_cycle_number = next_cycle;
+                    self.counter = 0;
+                    self.already_finished = false;
+                }
+            }
+        }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        if self.counter >= self.task_compare {
+            return true;
+        }
+
+        false
+    }
+
+    pub fn get_expected_cycle_number(&self) -> u64 {
+        self.expected_cycle_number
+    }
 }
 
 // ==================================================================================================
@@ -439,6 +486,17 @@ impl ClusterDataHandler {
         Ok(())
     }
 
+    pub fn reset_outputs(&self, cluster_uuid: &Uuid) -> Result<(), AinariError> {
+        let cluster_link = self.get_cluster(cluster_uuid)?;
+        let outputs = cluster_link.outputs.read().unwrap();
+        for output_mutex in outputs.values() {
+            let mut output = output_mutex.lock().unwrap();
+            output.reset_output();
+        }
+
+        Ok(())
+    }
+
     fn write_struct_to_file<T: Serialize>(
         &self,
         writer: &mut BufWriter<fs::File>,
@@ -703,7 +761,7 @@ impl ClusterDataHandler {
         let outputs = cluster_link.outputs.read().unwrap();
         for output_mutex in outputs.values() {
             let mut output = output_mutex.lock().unwrap();
-            output.finish_counter = Arc::clone(&finish_counter_mutex);
+            output.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
         Ok(())
