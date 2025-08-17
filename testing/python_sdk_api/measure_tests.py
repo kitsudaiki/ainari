@@ -20,7 +20,6 @@ from ainari_sdk import ainari_token
 from ainari_sdk import cluster
 from ainari_sdk import dataset
 from ainari_sdk import task
-from ainari_sdk import direct_io
 import configparser
 import urllib3
 import time

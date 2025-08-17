@@ -200,7 +200,9 @@ fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, Ainar
 #[cfg(test)]
 mod tests {
     use crate::core::blocks::input_block::*;
+    use crate::core::processing::finish_counter::FinishCounter;
     use crate::core::processing::output_buffer::*;
+
     use ainari_cluster_parser::cluster_meta_structs::Settings;
     use ainari_common::enums::*;
 

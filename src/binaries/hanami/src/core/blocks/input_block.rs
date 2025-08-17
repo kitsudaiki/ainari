@@ -43,7 +43,7 @@ pub struct InputBlock {
 
     pub local_finish_counter: u64,
     #[serde(skip, default = "init_finish_counter")]
-    pub finish_counter: Arc<Mutex<FinishCounter>>,
+    pub finish_counter_mutex: Arc<Mutex<FinishCounter>>,
 }
 
 impl PartialEq for InputBlock {
@@ -84,7 +84,7 @@ impl InputBlock {
             fill_position: 0,
 
             local_finish_counter: 0,
-            finish_counter: Arc::clone(finish_counter),
+            finish_counter_mutex: Arc::clone(finish_counter),
         };
 
         block.block_io.output_buffer.push(AxonSection::default());
@@ -178,7 +178,7 @@ impl Block for InputBlock {
     }
 
     fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
-        Ok(Some(self.finish_counter.clone()))
+        Ok(Some(self.finish_counter_mutex.clone()))
     }
 
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {

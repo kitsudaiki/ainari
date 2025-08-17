@@ -699,7 +699,7 @@ impl ClusterDataHandler {
         let inputs = cluster_link.inputs.read().unwrap();
         for input_mutex in inputs.values() {
             let mut input = input_mutex.lock().unwrap();
-            input.finish_counter = Arc::clone(&finish_counter_mutex);
+            input.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
         // connect new finish-counter to outputs

@@ -71,6 +71,8 @@ pub struct TaskMeta {
     pub number_of_finished_epochs: u64,
     pub time_length: u64,
 
+    pub task_cycle_counter: u64,
+
     pub is_finished: bool,
     pub prev_timestamp: std::time::Instant,
 }
@@ -83,6 +85,8 @@ impl TaskMeta {
             number_of_finished_cycles: 0,
             number_of_finished_epochs: 0,
             time_length,
+
+            task_cycle_counter: 0,
 
             is_finished: false,
             prev_timestamp: std::time::Instant::now(),
@@ -161,7 +165,7 @@ impl Task {
         );
     }
 
-    pub fn finisch_cycle(&mut self) {
+    pub fn finish_cycle(&mut self) {
         match &mut self.info {
             TaskVariant::Training(task_info) => {
                 finish_train_cycle(&self.uuid, task_info);
@@ -191,6 +195,13 @@ impl Task {
 
         // update and check cycle- and epoch-counter
         self.meta.number_of_finished_cycles += 1;
+        if self.meta.number_of_finished_cycles == 1076 {
+            println!("poi");
+        }
+        println!(
+            "self.meta.number_of_finished_cycles: {}",
+            self.meta.number_of_finished_cycles
+        );
         if self.meta.number_of_finished_cycles == self.meta.number_of_cycles {
             self.meta.number_of_finished_epochs += 1;
             if self.meta.number_of_finished_epochs == self.meta.number_of_epochs {
@@ -200,6 +211,7 @@ impl Task {
                 self.meta.number_of_finished_cycles = 0;
             }
         }
+        self.meta.task_cycle_counter += 1;
 
         // run next-cycle
         match &mut self.info {
@@ -289,6 +301,7 @@ fn run_train_task_cycle(
             meta.number_of_finished_cycles,
             meta.time_length,
             &WorkerTaskType::Train,
+            meta.task_cycle_counter,
         ) {
             Ok(()) => {}
             Err(AinariError::InvalidInput(msg)) => {
@@ -336,6 +349,7 @@ fn run_request_task_cycle(
             meta.number_of_finished_cycles,
             meta.time_length,
             &WorkerTaskType::Process,
+            meta.number_of_finished_cycles,
         ) {
             Ok(()) => {}
             Err(AinariError::InvalidInput(msg)) => {
@@ -391,6 +405,7 @@ fn apply_dataset_to_input(
     cycle_count: u64,
     time_length: u64,
     task_type: &WorkerTaskType,
+    task_cycle_counter: u64,
 ) -> Result<(), AinariError> {
     // get input-block
     let cluster_handler = CLUSTER_HANDLER.read().unwrap();
@@ -425,7 +440,7 @@ fn apply_dataset_to_input(
     let worker_task = WorkerTask {
         task_type: task_type.clone(),
         block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
-        cycle_number: cycle_count,
+        cycle_number: task_cycle_counter,
     };
     worker_queue.add(worker_task);
 
