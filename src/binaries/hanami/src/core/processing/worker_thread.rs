@@ -31,19 +31,34 @@ pub struct WorkerThread {
     pub running: Arc<AtomicBool>,
 }
 
-fn process_task(task: &WorkerTask) -> Result<(), AinariError> {
-    let mut block = task.block.lock().unwrap();
-    match task.task_type {
+fn process_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
+    #[allow(clippy::needless_late_init)]
+    let finish_counter_option;
+    let mut block = worker_task.block.lock().unwrap();
+    match worker_task.task_type {
         WorkerTaskType::Train => {
-            let random_pos = rand::rng().random_range(0..BLOCK_DIM);
-            block.train(random_pos, Arc::clone(&task.block))?;
+            let place_offset = rand::rng().random_range(0..BLOCK_DIM);
+            finish_counter_option = block.train(
+                place_offset,
+                Arc::clone(&worker_task.block),
+                worker_task.cycle_number,
+            )?;
         }
         WorkerTaskType::Process => {
-            block.process()?;
+            finish_counter_option = block.process(worker_task.cycle_number)?;
         }
         WorkerTaskType::Backpropagate => {
-            block.backpropagate()?;
+            finish_counter_option = block.backpropagate(worker_task.cycle_number)?;
         }
+    }
+    drop(block);
+
+    // register the backpropagation for the input-bock to update the finish-counter
+    // HINT (kitsudaiki): This can not be done within the blocks, because it would result in a dead-lock
+    //                    when the last input- or output-block tries to trigger the next cycle
+    if let Some(finish_counter_mutex) = finish_counter_option {
+        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        finish_counter.update(worker_task.cycle_number);
     }
 
     Ok(())
@@ -58,9 +73,9 @@ impl WorkerThread {
             log::debug!("Started worker-thread");
             while running_clone.load(Ordering::Relaxed) {
                 let mut worker_queue = WORKER_QUEUE.lock().unwrap();
-                if let Some(task) = worker_queue.get() {
+                if let Some(worker_task) = worker_queue.get() {
                     drop(worker_queue);
-                    match process_task(&task) {
+                    match process_task(&worker_task) {
                         Ok(()) => {}
                         Err(AinariError::InvalidInput(msg)) => {
                             log::error!("{msg}");

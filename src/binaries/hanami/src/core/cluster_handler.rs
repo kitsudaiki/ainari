@@ -29,6 +29,7 @@ use ainari_common::error::AinariError;
 use crate::core::blocks::core_block::*;
 use crate::core::blocks::input_block::*;
 use crate::core::blocks::output_block::*;
+use crate::core::processing::finish_counter::FinishCounter;
 use crate::core::processing::output_buffer::OutputBuffer;
 
 use super::blocks::block_trait::Block;
@@ -36,15 +37,6 @@ use super::cluster_interface::ClusterInterface;
 
 lazy_static::lazy_static! {
     pub static ref CLUSTER_HANDLER: RwLock<ClusterDataHandler> = RwLock::new(init_cluster_data_handler());
-}
-
-// ==================================================================================================
-
-#[derive(Default, Debug)]
-pub struct FinishCounter {
-    pub counter: usize,
-    pub input_compare: usize,
-    pub output_compare: usize,
 }
 
 // ==================================================================================================
@@ -439,6 +431,17 @@ impl ClusterDataHandler {
         Ok(())
     }
 
+    pub fn reset_outputs(&self, cluster_uuid: &Uuid) -> Result<(), AinariError> {
+        let cluster_link = self.get_cluster(cluster_uuid)?;
+        let outputs = cluster_link.outputs.read().unwrap();
+        for output_mutex in outputs.values() {
+            let mut output = output_mutex.lock().unwrap();
+            output.reset_output();
+        }
+
+        Ok(())
+    }
+
     fn write_struct_to_file<T: Serialize>(
         &self,
         writer: &mut BufWriter<fs::File>,
@@ -696,14 +699,14 @@ impl ClusterDataHandler {
         let inputs = cluster_link.inputs.read().unwrap();
         for input_mutex in inputs.values() {
             let mut input = input_mutex.lock().unwrap();
-            input.finish_counter = Arc::clone(&finish_counter_mutex);
+            input.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
         // connect new finish-counter to outputs
         let outputs = cluster_link.outputs.read().unwrap();
         for output_mutex in outputs.values() {
             let mut output = output_mutex.lock().unwrap();
-            output.finish_counter = Arc::clone(&finish_counter_mutex);
+            output.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
         Ok(())

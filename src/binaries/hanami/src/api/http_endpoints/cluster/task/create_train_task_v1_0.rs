@@ -24,7 +24,7 @@ use validator::Validate;
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::core::cluster_handler;
-use crate::core::processing::tasks::{Task, TaskVariant, TrainInfo};
+use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant, TrainInfo};
 use crate::database::cluster_table;
 use crate::database::dataset_table;
 use crate::database::task_table;
@@ -93,9 +93,6 @@ pub async fn create_train_task(
     let mut info = TrainInfo {
         inputs: HashMap::new(),
         outputs: HashMap::new(),
-        number_of_cycles: 0,
-        number_of_epochs: body.number_of_epochs,
-        time_length,
     };
 
     let mut number_of_cycles = u64::MAX;
@@ -159,8 +156,6 @@ pub async fn create_train_task(
     }
     number_of_cycles -= time_length - 1;
 
-    info.number_of_cycles = number_of_cycles;
-
     // add new task to database
     match task_table::add_new_task(
         &task_uuid,
@@ -187,6 +182,7 @@ pub async fn create_train_task(
         user_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         info: TaskVariant::Training(info),
+        meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
     };
     cluster_interface.lock().unwrap().add_task(task);
 

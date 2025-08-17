@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use ainari_common::enums::*;
 
-use crate::core::cluster_handler::FinishCounter;
+use crate::core::processing::finish_counter::FinishCounter;
 use crate::core::processing::worker_queue::*;
 
 use super::super::blocks::block_trait::*;
@@ -42,7 +42,7 @@ pub struct OutputBuffer {
     pub number_of_connected_blocks: u64,
     pub local_finish_counter: u64,
     #[serde(skip, default = "init_finish_counter")]
-    pub finish_counter: Arc<Mutex<FinishCounter>>,
+    pub finish_counter_mutex: Arc<Mutex<FinishCounter>>,
     #[serde(skip, default = "init_unfinished_blocks")]
     pub unfinished_blocks: Vec<Arc<Mutex<dyn Block>>>,
 }
@@ -76,7 +76,7 @@ impl OutputBuffer {
         hexagon_uuid: &Uuid,
         cluster_uuid: &Uuid,
         output_type: &OutputType,
-        finish_counter: &Arc<Mutex<FinishCounter>>,
+        finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
     ) -> Self {
         OutputBuffer {
             uuid: *hexagon_uuid,
@@ -91,7 +91,7 @@ impl OutputBuffer {
             already_finalized: false,
             number_of_connected_blocks: 0,
             local_finish_counter: 0,
-            finish_counter: Arc::clone(finish_counter),
+            finish_counter_mutex: Arc::clone(finish_counter_mutex),
             unfinished_blocks: Vec::new(),
         }
     }
@@ -114,33 +114,44 @@ impl OutputBuffer {
         }
     }
 
-    pub fn finalize(&mut self) {
+    pub fn finalize_train(&mut self) {
         for out in self.output_neurons.iter_mut() {
             if out.output_value != 0.0f32 {
                 out.output_value = 1.0f32 / (1.0f32 + (-out.output_value).exp());
             }
         }
-        let mut finish_counter = self.finish_counter.lock().unwrap();
-        finish_counter.counter += 1;
+
         self.already_finalized = true;
+    }
+
+    pub fn finalize_processing(&mut self) {
+        for out in self.output_neurons.iter_mut() {
+            if out.output_value != 0.0f32 {
+                out.output_value = 1.0f32 / (1.0f32 + (-out.output_value).exp());
+            }
+        }
+
+        self.already_finalized = true;
+        self.unfinished_blocks.clear();
+    }
+
+    pub fn backpropagate(&mut self, cycle_number: u64) {
+        for out in self.output_neurons.iter_mut() {
+            let delta = out.output_value - out.expected_value;
+            out.expected_value = delta * out.output_value * (1.0f32 - out.output_value);
+        }
 
         let mut worker_queue = WORKER_QUEUE.lock().unwrap();
         for block in self.unfinished_blocks.iter() {
             let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
                 block: Arc::clone(block),
+                cycle_number,
             };
 
             worker_queue.add(worker_task);
         }
         self.unfinished_blocks.clear();
-    }
-
-    pub fn backpropagate(&mut self) {
-        for out in self.output_neurons.iter_mut() {
-            let delta = out.output_value - out.expected_value;
-            out.expected_value = delta * out.output_value * (1.0f32 - out.output_value);
-        }
     }
 
     pub fn reset_output(&mut self) {
@@ -153,6 +164,19 @@ impl OutputBuffer {
     pub fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
         bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
+    }
+
+    pub fn update_finish_counter(&mut self, cycle_number: u64) -> bool {
+        let finish_counter = self.finish_counter_mutex.lock().unwrap();
+        let expected_cycle_number = finish_counter.get_expected_cycle_number();
+        if cycle_number == expected_cycle_number {
+            self.local_finish_counter += 1;
+            if self.local_finish_counter >= self.number_of_connected_blocks {
+                return true;
+            }
+        }
+
+        false
     }
 }
 

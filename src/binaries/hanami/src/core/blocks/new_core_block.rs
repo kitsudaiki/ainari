@@ -20,6 +20,8 @@ use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 
+use crate::core::processing::finish_counter::FinishCounter;
+
 use super::axons::*;
 use super::block_io::*;
 use super::block_trait::*;
@@ -201,7 +203,12 @@ impl NewCoreBlock {
 // ==================================================================================================
 
 impl Block for NewCoreBlock {
-    fn train(&mut self, place_offset: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
+    fn train(
+        &mut self,
+        place_offset: usize,
+        _: Arc<Mutex<dyn Block>>,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.handle_buffer();
         self.check_and_resize_block();
 
@@ -300,12 +307,15 @@ impl Block for NewCoreBlock {
             &self.hexagon_uuid,
             &self.uuid,
         )?;
-        send_forward(&self.block_io, WorkerTaskType::Train);
+        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn process(&mut self) -> Result<(), AinariError> {
+    fn process(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         // // debug-output
         // println!("core-buffer-axons: ");
         // for axon in self.input_buffer[0].axons.iter_mut() {
@@ -336,12 +346,15 @@ impl Block for NewCoreBlock {
             // TODO: handle refraction-type and node-cooldown of neuron
         }
         self.apply_output();
-        send_forward(&self.block_io, WorkerTaskType::Process);
+        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn backpropagate(&mut self) -> Result<(), AinariError> {
+    fn backpropagate(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         let train_value = 0.1f32;
 
         let number_of_output_blocks = self.block_io.output_buffer.len();
@@ -366,9 +379,9 @@ impl Block for NewCoreBlock {
             target_axon.delta = 0.0f32;
         }
 
-        send_backward(&self.block_io);
+        send_backward(&self.block_io, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
@@ -436,13 +449,14 @@ mod tests {
         let mut test_block = NewCoreBlock::new(&hexagon_uuid, &cluster_uuid);
         test_block.buffer[1].source_axon = 42;
         let own: Arc<Mutex<dyn Block>> = Arc::new(Mutex::new(test_block.clone()));
+        let cycle_number = 0;
 
         let mut test_axon = AxonSection::default();
         test_axon.axons[0].potential = 10.0f32;
 
         test_block.block_io.input_buffer[0] = test_axon;
 
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
 
         // check if buffer-processing works correctly
         assert_eq!(test_block.fill_size[1], 3);
@@ -451,24 +465,24 @@ mod tests {
         assert_eq!(test_block.synapse_counter, 257);
 
         // run processing in order to create new synapses
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 258);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 259);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 260);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 261);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 262);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 263);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 264);
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 265);
         // after depth = 8, nothing more will be added
-        let _ = test_block.train(42, Arc::clone(&own));
+        let _ = test_block.train(42, Arc::clone(&own), cycle_number);
         assert_eq!(test_block.synapse_counter, 265);
 
         // check fill-size
@@ -535,7 +549,7 @@ mod tests {
         test_block.block_io.output_buffer[0].axons[38].delta = 0.5f32;
         test_block.block_io.output_buffer[0].axons[80].delta = 0.5f32;
 
-        let _ = test_block.backpropagate();
+        let _ = test_block.backpropagate(cycle_number);
 
         // check that delta of the source-axon was modified
         assert_ne!(test_block.block_io.input_buffer[0].axons[0].delta, 0.0f32);

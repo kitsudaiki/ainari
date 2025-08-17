@@ -74,7 +74,7 @@ pub fn connect_outputs(
     Ok(())
 }
 
-pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
+pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_number: u64) {
     // send outputs to target
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     for axon_section in io_buffer.output_buffer.iter() {
@@ -95,6 +95,7 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
             let worker_task = WorkerTask {
                 task_type: task_type.clone(),
                 block: block_clone,
+                cycle_number,
             };
 
             worker_queue.add(worker_task);
@@ -102,7 +103,7 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType) {
     }
 }
 
-pub fn send_backward(io_buffer: &BlockIoBuffer) {
+pub fn send_backward(io_buffer: &BlockIoBuffer, cycle_number: u64) {
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     for axon_section in io_buffer.input_buffer.iter() {
         let source_block_mutex = if let Some(s) = &axon_section.source_block {
@@ -123,6 +124,7 @@ pub fn send_backward(io_buffer: &BlockIoBuffer) {
             let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
                 block: Arc::clone(source_block_mutex),
+                cycle_number,
             };
 
             worker_queue.add(worker_task);

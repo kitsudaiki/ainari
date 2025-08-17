@@ -24,6 +24,8 @@ use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 use ainari_common::functions::*;
 
+use crate::core::processing::finish_counter::FinishCounter;
+
 use super::axons::*;
 use super::block_io::*;
 use super::block_trait::*;
@@ -421,7 +423,12 @@ fn backpropagate_section(
 // ==================================================================================================
 
 impl Block for CoreBlock {
-    fn train(&mut self, _: usize, _: Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
+    fn train(
+        &mut self,
+        _: usize,
+        _: Arc<Mutex<dyn Block>>,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
         let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
@@ -476,12 +483,15 @@ impl Block for CoreBlock {
             &self.hexagon_uuid,
             &self.uuid,
         )?;
-        send_forward(&self.block_io, WorkerTaskType::Train);
+        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn process(&mut self) -> Result<(), AinariError> {
+    fn process(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
 
@@ -515,12 +525,15 @@ impl Block for CoreBlock {
             &self.hexagon_uuid,
             &self.uuid,
         )?;
-        send_forward(&self.block_io, WorkerTaskType::Process);
+        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
-    fn backpropagate(&mut self) -> Result<(), AinariError> {
+    fn backpropagate(
+        &mut self,
+        cycle_number: u64,
+    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         // // experimental stuff
         // for axon_section in self.block_io.input_buffer.iter_mut() {
         //     for axon in axon_section.axons.iter_mut() {
@@ -542,9 +555,9 @@ impl Block for CoreBlock {
             }
         }
 
-        send_backward(&self.block_io);
+        send_backward(&self.block_io, cycle_number);
 
-        Ok(())
+        Ok(None)
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
