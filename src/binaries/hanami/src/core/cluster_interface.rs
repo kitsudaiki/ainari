@@ -21,6 +21,7 @@ use uuid::Uuid;
 use ainari_common::error::AinariError;
 
 use crate::core::cluster_handler::*;
+use crate::core::processing::finish_counter::FinishCounter;
 
 use super::processing::output_buffer::*;
 use super::processing::task_queue::{TaskQueue, init_task_queue};

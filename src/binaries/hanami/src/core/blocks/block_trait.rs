@@ -19,7 +19,7 @@ use uuid::Uuid;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 
-use crate::core::cluster_handler::FinishCounter;
+use crate::core::processing::finish_counter::FinishCounter;
 
 use super::axons::*;
 use super::block_io::*;
