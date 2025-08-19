@@ -40,6 +40,10 @@ pub trait Block: Send + Sync + Debug {
         cycle_number: u64,
     ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError>;
 
+    fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError>;
+    fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError>;
+    fn finalize_backpropagate(&mut self, cycle_number: u64) -> Result<bool, AinariError>;
+
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool;
     fn get_uuid(&self) -> Uuid;
     fn get_hexagon_uud(&self) -> Uuid;

@@ -15,7 +15,8 @@
                 // test-env-variables to initialize a basic user for testing
                 "HANAMI_ADMIN_ID": "asdf",
                 "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf"
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full"
             },
         },
         {

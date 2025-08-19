@@ -31,27 +31,59 @@ pub struct WorkerThread {
     pub running: Arc<AtomicBool>,
 }
 
+fn finalize_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
+    for _ in 0..1000 {
+        let mut block = worker_task.block.lock().unwrap();
+        let success = match worker_task.task_type {
+            WorkerTaskType::Train => {
+                block.finalize_train(worker_task.cycle_number)?;
+                true
+            }
+            WorkerTaskType::Process => {
+                block.finalize_process(worker_task.cycle_number)?;
+                true
+            }
+            WorkerTaskType::Backpropagate => {
+                block.finalize_backpropagate(worker_task.cycle_number)?
+            }
+        };
+        drop(block);
+
+        if success {
+            return Ok(());
+        }
+
+        thread::sleep(Duration::from_millis(1));
+    }
+
+    log::error!("Timeout while try to backpropagate");
+    Ok(())
+}
+
 fn process_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
     #[allow(clippy::needless_late_init)]
     let finish_counter_option;
-    let mut block = worker_task.block.lock().unwrap();
-    match worker_task.task_type {
-        WorkerTaskType::Train => {
-            let place_offset = rand::rng().random_range(0..BLOCK_DIM);
-            finish_counter_option = block.train(
-                place_offset,
-                Arc::clone(&worker_task.block),
-                worker_task.cycle_number,
-            )?;
-        }
-        WorkerTaskType::Process => {
-            finish_counter_option = block.process(worker_task.cycle_number)?;
-        }
-        WorkerTaskType::Backpropagate => {
-            finish_counter_option = block.backpropagate(worker_task.cycle_number)?;
+    {
+        let mut block = worker_task.block.lock().unwrap();
+        match worker_task.task_type {
+            WorkerTaskType::Train => {
+                let place_offset = rand::rng().random_range(0..BLOCK_DIM);
+                finish_counter_option = block.train(
+                    place_offset,
+                    Arc::clone(&worker_task.block),
+                    worker_task.cycle_number,
+                )?;
+            }
+            WorkerTaskType::Process => {
+                finish_counter_option = block.process(worker_task.cycle_number)?;
+            }
+            WorkerTaskType::Backpropagate => {
+                finish_counter_option = block.backpropagate(worker_task.cycle_number)?;
+            }
         }
     }
-    drop(block);
+
+    finalize_task(worker_task)?;
 
     // register the backpropagation for the input-bock to update the finish-counter
     // HINT (kitsudaiki): This can not be done within the blocks, because it would result in a dead-lock
