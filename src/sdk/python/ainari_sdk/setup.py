@@ -29,7 +29,7 @@ setup(
     license='Apache 2.0',
     # packages=['ainari_sdk', 'ainari_sdk.ainari_messages'],
     packages=['ainari_sdk'],
-    install_requires=['jsonschema==4.24.0',
+    install_requires=['jsonschema==4.25.1',
                       'requests==2.32.4',
                       'simplejson==3.20.1',
                       'requests_toolbelt==1.0.0'],
