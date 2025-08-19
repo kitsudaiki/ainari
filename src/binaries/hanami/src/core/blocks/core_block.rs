@@ -400,6 +400,10 @@ fn backpropagate_section(
             break;
         }
 
+        if synapse.target_neuron_id == UNINIT_STATE_16 {
+            break;
+        }
+
         output_block_id =
             ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
@@ -427,7 +431,7 @@ impl Block for CoreBlock {
         &mut self,
         _: usize,
         _: Arc<Mutex<dyn Block>>,
-        cycle_number: u64,
+        _: u64,
     ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
@@ -477,21 +481,11 @@ impl Block for CoreBlock {
         }
 
         self.apply_output();
-        connect_outputs(
-            &mut self.block_io,
-            &self.cluster_uuid,
-            &self.hexagon_uuid,
-            &self.uuid,
-        )?;
-        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
 
         Ok(None)
     }
 
-    fn process(
-        &mut self,
-        cycle_number: u64,
-    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
+    fn process(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
 
@@ -519,21 +513,11 @@ impl Block for CoreBlock {
         }
 
         self.apply_output();
-        connect_outputs(
-            &mut self.block_io,
-            &self.cluster_uuid,
-            &self.hexagon_uuid,
-            &self.uuid,
-        )?;
-        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
         Ok(None)
     }
 
-    fn backpropagate(
-        &mut self,
-        cycle_number: u64,
-    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
+    fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         // // experimental stuff
         // for axon_section in self.block_io.input_buffer.iter_mut() {
         //     for axon in axon_section.axons.iter_mut() {
@@ -555,9 +539,37 @@ impl Block for CoreBlock {
             }
         }
 
-        send_backward(&self.block_io, cycle_number);
-
         Ok(None)
+    }
+
+    fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        )?;
+        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
+
+        Ok(())
+    }
+
+    fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
+        connect_outputs(
+            &mut self.block_io,
+            &self.cluster_uuid,
+            &self.hexagon_uuid,
+            &self.uuid,
+        )?;
+        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
+
+        Ok(())
+    }
+
+    fn finalize_backpropagate(&mut self, cycle_number: u64) -> Result<bool, AinariError> {
+        let ret = send_backward_with_retry(&mut self.block_io, cycle_number);
+
+        Ok(ret)
     }
 
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {

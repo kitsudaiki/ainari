@@ -46,6 +46,7 @@ pub struct AxonSection {
 
     pub target_pos: u8,
     pub source_pos: u8,
+    pub done: bool,
 
     #[serde(skip)]
     pub source_block: Option<Arc<Mutex<dyn Block>>>,
@@ -66,6 +67,7 @@ impl AxonSection {
             source_pos: UNINIT_STATE_8,
             source_block: None,
             target_block: None,
+            done: false,
         }
     }
 }
@@ -80,6 +82,7 @@ impl PartialEq for AxonSection {
             && self.target_block_uuid == other.target_block_uuid
             && self.target_pos == other.target_pos
             && self.source_pos == other.source_pos
+            && self.done == other.done
     }
 }
 
@@ -102,6 +105,7 @@ mod tests {
             source_pos: 43,
             source_block: None,
             target_block: None,
+            done: false,
         };
         original.axons[42].potential = 123.0f32;
         original.axons[42].delta = 124.0f32;

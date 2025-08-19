@@ -264,7 +264,7 @@ impl Block for OutputBlock {
             axon.delta *= axon.potential * (1.0f32 - axon.potential);
         }
 
-        send_backward(&self.block_io, cycle_number);
+        send_backward(&mut self.block_io, cycle_number);
 
         Ok(None)
     }
@@ -280,6 +280,18 @@ impl Block for OutputBlock {
         }
 
         false
+    }
+
+    fn finalize_train(&mut self, _: u64) -> Result<(), AinariError> {
+        Ok(())
+    }
+
+    fn finalize_process(&mut self, _: u64) -> Result<(), AinariError> {
+        Ok(())
+    }
+
+    fn finalize_backpropagate(&mut self, _: u64) -> Result<bool, AinariError> {
+        Ok(true)
     }
 
     fn get_uuid(&self) -> Uuid {

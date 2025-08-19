@@ -195,13 +195,6 @@ impl Task {
 
         // update and check cycle- and epoch-counter
         self.meta.number_of_finished_cycles += 1;
-        if self.meta.number_of_finished_cycles == 1076 {
-            println!("poi");
-        }
-        println!(
-            "self.meta.number_of_finished_cycles: {}",
-            self.meta.number_of_finished_cycles
-        );
         if self.meta.number_of_finished_cycles == self.meta.number_of_cycles {
             self.meta.number_of_finished_epochs += 1;
             if self.meta.number_of_finished_epochs == self.meta.number_of_epochs {

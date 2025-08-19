@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use rand::Rng;
+use rand::seq::IteratorRandom;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -32,24 +34,14 @@ struct TargetInformation {
     output_hexagon_name: String,
 }
 
-pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     check_axon_setion(axon_section)?;
 
-    let target_information = get_target(axon_section)?;
+    let target_information = get_target_hexagon(axon_section)?;
 
     let source_block;
     let cluster_settings;
-
-    {
-        let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
-        let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
-
-        // get target-hexagon from cluster
-        let mut binding = cluster_link.hexagon_data.write().unwrap();
-        binding
-            .entry(target_information.hexagon_uuid)
-            .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
-    }
+    let selected_block_option;
 
     {
         let cluster_handler = CLUSTER_HANDLER.read().unwrap();
@@ -74,15 +66,23 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
             return Err(AinariError::InvalidInput(msg));
         };
 
-        // search for a block, which has a free slot
-        for block_mutex in target_hexagon_link.blocks.values() {
-            // ERROR: can hang here
-            let mut block = block_mutex.lock().unwrap();
-            if block.get_free_input(axon_section) {
-                axon_section.target_block = Some(block_mutex.clone());
-                axon_section.source_block = Some(source_block);
-                return Ok(());
+        match random_value(&target_hexagon_link.blocks) {
+            Some(value) => {
+                selected_block_option = Some(value.clone());
             }
+            None => {
+                selected_block_option = None;
+            }
+        }
+    }
+
+    // check if the reandome selected block is available
+    if let Some(selected_block_mutex) = selected_block_option {
+        let mut selected_block = selected_block_mutex.lock().unwrap();
+        if selected_block.get_free_input(axon_section) {
+            axon_section.target_block = Some(selected_block_mutex.clone());
+            axon_section.source_block = Some(source_block);
+            return Ok(());
         }
     }
 
@@ -126,6 +126,14 @@ pub fn connect_to_target(axon_section: &mut AxonSection) -> Result<(), AinariErr
     Err(AinariError::Error(msg))
 }
 
+fn random_value<K, V>(map: &HashMap<K, V>) -> Option<&V>
+where
+    K: std::hash::Hash + Eq,
+{
+    let mut rng = rand::rng();
+    map.values().choose(&mut rng)
+}
+
 fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     // pre-check
     if axon_section.cluster_uuid == Uuid::nil()
@@ -140,53 +148,51 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
     Ok(())
 }
 
-fn get_target(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
+fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
     let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
     let mut target_information = TargetInformation::default();
     let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
     // get the uuid of the target-hexagon
+    if let Some(source_hexagon_meta) = cluster_link
+        .cluster_meta
+        .hexagons
+        .get(&axon_section.source_hexagon_uuid)
     {
-        if let Some(source_hexagon_meta) = cluster_link
-            .cluster_meta
-            .hexagons
-            .get(&axon_section.source_hexagon_uuid)
-        {
-            let random_pos = rand::rng().random_range(0..NUMBER_OF_POSSIBLE_NEXT) as usize;
-            target_information.hexagon_uuid =
-                source_hexagon_meta.possible_hexagon_target_ids[random_pos];
-        } else {
-            let msg = format!(
-                "Hexagon with uuid '{}' not found in cluster-meta.",
-                axon_section.source_hexagon_uuid
-            );
-            return Err(AinariError::InvalidInput(msg));
-        };
+        let random_pos = rand::rng().random_range(0..NUMBER_OF_POSSIBLE_NEXT) as usize;
+        target_information.hexagon_uuid =
+            source_hexagon_meta.possible_hexagon_target_ids[random_pos];
+    } else {
+        let msg = format!(
+            "Hexagon with uuid '{}' not found in cluster-meta.",
+            axon_section.source_hexagon_uuid
+        );
+        return Err(AinariError::InvalidInput(msg));
+    };
 
-        if let Some(target_hexagon_meta) = cluster_link
-            .cluster_meta
-            .hexagons
-            .get(&target_information.hexagon_uuid)
-        {
-            target_information.is_output = target_hexagon_meta.is_output;
-            target_information.output_hexagon_name = target_hexagon_meta.name.clone();
+    if let Some(target_hexagon_meta) = cluster_link
+        .cluster_meta
+        .hexagons
+        .get(&target_information.hexagon_uuid)
+    {
+        target_information.is_output = target_hexagon_meta.is_output;
+        target_information.output_hexagon_name = target_hexagon_meta.name.clone();
 
-            // input-hexagons are not allowed to be a target
-            if target_hexagon_meta.is_input {
-                let msg = format!(
-                    "Hexagon with uuid '{}' is input-hexagon and can not be used as output.",
-                    target_information.hexagon_uuid
-                );
-                return Err(AinariError::InvalidInput(msg));
-            }
-        } else {
+        // input-hexagons are not allowed to be a target
+        if target_hexagon_meta.is_input {
             let msg = format!(
-                "Hexagon with uuid '{}' not found in cluster-meta.",
+                "Hexagon with uuid '{}' is input-hexagon and can not be used as output.",
                 target_information.hexagon_uuid
             );
             return Err(AinariError::InvalidInput(msg));
-        };
-    }
+        }
+    } else {
+        let msg = format!(
+            "Hexagon with uuid '{}' not found in cluster-meta.",
+            target_information.hexagon_uuid
+        );
+        return Err(AinariError::InvalidInput(msg));
+    };
 
     // add hexagon if necessary
     let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
@@ -295,7 +301,7 @@ mod tests {
         test_section.cluster_uuid = core_block.cluster_uuid;
         test_section.source_pos = 0;
 
-        match connect_to_target(&mut test_section) {
+        match connect_to_new_target(&mut test_section) {
             Ok(()) => {}
             Err(e) => {
                 println!("{e}");

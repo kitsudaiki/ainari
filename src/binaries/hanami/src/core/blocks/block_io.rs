@@ -54,7 +54,7 @@ pub fn connect_outputs(
             axon_section.source_pos = i as u8;
 
             // cluster_handler.get_target(axon_section);
-            connect_to_target(axon_section)?;
+            connect_to_new_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             let cluster_handler = CLUSTER_HANDLER.read().unwrap();
             axon_section.cluster_uuid = *cluster_uuid;
@@ -76,17 +76,18 @@ pub fn connect_outputs(
 
 pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_number: u64) {
     // send outputs to target
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
     for axon_section in io_buffer.output_buffer.iter() {
         let target_block_mutex = if let Some(t) = &axon_section.target_block {
             t
         } else {
             continue;
         };
-        let block_clone = Arc::clone(target_block_mutex);
+
         let mut target_block = target_block_mutex.lock().unwrap();
         let target_bock_io = target_block.get_block_io();
+        let is_done = target_bock_io.input_buffer[axon_section.target_pos as usize].done;
         target_bock_io.input_buffer[axon_section.target_pos as usize] = axon_section.clone();
+        target_bock_io.input_buffer[axon_section.target_pos as usize].done = is_done;
         target_bock_io.input_buffer_counter += 1;
 
         if target_bock_io.input_buffer_counter >= target_bock_io.inputs_in_use {
@@ -94,18 +95,18 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_
 
             let worker_task = WorkerTask {
                 task_type: task_type.clone(),
-                block: block_clone,
+                block: Arc::clone(target_block_mutex),
                 cycle_number,
             };
 
+            let mut worker_queue = WORKER_QUEUE.lock().unwrap();
             worker_queue.add(worker_task);
         }
     }
 }
 
-pub fn send_backward(io_buffer: &BlockIoBuffer, cycle_number: u64) {
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
-    for axon_section in io_buffer.input_buffer.iter() {
+pub fn send_backward(io_buffer: &mut BlockIoBuffer, cycle_number: u64) -> bool {
+    for axon_section in io_buffer.input_buffer.iter_mut() {
         let source_block_mutex = if let Some(s) = &axon_section.source_block {
             s
         } else {
@@ -113,23 +114,74 @@ pub fn send_backward(io_buffer: &BlockIoBuffer, cycle_number: u64) {
         };
 
         // send axon-sections to target-block and create new worker-task
-        let mut source_block = source_block_mutex.lock().unwrap();
-        let target_bock_io = source_block.get_block_io();
-        target_bock_io.output_buffer[axon_section.source_pos as usize] = axon_section.clone();
-        target_bock_io.output_buffer_counter += 1;
+        if let Ok(mut source_block) = source_block_mutex.lock() {
+            let target_bock_io = source_block.get_block_io();
+            target_bock_io.output_buffer[axon_section.source_pos as usize] = axon_section.clone();
+            target_bock_io.output_buffer_counter += 1;
 
-        if target_bock_io.output_buffer_counter >= target_bock_io.output_buffer.len() as u64 {
-            target_bock_io.output_buffer_counter = 0;
+            if target_bock_io.output_buffer_counter >= target_bock_io.output_buffer.len() as u64 {
+                target_bock_io.output_buffer_counter = 0;
 
-            let worker_task = WorkerTask {
-                task_type: WorkerTaskType::Backpropagate,
-                block: Arc::clone(source_block_mutex),
-                cycle_number,
-            };
+                let worker_task = WorkerTask {
+                    task_type: WorkerTaskType::Backpropagate,
+                    block: Arc::clone(source_block_mutex),
+                    cycle_number,
+                };
 
-            worker_queue.add(worker_task);
+                let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+                worker_queue.add(worker_task);
+            }
+            axon_section.done = true;
         }
     }
+
+    true
+}
+
+pub fn send_backward_with_retry(io_buffer: &mut BlockIoBuffer, cycle_number: u64) -> bool {
+    for axon_section in io_buffer.input_buffer.iter_mut() {
+        if axon_section.done {
+            continue;
+        }
+
+        let source_block_mutex = if let Some(s) = &axon_section.source_block {
+            s
+        } else {
+            continue;
+        };
+
+        // send axon-sections to target-block and create new worker-task
+        if let Ok(mut source_block) = source_block_mutex.try_lock() {
+            let target_bock_io = source_block.get_block_io();
+            let is_done = target_bock_io.output_buffer[axon_section.source_pos as usize].done;
+            target_bock_io.output_buffer[axon_section.source_pos as usize] = axon_section.clone();
+            target_bock_io.output_buffer[axon_section.source_pos as usize].done = is_done;
+            target_bock_io.output_buffer_counter += 1;
+
+            if target_bock_io.output_buffer_counter >= target_bock_io.output_buffer.len() as u64 {
+                target_bock_io.output_buffer_counter = 0;
+
+                let worker_task = WorkerTask {
+                    task_type: WorkerTaskType::Backpropagate,
+                    block: Arc::clone(source_block_mutex),
+                    cycle_number,
+                };
+
+                let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+                worker_queue.add(worker_task);
+            }
+            axon_section.done = true;
+        } else {
+            axon_section.done = false;
+            return false;
+        }
+    }
+
+    for axon_section in io_buffer.input_buffer.iter_mut() {
+        axon_section.done = false;
+    }
+
+    true
 }
 
 #[cfg(test)]

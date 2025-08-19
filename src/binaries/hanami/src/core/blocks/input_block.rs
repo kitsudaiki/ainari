@@ -147,9 +147,23 @@ impl Block for InputBlock {
         &mut self,
         _: usize,
         _: Arc<Mutex<dyn Block>>,
-        cycle_number: u64,
+        _: u64,
     ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.local_finish_counter = 0;
+        Ok(None)
+    }
+
+    fn process(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
+        self.local_finish_counter = 0;
+
+        Ok(None)
+    }
+
+    fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
+        Ok(Some(self.finish_counter_mutex.clone()))
+    }
+
+    fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
             &self.cluster_uuid,
@@ -158,14 +172,10 @@ impl Block for InputBlock {
         )?;
         send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
 
-        Ok(None)
+        Ok(())
     }
 
-    fn process(
-        &mut self,
-        cycle_number: u64,
-    ) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
-        self.local_finish_counter = 0;
+    fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
             &self.cluster_uuid,
@@ -174,11 +184,11 @@ impl Block for InputBlock {
         )?;
         send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
-        Ok(None)
+        Ok(())
     }
 
-    fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
-        Ok(Some(self.finish_counter_mutex.clone()))
+    fn finalize_backpropagate(&mut self, _: u64) -> Result<bool, AinariError> {
+        Ok(true)
     }
 
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {
