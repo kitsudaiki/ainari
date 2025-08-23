@@ -38,7 +38,12 @@ pub struct Storage {
 
 #[derive(Debug, Deserialize)]
 pub struct Processing {
-    pub use_of_free_memory: f32,
+    #[serde(default = "default_max_number_of_threads")]
+    pub max_number_of_threads: usize,
+}
+
+fn default_max_number_of_threads() -> usize {
+    0
 }
 
 #[derive(Debug, Deserialize)]

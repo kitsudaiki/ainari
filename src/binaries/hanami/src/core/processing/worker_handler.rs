@@ -16,8 +16,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::config;
 
+use ainari_common::constants::*;
 use ainari_hardware::cpu::*;
-use ainari_hardware::memory::*;
 
 use super::worker_thread::WorkerThread;
 
@@ -34,8 +34,9 @@ pub fn init_worker_handler() -> WorkerHandler {
         worker_threads: Vec::new(),
     };
 
-    let number_of_threads = match get_number_of_cpu_threads() {
-        Ok(number_of_threads) => (number_of_threads as u64) - 2, // reserve 2 threads for other tasks
+    // get number of cpu-threads of the local system
+    let mut number_of_threads = match get_number_of_cpu_threads() {
+        Ok(number_of_threads) => number_of_threads - NUMBER_OF_RESERVED_THREADS, // reserve NUMBER_OF_RESERVED_THREADS threads for other tasks
         Err(e) => {
             let msg = format!("Failed to get number of cpu-threads: {e}");
             log::error!("{msg}");
@@ -43,17 +44,20 @@ pub fn init_worker_handler() -> WorkerHandler {
         }
     };
 
-    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory;
-    let free_amount_of_memory = get_free_memory_amount();
-    let memory_usage = (free_amount_of_memory as f32 * use_of_free_memory) as u64;
+    // limit number of used threads, if a limit was set
+    let max_number_of_threads: usize = config::CONFIG.processing.max_number_of_threads;
+    if max_number_of_threads > 0 && number_of_threads > max_number_of_threads {
+        number_of_threads = max_number_of_threads;
+        log::info!("Limit number of cpu-threads to {max_number_of_threads} based on the config.")
+    }
 
+    // initialize new worker-threads
     for i in 0..number_of_threads {
         let new_thread = WorkerThread::new(i);
         worker_handler.worker_threads.push(new_thread);
     }
 
-    log::debug!("Initialized {number_of_threads} cpu-threads for the core.");
-    log::debug!("Initialized {memory_usage} byte of memory for the core.");
+    log::info!("Initialized {number_of_threads} cpu-threads for the core.");
 
     worker_handler
 }

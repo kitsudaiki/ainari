@@ -18,8 +18,7 @@ api:
   domain: local-hanami
 
 processing:
-  # use per default 50% of the available memory for pre-allocation
-  use_of_free_memory: 0.5
+  max_number_of_threads: 0
 
 resources: {}
 

@@ -12,7 +12,7 @@ data:
     tempfile_location = "/etc/ainari/data/tempfiles"
 
     [processing]
-    use_of_free_memory = {{ .Values.processing.use_of_free_memory }}
+    max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
 
     [auth]
     token_key_path = "/etc/ainari/token_key"

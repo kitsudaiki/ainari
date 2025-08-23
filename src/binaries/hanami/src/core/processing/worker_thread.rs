@@ -26,7 +26,7 @@ use super::worker_queue::*;
 
 pub struct WorkerThread {
     #[allow(dead_code)]
-    pub thread_id: u64,
+    pub thread_id: usize,
 
     pub handle: Option<JoinHandle<()>>,
     pub running: Arc<AtomicBool>,
@@ -98,16 +98,14 @@ fn process_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
 }
 
 impl WorkerThread {
-    pub fn new(thread_id: u64) -> Self {
+    pub fn new(thread_id: usize) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
         log::debug!("Create worker-thread on cpu-thread {thread_id}");
 
         let handle = thread::spawn(move || {
             log::debug!("Started worker-thread on cpu-thread {thread_id}");
-            let core_id = core_affinity::CoreId {
-                id: thread_id as usize,
-            };
+            let core_id = core_affinity::CoreId { id: thread_id };
             let res = core_affinity::set_for_current(core_id);
             if !res {
                 log::warn!("Failed to pin worker-thread to cpu-thread {thread_id}");
