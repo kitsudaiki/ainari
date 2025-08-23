@@ -131,7 +131,7 @@ impl OutputBlock {
 
         let input_buffer = &mut self.block_io.input_buffer[0];
         // calculate block-internal output
-        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
+        for (x, axon) in input_buffer.data.axons.iter_mut().enumerate() {
             if axon.potential == 0.0f32 {
                 continue;
             }
@@ -247,8 +247,7 @@ impl Block for OutputBlock {
 
         // backpropagate block
         let input_buffer = &mut self.block_io.input_buffer[0];
-        let learn_value = 0.1f32;
-        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
+        for (x, axon) in input_buffer.data.axons.iter_mut().enumerate() {
             axon.delta = 0.0f32;
             if axon.potential == 0.0f32 {
                 continue;
@@ -258,7 +257,7 @@ impl Block for OutputBlock {
                 let weight = &mut self.weights[(y * BLOCK_DIM) + x];
                 let update = output_neuron.expected_value;
                 axon.delta += update * (*weight);
-                *weight -= update * learn_value * axon.potential;
+                *weight -= update * OUTPUT_TRAIN_VALUE * axon.potential;
             }
 
             axon.delta *= axon.potential * (1.0f32 - axon.potential);

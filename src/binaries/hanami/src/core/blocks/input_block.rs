@@ -100,6 +100,7 @@ impl InputBlock {
         input_size: usize,
         offset: usize,
         time_length: usize,
+        allow_cration: bool,
     ) {
         // resize links, if necessary
         let maximum_size = input_size * 2 * time_length;
@@ -107,36 +108,37 @@ impl InputBlock {
             self.input_links.resize(maximum_size, UNINIT_STATE_64);
         }
 
-        // reset potentials
-        if offset == 0 {
-            for section in self.block_io.output_buffer.iter_mut() {
-                for axon in section.axons.iter_mut() {
-                    axon.potential = 0.0f32;
-                }
-            }
-        }
+        let mut is_negative;
+        let mut total_position;
 
-        for (i, val) in input_ptr.iter().enumerate().take(input_size) {
+        if allow_cration {
             // update links
-            let total_position = (offset + i) * 2;
+            for (i, val) in input_ptr.iter().enumerate().take(input_size) {
+                total_position = (offset + i) * 2;
 
-            if *val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
-                self.input_links[total_position] = self.fill_position;
-                self.input_links[total_position + 1] = self.fill_position + 1;
-                self.fill_position += 2;
+                if *val != 0.0f32 && self.input_links[total_position] == UNINIT_STATE_64 {
+                    is_negative = (*val < 0.0f32) as usize;
+                    self.input_links[total_position + is_negative] = self.fill_position;
+                    self.fill_position += 1;
+                }
             }
 
             // resize axon-bocks of the input, if necessary
-            if self.fill_position > (self.block_io.output_buffer.len() * BLOCK_DIM) as u64 {
+            while self.fill_position > (self.block_io.output_buffer.len() * BLOCK_DIM) as u64 {
                 self.block_io.output_buffer.push(AxonSection::default());
             }
+        }
 
-            if *val != 0.0f32 && self.input_links[total_position] != UNINIT_STATE_64 {
-                let neg = (*val < 0.0f32) as usize;
-                let target = self.input_links[total_position + neg] as usize;
-                let block_pos = target / BLOCK_DIM;
-                let pos_in_block = target % BLOCK_DIM;
-                self.block_io.output_buffer[block_pos].axons[pos_in_block].potential = val.abs();
+        // apply input to the axon-sections
+        for (i, val) in input_ptr.iter().enumerate().take(input_size) {
+            total_position = (offset + i) * 2;
+            is_negative = (*val < 0.0f32) as usize;
+            let target = self.input_links[total_position + is_negative];
+            if target != UNINIT_STATE_64 {
+                let block_pos = target as usize / BLOCK_DIM;
+                let pos_in_block = target as usize % BLOCK_DIM;
+                self.block_io.output_buffer[block_pos].data.axons[pos_in_block].potential =
+                    val.abs();
             }
         }
     }
@@ -239,7 +241,7 @@ mod tests {
         let mut input_block = InputBlock::new(&name, &hexagon_uuid, &cluster_uuid, &finish_counter);
 
         let input_values = vec![1.0, 2.0, -3.0, 4.0];
-        input_block.apply_input(&input_values, input_values.len(), 2, 2);
+        input_block.apply_input(&input_values, input_values.len(), 2, 2, true);
 
         // check size of the resized buffers
         assert_eq!(input_block.input_links.len(), 16);
@@ -247,46 +249,30 @@ mod tests {
 
         // check input-links
         assert_eq!(input_block.input_links[4], 0);
-        assert_eq!(input_block.input_links[5], 1);
-        assert_eq!(input_block.input_links[6], 2);
-        assert_eq!(input_block.input_links[7], 3);
-        assert_eq!(input_block.input_links[8], 4);
-        assert_eq!(input_block.input_links[9], 5);
-        assert_eq!(input_block.input_links[10], 6);
-        assert_eq!(input_block.input_links[11], 7);
+        assert_eq!(input_block.input_links[5], UNINIT_STATE_64);
+        assert_eq!(input_block.input_links[6], 1);
+        assert_eq!(input_block.input_links[7], UNINIT_STATE_64);
+        assert_eq!(input_block.input_links[8], UNINIT_STATE_64);
+        assert_eq!(input_block.input_links[9], 2);
+        assert_eq!(input_block.input_links[10], 3);
+        assert_eq!(input_block.input_links[11], UNINIT_STATE_64);
 
         // check axons
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[0].potential,
+            input_block.block_io.output_buffer[0].data.axons[0].potential,
             1.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[1].potential,
-            0.0
-        );
-        assert_eq!(
-            input_block.block_io.output_buffer[0].axons[2].potential,
+            input_block.block_io.output_buffer[0].data.axons[1].potential,
             2.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[3].potential,
-            0.0
-        );
-        assert_eq!(
-            input_block.block_io.output_buffer[0].axons[4].potential,
-            0.0
-        );
-        assert_eq!(
-            input_block.block_io.output_buffer[0].axons[5].potential,
+            input_block.block_io.output_buffer[0].data.axons[2].potential,
             3.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[6].potential,
+            input_block.block_io.output_buffer[0].data.axons[3].potential,
             4.0
-        );
-        assert_eq!(
-            input_block.block_io.output_buffer[0].axons[7].potential,
-            0.0
         );
     }
 

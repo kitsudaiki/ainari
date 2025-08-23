@@ -21,7 +21,7 @@ lazy_static::lazy_static! {
     pub static ref WORKER_QUEUE: Arc<Mutex<WorkerQueue>> = Arc::new(Mutex::new(init_worker_queue()));
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum WorkerTaskType {
     Train,
     Process,

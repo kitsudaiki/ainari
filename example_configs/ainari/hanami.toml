@@ -7,7 +7,8 @@ checkpoint_location = "/etc/ainari/checkpoints"
 tempfile_location = "/etc/ainari/tempfiles"
 
 [processing]
-use_of_free_memory = 0.2
+# 0 means there is no limitation
+max_number_of_threads = 0
 
 [auth]
 token_key_path = "/etc/ainari/token_key"

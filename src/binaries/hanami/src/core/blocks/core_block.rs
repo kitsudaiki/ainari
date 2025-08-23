@@ -128,8 +128,8 @@ pub struct CoreBlock {
     pub block_io: BlockIoBuffer,
     cluster_settings: Settings,
 
-    // HINT (kitsudaiki): this has to be a Box instead of a static array to avoid a stack-overflow, because the object is too big
-    pub synapse_sections: Box<[SynapseSection]>,
+    // HINT (kitsudaiki): this has to be a Vec instead of a static array to avoid a stack-overflow, because the object is too big
+    pub synapse_sections: Vec<SynapseSection>,
     #[serde(with = "BigArray")]
     pub neurons: [Neuron; BLOCK_DIM * 3],
     #[serde(with = "BigArray")]
@@ -140,20 +140,6 @@ pub struct CoreBlock {
 
 impl CoreBlock {
     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, cluster_settings: &Settings) -> Self {
-        // internal visilization of the blocks:
-        //
-        // +---+ +---+ +---+
-        // | 1 | | 3 | | 5 |
-        // +---+ +---+ +---+
-        // | 0 | | 2 | | 4 |
-        // +---+ +---+ +---+
-        //
-        let capacity = BLOCK_DIM * 2 * 3;
-        let mut vec = Vec::with_capacity(capacity);
-        for _ in 0..capacity {
-            vec.push(SynapseSection::default());
-        }
-
         let mut block = CoreBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: *hexagon_uuid,
@@ -162,13 +148,26 @@ impl CoreBlock {
             block_io: BlockIoBuffer::default(),
             cluster_settings: cluster_settings.clone(),
 
-            synapse_sections: vec.into_boxed_slice(),
+            synapse_sections: Vec::new(),
             neurons: std::array::from_fn(|_| Neuron::default()),
             connections: std::array::from_fn(|_| Connection::default()),
 
             // pre-initialized number of synapses, one for each possible input-axon
             section_counter: 0,
         };
+
+        // internal visilization of the blocks:
+        //
+        // +---+ +---+ +---+
+        // | 1 | | 3 | | 5 |
+        // +---+ +---+ +---+
+        // | 0 | | 2 | | 4 |
+        // +---+ +---+ +---+
+        //
+        let init_capacity = BLOCK_DIM * 2;
+        block
+            .synapse_sections
+            .resize_with(init_capacity, SynapseSection::default);
 
         block.block_io.output_buffer.push(AxonSection::default());
         block.block_io.input_buffer.push(AxonSection::default());
@@ -188,11 +187,17 @@ impl CoreBlock {
         if self.block_io.output_buffer.len() == 1
             && self.section_counter as f32 >= ((2 * BLOCK_DIM) as f32 * 0.9f32)
         {
+            let new_capacity = BLOCK_DIM * 2 * 2;
+            self.synapse_sections
+                .resize_with(new_capacity, SynapseSection::default);
             self.block_io.output_buffer.push(AxonSection::default());
         }
         if self.block_io.output_buffer.len() == 2
             && self.section_counter as f32 >= ((4 * BLOCK_DIM) as f32 * 0.9f32)
         {
+            let new_capacity = BLOCK_DIM * 2 * 3;
+            self.synapse_sections
+                .resize_with(new_capacity, SynapseSection::default);
             self.block_io.output_buffer.push(AxonSection::default());
         }
     }
@@ -200,8 +205,9 @@ impl CoreBlock {
     fn apply_output(&mut self) {
         let mut counter = 0;
         let mut neuron;
+
         for buffer in self.block_io.output_buffer.iter_mut() {
-            for axon in buffer.axons.iter_mut() {
+            for axon in buffer.data.axons.iter_mut() {
                 neuron = &mut self.neurons[counter];
 
                 axon.potential /= self.cluster_settings.neuron_cooldown;
@@ -226,6 +232,7 @@ impl CoreBlock {
 
 // ==================================================================================================
 
+#[inline]
 fn create_new_synapse(
     synapse: &mut Synapse,
     remaining_weight: f32,
@@ -250,6 +257,7 @@ fn create_new_synapse(
         (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
 }
 
+#[inline]
 fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     for (i, conn) in connections.iter().enumerate() {
         if conn.source_input == UNINIT_STATE_16 {
@@ -260,6 +268,7 @@ fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     UNINIT_STATE_16 as usize
 }
 
+#[inline]
 fn train_section(
     section: &mut SynapseSection,
     connection: &Connection,
@@ -272,8 +281,8 @@ fn train_section(
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
     let mut condition;
-    let create_border = 0.05f32;
     let mut prev_border = 0.0f32;
+    let mut target_neuron;
 
     // iterate over all synapses in the section
     for (pos, synapse) in section.synapses.iter_mut().enumerate() {
@@ -296,10 +305,10 @@ fn train_section(
         }
 
         if potential < synapse.border {
-            condition = potential < (1.0f32 - create_border) * synapse.border
-                && potential > create_border * synapse.border
-                && potential < synapse.border - create_border
-                && potential > create_border;
+            condition = potential < (1.0f32 - RELATIVE_CREATE_BORDER) * synapse.border
+                && potential > RELATIVE_CREATE_BORDER * synapse.border
+                && potential < synapse.border - ABSOLUTE_CREATE_BORDER
+                && potential > ABSOLUTE_CREATE_BORDER;
 
             synapse.border = synapse.border * (!condition) as u8 as f32
                 + (synapse.border / 2.0f32) * (condition) as u8 as f32;
@@ -312,7 +321,7 @@ fn train_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons
+        target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
@@ -341,6 +350,7 @@ fn train_section(
     false
 }
 
+#[inline]
 fn process_section(
     section: &mut SynapseSection,
     connection: &Connection,
@@ -350,6 +360,7 @@ fn process_section(
 ) {
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
+    let mut target_neuron;
 
     // iterate over all synapses in the section
     for synapse in section.synapses.iter_mut() {
@@ -357,7 +368,6 @@ fn process_section(
             break;
         }
 
-        // create new synapse if necesarry and training is active
         if synapse.target_neuron_id == UNINIT_STATE_16 {
             break;
         }
@@ -367,7 +377,7 @@ fn process_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons
+        target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
@@ -381,6 +391,7 @@ fn process_section(
     }
 }
 
+#[inline]
 fn backpropagate_section(
     section: &mut SynapseSection,
     connection: &mut Connection,
@@ -389,7 +400,6 @@ fn backpropagate_section(
 ) {
     let mut potential = source_axon.potential - connection.lower_bound;
     let mut delta;
-    let train_value = 0.5f32;
     let mut target_axon;
     let mut output_block_id;
     let mut output_axon_id;
@@ -407,17 +417,17 @@ fn backpropagate_section(
         output_block_id =
             ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
-        target_axon = &output_buffer[output_block_id].axons[output_axon_id];
+        target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
-        synapse.weight_1 -= train_value * target_axon.delta;
+        synapse.weight_1 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
 
         output_block_id =
             (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = ((synapse.target_neuron_id + 1) % BLOCK_DIM as u16) as usize;
-        target_axon = &output_buffer[output_block_id].axons[output_axon_id];
+        target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
-        synapse.weight_2 -= train_value * target_axon.delta;
+        synapse.weight_2 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
 
         potential -= synapse.border;
@@ -437,7 +447,9 @@ impl Block for CoreBlock {
         let number_of_output_blocks = self.block_io.output_buffer.len();
         let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
 
-        for i in 0..(6 * BLOCK_DIM) {
+        // HINT (kitsudaki): used a normal for-loop instead of an iterator over the array here, to
+        //                   avoid problems with the borrow-checker
+        for i in 0..self.synapse_sections.len() {
             let conn = self.connections[i];
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
@@ -445,7 +457,7 @@ impl Block for CoreBlock {
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let axon = &self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if axon.potential != 0.0f32 {
                 if !conn.used {
                     self.section_counter += 1;
@@ -475,7 +487,7 @@ impl Block for CoreBlock {
         }
 
         for axon_block in self.block_io.output_buffer.iter_mut() {
-            for axon in axon_block.axons.iter_mut() {
+            for axon in axon_block.data.axons.iter_mut() {
                 axon.delta = 0.0f32;
             }
         }
@@ -490,13 +502,16 @@ impl Block for CoreBlock {
         let number_of_output_blocks = self.block_io.output_buffer.len();
 
         for (i, conn) in self.connections.iter().enumerate() {
+            if i >= self.synapse_sections.len() {
+                break;
+            }
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
             }
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let axon = &self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if axon.potential != 0.0f32 {
                 if !conn.used {
                     continue;
@@ -526,13 +541,16 @@ impl Block for CoreBlock {
         // }
 
         for (i, conn) in self.connections.iter_mut().enumerate() {
+            if i >= self.synapse_sections.len() {
+                break;
+            }
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
             }
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let source_axon = &mut self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let source_axon = &mut self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if source_axon.potential > 0.0f32 {
                 let section = &mut self.synapse_sections[i];
                 backpropagate_section(section, conn, source_axon, &self.block_io.output_buffer);
