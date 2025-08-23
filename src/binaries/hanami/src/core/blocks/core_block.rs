@@ -200,6 +200,7 @@ impl CoreBlock {
     fn apply_output(&mut self) {
         let mut counter = 0;
         let mut neuron;
+
         for buffer in self.block_io.output_buffer.iter_mut() {
             for axon in buffer.axons.iter_mut() {
                 neuron = &mut self.neurons[counter];
@@ -226,6 +227,7 @@ impl CoreBlock {
 
 // ==================================================================================================
 
+#[inline]
 fn create_new_synapse(
     synapse: &mut Synapse,
     remaining_weight: f32,
@@ -250,6 +252,7 @@ fn create_new_synapse(
         (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
 }
 
+#[inline]
 fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     for (i, conn) in connections.iter().enumerate() {
         if conn.source_input == UNINIT_STATE_16 {
@@ -260,6 +263,7 @@ fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     UNINIT_STATE_16 as usize
 }
 
+#[inline]
 fn train_section(
     section: &mut SynapseSection,
     connection: &Connection,
@@ -272,8 +276,8 @@ fn train_section(
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
     let mut condition;
-    let create_border = 0.05f32;
     let mut prev_border = 0.0f32;
+    let mut target_neuron;
 
     // iterate over all synapses in the section
     for (pos, synapse) in section.synapses.iter_mut().enumerate() {
@@ -296,10 +300,10 @@ fn train_section(
         }
 
         if potential < synapse.border {
-            condition = potential < (1.0f32 - create_border) * synapse.border
-                && potential > create_border * synapse.border
-                && potential < synapse.border - create_border
-                && potential > create_border;
+            condition = potential < (1.0f32 - RELATIVE_CREATE_BORDER) * synapse.border
+                && potential > RELATIVE_CREATE_BORDER * synapse.border
+                && potential < synapse.border - ABSOLUTE_CREATE_BORDER
+                && potential > ABSOLUTE_CREATE_BORDER;
 
             synapse.border = synapse.border * (!condition) as u8 as f32
                 + (synapse.border / 2.0f32) * (condition) as u8 as f32;
@@ -312,7 +316,7 @@ fn train_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons
+        target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
@@ -341,6 +345,7 @@ fn train_section(
     false
 }
 
+#[inline]
 fn process_section(
     section: &mut SynapseSection,
     connection: &Connection,
@@ -350,6 +355,7 @@ fn process_section(
 ) {
     let mut ratio;
     let mut potential = axon.potential - connection.lower_bound;
+    let mut target_neuron;
 
     // iterate over all synapses in the section
     for synapse in section.synapses.iter_mut() {
@@ -357,7 +363,6 @@ fn process_section(
             break;
         }
 
-        // create new synapse if necesarry and training is active
         if synapse.target_neuron_id == UNINIT_STATE_16 {
             break;
         }
@@ -367,7 +372,7 @@ fn process_section(
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
-        let mut target_neuron = &mut neurons
+        target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
@@ -381,6 +386,7 @@ fn process_section(
     }
 }
 
+#[inline]
 fn backpropagate_section(
     section: &mut SynapseSection,
     connection: &mut Connection,
