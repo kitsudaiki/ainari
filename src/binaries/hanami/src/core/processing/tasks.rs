@@ -372,11 +372,13 @@ pub fn apply_plain_input(
     let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
 
     let mut input_block = input_block_mutex.lock().unwrap();
+    let allow_creation = *task_type == WorkerTaskType::Train;
     input_block.apply_input(
         input_ptr,
         input_size as usize,
         pos_counter,
         time_length as usize,
+        allow_creation,
     );
 
     let mut worker_queue = WORKER_QUEUE.lock().unwrap();
@@ -418,11 +420,13 @@ fn apply_dataset_to_input(
                 }
             };
 
+        let allow_creation = *task_type == WorkerTaskType::Train;
         input_block.apply_input(
             input_ptr,
             input_size as usize,
             pos_counter,
             time_length as usize,
+            allow_creation,
         );
 
         pos_counter += input_size as usize;
