@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::api_operation;
 use apistos::actix::CreatedJson;
+use apistos::api_operation;
 
-use crate::api::token_handling;
 use crate::api::errors::ErrorResponse;
+use crate::api::token_handling;
 use crate::api::user_context::UserContext;
 
-use hanami_structs::auth_structs::UserTokenResp;
+use ainari_structs::auth_structs::UserTokenResp;
 
 #[api_operation(
     tag = "auth",
@@ -29,20 +29,22 @@ use hanami_structs::auth_structs::UserTokenResp;
     error_code = 401,
     error_code = 500
 )]
-pub async fn renew_token(context: UserContext) -> Result<CreatedJson<UserTokenResp>, ErrorResponse> {
+pub async fn renew_token(
+    context: UserContext,
+) -> Result<CreatedJson<UserTokenResp>, ErrorResponse> {
     let token = match token_handling::create_token(
-        &context.user_id, 
-        &context.project_id, 
-        context.is_admin, 
-        context.is_project_admin)
-    {
+        &context.user_id,
+        &context.project_id,
+        context.is_admin,
+        context.is_project_admin,
+    ) {
         Ok(token) => token,
         Err(_) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let response = UserTokenResp{
+    let response = UserTokenResp {
         access_token: token,
         token_type: "bearer".to_string(),
         expires: 3600,

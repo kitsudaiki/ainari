@@ -15,17 +15,18 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use uuid::Uuid;
 use std::collections::HashMap;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::cluster_table;
 use crate::core::cluster_handler;
+use crate::database::cluster_table;
 
-use hanami_common::enums;
-use hanami_structs::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
+use ainari_common::enums;
+use ainari_common::error::AinariError;
+use ainari_structs::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
 
 #[api_operation(
     tag = "cluster",
@@ -36,34 +37,46 @@ use hanami_structs::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
     error_code = 404,
     error_code = 500
 )]
-pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<Uuid>, context: UserContext) -> Result<Json<ClusterRequestResp>, ErrorResponse> {
+pub async fn request_cluster(
+    body: Json<ClusterRequestReq>,
+    cluster_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<ClusterRequestResp>, ErrorResponse> {
     // validate incoming json
     match body.validate() {
         Ok(_) => (),
         Err(e) => {
-            let msg = format!("Invalid input: {}", e);
+            let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));
-        },
+        }
     };
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
 
-    // get cluster-handle
-    let mut cluster_handler = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    let cluster_handle = match cluster_handler.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string()))
+    // get cluster-interface
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_interface_mutex = match cluster_handler.get_cluster_interface(&cluster_uuid) {
+        Ok(cluster_interface_mutex) => cluster_interface_mutex,
+        Err(AinariError::InvalidInput(msg)) => {
+            let msg = format!("Invalid input: {msg}");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
     };
+    drop(cluster_handler);
 
     let mut resp = ClusterRequestResp {
         outputs: HashMap::new(),
@@ -74,12 +87,18 @@ pub async fn request_cluster(body: Json<ClusterRequestReq>, cluster_uuid: Path<U
     }
 
     // run request-process in cluster
-    match cluster_handle.request(&body.inputs, &mut resp.outputs) {
-        Ok(()) => {},
-        Err(msg) => {
-            return Err(ErrorResponse::NotFound(msg));
+    let mut cluster_interface = cluster_interface_mutex.lock().unwrap();
+    match cluster_interface.request(&body.inputs, &mut resp.outputs) {
+        Ok(()) => {}
+        Err(AinariError::InvalidInput(msg)) => {
+            let msg = format!("Invalid input: {msg}");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     }
 
-    Ok(Json(resp))   
+    Ok(Json(resp))
 }

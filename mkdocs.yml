@@ -1,9 +1,9 @@
-site_name: OpenHanami
+site_name: Ainari
 site_author: Tobias Anker
-site_url: https://docs.openhanami.com
+site_url: https://docs.ainari.cloud
 
-repo_name: kitsudaiki/OpenHanami
-repo_url: https://github.com/kitsudaiki/OpenHanami
+repo_name: kitsudaiki/Ainari
+repo_url: https://github.com/kitsudaiki/ainari
 
 theme:
   name: material
@@ -46,7 +46,6 @@ nav:
     - repo/build_guide.md
     - repo/development.md
     - repo/dependencies.md
-    - repo/code_styling.md
     - repo/git_workflow.md
     - repo/glossar.md
 

@@ -12,11 +12,11 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
     ```bash
     # go into the cli-source-directory
-    cd src/cli/hanamictl/
+    cd src/cli/ainarictl/
 
     # build protobuf-messages
-    pushd ../sdk/go/hanami_sdk
-    protoc --go_out=. --proto_path ../../../libs/protobuf hanami_messages.proto3
+    pushd ../sdk/go/ainari_sdk
+    protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
     popd
 
     # build cli-tool
@@ -27,14 +27,14 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
     ```bash
     # clone repository
-    git clone https://github.com/kitsudaiki/OpenHanami.git
+    git clone https://github.com/kitsudaiki/ainari.git
 
     # create python-env (optional)
-    python3 -m venv hanami_sdk_env
-    source hanami_sdk_env/bin/activate
+    python3 -m venv ainari_sdk_env
+    source ainari_sdk_env/bin/activate
 
     # install sdk
-    cd OpenHanami/src/sdk/python/hanami_sdk
+    cd Ainari/src/sdk/python/ainari_sdk
     pip3 install -U .
     ```
 
@@ -42,24 +42,24 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
 Each of the used HTTP-error codes results in a different exception. For the available error-code /
 exceptions of each of the endpoints, look into the
-[REST-API documenation](https://docs.openhanami.com/api/rest_api_documentation/)
+[REST-API documenation](https://docs.ainari.cloud/api/rest_api_documentation/)
 
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import hanami_exceptions
+    from ainari_sdk import ainari_exceptions
 
     try:
         (command)
-    except hanami_exceptions.NotFoundException as e:
+    except ainari_exceptions.NotFoundException as e:
         print(e)
-    except hanami_exceptions.UnauthorizedException as e:
+    except ainari_exceptions.UnauthorizedException as e:
         print(e)
-    except hanami_exceptions.BadRequestException as e:
+    except ainari_exceptions.BadRequestException as e:
         print(e)
-    except hanami_exceptions.ConflictException as e:
+    except ainari_exceptions.ConflictException as e:
         print(e)
-    except hanami_exceptions.InternalServerErrorException as e:
+    except ainari_exceptions.InternalServerErrorException as e:
         print("internal error")
     ```
 
@@ -92,13 +92,13 @@ amount of time until it expires, based on the configuration of the server.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import hanami_token
+    from ainari_sdk import ainari_token
 
     address = "http://127.0.0.1:11418"
     test_user = "asdf"
     test_passphrase = "asdfasdf"
 
-    token = hanami_token.request_token(address, test_user, test_passphrase)
+    token = ainari_token.request_token(address, test_user, test_passphrase)
 
     ```
 
@@ -117,13 +117,13 @@ Create new empty project.
 === "CLI"
 
     ```bash
-    hanamictl project create -n <NAME> <PROJECT_ID>
+    ainarictl project create -n <NAME> <PROJECT_ID>
     ```
 
     example:
 
     ```bash
-    hanamictl project create -n "cli test project" cli_test_project
+    ainarictl project create -n "cli test project" cli_test_project
 
     +------------+---------------------+
     | ID         | cli_test_project    |
@@ -136,14 +136,14 @@ Create new empty project.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import project
+    from ainari_sdk import project
 
     address = "http://127.0.0.1:11418"
     project_id = "test_project"
     project_name = "Test Project"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = project.create_project(token, address, projet_id, project_name)
 
@@ -163,13 +163,13 @@ Get information about a project.
 === "CLI"
 
     ```bash
-    hanamictl project get <PROJECT_ID>
+    ainarictl project get <PROJECT_ID>
     ```
 
     example:
 
     ```bash
-    hanamictl project get cli_test_project
+    ainarictl project get cli_test_project
 
     +------------+---------------------+
     | ID         | cli_test_project    |
@@ -182,13 +182,13 @@ Get information about a project.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import project
+    from ainari_sdk import project
 
     address = "http://127.0.0.1:11418"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = project.get_project(token, address, projet_id)
 
@@ -208,13 +208,13 @@ List all projects.
 === "CLI"
 
     ```bash
-    hanamictl project list
+    ainarictl project list
     ```
 
     example:
 
     ```bash
-    hanamictl project list
+    ainarictl project list
 
     +------------------+------------------+------------+---------------------+
     |        ID        |       NAME       | CREATOR ID |     CREATED AT      |
@@ -226,12 +226,12 @@ List all projects.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import project
+    from ainari_sdk import project
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = project.list_projects(token, address)
 
@@ -264,13 +264,13 @@ Delete a project.
 === "CLI"
 
     ```bash
-    hanamictl project delete <PROJECT_ID>
+    ainarictl project delete <PROJECT_ID>
     ```
 
     example:
 
     ```bash
-    hanamictl project delete cli_test_project
+    ainarictl project delete cli_test_project
 
     successfully deleted project 'cli_test_project'
     ```
@@ -278,13 +278,13 @@ Delete a project.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import project
+    from ainari_sdk import project
 
     address = "http://127.0.0.1:11418"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     project.delete_project(token, address, projet_id)
     ```
@@ -300,12 +300,12 @@ Delete all projects.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import project
+    from ainari_sdk import project
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     project.delete_all_projects(token, address)
     ```
@@ -325,7 +325,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
 === "CLI"
 
     ```bash
-    ./hanamictl user create -n <NAME> <USER_ID>
+    ./ainarictl user create -n <NAME> <USER_ID>
 
     (the cli will request the passphrase for the new user after enter this command)
     ```
@@ -333,7 +333,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
     example:
 
     ```bash
-    ./hanamictl user create -n "cli test user" -p "asdfasdfasdf" cli_test_user
+    ./ainarictl user create -n "cli test user" -p "asdfasdfasdf" cli_test_user
     Enter Passphrase:
     Enter Passphrase again:
 
@@ -350,7 +350,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     new_user = "new_user"
@@ -359,7 +359,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
     is_admin = True
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = user.create_user(token, address, new_id, new_user, new_pw, is_admin)
 
@@ -381,13 +381,13 @@ Get information about a specific user.
 === "CLI"
 
     ```bash
-    hanamictl user get <USER_ID>
+    ainarictl user get <USER_ID>
     ```
 
     example:
 
     ```bash
-    hanamictl user get cli_test_user
+    ainarictl user get cli_test_user
 
     +------------+---------------------+
     | ID         | cli_test_user       |
@@ -402,13 +402,13 @@ Get information about a specific user.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = user.get_user(token, address, user_id)
 
@@ -430,13 +430,13 @@ List all user.
 === "CLI"
 
     ```bash
-    hanamictl user list
+    ainarictl user list
     ```
 
     example:
 
     ```bash
-    hanamictl user list
+    ainarictl user list
 
     |      ID       |     NAME      | IS ADMIN | PROJECTS | CREATOR ID  |     CREATED AT      |
     +---------------+---------------+----------+----------+-------------+---------------------+
@@ -448,12 +448,12 @@ List all user.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = user.list_users(token, address)
 
@@ -497,13 +497,13 @@ Delete a user from the backend.
 === "CLI"
 
     ```bash
-    hanamictl user delete cli_test_user
+    ainarictl user delete cli_test_user
     ```
 
     example:
 
     ```bash
-    hanamictl user delete cli_test_user
+    ainarictl user delete cli_test_user
 
     successfully deleted project 'cli_test_project'
     ```
@@ -511,13 +511,13 @@ Delete a user from the backend.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     user.delete_user(token, address, user_id)
     ```
@@ -533,12 +533,12 @@ Delete all users, except the one, who executed this action.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     user.delete_all_user(token, address)
     ```
@@ -547,7 +547,7 @@ Delete all users, except the one, who executed this action.
 
 Assigne a project to a normal user.
 
-The `role` is uses be the policy-file of the OpenHanami-instance restrict access to specific
+The `role` is uses be the policy-file of the Ainari-instance restrict access to specific
 API-endpoints. Per default there exist `admin` and `member` as roles.
 
 If `is_project_admin` is set to true, the user can access all resources of all users within the
@@ -566,7 +566,7 @@ project.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     user_id = "new_user"
@@ -575,7 +575,7 @@ project.
     is_project_admin = True
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = add_roject_to_user(token,
                                 address,
@@ -598,13 +598,13 @@ Unassign a project from a user.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     remove_project_fromUser(token, address, user_id, project_id)
     ```
@@ -622,12 +622,12 @@ List projects only of the current user, which are enabled by the current token.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = list_projects_of_user(token, address)
     ```
@@ -645,13 +645,13 @@ Switch to another project with the current user.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import user
+    from ainari_sdk import user
 
     address = "http://127.0.0.1:11418"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = switch_project(token, address, project_id)
     ```
@@ -673,13 +673,13 @@ label-file of the same dataset.
 === "CLI"
 
     ```bash
-    hanamictl dataset create mnist -i <PATH_TO_INPUT_FILE> -l <PATH_TO_LABEL_FILE> <NAME>
+    ainarictl dataset create mnist -i <PATH_TO_INPUT_FILE> -l <PATH_TO_LABEL_FILE> <NAME>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset create mnist -i /tmp/train-images-idx3-ubyte -l /tmp/train-labels-idx1-ubyte cli_test_dataset
+    ainarictl dataset create mnist -i /tmp/train-images-idx3-ubyte -l /tmp/train-labels-idx1-ubyte cli_test_dataset
 
     +-------------------+-----------------------------------------------------------------------------------------------+
     | UUID              | 146bacb3-b5bf-485b-a2e8-d1812b57eb63                                                          |
@@ -698,7 +698,7 @@ label-file of the same dataset.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
     train_dataset_name = "train_test_dataset"
@@ -706,7 +706,7 @@ label-file of the same dataset.
     train_labels = "/tmp/mnist/train-labels.idx1-ubyte"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     dataset_uuid = dataset.upload_mnist_files(token, address, train_dataset_name, train_inputs, train_labels)
 
@@ -724,13 +724,13 @@ label-file of the same dataset.
 === "CLI"
 
     ```bash
-    hanamictl dataset create csv -i <PATH_TO_INPUT_FILE> <NAME>
+    ainarictl dataset create csv -i <PATH_TO_INPUT_FILE> <NAME>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset create csv -i /tmp/test.csv test_csv
+    ainarictl dataset create csv -i /tmp/test.csv test_csv
 
     +-------------------+--------------------------------------------------------------------------------------------------+
     | UUID              | 0923f01b-90ff-4323-9c18-fcfb655985d4                                                             |
@@ -750,14 +750,14 @@ label-file of the same dataset.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
     train_dataset_name = "train_test_dataset"
     train_inputs = "/tmp/csv/test-file.csv"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs)
 
@@ -773,13 +773,13 @@ Get information about a specific dataset.
 === "CLI"
 
     ```bash
-    hanamictl dataset get <DATASET_UUID>
+    ainarictl dataset get <DATASET_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset get 146bacb3-b5bf-485b-a2e8-d1812b57eb63
+    ainarictl dataset get 146bacb3-b5bf-485b-a2e8-d1812b57eb63
 
     +-------------------+-----------------------------------------------------------------------------------------------+
     | UUID              | 91c3799d-556b-4562-ae6d-96d631a46a42                                                          |
@@ -799,13 +799,13 @@ Get information about a specific dataset.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
     dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = dataset.get_dataset(token, address, dataset_uuid)
 
@@ -814,7 +814,7 @@ Get information about a specific dataset.
     # {
     #     "inputs": 784,
     #     "lines": 60000,
-    #     "location": "/etc/openhanami/datasets/6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4_mnist_asdf",
+    #     "location": "/etc/ainari/datasets/6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4_mnist_asdf",
     #     "name": "train_test_dataset",
     #     "outputs": 10,
     #     "owner_id": "asdf",
@@ -833,13 +833,13 @@ List all visible datasets.
 === "CLI"
 
     ```bash
-    hanamictl dataset list
+    ainarictl dataset list
     ```
 
     example:
 
     ```bash
-    hanamictl dataset list
+    ainarictl dataset list
 
     +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
     |                 UUID                 |          NAME          |              TASK UUID               | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
@@ -853,12 +853,12 @@ List all visible datasets.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = dataset.list_datasets(token, address)
 
@@ -913,13 +913,13 @@ Delete a dataset.
 === "CLI"
 
     ```bash
-    hanamictl dataset delete <DATASET_UUID>
+    ainarictl dataset delete <DATASET_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset delete 146bacb3-b5bf-485b-a2e8-d1812b57eb63
+    ainarictl dataset delete 146bacb3-b5bf-485b-a2e8-d1812b57eb63
 
     successfully deleted dataset '146bacb3-b5bf-485b-a2e8-d1812b57eb63'
     ```
@@ -927,13 +927,13 @@ Delete a dataset.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
     dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     dataset.delete_dataset(token, address, dataset_uuid)
     ```
@@ -949,12 +949,12 @@ Delete all datasets.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import dataset
+    from ainari_sdk import dataset
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     dataset.delete_all_datasets(token, address)
     ```
@@ -968,13 +968,13 @@ is primary used for automatic testing.
 === "CLI"
 
     ```bash
-    hanamictl dataset check -r <REFERENCE_DATASET_UUID> <COMPARE_DATASET_UUID>
+    ainarictl dataset check -r <REFERENCE_DATASET_UUID> <COMPARE_DATASET_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset check -r 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4 d40c0c06-bd28-49a4-b872-6a70c4750bb9
+    ainarictl dataset check -r 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4 d40c0c06-bd28-49a4-b872-6a70c4750bb9
 
     +----------+-------------------+
     | ACCURACY | 91.22999572753906 |
@@ -984,14 +984,14 @@ is primary used for automatic testing.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import request_result
+    from ainari_sdk import request_result
 
     address = "http://127.0.0.1:11418"
     reference_dataset_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
     dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = request_result.check_mnist_dataset(token,
                                                 address,
@@ -1013,13 +1013,13 @@ the upload. For now there is only an endpoint to request a slice of a dataset.
 === "CLI"
 
     ```bash
-    hanamictl dataset content -c <COLUMN_NAME>  -n <NUMBER_OF_ROWS> -o <ROW_OFFSET>  <DATASET_UUID>
+    ainarictl dataset content -c <COLUMN_NAME>  -n <NUMBER_OF_ROWS> -o <ROW_OFFSET>  <DATASET_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl dataset content -c test_output -o 100 -n 10 718566ed-b8a7-4d69-8cf5-d3eb7d75e30b
+    ainarictl dataset content -c test_output -o 100 -n 10 718566ed-b8a7-4d69-8cf5-d3eb7d75e30b
 
     +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
     |     |    0     |    1     |    2     |    3     |    4     |    5     |    6     |    7     |    8     |    9     |
@@ -1042,14 +1042,14 @@ the upload. For now there is only an endpoint to request a slice of a dataset.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import request_result
+    from ainari_sdk import request_result
 
     address = "http://127.0.0.1:11418"
     dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
     column_name = "test_output"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = dataset.download_dataset_content(token,
                                               address,
@@ -1099,18 +1099,18 @@ Cluster containing the neural network.
 
 To initialize a new cluster, a cluster-templated is used, which describes the basic structure of the
 network (see documentation of the
-[cluster-templates](https://docs.openhanami.com/api/cluster_template/))
+[cluster-templates](https://docs.ainari.cloud/api/cluster_template/))
 
 === "CLI"
 
     ```bash
-    hanamictl cluster create -t <PATH_TO_TEMPLATE> <NAME>
+    ainarictl cluster create -t <PATH_TO_TEMPLATE> <NAME>
     ```
 
     example:
 
     ```bash
-    hanamictl cluster create -t ./cluster_template cli_test_cluster
+    ainarictl cluster create -t ./cluster_template cli_test_cluster
 
     +------------+--------------------------------------+
     | UUID       | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
@@ -1125,7 +1125,7 @@ network (see documentation of the
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     cluster_name = "test_cluster"
@@ -1147,7 +1147,7 @@ network (see documentation of the
         "    label: 3,1,1\n" \
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.create_cluster(token, address, cluster_name, cluster_template)
 
@@ -1173,13 +1173,13 @@ used memory and so on are still missing in this output currently.
 === "CLI"
 
     ```bash
-    hanamictl cluster get <CLUSTER_UUID>
+    ainarictl cluster get <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl cluster get 12959485-51a7-45bc-84dd-aad1c9bfd510
+    ainarictl cluster get 12959485-51a7-45bc-84dd-aad1c9bfd510
 
     +--------------------+--------------------------------------+
     | UUID               | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
@@ -1196,13 +1196,13 @@ used memory and so on are still missing in this output currently.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.get_cluster(token, address, cluster_uuid)
 
@@ -1226,13 +1226,13 @@ List all visible cluster.
 === "CLI"
 
     ```bash
-    hanamictl cluster list
+    ainarictl cluster list
     ```
 
     example:
 
     ```bash
-    hanamictl cluster list
+    ainarictl cluster list
 
     +--------------------------------------+------------------+------------+----------+------------+---------------------+
     |                 UUID                 |       NAME       | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
@@ -1244,12 +1244,12 @@ List all visible cluster.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.list_clusters(token, address)
 
@@ -1282,13 +1282,13 @@ Delete a cluster from a backend.
 === "CLI"
 
     ```bash
-    hanamictl cluster delete <CLUSTER_UUID>
+    ainarictl cluster delete <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl cluster delete 12959485-51a7-45bc-84dd-aad1c9bfd510
+    ainarictl cluster delete 12959485-51a7-45bc-84dd-aad1c9bfd510
 
     successfully deleted cluster '12959485-51a7-45bc-84dd-aad1c9bfd510'
     ```
@@ -1296,13 +1296,13 @@ Delete a cluster from a backend.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     cluster.delete_cluster(token, address, cluster_uuid)
     ```
@@ -1318,12 +1318,12 @@ Delete all cluster.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     cluster.delete_all_cluster(token, address)
     ```
@@ -1335,13 +1335,13 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
 === "CLI"
 
     ```bash
-    hanamictl cluster save -n <NAME> <CLUSTER_UUID>
+    ainarictl cluster save -n <NAME> <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl cluster save -n cli_test_checkpoint d28d72f0-f95f-42bd-b14d-b7e12d3b9d82
+    ainarictl cluster save -n cli_test_checkpoint d28d72f0-f95f-42bd-b14d-b7e12d3b9d82
 
     +------------+--------------------------------------+
     | UUID       | d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 |
@@ -1352,13 +1352,13 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     checkpoint_name = "test_checkpoint"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.save_cluster(token, address, checkpoint_name, cluster_uuid)
 
@@ -1377,13 +1377,13 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
 === "CLI"
 
     ```bash
-    hanamictl cluster restore -c <CHECKPOINT_UUID> <CLUSTER_UUID>
+    ainarictl cluster restore -c <CHECKPOINT_UUID> <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl cluster restore -c d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 cc6120c7-cc31-4f17-baee-c6c606f00512
+    ainarictl cluster restore -c d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 cc6120c7-cc31-4f17-baee-c6c606f00512
 
     +------------+--------------------------------------+
     | UUID       | 6e7a911e-5f81-4ffb-9de0-2b6717b1be52 |
@@ -1393,14 +1393,14 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid)
 
@@ -1415,7 +1415,7 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
 
 Each CPU and GPU is handled as its logical host. Cluster and be moved between them. To list
 avaialble hosts there is the
-[list-hosts endpoint](https://docs.openhanami.com/api/sdk_library/#list-hosts).
+[list-hosts endpoint](https://docs.ainari.cloud/api/sdk_library/#list-hosts).
 
 !!! warning
 
@@ -1428,14 +1428,14 @@ avaialble hosts there is the
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import cluster
+    from ainari_sdk import cluster
 
     address = "http://127.0.0.1:11418"
     host_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = cluster.switch_host(token, address, cluster_uuid, host_uuid)
 
@@ -1462,7 +1462,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
 === "CLI"
 
     ```bash
-    hanamictl task create train -j \
+    ainarictl task create train -j \
     -i <INPUT_DATASET_UUID>:<INPUT_DATASET_COLUMN_NAME>:<INPUT_HEXAGON_NAME> \
     -o <LABEL_DATASET_UUID>:<LABEL_DATASET_COLUMN_NAME>:<LABEL_HEXAGON_NAME> \
     -c <CLUSTER_UUID> \
@@ -1472,7 +1472,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
     example:
 
     ```bash
-    hanamictl task create train -j \
+    ainarictl task create train -j \
     -i b03d1682-8f5b-48cb-bff5-08b67e8de6fe:picture:picture_hexagon \
     -o b833ddbe-55db-49d5-97b7-771293505493:label:label_hexagon \
     -c 9f86921d-9a7c-44a2-836c-1683928d9354 \
@@ -1492,7 +1492,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     task_name = "test_task"
@@ -1520,7 +1520,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
     # the used dataset for the input- and output-data
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = task.create_train_task(token,
                                     address,
@@ -1542,7 +1542,7 @@ used, which had to be uplaoded first.
 === "CLI"
 
     ```bash
-    hanamictl task create request -j \
+    ainarictl task create request -j \
     -i <INPUT_DATASET_UUID>:<INPUT_DATASET_COLUMN_NAME>:<INPUT_HEXAGON_NAME> \
     -r <OUTPUT_HEXAGON_NAME>:<OUTPUT_DATASET_COLUMN_NAME> \
     -c <CLUSTER_UUID> \
@@ -1552,7 +1552,7 @@ used, which had to be uplaoded first.
     example:
 
     ```bash
-    hanamictl task create train -j \
+    ainarictl task create train -j \
     -i b03d1682-8f5b-48cb-bff5-08b67e8de6fe:picture:picture_hexagon \
     -r label_hexagon:output_data \
     -c 9f86921d-9a7c-44a2-836c-1683928d9354 \
@@ -1572,7 +1572,7 @@ used, which had to be uplaoded first.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     task_name = "test_task"
@@ -1599,7 +1599,7 @@ used, which had to be uplaoded first.
     # the used dataset for the input- and output-data
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = task.create_request_task(token,
                                       address,
@@ -1618,13 +1618,13 @@ used, which had to be uplaoded first.
 === "CLI"
 
     ```bash
-    hanamictl task get -c <CLUSTER_UUID> <TASK_UUID>
+    ainarictl task get -c <CLUSTER_UUID> <TASK_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl task get -c 9f86921d-9a7c-44a2-836c-1683928d93542e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc
+    ainarictl task get -c 9f86921d-9a7c-44a2-836c-1683928d93542e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc
 
     +------------------------+--------------------------------------+
     | UUID                   | 2e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc |
@@ -1640,14 +1640,14 @@ used, which had to be uplaoded first.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = task.get_task(token, address, task_uuid, cluster_uuid)
 
@@ -1669,13 +1669,13 @@ List all tasks for a cluster, together with their progress.
 === "CLI"
 
     ```bash
-    hanamictl task list -c <CLUSTER_UUID>
+    ainarictl task list -c <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    ./hanamictl task list -c 49d50999-c47f-48cb-906b-211218f897e4
+    ./ainarictl task list -c 49d50999-c47f-48cb-906b-211218f897e4
 
     +--------------------------------------+----------+
     |                 UUID                 |  STATE   |
@@ -1688,13 +1688,13 @@ List all tasks for a cluster, together with their progress.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = task.list_tasks(token, address, cluster_uuid)
 
@@ -1730,13 +1730,13 @@ will not be deleted.
 === "CLI"
 
     ```bash
-    hanamictl task delete -c <CLUSTER_UUID> <TASK_UUID>
+    ainarictl task delete -c <CLUSTER_UUID> <TASK_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl task delete -c 49d50999-c47f-48cb-906b-211218f897e4 ddbf5bc1-3487-4755-8651-a96842ccec12
+    ainarictl task delete -c 49d50999-c47f-48cb-906b-211218f897e4 ddbf5bc1-3487-4755-8651-a96842ccec12
 
     successfully deleted task 'ddbf5bc1-3487-4755-8651-a96842ccec12'
     ```
@@ -1744,14 +1744,14 @@ will not be deleted.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     task.delete_task(token, address, task_uuid, cluster_uuid)
     ```
@@ -1768,7 +1768,7 @@ will not be deleted.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import task
+    from ainari_sdk import task
 
     address = "http://127.0.0.1:11418"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
@@ -1776,7 +1776,7 @@ will not be deleted.
     time_interval = 0.1  # time-interval to check if finished, in seconds
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, time_interval)
     ```
@@ -1797,13 +1797,13 @@ List all visible checkpoints.
 === "CLI"
 
     ```bash
-    hanamictl checkpoint list
+    ainarictl checkpoint list
     ```
 
     example:
 
     ```bash
-    hanamictl checkpoint list
+    ainarictl checkpoint list
 
     +--------------------------------------+---------------------+------------+----------+------------+---------------------+
     |                 UUID                 |        NAME         | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
@@ -1815,12 +1815,12 @@ List all visible checkpoints.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import checkpoint
+    from ainari_sdk import checkpoint
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = checkpoint.list_checkpoints(token, address)
 
@@ -1853,13 +1853,13 @@ Delete a checkpoint from the backend.
 === "CLI"
 
     ```bash
-    hanamictl checkpoint delete <CHECKPOINT_UUID>
+    ainarictl checkpoint delete <CHECKPOINT_UUID>
     ```
 
     example:
 
     ```bash
-    hanamictl checkpoint delete 84eaae8e-aeae-4db4-840e-ca38f4461ec7
+    ainarictl checkpoint delete 84eaae8e-aeae-4db4-840e-ca38f4461ec7
 
     successfully deleted checkpoint '84eaae8e-aeae-4db4-840e-ca38f4461ec7'
     ```
@@ -1867,13 +1867,13 @@ Delete a checkpoint from the backend.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import checkpoint
+    from ainari_sdk import checkpoint
 
     address = "http://127.0.0.1:11418"
     checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     checkpoint.delete_checkpoint(token, address, checkpoint_uuid)
 
@@ -1890,12 +1890,12 @@ Delete all checkpoint.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import checkpoint
+    from ainari_sdk import checkpoint
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     checkpoint.delete_all_checkpoints(token, address)
     ```
@@ -1910,13 +1910,13 @@ the data. These logical hosts can be listed with this endpoint.
 === "CLI"
 
     ```bash
-    hanamictl host list
+    ainarictl host list
     ```
 
     example:
 
     ```bash
-    hanamictl host list
+    ainarictl host list
 
     +--------------------------------------+------+
     |                 UUID                 | TYPE |
@@ -1928,12 +1928,12 @@ the data. These logical hosts can be listed with this endpoint.
 === "Python-SDK"
 
     ```python
-    from hanami_sdk import hosts
+    from ainari_sdk import hosts
 
     address = "http://127.0.0.1:11418"
 
     # request a token for a user, who has admin-permissions
-    # see: https://docs.openhanami.com/api/sdk_library/#request-token
+    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
     result = hosts.list_hosts(token, address)
 

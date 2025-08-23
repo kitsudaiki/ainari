@@ -20,7 +20,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use hanami_structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
+use ainari_structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
 
 #[api_operation(
     tag = "dataset",
@@ -30,12 +30,11 @@ use hanami_structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
     error_code = 500
 )]
 pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>, ErrorResponse> {
-    let datasets = match dataset_table::list_datasets(&context)
-    {
+    let datasets = match dataset_table::list_datasets(&context) {
         Ok(datasets) => datasets,
         Err(e) => {
             log::error!("Failed to get list of datasets form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()))
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
@@ -49,12 +48,12 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert dataset-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()))
-            },
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
         };
 
         let obj = DatasetBasicResp {
-            uuid: uuid,
+            uuid,
             name: dataset.name.clone(),
         };
 

@@ -15,16 +15,16 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use uuid::Uuid;
 use std::str::FromStr;
+use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
-use crate::database::task_table;
 use crate::database::cluster_table;
+use crate::database::task_table;
 
-use hanami_common::enums;
-use hanami_structs::task_structs::{TaskResp, TaskType, TaskState};
+use ainari_common::enums;
+use ainari_structs::task_structs::{TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -35,15 +35,18 @@ use hanami_structs::task_structs::{TaskResp, TaskType, TaskState};
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result<Json<TaskResp>, ErrorResponse> {
+pub async fn get_task(
+    uuids: Path<(Uuid, Uuid)>,
+    context: UserContext,
+) -> Result<Json<TaskResp>, ErrorResponse> {
     let (cluster_uuid, task_uuid) = uuids.into_inner();
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -54,7 +57,7 @@ pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -75,14 +78,14 @@ pub async fn get_task(uuids: Path<(Uuid, Uuid)>, context: UserContext) -> Result
     };
 
     let resp = TaskResp {
-        uuid: task_uuid.clone(),
+        uuid: task_uuid,
         name: task_data.name.clone(),
-        task_type: task_type,
+        task_type,
         state: task_state,
-        total_number_of_epochs: task_data.total_number_of_epochs.clone(),
-        current_epoch: task_data.current_epoch.clone(),
-        total_number_of_cycles: task_data.total_number_of_cycles.clone(),
-        current_cycle: task_data.current_cycle.clone(),
+        total_number_of_epochs: task_data.total_number_of_epochs,
+        current_epoch: task_data.current_epoch,
+        total_number_of_cycles: task_data.total_number_of_cycles,
+        current_cycle: task_data.current_cycle,
         queued_at: task_data.queued_at.clone(),
         started_at: task_data.started_at.clone(),
         finished_at: task_data.finished_at.clone(),

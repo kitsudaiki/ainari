@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::database::db_handle;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 // Define the schema
 table! {
@@ -60,7 +60,8 @@ pub struct CheckpointEntry {
 
 pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS checkpoints (
+    conn.batch_execute(
+        "CREATE TABLE IF NOT EXISTS checkpoints (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         file_path TEXT,
@@ -73,16 +74,22 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );")?;
+    );",
+    )?;
 
     Ok(())
 }
 
-pub fn add_new_checkpoint(checkpoint_uuid: &Uuid, checkpoint_name: &String, file_path: &String, context: &UserContext) -> QueryResult<usize> {
-    let checkpoint = CheckpointEntry{
+pub fn add_new_checkpoint(
+    checkpoint_uuid: &Uuid,
+    checkpoint_name: &str,
+    file_path: &str,
+    context: &UserContext,
+) -> QueryResult<usize> {
+    let checkpoint = CheckpointEntry {
         uuid: checkpoint_uuid.to_string().clone(),
-        name: checkpoint_name.clone(),
-        file_path: file_path.clone(),
+        name: checkpoint_name.to_owned(),
+        file_path: file_path.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -101,22 +108,30 @@ pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
 
-    diesel::insert_into(checkpoints).values(checkpoint).execute(&mut *conn)
+    diesel::insert_into(checkpoints)
+        .values(checkpoint)
+        .execute(&mut *conn)
 }
 
-pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<CheckpointEntry, enums::DbError> {
+pub fn get_checkpoint(
+    checkpoint_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<CheckpointEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
-    
+
     let mut query = checkpoints
-        .filter(uuid.eq(checkpoint_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(
+            uuid.eq(checkpoint_uuid.to_string())
+                .and(status.eq("ACTIVE")),
+        )
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
-        } 
+        }
     }
 
     match query
@@ -126,7 +141,7 @@ pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<C
         Ok(checkpoint) => Ok(checkpoint),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -135,14 +150,12 @@ pub fn get_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<C
 pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
-    
-    let mut query = checkpoints
-        .filter(status.eq("ACTIVE"))
-        .into_boxed();
 
-    if context.is_admin == false {
+    let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
+
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -150,15 +163,18 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntr
     query.select(CheckpointEntry::as_select()).load(&mut *conn)
 }
 
-pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
-    get_checkpoint(&checkpoint_uuid, &context)?;
+pub fn delete_checkpoint(
+    checkpoint_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    get_checkpoint(checkpoint_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::checkpoints::dsl::*;
 
     match diesel::update(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
         .set((
-            status.eq("DELETED"), 
+            status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
             deleted_by.eq(context.user_id.clone()),
         ))
@@ -167,7 +183,7 @@ pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Resul
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -177,13 +193,14 @@ pub fn delete_checkpoint(checkpoint_uuid: &Uuid, context: &UserContext) -> Resul
 mod tests {
     use super::*;
     use serial_test::serial;
-    
+
     fn hard_delete_checkpoint(checkpoint_uuid: &Uuid) {
         use self::checkpoints::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
-        let _ = diesel::delete(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string()))).execute(&mut *conn);
+        let _ = diesel::delete(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
+            .execute(&mut *conn);
     }
-    
+
     #[test]
     #[serial]
     fn test_add_get_checkpoint() {
@@ -217,21 +234,18 @@ mod tests {
         hard_delete_checkpoint(&uuid1);
 
         add_checkpoint(&checkpoint).unwrap();
-        match get_checkpoint(&uuid1, &context) {
-            Ok(retrieved_checkpoint) => {
-                assert_eq!(retrieved_checkpoint.uuid, checkpoint.uuid);
-                assert_eq!(retrieved_checkpoint.name, checkpoint.name);
-                assert_eq!(retrieved_checkpoint.file_path, checkpoint.file_path);
-                assert_eq!(retrieved_checkpoint.status, checkpoint.status);
-                assert_eq!(retrieved_checkpoint.created_by, checkpoint.created_by);
-                assert_eq!(retrieved_checkpoint.updated_by, checkpoint.updated_by);
-                assert_eq!(retrieved_checkpoint.deleted_at, checkpoint.deleted_at);
-                assert_eq!(retrieved_checkpoint.deleted_by, checkpoint.deleted_by);
-            },
-            Err(_) => {}
+        if let Ok(retrieved_checkpoint) = get_checkpoint(&uuid1, &context) {
+            assert_eq!(retrieved_checkpoint.uuid, checkpoint.uuid);
+            assert_eq!(retrieved_checkpoint.name, checkpoint.name);
+            assert_eq!(retrieved_checkpoint.file_path, checkpoint.file_path);
+            assert_eq!(retrieved_checkpoint.status, checkpoint.status);
+            assert_eq!(retrieved_checkpoint.created_by, checkpoint.created_by);
+            assert_eq!(retrieved_checkpoint.updated_by, checkpoint.updated_by);
+            assert_eq!(retrieved_checkpoint.deleted_at, checkpoint.deleted_at);
+            assert_eq!(retrieved_checkpoint.deleted_by, checkpoint.deleted_by);
         };
 
-        let _ = hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid1);
     }
 
     #[test]
@@ -264,7 +278,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let checkpoint2 = CheckpointEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -279,7 +293,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_checkpoint(&uuid1);
         hard_delete_checkpoint(&uuid2);
 
@@ -287,8 +301,8 @@ mod tests {
         add_checkpoint(&checkpoint2).unwrap();
         let checkpoints = list_checkpoints(&context).unwrap();
         assert_eq!(checkpoints.len(), 1);
-        let _ = hard_delete_checkpoint(&uuid1);
-        let _ = hard_delete_checkpoint(&uuid2);
+        hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid2);
     }
 
     #[test]
@@ -329,7 +343,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-
     #[test]
     #[serial]
     fn test_checkpoints_permissions() {
@@ -352,7 +365,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let checkpoint2 = CheckpointEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -367,7 +380,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-                
+
         let checkpoint3 = CheckpointEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
@@ -382,7 +395,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_checkpoint(&uuid1);
         hard_delete_checkpoint(&uuid2);
         hard_delete_checkpoint(&uuid3);
@@ -431,7 +444,7 @@ mod tests {
         match get_checkpoint(&uuid1, &context) {
             Ok(retrieved_checkpoint) => {
                 assert_eq!(retrieved_checkpoint.uuid, uuid1.to_string());
-            },
+            }
             Err(_) => {
                 assert_eq!(true, false);
             }
@@ -444,13 +457,10 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_checkpoint(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            },
-            Err(_) => {}
+        if get_checkpoint(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
-        
+
         // delete-test normal user false uuid
         let context = UserContext {
             user_id: "test-user-42".to_string(),
@@ -458,15 +468,12 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match delete_checkpoint(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            },
-            Err(_) => {}
+        if delete_checkpoint(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
-        let _ = hard_delete_checkpoint(&uuid1);
-        let _ = hard_delete_checkpoint(&uuid2);
-        let _ = hard_delete_checkpoint(&uuid3);
+        hard_delete_checkpoint(&uuid1);
+        hard_delete_checkpoint(&uuid2);
+        hard_delete_checkpoint(&uuid3);
     }
 }

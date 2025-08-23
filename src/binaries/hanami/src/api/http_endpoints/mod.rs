@@ -13,8 +13,9 @@
 // limitations under the License.
 
 pub mod auth;
-pub mod user;
+pub mod checkpoint;
 pub mod cluster;
+pub mod common;
 pub mod dataset;
 pub mod project;
-pub mod checkpoint;
+pub mod user;

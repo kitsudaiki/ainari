@@ -7,16 +7,15 @@
     -   For Ubuntu 22.04 and 24.04 (Debian should work too):
 
         ```bash
-        apt-get install gcc g++ clang-15 make cmake nlohmann-json3-dev libsqlite3-dev
+        apt-get install libsqlite3-dev
         ```
 
-    -   On Ubuntu 24.04 a new clang version than `15` can also be used or g++. See
-        [supported versions](/#supported-environment)
+-   Install Rust-compiler
 
 -   Clone repository with submodules
 
     ```bash
-    git clone https://github.com/kitsudaiki/OpenHanami.git
+    git clone https://github.com/kitsudaiki/ainari.git
     ```
 
 ## Build hamami plain
@@ -24,7 +23,7 @@
 -   Compile hanami
 
     ```bash
-    cd OpenHanami
+    cd Ainari
 
     cargo build --release
     ```
@@ -37,22 +36,6 @@
     ```bash
     ./target/release/hanami
     ```
-
-## Build hamami-core cpp-lib plain
-
--   Compile hanami
-
-    ```bash
-    cd OpenHanami
-    mkdir build
-    cd build
-
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make -j8
-    ```
-
--   In case you also want to compile the unit-tests and so on, you have to add `-Drun_tests=ON` to
-    the cmake-commands
 
 ## Build hanami as docker-image
 
@@ -86,10 +69,10 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 
 -   Install [earthly](https://github.com/earthly/earthly)
 
--   build protobuf-messages within the hanami_sdk directory
+-   build protobuf-messages within the ainari_sdk directory
 
     ```bash
-    earthly --artifact +compile-cli/tmp/hanamictl ./builds/
+    earthly --artifact +compile-cli/tmp/ainarictl ./builds/
     ```
 
 -   then you have a new local directory `builds`, where the resulting binary of the build-process is
@@ -101,15 +84,15 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 
     ```bash
     sudo apt-get update
-    sudo apt-get install -y protobuf-compiler python3 python3-pip
+    sudo apt-get install -y python3 python3-pip
     sudo pip3 install wheel
     ```
 
 <!-- -   build protobuf-messages and package
 
     ```bash
-    cd ./src/sdk/python/hanami_sdk/hanami_sdk
-    protoc --python_out=. --proto_path ../../../../libs/protobuf  hanami_messages.proto3
+    cd ./src/sdk/python/ainari_sdk/ainari_sdk
+    protoc --python_out=. --proto_path ../../../../libs/protobuf  ainari_messages.proto3
     cd ..
     python3 setup.py bdist_wheel --universal
     ``` -->
@@ -140,14 +123,6 @@ also line-numbers are marked. To update the file to get the test green again:
 
 -   run `earthly --ci +ansible-lint` -->
 
-### Cpp-check
-
--   run `earthly --ci +cppcheck`
-
-### Clang-format check
-
--   run `earthly --ci +clang-format`
-
 ## Build docs
 
 -   The documenation can be build as image like this:
@@ -159,14 +134,14 @@ also line-numbers are marked. To update the file to get the test green again:
     !!! example
 
         ```bash
-        earthly +docs --image_name=hanami_docs:test
+        earthly +docs --image_name=ainari_docs:test
         ```
 
 -   The documentation listen on port 8000 within the docker-container. So the port has to be
     forwarded into the container:
 
     ```bash
-    docker run -p 127.0.0.1:8080:8000 hanami_docs:test
+    docker run -p 127.0.0.1:8080:8000 ainari_docs:test
     ```
 
 -   After this within the browser the addess `127.0.0.1:8080` can be entered to call the
@@ -193,8 +168,8 @@ also line-numbers are marked. To update the file to get the test green again:
 -   checkout repository and run the local server
 
     ```bash
-    git clone --recurse-submodules https://github.com/kitsudaiki/OpenHanami.git
-    cd OpenHanami
+    git clone --recurse-submodules https://github.com/kitsudaiki/ainari.git
+    cd Ainari
 
     mkdocs serve
     ```

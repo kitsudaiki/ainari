@@ -38,7 +38,12 @@ pub struct Storage {
 
 #[derive(Debug, Deserialize)]
 pub struct Processing {
-    pub use_of_free_memory: f32,
+    #[serde(default = "default_max_number_of_threads")]
+    pub max_number_of_threads: usize,
+}
+
+fn default_max_number_of_threads() -> usize {
+    0
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,28 +65,27 @@ pub struct Database {
 
 // Global singleton config
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/openhanami/hanami.toml";
-    log::debug!("read config '{}'", file_path);
+    let file_path = "/etc/ainari/hanami.toml";
+    log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(&file_path) {
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             match toml::from_str(&content) {
                 Ok(v) => {
                     log::info!("successfully loaded config '{file_path}'");
-                    return v;        
-                },
+                    v
+                }
                 Err(e) => {
-
-                    log::error!("Failed to parse '{}'", e);
-                    log::error!("{}", e);
+                    log::error!("Failed to parse '{e}'");
+                    log::error!("{e}");
                     process::exit(1);
                 }
-            }       
-        },
+            }
+        }
         Err(e) => {
             log::error!("Failed read config-file '{file_path}'");
-            log::error!("{}", e);
+            log::error!("{e}");
             process::exit(1);
         }
     }
@@ -91,15 +95,20 @@ pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
     let file_path = &CONFIG.auth.token_key_path;
     log::debug!("read token-key from file: '{file_path}'");
 
-    match fs::read_to_string(&file_path) {
+    match fs::read_to_string(file_path) {
         Ok(content) => {
             log::debug!("successfully read token-key-file '{file_path}'");
-            content    
-        },
+            content
+        }
         Err(e) => {
             log::error!("Failed read token-key-file '{file_path}'");
-            log::error!("{}", e);
+            log::error!("{e}");
             process::exit(1);
         }
     }
+});
+
+pub static VERSION: Lazy<String> = Lazy::new(|| {
+    let git_version = option_env!("GIT_VERSION").unwrap_or("unknown");
+    git_version.to_string()
 });

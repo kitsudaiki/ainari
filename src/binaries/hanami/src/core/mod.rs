@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod blocks;
 pub mod cluster_handler;
-pub mod cluster;
-pub mod task_queue;
-pub mod tasks;
+pub mod cluster_interface;
+pub mod processing;

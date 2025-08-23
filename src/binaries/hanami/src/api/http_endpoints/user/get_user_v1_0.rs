@@ -20,8 +20,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
-use hanami_common::enums;
-use hanami_structs::user_structs::UserResp;
+use ainari_common::enums;
+use ainari_structs::user_structs::UserResp;
 
 #[api_operation(
     tag = "user",
@@ -32,9 +32,14 @@ use hanami_structs::user_structs::UserResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_user(user_id: Path<String>, context: UserContext) -> Result<Json<UserResp>, ErrorResponse> {
-    if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+pub async fn get_user(
+    user_id: Path<String>,
+    context: UserContext,
+) -> Result<Json<UserResp>, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
 
     // get new created user from database to get addtional information
@@ -49,12 +54,12 @@ pub async fn get_user(user_id: Path<String>, context: UserContext) -> Result<Jso
                 updated_by: user.updated_by.clone(),
                 updated_at: user.updated_at.clone(),
             };
-        
+
             return Ok(Json(resp));
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("User with ID '{user_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));

@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use actix_web::web::Path;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "project",
@@ -31,19 +31,24 @@ use hanami_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_project(project_id: Path<String>, context: UserContext) -> Result<NoContent, ErrorResponse> {
-    if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+pub async fn delete_project(
+    project_id: Path<String>,
+    context: UserContext,
+) -> Result<NoContent, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
 
     // get new created project from database to get addtional information
     match project_table::delete_project(&project_id, &context) {
         Ok(_) => {
             return Ok(NoContent);
-        },
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Project with ID '{project_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));

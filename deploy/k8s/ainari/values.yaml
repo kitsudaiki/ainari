@@ -1,0 +1,29 @@
+# more than 1 replica is currently not supported
+replicaCount: 1
+
+user:
+  id: ""
+  name: ""
+  passphrase: ""
+
+token:
+  data: ""
+  expire_time: 3600
+
+docker:
+  tag: "develop"
+  registry: "kitsudaiki"
+
+api:
+  domain: local-hanami
+
+processing:
+  max_number_of_threads: 0
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

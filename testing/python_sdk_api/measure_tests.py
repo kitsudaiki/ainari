@@ -16,11 +16,10 @@
 
 import matplotlib
 import matplotlib.pyplot as plt
-from hanami_sdk import hanami_token
-from hanami_sdk import cluster
-from hanami_sdk import dataset
-from hanami_sdk import task
-from hanami_sdk import direct_io
+from ainari_sdk import ainari_token
+from ainari_sdk import cluster
+from ainari_sdk import dataset
+from ainari_sdk import task
 import configparser
 import urllib3
 import time
@@ -53,7 +52,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 matplotlib.use('Qt5Agg')
 
 config = configparser.ConfigParser()
-config.read('/etc/openhanami/hanami_testing.conf')
+config.read('/etc/ainari/hanami_testing.conf')
 
 address = config["connection"]["address"]
 test_user_id = config["connection"]["test_user"]
@@ -85,7 +84,7 @@ template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 
-token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
+token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
 
 # initial cleanup for the case of leftovers from previous run
 dataset.delete_all_datasets(token, address, False)
@@ -128,7 +127,7 @@ request_outputs = [
     }
 ]
 
-replicas = 10
+replicas = 5
 cluster_uuids = [""] * 10
 task_uuids = [""] * 10
 flattened_list = [0.0] * 1750
@@ -143,7 +142,7 @@ for x in range(replicas):
     print("train replica: ", x)
     print('\n')
     task_uuids[x] = task.create_train_task(
-        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 500, 20, False)["uuid"]
+        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 200, 20, False)["uuid"]
     finished = False
     while not finished:
         time.sleep(1)
@@ -192,7 +191,7 @@ dataset.delete_dataset(token, address, train_dataset_uuid, False)
 
 # update result
 for r in range(len(flattened_list)):
-    flattened_list[r] /= 10.0
+    flattened_list[r] /= 5.0
 
 # plot result
 plt.rcParams["figure.figsize"] = [10, 5]

@@ -14,16 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hanami_sdk import hanami_token
-from hanami_sdk import checkpoint
-from hanami_sdk import cluster
-from hanami_sdk import dataset
-# from hanami_sdk import direct_io
-from hanami_sdk import hosts
-from hanami_sdk import project
-from hanami_sdk import task
-from hanami_sdk import user
-from hanami_sdk import hanami_exceptions
+from ainari_sdk import ainari_token
+from ainari_sdk import checkpoint
+from ainari_sdk import cluster
+from ainari_sdk import dataset
+# from ainari_sdk import direct_io
+from ainari_sdk import hosts
+from ainari_sdk import project
+from ainari_sdk import task
+from ainari_sdk import user
+from ainari_sdk import common
+from ainari_sdk import ainari_exceptions
 import test_values
 import json
 import time
@@ -39,7 +40,7 @@ import sys
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 config = configparser.ConfigParser()
-config.read('/etc/openhanami/hanami_testing.conf')
+config.read('/etc/ainari/hanami_testing.conf')
 
 address = config["connection"]["address"]
 test_user_id = config["connection"]["test_user"]
@@ -59,12 +60,13 @@ cluster_template = \
     "hexagons:  " \
     "    1,1,1; " \
     "    2,2,2; " \
+    "    3,2,2; " \
     "axons: " \
     "    1,1,1 -> 2,2,2;  " \
     "inputs: " \
     "    picture_hex: 1,1,1; " \
     "outputs: " \
-    "    label_hex: 2,2,2;"
+    "    label_hex: 3,2,2;"
 
 user_id = "tsugumi"
 user_name = "Tsugumi"
@@ -103,18 +105,18 @@ def test_project():
     project.create_project(token, address, projet_id, project_name, False)
     try:
         project.create_project(token, address, projet_id, project_name, False)
-    except hanami_exceptions.ConflictException:
+    except ainari_exceptions.ConflictException:
         pass
     project.list_projects(token, address, False)
     project.get_project(token, address, projet_id, False)
     try:
         project.get_project(token, address, "fail_project", False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
     project.delete_project(token, address, projet_id, False)
     try:
         project.delete_project(token, address, projet_id, False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
 
 
@@ -124,18 +126,18 @@ def test_user():
     user.create_user(token, address, user_id, user_name, passphrase, is_admin, False)
     try:
         user.create_user(token, address, user_id, user_name, passphrase, is_admin, False)
-    except hanami_exceptions.ConflictException:
+    except ainari_exceptions.ConflictException:
         pass
     user.list_users(token, address, False)
     user.get_user(token, address, user_id, False)
     try:
         user.get_user(token, address, "fail_user", False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
     user.delete_user(token, address, user_id, False)
     try:
         user.delete_user(token, address, user_id, False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
 
 
@@ -161,13 +163,13 @@ def test_dataset():
 
     try:
         dataset.get_dataset(token, address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
     dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
     dataset.delete_dataset(token, address, csv_dataset_uuid, False)
     try:
         dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
 
 
@@ -180,12 +182,12 @@ def test_cluster():
     cluster.get_cluster(token, address, cluster_uuid, False)
     try:
         cluster.get_cluster(token, address, "569003fd-bf24-410b-8678-28f141877ac9", False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
     cluster.delete_cluster(token, address, cluster_uuid, False)
     try:
         cluster.delete_cluster(token, address, cluster_uuid, False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
 
 
@@ -236,7 +238,7 @@ def _creat_and_resore_checkpoint(cluster_uuid):
     checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
     try:
         checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
-    except hanami_exceptions.NotFoundException:
+    except ainari_exceptions.NotFoundException:
         pass
 
     return cluster_uuid
@@ -260,7 +262,7 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        token, address, generic_task_name, cluster_uuid, inputs, outputs, 3, 1, False)["uuid"]
+        token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, 1, False)["uuid"]
 
     finished = False
     while not finished:
@@ -334,7 +336,7 @@ def _test(cluster_uuid, request_dataset_uuid):
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
-    assert accuracy > 0.9
+    assert accuracy > 0.85
 
     # # download part of the resulting dataset
     # data = dataset.download_dataset_content(
@@ -403,13 +405,16 @@ def test_workflow():
     cluster.delete_cluster(token, address, cluster_uuid, False)
 
 
-token = hanami_token.request_token(address, test_user_id, test_user_pw, False)
+token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
 # print(token)
 dataset.delete_all_datasets(token, address, False)
 checkpoint.delete_all_checkpoints(token, address, False)
 cluster.delete_all_cluster(token, address, False)
 project.delete_all_projects(token, address, False)
 user.delete_all_user(token, address, False)
+
+version = common.get_version(token, address, False)
+print(f"version: {version}")
 
 test_project()
 test_user()

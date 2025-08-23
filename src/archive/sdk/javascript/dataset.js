@@ -16,7 +16,7 @@
 
 function sendFile(websocket, file, uuid, fileUuid)
 {
-    protobuf.load("/hanami_messages/protobuffers/hanami_messages.proto3", function(err, root) 
+    protobuf.load("/ainari_messages/protobuffers/ainari_messages.proto3", function(err, root) 
     {
         if(err) {
             throw err;

@@ -16,26 +16,14 @@ use std::env;
 use std::fs;
 
 mod api;
-mod database;
 mod config;
 mod core;
+mod database;
 
 use log::LevelFilter;
 
-use core::cluster_handler;
-
-autocxx::include_cpp! {
-    #include "hanami_root.h"
-    #include "hanami_structs.h"
-    #include "cluster_link.h"
-    safety!(unsafe_ffi)
-    generate!("HanamiCore")
-    generate!("ReturnStatus")
-    generate!("createRootObj")
-    generate!("ClusterMeta")
-    generate!("ClusterLink")
-}
-
+use core::cluster_handler::*;
+use core::processing::worker_handler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the logger
@@ -43,13 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // HINT (kitsudaiki): on my test-environment the rust-compile required the 'unsafe'-marker
         env::set_var("RUST_LOG", "debug");
     }
-    
-    env_logger::init(); 
+
+    env_logger::init();
 
     let enable_debug_log = config::CONFIG.debug;
-    if enable_debug_log == false {
+    if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
-    } 
+    }
 
     // create directories if they not exist
     let checkpoint_dir = config::CONFIG.storage.checkpoint_location.clone();
@@ -59,21 +47,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
     fs::create_dir_all(tempfile_dir)?;
 
-    // Initialize hanami-core
-    let use_of_free_memory: f32 = config::CONFIG.processing.use_of_free_memory.clone();
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.lock().unwrap();
-    if cluster_handle.init_hanami_root(use_of_free_memory) {
-        log::info!("Initilaized hanami-core")
-    } else {
-        let msg = "Failed to initialize hanami-core".to_string();
-        log::error!("{}", msg);
-        return Err(msg.into());
-    }
-    drop(cluster_handle);
+    // Initialize processing
+    let worker_handler = worker_handler::WORKER_HANDLER.lock().unwrap();
+    drop(worker_handler);
+    let cluster_data_handler = CLUSTER_HANDLER.write().unwrap();
+    drop(cluster_data_handler);
 
     database::init_database()?;
 
     api::http_server::run_server()?;
-    
+
     Ok(())
 }

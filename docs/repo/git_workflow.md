@@ -47,12 +47,19 @@
 
 ### Keywords
 
-Following keywords have to be used at the beginning of each commit message
+All the standard keywords:
 
--   `Add`
--   `Change`
--   `Fix`
--   `Remove`
+-   `build`
+-   `chore`
+-   `ci`
+-   `docs`
+-   `feat`
+-   `fix`
+-   `perf`
+-   `refactor`
+-   `revert`
+-   `style`
+-   `test`
 
 ### Commit-Message
 

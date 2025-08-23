@@ -2,19 +2,19 @@
 - name: Create base-directory
   become: true
   file:
-    path: /etc/openhanami
+    path: /etc/ainari
     state: directory
     mode: "0777"
 
 - name: Create checkpoint-directory
   file:
-    path: "{{ hanami_checkpoint_location }}"
+    path: "{{ ainari_checkpoint_location }}"
     state: directory
     mode: "0777"
 
 - name: Create dataset-directory
   file:
-    path: "{{ hanami_dataset_location }}"
+    path: "{{ ainari_dataset_location }}"
     state: directory
     mode: "0777"
 
@@ -22,7 +22,7 @@
 - name: Create log-directory
   become: true
   file:
-    path: "{{ hanami_log_dir }}"
+    path: "{{ ainari_log_dir }}"
     state: directory
     mode: "0777"
 
@@ -30,18 +30,18 @@
 - name: Copy policies
   copy:
     src: policies
-    dest: /etc/openhanami/policies
+    dest: /etc/ainari/policies
     mode: "0777"
 
 - name: Create hanami-config from template
   template:
     src: hanami.conf.j2
-    dest: /etc/openhanami/hanami.conf
+    dest: /etc/ainari/hanami.conf
     mode: "0777"
 
 - name: Create a token-file
   copy:
-    dest: "{{ hanami_token_key_path }}"
+    dest: "{{ ainari_token_key_path }}"
     content: "{{ lookup('env', 'TOKEN_KEY') }}"
     mode: "0600"
 
@@ -50,7 +50,7 @@
   become: true
   community.docker.docker_container:
     name: hanami
-    image: kitsudaiki/hanami:{{ hanami_docker_tag }}
+    image: kitsudaiki/hanami:{{ ainari_docker_tag }}
     state: started
     pull: true
     detach: true
@@ -62,11 +62,11 @@
     ports:
       - "11418:11418"
     mounts:
-      - source: /etc/openhanami
-        target: /etc/openhanami
+      - source: /etc/ainari
+        target: /etc/ainari
         type: bind
         read_only: false
-      - source: "{{ hanami_log_dir }}"
-        target: "{{ hanami_log_dir }}"
+      - source: "{{ ainari_log_dir }}"
+        target: "{{ ainari_log_dir }}"
         type: bind
         read_only: false

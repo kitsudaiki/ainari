@@ -19,7 +19,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
-use hanami_structs::user_structs::{UserBasicResp, UserListResp};
+use ainari_structs::user_structs::{UserBasicResp, UserListResp};
 
 #[api_operation(
     tag = "user",
@@ -29,15 +29,15 @@ use hanami_structs::user_structs::{UserBasicResp, UserListResp};
     error_code = 500
 )]
 pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
-    if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
-    
+
     let users = user_table::list_users(&context).unwrap();
 
-    let mut resp = UserListResp {
-        users: Vec::new(),
-    };
+    let mut resp = UserListResp { users: Vec::new() };
 
     for user in users {
         let obj = UserBasicResp {

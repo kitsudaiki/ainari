@@ -12,29 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::process::Command;
+
 fn main() {
-    // compile C++ library via cmake
-    let dst = cmake::Config::new("hanami_core_cpp")
-        //.profile("Debug")
-        .profile("Release")
-        .build();
+    let commit_hash = run_cmd(&["rev-parse", "--short", "HEAD"]);
+    let tag = run_cmd(&["tag", "--points-at", "HEAD"]);
 
-    // setup autocxx
-    let include_path = "hanami_core_cpp";
-    let mut b = autocxx_build::Builder::new("src/main.rs", &[include_path])
-        .extra_clang_args(&["-std=c++17"])
-        .build()
-        .unwrap();
+    let version_string = if !tag.is_empty() {
+        format!("{}_{}", tag, commit_hash)
+    } else {
+        let branch = run_cmd(&["rev-parse", "--abbrev-ref", "HEAD"]);
+        format!("{}_{}", branch, commit_hash)
+    };
 
-    b.flag("-O3");
-    
-    b.include(include_path)
-     .flag_if_supported("-std=c++17");
+    // Fallback if everything fails
+    let final_version = if version_string.trim().is_empty() {
+        "unknown".to_string()
+    } else {
+        version_string
+    };
 
-    b.compile("autocxx-hanami_core_cpp");
-
-    // link against C++ static lib
-    println!("cargo:rustc-link-search=native={}/build", dst.display());
-    println!("cargo:rustc-link-lib=static=hanami_core_cpp");
+    println!("cargo:rustc-env=GIT_VERSION={}", final_version);
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-changed=.git/refs/");
+    println!("cargo:rerun-if-changed=build.rs");
 }
 
+fn run_cmd(args: &[&str]) -> String {
+    Command::new("git")
+        .args(args)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default()
+}

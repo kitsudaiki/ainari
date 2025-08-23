@@ -21,8 +21,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::checkpoint_table;
 
-use hanami_common::enums;
-use hanami_structs::checkpoint_structs::CheckpointResp;
+use ainari_common::enums;
+use ainari_structs::checkpoint_structs::CheckpointResp;
 
 #[api_operation(
     tag = "checkpoint",
@@ -33,24 +33,27 @@ use hanami_structs::checkpoint_structs::CheckpointResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_checkpoint(checkpoint_uuid: Path<Uuid>, context: UserContext) -> Result<Json<CheckpointResp>, ErrorResponse> {
+pub async fn get_checkpoint(
+    checkpoint_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<CheckpointResp>, ErrorResponse> {
     match checkpoint_table::get_checkpoint(&checkpoint_uuid, &context) {
         Ok(checkpoint) => {
             let resp = CheckpointResp {
-                uuid: checkpoint_uuid.clone(),
+                uuid: *checkpoint_uuid,
                 name: checkpoint.name.clone(),
                 created_by: checkpoint.created_by.clone(),
                 created_at: checkpoint.created_at.clone(),
                 updated_by: checkpoint.updated_by.clone(),
                 updated_at: checkpoint.updated_at.clone(),
             };
-        
+
             return Ok(Json(resp));
-        },
+        }
         Err(enums::DbError::InternalError) => {
             log::error!("Error while getting checkpoint from DB");
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));

@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
+use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use actix_web::web::Path;
+use std::fs;
 use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "dataset",
@@ -32,12 +32,15 @@ use hanami_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<NoContent, ErrorResponse> {
+pub async fn delete_dataset(
+    dataset_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<NoContent, ErrorResponse> {
     let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
         Ok(dataset) => dataset,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -45,7 +48,7 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
     };
 
     match fs::remove_file(&dataset.file_path) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {
             let file_path = dataset.file_path;
             log::error!("Failed to delete file '{file_path}' from disc");
@@ -54,15 +57,15 @@ pub async fn delete_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> R
     }
 
     match dataset_table::delete_dataset(&dataset_uuid, &context) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
 
-    Ok(NoContent)   
+    Ok(NoContent)
 }

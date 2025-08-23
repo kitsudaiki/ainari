@@ -15,16 +15,16 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use uuid::Uuid;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use hanami_common::enums;
-use hanami_dataset::dataset_io::read_data_set_file;
-use hanami_structs::dataset_structs::DatasetResp;
+use ainari_common::enums;
+use ainari_dataset::dataset_io::read_data_set_file;
+use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",
@@ -35,12 +35,15 @@ use hanami_structs::dataset_structs::DatasetResp;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Result<Json<DatasetResp>, ErrorResponse> {
+pub async fn get_dataset(
+    dataset_uuid: Path<Uuid>,
+    context: UserContext,
+) -> Result<Json<DatasetResp>, ErrorResponse> {
     let dataset_data = match dataset_table::get_dataset(&dataset_uuid, &context) {
         Ok(dataset_data) => dataset_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
-        },
+        }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
@@ -55,7 +58,7 @@ pub async fn get_dataset(dataset_uuid: Path<Uuid>, context: UserContext) -> Resu
     };
 
     let resp = DatasetResp {
-        uuid: dataset_uuid.clone(),
+        uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
         number_of_rows: file_handle.get_number_of_rows(),
         number_of_columns: file_handle.header.columns.len() as u64,

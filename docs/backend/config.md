@@ -1,8 +1,8 @@
-# Configs of OpenHanami
+# Configs of Ainari
 
 !!! info
 
-    example config-file can be found in the repository under `example_configs/openhanami/hanami.toml`
+    example config-file can be found in the repository under `example_configs/ainari/hanami.toml`
 
 ## without group
 

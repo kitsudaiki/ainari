@@ -19,7 +19,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
-use hanami_structs::project_structs::{ProjectBasicResp, ProjectListResp};
+use ainari_structs::project_structs::{ProjectBasicResp, ProjectListResp};
 
 #[api_operation(
     tag = "project",
@@ -29,10 +29,12 @@ use hanami_structs::project_structs::{ProjectBasicResp, ProjectListResp};
     error_code = 500
 )]
 pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>, ErrorResponse> {
-    if context.is_admin == false {
-        return Err(ErrorResponse::Unauthorized("Only Admins are allowed to use this endpoint".to_string()));
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
     }
-    
+
     let projects = project_table::list_projects(&context).unwrap();
 
     let mut resp = ProjectListResp {

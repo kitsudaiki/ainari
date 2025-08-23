@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::prelude::*;
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::database::db_handle;
 use crate::api::user_context::UserContext;
+use crate::database::db_handle;
 
-use hanami_common::enums;
+use ainari_common::enums;
 
 // Define the schema
 table! {
@@ -60,7 +60,8 @@ pub struct DatasetEntry {
 
 pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
-    let _ = conn.batch_execute("CREATE TABLE IF NOT EXISTS datasets (
+    conn.batch_execute(
+        "CREATE TABLE IF NOT EXISTS datasets (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         file_path TEXT,
@@ -73,16 +74,22 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );")?;
+    );",
+    )?;
 
     Ok(())
 }
 
-pub fn add_new_dataset(dataset_uuid: &Uuid, dataset_name: &String, file_path: &String, context: &UserContext) -> QueryResult<usize> {
-    let dataset = DatasetEntry{
+pub fn add_new_dataset(
+    dataset_uuid: &Uuid,
+    dataset_name: &str,
+    file_path: &str,
+    context: &UserContext,
+) -> QueryResult<usize> {
+    let dataset = DatasetEntry {
         uuid: dataset_uuid.to_string().clone(),
-        name: dataset_name.clone(),
-        file_path: file_path.clone(),
+        name: dataset_name.to_owned(),
+        file_path: file_path.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -101,22 +108,27 @@ pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
 
-    diesel::insert_into(datasets).values(dataset).execute(&mut *conn)
+    diesel::insert_into(datasets)
+        .values(dataset)
+        .execute(&mut *conn)
 }
 
-pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<DatasetEntry, enums::DbError> {
+pub fn get_dataset(
+    dataset_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<DatasetEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
-    
+
     let mut query = datasets
         .filter(uuid.eq(dataset_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
-    if context.is_admin == false {
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
-        } 
+        }
     }
 
     match query
@@ -126,7 +138,7 @@ pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<Dataset
         Ok(dataset) => Ok(dataset),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -135,14 +147,12 @@ pub fn get_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<Dataset
 pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
-    
-    let mut query = datasets
-        .filter(status.eq("ACTIVE"))
-        .into_boxed();
 
-    if context.is_admin == false {
+    let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
+
+    if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin == false {
+        if !context.is_project_admin {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -151,14 +161,14 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
 }
 
 pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
-    get_dataset(&dataset_uuid, &context)?;
+    get_dataset(dataset_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().unwrap();
     use self::datasets::dsl::*;
 
     match diesel::update(datasets.filter(uuid.eq(dataset_uuid.to_string())))
         .set((
-            status.eq("DELETED"), 
+            status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
             deleted_by.eq(context.user_id.clone()),
         ))
@@ -167,7 +177,7 @@ pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), 
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
-            log::error!("Database-error: {:?}", e);
+            log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
         }
     }
@@ -181,9 +191,10 @@ mod tests {
     fn hard_delete_dataset(dataset_uuid: &Uuid) {
         use self::datasets::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().unwrap();
-        let _ = diesel::delete(datasets.filter(uuid.eq(dataset_uuid.to_string()))).execute(&mut *conn);
+        let _ =
+            diesel::delete(datasets.filter(uuid.eq(dataset_uuid.to_string()))).execute(&mut *conn);
     }
-    
+
     #[test]
     #[serial]
     fn test_add_get_dataset() {
@@ -217,21 +228,18 @@ mod tests {
         hard_delete_dataset(&uuid1);
 
         add_dataset(&dataset).unwrap();
-        match get_dataset(&uuid1, &context) {
-            Ok(retrieved_dataset) => {
-                assert_eq!(retrieved_dataset.uuid, dataset.uuid);
-                assert_eq!(retrieved_dataset.name, dataset.name);
-                assert_eq!(retrieved_dataset.file_path, dataset.file_path);
-                assert_eq!(retrieved_dataset.status, dataset.status);
-                assert_eq!(retrieved_dataset.created_by, dataset.created_by);
-                assert_eq!(retrieved_dataset.updated_by, dataset.updated_by);
-                assert_eq!(retrieved_dataset.deleted_at, dataset.deleted_at);
-                assert_eq!(retrieved_dataset.deleted_by, dataset.deleted_by);
-            },
-            Err(_) => {}
+        if let Ok(retrieved_dataset) = get_dataset(&uuid1, &context) {
+            assert_eq!(retrieved_dataset.uuid, dataset.uuid);
+            assert_eq!(retrieved_dataset.name, dataset.name);
+            assert_eq!(retrieved_dataset.file_path, dataset.file_path);
+            assert_eq!(retrieved_dataset.status, dataset.status);
+            assert_eq!(retrieved_dataset.created_by, dataset.created_by);
+            assert_eq!(retrieved_dataset.updated_by, dataset.updated_by);
+            assert_eq!(retrieved_dataset.deleted_at, dataset.deleted_at);
+            assert_eq!(retrieved_dataset.deleted_by, dataset.deleted_by);
         };
 
-        let _ = hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid1);
     }
 
     #[test]
@@ -264,7 +272,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -279,7 +287,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_dataset(&uuid1);
         hard_delete_dataset(&uuid2);
 
@@ -287,8 +295,8 @@ mod tests {
         add_dataset(&dataset2).unwrap();
         let datasets = list_datasets(&context).unwrap();
         assert_eq!(datasets.len(), 1);
-        let _ = hard_delete_dataset(&uuid1);
-        let _ = hard_delete_dataset(&uuid2);
+        hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid2);
     }
 
     #[test]
@@ -329,7 +337,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-
     #[test]
     #[serial]
     fn test_datasets_permissions() {
@@ -352,7 +359,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
@@ -367,7 +374,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-                
+
         let dataset3 = DatasetEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
@@ -382,7 +389,7 @@ mod tests {
             deleted_at: None,
             deleted_by: None,
         };
-        
+
         hard_delete_dataset(&uuid1);
         hard_delete_dataset(&uuid2);
         hard_delete_dataset(&uuid3);
@@ -431,7 +438,7 @@ mod tests {
         match get_dataset(&uuid1, &context) {
             Ok(retrieved_dataset) => {
                 assert_eq!(retrieved_dataset.uuid, uuid1.to_string());
-            },
+            }
             Err(_) => {
                 assert_eq!(true, false);
             }
@@ -444,13 +451,10 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_dataset(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            },
-            Err(_) => {}
+        if get_dataset(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
-        
+
         // delete-test normal user false uuid
         let context = UserContext {
             user_id: "test-user-42".to_string(),
@@ -458,15 +462,12 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match delete_dataset(&uuid3, &context) {
-            Ok(_) => {
-                assert_eq!(true, false);
-            },
-            Err(_) => {}
+        if delete_dataset(&uuid3, &context).is_ok() {
+            assert_eq!(true, false);
         };
 
-        let _ = hard_delete_dataset(&uuid1);
-        let _ = hard_delete_dataset(&uuid2);
-        let _ = hard_delete_dataset(&uuid3);
+        hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid2);
+        hard_delete_dataset(&uuid3);
     }
 }
