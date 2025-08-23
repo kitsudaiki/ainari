@@ -35,7 +35,7 @@ jobs:
     steps:
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - 
+      -
         name: Run Clippy
         run: cargo clippy --all-targets --all-features
 
@@ -62,9 +62,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -114,9 +114,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
@@ -229,9 +229,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         name: Checkout repository
         run: |
@@ -271,9 +271,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         name: Checkout repository
         run: |
@@ -313,9 +313,9 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         name: Checkout repository
         run: |
@@ -648,9 +648,9 @@ jobs:
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         name: Checkout repository
         run: |
@@ -1018,9 +1018,9 @@ jobs:
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
       -
-        name: insteall earthly
-        run: |
-          sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/download/v0.8.15/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
+        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
+        with:
+          version: "latest"
       -
         name: Checkout repository
         run: |
