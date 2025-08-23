@@ -128,8 +128,8 @@ pub struct CoreBlock {
     pub block_io: BlockIoBuffer,
     cluster_settings: Settings,
 
-    // HINT (kitsudaiki): this has to be a Box instead of a static array to avoid a stack-overflow, because the object is too big
-    pub synapse_sections: Box<[SynapseSection]>,
+    // HINT (kitsudaiki): this has to be a Vec instead of a static array to avoid a stack-overflow, because the object is too big
+    pub synapse_sections: Vec<SynapseSection>,
     #[serde(with = "BigArray")]
     pub neurons: [Neuron; BLOCK_DIM * 3],
     #[serde(with = "BigArray")]
@@ -140,20 +140,6 @@ pub struct CoreBlock {
 
 impl CoreBlock {
     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, cluster_settings: &Settings) -> Self {
-        // internal visilization of the blocks:
-        //
-        // +---+ +---+ +---+
-        // | 1 | | 3 | | 5 |
-        // +---+ +---+ +---+
-        // | 0 | | 2 | | 4 |
-        // +---+ +---+ +---+
-        //
-        let capacity = BLOCK_DIM * 2 * 3;
-        let mut vec = Vec::with_capacity(capacity);
-        for _ in 0..capacity {
-            vec.push(SynapseSection::default());
-        }
-
         let mut block = CoreBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: *hexagon_uuid,
@@ -162,13 +148,26 @@ impl CoreBlock {
             block_io: BlockIoBuffer::default(),
             cluster_settings: cluster_settings.clone(),
 
-            synapse_sections: vec.into_boxed_slice(),
+            synapse_sections: Vec::new(),
             neurons: std::array::from_fn(|_| Neuron::default()),
             connections: std::array::from_fn(|_| Connection::default()),
 
             // pre-initialized number of synapses, one for each possible input-axon
             section_counter: 0,
         };
+
+        // internal visilization of the blocks:
+        //
+        // +---+ +---+ +---+
+        // | 1 | | 3 | | 5 |
+        // +---+ +---+ +---+
+        // | 0 | | 2 | | 4 |
+        // +---+ +---+ +---+
+        //
+        let init_capacity = BLOCK_DIM * 2;
+        block
+            .synapse_sections
+            .resize_with(init_capacity, SynapseSection::default);
 
         block.block_io.output_buffer.push(AxonSection::default());
         block.block_io.input_buffer.push(AxonSection::default());
@@ -188,11 +187,17 @@ impl CoreBlock {
         if self.block_io.output_buffer.len() == 1
             && self.section_counter as f32 >= ((2 * BLOCK_DIM) as f32 * 0.9f32)
         {
+            let new_capacity = BLOCK_DIM * 2 * 2;
+            self.synapse_sections
+                .resize_with(new_capacity, SynapseSection::default);
             self.block_io.output_buffer.push(AxonSection::default());
         }
         if self.block_io.output_buffer.len() == 2
             && self.section_counter as f32 >= ((4 * BLOCK_DIM) as f32 * 0.9f32)
         {
+            let new_capacity = BLOCK_DIM * 2 * 3;
+            self.synapse_sections
+                .resize_with(new_capacity, SynapseSection::default);
             self.block_io.output_buffer.push(AxonSection::default());
         }
     }
@@ -442,7 +447,9 @@ impl Block for CoreBlock {
         let number_of_output_blocks = self.block_io.output_buffer.len();
         let mut random_seed = rand::rng().random_range(1..(RAND_MAX - 1)) as u32;
 
-        for i in 0..(6 * BLOCK_DIM) {
+        // HINT (kitsudaki): used a normal for-loop instead of an iterator over the array here, to
+        //                   avoid problems with the borrow-checker
+        for i in 0..self.synapse_sections.len() {
             let conn = self.connections[i];
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
@@ -495,6 +502,9 @@ impl Block for CoreBlock {
         let number_of_output_blocks = self.block_io.output_buffer.len();
 
         for (i, conn) in self.connections.iter().enumerate() {
+            if i >= self.synapse_sections.len() {
+                break;
+            }
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
             }
@@ -531,6 +541,9 @@ impl Block for CoreBlock {
         // }
 
         for (i, conn) in self.connections.iter_mut().enumerate() {
+            if i >= self.synapse_sections.len() {
+                break;
+            }
             if conn.source_input == UNINIT_STATE_16 {
                 continue;
             }
