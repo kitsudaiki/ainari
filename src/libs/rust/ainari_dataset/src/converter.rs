@@ -66,6 +66,7 @@ pub fn load_mnist_images(
     if num_images != num_labels {
         return Err("Image and label count mismatch!".into());
     }
+
     // prepare buffer
     let count = limit
         .unwrap_or(num_images as usize)
