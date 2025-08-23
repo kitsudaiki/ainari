@@ -389,7 +389,6 @@ fn backpropagate_section(
 ) {
     let mut potential = source_axon.potential - connection.lower_bound;
     let mut delta;
-    let train_value = 0.5f32;
     let mut target_axon;
     let mut output_block_id;
     let mut output_axon_id;
@@ -409,7 +408,7 @@ fn backpropagate_section(
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
-        synapse.weight_1 -= train_value * target_axon.delta;
+        synapse.weight_1 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
 
         output_block_id =
@@ -417,7 +416,7 @@ fn backpropagate_section(
         output_axon_id = ((synapse.target_neuron_id + 1) % BLOCK_DIM as u16) as usize;
         target_axon = &output_buffer[output_block_id].axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
-        synapse.weight_2 -= train_value * target_axon.delta;
+        synapse.weight_2 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
 
         potential -= synapse.border;
