@@ -131,7 +131,7 @@ impl OutputBlock {
 
         let input_buffer = &mut self.block_io.input_buffer[0];
         // calculate block-internal output
-        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
+        for (x, axon) in input_buffer.data.axons.iter_mut().enumerate() {
             if axon.potential == 0.0f32 {
                 continue;
             }
@@ -247,7 +247,7 @@ impl Block for OutputBlock {
 
         // backpropagate block
         let input_buffer = &mut self.block_io.input_buffer[0];
-        for (x, axon) in input_buffer.axons.iter_mut().enumerate() {
+        for (x, axon) in input_buffer.data.axons.iter_mut().enumerate() {
             axon.delta = 0.0f32;
             if axon.potential == 0.0f32 {
                 continue;

@@ -506,31 +506,31 @@
 //         assert_ne!(test_block.neurons[38].input, 0.0f32);
 //         assert_ne!(test_block.neurons[80].input, 0.0f32);
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[84].potential,
+//             test_block.block_io.output_buffer[0].data.axons[84].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[126].potential,
+//             test_block.block_io.output_buffer[0].data.axons[126].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[40].potential,
+//             test_block.block_io.output_buffer[0].data.axons[40].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[82].potential,
+//             test_block.block_io.output_buffer[0].data.axons[82].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[124].potential,
+//             test_block.block_io.output_buffer[0].data.axons[124].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[38].potential,
+//             test_block.block_io.output_buffer[0].data.axons[38].potential,
 //             0.0f32
 //         );
 //         assert_ne!(
-//             test_block.block_io.output_buffer[0].axons[80].potential,
+//             test_block.block_io.output_buffer[0].data.axons[80].potential,
 //             0.0f32
 //         );
 
@@ -540,14 +540,14 @@
 //         assert_eq!(test_block.neurons[10].input, 0.0f32);
 
 //         // set test-deltas
-//         test_block.block_io.output_buffer[0].axons[42].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[84].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[126].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[40].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[82].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[124].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[38].delta = 0.5f32;
-//         test_block.block_io.output_buffer[0].axons[80].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[42].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[84].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[126].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[40].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[82].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[124].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[38].delta = 0.5f32;
+//         test_block.block_io.output_buffer[0].data.axons[80].delta = 0.5f32;
 
 //         let _ = test_block.backpropagate(cycle_number);
 
@@ -556,19 +556,19 @@
 //         // println!("{}", test_block.input_buffer[0].axons[0].delta);
 
 //         // check that all target-axons are reseted
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[42].delta, 0.0f32);
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[84].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[42].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[84].delta, 0.0f32);
 //         assert_eq!(
-//             test_block.block_io.output_buffer[0].axons[126].delta,
+//             test_block.block_io.output_buffer[0].data.axons[126].delta,
 //             0.0f32
 //         );
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[40].delta, 0.0f32);
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[82].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[40].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[82].delta, 0.0f32);
 //         assert_eq!(
-//             test_block.block_io.output_buffer[0].axons[124].delta,
+//             test_block.block_io.output_buffer[0].data.axons[124].delta,
 //             0.0f32
 //         );
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[38].delta, 0.0f32);
-//         assert_eq!(test_block.block_io.output_buffer[0].axons[80].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[38].delta, 0.0f32);
+//         assert_eq!(test_block.block_io.output_buffer[0].data.axons[80].delta, 0.0f32);
 //     }
 // }

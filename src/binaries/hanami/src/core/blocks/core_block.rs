@@ -202,7 +202,7 @@ impl CoreBlock {
         let mut neuron;
 
         for buffer in self.block_io.output_buffer.iter_mut() {
-            for axon in buffer.axons.iter_mut() {
+            for axon in buffer.data.axons.iter_mut() {
                 neuron = &mut self.neurons[counter];
 
                 axon.potential /= self.cluster_settings.neuron_cooldown;
@@ -412,7 +412,7 @@ fn backpropagate_section(
         output_block_id =
             ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
-        target_axon = &output_buffer[output_block_id].axons[output_axon_id];
+        target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
         synapse.weight_1 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
@@ -420,7 +420,7 @@ fn backpropagate_section(
         output_block_id =
             (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = ((synapse.target_neuron_id + 1) % BLOCK_DIM as u16) as usize;
-        target_axon = &output_buffer[output_block_id].axons[output_axon_id];
+        target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
         synapse.weight_2 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
@@ -450,7 +450,7 @@ impl Block for CoreBlock {
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let axon = &self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if axon.potential != 0.0f32 {
                 if !conn.used {
                     self.section_counter += 1;
@@ -480,7 +480,7 @@ impl Block for CoreBlock {
         }
 
         for axon_block in self.block_io.output_buffer.iter_mut() {
-            for axon in axon_block.axons.iter_mut() {
+            for axon in axon_block.data.axons.iter_mut() {
                 axon.delta = 0.0f32;
             }
         }
@@ -501,7 +501,7 @@ impl Block for CoreBlock {
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let axon = &self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let axon = &self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if axon.potential != 0.0f32 {
                 if !conn.used {
                     continue;
@@ -537,7 +537,7 @@ impl Block for CoreBlock {
 
             let input_block_id = (conn.source_input / BLOCK_DIM as u16) as usize;
             let axon_id = (conn.source_input % BLOCK_DIM as u16) as usize;
-            let source_axon = &mut self.block_io.input_buffer[input_block_id].axons[axon_id];
+            let source_axon = &mut self.block_io.input_buffer[input_block_id].data.axons[axon_id];
             if source_axon.potential > 0.0f32 {
                 let section = &mut self.synapse_sections[i];
                 backpropagate_section(section, conn, source_axon, &self.block_io.output_buffer);

@@ -31,10 +31,25 @@ pub struct Axon {
 
 // ==================================================================================================
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AxonSection {
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AxonData {
     #[serde(with = "BigArray")]
     pub axons: [Axon; BLOCK_DIM],
+}
+
+impl AxonData {
+    pub fn default() -> Self {
+        AxonData {
+            axons: std::array::from_fn(|_| Axon::default()),
+        }
+    }
+}
+
+// ==================================================================================================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AxonSection {
+    pub data: AxonData,
 
     pub cluster_uuid: Uuid,
 
@@ -54,10 +69,33 @@ pub struct AxonSection {
     pub target_block: Option<Arc<Mutex<dyn Block>>>,
 }
 
+impl Clone for AxonSection {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data,
+
+            cluster_uuid: self.cluster_uuid,
+
+            source_hexagon_uuid: self.source_hexagon_uuid,
+            target_hexagon_uuid: self.target_hexagon_uuid,
+
+            source_block_uuid: self.source_block_uuid,
+            target_block_uuid: self.target_block_uuid,
+
+            target_pos: self.target_pos,
+            source_pos: self.source_pos,
+            done: self.done,
+
+            source_block: self.source_block.clone(),
+            target_block: self.target_block.clone(),
+        }
+    }
+}
+
 impl AxonSection {
     pub fn default() -> Self {
         AxonSection {
-            axons: std::array::from_fn(|_| Axon::default()),
+            data: AxonData::default(),
             cluster_uuid: Uuid::nil(),
             source_hexagon_uuid: Uuid::nil(),
             target_hexagon_uuid: Uuid::nil(),
@@ -74,7 +112,7 @@ impl AxonSection {
 
 impl PartialEq for AxonSection {
     fn eq(&self, other: &Self) -> bool {
-        self.axons == other.axons
+        self.data == other.data
             && self.cluster_uuid == other.cluster_uuid
             && self.source_hexagon_uuid == other.source_hexagon_uuid
             && self.target_hexagon_uuid == other.target_hexagon_uuid
@@ -95,7 +133,7 @@ mod tests {
     #[test]
     fn test_serialize_deserialize() {
         let mut original = AxonSection {
-            axons: std::array::from_fn(|_| Axon::default()),
+            data: AxonData::default(),
             cluster_uuid: Uuid::new_v4(),
             source_hexagon_uuid: Uuid::new_v4(),
             target_hexagon_uuid: Uuid::new_v4(),
@@ -107,8 +145,8 @@ mod tests {
             target_block: None,
             done: false,
         };
-        original.axons[42].potential = 123.0f32;
-        original.axons[42].delta = 124.0f32;
+        original.data.axons[42].potential = 123.0f32;
+        original.data.axons[42].delta = 124.0f32;
 
         let cfg = bincode::config::standard();
         let serialized: Vec<u8> =

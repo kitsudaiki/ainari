@@ -137,7 +137,8 @@ impl InputBlock {
             if target != UNINIT_STATE_64 {
                 let block_pos = target as usize / BLOCK_DIM;
                 let pos_in_block = target as usize % BLOCK_DIM;
-                self.block_io.output_buffer[block_pos].axons[pos_in_block].potential = val.abs();
+                self.block_io.output_buffer[block_pos].data.axons[pos_in_block].potential =
+                    val.abs();
             }
         }
     }
@@ -258,19 +259,19 @@ mod tests {
 
         // check axons
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[0].potential,
+            input_block.block_io.output_buffer[0].data.axons[0].potential,
             1.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[1].potential,
+            input_block.block_io.output_buffer[0].data.axons[1].potential,
             2.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[2].potential,
+            input_block.block_io.output_buffer[0].data.axons[2].potential,
             3.0
         );
         assert_eq!(
-            input_block.block_io.output_buffer[0].axons[3].potential,
+            input_block.block_io.output_buffer[0].data.axons[3].potential,
             4.0
         );
     }
