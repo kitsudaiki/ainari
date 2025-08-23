@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core_affinity;
 use rand::Rng;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -100,9 +101,17 @@ impl WorkerThread {
     pub fn new(thread_id: u64) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
+        log::debug!("Create worker-thread on cpu-thread {thread_id}");
 
         let handle = thread::spawn(move || {
-            log::debug!("Started worker-thread");
+            log::debug!("Started worker-thread on cpu-thread {thread_id}");
+            let core_id = core_affinity::CoreId {
+                id: thread_id as usize,
+            };
+            let res = core_affinity::set_for_current(core_id);
+            if !res {
+                log::warn!("Failed to pin worker-thread to cpu-thread {thread_id}");
+            }
             while running_clone.load(Ordering::Relaxed) {
                 let mut worker_queue = WORKER_QUEUE.lock().unwrap();
                 if let Some(worker_task) = worker_queue.get() {
@@ -123,7 +132,7 @@ impl WorkerThread {
                     thread::sleep(Duration::from_millis(1));
                 }
             }
-            log::debug!("Stopped worker-thread");
+            log::debug!("Stopped worker-thread on cpu-thread {thread_id}");
         });
 
         WorkerThread {
