@@ -29,7 +29,7 @@ pub const POTENTIAL_BORDER: f32 = 0.00001f32;
 pub const CORE_TRAIN_VALUE: f32 = 0.1f32;
 pub const OUTPUT_TRAIN_VALUE: f32 = 0.05f32;
 pub const ABSOLUTE_CREATE_BORDER: f32 = 0.05f32;
-pub const RELATIVE_CREATE_BORDER: f32 = 0.33f32;
+pub const RELATIVE_CREATE_BORDER: f32 = 0.05f32;
 
 // processing
 pub const NUMBER_OF_RESERVED_THREADS: usize = 2;
