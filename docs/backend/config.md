@@ -30,11 +30,12 @@
 
 ## `processing`-group
 
-### `use_of_free_memory`
+### `max_number_of_threads`
 
-- *Description*: Amount of memory to pre-allocate for the backend on the server. It means the percentage of the momory, so 1.0 means 100% of available memory.
-- *Type*: float
-- *Restriction*: Value must be between `0.01` and `0.9`
+- *Description*: Maximum number of threads to use as worker-threads. If 0, then all available threads are used.
+- *Type*: int
+- *Default*: 0
+- *Restriction*: Positive value
 
 ## `auth`-group
 

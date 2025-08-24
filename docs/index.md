@@ -5,28 +5,31 @@
 # Ainari
 
 <p align="center">
-  <img src="img/ainari-logo-with-text.png" width="500" height="594" />
+  <img src="img/ainari-logo-with-text.jpg" width="1500" height="700" />
 </p>
 
 !!! danger "IMPORTANT"
 
-    # **IMPORTANT: his project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
+    # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There is still a lot of evaluation and improvement necessary, but because this is only a spare time project beside a 40h/week job, I have only very a limited amount of time available to work on it.**
 
-    # **IMPORTANT: The project is currently in a process of big reconstruction. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
+!!! info "Change of programming language"
+
+    **From version [v0.7.0](https://github.com/kitsudaiki/ainari/tree/v0.7.x) to version v0.9.0 the backend was refactored from C++ into Rust in order to improve stability and scalability.**
+
 
 ## Intro
 
 Ainari contains in its core a custom experimental artificial neural network, which can work on
 unnormalized and unfiltered input-data, like sensor measurement data. The network growth over time
-by creating new nodes and connections between the nodes while learning new data. The base concept
-was created by myself and the code was written from scratch without any frameworks. The goal behind
+by creating new nodes and connections between the nodes while learning new data. The original concept
+was created by myself, merged with classical deep-learning and the code was written from scratch without any frameworks. The goal behind
 Ainari is to create something unique, which works more like the human brain. It wasn't targeted
 to get a higher accuracy than classical artificial neural networks like Tensorflow, but to be more
 flexible and easier to use and more efficient in resource-consumption for big amounts of inputs and
 users. Additionally it also provides an as-a-Service architecture within a cloud native environment
 and multi-tenancy.
 
-## Current prototypically implemented features
+## Current experimal and prototypically implemented features:
 
 -   **Growing neural network**:
 
@@ -41,16 +44,6 @@ and multi-tenancy.
     is million times higher, than the rest of the input-values, it has nearly no effect on the rest
     of the already trained data.
 
--   **Spiking neural network**
-
-    The concept also supports a special version of working as a spiking neural network. This is
-    optional for a created network and basically has the result, that an input is impacted by an
-    older input, based on the time how long ago this input happened.
-
-    See
-    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#spiking-neural-network)
-    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
-
 -   **No strict layer structure**
 
     The base of a new neural network is defined by a cluster-template. In these templates the
@@ -62,16 +55,35 @@ and multi-tenancy.
     layer-structure can still be enforced.
 
     See
-    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#no-strict-layer-structure)
-    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
+    [short explanation](/inner_workings/core/core/#no-strict-layer-structure)
+    and [measurement-examples](/inner_workings/measurements/measurements)
+
+-   **Spiking neural network**
+
+    The concept also supports a special version of working as a spiking neural network. This is
+    optional for a created network and basically has the result, that an input is impacted by an
+    older input, based on the time how long ago this input happened.
+
+    See
+    [short explanation](/inner_workings/core/core/#spiking-neural-network)
+    and [measurement-examples](/inner_workings/measurements/measurements)
 
 -   **3-dimensional networks**
 
     It is basically possible to define 3-dimensional networks. This was only added, because the
     human brain is also a 3D-object. This feature exist in the
-    [cluster-templates](https://docs.ainari.cloud/frontend/cluster_templates/cluster_template/),
+    [cluster-templates](/frontend/cluster_templates/cluster_template/),
     but was never tested until now. Maybe in bigger tests in the future this feature could become
     useful to better mix information with each other.
+
+## Further characteristics:
+
+-   **Rust as programming language for the backend without unsafe**
+
+    Even the project started with C++ as primary programming language until v0.7.0, the whole backend
+    is now written in Rust without unsafe code and use `#![forbid(unsafe_code)]` to prevent the usage of 
+    unsafe. Based on `cargo geiger` many used dependencies sadly still use much unsafe code,
+    but at least in this repository here no unsafe code is added. 
 
 -   **Parallelism**
 
@@ -84,7 +96,7 @@ and multi-tenancy.
     single endpoint in the code automatically results in changes of the resulting documentation, to
     make sure, that code and documentation are in sync.
 
-    See [OpenAPI-docu](https://docs.ainari.cloud/frontend/rest_api_documentation/)
+    See [OpenAPI-docu](/frontend/rest_api_documentation/)
 
 -   **Multi-user and multi-project**
 
@@ -93,7 +105,7 @@ and multi-tenancy.
     Each user can login by username and passphrase and gets an JWT-token to access the user- and
     project-specific resources.
 
-    See [Authentication-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
+    See [Authentication-docu](/inner_workings/user_and_projects/)
 
 -   **Efficient resource-usage**
 
@@ -108,22 +120,22 @@ and multi-tenancy.
     3. Capability to regulate the cpu-frequencey and measure power-consumption. (disabled currently)
 
         See
-        [Monitoring-docu](https://docs.ainari.cloud/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
+        [Monitoring-docu](/inner_workings/monitoring/monitoring/#controlling-cpu-frequency)
 
 -   **Network-input**
 
-    Interaction with the network by direct synchronous requests or with asynchronous task in a 
-    task-queue. Both types of interactions can be done in parallel.
+    Interaction with the network by direct synchronous single requests or with asynchronous task in a 
+    task-queue.
 
 -   **Installation on Kubernetes**
 
     The backend can be basically deployed on kubernetes via Helm-chart.
 
-    See [Installation-docu](https://docs.ainari.cloud/backend/installation/)
+    See [Installation-docu](/backend/installation/)
 
 ## Known disadvantages
 
-The concept is not perfekt and also has some disadvantages, which are the result of the architecture
+The concept is not perfect and also has some disadvantages, which are the result of the architecture
 itself:
 
 -   A single synapse needs more memory than in a classical network. The hope is, in bigger tests, it
@@ -190,15 +202,14 @@ added/enabled again in the near future:
     old version in `v0.9.0` and re-write it again with Typescript and some additional frameworks.
     Until then, it is temporary disabled, because it would current cost too much time to keep this
     unused and prototypical version up-to-data. As reference see the example-workflow of the
-    PoC-dashboard: [Dashboard-docu](https://docs.ainari.cloud/frontend/dashboard/dashboard/)
+    PoC-dashboard: [Dashboard-docu](/frontend/dashboard/dashboard/)
 
 2. Regulation of CPU-speed
 
     Also in older version there also was the function available to regulate the speed of the CPU
     based on the workload. The dashboard was used to visualize the CPU metrics like the speed. Since
     the dashboard was disabled, there is at the moment not feedback available, so for usability
-    reasons the feature was not further maintained and disabled for now. It is planned again for
-    version `v0.8.0`.
+    reasons the feature was not further maintained and disabled for now.
 
 3. GPU-support
 
@@ -208,9 +219,9 @@ added/enabled again in the near future:
     further attempts in the future, to fix this issue and bring GPU support back into the project,
     but because there is no definite solution now, it is unknown when this happens.
 
-4. Roles
+4. Role-based policies
 
-    Until 0.7.0 there were policies and roles, which were removed for the moment, because they were
+    Until 0.7.0 there were policies, which were removed for the moment, because they were
     not translated into the new Rust code so far. 
 
 ## Author

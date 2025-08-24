@@ -1,8 +1,8 @@
-site_name: Ainari
+site_name: Ainari-docs
 site_author: Tobias Anker
 site_url: https://docs.ainari.cloud
 
-repo_name: kitsudaiki/Ainari
+repo_name: kitsudaiki/ainari
 repo_url: https://github.com/kitsudaiki/ainari
 
 theme:
@@ -37,7 +37,7 @@ nav:
   - Inner workings:
     - inner_workings/core/core.md
     - inner_workings/measurements/measurements.md
-    - inner_workings/input_processing/input_processing.md
+    # - inner_workings/input_processing/input_processing.md
     - inner_workings/monitoring/monitoring.md
     - inner_workings/storage.md
     - inner_workings/user_and_projects.md
@@ -64,17 +64,18 @@ plugins:
         # paths. If we can't find it we'll warn you.
         drawio_executable: null
         # Additional Draw.io CLI args
-        drawio_args:
-            # this flag is necessary to successfully build the docs in the CI-pipeline
-            - --no-sandbox
+        #   * --embed-svg-images will embed external images in SVGS, if format is "svg".
+        drawio_args: []
         # Output format (see draw.io --help | grep format)
         format: svg
         # Embed format
-        #   * The default is to embed via the <img> tag, only rewriting the
-        #     value of the src attribute.
+        #   * The default is to embed via the <img> tag.
         #   * Consider <object type="image/svg+xml" data="{img_src}"></object>
         #     to enable interactive elements (like hyperlinks) in SVGs.
-        embed_format: '{img_open}{img_src}{img_close}'
+        #   * Consider {content} to inline SVGs into documents directly, useful
+        #     for styling with CSS, preserving interactivity, and improving
+        #     search by indexing diagram text.
+        embed_format: '<img alt="{img_alt}" src="{img_src}">'
         # Glob pattern for matching source files
         sources: '*.drawio'
 
@@ -89,9 +90,6 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
-  - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
   - pymdownx.tabbed:
       alternate_style: true
 
