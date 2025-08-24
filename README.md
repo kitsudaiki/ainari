@@ -10,24 +10,25 @@
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
 <p align="center">
-  <img src="assets/ainari-logo-with-text.png" width="500" height="594" />
+  <img src="assets/ainari-logo-with-text.jpg" width="1500" height="700" />
 </p>
 
-# **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There are still many missing tests, input-validations and so on. Beside this there is also still quite a lot of evaluation and improving of the current features necessary.**
+# **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There is still a lot of evaluation and improvement necessary, but because this is only a spare time project beside a 40h/week job, I have only a very limited amount of time available to work on it.**
 
-# **IMPORTANT: The project is currently in a process of big reconstruction. Because of this, it is in a highly inconsistent state in code and documentation and many functions are not available at the moment.**
+### **From version [v0.7.0](https://github.com/kitsudaiki/ainari/tree/v0.7.x) to version v0.9.0 the backend was refactored from C++ into Rust in order to improve stability and scalability.**
 
 ## Intro
 
 Ainari contains in its core a custom experimental artificial neural network, which can work on
 unnormalized and unfiltered input-data, like sensor measurement data. The network growth over time
-by creating new nodes and connections between the nodes while learning new data. The base concept
-was created by myself and the code was written from scratch without any frameworks. The goal behind
-Ainari is to create something unique, which works more like the human brain. It wasn't targeted to
-get a higher accuracy than classical artificial neural networks like Tensorflow, but to be more
+by creating new nodes and connections between the nodes while learning new data. The original concept
+was created by myself, merged with classical deep-learning and the code was written from scratch without any frameworks. The goal behind
+Ainari is to create something unique, which works more like the human brain. It wasn't targeted
+to get a higher accuracy than classical artificial neural networks like Tensorflow, but to be more
 flexible and easier to use and more efficient in resource-consumption for big amounts of inputs and
 users. Additionally it also provides an as-a-Service architecture within a cloud native environment
 and multi-tenancy.
+
 
 ## Supported Environment
 
@@ -37,15 +38,6 @@ and multi-tenancy.
 | [![python-3_11][img_python-3_11]][Workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][Workflow] |
 | [![python-3_12][img_python-3_12]][Workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][Workflow] |
 |                                             | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
-|                                             |                                                     |
 
 [img_python-3_10]:
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_10/shields.json&style=flat-square
@@ -63,7 +55,7 @@ and multi-tenancy.
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
 [Workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
 
-## Current prototypically implemented features
+## Current experimal and prototypically implemented features:
 
 -   **Growing neural network**:
 
@@ -76,19 +68,53 @@ and multi-tenancy.
     The input of the network is not restricted to range of 0.0 - 1.0 . Every value can be inserted, 
     even negative values. Also if there is a single broken value in the input-data, which
     is million times higher, than the rest of the input-values, it has nearly no effect on the rest
-    of the already trained data. Thanks to the reduction-process, all synapses, which are only the
-    result of this single input, are removed again from the network.
+    of the already trained data.
+
+-   **No strict layer structure**
+
+    The base of a new neural network is defined by a cluster-template. In these templates the
+    structure of the network in planed in hexagons, indeed of layer. When a node tries to create a
+    new synapse, the location of the target-node depends on the location of the source-node within
+    these hexagons. The target is random and the probability depends on the distance to the source.
+    This way it is possible to break the static layer structure. But when defining a line of
+    hexagons and allow nodes only to connect to the nodes of the next hexagon, a classical
+    layer-structure can still be enforced.
+
+    See
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#no-strict-layer-structure)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
+
+-   **Spiking neural network**
+
+    The concept also supports a special version of working as a spiking neural network. This is
+    optional for a created network and basically has the result, that an input is impacted by an
+    older input, based on the time how long ago this input happened.
+
+    See
+    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#spiking-neural-network)
+    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
+
+-   **3-dimensional networks**
+
+    It is basically possible to define 3-dimensional networks. This was only added, because the
+    human brain is also a 3D-object. This feature exist in the
+    [cluster-templates](https://docs.ainari.cloud/frontend/cluster_templates/cluster_template/),
+    but was never tested until now. Maybe in bigger tests in the future this feature could become
+    useful to better mix information with each other.
+
+## Further characteristics:
+
+-   **Rust as programming language for the backend without unsafe**
+
+    Even the project started with C++ as primary programming language until v0.7.0, the whole backend
+    is now written in Rust without unsafe code and use `#![forbid(unsafe_code)]` to prevent the usage of 
+    unsafe. Based on `cargo geiger` many used dependencies sadly still use much unsafe code,
+    but at least in this repository here no unsafe code is added. 
 
 -   **Parallelism**
 
     The processing structure works also for multiple threads, which can work at the same time on the
     same network. (GPU-support with CUDA is disabled at the moment for various reasons).
-
--   **Usable performance**
-
-    The 60.000 training pictures of the MNIST handwritten letters can be trained on CPU in about 3
-    seconds for the first epoch, without any batch-processing of the input-data and results in an
-    accuracy of 91-93 % after this time.
 
 -   **Generated OpenAPI-Documentation**
 
@@ -124,67 +150,15 @@ and multi-tenancy.
 
 -   **Network-input**
 
-    There are 2-variants, how it interact with the neural networks:
+    Interaction with the network by direct synchronous single requests or with asynchronous task in a 
+    task-queue.
 
-    1. Uploading the dataset and starting an asynchronous task based on this dataset over the API
+-   **Installation on Kubernetes**
 
-        See [OpenAPI-docu](https://docs.ainari.cloud/frontend/rest_api_documentation/)
-
-    2. Directly communicate with the neural network via websocket. In this case not a whole dataset
-       is push through the synapse, but instead only a single network-input is send. The call is
-       blocking, until the network returns the output, which gives more control.
-
-        See [Websocket-docu](https://docs.ainari.cloud/frontend/websockets/websocket_workflow/)
-
--   **Installation on Kubernetes and with Ansible**
-
-    The backend can be basically deployed on kubernetes via Helm-chart or plain via Ansible.
+    The backend can be basically deployed on kubernetes via Helm-chart.
 
     See [Installation-docu](https://docs.ainari.cloud/backend/installation/)
 
-## Further experimental features
-
--   **No strict layer structure**
-
-    The base of a new neural network is defined by a cluster-template. In these templates the
-    structure of the network in planed in hexagons, indeed of layer. When a node tries to create a
-    new synapse, the location of the target-node depends on the location of the source-node within
-    these hexagons. The target is random and the probability depends on the distance to the source.
-    This way it is possible to break the static layer structure. But when defining a line of
-    hexagons and allow nodes only to connect to the nodes of the next hexagon, a classical
-    layer-structure can still be enforced.
-
-    See
-    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#no-strict-layer-structure)
-    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
-
--   **Reduction-Process**
-
-    The concept of a growing network has the result, that there is basically nearly no limit in
-    size, even if the growth-rate slows down over time. To limit the growth-rate even more, it is
-    possible to enable a reduction-process, which removes synapses again, which were to inactive to
-    reach the threshold to be marked as persistent.
-
-    See
-    [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements/#reduction_1)
-
--   **Spiking neural network**
-
-    The concept also supports a special version of working as a spiking neural network. This is
-    optional for a created network and basically has the result, that an input is impacted by an
-    older input, based on the time how long ago this input happened.
-
-    See
-    [short explanation](https://docs.ainari.cloud/inner_workings/core/core/#spiking-neural-network)
-    and [measurement-examples](https://docs.ainari.cloud/inner_workings/measurements/measurements)
-
--   **3-dimensional networks**
-
-    It is basically possible to define 3-dimensional networks. This was only added, because the
-    human brain is also a 3D-object. This feature exist in the
-    [cluster-templates](https://docs.ainari.cloud/frontend/cluster_templates/cluster_template/),
-    but was never tested until now. Maybe in bigger tests in the future this feature could become
-    useful to better mix information with each other.
 
 ## Known disadvantages
 
@@ -242,8 +216,7 @@ added/enabled again in the near future:
     Also in older version there also was the function available to regulate the speed of the CPU
     based on the workload. The dashboard was used to visualize the CPU metrics like the speed. Since
     the dashboard was disabled, there is at the moment not feedback available, so for usability
-    reasons the feature was not further maintained and disabled for now. It is planned again for
-    version `v0.8.0`.
+    reasons the feature was not further maintained and disabled for now.
 
 3. GPU-support
 
@@ -252,6 +225,11 @@ added/enabled again in the near future:
     disappointing performance and some restrictions for the CPU-version too. There will be some
     further attempts in the future, to fix this issue and bring GPU support back into the project,
     but because there is no definite solution now, it is unknown when this happens.
+
+4. Role-based policies
+
+    Until 0.7.0 there were policies and roles, which were removed for the moment, because they were
+    not translated into the new Rust code so far. 
 
 ## Roadmap
 

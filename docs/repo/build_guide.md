@@ -10,7 +10,7 @@
         apt-get install libsqlite3-dev
         ```
 
--   Install Rust-compiler
+-   Install Rust-compiler (minimum version: `1.85.1`)
 
 -   Clone repository with submodules
 
@@ -23,13 +23,10 @@
 -   Compile hanami
 
     ```bash
-    cd Ainari
+    cd ainari
 
     cargo build --release
     ```
-
--   In case you also want to compile the unit-tests and so on, you have to add `-Drun_tests=ON` to
-    the cmake-commands
 
 -   Resulting binary
 

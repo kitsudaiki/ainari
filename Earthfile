@@ -198,8 +198,7 @@ generate-docs:
                      mkdocs \
                      mkdocs-material \
                      mkdocs-swagger-ui-tag \
-                     # pin mkdocs-drawio-exporter because 0.10.x is broken
-                     mkdocs-drawio-exporter==0.9.1 && \
+                     mkdocs-drawio-exporter && \
         curl -s https://api.github.com/repos/jgraph/drawio-desktop/releases/latest | grep browser_download_url | grep "amd64"  | grep "deb" | cut -d "\"" -f 4 | wget -i - && \
         apt -f -y install ./drawio-amd64-*.deb
 

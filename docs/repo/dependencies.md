@@ -4,9 +4,15 @@
 
 ### Build hanami
 
+#### apt-packages
+
 | apt-package         | Purpose                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------ |
 | libsqlite3-dev      | Library to interact with the SQLite3 databases                                       |
+
+#### Rust-version
+
+Minimum version: **1.85.1**
 
 ### Runtime
 

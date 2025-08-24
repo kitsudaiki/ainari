@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## v0.9.0
 
 - Renamed project from OpenHanami to Ainari
 - Translated the rest of the C++-code into Rust
@@ -17,13 +17,24 @@
 - added rust fmt check to CI-pipeline
 - added rust clippy check to CI-pipeline
 - added version-endpoint to request the version of the server (updated python and go sdk and cli for the new endpoint)
+- added config-flag to limit the number of used cpu-codes (default is 0, which means all threads are used)
 
 ### Changed
 
 - refactored core into Rust-code
 - block can trigger other blocks more indepentantly
 - also some new concepts in the core as response to the behavior of Rust
+- removed and forbid unsafe 
+- replace unwrap-functions outside of tests
 
+### Fixed
+
+- fixed randomly failing dataset-upload by adding a file-sync to ensure the data are written on disc before converting
+- fixed commit-linter in CI, which was misconfigured
+
+### Removed
+
+- removed the `use_of_free_memory`-config (for now), because memory for the network is not pre-allocated anymore
 
 
 ## v0.8.0

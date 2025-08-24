@@ -147,20 +147,6 @@ synapse-section is not processed and not even loaded from the memory. The potent
 nessecary to identify how much the section can grow before splitting while
 [growing](/inner_workings/core/core/#growing-process).
 
-### Activation-function
-
-The activation-function of the neurons of the internal hexagons doesn't use the classical sigmoid
-function. The requirements of a function for this part were:
-
-1. only active for input greater `0`
-2. no hard upper limit at `1`, like it is the case for the sigmoid function
-
-The following function was selected based on these criteria:
-
-![Workflow](central_segment_function.jpg)
-
-![Workflow](central_segment_graph.jpg)
-
 !!! info
 
     This functions is from one of the early stages, where also the input-hexagons used them while being only able to handle input of 0.0-1.0. Maybe is is unnecessary complicated now, so when testing with bigger test-cases, a simple boring linear function will also evaluated again.
