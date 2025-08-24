@@ -10,7 +10,7 @@
 
 !!! danger "IMPORTANT"
 
-    # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There is still a lot of evaluation and improvement necessary, but because this is only a spare time project beside a 40h/week job, I have only very a limited amount of time available to work on it.**
+    # **IMPORTANT: This project is still an experimental prototype and NOT ready for any productive usage. There is still a lot of evaluation and improvement necessary, but because this is only a spare time project beside a 40h/week job, I have only a very limited amount of time available to work on it.**
 
 !!! info "Change of programming language"
 

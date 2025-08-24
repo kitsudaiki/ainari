@@ -4,7 +4,7 @@ The CLI and the SDK-library provides functions to interact with the API of the b
 
 !!! Warning
 
-    This documentation is **NOT** up-to-date at the moment. I'm very sorry, but because of a very limited amount of time I have for this project and because there coming some big changes in 0.9.0 again and because it seems that no one use the project at the moment anyway, I haven't updated the documenation of the SDK and CLI here for version 0.8.0. For the CLI you can use the --help output.
+    This documentation is **NOT** up-to-date at the moment. I'm very sorry, but because of a very limited amount of time I have for this project and because there coming some big changes in 0.10.0 again and because it seems that no one use the project at the moment anyway, I haven't updated the documenation of the SDK and CLI here for version 0.8.0. For the CLI you can use the --help output.
 
 ## Installation / Compile
 

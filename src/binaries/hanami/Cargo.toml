@@ -1,6 +1,6 @@
 [package]
 name = "hanami"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 build = "build.rs"
 rust-version = "1.85.1"
