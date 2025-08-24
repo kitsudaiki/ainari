@@ -11,5 +11,5 @@ validator = { version = "0.20", features = ["derive"] }
 # json
 serde = { version = "1", features = ["derive"] }
 # common stuff
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.18.0", features = ["v4"] }
 
