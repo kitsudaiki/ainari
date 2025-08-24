@@ -52,16 +52,17 @@ impl ClusterInterface {
             log::debug!("Started cluster-thread");
             while running_clone.load(Ordering::Relaxed) {
                 // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
-                let mut queue_handle = queue_clone.lock().unwrap();
+                let mut queue_handle = queue_clone.lock().expect("mutex poisoned");
                 if let Some(task_mutex) = queue_handle.get() {
                     drop(queue_handle);
 
                     // prepare task
                     let wait_for_finish;
                     {
-                        let mut task = task_mutex.lock().unwrap();
+                        let mut task = task_mutex.lock().expect("mutex poisoned");
                         {
-                            let mut finish_counter = finish_counter_clone.lock().unwrap();
+                            let mut finish_counter =
+                                finish_counter_clone.lock().expect("mutex poisoned");
                             if matches!(task.info, TaskVariant::Training(_)) {
                                 let task_compare =
                                     finish_counter.input_compare + finish_counter.output_compare;
@@ -79,7 +80,7 @@ impl ClusterInterface {
                     // wait until task is finished
                     if wait_for_finish {
                         for _ in 0..10000000 {
-                            let mut task = task_mutex.lock().unwrap();
+                            let mut task = task_mutex.lock().expect("mutex poisoned");
                             if task.is_task_finished() {
                                 task.finalize_task();
                                 break;
@@ -88,7 +89,7 @@ impl ClusterInterface {
                             thread::sleep(std::time::Duration::from_millis(10));
                         }
                     } else {
-                        let mut task = task_mutex.lock().unwrap();
+                        let mut task = task_mutex.lock().expect("mutex poisoned");
                         task.finalize_task();
                     }
                 } else {
@@ -116,7 +117,7 @@ impl ClusterInterface {
     }
 
     pub fn add_task(&mut self, task: Task) {
-        let mut queue_handle = self.queue.lock().unwrap();
+        let mut queue_handle = self.queue.lock().expect("mutex poisoned");
         queue_handle.add(task);
     }
 
@@ -125,18 +126,18 @@ impl ClusterInterface {
         inputs: &HashMap<String, Vec<f32>>,
         outputs: &mut HashMap<String, Vec<f32>>,
     ) -> Result<(), AinariError> {
-        let mut counter = self.finish_counter_mutex.lock().unwrap();
+        let mut counter = self.finish_counter_mutex.lock().expect("mutex poisoned");
         let task_compare = counter.output_compare;
         counter.reset(task_compare, 0);
         drop(counter);
 
         // reset output-values in the backend
         {
-            let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
+            let cluster_data_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
             for hexagon_name in outputs.keys() {
                 let output_buffer_mutex =
                     cluster_data_handler.get_output_buffer(&self.cluster_uuid, hexagon_name)?;
-                let mut output_buffer = output_buffer_mutex.lock().unwrap();
+                let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
                 output_buffer.reset_output();
             }
         }
@@ -156,12 +157,12 @@ impl ClusterInterface {
         run_iteration(&self.cluster_uuid, &self.finish_counter_mutex)?;
 
         // get output-values from the backend
-        let cluster_data_handler = CLUSTER_HANDLER.read().unwrap();
+        let cluster_data_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
         for (hexagon_name, data) in outputs.iter_mut() {
             let output_buffer_mutex =
                 cluster_data_handler.get_output_buffer(&self.cluster_uuid, hexagon_name)?;
 
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             data.resize(output_buffer.output_neurons.len(), 0.0f32);
             convert_output_to_buffer(data, &mut output_buffer);
         }
@@ -174,7 +175,7 @@ impl ClusterInterface {
         inputs: &HashMap<String, Vec<f32>>,
         outputs: &HashMap<String, Vec<f32>>,
     ) -> Result<(), AinariError> {
-        let mut counter = self.finish_counter_mutex.lock().unwrap();
+        let mut counter = self.finish_counter_mutex.lock().expect("mutex poisoned");
         let task_compare = counter.input_compare + counter.output_compare;
         counter.reset(task_compare, 0);
         drop(counter);
@@ -217,7 +218,7 @@ fn run_iteration(
     finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
 ) -> Result<(), AinariError> {
     for _ in 0..10000000 {
-        let finish_counter = finish_counter_mutex.lock().unwrap();
+        let finish_counter = finish_counter_mutex.lock().expect("mutex poisoned");
         if finish_counter.is_finished() {
             return Ok(());
         }
@@ -246,7 +247,7 @@ mod tests {
         let input_name = "test_input".to_string();
         let output_name = "test_output".to_string();
 
-        let mut counter = finish_counter_mutex.lock().unwrap();
+        let mut counter = finish_counter_mutex.lock().expect("mutex poisoned");
         let task_compare = counter.input_compare + counter.output_compare;
         counter.reset(task_compare, 0);
         drop(counter);
@@ -288,9 +289,9 @@ mod tests {
     #[serial]
     fn test_workflow() {
         // Initialize processing
-        let worker_handler = WORKER_HANDLER.lock().unwrap();
+        let worker_handler = WORKER_HANDLER.lock().expect("mutex poisoned");
         drop(worker_handler);
-        let cluster_data_handler = CLUSTER_HANDLER.write().unwrap();
+        let cluster_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         drop(cluster_data_handler);
 
         // create dummy-cluster
@@ -319,7 +320,7 @@ mod tests {
             test_output: 3,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
         let finish_counter_mutex = root_handler.get_finish_counter(&cluster_uuid).unwrap();

@@ -130,13 +130,13 @@ impl DataSetFileReadHandleV1_0 {
         }
     }
 
-    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), String> {
+    fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), AinariError> {
         let column = &self.selected_column;
         let col_get = match self.header.columns.get(column) {
             Some(col) => col,
             _ => {
                 let msg = format!("Column with name '{column}' not found in dataset.");
-                return Err(msg);
+                return Err(AinariError::Error(msg));
             }
         };
 
@@ -149,7 +149,7 @@ impl DataSetFileReadHandleV1_0 {
         Ok((chunk, row_col_size))
     }
 
-    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), String> {
+    pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), AinariError> {
         if row >= &self.buffer_start_row && row < &self.buffer_end_row {
             return self.get_data_from_buffer(row);
         }
@@ -158,7 +158,7 @@ impl DataSetFileReadHandleV1_0 {
         let max_rows = self.get_number_of_rows();
         if row >= &max_rows {
             let msg = format!("Row-number {row} is too big for the dataset.");
-            return Err(msg);
+            return Err(AinariError::Error(msg));
         }
         self.buffer_start_row = row - (row % ROWS_IN_READ_BUFFER);
         self.buffer_end_row = self.buffer_start_row + ROWS_IN_READ_BUFFER;
@@ -169,9 +169,14 @@ impl DataSetFileReadHandleV1_0 {
         // read selected block from file into the read-buffer
         let offset_bytes = (self.header.row_size) * self.buffer_start_row * 4;
         let byte_slice_input: &mut [u8] = cast_slice_mut(self.read_buffer.as_mut_slice());
-        self.target_file
-            .seek(SeekFrom::Start(self.payload_offset + offset_bytes))
-            .unwrap();
+        let file_offset = self.payload_offset + offset_bytes;
+        match self.target_file.seek(SeekFrom::Start(file_offset)) {
+            Ok(_) => {}
+            Err(_) => {
+                let msg = ("Failed to read data from the dataset-file.").to_string();
+                return Err(AinariError::Error(msg));
+            }
+        }
         let _ = self.target_file.read_exact(byte_slice_input);
 
         self.get_data_from_buffer(row)
@@ -220,14 +225,14 @@ pub fn init_new_data_set_file(
     };
 
     // write base-header to file
-    let encoded_base = bincode::encode_to_vec(&base_header, bincode_config).unwrap();
+    let encoded_base = bincode::encode_to_vec(&base_header, bincode_config)?;
     result
         .target_file
         .write_all(&(encoded_base.len() as u64).to_le_bytes())?;
     result.target_file.write_all(&encoded_base)?;
 
     // write header to file
-    let encoded_header = bincode::encode_to_vec(&result.header, bincode_config).unwrap();
+    let encoded_header = bincode::encode_to_vec(&result.header, bincode_config)?;
     result
         .target_file
         .write_all(&(encoded_header.len() as u64).to_le_bytes())?;
@@ -278,7 +283,7 @@ pub fn read_data_set_file(
     result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
     let (_, _): (DataSetBaseHeader, usize) =
-        bincode::decode_from_slice(&base_buf[..], bincode_config).unwrap();
+        bincode::decode_from_slice(&base_buf[..], bincode_config)?;
 
     // read header-length
     let mut header_len_buf = [0u8; 8];
@@ -289,7 +294,7 @@ pub fn read_data_set_file(
     let mut header_buf = vec![0u8; header_len as usize];
     result.target_file.read_exact(&mut header_buf)?;
     let (header, _): (DataSetHeaderV1_0, usize) =
-        bincode::decode_from_slice(&header_buf[..], bincode_config).unwrap();
+        bincode::decode_from_slice(&header_buf[..], bincode_config)?;
     result.header = header;
 
     // TODO: make buffer-size configurable

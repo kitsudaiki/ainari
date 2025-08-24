@@ -34,7 +34,7 @@ pub struct WorkerThread {
 
 fn finalize_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
     for _ in 0..1000 {
-        let mut block = worker_task.block.lock().unwrap();
+        let mut block = worker_task.block.lock().expect("mutex poisoned");
         let success = match worker_task.task_type {
             WorkerTaskType::Train => {
                 block.finalize_train(worker_task.cycle_number)?;
@@ -65,7 +65,7 @@ fn process_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
     #[allow(clippy::needless_late_init)]
     let finish_counter_option;
     {
-        let mut block = worker_task.block.lock().unwrap();
+        let mut block = worker_task.block.lock().expect("mutex poisoned");
         match worker_task.task_type {
             WorkerTaskType::Train => {
                 let place_offset = rand::rng().random_range(0..BLOCK_DIM);
@@ -90,7 +90,7 @@ fn process_task(worker_task: &WorkerTask) -> Result<(), AinariError> {
     // HINT (kitsudaiki): This can not be done within the blocks, because it would result in a dead-lock
     //                    when the last input- or output-block tries to trigger the next cycle
     if let Some(finish_counter_mutex) = finish_counter_option {
-        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        let mut finish_counter = finish_counter_mutex.lock().expect("mutex poisoned");
         finish_counter.update(worker_task.cycle_number);
     }
 
@@ -111,7 +111,7 @@ impl WorkerThread {
                 log::warn!("Failed to pin worker-thread to cpu-thread {thread_id}");
             }
             while running_clone.load(Ordering::Relaxed) {
-                let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+                let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
                 if let Some(worker_task) = worker_queue.get() {
                     drop(worker_queue);
                     match process_task(&worker_task) {

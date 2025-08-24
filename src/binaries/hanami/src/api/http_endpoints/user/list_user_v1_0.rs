@@ -35,7 +35,14 @@ pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, Error
         ));
     }
 
-    let users = user_table::list_users(&context).unwrap();
+    let users = match user_table::list_users(&context) {
+        Ok(result) => result,
+        Err(e) => {
+            let msg = format!("Failed to list users with error: '{e}'");
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     let mut resp = UserListResp { users: Vec::new() };
 

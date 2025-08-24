@@ -38,7 +38,7 @@ impl FromRequest for UserContext {
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         let mut token: &str = "";
         match req.headers().get("Authorization") {
-            Some(value) => match split_bearer_token(value.to_str().unwrap()) {
+            Some(value) => match split_bearer_token(value.to_str().unwrap_or("")) {
                 Some(val) => token = val,
                 None => {
                     println!("Invalid token format");

@@ -80,7 +80,9 @@ pub async fn create_request_task(
     };
 
     // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER
+        .read()
+        .expect("mutex poisoned");
     let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
         None => return Err(ErrorResponse::InternalError("".to_string())),
@@ -113,11 +115,11 @@ pub async fn create_request_task(
     // prepare outputs for task
     let mut total_output_size: u64 = 0;
     for output in &body.results {
-        let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+        let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
         let size = match cluster_handler.get_output_buffer(&cluster_uuid, &output.hexagon) {
             Ok(output_buffer_mutex) => {
-                let output_buffer = output_buffer_mutex.lock().unwrap();
+                let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
                 output_buffer.output_neurons.len() as u64
             }
             Err(AinariError::InvalidInput(msg)) => {
@@ -225,7 +227,10 @@ pub async fn create_request_task(
         info: TaskVariant::Request(info),
         meta: TaskMeta::new(number_of_cycles, 1, time_length),
     };
-    cluster_interface.lock().unwrap().add_task(task);
+    cluster_interface
+        .lock()
+        .expect("mutex poisoned")
+        .add_task(task);
 
     // get new created task from database to get addtional information
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {

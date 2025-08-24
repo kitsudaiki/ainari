@@ -51,7 +51,9 @@ pub async fn delete_cluster(
     };
 
     // delete cluster from core
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER.write().unwrap();
+    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER
+        .write()
+        .expect("mutex poisoned");
     match cluster_handle.delete_cluster(&cluster_uuid) {
         Ok(()) => {}
         Err(AinariError::InvalidInput(msg)) => {

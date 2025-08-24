@@ -59,7 +59,7 @@ pub struct CheckpointEntry {
 }
 
 pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS checkpoints (
         uuid VARCHAR(40) PRIMARY KEY,
@@ -105,7 +105,7 @@ pub fn add_new_checkpoint(
 }
 
 pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
 
     diesel::insert_into(checkpoints)
@@ -117,7 +117,7 @@ pub fn get_checkpoint(
     checkpoint_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<CheckpointEntry, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
 
     let mut query = checkpoints
@@ -148,7 +148,7 @@ pub fn get_checkpoint(
 }
 
 pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntry>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
 
     let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
@@ -169,7 +169,7 @@ pub fn delete_checkpoint(
 ) -> Result<(), enums::DbError> {
     get_checkpoint(checkpoint_uuid, context)?;
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
 
     match diesel::update(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
@@ -196,7 +196,7 @@ mod tests {
 
     fn hard_delete_checkpoint(checkpoint_uuid: &Uuid) {
         use self::checkpoints::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
             .execute(&mut *conn);
     }

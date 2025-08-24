@@ -48,9 +48,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(tempfile_dir)?;
 
     // Initialize processing
-    let worker_handler = worker_handler::WORKER_HANDLER.lock().unwrap();
+    let worker_handler = worker_handler::WORKER_HANDLER
+        .lock()
+        .expect("mutex poisoned");
     drop(worker_handler);
-    let cluster_data_handler = CLUSTER_HANDLER.write().unwrap();
+    let cluster_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     drop(cluster_data_handler);
 
     database::init_database()?;

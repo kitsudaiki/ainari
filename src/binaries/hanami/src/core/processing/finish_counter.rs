@@ -47,7 +47,7 @@ impl FinishCounter {
             if self.is_finished() && !self.already_finished {
                 self.already_finished = true;
                 if let Some(task_mutex) = &self.task {
-                    let mut task = task_mutex.lock().unwrap();
+                    let mut task = task_mutex.lock().expect("mutex poisoned");
                     task.finish_cycle();
                     let next_cycle = self.expected_cycle_number + 1;
                     self.expected_cycle_number = next_cycle;

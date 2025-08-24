@@ -56,7 +56,7 @@ mod tests {
     fn test_add_and_get() {
         let cluster_uuid = Uuid::new_v4();
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
-        let mut queue = task_queue.lock().unwrap();
+        let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
 
@@ -90,8 +90,8 @@ mod tests {
         queue.add(task2);
 
         let task1 = queue.get().unwrap();
-        assert_eq!(task1.lock().unwrap().uuid, uuid1);
+        assert_eq!(task1.lock().expect("mutex poisoned").uuid, uuid1);
         let task2 = queue.get().unwrap();
-        assert_eq!(task2.lock().unwrap().uuid, uuid2);
+        assert_eq!(task2.lock().expect("mutex poisoned").uuid, uuid2);
     }
 }

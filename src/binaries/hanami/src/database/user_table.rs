@@ -114,7 +114,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(256),
@@ -192,14 +192,14 @@ pub fn add_new_user(
 }
 
 pub fn add_user(user: &UserEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
 
     diesel::insert_into(users).values(user).execute(&mut *conn)
 }
 
 pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     match users
         .filter(id.eq(user_id).and(status.eq("ACTIVE")))
@@ -220,7 +220,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
         return Err(enums::DbError::NotFound);
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     match users
         .filter(id.eq(user_id).and(status.eq("ACTIVE")))
@@ -242,7 +242,7 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
         return dummy;
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     users
         .filter(status.eq("ACTIVE"))
@@ -255,7 +255,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
         return Err(enums::DbError::NotFound);
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     match diesel::update(users.filter(id.eq(user_id)))
         .set(status.eq("DELETED"))
@@ -277,7 +277,7 @@ mod tests {
 
     fn hard_delete_user(user_id: &String) {
         use self::users::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(users.filter(id.eq(user_id))).execute(&mut *conn);
     }
 

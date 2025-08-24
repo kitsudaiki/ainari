@@ -73,7 +73,9 @@ pub async fn checkpoint_save_task(
     };
 
     // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER
+        .read()
+        .expect("mutex poisoned");
     let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
         Some(cluster_handle) => cluster_handle,
         None => return Err(ErrorResponse::InternalError("".to_string())),
@@ -117,7 +119,10 @@ pub async fn checkpoint_save_task(
         info: TaskVariant::CheckpointSave(info),
         meta: TaskMeta::new(1, 1, 1),
     };
-    cluster_interface.lock().unwrap().add_task(task);
+    cluster_interface
+        .lock()
+        .expect("mutex poisoned")
+        .add_task(task);
 
     // get new created task from database to get addtional information
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {

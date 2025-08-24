@@ -106,12 +106,12 @@ impl OutputBlock {
     fn connect_output_buffer(&mut self) -> Result<(), AinariError> {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
-            let root_handler = CLUSTER_HANDLER.read().unwrap();
+            let root_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
             let output_buffer_mutex =
                 root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name)?;
 
             self.output_buffer = Some(output_buffer_mutex.clone());
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             // after a checkpoint-restore the block must be connected to the buffer again,
             // but is not allowed to increase the counter further
             if !self.was_already_connected {
@@ -159,7 +159,7 @@ impl Block for OutputBlock {
         if let Some(output_buffer_mutex) = &self.output_buffer {
             let mut rng = rand::rng();
 
-            let output_buffer = output_buffer_mutex.lock().unwrap();
+            let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             self.block_outputs
                 .resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             let number_fo_weights = self.block_outputs.len() * BLOCK_DIM;
@@ -175,7 +175,7 @@ impl Block for OutputBlock {
         let mut finish_counter_option = None;
         let mut already_done = false;
         if let Some(output_buffer_mutex) = &self.output_buffer {
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             for (i, local_neuron) in self.block_outputs.iter().enumerate() {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
@@ -212,7 +212,7 @@ impl Block for OutputBlock {
 
         // process output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
-            let mut output_buffer = output_buffer_mutex.lock().unwrap();
+            let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             for (i, local_neuron) in self.block_outputs.iter().enumerate() {
                 output_buffer.output_neurons[i].output_value += local_neuron.output_value;
             }
@@ -234,7 +234,7 @@ impl Block for OutputBlock {
 
         // resize output and wights and get expected values from output-buffer
         if let Some(output_buffer_mutex) = &self.output_buffer {
-            let output_buffer = output_buffer_mutex.lock().unwrap();
+            let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
             self.block_outputs
                 .resize_with(output_buffer.output_neurons.len(), OutputNeuron::default);
             for i in 0..self.block_outputs.len() {

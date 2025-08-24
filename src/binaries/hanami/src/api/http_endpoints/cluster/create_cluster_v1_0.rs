@@ -50,7 +50,7 @@ pub async fn create_cluster(
     let cluster_uuid = Uuid::new_v4();
 
     // parse cluster-template and create cluster from it
-    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
         Ok(_) => {}
         Err(AinariError::InvalidInput(e)) => {
