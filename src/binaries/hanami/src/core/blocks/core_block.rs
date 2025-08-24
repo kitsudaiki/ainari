@@ -214,12 +214,11 @@ impl CoreBlock {
                 neuron.refractory_time >>= 1;
 
                 if neuron.refractory_time == 0 {
+                    // // experimental stuff
+                    // axon.potential = neuron.input.signum() * (neuron.input.abs().log2() + 1.0f32);
+                    axon.potential = neuron.input;
                     neuron.refractory_time = self.cluster_settings.refractory_time;
                 }
-
-                // // experimental stuff
-                // axon.potential = neuron.input.signum() * (neuron.input.abs().log2() + 1.0f32);
-                axon.potential = neuron.input;
 
                 neuron.input = 0.0f32;
                 axon.delta = 0.0f32;
@@ -330,7 +329,6 @@ fn train_section(
             as usize];
         target_neuron.input += synapse.weight_2 * ratio * (potential > synapse.border) as u8 as f32;
 
-        // update loop-counter
         potential -= synapse.border;
     }
 
@@ -386,7 +384,6 @@ fn process_section(
             as usize];
         target_neuron.input += synapse.weight_2 * ratio * (potential > synapse.border) as u8 as f32;
 
-        // update loop-counter
         potential -= synapse.border;
     }
 }
