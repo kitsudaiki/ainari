@@ -391,7 +391,9 @@ def test_workflow():
     inputs["picture_hex"] = test_values.get_direct_io_test_intput()
     outputs = dict()
     outputs["label_hex"] = test_values.get_direct_io_test_output()
-    cluster.train(token, address, cluster_uuid, inputs, outputs, False)
+
+    for i in range(0, 100):
+        cluster.train(token, address, cluster_uuid, inputs, outputs, False)
 
     output_names = ["label_hex"]
     output_values = cluster.request(token, address, cluster_uuid, inputs, output_names, False)

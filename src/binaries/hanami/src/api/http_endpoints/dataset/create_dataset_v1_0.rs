@@ -134,15 +134,29 @@ pub async fn upload_binary(
                 let data = match chunk {
                     Ok(value) => value,
                     Err(e) => {
-                        log::error!("{e}");
+                        log::error!("Failed to fill content into file with error '{e}'");
                         return Err(ErrorResponse::BadRequest(
                             "Failed to read chunk.".to_string(),
                         ));
                     }
                 };
 
-                let _ = f.write_all(&data).await;
+                match f.write_all(&data).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        log::error!("Failed to write all chunks into file with error: '{e}'");
+                        return Err(ErrorResponse::InternalError("".to_string()));
+                    }
+                };
             }
+
+            match f.sync_all().await {
+                Ok(()) => {}
+                Err(e) => {
+                    log::error!("Failed to sync file to disc with error: '{e}'");
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            };
 
             Ok(())
         }
@@ -190,7 +204,7 @@ pub async fn upload_binary(
                     return Err(ErrorResponse::BadRequest(msg));
                 }
                 _ => {
-                    log::error!("{e}");
+                    log::error!("Failed to load mnist-images with error: '{e}'");
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },
@@ -216,7 +230,7 @@ pub async fn upload_binary(
                     return Err(ErrorResponse::BadRequest(msg));
                 }
                 _ => {
-                    log::error!("{e}");
+                    log::error!("Failed to load csv-data with error: '{e}'");
                     return Err(ErrorResponse::InternalError("".to_string()));
                 }
             },

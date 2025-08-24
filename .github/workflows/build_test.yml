@@ -511,9 +511,9 @@ jobs:
       fail-fast: false
       matrix:
         python_version:
-          - { tag: "python-3_10", name: "Python 3.10", version: "3.10", runs-on: "ubuntu-22.04" } 
-          - { tag: "python-3_11", name: "Python 3.11", version: "3.11", runs-on: "ubuntu-22.04" } 
-          - { tag: "python-3_12", name: "Python 3.12", version: "3.12", runs-on: "ubuntu-24.04" } 
+          - { tag: "python-3_10", name: "Python 3.10", version: "3.10", runs-on: "ubuntu-22.04" }
+          - { tag: "python-3_11", name: "Python 3.11", version: "3.11", runs-on: "ubuntu-22.04" }
+          - { tag: "python-3_12", name: "Python 3.12", version: "3.12", runs-on: "ubuntu-24.04" }
     runs-on: ${{ matrix.python_version.runs-on }}
     name: "${{ matrix.python_version.name }}"
     outputs:
@@ -622,6 +622,11 @@ jobs:
           cp csv_test.csv test_dir/
           cd test_dir
           python sdk_api_test.py
+      -
+        name: Get log-output for debugging
+        id: docker_log
+        if: ${{ always() }}
+        run: docker logs hanami
       -
         name: Update Result
         id: status
