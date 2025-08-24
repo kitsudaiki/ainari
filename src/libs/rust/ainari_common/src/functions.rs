@@ -31,14 +31,6 @@ pub fn split_bearer_token(token: &str) -> Option<&str> {
     }
 }
 
-pub fn fast_mem_copy<T: Copy>(src: &[T], dst: &mut Vec<T>) {
-    assert_eq!(src.len(), dst.len(), "Vectors must be the same length!");
-
-    unsafe {
-        std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), src.len());
-    }
-}
-
 #[inline]
 pub fn pcg_hash(input: &mut u32) -> u32 {
     let state = input.wrapping_mul(747_796_405).wrapping_add(2_891_336_453);
@@ -164,22 +156,5 @@ pub fn get_next_sides(side: u8) -> [u8; 5] {
         10 => [9, 3, 1, 4, 11],
         11 => [10, 7, 0, 6, 9],
         _ => panic!("Invalid side value: {side}; This should never happen!"),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_fast_mem_copy() {
-        let source_vec = vec![1.0f32, 2.0f32, 3.0f32];
-        let mut destination_vec = vec![0.0f32, 0.0f32, 0.0f32];
-
-        fast_mem_copy(&source_vec, &mut destination_vec);
-
-        assert_eq!(destination_vec[0], 1.0f32);
-        assert_eq!(destination_vec[1], 2.0f32);
-        assert_eq!(destination_vec[2], 3.0f32);
     }
 }
