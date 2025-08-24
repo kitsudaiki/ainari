@@ -64,7 +64,9 @@ pub async fn request_cluster(
     };
 
     // get cluster-interface
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER
+        .read()
+        .expect("mutex poisoned");
     let cluster_interface_mutex = match cluster_handler.get_cluster_interface(&cluster_uuid) {
         Ok(cluster_interface_mutex) => cluster_interface_mutex,
         Err(AinariError::InvalidInput(msg)) => {
@@ -87,7 +89,7 @@ pub async fn request_cluster(
     }
 
     // run request-process in cluster
-    let mut cluster_interface = cluster_interface_mutex.lock().unwrap();
+    let mut cluster_interface = cluster_interface_mutex.lock().expect("mutex poisoned");
     match cluster_interface.request(&body.inputs, &mut resp.outputs) {
         Ok(()) => {}
         Err(AinariError::InvalidInput(msg)) => {

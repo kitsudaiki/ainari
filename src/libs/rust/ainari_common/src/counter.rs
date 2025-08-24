@@ -28,7 +28,7 @@ impl Counter {
     }
 
     pub fn increase_check_reset(&self) -> bool {
-        let mut val = self.value.lock().unwrap();
+        let mut val = self.value.lock().expect("mutex poisoned");
         *val += 1;
         if *val == self.compare {
             *val = 0;
@@ -38,7 +38,7 @@ impl Counter {
     }
 
     pub fn update_compare(&mut self, new_compare: usize) {
-        let lock = self.value.lock().unwrap();
+        let lock = self.value.lock().expect("mutex poisoned");
         self.compare = new_compare;
         drop(lock);
     }

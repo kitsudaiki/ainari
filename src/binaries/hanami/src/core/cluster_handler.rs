@@ -110,7 +110,7 @@ impl ClusterDataHandler {
 
         // get and init finish-counter
         let finish_counter_mutex = Arc::new(Mutex::new(FinishCounter::default()));
-        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        let mut finish_counter = finish_counter_mutex.lock().expect("mutex poisoned");
         let interface = Arc::new(Mutex::new(ClusterInterface::new(
             cluster_uuid,
             &finish_counter_mutex,
@@ -206,7 +206,7 @@ impl ClusterDataHandler {
         &mut self,
         block_mutex: &Arc<Mutex<InputBlock>>,
     ) -> Result<(), AinariError> {
-        let input_block = block_mutex.lock().unwrap();
+        let input_block = block_mutex.lock().expect("mutex poisoned");
         let cluster_uuid = input_block.get_cluster_uud();
         let hexagon_uuid = input_block.get_hexagon_uud();
         let block_name = input_block.name.clone();
@@ -215,21 +215,21 @@ impl ClusterDataHandler {
         let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // add hexagon, if not already exist
-        let mut hexagon_data_map = cluster_link.hexagon_data.write().unwrap();
+        let mut hexagon_data_map = cluster_link.hexagon_data.write().expect("mutex poisoned");
         hexagon_data_map
             .entry(hexagon_uuid)
             .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
 
         // get hexagon
         let mut hexgon_link = if let Some(h) = hexagon_data_map.get_mut(&hexagon_uuid) {
-            h.lock().unwrap()
+            h.lock().expect("mutex poisoned")
         } else {
             let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
         };
 
         // check if block with name already exist
-        let mut inputs = cluster_link.inputs.write().unwrap();
+        let mut inputs = cluster_link.inputs.write().expect("mutex poisoned");
         if inputs.contains_key(&block_name) {
             let msg = format!("Input-block with name '{block_name}' already exist.");
             return Err(AinariError::InvalidInput(msg));
@@ -252,14 +252,14 @@ impl ClusterDataHandler {
         &mut self,
         block_mutex: &Arc<Mutex<OutputBuffer>>,
     ) -> Result<(), AinariError> {
-        let output_buffer = block_mutex.lock().unwrap();
+        let output_buffer = block_mutex.lock().expect("mutex poisoned");
         let cluster_uuid = output_buffer.cluster_uuid;
         let name = output_buffer.name.clone();
 
         let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // get hexagon-io
-        let mut outputs = cluster_link.outputs.write().unwrap();
+        let mut outputs = cluster_link.outputs.write().expect("mutex poisoned");
         if outputs.contains_key(&name) {
             let msg = format!("Output-buffer with name '{name}' already exist.");
             return Err(AinariError::InvalidInput(msg));
@@ -271,7 +271,7 @@ impl ClusterDataHandler {
     }
 
     fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
-        let block = block_mutex.lock().unwrap();
+        let block = block_mutex.lock().expect("mutex poisoned");
         let cluster_uuid = block.get_cluster_uud();
         let hexagon_uuid = block.get_hexagon_uud();
         let block_uuid = block.get_uuid();
@@ -279,13 +279,13 @@ impl ClusterDataHandler {
         let cluster_link = self.get_cluster_mut(&cluster_uuid)?;
 
         // get hexagon from cluster
-        let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
+        let mut hexagon_data = cluster_link.hexagon_data.write().expect("mutex poisoned");
         hexagon_data
             .entry(hexagon_uuid)
             .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
 
         let mut hexgon_link = if let Some(h) = hexagon_data.get_mut(&hexagon_uuid) {
-            h.lock().unwrap()
+            h.lock().expect("mutex poisoned")
         } else {
             let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
@@ -322,7 +322,7 @@ impl ClusterDataHandler {
         cluster_uuid: &Uuid,
     ) -> Result<Arc<Mutex<FinishCounter>>, AinariError> {
         let cluster_interface_mutex = self.get_cluster_interface(cluster_uuid)?;
-        let cluster_interface = cluster_interface_mutex.lock().unwrap();
+        let cluster_interface = cluster_interface_mutex.lock().expect("mutex poisoned");
 
         Ok(cluster_interface.finish_counter_mutex.clone())
     }
@@ -335,9 +335,9 @@ impl ClusterDataHandler {
     ) -> Result<Arc<Mutex<dyn Block>>, AinariError> {
         let cluster_link = self.get_cluster(cluster_uuid)?;
 
-        let binding = cluster_link.hexagon_data.read().unwrap();
+        let binding = cluster_link.hexagon_data.read().expect("mutex poisoned");
         let hexagon_link = if let Some(h) = binding.get(hexagon_uuid) {
-            h.lock().unwrap()
+            h.lock().expect("mutex poisoned")
         } else {
             let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
@@ -358,7 +358,7 @@ impl ClusterDataHandler {
     ) -> Result<Arc<Mutex<InputBlock>>, AinariError> {
         let cluster_link = self.get_cluster(cluster_uuid)?;
 
-        let binding = cluster_link.inputs.read().unwrap();
+        let binding = cluster_link.inputs.read().expect("mutex poisoned");
         if let Some(input_block_mutex) = binding.get(name) {
             Ok(input_block_mutex.clone())
         } else {
@@ -374,7 +374,7 @@ impl ClusterDataHandler {
     ) -> Result<Arc<Mutex<OutputBuffer>>, AinariError> {
         let cluster_link = self.get_cluster(cluster_uuid)?;
 
-        let binding = cluster_link.outputs.read().unwrap();
+        let binding = cluster_link.outputs.read().expect("mutex poisoned");
         if let Some(output_buffer_mutex) = binding.get(name) {
             Ok(output_buffer_mutex.clone())
         } else {
@@ -393,9 +393,9 @@ impl ClusterDataHandler {
         let cluster_link = self.get_cluster_mut(cluster_uuid)?;
 
         // get hexagon from cluster
-        let mut binding = cluster_link.hexagon_data.write().unwrap();
+        let mut binding = cluster_link.hexagon_data.write().expect("mutex poisoned");
         let mut hexagon_link = if let Some(h) = binding.get_mut(hexagon_uuid) {
-            h.lock().unwrap()
+            h.lock().expect("mutex poisoned")
         } else {
             let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
@@ -413,7 +413,7 @@ impl ClusterDataHandler {
             cluster_link
                 .hexagon_data
                 .write()
-                .unwrap()
+                .expect("mutex poisoned")
                 .remove(hexagon_uuid);
         }
 
@@ -433,9 +433,9 @@ impl ClusterDataHandler {
 
     pub fn reset_outputs(&self, cluster_uuid: &Uuid) -> Result<(), AinariError> {
         let cluster_link = self.get_cluster(cluster_uuid)?;
-        let outputs = cluster_link.outputs.read().unwrap();
+        let outputs = cluster_link.outputs.read().expect("mutex poisoned");
         for output_mutex in outputs.values() {
-            let mut output = output_mutex.lock().unwrap();
+            let mut output = output_mutex.lock().expect("mutex poisoned");
             output.reset_output();
         }
 
@@ -509,18 +509,18 @@ impl ClusterDataHandler {
         )?;
 
         // write blocks into checkpoint-file
-        let hexagon_data = cluster_link.hexagon_data.read().unwrap();
+        let hexagon_data = cluster_link.hexagon_data.read().expect("mutex poisoned");
         for hexagon in hexagon_data.values() {
-            for block_mutex in hexagon.lock().unwrap().blocks.values() {
-                let block = block_mutex.lock().unwrap();
+            for block_mutex in hexagon.lock().expect("mutex poisoned").blocks.values() {
+                let block = block_mutex.lock().expect("mutex poisoned");
                 self.write_vec_to_file(&mut target_file, block.get_type(), block.serailize())?;
             }
         }
 
         // write output-buffers into checkpoint-file
-        let outputs = cluster_link.outputs.read().unwrap();
+        let outputs = cluster_link.outputs.read().expect("mutex poisoned");
         for output_mutex in outputs.values() {
-            let output = output_mutex.lock().unwrap();
+            let output = output_mutex.lock().expect("mutex poisoned");
             self.write_vec_to_file(
                 &mut target_file,
                 ObjectType::OutputBuffer,
@@ -603,7 +603,7 @@ impl ClusterDataHandler {
                     cluster_meta.uuid = *cluster_uuid;
                     if let Some(interface_mutex) = &cluster_interface {
                         {
-                            let interface = interface_mutex.lock().unwrap();
+                            let interface = interface_mutex.lock().expect("mutex poisoned");
                             finish_counter_mutex = Arc::clone(&interface.finish_counter_mutex);
                         }
                         self.register_cluster(&cluster_meta, Some(interface_mutex.clone()))?;
@@ -683,7 +683,7 @@ impl ClusterDataHandler {
         }
 
         // set initial values for the finish-counter
-        let mut finish_counter = finish_counter_mutex.lock().unwrap();
+        let mut finish_counter = finish_counter_mutex.lock().expect("mutex poisoned");
         finish_counter.input_compare = number_of_input_blocks;
         finish_counter.output_compare = number_of_output_buffer;
 
@@ -696,16 +696,16 @@ impl ClusterDataHandler {
         };
 
         // connect new finish-counter to inputs
-        let inputs = cluster_link.inputs.read().unwrap();
+        let inputs = cluster_link.inputs.read().expect("mutex poisoned");
         for input_mutex in inputs.values() {
-            let mut input = input_mutex.lock().unwrap();
+            let mut input = input_mutex.lock().expect("mutex poisoned");
             input.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
         // connect new finish-counter to outputs
-        let outputs = cluster_link.outputs.read().unwrap();
+        let outputs = cluster_link.outputs.read().expect("mutex poisoned");
         for output_mutex in outputs.values() {
-            let mut output = output_mutex.lock().unwrap();
+            let mut output = output_mutex.lock().expect("mutex poisoned");
             output.finish_counter_mutex = Arc::clone(&finish_counter_mutex);
         }
 
@@ -742,7 +742,7 @@ mod tests {
             key2: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
 
         {
@@ -756,7 +756,7 @@ mod tests {
             assert_eq!(cluster.cluster_meta.uuid, cluster_uuid);
 
             // check initial state of hexagon-data
-            let hexagons = cluster.hexagon_data.read().unwrap();
+            let hexagons = cluster.hexagon_data.read().expect("mutex poisoned");
             assert_eq!(hexagons.len(), 1);
         }
 
@@ -790,7 +790,7 @@ mod tests {
             test_output: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
@@ -847,21 +847,21 @@ mod tests {
         assert!(root_handler.add_output_block(&output_block).is_ok());
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
-            let hexagons = cluster.hexagon_data.read().unwrap();
+            let hexagons = cluster.hexagon_data.read().expect("mutex poisoned");
             assert_eq!(hexagons.len(), 2);
             // check hexagon 0
             {
                 let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
-                assert_eq!(hexagon0.lock().unwrap().blocks.len(), 2);
-                let inputs = cluster.inputs.read().unwrap();
+                assert_eq!(hexagon0.lock().expect("mutex poisoned").blocks.len(), 2);
+                let inputs = cluster.inputs.read().expect("mutex poisoned");
                 assert!(inputs.contains_key(&input_name));
             }
 
             // check hexagon 1
             {
                 let hexagon1 = hexagons.get(&hexagon_uuid1).unwrap();
-                assert_eq!(hexagon1.lock().unwrap().blocks.len(), 1);
-                let outputs = cluster.outputs.read().unwrap();
+                assert_eq!(hexagon1.lock().expect("mutex poisoned").blocks.len(), 1);
+                let outputs = cluster.outputs.read().expect("mutex poisoned");
                 assert!(outputs.contains_key(&output_name));
             }
         }
@@ -898,7 +898,7 @@ mod tests {
                 .get_block(
                     &cluster_uuid,
                     &hexagon_uuid0,
-                    &core_block.lock().unwrap().uuid
+                    &core_block.lock().expect("mutex poisoned").uuid
                 )
                 .is_ok()
         );
@@ -913,12 +913,12 @@ mod tests {
             let _ = root_handler.delete_block(
                 &cluster_uuid,
                 &hexagon_uuid0,
-                &core_block.lock().unwrap().uuid,
+                &core_block.lock().expect("mutex poisoned").uuid,
             );
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
-            let hexagons = cluster.hexagon_data.read().unwrap();
+            let hexagons = cluster.hexagon_data.read().expect("mutex poisoned");
             let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
-            assert_eq!(hexagon0.lock().unwrap().blocks.len(), 1);
+            assert_eq!(hexagon0.lock().expect("mutex poisoned").blocks.len(), 1);
         }
     }
 
@@ -952,7 +952,7 @@ mod tests {
             test_output: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
@@ -1012,21 +1012,21 @@ mod tests {
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid_new).unwrap();
-            let hexagons = cluster.hexagon_data.read().unwrap();
+            let hexagons = cluster.hexagon_data.read().expect("mutex poisoned");
             assert_eq!(hexagons.len(), 2);
             // check hexagon 0
             {
                 let hexagon0 = hexagons.get(&hexagon_uuid0).unwrap();
-                assert_eq!(hexagon0.lock().unwrap().blocks.len(), 2);
-                let inputs = cluster.inputs.read().unwrap();
+                assert_eq!(hexagon0.lock().expect("mutex poisoned").blocks.len(), 2);
+                let inputs = cluster.inputs.read().expect("mutex poisoned");
                 assert!(inputs.contains_key(&input_name));
             }
 
             // check hexagon 1
             {
                 let hexagon1 = hexagons.get(&hexagon_uuid1).unwrap();
-                assert_eq!(hexagon1.lock().unwrap().blocks.len(), 1);
-                let outputs = cluster.outputs.read().unwrap();
+                assert_eq!(hexagon1.lock().expect("mutex poisoned").blocks.len(), 1);
+                let outputs = cluster.outputs.read().expect("mutex poisoned");
                 assert!(outputs.contains_key(&output_name));
             }
         }
@@ -1057,7 +1057,7 @@ mod tests {
                 .get_block(
                     &cluster_uuid_new,
                     &hexagon_uuid0,
-                    &core_block_mutex.lock().unwrap().uuid
+                    &core_block_mutex.lock().expect("mutex poisoned").uuid
                 )
                 .is_ok()
         );

@@ -141,7 +141,7 @@ impl OutputBuffer {
             out.expected_value = delta * out.output_value * (1.0f32 - out.output_value);
         }
 
-        let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+        let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
         for block in self.unfinished_blocks.iter() {
             let worker_task = WorkerTask {
                 task_type: WorkerTaskType::Backpropagate,
@@ -167,7 +167,7 @@ impl OutputBuffer {
     }
 
     pub fn update_finish_counter(&mut self, cycle_number: u64) -> bool {
-        let finish_counter = self.finish_counter_mutex.lock().unwrap();
+        let finish_counter = self.finish_counter_mutex.lock().expect("mutex poisoned");
         let expected_cycle_number = finish_counter.get_expected_cycle_number();
         if cycle_number == expected_cycle_number {
             self.local_finish_counter += 1;

@@ -35,7 +35,14 @@ pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>,
         ));
     }
 
-    let projects = project_table::list_projects(&context).unwrap();
+    let projects = match project_table::list_projects(&context) {
+        Ok(result) => result,
+        Err(e) => {
+            let msg = format!("Failed to list projects with error: '{e}'");
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     let mut resp = ProjectListResp {
         projects: Vec::new(),

@@ -14,8 +14,10 @@
 
 use actix_web::web::Json;
 use actix_web::web::Path;
+use ainari_common::error::AinariError;
 use apistos::api_operation;
 use bytemuck::cast_slice_mut;
+use std::cmp::Ordering;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
 use std::path::PathBuf;
@@ -126,15 +128,23 @@ pub async fn check_dataset(
     let mut accuracy = 0f32;
 
     for i in 0..row_count {
-        if check_row(
+        match check_row(
             &mut dataset_file_handle,
             &dataset_col_get,
             &mut reference_file_handle,
             &ref_col_get,
             i,
         ) {
-            accuracy += 1f32;
-        }
+            Ok(correct) => {
+                if correct {
+                    accuracy += 1f32;
+                }
+            }
+            Err(e) => {
+                log::error!("{e}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
     }
 
     let resp = DatasetCheckResp {
@@ -150,23 +160,23 @@ fn check_row(
     reference_file_handle: &mut DataSetFileReadHandleV1_0,
     reference_columns: &Column,
     row: u64,
-) -> bool {
-    let dataset_row = get_highest_pos_in_row(dataset_file_handle, dataset_column, row);
-    let reference_row = get_highest_pos_in_row(reference_file_handle, reference_columns, row);
+) -> Result<bool, AinariError> {
+    let dataset_row = get_highest_pos_in_row(dataset_file_handle, dataset_column, row)?;
+    let reference_row = get_highest_pos_in_row(reference_file_handle, reference_columns, row)?;
     // println!("row: {row}    dataset_row: {dataset_row}  reference_row: {reference_row}");
 
     if dataset_row != reference_row {
-        return false;
+        return Ok(false);
     }
 
-    true
+    Ok(true)
 }
 
 fn get_highest_pos_in_row(
     file_handle: &mut DataSetFileReadHandleV1_0,
     col_get: &Column,
     row: u64,
-) -> u64 {
+) -> Result<u64, AinariError> {
     // calculate position in dataset-file
     let size_input = (col_get.end - col_get.start) as usize;
     let mut offset_bytes = (file_handle.header.row_size) * 4 * row;
@@ -174,20 +184,28 @@ fn get_highest_pos_in_row(
 
     let mut input_read = vec![0.0f32; size_input];
     let byte_slice_input: &mut [u8] = cast_slice_mut(input_read.as_mut_slice());
-    file_handle
-        .target_file
-        .seek(SeekFrom::Start(file_handle.payload_offset + offset_bytes))
-        .unwrap();
+    let start_pos = file_handle.payload_offset + offset_bytes;
+    match file_handle.target_file.seek(SeekFrom::Start(start_pos)) {
+        Ok(_) => {}
+        Err(e) => {
+            let msg = format!("Failed to set file-seek to position {start_pos} with error: '{e}'");
+            log::error!("{msg}");
+            return Err(AinariError::Error(msg));
+        }
+    }
     let _ = file_handle.target_file.read_exact(byte_slice_input);
 
     // println!("{:?}", input_read);
     if let Some((index, _)) = input_read
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .filter(|(_, v)| v.is_finite())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Less))
     {
-        index as u64
+        Ok(index as u64)
     } else {
-        0
+        let msg = "Failed to get hightest index in output".to_string();
+        log::error!("{msg}");
+        Err(AinariError::Error(msg))
     }
 }

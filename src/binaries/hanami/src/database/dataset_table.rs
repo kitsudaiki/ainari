@@ -59,7 +59,7 @@ pub struct DatasetEntry {
 }
 
 pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS datasets (
         uuid VARCHAR(40) PRIMARY KEY,
@@ -105,7 +105,7 @@ pub fn add_new_dataset(
 }
 
 pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
     diesel::insert_into(datasets)
@@ -117,7 +117,7 @@ pub fn get_dataset(
     dataset_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<DatasetEntry, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
     let mut query = datasets
@@ -145,7 +145,7 @@ pub fn get_dataset(
 }
 
 pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
     let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
@@ -163,7 +163,7 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
 pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     get_dataset(dataset_uuid, context)?;
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
     match diesel::update(datasets.filter(uuid.eq(dataset_uuid.to_string())))
@@ -190,7 +190,7 @@ mod tests {
 
     fn hard_delete_dataset(dataset_uuid: &Uuid) {
         use self::datasets::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ =
             diesel::delete(datasets.filter(uuid.eq(dataset_uuid.to_string()))).execute(&mut *conn);
     }

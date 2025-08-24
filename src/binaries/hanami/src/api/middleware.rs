@@ -38,24 +38,36 @@ pub async fn authorization_middleware(
     if !skip_check {
         log::debug!("Check token for request against {uri}");
         // get token from header
-        let token: &str;
-        match req.headers().get("Authorization") {
-            Some(value) => match split_bearer_token(value.to_str().unwrap()) {
-                Some(val) => token = val,
-                None => {
-                    println!("Invalid token format");
-                    return Err(
-                        ErrorResponse::Unauthorized("Missing token in header".to_string()).into(),
-                    );
-                }
-            },
+        let auth_header = match req.headers().get("Authorization") {
+            Some(value) => value,
             _ => {
+                return Err(ErrorResponse::Unauthorized(
+                    "Authorization-header not set".to_string(),
+                )
+                .into());
+            }
+        };
+
+        // convert into string
+        let auth_header_str = match auth_header.to_str() {
+            Ok(auth_header_str) => auth_header_str,
+            Err(_) => {
+                return Err(ErrorResponse::Unauthorized("Bad auth-header".to_string()).into());
+            }
+        };
+
+        // parse token from the auth-header
+        let token = match split_bearer_token(auth_header_str) {
+            Some(token) => token,
+            None => {
+                println!("Invalid token format");
                 return Err(
                     ErrorResponse::Unauthorized("Missing token in header".to_string()).into(),
                 );
             }
-        }
+        };
 
+        // check token
         match token_handling::validate_token(token) {
             Ok(_) => {}
             Err(e) => {

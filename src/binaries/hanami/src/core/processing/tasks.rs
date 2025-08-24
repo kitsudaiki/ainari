@@ -116,7 +116,7 @@ impl Task {
         }
 
         {
-            let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+            let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
             let _ = cluster_handler.reset_outputs(&self.cluster_uuid);
         }
 
@@ -368,10 +368,10 @@ pub fn apply_plain_input(
     time_length: u64,
     task_type: &WorkerTaskType,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
 
-    let mut input_block = input_block_mutex.lock().unwrap();
+    let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
     let allow_creation = *task_type == WorkerTaskType::Train;
     input_block.apply_input(
         input_ptr,
@@ -381,7 +381,7 @@ pub fn apply_plain_input(
         allow_creation,
     );
 
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+    let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
     let cycle_number = 0;
     let worker_task = WorkerTask {
         task_type: task_type.clone(),
@@ -403,23 +403,17 @@ fn apply_dataset_to_input(
     task_cycle_counter: u64,
 ) -> Result<(), AinariError> {
     // get input-block
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
     drop(cluster_handler);
 
-    let mut input_block = input_block_mutex.lock().unwrap();
+    let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
 
     // fill input with data from dataset
     let mut pos_counter: usize = 0;
     for time_point in 0..time_length {
         let (input_ptr, input_size) =
-            match file_handle.get_data_from_file(&(cycle_count + time_point)) {
-                Ok((input_ptr, input_size)) => (input_ptr, input_size),
-                Err(msg) => {
-                    return Err(AinariError::Error(msg));
-                }
-            };
-
+            file_handle.get_data_from_file(&(cycle_count + time_point))?;
         let allow_creation = *task_type == WorkerTaskType::Train;
         input_block.apply_input(
             input_ptr,
@@ -433,7 +427,7 @@ fn apply_dataset_to_input(
     }
 
     // add input-block to worker-queue
-    let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+    let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
     let worker_task = WorkerTask {
         task_type: task_type.clone(),
         block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
@@ -450,10 +444,10 @@ pub fn apply_expected(
     input_ptr: &[f32],
     input_size: u64,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
 
-    let mut output_buffer = output_buffer_mutex.lock().unwrap();
+    let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
     output_buffer.reset_output();
     convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
 
@@ -468,12 +462,7 @@ fn apply_dataset_to_expected(
     time_length: u64,
 ) -> Result<(), AinariError> {
     let (input_ptr, input_size) =
-        match file_handle.get_data_from_file(&(cycle_count + time_length - 1)) {
-            Ok((input_ptr, input_size)) => (input_ptr, input_size),
-            Err(msg) => {
-                return Err(AinariError::Error(msg));
-            }
-        };
+        file_handle.get_data_from_file(&(cycle_count + time_length - 1))?;
 
     apply_expected(cluster_uuid, hexagon_name, input_ptr, input_size)?;
 
@@ -484,7 +473,7 @@ fn write_output_into_dataset(
     cluster_uuid: &Uuid,
     file_handle: &mut DataSetFileWriteHandleV1_0,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
     // get column-description from the dataset
     for (hexagon_name, col_get) in &file_handle.header.columns {
@@ -493,7 +482,7 @@ fn write_output_into_dataset(
 
         let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
 
-        let mut output_buffer = output_buffer_mutex.lock().unwrap();
+        let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
         convert_output_to_buffer(&mut output_read, &mut output_buffer);
         output_buffer.reset_output();
 
@@ -513,7 +502,7 @@ fn handle_checkpoint_save_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
-    let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     match cluster_handler.create_checkpoint(cluster_uuid, &task_info.path) {
         Ok(()) => {}
         Err(_) => {
@@ -551,7 +540,7 @@ fn handle_checkpoint_restore_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
-    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     match cluster_handler.restore_checkpoint(cluster_uuid, &task_info.path) {
         Ok(()) => {}
         Err(_) => {

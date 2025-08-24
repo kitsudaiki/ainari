@@ -119,7 +119,10 @@ pub async fn upload_binary(
         let mut f = match fs::File::create(&temp_file_path).await {
             Ok(value) => value,
             Err(e) => {
-                let path = temp_file_path.as_os_str().to_str().unwrap();
+                let path = temp_file_path
+                    .as_os_str()
+                    .to_str()
+                    .unwrap_or("Invalid-path");
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
                 log::error!("{msg}");
                 return Err(ErrorResponse::InternalError("".to_string()));

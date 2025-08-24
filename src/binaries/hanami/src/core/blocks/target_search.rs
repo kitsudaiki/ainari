@@ -44,7 +44,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
     let selected_block_option;
 
     {
-        let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+        let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
         // get source-block
         source_block = cluster_handler.get_block(
@@ -55,9 +55,9 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
 
         let cluster_link = cluster_handler.get_cluster(&axon_section.cluster_uuid)?;
         cluster_settings = cluster_link.cluster_meta.settings.clone();
-        let binding = cluster_link.hexagon_data.read().unwrap();
+        let binding = cluster_link.hexagon_data.read().expect("mutex poisoned");
         let target_hexagon_link = if let Some(h) = binding.get(&target_information.hexagon_uuid) {
-            h.lock().unwrap()
+            h.lock().expect("mutex poisoned")
         } else {
             let msg = format!(
                 "Hexagon with uuid '{}' not found.",
@@ -78,7 +78,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
 
     // check if the reandome selected block is available
     if let Some(selected_block_mutex) = selected_block_option {
-        let mut selected_block = selected_block_mutex.lock().unwrap();
+        let mut selected_block = selected_block_mutex.lock().expect("mutex poisoned");
         if selected_block.get_free_input(axon_section) {
             axon_section.target_block = Some(selected_block_mutex.clone());
             axon_section.source_block = Some(source_block);
@@ -88,7 +88,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
 
     // create new block
     if target_information.is_output {
-        let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
             &target_information.hexagon_uuid,
             &axon_section.cluster_uuid,
@@ -96,14 +96,14 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         )));
         cluster_handler.add_output_block(&output_block_mutex)?;
         drop(cluster_handler);
-        let mut output_block = output_block_mutex.lock().unwrap();
+        let mut output_block = output_block_mutex.lock().expect("mutex poisoned");
         if output_block.get_free_input(axon_section) {
             axon_section.target_block = Some(output_block_mutex.clone());
             axon_section.source_block = Some(source_block);
             return Ok(());
         }
     } else {
-        let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
             &target_information.hexagon_uuid,
             &axon_section.cluster_uuid,
@@ -111,7 +111,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         )));
         cluster_handler.add_core_block(&core_block_mutex)?;
         drop(cluster_handler);
-        let mut core_block = core_block_mutex.lock().unwrap();
+        let mut core_block = core_block_mutex.lock().expect("mutex poisoned");
         if core_block.get_free_input(axon_section) {
             axon_section.target_block = Some(core_block_mutex.clone());
             axon_section.source_block = Some(source_block);
@@ -149,7 +149,7 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
 }
 
 fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
-    let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     let mut target_information = TargetInformation::default();
     let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
 
@@ -195,7 +195,7 @@ fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformatio
     };
 
     // add hexagon if necessary
-    let mut hexagon_data = cluster_link.hexagon_data.write().unwrap();
+    let mut hexagon_data = cluster_link.hexagon_data.write().expect("mutex poisoned");
     hexagon_data
         .entry(target_information.hexagon_uuid)
         .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
@@ -239,7 +239,7 @@ mod tests {
             key2: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().unwrap();
+        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
         let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
 
@@ -295,7 +295,7 @@ mod tests {
         drop(root_handler);
 
         let mut test_section = AxonSection::default();
-        let core_block = core_block_mutex.lock().unwrap();
+        let core_block = core_block_mutex.lock().expect("mutex poisoned");
         test_section.source_block_uuid = core_block.uuid;
         test_section.source_hexagon_uuid = core_block.hexagon_uuid;
         test_section.cluster_uuid = core_block.cluster_uuid;

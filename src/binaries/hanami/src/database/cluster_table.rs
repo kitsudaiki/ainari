@@ -59,7 +59,7 @@ pub struct ClusterEntry {
 }
 
 pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS clusters (
         uuid VARCHAR(40) PRIMARY KEY,
@@ -105,7 +105,7 @@ pub fn add_new_cluster(
 }
 
 pub fn add_cluster(cluster: &ClusterEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;
     diesel::insert_into(clusters)
         .values(cluster)
@@ -116,7 +116,7 @@ pub fn get_cluster(
     cluster_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<ClusterEntry, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;
 
     let mut query = clusters
@@ -144,7 +144,7 @@ pub fn get_cluster(
 }
 
 pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;
 
     let mut query = clusters.filter(status.eq("ACTIVE")).into_boxed();
@@ -162,7 +162,7 @@ pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
 pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     get_cluster(cluster_uuid, context)?;
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;
     match diesel::update(clusters.filter(uuid.eq(cluster_uuid.to_string())))
         .set((
@@ -182,7 +182,7 @@ pub fn delete_cluster(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), 
 }
 
 pub fn delete_all_cluster() -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;
     match diesel::update(clusters.filter(status.eq("ACTIVE")))
         .set((
@@ -208,7 +208,7 @@ mod tests {
 
     fn hard_delete_cluster(cluster_uuid: &Uuid) {
         use self::clusters::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ =
             diesel::delete(clusters.filter(uuid.eq(cluster_uuid.to_string()))).execute(&mut *conn);
     }

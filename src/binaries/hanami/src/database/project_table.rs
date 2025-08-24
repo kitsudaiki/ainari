@@ -53,7 +53,7 @@ pub struct ProjectEntry {
 }
 
 pub fn init_project_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS projects (
         id VARCHAR(256),
@@ -108,7 +108,7 @@ pub fn add_new_project(
 }
 
 pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
 
     diesel::insert_into(projects)
@@ -124,7 +124,7 @@ pub fn get_project(
         return Err(enums::DbError::NotFound);
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
     match projects
         .filter(id.eq(project_id).and(status.eq("ACTIVE")))
@@ -146,7 +146,7 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
         return dummy;
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
     projects
         .filter(status.eq("ACTIVE"))
@@ -159,7 +159,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
         return Err(enums::DbError::NotFound);
     }
 
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
     match diesel::update(projects.filter(id.eq(project_id)))
         .set(status.eq("DELETED"))
@@ -181,7 +181,7 @@ mod tests {
 
     fn hard_delete_project(project_id: &String) {
         use self::projects::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(projects.filter(id.eq(project_id))).execute(&mut *conn);
     }
 

@@ -72,7 +72,7 @@ pub struct TaskEntry {
 }
 
 pub fn init_task_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
@@ -133,7 +133,7 @@ pub fn add_new_task(
 }
 
 fn add_task(task: &TaskEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     diesel::insert_into(tasks).values(task).execute(&mut *conn)
@@ -144,7 +144,7 @@ pub fn get_task(
     cluster_uuid_in: &Uuid,
     context: &UserContext,
 ) -> Result<TaskEntry, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     let mut query = tasks
@@ -177,7 +177,7 @@ pub fn get_task(
 }
 
 pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     let mut query = tasks
@@ -195,7 +195,7 @@ pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<
 }
 
 pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Result<(), ()> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
@@ -212,7 +212,7 @@ pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Resul
 }
 
 pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     match new_state {
@@ -286,7 +286,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
 }
 
 pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
@@ -306,7 +306,7 @@ pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
 }
 
 pub fn is_aborted(task_uuid: &Uuid) -> bool {
-    let mut conn = db_handle::DB_CONN.lock().unwrap();
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     let query = tasks.filter(uuid.eq(task_uuid.to_string())).into_boxed();
@@ -331,7 +331,7 @@ mod tests {
 
     fn hard_delete_task(task_uuid: &Uuid) {
         use self::tasks::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().unwrap();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(tasks.filter(uuid.eq(task_uuid.to_string()))).execute(&mut *conn);
     }
 

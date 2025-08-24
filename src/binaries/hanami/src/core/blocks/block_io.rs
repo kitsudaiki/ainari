@@ -45,7 +45,7 @@ pub fn connect_outputs(
     // in case of training, get targets for all not-connected axon-sections
     for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
         if axon_section.target_pos == UNINIT_STATE_8 {
-            // let mut cluster_handler = CLUSTER_HANDLER.write().unwrap();
+            // let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
 
             // set source-values for the axon-section
             axon_section.cluster_uuid = *cluster_uuid;
@@ -56,7 +56,7 @@ pub fn connect_outputs(
             // cluster_handler.get_target(axon_section);
             connect_to_new_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
-            let cluster_handler = CLUSTER_HANDLER.read().unwrap();
+            let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
             axon_section.cluster_uuid = *cluster_uuid;
             axon_section.source_block = Some(cluster_handler.get_block(
                 cluster_uuid,
@@ -83,7 +83,7 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_
             continue;
         };
 
-        let mut target_block = target_block_mutex.lock().unwrap();
+        let mut target_block = target_block_mutex.lock().expect("mutex poisoned");
         let target_bock_io = target_block.get_block_io();
         let is_done = target_bock_io.input_buffer[axon_section.target_pos as usize].done;
         target_bock_io.input_buffer[axon_section.target_pos as usize] = axon_section.clone();
@@ -99,7 +99,7 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_
                 cycle_number,
             };
 
-            let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+            let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
             worker_queue.add(worker_task);
         }
     }
@@ -128,7 +128,7 @@ pub fn send_backward(io_buffer: &mut BlockIoBuffer, cycle_number: u64) -> bool {
                     cycle_number,
                 };
 
-                let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+                let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
                 worker_queue.add(worker_task);
             }
             axon_section.done = true;
@@ -167,7 +167,7 @@ pub fn send_backward_with_retry(io_buffer: &mut BlockIoBuffer, cycle_number: u64
                     cycle_number,
                 };
 
-                let mut worker_queue = WORKER_QUEUE.lock().unwrap();
+                let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
                 worker_queue.add(worker_task);
             }
             axon_section.done = true;
