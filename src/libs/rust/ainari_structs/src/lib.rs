@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![forbid(unsafe_code)]
+
 pub mod auth_structs;
 pub mod checkpoint_structs;
 pub mod cluster_structs;

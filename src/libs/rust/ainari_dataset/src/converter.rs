@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytemuck::cast_slice;
 use byteorder::{BigEndian, ReadBytesExt};
 use csv::ReaderBuilder;
 use std::collections::HashMap;
@@ -117,20 +118,8 @@ pub fn load_mnist_images(
         label_data[usize::from(img.label)] = 1.0f32;
 
         let converted = convert_vec_u8_to_f32(&img.pixels);
-
-        let image_bytes = unsafe {
-            std::slice::from_raw_parts(
-                converted.as_ptr() as *const u8,
-                converted.len() * std::mem::size_of::<f32>(),
-            )
-        };
-
-        let label_bytes = unsafe {
-            std::slice::from_raw_parts(
-                label_data.as_ptr() as *const u8,
-                label_data.len() * std::mem::size_of::<f32>(),
-            )
-        };
+        let image_bytes: &[u8] = cast_slice(&converted);
+        let label_bytes: &[u8] = cast_slice(&label_data);
 
         dataset_handle.target_file.write_all(image_bytes)?;
         dataset_handle.target_file.write_all(label_bytes)?;
@@ -189,12 +178,7 @@ pub fn load_csv_file(
             .map(|field| field.parse::<f32>().unwrap_or(0.0))
             .collect::<Vec<f32>>();
 
-        let row_bytes = unsafe {
-            std::slice::from_raw_parts(
-                row.as_ptr() as *const u8,
-                row.len() * std::mem::size_of::<f32>(),
-            )
-        };
+        let row_bytes: &[u8] = cast_slice(&row);
 
         dataset_handle.target_file.write_all(row_bytes)?;
     }

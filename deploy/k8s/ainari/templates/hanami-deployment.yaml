@@ -44,6 +44,8 @@ spec:
           value: {{ required "user.name is required!" .Values.user.name }}
         - name: HANAMI_ADMIN_PASSPHRASE
           value: {{ required "user.passphrase is required!" .Values.user.passphrase }}
+        - name: RUST_LOG
+          value: "debug"
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/data/

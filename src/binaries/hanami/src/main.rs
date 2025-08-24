@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
+#![forbid(unsafe_code)]
+
 use std::fs;
 
 mod api;
@@ -26,14 +27,7 @@ use core::cluster_handler::*;
 use core::processing::worker_handler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the logger
-    unsafe {
-        // HINT (kitsudaiki): on my test-environment the rust-compile required the 'unsafe'-marker
-        env::set_var("RUST_LOG", "debug");
-    }
-
     env_logger::init();
-
     let enable_debug_log = config::CONFIG.debug;
     if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
