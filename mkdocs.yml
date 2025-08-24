@@ -9,6 +9,8 @@ theme:
   name: material
   language: en
   logo: img/hanami-logo-pink.png
+  palette:
+    scheme: default  # or "slate" for dark
   features:
     - navigation.tabs
     - navigation.sections
