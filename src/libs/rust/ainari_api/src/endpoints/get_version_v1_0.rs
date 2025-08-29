@@ -14,13 +14,12 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
+use once_cell::sync::Lazy;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
+use crate::errors::ErrorResponse;
+use crate::user_context::UserContext;
 
-use ainari_structs::common_structs::VersionResp;
-
-use crate::config::VERSION;
+use crate::structs::common_structs::VersionResp;
 
 #[api_operation(
     tag = "version",
@@ -37,3 +36,8 @@ pub async fn get_version(_: UserContext) -> Result<Json<VersionResp>, ErrorRespo
 
     return Ok(Json(resp));
 }
+
+pub static VERSION: Lazy<String> = Lazy::new(|| {
+    let git_version = option_env!("GIT_VERSION").unwrap_or("unknown");
+    git_version.to_string()
+});

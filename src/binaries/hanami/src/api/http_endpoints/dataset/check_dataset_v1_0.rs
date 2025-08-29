@@ -28,10 +28,10 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
+use ainari_api::structs::dataset_structs::{DatasetCheckReq, DatasetCheckResp};
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandleV1_0};
-use ainari_structs::dataset_structs::{DatasetCheckReq, DatasetCheckResp};
 
 #[api_operation(
     tag = "dataset",

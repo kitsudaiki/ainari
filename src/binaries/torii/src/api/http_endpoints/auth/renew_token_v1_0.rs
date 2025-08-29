@@ -15,11 +15,11 @@
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 
-use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
-use crate::api::user_context::UserContext;
 
-use ainari_structs::auth_structs::UserTokenResp;
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::auth_structs::UserTokenResp;
+use ainari_api::user_context::UserContext;
 
 #[api_operation(
     tag = "auth",

@@ -21,8 +21,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 
+use ainari_api::structs::cluster_structs::ClusterResp;
 use ainari_common::enums;
-use ainari_structs::cluster_structs::ClusterResp;
 
 #[api_operation(
     tag = "cluster",

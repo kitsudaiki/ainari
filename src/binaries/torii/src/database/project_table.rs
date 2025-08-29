@@ -18,9 +18,9 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use std::error::Error;
 
-use crate::api::user_context::UserContext;
 use crate::database::db_handle;
 
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 
 // Define the schema

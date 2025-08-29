@@ -4,6 +4,6 @@ members = [
     "src/libs/rust/ainari_common",
     "src/libs/rust/ainari_cluster_parser",
     "src/libs/rust/ainari_dataset", 
-    "src/libs/rust/ainari_structs", 
-    "src/libs/rust/ainari_hardware"
-]
+    "src/libs/rust/ainari_api", 
+    "src/libs/rust/ainari_hardware", 
+    "src/binaries/torii"]

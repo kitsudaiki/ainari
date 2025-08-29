@@ -36,7 +36,7 @@ it easier for a new person to understand the code.
     │   │   │   ├── ainari_cluster_parser
     │   │   │   ├── ainari_common
     │   │   │   ├── ainari_hardware
-    │   │   │   ├── ainari_structs
+    │   │   │   ├── ainari_api
     │   │   │   └── ainari_dataset
     │   │   └── protobuf
     │   │

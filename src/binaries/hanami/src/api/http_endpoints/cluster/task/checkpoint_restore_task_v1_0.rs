@@ -28,8 +28,8 @@ use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use ainari_api::structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",

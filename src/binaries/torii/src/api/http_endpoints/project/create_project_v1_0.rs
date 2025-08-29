@@ -17,12 +17,12 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::project_structs::{ProjectCreateReq, ProjectResp};
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
-use ainari_structs::project_structs::{ProjectCreateReq, ProjectResp};
 
 #[api_operation(
     tag = "project",

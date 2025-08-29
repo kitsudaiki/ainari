@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod checkpoint;
-pub mod cluster;
-pub mod dataset;
+#![forbid(unsafe_code)]
+
+pub mod endpoints;
+pub mod errors;
+pub mod structs;
+pub mod user_context;

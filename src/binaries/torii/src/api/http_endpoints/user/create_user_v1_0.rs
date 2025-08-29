@@ -17,12 +17,12 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::user_structs::{UserCreateReq, UserResp};
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
-use ainari_structs::user_structs::{UserCreateReq, UserResp};
 
 #[api_operation(
     tag = "user",

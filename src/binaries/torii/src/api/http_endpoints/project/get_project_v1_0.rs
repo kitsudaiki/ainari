@@ -12,29 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web::Json;
 use actix_web::web::Path;
-use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::project_structs::ProjectResp;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(
     tag = "project",
-    summary = "Delete project",
-    description = r###"Delete a project from the database. This can only be done by an admin."###,
+    summary = "Get project",
+    description = r###"Get information of a project from the database. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_project(
+pub async fn get_project(
     project_id: Path<String>,
     context: UserContext,
-) -> Result<NoContent, ErrorResponse> {
+) -> Result<Json<ProjectResp>, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
@@ -42,9 +43,18 @@ pub async fn delete_project(
     }
 
     // get new created project from database to get addtional information
-    match project_table::delete_project(&project_id, &context) {
-        Ok(_) => {
-            return Ok(NoContent);
+    match project_table::get_project(&project_id, &context) {
+        Ok(project) => {
+            let resp = ProjectResp {
+                id: project.id.clone(),
+                name: project.name.clone(),
+                created_by: project.created_by.clone(),
+                created_at: project.created_at.clone(),
+                updated_by: project.updated_by.clone(),
+                updated_at: project.updated_at.clone(),
+            };
+
+            return Ok(Json(resp));
         }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

@@ -20,9 +20,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+use ainari_api::structs::task_structs::TaskState;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
-use ainari_structs::task_structs::TaskState;
 
 use crate::api::user_context::UserContext;
 use crate::core::blocks::block_trait::*;

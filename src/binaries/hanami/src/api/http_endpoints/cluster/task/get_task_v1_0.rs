@@ -23,8 +23,8 @@ use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use ainari_api::structs::task_structs::{TaskResp, TaskState, TaskType};
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",

@@ -20,7 +20,7 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use ainari_structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
+use ainari_api::structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
 
 #[api_operation(
     tag = "dataset",

@@ -28,10 +28,10 @@ use crate::api::user_context::UserContext;
 use crate::config;
 use crate::database::dataset_table;
 
+use ainari_api::structs::dataset_structs::DatasetResp;
 use ainari_common::error::AinariError;
 use ainari_dataset::converter::{load_csv_file, load_mnist_images};
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",

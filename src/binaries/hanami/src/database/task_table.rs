@@ -21,8 +21,8 @@ use uuid::Uuid;
 use crate::api::user_context::UserContext;
 use crate::database::db_handle;
 
+use ainari_api::structs::task_structs::{TaskState, TaskType};
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskState, TaskType};
 
 // Define the schema
 table! {

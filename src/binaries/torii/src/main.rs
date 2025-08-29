@@ -12,6 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod checkpoint;
-pub mod cluster;
-pub mod dataset;
+#![forbid(unsafe_code)]
+
+mod api;
+mod config;
+mod database;
+
+use log::LevelFilter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    let enable_debug_log = config::CONFIG.debug;
+    if !enable_debug_log {
+        log::set_max_level(LevelFilter::Info);
+    }
+
+    database::init_database()?;
+
+    api::http_server::run_server()?;
+
+    Ok(())
+}

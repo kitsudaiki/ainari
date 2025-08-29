@@ -12,50 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Json;
 use actix_web::web::Path;
+use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::user_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
-use ainari_structs::user_structs::UserResp;
 
 #[api_operation(
     tag = "user",
-    summary = "Get user",
-    description = r###"Get information of a user from the database. This can only be done by an admin."###,
+    summary = "Delete user",
+    description = r###"Delete a user from the database. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_user(
+pub async fn delete_user(
     user_id: Path<String>,
     context: UserContext,
-) -> Result<Json<UserResp>, ErrorResponse> {
+) -> Result<NoContent, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    // get new created user from database to get addtional information
-    match user_table::get_user(&user_id, &context) {
-        Ok(user) => {
-            let resp = UserResp {
-                id: user.id.clone(),
-                name: user.name.clone(),
-                is_admin: user.is_admin,
-                created_by: user.created_by.clone(),
-                created_at: user.created_at.clone(),
-                updated_by: user.updated_by.clone(),
-                updated_at: user.updated_at.clone(),
-            };
+    if context.user_id == user_id.to_string() {
+        return Err(ErrorResponse::Conflict(
+            "A user can not delete himself.".to_string(),
+        ));
+    }
 
-            return Ok(Json(resp));
+    // get new created user from database to get addtional information
+    match user_table::delete_user(&user_id, &context) {
+        Ok(_) => {
+            return Ok(NoContent);
         }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));

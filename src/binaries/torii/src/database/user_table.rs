@@ -20,9 +20,9 @@ use rand::{Rng, distr::Alphanumeric};
 use std::env;
 use std::error::Error;
 
-use crate::api::user_context::UserContext;
 use crate::database::db_handle;
 
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::functions::sha256_hash;
 

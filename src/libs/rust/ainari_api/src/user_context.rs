@@ -19,7 +19,6 @@ use apistos::ApiSecurity;
 use futures::future::{Ready, ready};
 use serde::{Deserialize, Serialize};
 
-use crate::api::token_handling;
 use ainari_common::functions::split_bearer_token;
 
 #[derive(ApiSecurity, Debug, Serialize, Deserialize)]
@@ -49,18 +48,24 @@ impl FromRequest for UserContext {
             }
         }
 
-        match token_handling::decode_jwt_payload(token) {
-            Ok(context) => ready(Ok(context)),
-            Err(e) => {
-                log::debug!("{e}");
-                // should never be the case, because the middleware already checks the token
-                ready(Ok(UserContext {
-                    user_id: "".to_string(),
-                    project_id: "".to_string(),
-                    is_admin: false,
-                    is_project_admin: false,
-                }))
-            }
-        }
+        // match token_handling::validate_token(token) {
+        //     Ok(context) => ready(Ok(context)),
+        //     Err(e) => {
+        //         // should never be the case, because the middleware already checks the token
+        //         ready(Ok(UserContext {
+        //             user_id: "".to_string(),
+        //             project_id: "".to_string(),
+        //             is_admin: false,
+        //             is_project_admin: false,
+        //         }))
+        //     }
+        // }
+
+        ready(Ok(UserContext {
+            user_id: "".to_string(),
+            project_id: "".to_string(),
+            is_admin: false,
+            is_project_admin: false,
+        }))
     }
 }

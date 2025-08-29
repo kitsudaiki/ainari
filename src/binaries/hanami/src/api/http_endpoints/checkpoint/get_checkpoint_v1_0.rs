@@ -21,8 +21,8 @@ use crate::api::errors::ErrorResponse;
 use crate::api::user_context::UserContext;
 use crate::database::checkpoint_table;
 
+use ainari_api::structs::checkpoint_structs::CheckpointResp;
 use ainari_common::enums;
-use ainari_structs::checkpoint_structs::CheckpointResp;
 
 #[api_operation(
     tag = "checkpoint",

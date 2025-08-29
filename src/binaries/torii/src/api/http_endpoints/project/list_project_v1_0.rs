@@ -15,11 +15,11 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::project_table;
 
-use ainari_structs::project_structs::{ProjectBasicResp, ProjectListResp};
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::project_structs::{ProjectBasicResp, ProjectListResp};
+use ainari_api::user_context::UserContext;
 
 #[api_operation(
     tag = "project",

@@ -31,10 +31,10 @@ use crate::database::cluster_table;
 use crate::database::dataset_table;
 use crate::database::task_table;
 
+use ainari_api::structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
-use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",

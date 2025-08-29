@@ -29,9 +29,9 @@ use crate::database::cluster_table;
 use crate::database::dataset_table;
 use crate::database::task_table;
 
+use ainari_api::structs::task_structs::{TaskCreateTrainReq, TaskResp, TaskState, TaskType};
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_structs::task_structs::{TaskCreateTrainReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",

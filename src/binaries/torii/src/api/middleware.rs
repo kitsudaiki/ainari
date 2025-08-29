@@ -19,7 +19,8 @@ use actix_web::{
     middleware::Next,
 };
 
-use crate::api::{errors::ErrorResponse, token_handling};
+use crate::api::token_handling;
+use ainari_api::errors::ErrorResponse;
 use ainari_common::functions::split_bearer_token;
 
 pub async fn authorization_middleware(
@@ -68,13 +69,13 @@ pub async fn authorization_middleware(
         };
 
         // check token
-        // match token_handling::validate_token(token) {
-        //     Ok(_) => {}
-        //     Err(e) => {
-        //         log::debug!("{e}");
-        //         return Err(ErrorResponse::Unauthorized(e).into());
-        //     }
-        // }
+        match token_handling::validate_token(token) {
+            Ok(_) => {}
+            Err(e) => {
+                log::debug!("{e}");
+                return Err(ErrorResponse::Unauthorized(e).into());
+            }
+        }
     }
     //else {
     //    log::debug!("skip token-check");

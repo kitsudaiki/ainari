@@ -16,13 +16,13 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
 use crate::api::token_handling;
 use crate::config;
 use crate::database::user_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::structs::auth_structs::{OAuth2Request, UserTokenResp};
 use ainari_common::functions::sha256_hash;
-use ainari_structs::auth_structs::{OAuth2Request, UserTokenResp};
 
 #[api_operation(
     tag = "auth",

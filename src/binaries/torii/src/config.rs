@@ -22,27 +22,15 @@ pub struct Config {
     // general values
     pub debug: bool,
     // groups
-    pub storage: Storage,
-    pub processing: Processing,
+    pub auth: Auth,
     pub api: Api,
     pub database: Database,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Storage {
-    pub dataset_location: String,
-    pub checkpoint_location: String,
-    pub tempfile_location: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Processing {
-    #[serde(default = "default_max_number_of_threads")]
-    pub max_number_of_threads: usize,
-}
-
-fn default_max_number_of_threads() -> usize {
-    0
+pub struct Auth {
+    pub token_key_path: String,
+    pub token_expire_time: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,7 +46,7 @@ pub struct Database {
 
 // Global singleton config
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/hanami.toml";
+    let file_path = "/etc/ainari/torii.toml";
     log::debug!("read config '{file_path}'");
 
     match fs::read_to_string(file_path) {
@@ -78,6 +66,23 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         }
         Err(e) => {
             log::error!("Failed read config-file '{file_path}'");
+            log::error!("{e}");
+            process::exit(1);
+        }
+    }
+});
+
+pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
+    let file_path = &CONFIG.auth.token_key_path;
+    log::debug!("read token-key from file: '{file_path}'");
+
+    match fs::read_to_string(file_path) {
+        Ok(content) => {
+            log::debug!("successfully read token-key-file '{file_path}'");
+            content
+        }
+        Err(e) => {
+            log::error!("Failed read token-key-file '{file_path}'");
             log::error!("{e}");
             process::exit(1);
         }

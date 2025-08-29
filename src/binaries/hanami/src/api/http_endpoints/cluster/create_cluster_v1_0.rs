@@ -23,8 +23,8 @@ use crate::api::user_context::UserContext;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
+use ainari_api::structs::cluster_structs::{ClusterCreateReq, ClusterResp};
 use ainari_common::error::AinariError;
-use ainari_structs::cluster_structs::{ClusterCreateReq, ClusterResp};
 
 #[api_operation(
     tag = "cluster",

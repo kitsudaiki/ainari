@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, errors::ErrorKind};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::api::user_context::UserContext;
-use crate::config;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Claims {
@@ -34,62 +31,16 @@ pub struct Claims {
                     //pub sub: String,         // Optional. Subject (whom token refers to)
 }
 
-pub fn validate_token(token: &str) -> Result<UserContext, String> {
-    // validate token
-    let secret = config::TOKEN_KEY.as_bytes();
-    let key = DecodingKey::from_secret(secret);
-    let validation = Validation::new(Algorithm::HS256);
-    match decode::<UserContext>(token, &key, &validation) {
-        Ok(context) => Ok(context.claims),
-        Err(e) => match *e.kind() {
-            ErrorKind::ExpiredSignature => Err("Token expired".to_string()),
-            _ => Err("Invalid token".to_string()),
-        },
+pub fn decode_jwt_payload(token: &str) -> Result<UserContext, Box<dyn std::error::Error>> {
+    // split into parts: header.payload.signature
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() != 3 {
+        return Err("Invalid token format".into());
     }
-}
 
-pub fn create_token(
-    user_id: &String,
-    project_id: &String,
-    is_admin: bool,
-    is_project_admin: bool,
-) -> Result<String, ()> {
-    let token_expire_time = config::CONFIG.auth.token_expire_time;
+    // decode the payload (2nd part)
+    let decoded = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
+    let claims: UserContext = serde_json::from_slice(&decoded)?;
 
-    // get timestamps for token
-    let current = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let expiration = current + token_expire_time;
-
-    // create token-payload
-    let claims = Claims {
-        user_id: user_id.clone(),
-        project_id: project_id.clone(),
-        is_admin,
-        is_project_admin,
-        exp: expiration as usize,
-        iat: current as usize,
-        iss: "hanami".to_string(),
-    };
-
-    // create token
-    let secret = config::TOKEN_KEY.as_bytes();
-    match encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret),
-    ) {
-        Ok(token) => {
-            log::debug!(
-                "Successfully created token for user-id '{user_id}' and project-id '{project_id}'"
-            );
-            Ok(token)
-        }
-        Err(e) => {
-            log::error!("Failed to create user-token {e:?}");
-            Err(())
-        }
-    }
+    Ok(claims)
 }
