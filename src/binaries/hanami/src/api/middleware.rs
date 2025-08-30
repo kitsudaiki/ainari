@@ -19,7 +19,8 @@ use actix_web::{
     middleware::Next,
 };
 
-use crate::api::{errors::ErrorResponse, token_handling};
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::functions::split_bearer_token;
 
 pub async fn authorization_middleware(

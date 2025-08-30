@@ -24,11 +24,11 @@ use std::path::PathBuf;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
+use ainari_api::errors::ErrorResponse;
 use ainari_api::structs::dataset_structs::{DatasetCheckReq, DatasetCheckResp};
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandleV1_0};

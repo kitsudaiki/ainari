@@ -20,15 +20,15 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{CheckpointRestoreInfo, Task, TaskMeta, TaskVariant};
 use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use ainari_api::errors::ErrorResponse;
 use ainari_api::structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(

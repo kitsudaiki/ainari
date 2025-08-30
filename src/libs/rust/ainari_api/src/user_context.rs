@@ -16,6 +16,7 @@ use actix_web::dev::Payload;
 use actix_web::http::Error;
 use actix_web::{FromRequest, HttpRequest};
 use apistos::ApiSecurity;
+use base64::{Engine as _, engine::general_purpose};
 use futures::future::{Ready, ready};
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,20 @@ pub struct UserContext {
     pub project_id: String,
     pub is_admin: bool,
     pub is_project_admin: bool,
+}
+
+fn decode_jwt_payload(token: &str) -> Result<UserContext, Box<dyn std::error::Error>> {
+    // split into parts: header.payload.signature
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() != 3 {
+        return Err("Invalid token format".into());
+    }
+
+    // decode the payload (2nd part)
+    let decoded = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
+    let claims: UserContext = serde_json::from_slice(&decoded)?;
+
+    Ok(claims)
 }
 
 impl FromRequest for UserContext {
@@ -48,24 +63,17 @@ impl FromRequest for UserContext {
             }
         }
 
-        // match token_handling::validate_token(token) {
-        //     Ok(context) => ready(Ok(context)),
-        //     Err(e) => {
-        //         // should never be the case, because the middleware already checks the token
-        //         ready(Ok(UserContext {
-        //             user_id: "".to_string(),
-        //             project_id: "".to_string(),
-        //             is_admin: false,
-        //             is_project_admin: false,
-        //         }))
-        //     }
-        // }
-
-        ready(Ok(UserContext {
-            user_id: "".to_string(),
-            project_id: "".to_string(),
-            is_admin: false,
-            is_project_admin: false,
-        }))
+        match decode_jwt_payload(token) {
+            Ok(context) => ready(Ok(context)),
+            Err(_) => {
+                // should never be the case, because the middleware already checks the token
+                ready(Ok(UserContext {
+                    user_id: "".to_string(),
+                    project_id: "".to_string(),
+                    is_admin: false,
+                    is_project_admin: false,
+                }))
+            }
+        }
     }
 }

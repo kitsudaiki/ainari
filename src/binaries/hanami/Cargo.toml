@@ -49,7 +49,6 @@ byteorder = "1.5"
 bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.23"
 static_assertions = "1.1.0"
-base64 = "0.22" 
 
 [dev-dependencies]
 serial_test = "3"
