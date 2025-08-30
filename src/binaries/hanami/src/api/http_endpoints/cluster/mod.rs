@@ -18,5 +18,6 @@ pub mod get_cluster_v1_0;
 pub mod list_cluster_v1_0;
 pub mod request_cluster_v1_0;
 pub mod train_cluster_v1_0;
+pub mod cluster_structs;
 
 pub mod task;

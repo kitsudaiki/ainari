@@ -26,8 +26,9 @@ use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use super::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
 use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 

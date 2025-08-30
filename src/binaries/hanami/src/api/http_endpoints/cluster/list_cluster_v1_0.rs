@@ -18,8 +18,9 @@ use uuid::Uuid;
 
 use crate::database::cluster_table;
 
+use super::cluster_structs::{ClusterBasicResp, ClusterListResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::cluster_structs::{ClusterBasicResp, ClusterListResp};
 use ainari_api::user_context::UserContext;
 
 #[api_operation(

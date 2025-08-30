@@ -20,11 +20,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-use ainari_api::structs::task_structs::TaskState;
 use ainari_api::user_context::UserContext;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
+use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
 use crate::database::checkpoint_table;

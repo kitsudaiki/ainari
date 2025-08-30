@@ -26,8 +26,9 @@ use uuid::Uuid;
 use crate::config;
 use crate::database::dataset_table;
 
+use super::dataset_structs::DatasetResp;
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::dataset_structs::DatasetResp;
 use ainari_api::user_context::UserContext;
 use ainari_common::error::AinariError;
 use ainari_dataset::converter::{load_csv_file, load_mnist_images};

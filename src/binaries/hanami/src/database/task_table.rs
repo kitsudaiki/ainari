@@ -19,9 +19,9 @@ use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
-use ainari_api::user_context::UserContext;
+use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 
-use ainari_api::structs::task_structs::{TaskState, TaskType};
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 
 // Define the schema

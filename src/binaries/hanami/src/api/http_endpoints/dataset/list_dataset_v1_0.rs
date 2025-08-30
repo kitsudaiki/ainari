@@ -18,8 +18,9 @@ use uuid::Uuid;
 
 use crate::database::dataset_table;
 
+use super::dataset_structs::{DatasetBasicResp, DatasetListResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
 use ainari_api::user_context::UserContext;
 
 #[api_operation(

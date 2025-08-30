@@ -18,8 +18,9 @@ use apistos::api_operation;
 
 use crate::database::user_table;
 
+use super::user_structs::UserResp;
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::user_structs::UserResp;
 use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 

@@ -19,8 +19,9 @@ use validator::Validate;
 
 use crate::database::user_table;
 
+use super::user_structs::{UserCreateReq, UserResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::user_structs::{UserCreateReq, UserResp};
 use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 

@@ -15,11 +15,18 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 use once_cell::sync::Lazy;
+use apistos::ApiComponent;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 use crate::errors::ErrorResponse;
 use crate::user_context::UserContext;
 
-use crate::structs::common_structs::VersionResp;
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct VersionResp {
+    pub version: String,
+}
+
 
 #[api_operation(
     tag = "version",

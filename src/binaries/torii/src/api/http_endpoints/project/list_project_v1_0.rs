@@ -17,8 +17,9 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
+use super::project_structs::{ProjectBasicResp, ProjectListResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::project_structs::{ProjectBasicResp, ProjectListResp};
 use ainari_api::user_context::UserContext;
 
 #[api_operation(

@@ -26,8 +26,9 @@ use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVar
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use super::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskState, TaskType};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskState, TaskType};
 use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 

@@ -18,8 +18,9 @@ use uuid::Uuid;
 
 use crate::database::checkpoint_table;
 
+use super::checkpoint_structs::{CheckpointBasicResp, CheckpointListResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::checkpoint_structs::{CheckpointBasicResp, CheckpointListResp};
 use ainari_api::user_context::UserContext;
 
 #[api_operation(

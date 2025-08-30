@@ -14,3 +14,4 @@
 
 pub mod create_token_v1_0;
 pub mod renew_token_v1_0;
+pub mod auth_structs;

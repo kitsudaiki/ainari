@@ -21,8 +21,9 @@ use validator::Validate;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
+use super::cluster_structs::{ClusterCreateReq, ClusterResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::cluster_structs::{ClusterCreateReq, ClusterResp};
 use ainari_api::user_context::UserContext;
 use ainari_common::error::AinariError;
 

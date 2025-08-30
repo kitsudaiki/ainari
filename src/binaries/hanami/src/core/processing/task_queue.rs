@@ -16,10 +16,9 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use crate::database::task_table;
+use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 
 use super::tasks::Task;
-
-use ainari_api::structs::task_structs::TaskState;
 
 #[derive(Default, Debug)]
 pub struct TaskQueue {

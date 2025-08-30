@@ -20,8 +20,9 @@ use crate::api::token_handling;
 use crate::config;
 use crate::database::user_table;
 
+use super::auth_structs::{OAuth2Request, UserTokenResp};
+
 use ainari_api::errors::ErrorResponse;
-use ainari_api::structs::auth_structs::{OAuth2Request, UserTokenResp};
 use ainari_common::functions::sha256_hash;
 
 #[api_operation(
