@@ -131,7 +131,7 @@ and multi-tenancy.
     Each user can login by username and passphrase and gets an JWT-token to access the user- and
     project-specific resources.
 
-    See [Authentication-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
+    See [Authorization-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
 
 -   **Efficient resource-usage**
 

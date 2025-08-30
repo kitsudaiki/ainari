@@ -56,7 +56,7 @@ pub async fn checkpoint_save_task(
     };
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::CheckpointSaveTask;
+    let task_type = TaskType::CheckpointSave;
     let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
     let upload_dir = PathBuf::from(&upload_dir_path);
     let target_filepath: PathBuf = upload_dir.join(task_uuid.to_string());

@@ -75,5 +75,15 @@
                 "RUST_LOG": "debug",
             },
         }
+    ],
+    "compounds": [
+        {
+            "name": "Ainari Debug",
+            "configurations": ["Debug Build hanami", "Debug Build torii"],
+        },
+        {
+            "name": "Ainari Release",
+            "configurations": ["Release Build hanami", "Release Build torii"],
+        }
     ]
 }

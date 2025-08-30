@@ -40,7 +40,8 @@ fn v1alpha_routes() -> Scope {
             scope("/token").service(
                 resource("")
                     .route(put().to(renew_token_v1_0::renew_token))
-                    .route(post().to(create_token_v1_0::create_token)),
+                    .route(post().to(create_token_v1_0::create_token))
+                    .route(get().to(validate_token_v1_0::validate_token)),
             ),
         )
         .service(

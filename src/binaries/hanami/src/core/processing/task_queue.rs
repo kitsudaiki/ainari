@@ -15,8 +15,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use crate::database::task_table;
 use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
+use crate::database::task_table;
 
 use super::tasks::Task;
 

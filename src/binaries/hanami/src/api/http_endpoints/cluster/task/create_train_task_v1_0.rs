@@ -57,7 +57,7 @@ pub async fn create_train_task(
     };
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::TrainTask;
+    let task_type = TaskType::Train;
     let time_length = body.time_length.unwrap_or(1);
 
     if time_length < 1 {

@@ -2,7 +2,6 @@
 name = "hanami"
 version = "0.9.0"
 edition = "2024"
-build = "build.rs"
 rust-version = "1.85.1"
 
 [dependencies]
@@ -17,6 +16,7 @@ actix-multipart = "0.7"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs"] }
 actix-rt = "2.10"
+awc = "3.7.0"
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.6", features = ["extras"] }

@@ -1,0 +1,13 @@
+debug = true
+log_path = "/var/log"
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[auth]
+token_key_path = "/etc/ainari/token_key"
+token_expire_time = 3600
+
+[api]
+ip = "0.0.0.0"
+port = 11417

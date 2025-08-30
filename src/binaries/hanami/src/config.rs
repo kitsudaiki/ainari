@@ -26,6 +26,7 @@ pub struct Config {
     pub processing: Processing,
     pub api: Api,
     pub database: Database,
+    pub torii: Torii,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +44,12 @@ pub struct Processing {
 
 fn default_max_number_of_threads() -> usize {
     0
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Torii {
+    pub address: String,
+    pub port: u16,
 }
 
 #[derive(Debug, Deserialize)]

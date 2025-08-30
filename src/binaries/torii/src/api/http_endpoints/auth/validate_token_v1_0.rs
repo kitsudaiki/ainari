@@ -12,7 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth_structs;
-pub mod create_token_v1_0;
-pub mod renew_token_v1_0;
-pub mod validate_token_v1_0;
+use actix_web::web::Json;
+use apistos::api_operation;
+
+use super::auth_structs::UserTokenValidateResp;
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
+
+#[api_operation(
+    tag = "auth",
+    summary = "Validate Token",
+    description = r###"Validate Token"###,
+    error_code = 400,
+    error_code = 401,
+    error_code = 500
+)]
+pub async fn validate_token(
+    context: UserContext,
+) -> Result<Json<UserTokenValidateResp>, ErrorResponse> {
+    let response = UserTokenValidateResp { context };
+
+    return Ok(Json(response));
+}

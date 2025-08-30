@@ -246,13 +246,13 @@ jobs:
         name: Compile hanami
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-hanami/tmp/hanami ./builds/
+          earthly --artifact +compile-hanami/tmp/ainari ./builds/
       -
         name: Copy files
         run: |
           mkdir /tmp/Hanami_debug_build_result
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/hanami /tmp/Hanami_debug_build_result/
+          cp -r builds/ainari /tmp/Hanami_debug_build_result/
       -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
@@ -395,14 +395,16 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in backgroupd
+        name: run Hanami in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/hanami
+          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
+          chmod +x /tmp/Hanami_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/hanami &
+          /tmp/Hanami_debug_build_result/ainari/hanami &
+          /tmp/Hanami_debug_build_result/ainari/torii &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -473,14 +475,16 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in backgroupd
+        name: run Hanami in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/hanami
+          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
+          chmod +x /tmp/Hanami_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/hanami &
+          /tmp/Hanami_debug_build_result/ainari/hanami &
+          /tmp/Hanami_debug_build_result/ainari/torii &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -494,6 +498,7 @@ jobs:
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
           export HANAMI_ADDRESS=http://127.0.0.1:11418
+          export TORII_ADDRESS=http://127.0.0.1:11417
           export HANAMI_USER=asdf
           export HANAMI_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte

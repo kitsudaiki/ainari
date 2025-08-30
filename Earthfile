@@ -121,33 +121,16 @@ compile-cli:
         /usr/local/go/bin/go build .
     SAVE ARTIFACT ./src/cli/ainarictl/ainarictl /tmp/ainarictl
 
-
-compile-core-lib:
-    FROM +prepare-build-dependencies
-    RUN cmake -DCMAKE_BUILD_TYPE=Release -Drun_tests=ON  .
-    RUN make -j8
-    RUN mkdir /tmp/ainari_core && \
-        find src -type f -executable -exec cp {} /tmp/ainari_core \;
-    SAVE ARTIFACT /tmp/ainari_core /tmp/ainari_core
-    SAVE ARTIFACT /tmp/ainari_core AS LOCAL ainari_core
-
-compile-core-lib-debug:
-    FROM +prepare-build-dependencies
-    RUN cmake -DCMAKE_BUILD_TYPE=Debug -Drun_tests=ON  .
-    RUN make -j8
-    RUN mkdir /tmp/ainari_core && \
-        find src -type f -executable -exec cp {} /tmp/ainari_core \;
-    SAVE ARTIFACT /tmp/ainari_core /tmp/ainari_core
-    SAVE ARTIFACT /tmp/ainari_core AS LOCAL ainari_core
-
 compile-hanami:
     FROM +prepare-build-dependencies
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
     RUN cargo build
-    RUN cp ./target/debug/hanami /tmp/
-    SAVE ARTIFACT /tmp/hanami /tmp/hanami
-    SAVE ARTIFACT /tmp/hanami AS LOCAL hanami
+    RUN mkdir /tmp/ainari/
+    RUN cp ./target/debug/hanami /tmp/ainari/
+    RUN cp ./target/debug/torii /tmp/ainari/
+    SAVE ARTIFACT /tmp/ainari /tmp/ainari
+    SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
 test-hanami:
     FROM +prepare-build-dependencies

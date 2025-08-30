@@ -42,7 +42,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 config = configparser.ConfigParser()
 config.read('/etc/ainari/hanami_testing.conf')
 
-address = config["connection"]["address"]
+torii_address = config["connection"]["torii_address"]
+hanami_address = config["connection"]["hanami_address"]
+
 test_user_id = config["connection"]["test_user"]
 test_user_pw = config["connection"]["test_passphrase"]
 
@@ -102,20 +104,20 @@ def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suff
 def test_project():
     print("test project")
 
-    project.create_project(token, address, projet_id, project_name, False)
+    project.create_project(token, torii_address, projet_id, project_name, False)
     try:
-        project.create_project(token, address, projet_id, project_name, False)
+        project.create_project(token, torii_address, projet_id, project_name, False)
     except ainari_exceptions.ConflictException:
         pass
-    project.list_projects(token, address, False)
-    project.get_project(token, address, projet_id, False)
+    project.list_projects(token, torii_address, False)
+    project.get_project(token, torii_address, projet_id, False)
     try:
-        project.get_project(token, address, "fail_project", False)
+        project.get_project(token, torii_address, "fail_project", False)
     except ainari_exceptions.NotFoundException:
         pass
-    project.delete_project(token, address, projet_id, False)
+    project.delete_project(token, torii_address, projet_id, False)
     try:
-        project.delete_project(token, address, projet_id, False)
+        project.delete_project(token, torii_address, projet_id, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -123,20 +125,20 @@ def test_project():
 def test_user():
     print("test user")
 
-    user.create_user(token, address, user_id, user_name, passphrase, is_admin, False)
+    user.create_user(token, torii_address, user_id, user_name, passphrase, is_admin, False)
     try:
-        user.create_user(token, address, user_id, user_name, passphrase, is_admin, False)
+        user.create_user(token, torii_address, user_id, user_name, passphrase, is_admin, False)
     except ainari_exceptions.ConflictException:
         pass
-    user.list_users(token, address, False)
-    user.get_user(token, address, user_id, False)
+    user.list_users(token, torii_address, False)
+    user.get_user(token, torii_address, user_id, False)
     try:
-        user.get_user(token, address, "fail_user", False)
+        user.get_user(token, torii_address, "fail_user", False)
     except ainari_exceptions.NotFoundException:
         pass
-    user.delete_user(token, address, user_id, False)
+    user.delete_user(token, torii_address, user_id, False)
     try:
-        user.delete_user(token, address, user_id, False)
+        user.delete_user(token, torii_address, user_id, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -145,30 +147,30 @@ def test_dataset():
     print("test dataset")
 
     result = dataset.upload_mnist_files(
-        token, address, train_dataset_name, train_inputs, train_labels, False)
+        token, hanami_address, train_dataset_name, train_inputs, train_labels, False)
     mnist_dataset_uuid = result["uuid"]
 
-    dataset.list_datasets(token, address, False)
-    mnist_dataset = dataset.get_dataset(token, address, mnist_dataset_uuid, False)
+    dataset.list_datasets(token, hanami_address, False)
+    mnist_dataset = dataset.get_dataset(token, hanami_address, mnist_dataset_uuid, False)
     assert mnist_dataset["number_of_rows"] == 60000
     assert mnist_dataset["number_of_columns"] == 2
 
     result = dataset.upload_csv_files(
-        token, address, "csv_test", "./csv_test.csv", False)
+        token, hanami_address, "csv_test", "./csv_test.csv", False)
     csv_dataset_uuid = result["uuid"]
 
-    csv_dataset = dataset.get_dataset(token, address, csv_dataset_uuid, False)
+    csv_dataset = dataset.get_dataset(token, hanami_address, csv_dataset_uuid, False)
     assert csv_dataset["number_of_rows"] == 3
     assert csv_dataset["number_of_columns"] == 3
 
     try:
-        dataset.get_dataset(token, address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
+        dataset.get_dataset(token, hanami_address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
     except ainari_exceptions.NotFoundException:
         pass
-    dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
-    dataset.delete_dataset(token, address, csv_dataset_uuid, False)
+    dataset.delete_dataset(token, hanami_address, mnist_dataset_uuid, False)
+    dataset.delete_dataset(token, hanami_address, csv_dataset_uuid, False)
     try:
-        dataset.delete_dataset(token, address, mnist_dataset_uuid, False)
+        dataset.delete_dataset(token, hanami_address, mnist_dataset_uuid, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -177,23 +179,23 @@ def test_cluster():
     print("test cluster")
 
     cluster_uuid = cluster.create_cluster(
-        token, address, cluster_name, cluster_template, False)["uuid"]
-    cluster.list_clusters(token, address, False)
-    cluster.get_cluster(token, address, cluster_uuid, False)
+        token, hanami_address, cluster_name, cluster_template, False)["uuid"]
+    cluster.list_clusters(token, hanami_address, False)
+    cluster.get_cluster(token, hanami_address, cluster_uuid, False)
     try:
-        cluster.get_cluster(token, address, "569003fd-bf24-410b-8678-28f141877ac9", False)
+        cluster.get_cluster(token, hanami_address, "569003fd-bf24-410b-8678-28f141877ac9", False)
     except ainari_exceptions.NotFoundException:
         pass
-    cluster.delete_cluster(token, address, cluster_uuid, False)
+    cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
     try:
-        cluster.delete_cluster(token, address, cluster_uuid, False)
+        cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
     except ainari_exceptions.NotFoundException:
         pass
 
 
-async def test_direct_io(token, address, cluster_uuid):
+async def test_direct_io(token, hanami_address, cluster_uuid):
     # check direct-mode
-    ws = await cluster.switch_to_direct_mode(token, address, cluster_uuid, False)
+    ws = await cluster.switch_to_direct_mode(token, hanami_address, cluster_uuid, False)
     for i in range(0, 1):
         await direct_io.send_train_input(ws,
                                          "picture_hex",
@@ -215,7 +217,7 @@ async def test_direct_io(token, address, cluster_uuid):
     # print(output_values)
     await ws.close()
 
-    cluster.switch_to_task_mode(token, address, cluster_uuid, False)
+    cluster.switch_to_task_mode(token, hanami_address, cluster_uuid, False)
     print(output_values)
     assert list(output_values).index(max(output_values)) == 5
 
@@ -223,21 +225,21 @@ async def test_direct_io(token, address, cluster_uuid):
 def _creat_and_resore_checkpoint(cluster_uuid):
     # save and reload checkpoint
     checkpoint_uuid = task.create_checkpoint_save_task(
-        token, address, cluster_uuid, checkpoint_name, False)["uuid"]
+        token, hanami_address, cluster_uuid, checkpoint_name, False)["uuid"]
     time.sleep(2)
-    result = checkpoint.list_checkpoints(token, address, False)
+    result = checkpoint.list_checkpoints(token, hanami_address, False)
     # print(json.dumps(result, indent=4))
 
-    cluster.delete_cluster(token, address, cluster_uuid, False)
+    cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
     cluster_uuid = cluster.create_cluster(
-        token, address, cluster_name, cluster_template, False)["uuid"]
+        token, hanami_address, cluster_name, cluster_template, False)["uuid"]
 
     task.create_checkpoint_restore_task(
-        token, address, cluster_uuid, "restore", checkpoint_uuid, False)
+        token, hanami_address, cluster_uuid, "restore", checkpoint_uuid, False)
     time.sleep(2)
-    checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+    checkpoint.delete_checkpoint(token, hanami_address, checkpoint_uuid, False)
     try:
-        checkpoint.delete_checkpoint(token, address, checkpoint_uuid, False)
+        checkpoint.delete_checkpoint(token, hanami_address, checkpoint_uuid, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -262,12 +264,12 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        token, address, generic_task_name, cluster_uuid, inputs, outputs, 1, 1, False)["uuid"]
+        token, hanami_address, generic_task_name, cluster_uuid, inputs, outputs, 1, 1, False)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+        result = task.get_task(token, hanami_address, task_uuid, cluster_uuid, False)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -281,12 +283,12 @@ def _train(cluster_uuid, train_dataset_uuid):
                      suffix_cycle='Complete',
                      length=50)
 
-    result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+    result = task.get_task(token, hanami_address, task_uuid, cluster_uuid, False)
     # print(json.dumps(result, indent=4))
 
     print("\n")
-    result = cluster.get_cluster(token, address, cluster_uuid, False)
-    task.delete_task(token, address, task_uuid, cluster_uuid, False)
+    result = cluster.get_cluster(token, hanami_address, cluster_uuid, False)
+    task.delete_task(token, hanami_address, task_uuid, cluster_uuid, False)
 
 
 def _test(cluster_uuid, request_dataset_uuid):
@@ -306,12 +308,12 @@ def _test(cluster_uuid, request_dataset_uuid):
     ]
 
     task_uuid = task.create_request_task(
-        token, address, generic_task_name, cluster_uuid, inputs, results, 1, False)["uuid"]
+        token, hanami_address, generic_task_name, cluster_uuid, inputs, results, 1, False)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(token, address, task_uuid, cluster_uuid, False)
+        result = task.get_task(token, hanami_address, task_uuid, cluster_uuid, False)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -326,13 +328,13 @@ def _test(cluster_uuid, request_dataset_uuid):
                      length=50)
 
     print("\n")
-    result = task.list_tasks(token, address, cluster_uuid, False)
+    result = task.list_tasks(token, hanami_address, cluster_uuid, False)
     # print(json.dumps(result, indent=4))
-    task.delete_task(token, address, task_uuid, cluster_uuid, False)
+    task.delete_task(token, hanami_address, task_uuid, cluster_uuid, False)
     time.sleep(1)
 
     accuracy = dataset.check_dataset(
-        token, address, task_uuid, "label_hex", request_dataset_uuid, "label", False)["accuracy"]
+        token, hanami_address, task_uuid, "label_hex", request_dataset_uuid, "label", False)["accuracy"]
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
@@ -340,7 +342,7 @@ def _test(cluster_uuid, request_dataset_uuid):
 
     # # download part of the resulting dataset
     # data = dataset.download_dataset_content(
-    #     token, address, result_dataset_uuid, "test_output", 10, 100, False)["data"]
+    #     token, hanami_address, result_dataset_uuid, "test_output", 10, 100, False)["data"]
     # assert len(data[0]) == 10
 
 
@@ -349,32 +351,32 @@ def test_workflow():
 
     # init
     cluster_uuid = cluster.create_cluster(
-        token, address, cluster_name, cluster_template, False)["uuid"]
+        token, hanami_address, cluster_name, cluster_template, False)["uuid"]
     train_dataset_uuid = ""
     request_dataset_uuid = ""
     try:
         train_dataset_uuid = dataset.upload_mnist_files(
-            token, address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+            token, hanami_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
         time.sleep(1)
         request_dataset_uuid = dataset.upload_mnist_files(
-            token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+            token, hanami_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
     except:
         # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why.
         #                    Maybe because of the limited resources. So it will be given a second
         #                    chance to make it right.
         train_dataset_uuid = dataset.upload_mnist_files(
-            token, address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+            token, hanami_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
         time.sleep(1)
         request_dataset_uuid = dataset.upload_mnist_files(
-            token, address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+            token, hanami_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
 
-    # hosts_json = hosts.list_hosts(token, address, False)["body"]
+    # hosts_json = hosts.list_hosts(token, hanami_address, False)["body"]
     # if len(hosts_json) > 1:
     #     print("test move cluster to gpu")
     #     target_host_uuid = hosts_json[1][0]
-    #     cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
+    #     cluster.switch_host(token, hanami_address, cluster_uuid, target_host_uuid, False)
 
     _train(cluster_uuid, train_dataset_uuid)
 
@@ -385,7 +387,7 @@ def test_workflow():
 
     _test(cluster_uuid, request_dataset_uuid)
 
-    # asyncio.run(test_direct_io(token, address, cluster_uuid))
+    # asyncio.run(test_direct_io(token, hanami_address, cluster_uuid))
 
     inputs = dict()
     inputs["picture_hex"] = test_values.get_direct_io_test_intput()
@@ -393,30 +395,32 @@ def test_workflow():
     outputs["label_hex"] = test_values.get_direct_io_test_output()
 
     for i in range(0, 100):
-        cluster.train(token, address, cluster_uuid, inputs, outputs, False)
+        cluster.train(token, hanami_address, cluster_uuid, inputs, outputs, False)
 
     output_names = ["label_hex"]
-    output_values = cluster.request(token, address, cluster_uuid, inputs, output_names, False)
+    output_values = cluster.request(token, hanami_address, cluster_uuid, inputs, output_names, False)
     print("output: %s" % json.dumps(output_values, indent=4))
     assert list(output_values["outputs"]["label_hex"]).index(
         max(output_values["outputs"]["label_hex"])) == 5
 
     # cleanup
-    dataset.delete_dataset(token, address, train_dataset_uuid, False)
-    dataset.delete_dataset(token, address, request_dataset_uuid, False)
-    cluster.delete_cluster(token, address, cluster_uuid, False)
+    dataset.delete_dataset(token, hanami_address, train_dataset_uuid, False)
+    dataset.delete_dataset(token, hanami_address, request_dataset_uuid, False)
+    cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
 
 
-token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
-# print(token)
-dataset.delete_all_datasets(token, address, False)
-checkpoint.delete_all_checkpoints(token, address, False)
-cluster.delete_all_cluster(token, address, False)
-project.delete_all_projects(token, address, False)
-user.delete_all_user(token, address, False)
+token = ainari_token.request_token(torii_address, test_user_id, test_user_pw, False)
+print(token)
+dataset.delete_all_datasets(token, hanami_address, False)
+checkpoint.delete_all_checkpoints(token, hanami_address, False)
+cluster.delete_all_cluster(token, hanami_address, False)
+project.delete_all_projects(token, torii_address, False)
+user.delete_all_user(token, torii_address, False)
 
-version = common.get_version(token, address, False)
-print(f"version: {version}")
+version = common.get_version(token, hanami_address, False)
+print(f"hanami-version: {version}")
+version = common.get_version(token, torii_address, False)
+print(f"torii-version: {version}")
 
 test_project()
 test_user()

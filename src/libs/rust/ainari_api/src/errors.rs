@@ -27,7 +27,7 @@ use std::fmt::{Debug, Display, Formatter};
     status(code = 404, description = "Requested object not found"),
     status(code = 405, description = "Method not allowed"),
     status(code = 406, description = "Not acceptable"),
-    status(code = 407, description = "Proxy authentication required"),
+    status(code = 407, description = "Proxy authorization required"),
     status(code = 408, description = "Request timeout"),
     status(code = 409, description = "Conflict with existing resources"),
     status(code = 410, description = "Gone"),
@@ -42,7 +42,7 @@ pub enum ErrorResponse {
     NotFound(String),
     MethodNotAllowed(String),
     NotAcceptable(String),
-    ProxyAuthenticationRequired(String),
+    ProxyAuthorizationRequired(String),
     RequestTimeout(String),
     Conflict(String),
     Gone(String),
@@ -60,7 +60,7 @@ impl Debug for ErrorResponse {
             | ErrorResponse::NotFound(str)
             | ErrorResponse::MethodNotAllowed(str)
             | ErrorResponse::NotAcceptable(str)
-            | ErrorResponse::ProxyAuthenticationRequired(str)
+            | ErrorResponse::ProxyAuthorizationRequired(str)
             | ErrorResponse::RequestTimeout(str)
             | ErrorResponse::Conflict(str)
             | ErrorResponse::Gone(str)
@@ -82,7 +82,7 @@ impl Display for ErrorResponse {
             | ErrorResponse::NotFound(str)
             | ErrorResponse::MethodNotAllowed(str)
             | ErrorResponse::NotAcceptable(str)
-            | ErrorResponse::ProxyAuthenticationRequired(str)
+            | ErrorResponse::ProxyAuthorizationRequired(str)
             | ErrorResponse::RequestTimeout(str)
             | ErrorResponse::Conflict(str)
             | ErrorResponse::Gone(str)
@@ -104,7 +104,7 @@ impl ResponseError for ErrorResponse {
             ErrorResponse::NotFound(_) => StatusCode::NOT_FOUND,
             ErrorResponse::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED,
             ErrorResponse::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
-            ErrorResponse::ProxyAuthenticationRequired(_) => {
+            ErrorResponse::ProxyAuthorizationRequired(_) => {
                 StatusCode::PROXY_AUTHENTICATION_REQUIRED
             }
             ErrorResponse::RequestTimeout(_) => StatusCode::REQUEST_TIMEOUT,

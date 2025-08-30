@@ -17,6 +17,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use ainari_api::user_context::UserContext;
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserTokenResp {
     pub access_token: String,
@@ -35,4 +37,9 @@ pub struct OAuth2Request {
     // pub username: Option<String>,
     // pub password: Option<String>,
     // pub scope: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct UserTokenValidateResp {
+    pub context: UserContext,
 }

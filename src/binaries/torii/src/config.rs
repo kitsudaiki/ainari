@@ -71,20 +71,3 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         }
     }
 });
-
-pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
-    let file_path = &CONFIG.auth.token_key_path;
-    log::debug!("read token-key from file: '{file_path}'");
-
-    match fs::read_to_string(file_path) {
-        Ok(content) => {
-            log::debug!("successfully read token-key-file '{file_path}'");
-            content
-        }
-        Err(e) => {
-            log::error!("Failed read token-key-file '{file_path}'");
-            log::error!("{e}");
-            process::exit(1);
-        }
-    }
-});

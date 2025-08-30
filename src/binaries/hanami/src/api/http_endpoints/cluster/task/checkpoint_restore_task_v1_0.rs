@@ -56,7 +56,7 @@ pub async fn checkpoint_restore_task(
     };
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::CheckpointRestoreTask;
+    let task_type = TaskType::CheckpointRestore;
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {

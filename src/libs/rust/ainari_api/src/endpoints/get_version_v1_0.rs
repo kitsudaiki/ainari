@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use actix_web::web::Json;
+use apistos::ApiComponent;
 use apistos::api_operation;
 use once_cell::sync::Lazy;
-use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,6 @@ use crate::user_context::UserContext;
 pub struct VersionResp {
     pub version: String,
 }
-
 
 #[api_operation(
     tag = "version",

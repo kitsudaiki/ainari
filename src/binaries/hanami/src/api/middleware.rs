@@ -15,13 +15,15 @@
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-    http::Method,
     middleware::Next,
 };
+use awc::Client;
+use awc::http::StatusCode;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
 use ainari_common::functions::split_bearer_token;
+
+use crate::config;
 
 pub async fn authorization_middleware(
     req: ServiceRequest,
@@ -31,10 +33,7 @@ pub async fn authorization_middleware(
     let uri = req.uri();
 
     // skip check for specific endpoints
-    let is_post_req = *req.method() == Method::POST;
-    let is_get_req = *req.method() == Method::GET;
-    skip_check |= uri == "/v1alpha/token" && is_post_req;
-    skip_check |= uri == "/openapi.json" && is_get_req;
+    skip_check |= uri == "/openapi.json";
 
     if !skip_check {
         log::debug!("Check token for request against {uri}");
@@ -68,14 +67,53 @@ pub async fn authorization_middleware(
             }
         };
 
-        // check token
-        // match token_handling::validate_token(token) {
-        //     Ok(_) => {}
-        //     Err(e) => {
-        //         log::debug!("{e}");
-        //         return Err(ErrorResponse::Unauthorized(e).into());
-        //     }
-        // }
+        let client = Client::new();
+        let torii_address = config::CONFIG.torii.address.clone();
+        let torii_port = config::CONFIG.torii.port;
+        let torii_address_complete = format!("{torii_address}:{torii_port}/v1alpha/token");
+
+        let response = client
+            .get(torii_address_complete)
+            .insert_header(("Authorization", format!("Bearer {}", token)))
+            .send()
+            .await;
+
+        match response {
+            Ok(mut resp) => {
+                match resp.status() {
+                    StatusCode::UNAUTHORIZED => {
+                        log::debug!("Invalid token with 401-error");
+                        return Err(ErrorResponse::Unauthorized("Invalid token".to_string()).into());
+                    }
+                    StatusCode::FORBIDDEN => {
+                        log::debug!("Invalid token with 403-error");
+                        return Err(ErrorResponse::Unauthorized("Invalid token".to_string()).into());
+                    }
+                    StatusCode::OK => {
+                        log::debug!("Successfully checked token against Torii");
+                    }
+                    code => {
+                        log::error!(
+                            "Error while sending request for token-validation. Got response-code: {code}"
+                        );
+                        return Err(ErrorResponse::InternalError("".to_string()).into());
+                    }
+                }
+
+                let _ = match resp.body().await {
+                    Ok(body) => String::from_utf8_lossy(&body).into_owned(),
+                    Err(e) => {
+                        log::error!("Error while getting token-validation-body: {e}");
+                        return Err(ErrorResponse::InternalError("".to_string()).into());
+                    }
+                };
+                // println!("Success: {body_str}");
+            }
+            Err(e) => {
+                log::error!("Error while sending request for token-validation: {e}");
+                return Err(ErrorResponse::InternalError("".to_string()).into());
+            }
+        }
     }
     //else {
     //    log::debug!("skip token-check");

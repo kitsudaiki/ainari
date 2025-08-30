@@ -18,8 +18,8 @@ use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::database::db_handle;
 use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
+use crate::database::db_handle;
 
 use ainari_api::user_context::UserContext;
 use ainari_common::enums;
@@ -355,7 +355,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -405,7 +405,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -426,7 +426,7 @@ mod tests {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -467,7 +467,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -488,7 +488,7 @@ mod tests {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -509,7 +509,7 @@ mod tests {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -616,7 +616,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -710,7 +710,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -762,7 +762,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,
@@ -809,7 +809,7 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             cluster_uuid: cluster_uuid.to_string(),
-            task_type: TaskType::TrainTask.to_string(),
+            task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
             current_epoch: 0,

@@ -22,19 +22,19 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub enum TaskType {
-    TrainTask = 0,
-    RequestTask = 1,
-    CheckpointSaveTask = 2,
-    CheckpointRestoreTask = 3,
+    Train = 0,
+    Request = 1,
+    CheckpointSave = 2,
+    CheckpointRestore = 3,
 }
 
 impl fmt::Display for TaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TaskType::TrainTask => "TrainTask",
-            TaskType::RequestTask => "RequestTask",
-            TaskType::CheckpointSaveTask => "CheckpointSaveTask",
-            TaskType::CheckpointRestoreTask => "CheckpointRestoreTask",
+            TaskType::Train => "TrainTask",
+            TaskType::Request => "RequestTask",
+            TaskType::CheckpointSave => "CheckpointSaveTask",
+            TaskType::CheckpointRestore => "CheckpointRestoreTask",
         };
         write!(f, "{s}")
     }
@@ -45,10 +45,10 @@ impl FromStr for TaskType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "TrainTask" => Ok(TaskType::TrainTask),
-            "RequestTask" => Ok(TaskType::RequestTask),
-            "CheckpointSaveTask" => Ok(TaskType::CheckpointSaveTask),
-            "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestoreTask),
+            "TrainTask" => Ok(TaskType::Train),
+            "RequestTask" => Ok(TaskType::Request),
+            "CheckpointSaveTask" => Ok(TaskType::CheckpointSave),
+            "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestore),
             _ => Err(()),
         }
     }

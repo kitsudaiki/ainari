@@ -14,7 +14,10 @@
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, errors::ErrorKind};
 use jsonwebtoken::{EncodingKey, Header, encode};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config;
@@ -37,7 +40,7 @@ pub struct Claims {
 
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
     // validate token
-    let secret = config::TOKEN_KEY.as_bytes();
+    let secret = TOKEN_KEY.as_bytes();
     let key = DecodingKey::from_secret(secret);
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
@@ -72,11 +75,11 @@ pub fn create_token(
         is_project_admin,
         exp: expiration as usize,
         iat: current as usize,
-        iss: "hanami".to_string(),
+        iss: "torii".to_string(),
     };
 
     // create token
-    let secret = config::TOKEN_KEY.as_bytes();
+    let secret = TOKEN_KEY.as_bytes();
     match encode(
         &Header::default(),
         &claims,
@@ -94,3 +97,20 @@ pub fn create_token(
         }
     }
 }
+
+static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
+    let file_path = &config::CONFIG.auth.token_key_path;
+    log::debug!("read token-key from file: '{file_path}'");
+
+    match fs::read_to_string(file_path) {
+        Ok(content) => {
+            log::debug!("successfully read token-key-file '{file_path}'");
+            content
+        }
+        Err(e) => {
+            log::error!("Failed read token-key-file '{file_path}'");
+            log::error!("{e}");
+            process::exit(1);
+        }
+    }
+});

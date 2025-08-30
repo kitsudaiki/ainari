@@ -18,11 +18,12 @@ use actix_web::{FromRequest, HttpRequest};
 use apistos::ApiSecurity;
 use base64::{Engine as _, engine::general_purpose};
 use futures::future::{Ready, ready};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use ainari_common::functions::split_bearer_token;
 
-#[derive(ApiSecurity, Debug, Serialize, Deserialize)]
+#[derive(ApiSecurity, Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[openapi_security(scheme(security_type(http(scheme = "bearer", bearer_format = "JWT"))))]
 pub struct UserContext {
     pub user_id: String,
