@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use actix_web::middleware::{Logger, from_fn};
-use actix_web::web::PayloadConfig;
+use actix_web::web::{self, PayloadConfig};
 use actix_web::{App, HttpServer};
 use apistos::app::OpenApiWrapper;
 use apistos::info::Info;
@@ -23,13 +23,13 @@ use apistos::spec::Spec;
 use apistos::web::{Scope, delete, get, post, put, resource, scope};
 use std::error::Error;
 
+use ainari_api::auth_middleware::*;
 use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::cluster::task::*;
 use crate::api::http_endpoints::cluster::*;
 use crate::api::http_endpoints::dataset::*;
-use crate::api::middleware::authorization_middleware;
 use crate::config;
 
 fn v1alpha_routes() -> Scope {
@@ -143,6 +143,7 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
+            .app_data(web::Data::new(config::CONFIG.torii.clone()))
             .wrap(from_fn(authorization_middleware))
             .wrap(Logger::default())
             .app_data(PayloadConfig::new(1 << 30)) // 1GB max payload-size

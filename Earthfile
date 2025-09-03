@@ -90,20 +90,16 @@ prepare-build-dependencies:
     RUN apt-get update && \
         apt-get install -y clang-19 \
                            g++ \
-                           make \
-                           cmake \
-                           bison \
-                           flex \
                            git \
                            ssh \
-                           nlohmann-json3-dev \
+                           pkg-config \
+                           openssl \
+                           libssl-dev \
                            rustup \
                            # TODO:enable gpu init here again
                            # related issue: https://github.com/kitsudaiki/Hanami/issues/325
                            # nvidia-cuda-toolkit \
                            nano && \
-        ln -s /usr/bin/clang++-19 /usr/bin/clang++ && \
-        ln -s /usr/bin/clang-19 /usr/bin/clang && \
         rustup install stable --no-self-update
     # copy current code into the docker-container
     COPY . .

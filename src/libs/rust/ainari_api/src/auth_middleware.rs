@@ -16,14 +16,34 @@ use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
     middleware::Next,
+    web,
 };
-use awc::Client;
 use awc::http::StatusCode;
-
-use ainari_api::errors::ErrorResponse;
-use ainari_common::functions::split_bearer_token;
+use awc::{Client, Connector};
+use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 
 use crate::config;
+use crate::errors::ErrorResponse;
+
+use ainari_common::functions::split_bearer_token;
+
+fn get_client(use_ssl: bool, insecure: bool) -> Client {
+    if use_ssl {
+        let mut ssl_builder = SslConnector::builder(SslMethod::tls()).unwrap();
+
+        if insecure {
+            ssl_builder.set_verify(SslVerifyMode::NONE);
+            ssl_builder.set_verify_callback(SslVerifyMode::NONE, |_, _| true);
+        }
+
+        let connector = Connector::new().openssl(ssl_builder.build());
+        Client::builder()
+            .connector(connector) // pass connector directly
+            .finish()
+    } else {
+        Client::new()
+    }
+}
 
 pub async fn authorization_middleware(
     req: ServiceRequest,
@@ -31,6 +51,10 @@ pub async fn authorization_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
     let mut skip_check = false;
     let uri = req.uri();
+    let torii_config = req
+        .app_data::<web::Data<config::Torii>>()
+        .expect("Torii-config missing!");
+    let https_torii_connection = torii_config.address.starts_with("https://");
 
     // skip check for specific endpoints
     skip_check |= uri == "/openapi.json";
@@ -67,9 +91,9 @@ pub async fn authorization_middleware(
             }
         };
 
-        let client = Client::new();
-        let torii_address = config::CONFIG.torii.address.clone();
-        let torii_port = config::CONFIG.torii.port;
+        let client = get_client(https_torii_connection, torii_config.insecure);
+        let torii_address = torii_config.address.clone();
+        let torii_port = torii_config.port;
         let torii_address_complete = format!("{torii_address}:{torii_port}/v1alpha/token");
 
         let response = client

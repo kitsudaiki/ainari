@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod http_endpoints;
-pub mod http_server;
-pub mod token_handling;
-pub mod torii_auth_middleware;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Torii {
+    pub address: String,
+    #[serde(default = "default_torii_port")]
+    pub port: u16,
+    #[serde(default = "default_torii_insecure")]
+    pub insecure: bool,
+}
+
+fn default_torii_insecure() -> bool {
+    false
+}
+
+fn default_torii_port() -> u16 {
+    0
+}

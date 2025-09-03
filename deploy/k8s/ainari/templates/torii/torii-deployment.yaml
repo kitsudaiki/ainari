@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: torii
+  labels:
+    app: torii
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: torii
+  template:
+    metadata:
+      labels:
+        app: torii
+    spec:
+      containers:
+      - name: torii
+        image: {{ .Values.docker.registry }}/torii:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: HANAMI_ADMIN_ID
+          value: {{ required "user.id is required!" .Values.user.id }}
+        - name: HANAMI_ADMIN_NAME
+          value: {{ required "user.name is required!" .Values.user.name }}
+        - name: HANAMI_ADMIN_PASSPHRASE
+          value: {{ required "user.passphrase is required!" .Values.user.passphrase }}
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/data/
+        - name: torii-config
+          mountPath: /etc/ainari/torii.toml
+          subPath: torii.toml
+          readOnly: true
+        - name: token-key
+          mountPath: /etc/ainari/token_key
+          subPath: token-key
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: torii-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: torii-config
+          configMap:
+            name: torii-config
+        - name: token-key
+          secret:
+            secretName: token-key
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: torii-pvc
+        - name: tls-certs
+          secret:
+            secretName: torii-selfsigned-secret
+        - name: torii-nginx-config
+          configMap:
+            name: torii-nginx-config

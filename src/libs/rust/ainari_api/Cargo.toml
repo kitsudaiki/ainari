@@ -9,10 +9,10 @@ rust-version = "1.85.1"
 ainari_common = { path = "../ainari_common" }
 # web-server
 actix-web = "4"
-actix-multipart = "0.7"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs"] }
 actix-rt = "2.10"
+awc = { version = "3.7.0", features = ["openssl"] }
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.6", features = ["extras"] }
@@ -26,4 +26,8 @@ futures = "0.3"
 base64 = "0.22" 
 # singleton (like used for the config-variable)
 once_cell = "1.18"
-
+# logger
+log = "0.4"
+env_logger = "0.11"
+# ssl
+openssl = "0.10"

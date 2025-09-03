@@ -33,17 +33,10 @@ spec:
                 - hanami
             topologyKey: kubernetes.io/hostname
       containers:
-
       - name: hanami
         image: {{ .Values.docker.registry }}/hanami:{{ .Values.docker.tag }}
         imagePullPolicy: Always
         env:
-        - name: HANAMI_ADMIN_ID
-          value: {{ required "user.id is required!" .Values.user.id }}
-        - name: HANAMI_ADMIN_NAME
-          value: {{ required "user.name is required!" .Values.user.name }}
-        - name: HANAMI_ADMIN_PASSPHRASE
-          value: {{ required "user.passphrase is required!" .Values.user.passphrase }}
         - name: RUST_LOG
           value: "debug"
         volumeMounts:
@@ -52,10 +45,6 @@ spec:
         - name: hanami-config
           mountPath: /etc/ainari/hanami.toml
           subPath: hanami.toml
-          readOnly: true
-        - name: token-key
-          mountPath: /etc/ainari/token_key
-          subPath: token-key
           readOnly: true
 
       - name: tls-termination
@@ -75,9 +64,6 @@ spec:
         - name: hanami-config
           configMap:
             name: hanami-config
-        - name: token-key
-          secret:
-            secretName: token-key
         - name: data-volume
           persistentVolumeClaim:
             claimName: hanami-pvc

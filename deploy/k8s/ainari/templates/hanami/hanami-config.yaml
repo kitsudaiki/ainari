@@ -14,15 +14,16 @@ data:
     [processing]
     max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
 
-    [auth]
-    token_key_path = "/etc/ainari/token_key"
-    token_expire_time = {{ .Values.token.expire_time }}
-
     [api]
     ip = "127.0.0.1"
     port = 11418
 
     [database]
-    file_path = "/etc/ainari/data/ainari_db"
+    file_path = "/etc/ainari/data/hanami_db"
+    
+    [torii]
+    address = "https://torii-tls-service.default.svc.cluster.local"
+    port = 8443
+    insecure = true
 
 kind: ConfigMap

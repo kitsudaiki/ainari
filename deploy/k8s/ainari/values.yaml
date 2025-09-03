@@ -15,7 +15,8 @@ docker:
   registry: "kitsudaiki"
 
 api:
-  domain: local-hanami
+  domain_hanami: local-hanami
+  domain_torii: local-torii
 
 processing:
   max_number_of_threads: 0

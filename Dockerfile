@@ -8,6 +8,8 @@ RUN apt-get update && \
         apt-get install -y git \
                            ssh \
                            gcc \
+                           pkg-config \
+                           libssl-dev \
                            rustup \
                            libsqlite3-dev
 

@@ -511,7 +511,7 @@ jobs:
 
 
   python_version_test:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
     needs: [ cargo_tests, build_hanami, build_ainarictl, build_helm_package, build_python_package ]
     strategy:
       fail-fast: false
@@ -643,7 +643,7 @@ jobs:
 
 
   docker_build_hanami:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build Docker-images"
     needs: [ sdk_api_tests, cli_api_tests ]
     runs-on: ubuntu-24.04
@@ -725,7 +725,7 @@ jobs:
 
 
   docker_merge_hanami:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Merge and push Docker-image"
     runs-on: ubuntu-24.04
     needs: [ docker_build_hanami ]
@@ -777,7 +777,7 @@ jobs:
 
 
   docker_build_torii:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build Docker-images"
     needs: [ sdk_api_tests, cli_api_tests ]
     runs-on: ubuntu-24.04
@@ -859,7 +859,7 @@ jobs:
 
 
   docker_merge_torii:
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Merge and push Docker-image"
     runs-on: ubuntu-24.04
     needs: [ docker_build_torii ]
@@ -1048,6 +1048,7 @@ jobs:
         name: Label nodes
         run: |
           kubectl label nodes --all hanami-node=true
+          kubectl label nodes --all torii-node=true
       -
         name: Install hanami
         run: |
@@ -1066,8 +1067,10 @@ jobs:
       -
         name: Update hosts-file
         run: |
-          ingress_ip=$(kubectl get ingress hanami-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "$ingress_ip  local-hanami" | sudo tee -a /etc/hosts
+          ingress_ip_hanami=$(kubectl get ingress hanami-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "$ingress_ip_hanami  local-hanami" | sudo tee -a /etc/hosts
+          ingress_ip_torii=$(kubectl get ingress torii-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "$ingress_ip_torii  local-torii" | sudo tee -a /etc/hosts
           cat /etc/hosts
       -
         name: Download mnist-files
@@ -1087,6 +1090,7 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           sudo cp -r ./example_configs/ainari /etc/
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-torii/g' /etc/ainari/hanami_testing.conf
       -
         name: Run test
         run: |
@@ -1098,9 +1102,13 @@ jobs:
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
       -
-        name: Print logs of the pod to make debugging easier in case of an error
+        name: Print logs of the hanami-pod to make debugging easier in case of an error
         if: ${{ always() }}
         run: kubectl logs -c hanami $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^hanami-')
+      -
+        name: Print logs of the torii-pod to make debugging easier in case of an error
+        if: ${{ always() }}
+        run: kubectl logs -c torii $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^torii-')
       -
         name: Update Result
         id: status

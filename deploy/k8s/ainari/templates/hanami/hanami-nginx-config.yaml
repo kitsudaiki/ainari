@@ -15,14 +15,14 @@ data:
         {
             listen 80;
             server_tokens off;
-            server_name {{ .Values.api.domain }};
+            server_name {{ .Values.api.domain_hanami }};
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name {{ .Values.api.domain }};
+            server_name {{ .Values.api.domain_hanami }};
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -74,7 +74,7 @@ data:
 
                 proxy_pass http://127.0.0.1:11418/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:11418 https://{{ .Values.api.domain }};
+                proxy_redirect http://127.0.0.1:11418 https://{{ .Values.api.domain_hanami }};
             }
         }
     }

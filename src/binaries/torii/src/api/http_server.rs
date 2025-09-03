@@ -28,7 +28,7 @@ use ainari_api::endpoints::*;
 use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::user::*;
-use crate::api::middleware::authorization_middleware;
+use crate::api::torii_auth_middleware::authorization_middleware;
 use crate::config;
 
 fn v1alpha_routes() -> Scope {

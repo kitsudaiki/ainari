@@ -17,6 +17,8 @@ use serde::Deserialize;
 use std::fs;
 use std::process;
 
+use ainari_api::config as ainari_config;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
@@ -26,7 +28,7 @@ pub struct Config {
     pub processing: Processing,
     pub api: Api,
     pub database: Database,
-    pub torii: Torii,
+    pub torii: ainari_config::Torii,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,12 +46,6 @@ pub struct Processing {
 
 fn default_max_number_of_threads() -> usize {
     0
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Torii {
-    pub address: String,
-    pub port: u16,
 }
 
 #[derive(Debug, Deserialize)]
