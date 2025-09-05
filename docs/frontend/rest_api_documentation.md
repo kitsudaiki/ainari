@@ -12,4 +12,10 @@
 
     This documentation contains only the plain REST-API-endpoints. The workflow to upload files or interact with the Clusters over the websocket are not part of this documentation. [See instead](/How_To/4_websocket_workflow)
 
-<swagger-ui src="open_api_docu.json"/>
+## Hanami
+
+<swagger-ui src="open_api_docu_hanami.json"/>
+
+## Torii
+
+<swagger-ui src="open_api_docu_torii.json"/>
