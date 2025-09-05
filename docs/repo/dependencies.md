@@ -9,6 +9,8 @@
 | apt-package         | Purpose                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------ |
 | libsqlite3-dev      | Library to interact with the SQLite3 databases                                       |
+| libssl-dev          | Used internally for the https-client                                                 |
+| pkg-config          | Necessary for the build-process to find the ssl-lib                                  |
 
 #### Rust-version
 
@@ -19,6 +21,7 @@ Minimum version: **1.85.1**
 | apt-package      | Purpose                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------- |
 | libsqlite3-0     | Library to interact with the SQLite3 databases                                        |
+| openssl          | Used internally for the https-client                                                  |
 
 ## Python-SDK
 

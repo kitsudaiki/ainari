@@ -7,7 +7,7 @@
     -   For Ubuntu 22.04 and 24.04 (Debian should work too):
 
         ```bash
-        apt-get install libsqlite3-dev
+        apt-get install libsqlite3-dev libssl-dev pkg-config
         ```
 
 -   Install Rust-compiler (minimum version: `1.85.1`)
