@@ -6,6 +6,7 @@
 ![Architecture](https://img.shields.io/badge/Architecture-amd64%20%2B%20arm64-blue?style=flat-square)
 
 [![Github workflow status](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/build_test.yml?branch=develop&style=flat-square&label=Build%20and%20Test)](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml)
+![RS Report](https://rust-reportcard.xuri.me/badge/github.com/kitsudaiki/ainari?style=flat-square)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/codeql.yml?branch=develop&style=flat-square&label=CodeQL)](https://github.com/kitsudaiki/ainari/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
@@ -131,7 +132,7 @@ and multi-tenancy.
     Each user can login by username and passphrase and gets an JWT-token to access the user- and
     project-specific resources.
 
-    See [Authentication-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
+    See [Authorization-docu](https://docs.ainari.cloud/inner_workings/user_and_projects/)
 
 -   **Efficient resource-usage**
 

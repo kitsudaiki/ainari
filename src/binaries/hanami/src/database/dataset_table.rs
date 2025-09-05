@@ -18,8 +18,8 @@ use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::api::user_context::UserContext;
 use crate::database::db_handle;
+use ainari_api::user_context::UserContext;
 
 use ainari_common::enums;
 

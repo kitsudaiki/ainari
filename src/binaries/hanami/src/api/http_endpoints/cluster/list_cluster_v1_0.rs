@@ -16,11 +16,12 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::cluster_table;
 
-use ainari_structs::cluster_structs::{ClusterBasicResp, ClusterListResp};
+use super::cluster_structs::{ClusterBasicResp, ClusterListResp};
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 
 #[api_operation(
     tag = "cluster",

@@ -20,16 +20,17 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{CheckpointRestoreInfo, Task, TaskMeta, TaskVariant};
 use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use super::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
-use ainari_structs::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -55,7 +56,7 @@ pub async fn checkpoint_restore_task(
     };
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::CheckpointRestoreTask;
+    let task_type = TaskType::CheckpointRestore;
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {

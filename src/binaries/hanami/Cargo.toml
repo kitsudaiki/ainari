@@ -2,14 +2,13 @@
 name = "hanami"
 version = "0.9.0"
 edition = "2024"
-build = "build.rs"
 rust-version = "1.85.1"
 
 [dependencies]
 ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
 ainari_common = { path = "../../libs/rust/ainari_common" }
 ainari_cluster_parser = { path = "../../libs/rust/ainari_cluster_parser" }
-ainari_structs = { path = "../../libs/rust/ainari_structs" }
+ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_hardware = { path = "../../libs/rust/ainari_hardware" }
 # web-server
 actix-web = "4"
@@ -26,8 +25,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
 serde-big-array = "0.5"
-# jwt-token
-jsonwebtoken = "9"
 # config-file
 toml = "0.9"
 # singleton (like used for the config-variable)

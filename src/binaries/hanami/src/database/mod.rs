@@ -16,31 +16,13 @@ pub mod checkpoint_table;
 pub mod cluster_table;
 pub mod dataset_table;
 pub mod db_handle;
-pub mod project_table;
 pub mod task_table;
-pub mod user_table;
 
 use std::io;
 
 use ainari_common::enums;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize user-table
-    match user_table::init_user_table() {
-        Ok(_) => log::info!("Initilaized user-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize user-database-table: {e}");
-            return Err(e);
-        }
-    };
-    // Initialize project-table
-    match project_table::init_project_table() {
-        Ok(_) => log::info!("Initilaized project-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize project-database-table: {e}");
-            return Err(e);
-        }
-    };
     // Initialize cluster-table
     match cluster_table::init_cluster_table() {
         Ok(_) => log::info!("Initilaized cluster-database-table"),

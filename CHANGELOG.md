@@ -567,7 +567,7 @@ Translated big parts of the program from C++ into Rust:
         - has nearly no upper limit for inputs
     - capable to train MNIST-Datasets and basic CSV-files
     - creating neuronal networks based on templates in json-format
-    - authentication with username + password and JWT-token
+    - authorization with username + password and JWT-token
     - creating multiple user and multiple projects in one system
     - basic role-system
     - automatic creation of REST-API-documentation in PDF-, RST- or Markdown-format

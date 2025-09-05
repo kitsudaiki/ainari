@@ -21,8 +21,6 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::config;
 use crate::core::cluster_handler;
 use crate::core::cluster_handler::*;
@@ -31,10 +29,13 @@ use crate::database::cluster_table;
 use crate::database::dataset_table;
 use crate::database::task_table;
 
+use super::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
-use ainari_structs::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
 
 #[api_operation(
     tag = "task",
@@ -59,7 +60,7 @@ pub async fn create_request_task(
     };
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::RequestTask;
+    let task_type = TaskType::Request;
     let time_length = body.time_length.unwrap_or(1);
 
     if time_length < 1 {

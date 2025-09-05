@@ -8,6 +8,8 @@ RUN apt-get update && \
         apt-get install -y git \
                            ssh \
                            gcc \
+                           pkg-config \
+                           libssl-dev \
                            rustup \
                            libsqlite3-dev
 
@@ -16,9 +18,11 @@ COPY . .
 RUN rustup install stable --no-self-update
 RUN cargo build --release
 RUN cp target/release/hanami /app/
+RUN cp target/release/torii /app/
 
+# ---------------------------------------------------
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS hanami
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -30,3 +34,18 @@ RUN apt-get update && \
 # hanami
 COPY --from=builder /app/hanami /usr/bin/hanami
 CMD [ "hanami" ]
+
+# ---------------------------------------------------
+
+FROM ubuntu:24.04 AS torii
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# torii
+COPY --from=builder /app/torii /usr/bin/torii
+CMD [ "torii" ]

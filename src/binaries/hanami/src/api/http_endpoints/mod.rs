@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth;
 pub mod checkpoint;
 pub mod cluster;
-pub mod common;
 pub mod dataset;
-pub mod project;
-pub mod user;

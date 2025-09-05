@@ -39,7 +39,7 @@ var createProjectCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("TORII_ADDRESS")
 		projectId := args[0]
 		content, err := ainari_sdk.CreateProject(address, token, projectId, projectName, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -57,7 +57,7 @@ var getProjectCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("TORII_ADDRESS")
 		projectId := args[0]
 		content, err := ainari_sdk.GetProject(address, token, projectId, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -74,7 +74,7 @@ var listProjectCmd = &cobra.Command{
 	Short: "List all project.",
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("TORII_ADDRESS")
 		content, err := ainari_sdk.ListProject(address, token, ainarictl_common.DisableTlsVerification)
 		if err == nil {
 			ainarictl_common.PrintList(content["projects"].([]interface{}))
@@ -91,7 +91,7 @@ var deleteProjectCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("TORII_ADDRESS")
 		projectId := args[0]
 		_, err := ainari_sdk.DeleteProject(address, token, projectId, ainarictl_common.DisableTlsVerification)
 		if err == nil {

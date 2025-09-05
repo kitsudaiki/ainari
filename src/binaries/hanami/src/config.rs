@@ -17,6 +17,8 @@ use serde::Deserialize;
 use std::fs;
 use std::process;
 
+use ainari_api::config as ainari_config;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
@@ -24,9 +26,9 @@ pub struct Config {
     // groups
     pub storage: Storage,
     pub processing: Processing,
-    pub auth: Auth,
     pub api: Api,
     pub database: Database,
+    pub torii: ainari_config::Torii,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,12 +46,6 @@ pub struct Processing {
 
 fn default_max_number_of_threads() -> usize {
     0
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Auth {
-    pub token_key_path: String,
-    pub token_expire_time: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -89,26 +85,4 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             process::exit(1);
         }
     }
-});
-
-pub static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
-    let file_path = &CONFIG.auth.token_key_path;
-    log::debug!("read token-key from file: '{file_path}'");
-
-    match fs::read_to_string(file_path) {
-        Ok(content) => {
-            log::debug!("successfully read token-key-file '{file_path}'");
-            content
-        }
-        Err(e) => {
-            log::error!("Failed read token-key-file '{file_path}'");
-            log::error!("{e}");
-            process::exit(1);
-        }
-    }
-});
-
-pub static VERSION: Lazy<String> = Lazy::new(|| {
-    let git_version = option_env!("GIT_VERSION").unwrap_or("unknown");
-    git_version.to_string()
 });

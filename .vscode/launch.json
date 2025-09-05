@@ -37,6 +37,53 @@
                 "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
+        },
+        {
+            "name": "Debug Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "cargo build",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "cargo build --release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Ainari Debug",
+            "configurations": ["Debug Build hanami", "Debug Build torii"],
+        },
+        {
+            "name": "Ainari Release",
+            "configurations": ["Release Build hanami", "Release Build torii"],
         }
     ]
 }

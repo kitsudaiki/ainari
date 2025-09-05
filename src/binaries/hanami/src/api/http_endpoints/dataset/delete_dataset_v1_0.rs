@@ -18,10 +18,10 @@ use apistos::api_operation;
 use std::fs;
 use uuid::Uuid;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(

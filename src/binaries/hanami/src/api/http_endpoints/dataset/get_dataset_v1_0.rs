@@ -18,13 +18,14 @@ use apistos::api_operation;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
+use super::dataset_structs::DatasetResp;
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_structs::dataset_structs::DatasetResp;
 
 #[api_operation(
     tag = "dataset",

@@ -26,6 +26,7 @@ it easier for a new person to understand the code.
     │   │       └── resources
     │   │
     │   ├── binaries
+    │   │       ├── torii
     │   │       └── hanami
     │   │             └── (see below)
     │   │
@@ -36,7 +37,7 @@ it easier for a new person to understand the code.
     │   │   │   ├── ainari_cluster_parser
     │   │   │   ├── ainari_common
     │   │   │   ├── ainari_hardware
-    │   │   │   ├── ainari_structs
+    │   │   │   ├── ainari_api
     │   │   │   └── ainari_dataset
     │   │   └── protobuf
     │   │
@@ -93,6 +94,14 @@ it easier for a new person to understand the code.
             -   **ainari_dataset**
 
                 Contains functions to read and write dataset-files.
+
+            -   **ainari_api**
+
+                Common functions for the REST-API like authentication stuff and commonly used endpoints.
+
+            -   **ainari_hardware**
+
+                Hardware related functions to read and write system settings.
         
     -   **sdk**
 
@@ -114,13 +123,10 @@ it easier for a new person to understand the code.
             ├── src
             │   ├── api
             │   │   └── http_endpoints
-            │   │       ├── auth
             │   │       ├── checkpoint
             │   │       ├── cluster
             │   │       │   └── task
-            │   │       ├── dataset
-            │   │       ├── project
-            │   │       └── user
+            │   │       └── dataset
             │   ├── core
             │   ├── database
             │   └── documentation

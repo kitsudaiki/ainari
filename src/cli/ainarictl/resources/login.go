@@ -31,7 +31,7 @@ func Login() string {
 
 	user := os.Getenv("HANAMI_USER")
 	passphrase := os.Getenv("HANAMI_PASSPHRASE")
-	address := os.Getenv("HANAMI_ADDRESS")
+	address := os.Getenv("TORII_ADDRESS")
 
 	if user == "" {
 		panic("HANAMI_USER is not set")
@@ -40,7 +40,7 @@ func Login() string {
 		panic("HANAMI_PASSPHRASE is not set")
 	}
 	if address == "" {
-		panic("HANAMI_ADDRESS is not set")
+		panic("TORII_ADDRESS is not set")
 	}
 
 	return ainari_sdk.RequestToken(address, user, passphrase, ainarictl_common.DisableTlsVerification)

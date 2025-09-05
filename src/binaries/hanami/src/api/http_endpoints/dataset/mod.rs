@@ -14,6 +14,7 @@
 
 pub mod check_dataset_v1_0;
 pub mod create_dataset_v1_0;
+pub mod dataset_structs;
 pub mod delete_dataset_v1_0;
 pub mod get_dataset_v1_0;
 pub mod list_dataset_v1_0;

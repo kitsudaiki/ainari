@@ -2,6 +2,6 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
   ignores: [
     (commit) => commit.startsWith('chore(deps)'),
-    (commit) => commit === 'WIP',
+    (commit) => commit.startsWith('WIP'),
   ],
 };

@@ -16,11 +16,12 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::api::errors::ErrorResponse;
-use crate::api::user_context::UserContext;
 use crate::database::dataset_table;
 
-use ainari_structs::dataset_structs::{DatasetBasicResp, DatasetListResp};
+use super::dataset_structs::{DatasetBasicResp, DatasetListResp};
+
+use ainari_api::errors::ErrorResponse;
+use ainari_api::user_context::UserContext;
 
 #[api_operation(
     tag = "dataset",

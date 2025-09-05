@@ -1,0 +1,29 @@
+apiVersion: v1
+metadata:
+  name: hanami-config
+data:
+  hanami.toml: |+
+    debug = true
+    log_path = ""
+
+    [storage]
+    dataset_location = "/etc/ainari/data/datasets"
+    checkpoint_location = "/etc/ainari/data/checkpoints"
+    tempfile_location = "/etc/ainari/data/tempfiles"
+
+    [processing]
+    max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
+
+    [api]
+    ip = "127.0.0.1"
+    port = 11418
+
+    [database]
+    file_path = "/etc/ainari/data/hanami_db"
+    
+    [torii]
+    address = "https://torii-tls-service.default.svc.cluster.local"
+    port = 8443
+    insecure = true
+
+kind: ConfigMap
