@@ -1,0 +1,17 @@
+{
+    "contact": {
+        "email": "tobias.anker@kitsunemimi.moe",
+        "name": "Tobias Anker"
+    },
+    "info": {
+        "title": "API documentation",
+        "version": "unreleased"
+    },
+    "license": {
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "openapi": "3.0.0",
+    "paths": {
+    }
+}

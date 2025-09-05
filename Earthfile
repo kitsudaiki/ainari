@@ -159,7 +159,8 @@ generate-docs:
     ENV HANAMI_ADMIN_NAME asdf
     ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
 
-    COPY +compile-hanami/hanami /tmp/hanami
+    COPY +compile-hanami/ainari/hanami /tmp/hanami
+    COPY +compile-hanami/ainari/torii /tmp/torii
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
@@ -185,14 +186,20 @@ generate-docs:
     RUN . ainari_env/bin/activate && \
         hap run /tmp/hanami && \
         sleep 5 && \
-        curl 127.0.0.1:11418/openapi.json > ./open_api_docu.json
+        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
+    RUN chmod +x /tmp/torii
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/torii && \
+        sleep 5 && \
+        curl 127.0.0.1:11417/openapi.json > ./open_api_docu_torii.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
-    RUN cp ./open_api_docu.json docs/frontend/
+    RUN cp ./open_api_docu_hanami.json docs/frontend/
+    RUN cp ./open_api_docu_torii.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
