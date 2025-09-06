@@ -20,9 +20,10 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, post, put, resource, scope};
+use apistos::web::{Scope, delete, get, options, post, put, resource, scope};
 use std::error::Error;
 
+use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::auth::*;
@@ -39,6 +40,7 @@ fn v1alpha_routes() -> Scope {
         .service(
             scope("/token").service(
                 resource("")
+                    .route(options().to(options_check_v1_0::options_check))
                     .route(put().to(renew_token_v1_0::renew_token))
                     .route(post().to(create_token_v1_0::create_token))
                     .route(get().to(validate_token_v1_0::validate_token)),
@@ -48,11 +50,13 @@ fn v1alpha_routes() -> Scope {
             scope("/project")
                 .service(
                     resource("")
+                        .route(options().to(options_check_v1_0::options_check))
                         .route(post().to(create_project_v1_0::create_project))
                         .route(get().to(list_project_v1_0::list_project)),
                 )
                 .service(
                     resource("/{project_id}")
+                        .route(options().to(options_check_v1_0::options_check))
                         .route(get().to(get_project_v1_0::get_project))
                         .route(delete().to(delete_project_v1_0::delete_project)),
                 ),
@@ -61,11 +65,13 @@ fn v1alpha_routes() -> Scope {
             scope("/user")
                 .service(
                     resource("")
+                        .route(options().to(options_check_v1_0::options_check))
                         .route(post().to(create_user_v1_0::create_user))
                         .route(get().to(list_user_v1_0::list_user)),
                 )
                 .service(
                     resource("/{user_id}")
+                        .route(options().to(options_check_v1_0::options_check))
                         .route(get().to(get_user_v1_0::get_user))
                         .route(delete().to(delete_user_v1_0::delete_user)),
                 ),
@@ -107,6 +113,7 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
+            .wrap(from_fn(cors_middleware))
             .wrap(from_fn(authorization_middleware))
             .wrap(Logger::default())
             .app_data(PayloadConfig::new(1 << 30)) // 1GB max payload-size

@@ -16,6 +16,7 @@
 
 pub mod auth_middleware;
 pub mod config;
+pub mod cors_middleware;
 pub mod endpoints;
 pub mod errors;
 pub mod user_context;
