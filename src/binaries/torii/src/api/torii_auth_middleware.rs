@@ -30,8 +30,7 @@ pub async fn authorization_middleware(
     let mut skip_check = false;
     let uri = req.uri();
 
-    println!("uri: {uri}");
-    println!("method: {}", *req.method());
+    log::debug!("call uri: '{uri}' method: {}", *req.method());
 
     // skip check for specific endpoints
     let is_post_req = *req.method() == Method::POST;

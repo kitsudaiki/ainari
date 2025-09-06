@@ -113,8 +113,8 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
-            .wrap(from_fn(cors_middleware))
             .wrap(from_fn(authorization_middleware))
+            .wrap(from_fn(cors_middleware))
             .wrap(Logger::default())
             .app_data(PayloadConfig::new(1 << 30)) // 1GB max payload-size
             .service(v1alpha_routes())
