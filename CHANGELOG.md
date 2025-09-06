@@ -1,6 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### BREAKING-CHANGES
+
+#### API-Breaking
+
+- added new component named "Torii", where the endpoints for tokens, users and projects moved to.
+- Hanami now uses the Torii to check provided token over a new client-connection
+
+#### Config-Breaking
+
+- Because of the new component, Hanami requires a new client-connection in its config
+
+
+
 ## v0.9.0
+
+**Release-Date**: 2025-08-24
 
 - Renamed project from OpenHanami to Ainari
 - Translated the rest of the C++-code into Rust
