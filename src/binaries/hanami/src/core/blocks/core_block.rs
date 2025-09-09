@@ -338,9 +338,10 @@ fn train_section(
         }
 
         if connection.next != UNINIT_STATE_16 {
+            let used_potential = (axon.potential - connection.lower_bound) - potential;
             let next_connection = &mut connections[connection.next as usize];
-            if next_connection.lower_bound < potential {
-                next_connection.lower_bound = potential;
+            if next_connection.lower_bound < used_potential {
+                next_connection.lower_bound = used_potential;
             }
         }
     }
