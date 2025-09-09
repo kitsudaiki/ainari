@@ -199,7 +199,7 @@ added/enabled again in the near future:
 1. Dashboard
 
     As a PoC a first dashboard was created, without any framework. It is planned to refactor this
-    old version in `v0.9.0` and re-write it again with Typescript and some additional frameworks.
+    old version in `v0.10.0` and re-write it again with Typescript and some additional frameworks.
     Until then, it is temporary disabled, because it would current cost too much time to keep this
     unused and prototypical version up-to-data. As reference see the example-workflow of the
     PoC-dashboard: [Dashboard-docu](/frontend/dashboard/dashboard/)
