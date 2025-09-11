@@ -7,3 +7,14 @@ members = [
     "src/libs/rust/ainari_api", 
     "src/libs/rust/ainari_hardware", 
     "src/binaries/torii"]
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
