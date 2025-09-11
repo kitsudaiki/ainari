@@ -42,11 +42,3 @@ uuid = { version = "1.18.0", features = ["serde", "fast-rng", "v4"] }
 
 [dev-dependencies]
 serial_test = "3"
-
-[profile.dev]
-opt-level = 0
-debug = true
-overflow-checks = true
-
-[profile.release]
-opt-level = 3
