@@ -14,8 +14,15 @@
 
 import axios from "axios";
 
-const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
+const torii_api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL_TORII,
 });
 
-export default api;
+const hanami_api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL_HANAMI,
+});
+
+export default {
+    torii_api,
+    hanami_api,
+};

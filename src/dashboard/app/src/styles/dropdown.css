@@ -18,6 +18,8 @@ limitations under the License.
 .table-dropdown {
     position: relative;
     display: inline-block; /* make sure it doesn’t stretch */
+    cursor: pointer;
+    width: 2rem;
 }
 
 .table-dropdown button {

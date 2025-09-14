@@ -80,12 +80,26 @@ const emit = defineEmits<{ (e: "change-view", view: string): void }>();
 // <-- Edit this to add/remove items or dropdowns -->
 const menus = ref<Menu[]>([
     { name: "Overview", label: "Overview" },
-    { name: "Reports", label: "Reports" },
-    { name: "Settings", label: "Settings" },
+    {
+        name: "Workload",
+        label: "Workload",
+        items: [{ view: "WorkloadCluster", label: "Cluster" }],
+    },
+    {
+        name: "Storage",
+        label: "Storage",
+        items: [
+            { view: "StorageDataset", label: "Dataset" },
+            { view: "StorageCheckpoint", label: "Checkpoint" },
+        ],
+    },
     {
         name: "Admin",
         label: "Admin",
-        items: [{ view: "AdminUser", label: "User" }],
+        items: [
+            { view: "AdminUser", label: "User" },
+            { view: "AdminProject", label: "Project" },
+        ],
     },
 ]);
 
@@ -101,28 +115,6 @@ watch(
     },
 );
 
-function select(view: string, options: { closeDropdowns?: boolean } = {}) {
-    activeLocal.value = view;
-    emit("change-view", view);
-
-    if (options.closeDropdowns) {
-        // close all dropdowns when selecting a top-level non-dropdown entry
-        for (const k of Object.keys(openDropdowns)) {
-            openDropdowns[k] = false;
-        }
-        updateHeights();
-        return;
-    }
-
-    // if selecting a child entry, ensure its parent dropdown is open
-    for (const menu of menus.value) {
-        if (menu.items && menu.items.some((i) => i.view === view)) {
-            openDropdowns[menu.name] = true;
-        }
-    }
-    updateHeights();
-}
-
 /* --- dropdown state handling unchanged --- */
 const openDropdowns = reactive<Record<string, boolean>>({});
 const dropdownRefs = ref<Record<string, HTMLElement | null>>({});
@@ -134,6 +126,29 @@ function isOpen(name: string) {
 
 function toggleDropdown(name: string) {
     openDropdowns[name] = !openDropdowns[name];
+    updateHeights();
+}
+
+function select(view: string, options: { closeDropdowns?: boolean } = {}) {
+    activeLocal.value = view;
+    emit('change-view', view);
+
+    // Always close all dropdowns first
+    for (const k of Object.keys(openDropdowns)) {
+        openDropdowns[k] = false;
+    }
+
+    if (options.closeDropdowns) {
+        updateHeights();
+        return;
+    }
+
+    // if selecting a subentry, open only its parent
+    for (const menu of menus.value) {
+        if (menu.items && menu.items.some((i) => i.view === view)) {
+            openDropdowns[menu.name] = true;
+        }
+    }
     updateHeights();
 }
 

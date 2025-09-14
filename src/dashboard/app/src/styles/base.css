@@ -23,8 +23,8 @@ limitations under the License.
     --color-shadow: #2020208e;
     --color-text: #f1f1f1;
     --color-text-light: #8e9396;
-    --color-table: #f1f1f1;
-    --color-highlight: #ffafd4;
+    --color-highlight: #ffc7f2;
+    /*--color-highlight: #616eff;*/
 
     --text-font-family: Verdana, sans-serif, Arial, Helvetica;
     --text-font-size: 1rem;
@@ -141,48 +141,6 @@ label {
     display: inline-block;
     width: 100%;
     text-align: left;
+    font-size: 0.9rem;
 }
 
-/*=================================================
-Table
-=================================================*/
-
-table {
-    text-align: left;
-    color: var(--color-text);
-    border-collapse: collapse;
-    table-layout: auto;
-    width: 95%;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-table tr {
-    height: 38px;
-    border-bottom: 1px solid var(--color-table);
-}
-
-/* make first column mono-space, because it contains the UUID, which is easier to read this way */
-td:nth-child(1) {
-    font-family: Dejavu Sans Mono;
-    width: 25rem;
-}
-
-table tr th {
-    white-space: nowrap;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-}
-
-table tr td {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-th:last-child,
-td:last-child {
-    text-align: right;
-}

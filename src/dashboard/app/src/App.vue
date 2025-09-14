@@ -42,9 +42,11 @@ import Sidebar from "./components/Sidebar.vue";
 import Topbar from "./components/Topbar.vue";
 import Login from "./components/Login.vue";
 import Overview from "./components/Overview.vue";
-import Reports from "./components/Reports.vue";
-import Settings from "./components/Settings.vue";
 import AdminUser from "./components/AdminUser.vue";
+import AdminProject from "./components/AdminProject.vue";
+import StorageCheckpoint from "./components/StorageCheckpoint.vue";
+import StorageDataset from "./components/StorageDataset.vue";
+import WorkloadCluster from "./components/WorkloadCluster.vue";
 
 import "./styles/base.css";
 import "./styles/other.css";
@@ -52,11 +54,20 @@ import "./styles/card.css";
 import "./styles/modal.css";
 import "./styles/dropdown.css";
 import "./styles/button.css";
+import "./styles/table.css";
+import "./styles/tab.css";
 
 const currentView = ref("Overview");
 const token = ref<string | null>(localStorage.getItem("jwtToken"));
 const username = ref<string | null>(localStorage.getItem("username")); // store username
-const components = { Overview, Reports, Settings, AdminUser };
+const components = {
+    Overview,
+    AdminUser,
+    AdminProject,
+    StorageCheckpoint,
+    StorageDataset,
+    WorkloadCluster,
+};
 const acceptIcon = new URL("./assets/accept.svg", import.meta.url).href;
 const cancelIcon = new URL("./assets/close.svg", import.meta.url).href;
 
