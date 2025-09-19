@@ -42,3 +42,17 @@ limitations under the License.
     align-items: center;
     gap: 1rem;
 }
+
+.bool-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem;
+    display: flex;
+}
+
+.bool-icon img {
+    width: 1.2rem;
+    height: 1.2rem;
+    filter: brightness(0) invert(1); /* makes sure it shows in white */
+}

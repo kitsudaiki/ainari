@@ -22,7 +22,7 @@
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="users.length > 0">
+                <table class="overview-table" v-if="users.length > 0">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -47,6 +47,9 @@
                                         v-if="openDropdown === user.id"
                                         class="table-dropdown-menu"
                                     >
+                                        <button @click="openInfoModal(user)">
+                                            Info
+                                        </button>
                                         <button @click="openDeleteModal(user)">
                                             Delete
                                         </button>
@@ -147,16 +150,87 @@
                 </div>
             </div>
         </div>
+
+        <!-- Info Confirmation Modal -->
+        <div
+            v-if="showInfoModal"
+            class="modal-overlay"
+            @click.self="cancelInfoModal"
+        >
+            <div class="modal user-info-modal">
+                <div class="modal-topbar">
+                    <span>Info</span>
+                </div>
+                <div class="modal-content">
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>ID</td>
+                                <td>{{ user_info.id }}</td>
+                            </tr>
+                            <tr>
+                                <td>Name</td>
+                                <td>{{ user_info.name }}</td>
+                            </tr>
+                            <tr>
+                                <td>Is Admin</td>
+                                <td>
+                                    <div class="bool-icon">
+                                        <img
+                                            v-if="user_info.is_admin"
+                                            :src="icons.acceptIcon"
+                                            alt="True"
+                                        />
+                                        <img
+                                            v-else
+                                            :src="icons.cancelIcon"
+                                            alt="False"
+                                        />
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Created At</td>
+                                <td>{{ user_info.created_at }}</td>
+                            </tr>
+                            <tr>
+                                <td>Created By</td>
+                                <td>{{ user_info.created_by }}</td>
+                            </tr>
+                            <tr>
+                                <td>Updated At</td>
+                                <td>{{ user_info.updated_at }}</td>
+                            </tr>
+                            <tr>
+                                <td>Updated By</td>
+                                <td>{{ user_info.updated_by }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-bottombar">
+                    <div class="modal-actions">
+                        <button class="icon-button" @click="cancelInfoModal">
+                            <img :src="icons.cancelIcon" alt="Cancel" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import api from "../../api";
+import common from "../../common";
 
 const users = ref<{ id: string; userName: string }[]>([]);
+const user_info = ref<{}[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
+const showInfoModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const newUser = ref({
     userId: "",
@@ -167,6 +241,7 @@ const newUser = ref({
 });
 const passwordError = ref("");
 const userToDelete = ref<{ id: string; userName: string } | null>(null);
+const userToInfo = ref<{ id: string; userName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchUsers() {
@@ -178,6 +253,24 @@ async function fetchUsers() {
         users.value = response.data.users;
     } catch (err) {
         console.error("Failed to load users", err);
+    }
+}
+
+async function fetchUserInfo(userId: string) {
+    try {
+        const token = localStorage.getItem("jwtToken");
+        const response = await api.torii_api.get(`/v1alpha/user/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        user_info.value = response.data;
+        user_info.value.created_at = common.formatDateTime(
+            user_info.value.created_at,
+        );
+        user_info.value.updated_at = common.formatDateTime(
+            user_info.value.updated_at,
+        );
+    } catch (err) {
+        console.error("Failed to load user-info", err);
     }
 }
 
@@ -273,6 +366,21 @@ async function acceptDeleteModal() {
 }
 
 //=============================================================================
+// Info modal
+//=============================================================================
+function openInfoModal(user: { id: string; userName: string }) {
+    userToInfo.value = user;
+    fetchUserInfo(user.id);
+    showInfoModal.value = true;
+    openDropdown.value = null;
+}
+function cancelInfoModal() {
+    showInfoModal.value = false;
+    userToInfo.value = null;
+    openDropdown.value = null; // close any open action dropdown
+}
+
+//=============================================================================
 // Listener
 //=============================================================================
 onMounted(fetchUsers);
@@ -290,6 +398,11 @@ onBeforeUnmount(() => {
 .user-create-modal {
     height: 28rem;
     width: 20rem;
+}
+
+.user-info-modal {
+    height: 30rem;
+    width: 40rem;
 }
 
 .user-delete-modal {

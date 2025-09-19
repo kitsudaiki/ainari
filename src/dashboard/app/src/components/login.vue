@@ -102,7 +102,7 @@ async function login() {
 }
 
 .login-modal {
-    height: 15rem;
+    height: 18rem;
     width: 20rem;
 }
 </style>

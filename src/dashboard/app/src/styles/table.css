@@ -31,7 +31,7 @@ table tr {
 }
 
 /* make first column mono-space, because it contains the UUID, which is easier to read this way */
-td:nth-child(1) {
+.overview-table td:nth-child(1) {
     font-family: Dejavu Sans Mono;
     width: 25rem;
 }
@@ -50,7 +50,7 @@ table tr td {
     overflow-wrap: break-word;
 }
 
-th:last-child,
-td:last-child {
+.overview-table th:last-child,
+.overview-table td:last-child {
     text-align: right;
 }
