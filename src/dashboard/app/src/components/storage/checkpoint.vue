@@ -96,14 +96,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../api";
+import api from "../../api";
 
-const checkpoints = ref<
-    { uuid: number; checkpointname: string}[]
->([]);
+const checkpoints = ref<{ uuid: string; checkpointName: string }[]>([]);
 const showDeleteModal = ref(false);
-const openDropdown = ref<number | null>(null);
-const checkpointToDelete = ref<{ uuid: number; checkpointname: string } | null>(
+const openDropdown = ref<string | null>(null);
+const checkpointToDelete = ref<{ uuid: string; checkpointName: string } | null>(
     null,
 );
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
@@ -123,7 +121,7 @@ async function fetchCheckpoints() {
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(uuid: number) {
+function toggleDropdown(uuid: string) {
     openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
@@ -143,7 +141,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(checkpoint: { uuid: number; checkpointname: string }) {
+function openDeleteModal(checkpoint: { uuid: string; checkpointName: string }) {
     checkpointToDelete.value = checkpoint;
     showDeleteModal.value = true;
     openDropdown.value = null;

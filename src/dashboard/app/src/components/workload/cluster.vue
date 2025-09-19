@@ -17,34 +17,36 @@
 <template>
     <div class="overview">
         <div class="card">
-            <div class="card-label">Project</div>
+            <div class="card-label">Cluster</div>
             <div class="card-content">
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="projects.length > 0">
+                <table v-if="clusters.length > 0">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>UUID</th>
+                            <th>Name</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="project in projects" :key="project.id">
-                            <td>{{ project.id }}</td>
+                        <tr v-for="cluster in clusters" :key="cluster.uuid">
+                            <td>{{ cluster.uuid }}</td>
+                            <td>{{ cluster.name }}</td>
                             <td>
                                 <!-- Dropdown menu -->
                                 <div
                                     class="table-dropdown"
-                                    @click.stop="toggleDropdown(project.id)"
+                                    @click.stop="toggleDropdown(cluster.uuid)"
                                 >
                                     ⋮
                                     <div
-                                        v-if="openDropdown === project.id"
+                                        v-if="openDropdown === cluster.uuid"
                                         class="table-dropdown-menu"
                                     >
                                         <button
-                                            @click="openDeleteModal(project)"
+                                            @click="openDeleteModal(cluster)"
                                         >
                                             Delete
                                         </button>
@@ -55,34 +57,37 @@
                     </tbody>
                 </table>
 
-                <p v-else>No projects found</p>
+                <p v-else>No clusters found</p>
             </div>
         </div>
 
-        <!-- Add Project Modal -->
+        <!-- Add Cluster Modal -->
         <div
             v-if="showAddModal"
             class="modal-overlay"
             @click.self="cancelAddModal"
         >
-            <div class="modal project-create-modal">
+            <div class="modal cluster-create-modal">
                 <!-- Modal topbar -->
                 <div class="modal-topbar">
-                    <span>Create project</span>
+                    <span>Create cluster</span>
                 </div>
                 <div class="modal-content">
                     <input
-                        v-model="newProject.projectid"
+                        v-model="newCluster.clusterName"
                         type="text"
-                        placeholder="Project-ID"
+                        placeholder="Cluster-Name"
                         required
                     />
-                    <input
-                        v-model="newProject.projectname"
-                        type="text"
-                        placeholder="Project-Name"
-                        required
-                    />
+                    <div>
+                        <label>Cluster template:</label>
+                        <textarea
+                            id="template_input"
+                            v-model="newCluster.clusterTemplate"
+                            type="text"
+                            required
+                        ></textarea>
+                    </div>
                 </div>
 
                 <div class="modal-bottombar">
@@ -104,13 +109,13 @@
             class="modal-overlay"
             @click.self="cancelDeleteModal"
         >
-            <div class="modal project-delete-modal">
+            <div class="modal cluster-delete-modal">
                 <div class="modal-topbar">
-                    <span>Delete project</span>
+                    <span>Delete cluster</span>
                 </div>
                 <div class="modal-content">
                     <p>Are you sure you want to delete?</p>
-                    <strong>Project: {{ projectToDelete?.id }}</strong>
+                    <strong>Cluster: {{ clusterToDelete?.uuid }}</strong>
                 </div>
 
                 <div class="modal-bottombar">
@@ -130,40 +135,37 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../api";
+import api from "../../api";
 
-const projects = ref<{ id: number; projectname: string; email: string }[]>([]);
+const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
-const openDropdown = ref<number | null>(null);
-const newProject = ref({
-    projectid: "",
-    projectname: "",
-    password: "",
-    confirmPassword: "",
-    isAdmin: false,
+const openDropdown = ref<string | null>(null);
+const newCluster = ref({
+    clusterTemplate: "",
+    clusterName: "",
 });
 const passwordError = ref("");
-const projectToDelete = ref<{ id: number; projectname: string } | null>(null);
+const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchProjects() {
+async function fetchClusters() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.torii_api.get("/v1alpha/project", {
+        const response = await api.hanami_api.get("/v1alpha/cluster", {
             headers: { Authorization: `Bearer ${token}` },
         });
-        projects.value = response.data.projects;
+        clusters.value = response.data.clusters;
     } catch (err) {
-        console.error("Failed to load projects", err);
+        console.error("Failed to load clusters", err);
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(id: number) {
-    openDropdown.value = openDropdown.value === id ? null : id;
+function toggleDropdown(uuid: string) {
+    openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -180,74 +182,64 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add project modal
+// Add cluster modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
 }
 function cancelAddModal() {
     showAddModal.value = false;
-    newProject.value.projectid = "";
-    newProject.value.projectname = "";
-    newProject.value.password = "";
-    newProject.value.confirmPassword = "";
-    newProject.value.isAdmin = false;
-    passwordError.value = "";
+    newCluster.value.clusterTemplate = "";
+    newCluster.value.clusterName = "";
 }
 
 async function acceptAddModal() {
-    if (newProject.value.password !== newProject.value.confirmPassword) {
-        passwordError.value = "Passwords do not match!";
-        return;
-    }
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.post(
-            "/v1alpha/project",
+        await api.hanami_api.post(
+            "/v1alpha/cluster",
             {
-                id: newProject.value.projectid,
-                name: newProject.value.projectname,
-                passphrase: newProject.value.password,
-                is_admin: newProject.value.isAdmin,
+                name: newCluster.value.clusterName,
+                template: newCluster.value.clusterTemplate,
             },
             {
                 headers: { Authorization: `Bearer ${token}` },
             },
         );
-        await fetchProjects();
+        await fetchClusters();
         cancelAddModal();
     } catch (err) {
         passwordError.value = err;
-        console.error("Failed to create project", err);
+        console.error("Failed to create cluster", err);
     }
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(project: { id: number; projectname: string }) {
-    projectToDelete.value = project;
+function openDeleteModal(cluster: { uuid: string; clusterName: string }) {
+    clusterToDelete.value = cluster;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    projectToDelete.value = null;
+    clusterToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    if (!projectToDelete.value) return;
+    if (!clusterToDelete.value) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.delete(
-            `/v1alpha/project/${projectToDelete.value.id}`,
+        await api.hanami_api.delete(
+            `/v1alpha/cluster/${clusterToDelete.value.uuid}`,
             {
                 headers: { Authorization: `Bearer ${token}` },
             },
         );
-        await fetchProjects();
+        await fetchClusters();
     } catch (err) {
-        console.error("Failed to delete project", err);
+        console.error("Failed to delete cluster", err);
     } finally {
         cancelDeleteModal();
     }
@@ -256,7 +248,7 @@ async function acceptDeleteModal() {
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchProjects);
+onMounted(fetchClusters);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -268,12 +260,16 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.project-create-modal {
-    height: 18rem;
-    width: 20rem;
+.cluster-create-modal {
+    height: 35rem;
+    width: 30rem;
 }
 
-.project-delete-modal {
+#template_input {
+    height: 18rem;
+}
+
+.cluster-delete-modal {
     height: 16rem;
     width: 20rem;
 }

@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 
-//         http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,37 +17,37 @@
 <template>
     <div class="overview">
         <div class="card">
-            <div class="card-label">Cluster</div>
+            <div class="card-label">Users</div>
             <div class="card-content">
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="clusters.length > 0">
+                <table v-if="users.length > 0">
                     <thead>
                         <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Is Admin</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="cluster in clusters" :key="cluster.uuid">
-                            <td>{{ cluster.uuid }}</td>
-                            <td>{{ cluster.name }}</td>
+                        <tr v-for="user in users" :key="user.id">
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.is_admin }}</td>
                             <td>
                                 <!-- Dropdown menu -->
                                 <div
                                     class="table-dropdown"
-                                    @click.stop="toggleDropdown(cluster.uuid)"
+                                    @click.stop="toggleDropdown(user.id)"
                                 >
                                     ⋮
                                     <div
-                                        v-if="openDropdown === cluster.uuid"
+                                        v-if="openDropdown === user.id"
                                         class="table-dropdown-menu"
                                     >
-                                        <button
-                                            @click="openDeleteModal(cluster)"
-                                        >
+                                        <button @click="openDeleteModal(user)">
                                             Delete
                                         </button>
                                     </div>
@@ -57,37 +57,54 @@
                     </tbody>
                 </table>
 
-                <p v-else>No clusters found</p>
+                <p v-else>No users found</p>
             </div>
         </div>
 
-        <!-- Add Cluster Modal -->
+        <!-- Add User Modal -->
         <div
             v-if="showAddModal"
             class="modal-overlay"
             @click.self="cancelAddModal"
         >
-            <div class="modal cluster-create-modal">
+            <div class="modal user-create-modal">
                 <!-- Modal topbar -->
                 <div class="modal-topbar">
-                    <span>Create cluster</span>
+                    <span>Create user</span>
                 </div>
                 <div class="modal-content">
                     <input
-                        v-model="newCluster.clustername"
+                        v-model="newUser.userId"
                         type="text"
-                        placeholder="Cluster-Name"
+                        placeholder="User-ID"
                         required
                     />
-                    <div>
-                        <label>Cluster template:</label>
-                        <textarea 
-                            id="template_input"
-                            v-model="newCluster.clustertemplate"
-                            type="text"
-                            required
-                        ></textarea>
-                    </div>
+                    <input
+                        v-model="newUser.userName"
+                        type="text"
+                        placeholder="User-Name"
+                        required
+                    />
+                    <input
+                        v-model="newUser.password"
+                        type="password"
+                        placeholder="Password"
+                        required
+                    />
+                    <input
+                        v-model="newUser.confirmPassword"
+                        type="password"
+                        placeholder="Confirm password"
+                        required
+                    />
+                    <label class="checkbox-label">
+                        <input type="checkbox" v-model="newUser.isAdmin" />
+                        Is Admin
+                    </label>
+
+                    <p v-if="passwordError" class="error-msg">
+                        {{ passwordError }}
+                    </p>
                 </div>
 
                 <div class="modal-bottombar">
@@ -109,13 +126,13 @@
             class="modal-overlay"
             @click.self="cancelDeleteModal"
         >
-            <div class="modal cluster-delete-modal">
+            <div class="modal user-delete-modal">
                 <div class="modal-topbar">
-                    <span>Delete cluster</span>
+                    <span>Delete user</span>
                 </div>
                 <div class="modal-content">
                     <p>Are you sure you want to delete?</p>
-                    <strong>Cluster: {{ clusterToDelete?.uuid }}</strong>
+                    <strong>User: {{ userToDelete?.id }}</strong>
                 </div>
 
                 <div class="modal-bottombar">
@@ -135,39 +152,40 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../api";
+import api from "../../api";
 
-const clusters = ref<{ uuid: number; clustername: string}[]>(
-    [],
-);
+const users = ref<{ id: string; userName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
-const openDropdown = ref<number | null>(null);
-const newCluster = ref({
-    clustertemplate: "",
-    clustername: "",
+const openDropdown = ref<string | null>(null);
+const newUser = ref({
+    userId: "",
+    userName: "",
+    password: "",
+    confirmPassword: "",
+    isAdmin: false,
 });
 const passwordError = ref("");
-const clusterToDelete = ref<{ uuid: number; clustername: string } | null>(null);
+const userToDelete = ref<{ id: string; userName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchClusters() {
+async function fetchUsers() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/cluster", {
+        const response = await api.torii_api.get("/v1alpha/user", {
             headers: { Authorization: `Bearer ${token}` },
         });
-        clusters.value = response.data.clusters;
+        users.value = response.data.users;
     } catch (err) {
-        console.error("Failed to load clusters", err);
+        console.error("Failed to load users", err);
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(uuid: number) {
-    openDropdown.value = openDropdown.value === uuid ? null : uuid;
+function toggleDropdown(id: string) {
+    openDropdown.value = openDropdown.value === id ? null : id;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -184,64 +202,71 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add cluster modal
+// Add user modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
 }
 function cancelAddModal() {
     showAddModal.value = false;
-    newCluster.value.clustertemplate = "";
-    newCluster.value.clustername = "";
+    newUser.value.userId = "";
+    newUser.value.userName = "";
+    newUser.value.password = "";
+    newUser.value.confirmPassword = "";
+    newUser.value.isAdmin = false;
+    passwordError.value = "";
 }
 
 async function acceptAddModal() {
+    if (newUser.value.password !== newUser.value.confirmPassword) {
+        passwordError.value = "Passwords do not match!";
+        return;
+    }
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
-            "/v1alpha/cluster",
+        await api.torii_api.post(
+            "/v1alpha/user",
             {
-                name: newCluster.value.clustername,
-                template: newCluster.value.clustertemplate,
+                id: newUser.value.userId,
+                name: newUser.value.userName,
+                passphrase: newUser.value.password,
+                is_admin: newUser.value.isAdmin,
             },
             {
                 headers: { Authorization: `Bearer ${token}` },
             },
         );
-        await fetchClusters();
+        await fetchUsers();
         cancelAddModal();
     } catch (err) {
         passwordError.value = err;
-        console.error("Failed to create cluster", err);
+        console.error("Failed to create user", err);
     }
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(cluster: { uuid: number; clustername: string }) {
-    clusterToDelete.value = cluster;
+function openDeleteModal(user: { id: string; userName: string }) {
+    userToDelete.value = user;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    clusterToDelete.value = null;
+    userToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    if (!clusterToDelete.value) return;
+    if (!userToDelete.value) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.delete(
-            `/v1alpha/cluster/${clusterToDelete.value.uuid}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchClusters();
+        await api.torii_api.delete(`/v1alpha/user/${userToDelete.value.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        await fetchUsers();
     } catch (err) {
-        console.error("Failed to delete cluster", err);
+        console.error("Failed to delete user", err);
     } finally {
         cancelDeleteModal();
     }
@@ -250,7 +275,7 @@ async function acceptDeleteModal() {
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchClusters);
+onMounted(fetchUsers);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -262,16 +287,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.cluster-create-modal {
-    height: 35rem;
-    width: 30rem;
+.user-create-modal {
+    height: 28rem;
+    width: 20rem;
 }
 
-#template_input {
-    height: 18rem;
-}
-
-.cluster-delete-modal {
+.user-delete-modal {
     height: 16rem;
     width: 20rem;
 }

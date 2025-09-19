@@ -38,15 +38,15 @@
 
 <script setup lang="ts">
 import { ref, provide } from "vue";
-import Sidebar from "./components/Sidebar.vue";
-import Topbar from "./components/Topbar.vue";
-import Login from "./components/Login.vue";
-import Overview from "./components/Overview.vue";
-import AdminUser from "./components/AdminUser.vue";
-import AdminProject from "./components/AdminProject.vue";
-import StorageCheckpoint from "./components/StorageCheckpoint.vue";
-import StorageDataset from "./components/StorageDataset.vue";
-import WorkloadCluster from "./components/WorkloadCluster.vue";
+import Sidebar from "./components/sidebar.vue";
+import Topbar from "./components/topbar.vue";
+import Login from "./components/login.vue";
+import Overview from "./components/overview.vue";
+import AdminUser from "./components/admin/user.vue";
+import AdminProject from "./components/admin/project.vue";
+import StorageCheckpoint from "./components/storage/checkpoint.vue";
+import StorageDataset from "./components/storage/dataset.vue";
+import WorkloadCluster from "./components/workload/cluster.vue";
 
 import "./styles/base.css";
 import "./styles/other.css";

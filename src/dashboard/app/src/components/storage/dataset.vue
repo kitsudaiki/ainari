@@ -75,21 +75,21 @@
 
                 <div class="modal-content">
                     <input
-                        v-model="newDataset.datasetname"
+                        v-model="newDataset.datasetName"
                         type="text"
                         placeholder="Dataset-Name"
                         required
                     />
                     <div class="tab">
-                        <button 
-                            class="tablinks" 
+                        <button
+                            class="tablinks"
                             :class="{ active: isSelected('csv') }"
                             @click="selectTab('csv')"
                         >
                             CSV
                         </button>
-                        <button 
-                            class="tablinks" 
+                        <button
+                            class="tablinks"
                             :class="{ active: isSelected('mnist') }"
                             @click="selectTab('mnist')"
                         >
@@ -126,7 +126,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
 
         <!-- Delete Confirmation Modal -->
@@ -161,21 +160,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../api";
+import api from "../../api";
 
-const datasets = ref<{ uuid: number; datasetname: string; email: string }[]>(
+const datasets = ref<{ uuid: string; datasetName: string; email: string }[]>(
     [],
 );
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
-const openDropdown = ref<number | null>(null);
+const openDropdown = ref<string | null>(null);
 const newDataset = ref({
-    datasetname: "",
+    datasetName: "",
 });
 const file1 = ref<File | null>(null);
 const file2 = ref<File | null>(null);
 const passwordError = ref("");
-const datasetToDelete = ref<{ uuid: number; datasetname: string } | null>(null);
+const datasetToDelete = ref<{ uuid: string; datasetName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchDatasets() {
@@ -193,7 +192,7 @@ async function fetchDatasets() {
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(uuid: number) {
+function toggleDropdown(uuid: string) {
     openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
@@ -218,7 +217,7 @@ function openAddModal() {
 }
 function cancelAddModal() {
     showAddModal.value = false;
-    newDataset.value.datasetname = "";
+    newDataset.value.datasetName = "";
     passwordError.value = "";
 }
 
@@ -247,7 +246,7 @@ async function acceptAddModal() {
         try {
             const token = localStorage.getItem("jwtToken");
             const response = await api.hanami_api.post(
-                `/v1alpha/dataset/mnist/${newDataset.value.datasetname}`,
+                `/v1alpha/dataset/mnist/${newDataset.value.datasetName}`,
                 formData,
                 {
                     headers: {
@@ -263,7 +262,7 @@ async function acceptAddModal() {
             console.error("Upload MNIST-file failed!", err);
         }
     }
-        
+
     if (selectedTab.value === "csv") {
         if (!file1.value) return;
 
@@ -273,7 +272,7 @@ async function acceptAddModal() {
         try {
             const token = localStorage.getItem("jwtToken");
             const response = await api.hanami_api.post(
-                `/v1alpha/dataset/csv/${newDataset.value.datasetname}`,
+                `/v1alpha/dataset/csv/${newDataset.value.datasetName}`,
                 formData,
                 {
                     headers: {
@@ -294,7 +293,7 @@ async function acceptAddModal() {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(dataset: { uuid: number; datasetname: string }) {
+function openDeleteModal(dataset: { uuid: string; datasetName: string }) {
     datasetToDelete.value = dataset;
     showDeleteModal.value = true;
     openDropdown.value = null;
@@ -336,14 +335,14 @@ onBeforeUnmount(() => {
 //=============================================================================
 // Tabs
 //=============================================================================
-const selectedTab = ref<'csv' | 'mnist'>('csv')
+const selectedTab = ref<"csv" | "mnist">("csv");
 
-function selectTab(tab: 'csv' | 'mnist') {
-  selectedTab.value = tab
+function selectTab(tab: "csv" | "mnist") {
+    selectedTab.value = tab;
 }
 
-function isSelected(tab: 'csv' | 'mnist') {
-  return selectedTab.value === tab
+function isSelected(tab: "csv" | "mnist") {
+    return selectedTab.value === tab;
 }
 //=============================================================================
 </script>

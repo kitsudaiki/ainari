@@ -131,7 +131,7 @@ function toggleDropdown(name: string) {
 
 function select(view: string, options: { closeDropdowns?: boolean } = {}) {
     activeLocal.value = view;
-    emit('change-view', view);
+    emit("change-view", view);
 
     // Always close all dropdowns first
     for (const k of Object.keys(openDropdowns)) {
