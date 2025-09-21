@@ -1,9 +1,0 @@
-[submodule "src/libKitsunemimiHanamiMessages"]
-	path = src/libKitsunemimiHanamiMessages
-	url = git@github.com:kitsudaiki/libKitsunemimiHanamiMessages.git
-[submodule "src/libHanamiAiSdk"]
-	path = src/libHanamiAiSdk
-	url = git@github.com:kitsudaiki/libHanamiAiSdk.git
-[submodule "src/Hanami-AI-Dashboard-Dependencies"]
-	path = src/Hanami-AI-Dashboard-Dependencies
-	url = git@github.com:kitsudaiki/Hanami-AI-Dashboard-Dependencies.git
