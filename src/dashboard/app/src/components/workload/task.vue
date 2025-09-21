@@ -17,35 +17,53 @@
 <template>
     <div class="overview">
         <div class="card">
-            <div class="card-label">Project</div>
+            <div class="card-label">Task</div>
             <div class="card-content">
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="projects.length > 0">
+                <table class="overview-table" v-if="tasks.length > 0">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>UUID</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>State</th>
+                            <th>Progress</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="project in projects" :key="project.id">
-                            <td>{{ project.id }}</td>
+                        <tr v-for="task in tasks" :key="task.uuid">
+                            <td>{{ task.uuid }}</td>
+                            <td>{{ task.name }}</td>
+                            <td>{{ task.task_type }}</td>
+                            <td>{{ task.state }}</td>
+                            <td>
+                                <ProgressBar
+                                    :value="
+                                        parseFloat(
+                                            (
+                                                (task.current_epoch /
+                                                    task.total_number_of_epochs) *
+                                                100
+                                            ).toFixed(1),
+                                        )
+                                    "
+                                ></ProgressBar>
+                            </td>
                             <td>
                                 <!-- Dropdown menu -->
                                 <div
                                     class="table-dropdown"
-                                    @click.stop="toggleDropdown(project.id)"
+                                    @click.stop="toggleDropdown(task.uuid)"
                                 >
                                     ⋮
                                     <div
-                                        v-if="openDropdown === project.id"
+                                        v-if="openDropdown === task.uuid"
                                         class="table-dropdown-menu"
                                     >
-                                        <button
-                                            @click="openDeleteModal(project)"
-                                        >
+                                        <button @click="openDeleteModal(task)">
                                             Delete
                                         </button>
                                     </div>
@@ -55,34 +73,37 @@
                     </tbody>
                 </table>
 
-                <p v-else>No projects found</p>
+                <p v-else>No tasks found</p>
             </div>
         </div>
 
-        <!-- Add Project Modal -->
+        <!-- Add Task Modal -->
         <div
             v-if="showAddModal"
             class="modal-overlay"
             @click.self="cancelAddModal"
         >
-            <div class="modal project-create-modal">
+            <div class="modal task-create-modal">
                 <!-- Modal topbar -->
                 <div class="modal-topbar">
-                    <span>Create project</span>
+                    <span>Create task</span>
                 </div>
                 <div class="modal-content">
                     <input
-                        v-model="newProject.projectId"
+                        v-model="newTask.taskName"
                         type="text"
-                        placeholder="Project-ID"
+                        placeholder="Task-Name"
                         required
                     />
-                    <input
-                        v-model="newProject.projectName"
-                        type="text"
-                        placeholder="Project-Name"
-                        required
-                    />
+                    <div>
+                        <label>Task template:</label>
+                        <textarea
+                            id="template_input"
+                            v-model="newTask.taskTemplate"
+                            type="text"
+                            required
+                        ></textarea>
+                    </div>
                 </div>
 
                 <div class="modal-bottombar">
@@ -104,13 +125,13 @@
             class="modal-overlay"
             @click.self="cancelDeleteModal"
         >
-            <div class="modal project-delete-modal">
+            <div class="modal task-delete-modal">
                 <div class="modal-topbar">
-                    <span>Delete project</span>
+                    <span>Delete task</span>
                 </div>
                 <div class="modal-content">
                     <p>Are you sure you want to delete?</p>
-                    <strong>Project: {{ projectToDelete?.id }}</strong>
+                    <strong>Task: {{ taskToDelete?.uuid }}</strong>
                 </div>
 
                 <div class="modal-bottombar">
@@ -131,36 +152,51 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import api from "../../api";
+import "primevue/resources/themes/saga-blue/theme.css"; // or any other theme
+import ProgressBar from "primevue/progressbar";
 
-const projects = ref<{ id: string; projectName: string; email: string }[]>([]);
+const props = defineProps<{
+    id: string | null;
+}>();
+
+const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const newProject = ref({
-    projectId: "",
-    projectName: "",
+const newTask = ref({
+    taskTemplate: "",
+    taskName: "",
 });
 const passwordError = ref("");
-const projectToDelete = ref<{ id: string; projectName: string } | null>(null);
+const taskToDelete = ref<{ uuid: string; taskName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchProjects() {
+// const logArrayElements = (element, index /*, array */) => {
+//   console.log(`a[${index}] = ${element.total_number_of_epochs}`);
+// };
+
+async function fetchTasks() {
+    console.log("cluster-uuid: ", props.id);
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.torii_api.get("/v1alpha/project", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        projects.value = response.data.projects;
+        const response = await api.hanami_api.get(
+            `/v1alpha/cluster/${props.id}/task`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            },
+        );
+        tasks.value = response.data.tasks;
+        // tasks.value.forEach(logArrayElements);
     } catch (err) {
-        console.error("Failed to load projects", err);
+        console.error("Failed to load tasks", err);
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(id: string) {
-    openDropdown.value = openDropdown.value === id ? null : id;
+function toggleDropdown(uuid: string) {
+    openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -177,74 +213,64 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add project modal
+// Add task modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
 }
 function cancelAddModal() {
     showAddModal.value = false;
-    newProject.value.projectId = "";
-    newProject.value.projectName = "";
-    newProject.value.password = "";
-    newProject.value.confirmPassword = "";
-    newProject.value.isAdmin = false;
-    passwordError.value = "";
+    newTask.value.taskTemplate = "";
+    newTask.value.taskName = "";
 }
 
 async function acceptAddModal() {
-    if (newProject.value.password !== newProject.value.confirmPassword) {
-        passwordError.value = "Passwords do not match!";
-        return;
-    }
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.post(
-            "/v1alpha/project",
+        await api.hanami_api.post(
+            "/v1alpha/task",
             {
-                id: newProject.value.projectId,
-                name: newProject.value.projectName,
-                passphrase: newProject.value.password,
-                is_admin: newProject.value.isAdmin,
+                name: newTask.value.taskName,
+                template: newTask.value.taskTemplate,
             },
             {
                 headers: { Authorization: `Bearer ${token}` },
             },
         );
-        await fetchProjects();
+        await fetchTasks();
         cancelAddModal();
     } catch (err) {
         passwordError.value = err;
-        console.error("Failed to create project", err);
+        console.error("Failed to create task", err);
     }
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(project: { id: string; projectName: string }) {
-    projectToDelete.value = project;
+function openDeleteModal(task: { uuid: string; taskName: string }) {
+    taskToDelete.value = task;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    projectToDelete.value = null;
+    taskToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    if (!projectToDelete.value) return;
+    if (!taskToDelete.value) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.delete(
-            `/v1alpha/project/${projectToDelete.value.id}`,
+        await api.hanami_api.delete(
+            `/v1alpha/task/${taskToDelete.value.uuid}`,
             {
                 headers: { Authorization: `Bearer ${token}` },
             },
         );
-        await fetchProjects();
+        await fetchTasks();
     } catch (err) {
-        console.error("Failed to delete project", err);
+        console.error("Failed to delete task", err);
     } finally {
         cancelDeleteModal();
     }
@@ -253,7 +279,7 @@ async function acceptDeleteModal() {
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchProjects);
+onMounted(fetchTasks);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -265,13 +291,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.project-create-modal {
-    height: 18rem;
+.task-create-modal {
+    height: 35rem;
+    width: 30rem;
+}
+
+.task-delete-modal {
+    height: 16rem;
     width: 20rem;
 }
 
-.project-delete-modal {
-    height: 16rem;
-    width: 20rem;
+.overview-table td:nth-child(3) {
+    width: 10rem;
+}
+
+.overview-table td:nth-child(4) {
+    width: 10rem;
+}
+
+.overview-table td:nth-child(2) {
+    width: 15rem;
 }
 </style>

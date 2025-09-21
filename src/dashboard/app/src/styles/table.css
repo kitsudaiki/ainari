@@ -53,4 +53,5 @@ table tr td {
 .overview-table th:last-child,
 .overview-table td:last-child {
     text-align: right;
+    width: 5rem;
 }

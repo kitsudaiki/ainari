@@ -22,7 +22,7 @@
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="datasets.length > 0">
+                <table class="overview-table" v-if="datasets.length > 0">
                     <thead>
                         <tr>
                             <th>UUID</th>
@@ -314,6 +314,7 @@ async function acceptDeleteModal() {
             },
         );
         await fetchDatasets();
+        cancelDeleteModal();
     } catch (err) {
         console.error("Failed to delete dataset", err);
     }

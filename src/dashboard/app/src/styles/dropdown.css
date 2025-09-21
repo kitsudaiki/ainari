@@ -45,7 +45,7 @@ limitations under the License.
     padding-right: 0.5rem;
     box-shadow: var(--box-shadow-header);
     z-index: 10;
-    min-width: 80px;
+    min-width: 10rem;
 }
 
 .table-dropdown-menu button {

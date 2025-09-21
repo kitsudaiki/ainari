@@ -22,7 +22,7 @@
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="clusters.length > 0">
+                <table class="overview-table" v-if="clusters.length > 0">
                     <thead>
                         <tr>
                             <th>UUID</th>
@@ -45,6 +45,11 @@
                                         v-if="openDropdown === cluster.uuid"
                                         class="table-dropdown-menu"
                                     >
+                                        <button
+                                            @click="switchToTasks(cluster.uuid)"
+                                        >
+                                            Show tasks
+                                        </button>
                                         <button
                                             @click="openDeleteModal(cluster)"
                                         >
@@ -148,6 +153,16 @@ const newCluster = ref({
 const passwordError = ref("");
 const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
+
+const emit = defineEmits<{
+    (e: "change-view", view: string, id: string): void;
+}>();
+
+function switchToTasks(cluster_uuid: string) {
+    const view: string = "WorkloadTask";
+    const id: string = cluster_uuid;
+    emit("change-view", { view, id });
+}
 
 async function fetchClusters() {
     try {

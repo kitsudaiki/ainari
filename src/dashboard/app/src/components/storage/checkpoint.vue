@@ -22,7 +22,7 @@
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table v-if="checkpoints.length > 0">
+                <table class="overview-table" v-if="checkpoints.length > 0">
                     <thead>
                         <tr>
                             <th>ID</th>

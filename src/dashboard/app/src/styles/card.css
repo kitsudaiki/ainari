@@ -18,7 +18,7 @@ limitations under the License.
 .card {
     position: relative;
     box-shadow: var(--box-shadow-header);
-    padding: 1rem;
+    padding: 1.3rem;
     background: var(--color-tile);
     max-height: calc(
         100vh - 2rem
@@ -31,10 +31,10 @@ limitations under the License.
     position: absolute;
     top: -0.9rem;
     left: 1rem;
-    background-color: var(--color-highlight);
+    background-color: var(--color-text);
     color: invert(var(--color-text));
-    font-size: 0.9rem;
-    padding: 0.3rem 1rem;
+    font-size: 1rem;
+    padding: 0.3rem 3rem;
     box-shadow: var(--box-shadow-header);
 }
 

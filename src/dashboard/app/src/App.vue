@@ -27,9 +27,27 @@
         <template v-else>
             <Topbar :username="username" @logout="handleLogout" />
             <div class="main">
-                <Sidebar @change-view="currentView = $event" />
+                <Sidebar
+                    @change-view="
+                        ({ view, id }) => {
+                            currentView = view;
+                            currentId = id;
+                        }
+                    "
+                />
                 <div class="content">
-                    <component :is="components[currentView]" />
+                    <!-- @change-view="currentView = $event" right here provides each loaded 
+                     component the ability to change the component, like the sidebar does -->
+                    <component
+                        :is="components[currentView]"
+                        :id="currentId"
+                        @change-view="
+                            ({ view, id }) => {
+                                currentView = view;
+                                currentId = id ?? null;
+                            }
+                        "
+                    />
                 </div>
             </div>
         </template>
@@ -47,6 +65,7 @@ import AdminProject from "./components/admin/project.vue";
 import StorageCheckpoint from "./components/storage/checkpoint.vue";
 import StorageDataset from "./components/storage/dataset.vue";
 import WorkloadCluster from "./components/workload/cluster.vue";
+import WorkloadTask from "./components/workload/task.vue";
 
 import "./styles/base.css";
 import "./styles/other.css";
@@ -56,8 +75,11 @@ import "./styles/dropdown.css";
 import "./styles/button.css";
 import "./styles/table.css";
 import "./styles/tab.css";
+import "./styles/primevue_overrides.css";
 
 const currentView = ref("Overview");
+const currentId = ref<string | null>(null);
+
 const token = ref<string | null>(localStorage.getItem("jwtToken"));
 const username = ref<string | null>(localStorage.getItem("username")); // store username
 const components = {
@@ -67,6 +89,7 @@ const components = {
     StorageCheckpoint,
     StorageDataset,
     WorkloadCluster,
+    WorkloadTask,
 };
 const acceptIcon = new URL("./assets/accept.svg", import.meta.url).href;
 const cancelIcon = new URL("./assets/close.svg", import.meta.url).href;
@@ -88,7 +111,7 @@ function handleLogout() {
 }
 </script>
 
-<style>
+<style scoped>
 .app {
     display: flex;
     flex-direction: column;

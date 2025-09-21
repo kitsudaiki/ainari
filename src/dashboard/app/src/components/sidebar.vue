@@ -75,7 +75,9 @@ type MenuItem = { view: string; label: string };
 type Menu = { name: string; label: string; items?: MenuItem[] };
 
 const props = defineProps<{ activeView?: string }>();
-const emit = defineEmits<{ (e: "change-view", view: string): void }>();
+const emit = defineEmits<{
+    (e: "change-view", view: string, id: string): void;
+}>();
 
 // <-- Edit this to add/remove items or dropdowns -->
 const menus = ref<Menu[]>([
@@ -106,16 +108,6 @@ const menus = ref<Menu[]>([
 // pick first entry if no activeView is provided
 const firstEntry = menus.value[0]?.name ?? "";
 const activeLocal = ref(props.activeView ?? firstEntry);
-
-// keep in sync with prop updates
-watch(
-    () => props.activeView,
-    (v) => {
-        if (v) activeLocal.value = v;
-    },
-);
-
-/* --- dropdown state handling unchanged --- */
 const openDropdowns = reactive<Record<string, boolean>>({});
 const dropdownRefs = ref<Record<string, HTMLElement | null>>({});
 const dropdownHeights = reactive<Record<string, string>>({});
@@ -131,7 +123,8 @@ function toggleDropdown(name: string) {
 
 function select(view: string, options: { closeDropdowns?: boolean } = {}) {
     activeLocal.value = view;
-    emit("change-view", view);
+    const id: string = "";
+    emit("change-view", { view, id });
 
     // Always close all dropdowns first
     for (const k of Object.keys(openDropdowns)) {
@@ -188,6 +181,12 @@ onMounted(() => {
     }
 });
 
+onMounted(() => {
+    const view: string = "Overview";
+    const id: string = "";
+    emit("change-view", { view, id });
+})
+
 watch(activeLocal, () => {
     for (const menu of menus.value) {
         if (
@@ -199,6 +198,14 @@ watch(activeLocal, () => {
     }
     updateHeights();
 });
+
+// keep in sync with prop updates
+watch(
+    () => props.activeView,
+    (v) => {
+        if (v) activeLocal.value = v;
+    },
+);
 </script>
 
 <style scoped>

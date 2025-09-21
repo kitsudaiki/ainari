@@ -91,6 +91,8 @@ pub async fn list_task(
             name: task.name.clone(),
             task_type,
             state: task_state,
+            total_number_of_epochs: task.total_number_of_epochs,
+            current_epoch: task.current_epoch,
         };
 
         resp.tasks.push(obj);
