@@ -17,39 +17,36 @@
 <template>
     <div class="overview">
         <div class="card">
-            <div class="card-label">Checkpoint</div>
+            <div class="card-label">Dataset</div>
             <div class="card-content">
                 <!-- Add button -->
                 <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="checkpoints.length > 0">
+                <table class="overview-table" v-if="datasets.length > 0">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>UUID</th>
+                            <th>Name</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr
-                            v-for="checkpoint in checkpoints"
-                            :key="checkpoint.uuid"
-                        >
-                            <td>{{ checkpoint.uuid }}</td>
+                        <tr v-for="dataset in datasets" :key="dataset.uuid">
+                            <td>{{ dataset.uuid }}</td>
+                            <td>{{ dataset.name }}</td>
                             <td>
                                 <!-- Dropdown menu -->
                                 <div
                                     class="table-dropdown"
-                                    @click.stop="
-                                        toggleDropdown(checkpoint.uuid)
-                                    "
+                                    @click.stop="toggleDropdown(dataset.uuid)"
                                 >
                                     ⋮
                                     <div
-                                        v-if="openDropdown === checkpoint.uuid"
+                                        v-if="openDropdown === dataset.uuid"
                                         class="table-dropdown-menu"
                                     >
                                         <button
-                                            @click="openDeleteModal(checkpoint)"
+                                            @click="openDeleteModal(dataset)"
                                         >
                                             Delete
                                         </button>
@@ -60,61 +57,55 @@
                     </tbody>
                 </table>
 
-                <p v-else>No checkpoints found</p>
+                <p v-else>No datasets found</p>
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
-        <div
+        <DatasetCreateModal
+            v-if="showAddModal"
+            :icons="icons"
+            @accept="acceptAddModal"
+            @cancel="cancelAddModal"
+        />
+
+        <DatasetDeleteModal
             v-if="showDeleteModal"
-            class="modal-overlay"
-            @click.self="cancelDeleteModal"
-        >
-            <div class="modal checkpoint-delete-modal">
-                <div class="modal-topbar">
-                    <span>Delete checkpoint</span>
-                </div>
-                <div class="modal-content">
-                    <p>Are you sure you want to delete?</p>
-                    <strong>Checkpoint: {{ checkpointToDelete?.uuid }}</strong>
-                </div>
-
-                <div class="modal-bottombar">
-                    <div class="modal-actions">
-                        <button class="icon-button" @click="acceptDeleteModal">
-                            <img :src="icons.acceptIcon" alt="Accept" />
-                        </button>
-                        <button class="icon-button" @click="cancelDeleteModal">
-                            <img :src="icons.cancelIcon" alt="Cancel" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            :dataset="datasetToDelete"
+            :icons="icons"
+            @accept="acceptDeleteModal"
+            @cancel="cancelDeleteModal"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../api";
+import api from "../../../api";
 
-const checkpoints = ref<{ uuid: string; checkpointName: string }[]>([]);
+import DatasetCreateModal from "./dataset_create_modal.vue";
+import DatasetDeleteModal from "./dataset_delete_modal.vue";
+
+const datasets = ref<{ uuid: string; datasetName: string; email: string }[]>(
+    [],
+);
+const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const checkpointToDelete = ref<{ uuid: string; checkpointName: string } | null>(
-    null,
-);
+
+
+const passwordError = ref("");
+const datasetToDelete = ref<{ uuid: string; datasetName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchCheckpoints() {
+async function fetchDatasets() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/checkpoint", {
+        const response = await api.hanami_api.get("/v1alpha/dataset", {
             headers: { Authorization: `Bearer ${token}` },
         });
-        checkpoints.value = response.data.checkpoints;
+        datasets.value = response.data.datasets;
     } catch (err) {
-        console.error("Failed to load checkpoints", err);
+        console.error("Failed to load datasets", err);
     }
 }
 
@@ -138,41 +129,44 @@ function handleClickOutside(event: MouseEvent) {
     }
 }
 
+
+//=============================================================================
+// Add dataset modal
+//=============================================================================
+function openAddModal() {
+    showAddModal.value = true;
+}
+function cancelAddModal() {
+    showAddModal.value = false;
+}
+
+async function acceptAddModal() {
+    await fetchDatasets();
+    cancelAddModal();
+}
+
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(checkpoint: { uuid: string; checkpointName: string }) {
-    checkpointToDelete.value = checkpoint;
+function openDeleteModal(dataset: { id: string; datasetName: string }) {
+    datasetToDelete.value = dataset;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    checkpointToDelete.value = null;
+    datasetToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    if (!checkpointToDelete.value) return;
-    try {
-        const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.delete(
-            `/v1alpha/checkpoint/${checkpointToDelete.value.uuid}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchCheckpoints();
-    } catch (err) {
-        console.error("Failed to delete checkpoint", err);
-    } finally {
-        cancelDeleteModal();
-    }
+    await fetchDatasets();
+    cancelDeleteModal();
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchCheckpoints);
+onMounted(fetchDatasets);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -181,16 +175,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
+
+//=============================================================================
 </script>
-
-<style scoped>
-.checkpoint-create-modal {
-    height: 18rem;
-    width: 20rem;
-}
-
-.checkpoint-delete-modal {
-    height: 16rem;
-    width: 20rem;
-}
-</style>

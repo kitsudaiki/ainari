@@ -66,90 +66,34 @@
             </div>
         </div>
 
-        <!-- Add Cluster Modal -->
-        <div
+        <ClusterCreateModal
             v-if="showAddModal"
-            class="modal-overlay"
-            @click.self="cancelAddModal"
-        >
-            <div class="modal cluster-create-modal">
-                <!-- Modal topbar -->
-                <div class="modal-topbar">
-                    <span>Create cluster</span>
-                </div>
-                <div class="modal-content">
-                    <input
-                        v-model="newCluster.clusterName"
-                        type="text"
-                        placeholder="Cluster-Name"
-                        required
-                    />
-                    <div>
-                        <label>Cluster template:</label>
-                        <textarea
-                            id="template_input"
-                            v-model="newCluster.clusterTemplate"
-                            type="text"
-                            required
-                        ></textarea>
-                    </div>
-                </div>
+            :icons="icons"
+            @accept="acceptAddModal"
+            @cancel="cancelAddModal"
+        />
 
-                <div class="modal-bottombar">
-                    <div class="modal-actions">
-                        <button class="icon-button" @click="acceptAddModal">
-                            <img :src="icons.acceptIcon" alt="Accept" />
-                        </button>
-                        <button class="icon-button" @click="cancelAddModal">
-                            <img :src="icons.cancelIcon" alt="Cancel" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Delete Confirmation Modal -->
-        <div
+        <ClusterDeleteModal
             v-if="showDeleteModal"
-            class="modal-overlay"
-            @click.self="cancelDeleteModal"
-        >
-            <div class="modal cluster-delete-modal">
-                <div class="modal-topbar">
-                    <span>Delete cluster</span>
-                </div>
-                <div class="modal-content">
-                    <p>Are you sure you want to delete?</p>
-                    <strong>Cluster: {{ clusterToDelete?.uuid }}</strong>
-                </div>
-
-                <div class="modal-bottombar">
-                    <div class="modal-actions">
-                        <button class="icon-button" @click="acceptDeleteModal">
-                            <img :src="icons.acceptIcon" alt="Accept" />
-                        </button>
-                        <button class="icon-button" @click="cancelDeleteModal">
-                            <img :src="icons.cancelIcon" alt="Cancel" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            :cluster="clusterToDelete"
+            :icons="icons"
+            @accept="acceptDeleteModal"
+            @cancel="cancelDeleteModal"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../api";
+import api from "../../../api";
+
+import ClusterCreateModal from "./cluster_create_modal.vue";
+import ClusterDeleteModal from "./cluster_delete_modal.vue";
 
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const newCluster = ref({
-    clusterTemplate: "",
-    clusterName: "",
-});
 const passwordError = ref("");
 const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
@@ -204,29 +148,11 @@ function openAddModal() {
 }
 function cancelAddModal() {
     showAddModal.value = false;
-    newCluster.value.clusterTemplate = "";
-    newCluster.value.clusterName = "";
 }
 
 async function acceptAddModal() {
-    try {
-        const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
-            "/v1alpha/cluster",
-            {
-                name: newCluster.value.clusterName,
-                template: newCluster.value.clusterTemplate,
-            },
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchClusters();
-        cancelAddModal();
-    } catch (err) {
-        passwordError.value = err;
-        console.error("Failed to create cluster", err);
-    }
+    await fetchClusters();
+    cancelAddModal();
 }
 
 //=============================================================================
@@ -242,22 +168,10 @@ function cancelDeleteModal() {
     clusterToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
+
 async function acceptDeleteModal() {
-    if (!clusterToDelete.value) return;
-    try {
-        const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.delete(
-            `/v1alpha/cluster/${clusterToDelete.value.uuid}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchClusters();
-    } catch (err) {
-        console.error("Failed to delete cluster", err);
-    } finally {
-        cancelDeleteModal();
-    }
+    await fetchClusters();
+    cancelDeleteModal();
 }
 
 //=============================================================================
@@ -273,19 +187,3 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
-
-<style scoped>
-.cluster-create-modal {
-    height: 35rem;
-    width: 30rem;
-}
-
-#template_input {
-    height: 18rem;
-}
-
-.cluster-delete-modal {
-    height: 16rem;
-    width: 20rem;
-}
-</style>

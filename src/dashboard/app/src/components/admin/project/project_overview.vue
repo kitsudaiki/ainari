@@ -59,88 +59,34 @@
             </div>
         </div>
 
-        <!-- Add Project Modal -->
-        <div
+        <ProjectCreateModal
             v-if="showAddModal"
-            class="modal-overlay"
-            @click.self="cancelAddModal"
-        >
-            <div class="modal project-create-modal">
-                <!-- Modal topbar -->
-                <div class="modal-topbar">
-                    <span>Create project</span>
-                </div>
-                <div class="modal-content">
-                    <input
-                        v-model="newProject.projectId"
-                        type="text"
-                        placeholder="Project-ID"
-                        required
-                    />
-                    <input
-                        v-model="newProject.projectName"
-                        type="text"
-                        placeholder="Project-Name"
-                        required
-                    />
-                </div>
+            :icons="icons"
+            @accept="acceptAddModal"
+            @cancel="cancelAddModal"
+        />
 
-                <div class="modal-bottombar">
-                    <div class="modal-actions">
-                        <button class="icon-button" @click="acceptAddModal">
-                            <img :src="icons.acceptIcon" alt="Accept" />
-                        </button>
-                        <button class="icon-button" @click="cancelAddModal">
-                            <img :src="icons.cancelIcon" alt="Cancel" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Delete Confirmation Modal -->
-        <div
+        <ProjectDeleteModal
             v-if="showDeleteModal"
-            class="modal-overlay"
-            @click.self="cancelDeleteModal"
-        >
-            <div class="modal project-delete-modal">
-                <div class="modal-topbar">
-                    <span>Delete project</span>
-                </div>
-                <div class="modal-content">
-                    <p>Are you sure you want to delete?</p>
-                    <strong>Project: {{ projectToDelete?.id }}</strong>
-                </div>
-
-                <div class="modal-bottombar">
-                    <div class="modal-actions">
-                        <button class="icon-button" @click="acceptDeleteModal">
-                            <img :src="icons.acceptIcon" alt="Accept" />
-                        </button>
-                        <button class="icon-button" @click="cancelDeleteModal">
-                            <img :src="icons.cancelIcon" alt="Cancel" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+            :project="projectToDelete"
+            :icons="icons"
+            @accept="acceptDeleteModal"
+            @cancel="cancelDeleteModal"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../api";
+import api from "../../../api";
 
-const projects = ref<{ id: string; projectName: string; email: string }[]>([]);
+import ProjectCreateModal from "./project_create_modal.vue";
+import ProjectDeleteModal from "./project_delete_modal.vue";
+
+const projects = ref<{ id: string; projectName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const newProject = ref({
-    projectId: "",
-    projectName: "",
-});
-const passwordError = ref("");
 const projectToDelete = ref<{ id: string; projectName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
@@ -182,41 +128,14 @@ function handleClickOutside(event: MouseEvent) {
 function openAddModal() {
     showAddModal.value = true;
 }
+
 function cancelAddModal() {
     showAddModal.value = false;
-    newProject.value.projectId = "";
-    newProject.value.projectName = "";
-    newProject.value.password = "";
-    newProject.value.confirmPassword = "";
-    newProject.value.isAdmin = false;
-    passwordError.value = "";
 }
 
 async function acceptAddModal() {
-    if (newProject.value.password !== newProject.value.confirmPassword) {
-        passwordError.value = "Passwords do not match!";
-        return;
-    }
-    try {
-        const token = localStorage.getItem("jwtToken");
-        await api.torii_api.post(
-            "/v1alpha/project",
-            {
-                id: newProject.value.projectId,
-                name: newProject.value.projectName,
-                passphrase: newProject.value.password,
-                is_admin: newProject.value.isAdmin,
-            },
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchProjects();
-        cancelAddModal();
-    } catch (err) {
-        passwordError.value = err;
-        console.error("Failed to create project", err);
-    }
+    await fetchProjects();
+    cancelAddModal();
 }
 
 //=============================================================================
@@ -227,27 +146,16 @@ function openDeleteModal(project: { id: string; projectName: string }) {
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
+
 function cancelDeleteModal() {
     showDeleteModal.value = false;
     projectToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
+
 async function acceptDeleteModal() {
-    if (!projectToDelete.value) return;
-    try {
-        const token = localStorage.getItem("jwtToken");
-        await api.torii_api.delete(
-            `/v1alpha/project/${projectToDelete.value.id}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        await fetchProjects();
-    } catch (err) {
-        console.error("Failed to delete project", err);
-    } finally {
-        cancelDeleteModal();
-    }
+    await fetchProjects();
+    cancelDeleteModal();
 }
 
 //=============================================================================
@@ -263,15 +171,3 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
-
-<style scoped>
-.project-create-modal {
-    height: 18rem;
-    width: 20rem;
-}
-
-.project-delete-modal {
-    height: 16rem;
-    width: 20rem;
-}
-</style>

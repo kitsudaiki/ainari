@@ -185,7 +185,7 @@ onMounted(() => {
     const view: string = "Overview";
     const id: string = "";
     emit("change-view", { view, id });
-})
+});
 
 watch(activeLocal, () => {
     for (const menu of menus.value) {

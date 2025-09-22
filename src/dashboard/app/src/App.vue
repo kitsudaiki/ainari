@@ -60,12 +60,12 @@ import Sidebar from "./components/sidebar.vue";
 import Topbar from "./components/topbar.vue";
 import Login from "./components/login.vue";
 import Overview from "./components/overview.vue";
-import AdminUser from "./components/admin/user.vue";
-import AdminProject from "./components/admin/project.vue";
-import StorageCheckpoint from "./components/storage/checkpoint.vue";
-import StorageDataset from "./components/storage/dataset.vue";
-import WorkloadCluster from "./components/workload/cluster.vue";
-import WorkloadTask from "./components/workload/task.vue";
+import AdminUser from "./components/admin/user/user_overview.vue";
+import AdminProject from "./components/admin/project/project_overview.vue";
+import StorageCheckpoint from "./components/storage/checkpoint/checkpoint_overview.vue";
+import StorageDataset from "./components/storage/dataset/dataset_overview.vue";
+import WorkloadCluster from "./components/workload/cluster/cluster_overview.vue";
+import WorkloadTask from "./components/workload/task/task_overview.vue";
 
 import "./styles/base.css";
 import "./styles/other.css";
