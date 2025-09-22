@@ -6,7 +6,7 @@ replace github.com/kitsudaiki/ainari => ../../sdk/go/ainari_sdk
 
 require (
 	github.com/kitsudaiki/ainari v0.3.1-0.20230916184520-abb03e487e58
-	github.com/olekukonko/tablewriter v1.0.9
+	github.com/olekukonko/tablewriter v1.1.0
 	github.com/spf13/cobra v1.10.1
 	golang.org/x/term v0.35.0
 )
