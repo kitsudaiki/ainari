@@ -63,3 +63,41 @@ limitations under the License.
     background: var(--color-tile);
     color: var(--color-text);
 }
+
+.select-dropdown {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    box-shadow: var(--box-shadow);
+    background: var(--color-tile);
+    padding: 0.4rem 2rem 0.4rem 0.6rem; /* add space for arrow */
+    appearance: none; /* remove default arrow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 1rem;
+}
+
+.select-dropdown :hover {
+    background: var(--color-hover, #eee);
+}
+
+.select-dropdown :focus {
+    outline: none;
+    border-color: var(--color-higlight-field);
+    box-shadow: var(--box-shadow);
+}
+
+.select-dropdown option {
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+
+.select-dropdown option:hover {
+    background: var(--color-tile);
+}

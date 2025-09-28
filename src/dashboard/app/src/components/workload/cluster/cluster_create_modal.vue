@@ -106,5 +106,4 @@ function cancel() {
 #template_input {
     height: 18rem;
 }
-
 </style>

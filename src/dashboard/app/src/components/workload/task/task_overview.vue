@@ -20,7 +20,7 @@
             <div class="card-label">Task</div>
             <div class="card-content">
                 <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+                <button class="add-button" @click="openAddModal(props.id)">+</button>
 
                 <table class="overview-table" v-if="tasks.length > 0">
                     <thead>
@@ -76,14 +76,24 @@
                 <p v-else>No tasks found</p>
             </div>
         </div>
+
+        <TaskCreateModal
+            v-if="showAddModal"
+            :cluster_uuid="props.id"
+            :icons="icons"
+            @accept="acceptAddModal"
+            @cancel="cancelAddModal"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import api from "../../../api";
-import "primevue/resources/themes/saga-blue/theme.css"; // or any other theme
+import "primevue/resources/themes/saga-blue/theme.css";
+
 import ProgressBar from "primevue/progressbar";
+import TaskCreateModal from "./task_create_modal.vue";
 
 const props = defineProps<{
     id: string | null;
@@ -91,10 +101,8 @@ const props = defineProps<{
 
 const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
-const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const passwordError = ref("");
-const taskToDelete = ref<{ uuid: string; taskName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 // const logArrayElements = (element, index /*, array */) => {
@@ -102,7 +110,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 // };
 
 async function fetchTasks() {
-    console.log("cluster-uuid: ", props.id);
+    console.log("task-uuid: ", props.id);
     try {
         const token = localStorage.getItem("jwtToken");
         const response = await api.hanami_api.get(
@@ -136,6 +144,21 @@ function handleClickOutside(event: MouseEvent) {
     if (!clickedInside) {
         openDropdown.value = null; // close the dropdown
     }
+}
+
+//=============================================================================
+// Add task modal
+//=============================================================================
+function openAddModal(cluster_uuid: string) {
+    showAddModal.value = true;
+}
+function cancelAddModal() {
+    showAddModal.value = false;
+}
+
+async function acceptAddModal() {
+    await fetchTasks();
+    cancelAddModal();
 }
 
 //=============================================================================

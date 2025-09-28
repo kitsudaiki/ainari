@@ -92,7 +92,6 @@ const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 
-
 const passwordError = ref("");
 const datasetToDelete = ref<{ uuid: string; datasetName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
@@ -128,7 +127,6 @@ function handleClickOutside(event: MouseEvent) {
         openDropdown.value = null; // close the dropdown
     }
 }
-
 
 //=============================================================================
 // Add dataset modal

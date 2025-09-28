@@ -187,5 +187,4 @@ function isSelected(tab: "csv" | "mnist") {
     margin-top: 0.5rem;
     height: 7rem;
 }
-
 </style>

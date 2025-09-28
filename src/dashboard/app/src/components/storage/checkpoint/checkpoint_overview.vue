@@ -22,7 +22,8 @@
                 <table class="overview-table" v-if="checkpoints.length > 0">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>UUID</th>
+                            <th>Name</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -32,6 +33,7 @@
                             :key="checkpoint.uuid"
                         >
                             <td>{{ checkpoint.uuid }}</td>
+                            <td>{{ checkpoint.name }}</td>
                             <td>
                                 <!-- Dropdown menu -->
                                 <div
