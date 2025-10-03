@@ -20,7 +20,7 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, options, post, put, resource, scope};
+use apistos::web::{Scope, delete, get, post, put, resource, scope};
 use std::error::Error;
 
 use ainari_api::auth_middleware::*;
@@ -42,36 +42,23 @@ fn v1alpha_routes() -> Scope {
             scope("/dataset")
                 .service(
                     resource("/{dataset_uuid}")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(get().to(get_dataset_v1_0::get_dataset))
                         .route(delete().to(delete_dataset_v1_0::delete_dataset)),
                 )
                 .service(
                     resource("/{dataset_uuid}/check")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(put().to(check_dataset_v1_0::check_dataset)),
                 )
+                .service(resource("").route(get().to(list_dataset_v1_0::list_dataset)))
                 .service(
-                    resource("")
-                        .route(options().to(options_check_v1_0::options_check))
-                        .route(get().to(list_dataset_v1_0::list_dataset)),
-                )
-                .service(
-                    resource("/{type}/{name}")
-                        .route(options().to(options_check_v1_0::options_check))
-                        .route(post().to(create_dataset_v1_0::upload_binary)),
+                    resource("/{type}/{name}").route(post().to(create_dataset_v1_0::upload_binary)),
                 ),
         )
         .service(
             scope("/checkpoint")
-                .service(
-                    resource("")
-                        .route(options().to(options_check_v1_0::options_check))
-                        .route(get().to(list_checkpoint_v1_0::list_checkpoint)),
-                )
+                .service(resource("").route(get().to(list_checkpoint_v1_0::list_checkpoint)))
                 .service(
                     resource("/{checkpoint_uuid}")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(get().to(get_checkpoint_v1_0::get_checkpoint))
                         .route(delete().to(delete_checkpoint_v1_0::delete_checkpoint)),
                 ),
@@ -80,66 +67,44 @@ fn v1alpha_routes() -> Scope {
             scope("/cluster")
                 .service(
                     resource("")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(post().to(create_cluster_v1_0::create_cluster))
                         .route(get().to(list_cluster_v1_0::list_cluster)),
                 )
                 .service(
                     resource("/{cluster_uuid}")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(get().to(get_cluster_v1_0::get_cluster))
                         .route(delete().to(delete_cluster_v1_0::delete_cluster)),
                 )
                 .service(
                     resource("/{cluster_uuid}/request")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(put().to(request_cluster_v1_0::request_cluster)),
                 )
                 .service(
                     resource("/{cluster_uuid}/train")
-                        .route(options().to(options_check_v1_0::options_check))
                         .route(put().to(train_cluster_v1_0::train_cluster)),
                 )
                 .service(
                     scope("/{cluster_uuid}/task")
                         .service(
                             resource("/train")
-                                .route(options().to(options_check_v1_0::options_check))
                                 .route(post().to(create_train_task_v1_0::create_train_task)),
                         )
                         .service(
                             resource("/request")
-                                .route(options().to(options_check_v1_0::options_check))
                                 .route(post().to(create_request_task_v1_0::create_request_task)),
                         )
                         .service(
                             resource("/checkpoint_save")
-                                .route(options().to(options_check_v1_0::options_check))
                                 .route(post().to(checkpoint_save_task_v1_0::checkpoint_save_task)),
                         )
+                        .service(resource("/checkpoint_restore").route(
+                            post().to(checkpoint_restore_task_v1_0::checkpoint_restore_task),
+                        ))
+                        .service(resource("/{task_uuid}").route(get().to(get_task_v1_0::get_task)))
                         .service(
-                            resource("/checkpoint_restore")
-                                .route(options().to(options_check_v1_0::options_check))
-                                .route(
-                                    post()
-                                        .to(checkpoint_restore_task_v1_0::checkpoint_restore_task),
-                                ),
+                            resource("/{task_uuid}/abort").route(put().to(get_task_v1_0::get_task)),
                         )
-                        .service(
-                            resource("/{task_uuid}")
-                                .route(options().to(options_check_v1_0::options_check))
-                                .route(get().to(get_task_v1_0::get_task)),
-                        )
-                        .service(
-                            resource("/{task_uuid}/abort")
-                                .route(options().to(options_check_v1_0::options_check))
-                                .route(put().to(get_task_v1_0::get_task)),
-                        )
-                        .service(
-                            resource("")
-                                .route(options().to(options_check_v1_0::options_check))
-                                .route(get().to(list_task_v1_0::list_task)),
-                        ),
+                        .service(resource("").route(get().to(list_task_v1_0::list_task))),
                 ),
         )
 }

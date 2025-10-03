@@ -13,4 +13,3 @@
 // limitations under the License.
 
 pub mod get_version_v1_0;
-pub mod options_check_v1_0;
