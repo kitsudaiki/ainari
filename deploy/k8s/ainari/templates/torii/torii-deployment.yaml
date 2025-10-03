@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: torii
+  name: miko
   labels:
-    app: torii
+    app: miko
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: torii
+      app: miko
   template:
     metadata:
       labels:
-        app: torii
+        app: miko
     spec:
       containers:
-      - name: torii
-        image: {{ .Values.docker.registry }}/torii:{{ .Values.docker.tag }}
+      - name: miko
+        image: {{ .Values.docker.registry }}/miko:{{ .Values.docker.tag }}
         imagePullPolicy: Always
         env:
         - name: HANAMI_ADMIN_ID
@@ -30,9 +30,9 @@ spec:
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/data/
-        - name: torii-config
-          mountPath: /etc/ainari/torii.toml
-          subPath: torii.toml
+        - name: miko-config
+          mountPath: /etc/ainari/miko.toml
+          subPath: miko.toml
           readOnly: true
         - name: token-key
           mountPath: /etc/ainari/token_key
@@ -44,7 +44,7 @@ spec:
         volumeMounts:
         - name: tls-certs
           mountPath: /etc/nginx/certs
-        - name: torii-nginx-config
+        - name: miko-nginx-config
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         resources:
@@ -53,18 +53,18 @@ spec:
             cpu: "500m"
 
       volumes:
-        - name: torii-config
+        - name: miko-config
           configMap:
-            name: torii-config
+            name: miko-config
         - name: token-key
           secret:
             secretName: token-key
         - name: data-volume
           persistentVolumeClaim:
-            claimName: torii-pvc
+            claimName: miko-pvc
         - name: tls-certs
           secret:
-            secretName: torii-selfsigned-secret
-        - name: torii-nginx-config
+            secretName: miko-selfsigned-secret
+        - name: miko-nginx-config
           configMap:
-            name: torii-nginx-config
+            name: miko-nginx-config

@@ -108,7 +108,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 async function fetchUsers() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.torii_api.get("/v1alpha/user", {
+        const response = await api.miko_api.get("/v1alpha/user", {
             headers: { Authorization: `Bearer ${token}` },
         });
         users.value = response.data.users;

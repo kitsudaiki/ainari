@@ -144,7 +144,7 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
-            .app_data(web::Data::new(config::CONFIG.torii.clone())) // to provide the address of the torii to the middleware
+            .app_data(web::Data::new(config::CONFIG.miko.clone())) // to provide the address of the miko to the middleware
             .wrap(from_fn(authorization_middleware))
             .wrap(from_fn(cors_middleware))
             .wrap(Logger::default())

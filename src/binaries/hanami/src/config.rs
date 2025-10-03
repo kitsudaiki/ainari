@@ -28,7 +28,7 @@ pub struct Config {
     pub processing: Processing,
     pub api: Api,
     pub database: Database,
-    pub torii: ainari_config::Torii,
+    pub miko: ainari_config::Miko,
 }
 
 #[derive(Debug, Deserialize)]

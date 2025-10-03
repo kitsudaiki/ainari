@@ -18,7 +18,7 @@ COPY . .
 RUN rustup install stable --no-self-update
 RUN cargo build --release
 RUN cp target/release/hanami /app/
-RUN cp target/release/torii /app/
+RUN cp target/release/miko /app/
 
 # ---------------------------------------------------
 
@@ -37,7 +37,7 @@ CMD [ "hanami" ]
 
 # ---------------------------------------------------
 
-FROM ubuntu:24.04 AS torii
+FROM ubuntu:24.04 AS miko
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -46,6 +46,6 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# torii
-COPY --from=builder /app/torii /usr/bin/torii
-CMD [ "torii" ]
+# miko
+COPY --from=builder /app/miko /usr/bin/miko
+CMD [ "miko" ]

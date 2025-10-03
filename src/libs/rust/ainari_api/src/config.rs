@@ -15,18 +15,18 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Torii {
+pub struct Miko {
     pub address: String,
-    #[serde(default = "default_torii_port")]
+    #[serde(default = "default_miko_port")]
     pub port: u16,
-    #[serde(default = "default_torii_insecure")]
+    #[serde(default = "default_miko_insecure")]
     pub insecure: bool,
 }
 
-fn default_torii_insecure() -> bool {
+fn default_miko_insecure() -> bool {
     false
 }
 
-fn default_torii_port() -> u16 {
+fn default_miko_port() -> u16 {
     0
 }

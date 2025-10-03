@@ -76,7 +76,7 @@ async function login() {
         params.append("client_id", user_id.value);
         params.append("client_secret", password.value);
 
-        const response = await api.torii_api.post("/v1alpha/token", params, {
+        const response = await api.miko_api.post("/v1alpha/token", params, {
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },

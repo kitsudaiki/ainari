@@ -75,7 +75,7 @@ pub fn create_token(
         is_project_admin,
         exp: expiration as usize,
         iat: current as usize,
-        iss: "torii".to_string(),
+        iss: "miko".to_string(),
     };
 
     // create token

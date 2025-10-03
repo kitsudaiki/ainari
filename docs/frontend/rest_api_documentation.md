@@ -16,6 +16,6 @@
 
 <swagger-ui src="open_api_docu_hanami.json"/>
 
-## Torii
+## Miko
 
-<swagger-ui src="open_api_docu_torii.json"/>
+<swagger-ui src="open_api_docu_miko.json"/>

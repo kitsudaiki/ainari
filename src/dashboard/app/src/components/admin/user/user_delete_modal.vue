@@ -56,7 +56,7 @@ async function handleAccept(user_id: string) {
     if (!user_id) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.delete(`/v1alpha/user/${user_id}`, {
+        await api.miko_api.delete(`/v1alpha/user/${user_id}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
     } catch (err) {

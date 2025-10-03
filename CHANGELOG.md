@@ -6,8 +6,8 @@
 
 #### API-Breaking
 
-- added new component named "Torii", where the endpoints for tokens, users and projects moved to.
-- Hanami now uses the Torii to check provided token over a new client-connection
+- added new component named "Miko", where the endpoints for tokens, users and projects moved to.
+- Hanami now uses the Miko to check provided token over a new client-connection
 
 #### Config-Breaking
 
@@ -560,7 +560,7 @@ Translated big parts of the program from C++ into Rust:
 
 ### Fixed
 
-- fix random breaks of the websocket under high load in the Torii
+- fix random breaks of the websocket under high load in the Miko
 - fixed memory-corruption in segment-header of the clusters in Kyouko
 - solved uninitialized warning in item-buffer
 - fixed stupid memory-leak when sending internal messages

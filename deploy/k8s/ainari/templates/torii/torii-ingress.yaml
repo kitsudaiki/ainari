@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: torii-ingress
+  name: miko-ingress
   annotations:
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -10,13 +10,13 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: {{ .Values.api.domain_torii }}
+  - host: {{ .Values.api.domain_miko }}
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: torii-tls-service
+            name: miko-tls-service
             port:
               number: 8443

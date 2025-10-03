@@ -99,7 +99,7 @@ const emit = defineEmits<{
 async function fetchUserInfo(userId: string) {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.torii_api.get(`/v1alpha/user/${userId}`, {
+        const response = await api.miko_api.get(`/v1alpha/user/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         user_info.value = response.data;
