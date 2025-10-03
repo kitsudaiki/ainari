@@ -26,10 +26,16 @@ use ainari_common::functions::split_bearer_token;
 #[derive(ApiSecurity, Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[openapi_security(scheme(security_type(http(scheme = "bearer", bearer_format = "JWT"))))]
 pub struct UserContext {
+    #[serde(default = "default_token")]
+    pub token: String,
     pub user_id: String,
     pub project_id: String,
     pub is_admin: bool,
     pub is_project_admin: bool,
+}
+
+fn default_token() -> String {
+    "".to_owned()
 }
 
 fn decode_jwt_payload(token: &str) -> Result<UserContext, Box<dyn std::error::Error>> {
@@ -41,9 +47,10 @@ fn decode_jwt_payload(token: &str) -> Result<UserContext, Box<dyn std::error::Er
 
     // decode the payload (2nd part)
     let decoded = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
-    let claims: UserContext = serde_json::from_slice(&decoded)?;
+    let mut context: UserContext = serde_json::from_slice(&decoded)?;
+    context.token = token.to_owned();
 
-    Ok(claims)
+    Ok(context)
 }
 
 impl FromRequest for UserContext {
@@ -69,6 +76,7 @@ impl FromRequest for UserContext {
             Err(_) => {
                 // should never be the case, because the middleware already checks the token
                 ready(Ok(UserContext {
+                    token: "".to_string(),
                     user_id: "".to_string(),
                     project_id: "".to_string(),
                     is_admin: false,

@@ -22,10 +22,9 @@ use validator::Validate;
 use crate::core::cluster_handler;
 use crate::database::cluster_table;
 
-use super::cluster_structs::{ClusterRequestReq, ClusterRequestResp};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::cluster_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
@@ -70,6 +69,9 @@ pub async fn request_cluster(
         .expect("mutex poisoned");
     let cluster_interface_mutex = match cluster_handler.get_cluster_interface(&cluster_uuid) {
         Ok(cluster_interface_mutex) => cluster_interface_mutex,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
         Err(AinariError::InvalidInput(msg)) => {
             let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));
@@ -93,6 +95,9 @@ pub async fn request_cluster(
     let mut cluster_interface = cluster_interface_mutex.lock().expect("mutex poisoned");
     match cluster_interface.request(&body.inputs, &mut resp.outputs) {
         Ok(()) => {}
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
         Err(AinariError::InvalidInput(msg)) => {
             let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));

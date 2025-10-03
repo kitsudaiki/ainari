@@ -18,16 +18,18 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tokio::runtime::Builder;
+use tokio::task::LocalSet;
 use uuid::Uuid;
 
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_clients::checkpoint::init_checkpoint;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
-use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
+use crate::config as ainari_config;
 use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
-use crate::database::checkpoint_table;
 use crate::database::task_table;
 
 use super::super::processing::output_buffer::*;
@@ -99,8 +101,7 @@ pub struct Task {
     pub uuid: Uuid,
     pub cluster_uuid: Uuid,
     pub name: String,
-    pub user_id: String,
-    pub project_id: String,
+    pub token: String,
 
     pub info: TaskVariant,
     pub meta: TaskMeta,
@@ -137,8 +138,7 @@ impl Task {
                     &self.uuid,
                     &self.cluster_uuid,
                     &self.name,
-                    &self.user_id,
-                    &self.project_id,
+                    &self.token,
                     &mut self.meta,
                     task_info,
                 );
@@ -229,6 +229,9 @@ fn finish_request_cycle(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut R
     // get output-values form backend and write them into the dataset
     match write_output_into_dataset(cluster_uuid, &mut task_info.results) {
         Ok(()) => {}
+        Err(AinariError::Unauthorized(msg)) => {
+            let _ = task_table::set_error_state(task_uuid, &msg);
+        }
         Err(AinariError::InvalidInput(msg)) => {
             let _ = task_table::set_error_state(task_uuid, &msg);
         }
@@ -272,6 +275,10 @@ fn run_train_task_cycle(
             meta.time_length,
         ) {
             Ok(()) => {}
+            Err(AinariError::Unauthorized(msg)) => {
+                let _ = task_table::set_error_state(task_uuid, &msg);
+                return;
+            }
             Err(AinariError::InvalidInput(msg)) => {
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
@@ -297,6 +304,10 @@ fn run_train_task_cycle(
             meta.task_cycle_counter,
         ) {
             Ok(()) => {}
+            Err(AinariError::Unauthorized(msg)) => {
+                let _ = task_table::set_error_state(task_uuid, &msg);
+                return;
+            }
             Err(AinariError::InvalidInput(msg)) => {
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
@@ -345,6 +356,10 @@ fn run_request_task_cycle(
             meta.number_of_finished_cycles,
         ) {
             Ok(()) => {}
+            Err(AinariError::Unauthorized(msg)) => {
+                let _ = task_table::set_error_state(task_uuid, &msg);
+                return;
+            }
             Err(AinariError::InvalidInput(msg)) => {
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
@@ -497,8 +512,7 @@ fn handle_checkpoint_save_task(
     task_uuid: &Uuid,
     cluster_uuid: &Uuid,
     task_name: &str,
-    user_id: &str,
-    project_id: &str,
+    token: &String,
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
@@ -510,21 +524,30 @@ fn handle_checkpoint_save_task(
         }
     }
 
-    // create information for new database-entry
-    let context = &UserContext {
-        user_id: user_id.to_owned(),
-        project_id: project_id.to_owned(),
-        is_admin: false,
-        is_project_admin: false,
-    };
-
     // add information of new checkpoint to the database
     // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
-    let file_path_str: String = task_info.path.to_string_lossy().into();
-    match checkpoint_table::add_new_checkpoint(task_uuid, task_name, &file_path_str, context) {
-        Ok(_) => {}
+    let bento_connection = &ainari_config::CONFIG.bento;
+
+    // Create a single-threaded runtime
+    let rt = Builder::new_current_thread()
+        .enable_all() // I/O & timers
+        .build()
+        .expect("failed to build runtime");
+
+    // LocalSet allows spawn_local to work
+    let local = LocalSet::new();
+
+    // Run the async future inside the LocalSet + runtime
+    let create_resp = local.block_on(&rt, async {
+        init_checkpoint(bento_connection, token, task_uuid, task_name).await
+    });
+
+    match create_resp {
+        Ok(body) => {
+            task_info.path = PathBuf::from(&body.file_path);
+        }
         Err(e) => {
-            log::error!("{e}");
+            log::error!("Checkpoint-create request responded with: {e}");
             let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
             return;
         }

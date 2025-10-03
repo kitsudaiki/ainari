@@ -14,8 +14,6 @@
 
 #![forbid(unsafe_code)]
 
-use std::fs;
-
 mod api;
 mod config;
 mod core;
@@ -32,14 +30,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
     }
-
-    // create directories if they not exist
-    let checkpoint_dir = config::CONFIG.storage.checkpoint_location.clone();
-    fs::create_dir_all(checkpoint_dir)?;
-    let dataset_dir = config::CONFIG.storage.dataset_location.clone();
-    fs::create_dir_all(dataset_dir)?;
-    let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
-    fs::create_dir_all(tempfile_dir)?;
 
     // Initialize processing
     let worker_handler = worker_handler::WORKER_HANDLER

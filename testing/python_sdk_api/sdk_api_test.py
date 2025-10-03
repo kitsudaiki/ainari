@@ -42,6 +42,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 config = configparser.ConfigParser()
 config.read('/etc/ainari/hanami_testing.conf')
 
+bento_address = config["connection"]["bento_address"]
 miko_address = config["connection"]["miko_address"]
 hanami_address = config["connection"]["hanami_address"]
 
@@ -147,30 +148,30 @@ def test_dataset():
     print("test dataset")
 
     result = dataset.upload_mnist_files(
-        token, hanami_address, train_dataset_name, train_inputs, train_labels, False)
+        token, bento_address, train_dataset_name, train_inputs, train_labels, False)
     mnist_dataset_uuid = result["uuid"]
 
-    dataset.list_datasets(token, hanami_address, False)
-    mnist_dataset = dataset.get_dataset(token, hanami_address, mnist_dataset_uuid, False)
+    dataset.list_datasets(token, bento_address, False)
+    mnist_dataset = dataset.get_dataset(token, bento_address, mnist_dataset_uuid, False)
     assert mnist_dataset["number_of_rows"] == 60000
     assert mnist_dataset["number_of_columns"] == 2
 
     result = dataset.upload_csv_files(
-        token, hanami_address, "csv_test", "./csv_test.csv", False)
+        token, bento_address, "csv_test", "./csv_test.csv", False)
     csv_dataset_uuid = result["uuid"]
 
-    csv_dataset = dataset.get_dataset(token, hanami_address, csv_dataset_uuid, False)
+    csv_dataset = dataset.get_dataset(token, bento_address, csv_dataset_uuid, False)
     assert csv_dataset["number_of_rows"] == 3
     assert csv_dataset["number_of_columns"] == 3
 
     try:
-        dataset.get_dataset(token, hanami_address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
+        dataset.get_dataset(token, bento_address, " 569003fd-bf24-410b-8678-28f141877ac9", False)
     except ainari_exceptions.NotFoundException:
         pass
-    dataset.delete_dataset(token, hanami_address, mnist_dataset_uuid, False)
-    dataset.delete_dataset(token, hanami_address, csv_dataset_uuid, False)
+    dataset.delete_dataset(token, bento_address, mnist_dataset_uuid, False)
+    dataset.delete_dataset(token, bento_address, csv_dataset_uuid, False)
     try:
-        dataset.delete_dataset(token, hanami_address, mnist_dataset_uuid, False)
+        dataset.delete_dataset(token, bento_address, mnist_dataset_uuid, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -227,7 +228,7 @@ def _creat_and_resore_checkpoint(cluster_uuid):
     checkpoint_uuid = task.create_checkpoint_save_task(
         token, hanami_address, cluster_uuid, checkpoint_name, False)["uuid"]
     time.sleep(2)
-    result = checkpoint.list_checkpoints(token, hanami_address, False)
+    result = checkpoint.list_checkpoints(token, bento_address, False)
     # print(json.dumps(result, indent=4))
 
     cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
@@ -237,9 +238,9 @@ def _creat_and_resore_checkpoint(cluster_uuid):
     task.create_checkpoint_restore_task(
         token, hanami_address, cluster_uuid, "restore", checkpoint_uuid, False)
     time.sleep(2)
-    checkpoint.delete_checkpoint(token, hanami_address, checkpoint_uuid, False)
+    checkpoint.delete_checkpoint(token, bento_address, checkpoint_uuid, False)
     try:
-        checkpoint.delete_checkpoint(token, hanami_address, checkpoint_uuid, False)
+        checkpoint.delete_checkpoint(token, bento_address, checkpoint_uuid, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -334,7 +335,7 @@ def _test(cluster_uuid, request_dataset_uuid):
     time.sleep(1)
 
     accuracy = dataset.check_dataset(
-        token, hanami_address, task_uuid, "label_hex", request_dataset_uuid, "label", False)["accuracy"]
+        token, bento_address, task_uuid, "label_hex", request_dataset_uuid, "label", False)["accuracy"]
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
@@ -356,20 +357,20 @@ def test_workflow():
     request_dataset_uuid = ""
     try:
         train_dataset_uuid = dataset.upload_mnist_files(
-            token, hanami_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+            token, bento_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
         time.sleep(1)
         request_dataset_uuid = dataset.upload_mnist_files(
-            token, hanami_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+            token, bento_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
     except:
         # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why.
         #                    Maybe because of the limited resources. So it will be given a second
         #                    chance to make it right.
         train_dataset_uuid = dataset.upload_mnist_files(
-            token, hanami_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
+            token, bento_address, train_dataset_name, train_inputs, train_labels, False)["uuid"]
         time.sleep(1)
         request_dataset_uuid = dataset.upload_mnist_files(
-            token, hanami_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
+            token, bento_address, request_dataset_name, request_inputs, request_labels, False)["uuid"]
         time.sleep(1)
 
     # hosts_json = hosts.list_hosts(token, hanami_address, False)["body"]
@@ -404,15 +405,15 @@ def test_workflow():
         max(output_values["outputs"]["label_hex"])) == 5
 
     # cleanup
-    dataset.delete_dataset(token, hanami_address, train_dataset_uuid, False)
-    dataset.delete_dataset(token, hanami_address, request_dataset_uuid, False)
+    dataset.delete_dataset(token, bento_address, train_dataset_uuid, False)
+    dataset.delete_dataset(token, bento_address, request_dataset_uuid, False)
     cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
 
 
 token = ainari_token.request_token(miko_address, test_user_id, test_user_pw, False)
 print(token)
-dataset.delete_all_datasets(token, hanami_address, False)
-checkpoint.delete_all_checkpoints(token, hanami_address, False)
+dataset.delete_all_datasets(token, bento_address, False)
+checkpoint.delete_all_checkpoints(token, bento_address, False)
 cluster.delete_all_cluster(token, hanami_address, False)
 project.delete_all_projects(token, miko_address, False)
 user.delete_all_user(token, miko_address, False)
@@ -421,6 +422,8 @@ version = common.get_version(token, hanami_address, False)
 print(f"hanami-version: {version}")
 version = common.get_version(token, miko_address, False)
 print(f"miko-version: {version}")
+version = common.get_version(token, bento_address, False)
+print(f"bento-version: {version}")
 
 test_project()
 test_user()

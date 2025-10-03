@@ -20,7 +20,7 @@ use std::error::Error;
 
 use crate::database::db_handle;
 
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
 // Define the schema
@@ -192,6 +192,7 @@ mod tests {
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true,
@@ -234,6 +235,7 @@ mod tests {
         let project_id2 = "test-project-3".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id1.clone(),
             is_admin: true,
@@ -284,6 +286,7 @@ mod tests {
         let project_id = "test-project-5".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true,

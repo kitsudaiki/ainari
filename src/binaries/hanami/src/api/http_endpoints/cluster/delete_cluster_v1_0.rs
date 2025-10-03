@@ -21,7 +21,7 @@ use crate::core::cluster_handler;
 use crate::database::cluster_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
@@ -56,6 +56,9 @@ pub async fn delete_cluster(
         .expect("mutex poisoned");
     match cluster_handle.delete_cluster(&cluster_uuid) {
         Ok(()) => {}
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
         Err(AinariError::InvalidInput(msg)) => {
             let msg = format!("Invalid input: {msg}");
             return Err(ErrorResponse::BadRequest(msg));

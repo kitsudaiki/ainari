@@ -1,0 +1,21 @@
+debug = true
+log_path = "/var/log"
+
+[database]
+file_path = "/etc/ainari/bento_db"
+
+[storage]
+dataset_location = "/etc/ainari/datasets"
+checkpoint_location = "/etc/ainari/checkpoints"
+tempfile_location = "/etc/ainari/tempfiles"
+tempfile_timeout = 10
+
+[api]
+ip = "0.0.0.0"
+port = 11416
+
+[miko]
+address = "http://127.0.0.1"
+port = 11417
+insecure = true
+

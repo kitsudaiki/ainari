@@ -117,7 +117,7 @@ compile-cli:
         /usr/local/go/bin/go build .
     SAVE ARTIFACT ./src/cli/ainarictl/ainarictl /tmp/ainarictl
 
-compile-hanami:
+compile-ainari:
     FROM +prepare-build-dependencies
     RUN apt-get update && \
         apt-get install -y libsqlite3-dev
@@ -125,6 +125,7 @@ compile-hanami:
     RUN mkdir /tmp/ainari/
     RUN cp ./target/debug/hanami /tmp/ainari/
     RUN cp ./target/debug/miko /tmp/ainari/
+    RUN cp ./target/debug/bento /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
@@ -159,8 +160,9 @@ generate-docs:
     ENV HANAMI_ADMIN_NAME asdf
     ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
 
-    COPY +compile-hanami/ainari/hanami /tmp/hanami
-    COPY +compile-hanami/ainari/miko /tmp/miko
+    COPY +compile-ainari/ainari/hanami /tmp/hanami
+    COPY +compile-ainari/ainari/miko /tmp/miko
+    COPY +compile-ainari/ainari/bento /tmp/bento
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
@@ -192,6 +194,11 @@ generate-docs:
         hap run /tmp/miko && \
         sleep 5 && \
         curl 127.0.0.1:11417/openapi.json > ./open_api_docu_miko.json
+    RUN chmod +x /tmp/bento
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/bento && \
+        sleep 5 && \
+        curl 127.0.0.1:11417/openapi.json > ./bento.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
@@ -200,6 +207,7 @@ generate-docs:
     COPY docs docs
     RUN cp ./open_api_docu_hanami.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
+    RUN cp ./open_api_docu_bento.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage

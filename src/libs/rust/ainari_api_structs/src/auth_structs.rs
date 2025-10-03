@@ -15,25 +15,31 @@
 use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use validator::Validate;
+
+use crate::user_context::UserContext;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointResp {
-    pub uuid: Uuid,
-    pub name: String,
-    pub created_at: String,
-    pub created_by: String,
-    pub updated_at: String,
-    pub updated_by: String,
+pub struct UserTokenResp {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires: u64,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct OAuth2Request {
+    pub token_format: String,
+    pub grant_type: String,
+    #[validate(length(min = 4, max = 127))]
+    pub client_id: String,
+    #[validate(length(min = 8, max = 4096))]
+    pub client_secret: String,
+    // pub username: Option<String>,
+    // pub password: Option<String>,
+    // pub scope: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointBasicResp {
-    pub uuid: Uuid,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointListResp {
-    pub checkpoints: Vec<CheckpointBasicResp>,
+pub struct UserTokenValidateResp {
+    pub context: UserContext,
 }

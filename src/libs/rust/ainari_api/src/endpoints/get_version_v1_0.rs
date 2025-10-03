@@ -20,7 +20,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::ErrorResponse;
-use crate::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VersionResp {

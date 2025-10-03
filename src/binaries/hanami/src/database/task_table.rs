@@ -18,10 +18,10 @@ use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
 
-use crate::api::http_endpoints::cluster::task::task_structs::{TaskState, TaskType};
 use crate::database::db_handle;
 
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
 // Define the schema
@@ -345,6 +345,7 @@ mod tests {
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false,
@@ -395,6 +396,7 @@ mod tests {
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false,
@@ -536,6 +538,7 @@ mod tests {
 
         // list-test normal user
         let context = UserContext {
+            token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false,
@@ -546,6 +549,7 @@ mod tests {
 
         // list-test project-admin
         let context = UserContext {
+            token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false,
@@ -556,6 +560,7 @@ mod tests {
 
         // list-test admin
         let context = UserContext {
+            token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true,
@@ -566,6 +571,7 @@ mod tests {
 
         // get-test normal user
         let context = UserContext {
+            token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false,
@@ -582,6 +588,7 @@ mod tests {
 
         // get-test normal user false uuid
         let context = UserContext {
+            token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false,
@@ -606,6 +613,7 @@ mod tests {
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false,
@@ -700,6 +708,7 @@ mod tests {
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false,
@@ -752,6 +761,7 @@ mod tests {
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false,

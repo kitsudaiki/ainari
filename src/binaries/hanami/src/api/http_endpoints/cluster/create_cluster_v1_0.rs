@@ -21,10 +21,9 @@ use validator::Validate;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
-use super::cluster_structs::{ClusterCreateReq, ClusterResp};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::cluster_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -54,6 +53,9 @@ pub async fn create_cluster(
     let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
         Ok(_) => {}
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
         Err(AinariError::InvalidInput(e)) => {
             let msg = format!("Invalid input: {e}");
             return Err(ErrorResponse::BadRequest(msg));

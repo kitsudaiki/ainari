@@ -20,17 +20,18 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config as ainari_config;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{CheckpointRestoreInfo, Task, TaskMeta, TaskVariant};
-use crate::database::checkpoint_table;
 use crate::database::cluster_table;
 use crate::database::task_table;
 
-use super::task_structs::{TaskCheckpointRestoreReq, TaskResp, TaskState, TaskType};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
+use ainari_clients::checkpoint::*;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "task",
@@ -70,17 +71,22 @@ pub async fn checkpoint_restore_task(
         }
     };
 
-    // get checkpoint information from the database
-    let checkpoint_data = match checkpoint_table::get_checkpoint(&body.checkpoint_uuid, &context) {
-        Ok(checkpoint_data) => checkpoint_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{}' not found", &body.checkpoint_uuid);
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    // get checkpoint information
+    let bento_connection = &ainari_config::CONFIG.bento;
+    let checkpoint_resp =
+        match get_checkpoint(bento_connection, &context.token, &body.checkpoint_uuid).await {
+            Ok(body) => body,
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{msg}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
     // get cluster-handle
     let cluster_handler = cluster_handler::CLUSTER_HANDLER
@@ -99,7 +105,7 @@ pub async fn checkpoint_restore_task(
 
     // prepare task-info
     let info = CheckpointRestoreInfo {
-        path: PathBuf::from(&checkpoint_data.file_path),
+        path: PathBuf::from(&checkpoint_resp.file_path),
     };
 
     // add new task to database
@@ -124,8 +130,7 @@ pub async fn checkpoint_restore_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        user_id: context.user_id.clone(),
-        project_id: context.project_id.clone(),
+        token: context.token.clone(),
         info: TaskVariant::CheckpointRestore(info),
         meta: TaskMeta::new(1, 1, 1),
     };

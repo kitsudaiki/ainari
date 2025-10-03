@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod check_dataset_v1_0;
-pub mod create_dataset_v1_0;
+#![forbid(unsafe_code)]
+
+pub mod auth_structs;
+pub mod checkpoint_structs;
+pub mod cluster_structs;
 pub mod dataset_structs;
-pub mod delete_dataset_v1_0;
-pub mod get_dataset_v1_0;
-pub mod list_dataset_v1_0;
+pub mod project_structs;
+pub mod task_structs;
+pub mod user_context;
+pub mod user_structs;

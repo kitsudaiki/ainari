@@ -26,10 +26,9 @@ use validator::Validate;
 
 use crate::database::dataset_table;
 
-use super::dataset_structs::{DatasetCheckReq, DatasetCheckResp};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandleV1_0};

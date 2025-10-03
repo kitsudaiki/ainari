@@ -16,6 +16,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum AinariError {
+    Unauthorized(String),
     InvalidInput(String),
     Error(String),
 }
@@ -23,6 +24,7 @@ pub enum AinariError {
 impl fmt::Display for AinariError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            AinariError::Unauthorized(ref msg) => write!(f, "Unauthorized: {msg}"),
             AinariError::InvalidInput(ref msg) => write!(f, "Invalid input: {msg}"),
             AinariError::Error(ref msg) => write!(f, "Internal error: {msg}"),
         }
@@ -32,7 +34,9 @@ impl fmt::Display for AinariError {
 impl PartialEq<&str> for AinariError {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            AinariError::InvalidInput(s) | AinariError::Error(s) => s == other,
+            AinariError::Unauthorized(s) | AinariError::InvalidInput(s) | AinariError::Error(s) => {
+                s == other
+            }
         }
     }
 }

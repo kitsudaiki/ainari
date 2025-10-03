@@ -3,11 +3,11 @@
     "compounds": [
         {
             "name": "Ainari Debug",
-            "configurations": ["Debug Build hanami", "Debug Build miko"],
+            "configurations": ["Debug Build hanami", "Debug Build miko", "Debug Build bento"],
         },
         {
             "name": "Ainari Release",
-            "configurations": ["Release Build hanami", "Release Build miko"],
+            "configurations": ["Release Build hanami", "Release Build miko", "Release Build bento"],
         }
     ],
     "configurations": [
@@ -19,7 +19,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "cargo build",
+            "preLaunchTask": "build hanami debug",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
@@ -38,7 +38,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "cargo build --release",
+            "preLaunchTask": "build hanami release",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
@@ -56,7 +56,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "cargo build",
+            "preLaunchTask": "build miko debug",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
@@ -75,7 +75,44 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "cargo build --release",
+            "preLaunchTask": "build miko release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Debug Build bento",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/bento",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build bento debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "HANAMI_ADMIN_ID": "asdf",
+                "HANAMI_ADMIN_NAME": "asdf",
+                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build bento",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/bento",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build bento release",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing

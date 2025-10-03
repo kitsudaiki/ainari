@@ -18,12 +18,17 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct CheckpointCreateReq {
+    pub uuid: Uuid,
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetResp {
+pub struct CheckpointResp {
     pub uuid: Uuid,
     pub name: String,
-    pub number_of_rows: u64,
-    pub number_of_columns: u64,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -31,26 +36,23 @@ pub struct DatasetResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetBasicResp {
+pub struct CheckpointInternalResp {
+    pub uuid: Uuid,
+    pub name: String,
+    pub file_path: String,
+    pub created_at: String,
+    pub created_by: String,
+    pub updated_at: String,
+    pub updated_by: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct CheckpointBasicResp {
     pub uuid: Uuid,
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetListResp {
-    pub datasets: Vec<DatasetBasicResp>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct DatasetCheckReq {
-    #[validate(length(min = 4, max = 127))]
-    pub dataset_column: String,
-    pub reference_uuid: Uuid,
-    #[validate(length(min = 4, max = 127))]
-    pub reference_column: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetCheckResp {
-    pub accuracy: f32,
+pub struct CheckpointListResp {
+    pub checkpoints: Vec<CheckpointBasicResp>,
 }

@@ -15,31 +15,28 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 use crate::database::dataset_table;
 
-use super::dataset_structs::DatasetResp;
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
     tag = "dataset",
-    summary = "Get dataset",
-    description = r###"Get information of a dataset from the database."###,
+    summary = "Get dataset (internal)",
+    description = r###"Get information of a dataset from the database with additional information."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_dataset(
+pub async fn get_dataset_internal(
     dataset_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<DatasetResp>, ErrorResponse> {
+) -> Result<Json<DatasetInternalResp>, ErrorResponse> {
     let dataset_data = match dataset_table::get_dataset(&dataset_uuid, &context) {
         Ok(dataset_data) => dataset_data,
         Err(enums::DbError::InternalError) => {
@@ -51,18 +48,10 @@ pub async fn get_dataset(
         }
     };
 
-    let file_handle = match read_data_set_file(&PathBuf::from(dataset_data.file_path)) {
-        Ok(file_handle) => file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    let resp = DatasetResp {
+    let resp = DatasetInternalResp {
         uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
-        number_of_rows: file_handle.get_number_of_rows(),
-        number_of_columns: file_handle.header.columns.len() as u64,
+        file_path: dataset_data.file_path.clone(),
         created_by: dataset_data.created_by.clone(),
         created_at: dataset_data.created_at.clone(),
         updated_by: dataset_data.updated_by.clone(),

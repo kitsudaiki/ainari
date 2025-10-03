@@ -17,25 +17,18 @@ use serde::Deserialize;
 use std::fs;
 use std::process;
 
-use ainari_api::config as ainari_config;
+use ainari_common::config as ainari_config;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
     pub debug: bool,
     // groups
-    pub storage: Storage,
     pub processing: Processing,
     pub api: Api,
     pub database: Database,
-    pub miko: ainari_config::Miko,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Storage {
-    pub dataset_location: String,
-    pub checkpoint_location: String,
-    pub tempfile_location: String,
+    pub miko: ainari_config::MikoConnection,
+    pub bento: ainari_config::BentoConnection,
 }
 
 #[derive(Debug, Deserialize)]

@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use std::sync::{Arc, Mutex};
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Miko {
-    pub address: String,
-    #[serde(default = "default_miko_port")]
-    pub port: u16,
-    #[serde(default = "default_miko_insecure")]
-    pub insecure: bool,
+use crate::config;
+
+lazy_static::lazy_static! {
+    pub static ref DB_CONN: Arc<Mutex<SqliteConnection>> = Arc::new(Mutex::new(establish_connection()));
 }
 
-fn default_miko_insecure() -> bool {
-    false
-}
-
-fn default_miko_port() -> u16 {
-    0
+pub fn establish_connection() -> SqliteConnection {
+    let file_path = config::CONFIG.database.file_path.clone();
+    //let database_url = ":memory:".to_string();
+    SqliteConnection::establish(&file_path).expect("Error connecting to database")
 }

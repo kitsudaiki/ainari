@@ -8,7 +8,8 @@ permissions:
 
 env:
   REGISTRY_HANAMI_IMAGE: kitsudaiki/hanami
-  REGISTRY_TORII_IMAGE: kitsudaiki/miko
+  REGISTRY_MIKO_IMAGE: kitsudaiki/miko
+  REGISTRY_BENTO_IMAGE: kitsudaiki/bento
   REGISTRY_DOCS_IMAGE: kitsudaiki/ainari_docs
   HANAMI_ADMIN_ID: asdf
   HANAMI_ADMIN_NAME: asdf
@@ -222,8 +223,8 @@ jobs:
 
 
 
-  build_hanami:
-    name: "Compile hanami (debug)"
+  build_ainari_debug:
+    name: "Compile ainari (debug)"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-latest
     env:
@@ -247,7 +248,7 @@ jobs:
         name: Compile hanami
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-hanami/tmp/ainari ./builds/
+          earthly --artifact +compile-ainari/tmp/ainari ./builds/
       -
         name: Copy files
         run: |
@@ -337,7 +338,7 @@ jobs:
 
   sdk_api_tests:
     name: "SDK-API-Tests"
-    needs: [ cargo_tests, build_hanami, build_ainarictl, build_helm_package, build_python_package ]
+    needs: [ cargo_tests, build_ainari_debug, build_ainarictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-24.04
     steps:
       -
@@ -401,11 +402,13 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
           chmod +x /tmp/Hanami_debug_build_result/ainari/miko
+          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
           /tmp/Hanami_debug_build_result/ainari/hanami &
           /tmp/Hanami_debug_build_result/ainari/miko &
+          /tmp/Hanami_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -428,7 +431,7 @@ jobs:
 
   cli_api_tests:
     name: "CLI-API-Tests"
-    needs: [ cargo_tests, build_hanami, build_ainarictl, build_helm_package, build_python_package ]
+    needs: [ cargo_tests, build_ainari_debug, build_ainarictl, build_helm_package, build_python_package ]
     runs-on: ubuntu-24.04
     steps:
       -
@@ -481,11 +484,13 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
           chmod +x /tmp/Hanami_debug_build_result/ainari/miko
+          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
           /tmp/Hanami_debug_build_result/ainari/hanami &
           /tmp/Hanami_debug_build_result/ainari/miko &
+          /tmp/Hanami_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -499,7 +504,8 @@ jobs:
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
           export HANAMI_ADDRESS=http://127.0.0.1:11418
-          export TORII_ADDRESS=http://127.0.0.1:11417
+          export MIKO_ADDRESS=http://127.0.0.1:11417
+          export BENTO_ADDRESS=http://127.0.0.1:11416
           export HANAMI_USER=asdf
           export HANAMI_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
@@ -512,7 +518,7 @@ jobs:
 
   python_version_test:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    needs: [ cargo_tests, build_hanami, build_ainarictl, build_helm_package, build_python_package ]
+    needs: [ cargo_tests, build_ainari_debug, build_ainarictl, build_helm_package, build_python_package ]
     strategy:
       fail-fast: false
       matrix:
@@ -588,11 +594,13 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
           chmod +x /tmp/Hanami_debug_build_result/ainari/miko
+          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
           /tmp/Hanami_debug_build_result/ainari/hanami &
           /tmp/Hanami_debug_build_result/ainari/miko &
+          /tmp/Hanami_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -812,7 +820,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
         with:
-          images: ${{ env.REGISTRY_TORII_IMAGE }}
+          images: ${{ env.REGISTRY_MIKO_IMAGE }}
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
@@ -840,7 +848,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           target: miko
-          outputs: type=image,name=${{ env.REGISTRY_TORII_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY_MIKO_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       -
         name: Export digest
         run: |
@@ -890,7 +898,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
         with:
-          images: ${{ env.REGISTRY_TORII_IMAGE }}
+          images: ${{ env.REGISTRY_MIKO_IMAGE }}
       -
         name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
@@ -901,12 +909,12 @@ jobs:
         name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create -t ${{ env.REGISTRY_TORII_IMAGE }}:${{ env.BRANCH_NAME }} \
-            $(printf '${{ env.REGISTRY_TORII_IMAGE }}@sha256:%s ' *)          
+          docker buildx imagetools create -t ${{ env.REGISTRY_MIKO_IMAGE }}:${{ env.BRANCH_NAME }} \
+            $(printf '${{ env.REGISTRY_MIKO_IMAGE }}@sha256:%s ' *)          
       -
         name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_TORII_IMAGE }}:${{ env.BRANCH_NAME }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_MIKO_IMAGE }}:${{ env.BRANCH_NAME }}
 
 
 

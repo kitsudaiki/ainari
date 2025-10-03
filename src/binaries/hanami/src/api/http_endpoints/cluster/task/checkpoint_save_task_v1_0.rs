@@ -20,17 +20,18 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::config;
+use crate::config as ainari_config;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
 use crate::database::cluster_table;
 use crate::database::task_table;
 
-use super::task_structs::{TaskCheckpointSaveReq, TaskResp, TaskState, TaskType};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
+use ainari_clients::checkpoint::*;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "task",
@@ -57,9 +58,6 @@ pub async fn checkpoint_save_task(
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointSave;
-    let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(task_uuid.to_string());
 
     // check if cluster exist
     match cluster_table::get_cluster(&cluster_uuid, &context) {
@@ -72,6 +70,23 @@ pub async fn checkpoint_save_task(
             return Err(ErrorResponse::NotFound(msg));
         }
     };
+
+    // initialize checkpoint
+    let bento_connection = &ainari_config::CONFIG.bento;
+    let checkpoint_create_resp =
+        match init_checkpoint(bento_connection, &context.token, &task_uuid, &body.name).await {
+            Ok(body) => body,
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{msg}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
     // get cluster-handle
     let cluster_handler = cluster_handler::CLUSTER_HANDLER
@@ -89,9 +104,8 @@ pub async fn checkpoint_save_task(
     };
 
     // prepare task-info
-    let info = CheckpointSaveInfo {
-        path: target_filepath,
-    };
+    let file_path = PathBuf::from(&checkpoint_create_resp.file_path);
+    let info = CheckpointSaveInfo { path: file_path };
 
     // add new task to database
     match task_table::add_new_task(
@@ -115,8 +129,7 @@ pub async fn checkpoint_save_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        user_id: context.user_id.clone(),
-        project_id: context.project_id.clone(),
+        token: context.token.clone(),
         info: TaskVariant::CheckpointSave(info),
         meta: TaskMeta::new(1, 1, 1),
     };

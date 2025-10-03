@@ -45,7 +45,7 @@ var createUserCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("TORII_ADDRESS")
+		address := os.Getenv("MIKO_ADDRESS")
 		var err error
 		if len(passphrase) == 0 {
 			fmt.Print("Enter Passphrase: ")
@@ -90,7 +90,7 @@ var getUserCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("TORII_ADDRESS")
+		address := os.Getenv("MIKO_ADDRESS")
 		userId := args[0]
 		content, err := ainari_sdk.GetUser(address, token, userId, ainarictl_common.DisableTlsVerification)
 		if err != nil {
@@ -106,7 +106,7 @@ var listUserCmd = &cobra.Command{
 	Short: "List all user.",
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("TORII_ADDRESS")
+		address := os.Getenv("MIKO_ADDRESS")
 		content, err := ainari_sdk.ListUser(address, token, ainarictl_common.DisableTlsVerification)
 		if err != nil {
 			fmt.Println(err)
@@ -122,7 +122,7 @@ var deleteUserCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("TORII_ADDRESS")
+		address := os.Getenv("MIKO_ADDRESS")
 		userId := args[0]
 		_, err := ainari_sdk.DeleteUser(address, token, userId, ainarictl_common.DisableTlsVerification)
 		if err != nil {
