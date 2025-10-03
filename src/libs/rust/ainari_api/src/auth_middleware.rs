@@ -52,10 +52,10 @@ pub async fn authorization_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
     let mut skip_check = false;
     let uri = req.uri();
-    let torii_config = req
-        .app_data::<web::Data<config::Torii>>()
-        .expect("Torii-config missing!");
-    let https_torii_connection = torii_config.address.starts_with("https://");
+    let miko_config = req
+        .app_data::<web::Data<config::Miko>>()
+        .expect("Miko-config missing!");
+    let https_miko_connection = miko_config.address.starts_with("https://");
 
     // skip check for specific endpoints
     skip_check |= uri == "/openapi.json";
@@ -93,13 +93,13 @@ pub async fn authorization_middleware(
             }
         };
 
-        let client = get_client(https_torii_connection, torii_config.insecure);
-        let torii_address = torii_config.address.clone();
-        let torii_port = torii_config.port;
-        let torii_address_complete = format!("{torii_address}:{torii_port}/v1alpha/token");
+        let client = get_client(https_miko_connection, miko_config.insecure);
+        let miko_address = miko_config.address.clone();
+        let miko_port = miko_config.port;
+        let miko_address_complete = format!("{miko_address}:{miko_port}/v1alpha/token");
 
         let response = client
-            .get(torii_address_complete)
+            .get(miko_address_complete)
             .insert_header(("Authorization", format!("Bearer {}", token)))
             .send()
             .await;
@@ -116,7 +116,7 @@ pub async fn authorization_middleware(
                         return Err(ErrorResponse::Unauthorized("Invalid token".to_string()).into());
                     }
                     StatusCode::OK => {
-                        log::debug!("Successfully checked token against Torii");
+                        log::debug!("Successfully checked token against Miko");
                     }
                     code => {
                         log::error!(

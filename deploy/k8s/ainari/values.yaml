@@ -16,7 +16,7 @@ docker:
 
 api:
   domain_hanami: local-hanami
-  domain_torii: local-torii
+  domain_miko: local-miko
 
 processing:
   max_number_of_threads: 0

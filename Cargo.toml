@@ -6,7 +6,7 @@ members = [
     "src/libs/rust/ainari_dataset", 
     "src/libs/rust/ainari_api", 
     "src/libs/rust/ainari_hardware", 
-    "src/binaries/torii"]
+    "src/binaries/miko"]
 
 [profile.dev]
 opt-level = 0

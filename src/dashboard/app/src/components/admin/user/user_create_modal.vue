@@ -101,7 +101,7 @@ async function handleAccept() {
     }
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.torii_api.post(
+        await api.miko_api.post(
             "/v1alpha/user",
             {
                 id: form.userId,

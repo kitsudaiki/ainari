@@ -124,7 +124,7 @@ compile-hanami:
     RUN cargo build
     RUN mkdir /tmp/ainari/
     RUN cp ./target/debug/hanami /tmp/ainari/
-    RUN cp ./target/debug/torii /tmp/ainari/
+    RUN cp ./target/debug/miko /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
@@ -132,7 +132,7 @@ test-hanami:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
-        apt-get install -y libsqlite3-dev
+        apt-get install -y libsqlite3-dev libssl-dev
     # only one test-thread to avoid conflicts between tests, which access the same singleton
     RUN cargo test -- --test-threads=1
 
@@ -160,7 +160,7 @@ generate-docs:
     ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
 
     COPY +compile-hanami/ainari/hanami /tmp/hanami
-    COPY +compile-hanami/ainari/torii /tmp/torii
+    COPY +compile-hanami/ainari/miko /tmp/miko
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
@@ -187,11 +187,11 @@ generate-docs:
         hap run /tmp/hanami && \
         sleep 5 && \
         curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
-    RUN chmod +x /tmp/torii
+    RUN chmod +x /tmp/miko
     RUN . ainari_env/bin/activate && \
-        hap run /tmp/torii && \
+        hap run /tmp/miko && \
         sleep 5 && \
-        curl 127.0.0.1:11417/openapi.json > ./open_api_docu_torii.json
+        curl 127.0.0.1:11417/openapi.json > ./open_api_docu_miko.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
@@ -199,7 +199,7 @@ generate-docs:
     COPY LICENSE .
     COPY docs docs
     RUN cp ./open_api_docu_hanami.json docs/frontend/
-    RUN cp ./open_api_docu_torii.json docs/frontend/
+    RUN cp ./open_api_docu_miko.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage

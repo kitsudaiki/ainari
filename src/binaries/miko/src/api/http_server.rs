@@ -29,7 +29,7 @@ use ainari_api::endpoints::*;
 use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::user::*;
-use crate::api::torii_auth_middleware::authorization_middleware;
+use crate::api::miko_auth_middleware::authorization_middleware;
 use crate::config;
 
 fn v1alpha_routes() -> Scope {
@@ -85,7 +85,7 @@ pub async fn run_server() -> Result<(), impl Error> {
     HttpServer::new(move || {
         let spec = Spec {
             info: Info {
-                title: "Torii-API-Documentation".to_string(),
+                title: "Miko-API-Documentation".to_string(),
                 contact: Some(Contact {
                     email: Some("tobias.anker@kitsunemimi.moe".to_string()),
                     ..Default::default()

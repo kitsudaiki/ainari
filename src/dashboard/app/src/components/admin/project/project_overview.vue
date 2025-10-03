@@ -93,7 +93,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 async function fetchProjects() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.torii_api.get("/v1alpha/project", {
+        const response = await api.miko_api.get("/v1alpha/project", {
             headers: { Authorization: `Bearer ${token}` },
         });
         projects.value = response.data.projects;

@@ -3,11 +3,11 @@
     "compounds": [
         {
             "name": "Ainari Debug",
-            "configurations": ["Debug Build hanami", "Debug Build torii"],
+            "configurations": ["Debug Build hanami", "Debug Build miko"],
         },
         {
             "name": "Ainari Release",
-            "configurations": ["Release Build hanami", "Release Build torii"],
+            "configurations": ["Release Build hanami", "Release Build miko"],
         }
     ],
     "configurations": [
@@ -49,10 +49,10 @@
             },
         },
         {
-            "name": "Debug Build torii",
+            "name": "Debug Build miko",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/torii",
+            "program": "${workspaceFolder}/target/debug/miko",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -68,10 +68,10 @@
             },
         },
         {
-            "name": "Release Build torii",
+            "name": "Release Build miko",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/release/torii",
+            "program": "${workspaceFolder}/target/release/miko",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,

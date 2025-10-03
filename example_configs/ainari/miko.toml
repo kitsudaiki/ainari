@@ -2,7 +2,7 @@ debug = true
 log_path = "/var/log"
 
 [database]
-file_path = "/etc/ainari/torii_db"
+file_path = "/etc/ainari/miko_db"
 
 [auth]
 token_key_path = "/etc/ainari/token_key"

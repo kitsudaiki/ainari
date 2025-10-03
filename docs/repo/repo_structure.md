@@ -26,7 +26,7 @@ it easier for a new person to understand the code.
     │   │       └── resources
     │   │
     │   ├── binaries
-    │   │       ├── torii
+    │   │       ├── miko
     │   │       └── hanami
     │   │             └── (see below)
     │   │

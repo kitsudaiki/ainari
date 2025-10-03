@@ -21,8 +21,8 @@ data:
     [database]
     file_path = "/etc/ainari/data/hanami_db"
     
-    [torii]
-    address = "https://torii-tls-service.default.svc.cluster.local"
+    [miko]
+    address = "https://miko-tls-service.default.svc.cluster.local"
     port = 8443
     insecure = true
 

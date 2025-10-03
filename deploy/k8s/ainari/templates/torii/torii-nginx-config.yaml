@@ -1,6 +1,6 @@
 apiVersion: v1
 metadata:
-  name: torii-nginx-config
+  name: miko-nginx-config
 data:
   nginx.conf: |+
     user nginx;
@@ -15,14 +15,14 @@ data:
         {
             listen 80;
             server_tokens off;
-            server_name {{ .Values.api.domain_torii }};
+            server_name {{ .Values.api.domain_miko }};
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name {{ .Values.api.domain_torii }};
+            server_name {{ .Values.api.domain_miko }};
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -74,7 +74,7 @@ data:
 
                 proxy_pass http://127.0.0.1:11417/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:11417 https://{{ .Values.api.domain_torii }};
+                proxy_redirect http://127.0.0.1:11417 https://{{ .Values.api.domain_miko }};
             }
         }
 
@@ -82,14 +82,14 @@ data:
         {
             listen 80;
             server_tokens off;
-            server_name torii-tls-service.default.svc.cluster.local";
+            server_name miko-tls-service.default.svc.cluster.local";
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name torii-tls-service.default.svc.cluster.local";
+            server_name miko-tls-service.default.svc.cluster.local";
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -141,7 +141,7 @@ data:
 
                 proxy_pass http://127.0.0.1:11417/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:11417 https://torii-tls-service.default.svc.cluster.local";
+                proxy_redirect http://127.0.0.1:11417 https://miko-tls-service.default.svc.cluster.local";
             }
         }
     }

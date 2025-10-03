@@ -23,7 +23,7 @@ ip = "0.0.0.0"
 port = 11418
 internal_socket = "/tmp/hanami_internal"
 
-[torii]
+[miko]
 address = "http://127.0.0.1"
 port = 11417
 

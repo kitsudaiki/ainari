@@ -42,7 +42,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 config = configparser.ConfigParser()
 config.read('/etc/ainari/hanami_testing.conf')
 
-torii_address = config["connection"]["torii_address"]
+miko_address = config["connection"]["miko_address"]
 hanami_address = config["connection"]["hanami_address"]
 
 test_user_id = config["connection"]["test_user"]
@@ -104,20 +104,20 @@ def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suff
 def test_project():
     print("test project")
 
-    project.create_project(token, torii_address, projet_id, project_name, False)
+    project.create_project(token, miko_address, projet_id, project_name, False)
     try:
-        project.create_project(token, torii_address, projet_id, project_name, False)
+        project.create_project(token, miko_address, projet_id, project_name, False)
     except ainari_exceptions.ConflictException:
         pass
-    project.list_projects(token, torii_address, False)
-    project.get_project(token, torii_address, projet_id, False)
+    project.list_projects(token, miko_address, False)
+    project.get_project(token, miko_address, projet_id, False)
     try:
-        project.get_project(token, torii_address, "fail_project", False)
+        project.get_project(token, miko_address, "fail_project", False)
     except ainari_exceptions.NotFoundException:
         pass
-    project.delete_project(token, torii_address, projet_id, False)
+    project.delete_project(token, miko_address, projet_id, False)
     try:
-        project.delete_project(token, torii_address, projet_id, False)
+        project.delete_project(token, miko_address, projet_id, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -125,20 +125,20 @@ def test_project():
 def test_user():
     print("test user")
 
-    user.create_user(token, torii_address, user_id, user_name, passphrase, is_admin, False)
+    user.create_user(token, miko_address, user_id, user_name, passphrase, is_admin, False)
     try:
-        user.create_user(token, torii_address, user_id, user_name, passphrase, is_admin, False)
+        user.create_user(token, miko_address, user_id, user_name, passphrase, is_admin, False)
     except ainari_exceptions.ConflictException:
         pass
-    user.list_users(token, torii_address, False)
-    user.get_user(token, torii_address, user_id, False)
+    user.list_users(token, miko_address, False)
+    user.get_user(token, miko_address, user_id, False)
     try:
-        user.get_user(token, torii_address, "fail_user", False)
+        user.get_user(token, miko_address, "fail_user", False)
     except ainari_exceptions.NotFoundException:
         pass
-    user.delete_user(token, torii_address, user_id, False)
+    user.delete_user(token, miko_address, user_id, False)
     try:
-        user.delete_user(token, torii_address, user_id, False)
+        user.delete_user(token, miko_address, user_id, False)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -409,18 +409,18 @@ def test_workflow():
     cluster.delete_cluster(token, hanami_address, cluster_uuid, False)
 
 
-token = ainari_token.request_token(torii_address, test_user_id, test_user_pw, False)
+token = ainari_token.request_token(miko_address, test_user_id, test_user_pw, False)
 print(token)
 dataset.delete_all_datasets(token, hanami_address, False)
 checkpoint.delete_all_checkpoints(token, hanami_address, False)
 cluster.delete_all_cluster(token, hanami_address, False)
-project.delete_all_projects(token, torii_address, False)
-user.delete_all_user(token, torii_address, False)
+project.delete_all_projects(token, miko_address, False)
+user.delete_all_user(token, miko_address, False)
 
 version = common.get_version(token, hanami_address, False)
 print(f"hanami-version: {version}")
-version = common.get_version(token, torii_address, False)
-print(f"torii-version: {version}")
+version = common.get_version(token, miko_address, False)
+print(f"miko-version: {version}")
 
 test_project()
 test_user()

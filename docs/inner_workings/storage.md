@@ -13,7 +13,7 @@ The infrastructure and stores the following information:
     -   coming from Kyouko in order to backup a trained cluster
     -   metadata in database stored and binary-blob on disc
 <!-- -   `Audit-Log`
-    -   coming from the Torii for each incoming REST-API-request
+    -   coming from the Miko for each incoming REST-API-request
     -   stored within the database of Shiori
 -   `Error-Log`
     -   coming from each component in case of an error-message (every time when `LOG_ERROR` is
