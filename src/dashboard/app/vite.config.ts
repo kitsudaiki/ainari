@@ -10,13 +10,16 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License. 
 
-#![forbid(unsafe_code)]
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
 
-pub mod auth_middleware;
-pub mod config;
-pub mod cors_middleware;
-pub mod endpoints;
-pub mod errors;
-pub mod user_context;
+export default defineConfig({
+  plugins: [vue()],
+  root: ".",
+  server: {
+    host: "0.0.0.0",
+    port: 5173
+  }
+});

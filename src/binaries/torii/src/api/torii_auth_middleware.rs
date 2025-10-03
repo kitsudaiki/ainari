@@ -30,11 +30,14 @@ pub async fn authorization_middleware(
     let mut skip_check = false;
     let uri = req.uri();
 
+    log::debug!("call uri: '{uri}' method: {}", *req.method());
+
     // skip check for specific endpoints
     let is_post_req = *req.method() == Method::POST;
     let is_get_req = *req.method() == Method::GET;
     skip_check |= uri == "/v1alpha/token" && is_post_req;
     skip_check |= uri == "/openapi.json" && is_get_req;
+    skip_check |= *req.method() == Method::OPTIONS;
 
     if !skip_check {
         log::debug!("Check token for request against {uri}");

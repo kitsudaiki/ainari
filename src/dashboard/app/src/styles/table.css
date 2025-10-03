@@ -1,0 +1,57 @@
+/* Apache License Version 2.0
+
+Copyright 2022 Tobias Anker
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+table {
+    text-align: left;
+    color: var(--color-text);
+    border-collapse: collapse;
+    table-layout: auto;
+    width: 95%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+table tr {
+    height: 38px;
+    border-bottom: 1px solid var(--color-text);
+}
+
+/* make first column mono-space, because it contains the UUID, which is easier to read this way */
+.overview-table td:nth-child(1) {
+    font-family: Dejavu Sans Mono;
+    width: 25rem;
+}
+
+table tr th {
+    white-space: nowrap;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+table tr td {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.overview-table th:last-child,
+.overview-table td:last-child {
+    text-align: right;
+    width: 5rem;
+}

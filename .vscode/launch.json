@@ -1,5 +1,15 @@
 {
     "version": "0.2.0",
+    "compounds": [
+        {
+            "name": "Ainari Debug",
+            "configurations": ["Debug Build hanami", "Debug Build torii"],
+        },
+        {
+            "name": "Ainari Release",
+            "configurations": ["Release Build hanami", "Release Build torii"],
+        }
+    ],
     "configurations": [
         {
             "name": "Debug Build hanami",
@@ -74,16 +84,6 @@
                 "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
-        }
-    ],
-    "compounds": [
-        {
-            "name": "Ainari Debug",
-            "configurations": ["Debug Build hanami", "Debug Build torii"],
-        },
-        {
-            "name": "Ainari Release",
-            "configurations": ["Release Build hanami", "Release Build torii"],
         }
     ]
 }

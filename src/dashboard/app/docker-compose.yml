@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  prettier:
+    build: .
+    volumes:
+      - ./.:/app   # mount your source code here
+    working_dir: /app
+    command: ["prettier", "--write", "src/**/*.{ts,vue,css}"]
+

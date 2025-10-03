@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![forbid(unsafe_code)]
+import { createApp } from "vue";
+import App from "./App.vue";
 
-pub mod auth_middleware;
-pub mod config;
-pub mod cors_middleware;
-pub mod endpoints;
-pub mod errors;
-pub mod user_context;
+createApp(App).mount("#app");

@@ -172,6 +172,8 @@ pub struct TaskBasicResp {
     pub name: String,
     pub task_type: TaskType,
     pub state: TaskState,
+    pub total_number_of_epochs: i64,
+    pub current_epoch: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

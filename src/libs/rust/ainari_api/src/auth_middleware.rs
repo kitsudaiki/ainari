@@ -15,6 +15,7 @@
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
+    http::Method,
     middleware::Next,
     web,
 };
@@ -58,6 +59,7 @@ pub async fn authorization_middleware(
 
     // skip check for specific endpoints
     skip_check |= uri == "/openapi.json";
+    skip_check |= *req.method() == Method::OPTIONS;
 
     if !skip_check {
         log::debug!("Check token for request against {uri}");

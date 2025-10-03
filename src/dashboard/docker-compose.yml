@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  dashboard:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+# docker compose up --build

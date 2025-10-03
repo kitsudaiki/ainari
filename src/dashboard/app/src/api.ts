@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![forbid(unsafe_code)]
+import axios from "axios";
 
-pub mod auth_middleware;
-pub mod config;
-pub mod cors_middleware;
-pub mod endpoints;
-pub mod errors;
-pub mod user_context;
+const torii_api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL_TORII,
+});
+
+const hanami_api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL_HANAMI,
+});
+
+export default {
+    torii_api,
+    hanami_api,
+};

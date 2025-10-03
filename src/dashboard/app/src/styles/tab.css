@@ -1,0 +1,50 @@
+/* Apache License Version 2.0
+
+Copyright 2022 Tobias Anker
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+.tab {
+    overflow: hidden;
+    background-color: var(--color-tile);
+    box-shadow: var(--box-shadow-header);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin-top: 0.5rem;
+}
+
+.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+    font-family: var(--text-font-family);
+    color: white;
+    font-size: large;
+    font-size: 1rem;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+    background-color: var(--color-background);
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+    background-color: var(--color-text-light);
+    color: black;
+}
