@@ -29,7 +29,7 @@ spec:
           value: "debug"
         volumeMounts:
         - name: data-volume
-          mountPath: /etc/ainari/data/
+          mountPath: /etc/ainari/miko/
         - name: miko-config
           mountPath: /etc/ainari/miko.toml
           subPath: miko.toml

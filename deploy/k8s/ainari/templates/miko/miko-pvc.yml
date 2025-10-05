@@ -8,4 +8,4 @@ spec:
   storageClassName: miko-sc
   resources:
     requests:
-      storage: 1Gi
+      storage: 100Mi

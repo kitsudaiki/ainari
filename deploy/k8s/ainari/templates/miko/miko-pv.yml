@@ -4,7 +4,7 @@ metadata:
   name: miko-pv
 spec:
   capacity:
-    storage: 1Gi
+    storage: 100Mi
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce

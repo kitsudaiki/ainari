@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hanami
+  name: bento
   labels:
-    app: hanami
+    app: bento
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: hanami
+      app: bento
   template:
     metadata:
       labels:
-        app: hanami
+        app: bento
     spec:
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: hanami-node
+              - key: bento-node
                 operator: In
                 values:
                 - "true"
@@ -30,23 +30,23 @@ spec:
               - key: app
                 operator: In
                 values:
-                - hanami
+                - bento
             topologyKey: kubernetes.io/hostname
       containers:
-      - name: hanami
-        image: {{ .Values.docker.registry }}/hanami:{{ .Values.docker.tag }}
+      - name: bento
+        image: {{ .Values.docker.registry }}/bento:{{ .Values.docker.tag }}
         imagePullPolicy: Always
         env:
         - name: RUST_LOG
           value: "debug"
         volumeMounts:
         - name: data-volume
-          mountPath: /etc/ainari/hanami/
+          mountPath: /etc/ainari/bento/
         - name: shared-vol
           mountPath: /etc/ainari/bento_data
-        - name: hanami-config
-          mountPath: /etc/ainari/hanami.toml
-          subPath: hanami.toml
+        - name: bento-config
+          mountPath: /etc/ainari/bento.toml
+          subPath: bento.toml
           readOnly: true
 
       - name: tls-termination
@@ -54,7 +54,7 @@ spec:
         volumeMounts:
         - name: tls-certs
           mountPath: /etc/nginx/certs
-        - name: hanami-nginx-config
+        - name: bento-nginx-config
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         resources:
@@ -63,18 +63,18 @@ spec:
             cpu: "500m"
 
       volumes:
-        - name: hanami-config
+        - name: bento-config
           configMap:
-            name: hanami-config
+            name: bento-config
         - name: data-volume
           persistentVolumeClaim:
-            claimName: hanami-pvc
+            claimName: bento-pvc
         - name: tls-certs
           secret:
-            secretName: hanami-selfsigned-secret
-        - name: hanami-nginx-config
+            secretName: bento-selfsigned-secret
+        - name: bento-nginx-config
           configMap:
-            name: hanami-nginx-config
+            name: bento-nginx-config
         - name: shared-vol
           persistentVolumeClaim:
             claimName: shared-longhorn-pvc

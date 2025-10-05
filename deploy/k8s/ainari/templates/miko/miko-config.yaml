@@ -15,6 +15,6 @@ data:
     port = 11417
 
     [database]
-    file_path = "/etc/ainari/data/miko_db"
+    file_path = "/etc/ainari/miko/miko_db"
 
 kind: ConfigMap

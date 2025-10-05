@@ -6,11 +6,6 @@ data:
     debug = true
     log_path = ""
 
-    [storage]
-    dataset_location = "/etc/ainari/data/datasets"
-    checkpoint_location = "/etc/ainari/data/checkpoints"
-    tempfile_location = "/etc/ainari/data/tempfiles"
-
     [processing]
     max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
 
@@ -19,10 +14,15 @@ data:
     port = 11418
 
     [database]
-    file_path = "/etc/ainari/data/hanami_db"
+    file_path = "/etc/ainari/hanami/hanami_db"
     
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local"
+    port = 8443
+    insecure = true
+
+    [bento]
+    address = "https://bento-tls-service.default.svc.cluster.local"
     port = 8443
     insecure = true
 
