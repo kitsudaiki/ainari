@@ -661,7 +661,7 @@ jobs:
           - { component: "miko", platform: "linux/amd64", regitry: "kitsudaiki/miko" }
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
           - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
-          - { component: "bento", platform: "linux/arm64", regitry: "$kitsudaiki/bento" }
+          - { component: "bento", platform: "linux/arm64", regitry: "kitsudaiki/bento" }
     steps:
       -
         name: Prepare
