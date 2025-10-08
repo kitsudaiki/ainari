@@ -92,13 +92,52 @@ For the installation on a kubernetes `helm` is used.
     helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
     ```
 
-5.  **Node label**
+5.  **Install longhorn**
 
-    To all avaialbe nodes, where it is allowed to be deployed, the label `hanami-node` must be
-    assigned
+    Install required apt-package:
+
+    ```
+    sudo apt-get install -y open-iscsi nfs-common
+    sudo systemctl enable --now iscsid
+    ```
+
+    Install longhorn
+
+    ```
+    helm repo add longhorn https://charts.longhorn.io
+    helm repo update
+    kubectl create namespace longhorn-system
+    helm install longhorn longhorn/longhorn --namespace longhorn-system
+    ```
+
+    Create storage-class by applying:
+
+    ```
+    ---
+
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: longhorn
+    provisioner: driver.longhorn.io
+    parameters:
+      numberOfReplicas: "1"
+      staleReplicaTimeout: "30"
+    volumeBindingMode: Immediate
+    reclaimPolicy: Delete
+    allowVolumeExpansion: true
+    mountOptions: []
+    parameters: {}
+    ```
+
+6.  **Node label**
+
+    To all avaialbe nodes, where it is allowed to be deployed:
 
     ```
     kubectl label nodes NODE_NAME hanami-node=true
+    kubectl label nodes NODE_NAME miko-node=true
+    kubectl label nodes NODE_NAME bento-node=true
     ```
 
     !!! info
