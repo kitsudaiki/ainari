@@ -2,16 +2,44 @@
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "cargo build",
+        "label": "build hanami debug",
         "type": "shell",
-        "command": "cargo build",
+        "command": "cargo build -p hanami",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "cargo build --release",
+        "label": "build hanami release",
         "type": "shell",
-        "command": "cargo build --release",
+        "command": "cargo build --release -p hanami",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build miko debug",
+        "type": "shell",
+        "command": "cargo build -p miko",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build miko release",
+        "type": "shell",
+        "command": "cargo build --release -p miko",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build bento debug",
+        "type": "shell",
+        "command": "cargo build -p bento",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build bento release",
+        "type": "shell",
+        "command": "cargo build --release -p bento",
         "group": "build",
         "problemMatcher": ["$rustc"]
       }

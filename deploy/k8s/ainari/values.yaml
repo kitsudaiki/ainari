@@ -17,6 +17,7 @@ docker:
 api:
   domain_hanami: local-hanami
   domain_miko: local-miko
+  domain_bento: local-bento
 
 processing:
   max_number_of_threads: 0

@@ -27,41 +27,14 @@ use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::cluster::task::*;
 use crate::api::http_endpoints::cluster::*;
-use crate::api::http_endpoints::dataset::*;
 use crate::config;
 
 fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(
             scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
-        )
-        .service(
-            scope("/dataset")
-                .service(
-                    resource("/{dataset_uuid}")
-                        .route(get().to(get_dataset_v1_0::get_dataset))
-                        .route(delete().to(delete_dataset_v1_0::delete_dataset)),
-                )
-                .service(
-                    resource("/{dataset_uuid}/check")
-                        .route(put().to(check_dataset_v1_0::check_dataset)),
-                )
-                .service(resource("").route(get().to(list_dataset_v1_0::list_dataset)))
-                .service(
-                    resource("/{type}/{name}").route(post().to(create_dataset_v1_0::upload_binary)),
-                ),
-        )
-        .service(
-            scope("/checkpoint")
-                .service(resource("").route(get().to(list_checkpoint_v1_0::list_checkpoint)))
-                .service(
-                    resource("/{checkpoint_uuid}")
-                        .route(get().to(get_checkpoint_v1_0::get_checkpoint))
-                        .route(delete().to(delete_checkpoint_v1_0::delete_checkpoint)),
-                ),
         )
         .service(
             scope("/cluster")

@@ -41,7 +41,9 @@ spec:
           value: "debug"
         volumeMounts:
         - name: data-volume
-          mountPath: /etc/ainari/data/
+          mountPath: /etc/ainari/hanami/
+        - name: shared-vol
+          mountPath: /etc/ainari/bento_data
         - name: hanami-config
           mountPath: /etc/ainari/hanami.toml
           subPath: hanami.toml
@@ -73,3 +75,6 @@ spec:
         - name: hanami-nginx-config
           configMap:
             name: hanami-nginx-config
+        - name: shared-vol
+          persistentVolumeClaim:
+            claimName: shared-longhorn-pvc

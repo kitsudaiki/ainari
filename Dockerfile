@@ -19,6 +19,7 @@ RUN rustup install stable --no-self-update
 RUN cargo build --release
 RUN cp target/release/hanami /app/
 RUN cp target/release/miko /app/
+RUN cp target/release/bento /app/
 
 # ---------------------------------------------------
 
@@ -49,3 +50,18 @@ RUN apt-get update && \
 # miko
 COPY --from=builder /app/miko /usr/bin/miko
 CMD [ "miko" ]
+
+# ---------------------------------------------------
+
+FROM ubuntu:24.04 AS bento
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# bento
+COPY --from=builder /app/bento /usr/bin/bento
+CMD [ "bento" ]

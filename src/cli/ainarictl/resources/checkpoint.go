@@ -35,7 +35,7 @@ var getCheckpointCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		checkpointUuid := args[0]
 		content, err := ainari_sdk.GetCheckpoint(address, token, checkpointUuid, ainarictl_common.DisableTlsVerification)
 		if err != nil {
@@ -51,7 +51,7 @@ var listCheckpointCmd = &cobra.Command{
 	Short: "List all checkpoint.",
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		content, err := ainari_sdk.ListCheckpoint(address, token, ainarictl_common.DisableTlsVerification)
 		if err != nil {
 			fmt.Println(err)
@@ -67,7 +67,7 @@ var deleteCheckpointCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		checkpointUuid := args[0]
 		_, err := ainari_sdk.DeleteCheckpoint(address, token, checkpointUuid, ainarictl_common.DisableTlsVerification)
 		if err != nil {

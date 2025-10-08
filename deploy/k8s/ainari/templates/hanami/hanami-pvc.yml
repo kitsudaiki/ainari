@@ -8,4 +8,4 @@ spec:
   storageClassName: hanami-sc
   resources:
     requests:
-      storage: 10Gi
+      storage: 100Mi

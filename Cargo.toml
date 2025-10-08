@@ -1,12 +1,16 @@
 [workspace]
 members = [
     "src/binaries/hanami",
+    "src/binaries/miko", 
+    "src/binaries/bento", 
     "src/libs/rust/ainari_common",
     "src/libs/rust/ainari_cluster_parser",
     "src/libs/rust/ainari_dataset", 
     "src/libs/rust/ainari_api", 
     "src/libs/rust/ainari_hardware", 
-    "src/binaries/miko"]
+    "src/libs/rust/ainari_clients", 
+    "src/libs/rust/ainari_api_structs"
+]
 
 [profile.dev]
 opt-level = 0

@@ -15,30 +15,26 @@ it easier for a new person to understand the code.
     │
     ├── src
     │   ├── archive
-    │   │   ├── frontend
-    │   │   │   └── Ainari-Dashboard
-    │   │   └── sdk
-    │   │       └── javascript
+    │   │
+    │   ├── binaries
+    │   │       ├── bento
+    │   │       ├── hanami
+    │   │       └── miko
     │   │
     │   ├── cli
     │   │   └── ainarictl
-    │   │       ├── common
-    │   │       └── resources
     │   │
-    │   ├── binaries
-    │   │       ├── miko
-    │   │       └── hanami
-    │   │             └── (see below)
+    │   ├── dashboard
     │   │
     │   ├── libs
-    │   │   ├── cpp
-    │   │   │   └── ainari_core
     │   │   ├── rust
+    │   │   │   ├── ainari_api
+    │   │   │   ├── ainari_api_structs
+    │   │   │   ├── ainari_clients
     │   │   │   ├── ainari_cluster_parser
     │   │   │   ├── ainari_common
-    │   │   │   ├── ainari_hardware
-    │   │   │   ├── ainari_api
-    │   │   │   └── ainari_dataset
+    │   │   │   ├── ainari_dataset
+    │   │   │   └── ainari_hardware
     │   │   └── protobuf
     │   │
     │   └── sdk
@@ -73,15 +69,31 @@ it easier for a new person to understand the code.
 
         Code of the CLI-client written in Go
 
-    -   **hanami**
+    -   **dashboard**
 
-        Contains the main-part of [hanami](/repo/repo_structure/#hanami-source-code)
+        Contains the dashboard written in Vue and Typescript.
+
+    -   **binaries**
+
+        Contains all backend-binaries. Its the main-part of the repository.
 
     -   **libs**
 
         Libraries used by the binaries.
         
         -   **rust**
+
+            -   **ainari_api**
+
+                Common functions for the REST-API like authentication stuff and commonly used endpoints.
+
+            -   **ainari_api_structs**
+
+                Contains all structs of each request and response message.
+
+            -   **ainari_client**
+
+                Client-functions for communication between the binaries within the project.
 
             -   **ainari_cluster_parser**
 
@@ -94,10 +106,6 @@ it easier for a new person to understand the code.
             -   **ainari_dataset**
 
                 Contains functions to read and write dataset-files.
-
-            -   **ainari_api**
-
-                Common functions for the REST-API like authentication stuff and commonly used endpoints.
 
             -   **ainari_hardware**
 
@@ -115,36 +123,3 @@ it easier for a new person to understand the code.
 
     Skripts for basic tests of the python SDK and the CLI. They are used within the CI-pipeline for
     basic tests of the components and the API.
-
-## hanami source-code
-
-    └── src
-        └── hanami
-            ├── src
-            │   ├── api
-            │   │   └── http_endpoints
-            │   │       ├── checkpoint
-            │   │       ├── cluster
-            │   │       │   └── task
-            │   │       └── dataset
-            │   ├── core
-            │   ├── database
-            │   └── documentation
-            └── tests
-
--   **api**
-
-    All functions for the API to interact with the server.
-
-    -   **http_endpoints**
-
-        Definitions of all REST-API-endpoints
-
--   **core**
-
-    Core-functionality to handle and process the artificial neural networks
-
--   **database**
-
-    Contains the definitions of the database-tables and all functions to interact with the
-    SQL-database

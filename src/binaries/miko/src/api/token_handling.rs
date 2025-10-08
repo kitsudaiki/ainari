@@ -22,7 +22,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config;
 
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Claims {
@@ -44,7 +44,11 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
     let key = DecodingKey::from_secret(secret);
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
-        Ok(context) => Ok(context.claims),
+        Ok(context) => {
+            let mut user_context = context.claims;
+            user_context.token = token.to_owned();
+            Ok(user_context)
+        }
         Err(e) => match *e.kind() {
             ErrorKind::ExpiredSignature => Err("Token expired".to_string()),
             _ => Err("Invalid token".to_string()),

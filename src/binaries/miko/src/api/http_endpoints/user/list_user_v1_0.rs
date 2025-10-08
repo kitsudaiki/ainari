@@ -17,10 +17,9 @@ use apistos::api_operation;
 
 use crate::database::user_table;
 
-use super::user_structs::{UserBasicResp, UserListResp};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::user_structs::*;
 
 #[api_operation(
     tag = "user",

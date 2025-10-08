@@ -19,32 +19,13 @@ use actix_web::{
     middleware::Next,
     web,
 };
-use awc::http::StatusCode;
-use awc::{Client, Connector};
-use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 
-use crate::config;
 use crate::errors::ErrorResponse;
 
+use ainari_clients::auth::check_token;
+use ainari_common::config;
+use ainari_common::error::AinariError;
 use ainari_common::functions::split_bearer_token;
-
-fn get_client(use_ssl: bool, insecure: bool) -> Client {
-    if use_ssl {
-        let mut ssl_builder = SslConnector::builder(SslMethod::tls()).unwrap();
-
-        if insecure {
-            ssl_builder.set_verify(SslVerifyMode::NONE);
-            ssl_builder.set_verify_callback(SslVerifyMode::NONE, |_, _| true);
-        }
-
-        let connector = Connector::new().openssl(ssl_builder.build());
-        Client::builder()
-            .connector(connector) // pass connector directly
-            .finish()
-    } else {
-        Client::new()
-    }
-}
 
 pub async fn authorization_middleware(
     req: ServiceRequest,
@@ -53,9 +34,8 @@ pub async fn authorization_middleware(
     let mut skip_check = false;
     let uri = req.uri();
     let miko_config = req
-        .app_data::<web::Data<config::Miko>>()
+        .app_data::<web::Data<config::MikoConnection>>()
         .expect("Miko-config missing!");
-    let https_miko_connection = miko_config.address.starts_with("https://");
 
     // skip check for specific endpoints
     skip_check |= uri == "/openapi.json";
@@ -93,50 +73,23 @@ pub async fn authorization_middleware(
             }
         };
 
-        let client = get_client(https_miko_connection, miko_config.insecure);
         let miko_address = miko_config.address.clone();
-        let miko_port = miko_config.port;
-        let miko_address_complete = format!("{miko_address}:{miko_port}/v1alpha/token");
-
-        let response = client
-            .get(miko_address_complete)
-            .insert_header(("Authorization", format!("Bearer {}", token)))
-            .send()
-            .await;
+        let miko_port: u16 = miko_config.port;
+        let complete_address = format!("{miko_address}:{miko_port}");
+        let response = check_token(complete_address, token.to_string(), miko_config.insecure).await;
 
         match response {
-            Ok(mut resp) => {
-                match resp.status() {
-                    StatusCode::UNAUTHORIZED => {
-                        log::debug!("Invalid token with 401-error");
-                        return Err(ErrorResponse::Unauthorized("Invalid token".to_string()).into());
-                    }
-                    StatusCode::FORBIDDEN => {
-                        log::debug!("Invalid token with 403-error");
-                        return Err(ErrorResponse::Unauthorized("Invalid token".to_string()).into());
-                    }
-                    StatusCode::OK => {
-                        log::debug!("Successfully checked token against Miko");
-                    }
-                    code => {
-                        log::error!(
-                            "Error while sending request for token-validation. Got response-code: {code}"
-                        );
-                        return Err(ErrorResponse::InternalError("".to_string()).into());
-                    }
-                }
-
-                let _ = match resp.body().await {
-                    Ok(body) => String::from_utf8_lossy(&body).into_owned(),
-                    Err(e) => {
-                        log::error!("Error while getting token-validation-body: {e}");
-                        return Err(ErrorResponse::InternalError("".to_string()).into());
-                    }
-                };
+            Ok(_) => {
                 // println!("Success: {body_str}");
             }
-            Err(e) => {
-                log::error!("Error while sending request for token-validation: {e}");
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg).into());
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg).into());
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("Failed to load mnist-images with error: '{msg}'");
                 return Err(ErrorResponse::InternalError("".to_string()).into());
             }
         }

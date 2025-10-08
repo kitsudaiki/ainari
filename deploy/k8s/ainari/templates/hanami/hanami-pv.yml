@@ -4,7 +4,7 @@ metadata:
   name: hanami-pv
 spec:
   capacity:
-    storage: 10Gi
+    storage: 100Mi
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce

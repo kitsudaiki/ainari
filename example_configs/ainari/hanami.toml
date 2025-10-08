@@ -4,26 +4,20 @@ log_path = "/var/log"
 [database]
 file_path = "/etc/ainari/hanami_db"
 
-[storage]
-dataset_location = "/etc/ainari/datasets"
-checkpoint_location = "/etc/ainari/checkpoints"
-tempfile_location = "/etc/ainari/tempfiles"
-tempfile_timeout = 10
-
 [processing]
 # 0 means there is no limitation
 max_number_of_threads = 0
 
-[auth]
-token_key_path = "/etc/ainari/token_key"
-token_expire_time = 3600
-
 [api]
 ip = "0.0.0.0"
 port = 11418
-internal_socket = "/tmp/hanami_internal"
 
 [miko]
 address = "http://127.0.0.1"
 port = 11417
+insecure = true
 
+[bento]
+address = "http://127.0.0.1"
+port = 11416
+insecure = true

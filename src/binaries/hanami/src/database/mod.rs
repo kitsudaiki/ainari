@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod checkpoint_table;
 pub mod cluster_table;
-pub mod dataset_table;
 pub mod db_handle;
 pub mod task_table;
 
@@ -31,27 +29,11 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e);
         }
     };
-    // Initialize dataset-table
-    match dataset_table::init_dataset_table() {
-        Ok(_) => log::info!("Initilaized dataset-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize dataset-database-table: {e}");
-            return Err(e);
-        }
-    };
     // Initialize task-table
     match task_table::init_task_table() {
         Ok(_) => log::info!("Initilaized task-database-table"),
         Err(e) => {
             log::error!("Failed to initialize task-database-table: {e}");
-            return Err(e);
-        }
-    };
-    // Initialize checkpoint-table
-    match checkpoint_table::init_checkpoint_table() {
-        Ok(_) => log::info!("Initilaized checkpoint-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize checkpoint-database-table: {e}");
             return Err(e);
         }
     };

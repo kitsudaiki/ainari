@@ -1,0 +1,26 @@
+apiVersion: v1
+metadata:
+  name: bento-config
+data:
+  bento.toml: |+
+    debug = true
+    log_path = ""
+
+    [storage]
+    dataset_location = "/etc/ainari/bento_data/datasets"
+    checkpoint_location = "/etc/ainari/bento_data/checkpoints"
+    tempfile_location = "/etc/ainari/bento_data/tempfiles"
+
+    [api]
+    ip = "127.0.0.1"
+    port = 11416
+
+    [database]
+    file_path = "/etc/ainari/bento/bento_db"
+    
+    [miko]
+    address = "https://miko-tls-service.default.svc.cluster.local"
+    port = 8443
+    insecure = true
+
+kind: ConfigMap

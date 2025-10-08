@@ -21,18 +21,17 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::config;
+use crate::config as ainari_config;
 use crate::core::cluster_handler;
 use crate::core::cluster_handler::*;
 use crate::core::processing::tasks::{RequestInfo, Task, TaskMeta, TaskVariant};
 use crate::database::cluster_table;
-use crate::database::dataset_table;
 use crate::database::task_table;
 
-use super::task_structs::{TaskCreateRequestReq, TaskResp, TaskState, TaskType};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
+use ainari_clients::dataset::*;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
@@ -80,38 +79,26 @@ pub async fn create_request_task(
         }
     };
 
-    // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
-    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string())),
-    };
-    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
-        interface
-    } else {
-        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
-        return Err(ErrorResponse::NotFound(msg));
-    };
+    // initialize datbase for output
+    let bento_connection = &ainari_config::CONFIG.bento;
+    let dataset_create_resp =
+        match init_dataset(bento_connection, &context.token, &task_uuid, &body.name).await {
+            Ok(body) => body,
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{msg}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
-    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(task_uuid.to_string());
     let description = task_uuid.to_string().clone();
     let mut columns: HashMap<String, Column> = HashMap::new();
     let name = body.name.clone();
-
-    // add new dataset to datbase
-    let file_path_str: String = target_filepath.to_string_lossy().into();
-    match dataset_table::add_new_dataset(&task_uuid, &name, &file_path_str, &context) {
-        Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add dataset with ID '{task_uuid}' to database.");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
 
     // prepare outputs for task
     let mut total_output_size: u64 = 0;
@@ -123,6 +110,9 @@ pub async fn create_request_task(
                 let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
                 output_buffer.output_neurons.len() as u64
             }
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
             Err(AinariError::InvalidInput(msg)) => {
                 let msg = format!("Invalid input: {msg}");
                 return Err(ErrorResponse::BadRequest(msg));
@@ -132,6 +122,9 @@ pub async fn create_request_task(
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
+        // HINT(kitsudaiki): drop lock here, because otherwise cargo clipply has a problem with the lock
+        // in combination with the later coming await-call
+        drop(cluster_handler);
 
         let col = Column {
             start: total_output_size,
@@ -144,7 +137,7 @@ pub async fn create_request_task(
 
     // create new dataset for the resulting data
     let result_file_handle = match init_new_data_set_file(
-        &target_filepath,
+        &PathBuf::from(&dataset_create_resp.file_path),
         task_uuid,
         name,
         description,
@@ -168,16 +161,24 @@ pub async fn create_request_task(
 
     // prepare inputs for task
     for input in &body.inputs {
-        let dataset = match dataset_table::get_dataset(&input.dataset_uuid, &context) {
-            Ok(dataset) => dataset,
-            Err(_) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        // get dataset information
+        let bento_connection = &ainari_config::CONFIG.bento;
+        let dataset_resp =
+            match get_dataset(bento_connection, &context.token, &input.dataset_uuid).await {
+                Ok(body) => body,
+                Err(AinariError::Unauthorized(msg)) => {
+                    return Err(ErrorResponse::Unauthorized(msg));
+                }
+                Err(AinariError::InvalidInput(msg)) => {
+                    return Err(ErrorResponse::BadRequest(msg));
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{msg}");
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            };
 
-        let file_path = dataset.file_path;
-
-        match read_data_set_file(&PathBuf::from(file_path)) {
+        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -218,13 +219,27 @@ pub async fn create_request_task(
         }
     };
 
+    // get cluster-handle
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER
+        .read()
+        .expect("mutex poisoned");
+    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
+        Some(cluster_handle) => cluster_handle,
+        None => return Err(ErrorResponse::InternalError("".to_string())),
+    };
+    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
+        interface
+    } else {
+        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
+        return Err(ErrorResponse::NotFound(msg));
+    };
+
     // create new task
     let task = Task {
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        user_id: context.user_id.clone(),
-        project_id: context.project_id.clone(),
+        token: context.token.clone(),
         info: TaskVariant::Request(info),
         meta: TaskMeta::new(number_of_cycles, 1, time_length),
     };

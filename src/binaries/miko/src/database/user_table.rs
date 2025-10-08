@@ -22,7 +22,7 @@ use std::error::Error;
 
 use crate::database::db_handle;
 
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::functions::sha256_hash;
 
@@ -65,6 +65,7 @@ pub struct UserEntry {
 
 pub fn init_admin() -> Result<(), Box<dyn Error>> {
     let fake_admin_context = UserContext {
+        token: "".to_string(),
         user_id: "HANAMI_INIT".to_string(),
         project_id: "HANAMI_INIT".to_string(),
         is_admin: true,
@@ -288,6 +289,7 @@ mod tests {
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user-1".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true,
@@ -338,6 +340,7 @@ mod tests {
         let owner_id1 = "test-user-2".to_string();
         let owner_id2 = "test-user-3".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id1.clone(),
             project_id: project_id.clone(),
             is_admin: true,
@@ -396,6 +399,7 @@ mod tests {
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user-4".to_string();
         let context = UserContext {
+            token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true,

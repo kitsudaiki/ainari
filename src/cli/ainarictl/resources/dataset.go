@@ -44,7 +44,7 @@ var createMnistDatasetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetName := args[0]
 		content, err := ainari_sdk.CreateMnistDataset(address, token, datasetName, inputFilePath, labelFilePath, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -62,7 +62,7 @@ var createCsvDatasetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetName := args[0]
 		content, err := ainari_sdk.CreateCsvDataset(address, token, datasetName, inputFilePath, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -80,7 +80,7 @@ var checkDatasetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetUuid := args[0]
 		content, err := ainari_sdk.CheckDataset(address, token, datasetUuid, referenceDatasetUuid, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -98,7 +98,7 @@ var getDatasetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetUuid := args[0]
 		content, err := ainari_sdk.GetDataset(address, token, datasetUuid, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -115,7 +115,7 @@ var listDatasetCmd = &cobra.Command{
 	Short: "List all dataset.",
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		content, err := ainari_sdk.ListDataset(address, token, ainarictl_common.DisableTlsVerification)
 		if err != nil {
 			fmt.Println(err)
@@ -131,7 +131,7 @@ var deleteDatasetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetUuid := args[0]
 		_, err := ainari_sdk.DeleteDataset(address, token, datasetUuid, ainarictl_common.DisableTlsVerification)
 		if err == nil {
@@ -149,7 +149,7 @@ var downloadDatasetContentCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		address := os.Getenv("BENTO_ADDRESS")
 		datasetUuid := args[0]
 		content, err := ainari_sdk.DownloadDatasetContent(address, token, datasetUuid, columnName, numberOfRows, rowOffset, ainarictl_common.DisableTlsVerification)
 		if err == nil {

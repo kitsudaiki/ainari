@@ -21,17 +21,18 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config as ainari_config;
 use crate::core::cluster_handler;
 use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant, TrainInfo};
 use crate::database::cluster_table;
-use crate::database::dataset_table;
 use crate::database::task_table;
 
-use super::task_structs::{TaskCreateTrainReq, TaskResp, TaskState, TaskType};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
+use ainari_clients::dataset::*;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
@@ -77,21 +78,6 @@ pub async fn create_train_task(
         }
     };
 
-    // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
-    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string())),
-    };
-    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
-        interface
-    } else {
-        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
-        return Err(ErrorResponse::NotFound(msg));
-    };
-
     // prepare task-info
     let mut info = TrainInfo {
         inputs: HashMap::new(),
@@ -102,14 +88,24 @@ pub async fn create_train_task(
 
     // prepare inputs for task
     for input in &body.inputs {
-        let dataset = match dataset_table::get_dataset(&input.dataset_uuid, &context) {
-            Ok(dataset) => dataset,
-            Err(_) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        // get dataset information
+        let bento_connection = &ainari_config::CONFIG.bento;
+        let dataset_resp =
+            match get_dataset(bento_connection, &context.token, &input.dataset_uuid).await {
+                Ok(body) => body,
+                Err(AinariError::Unauthorized(msg)) => {
+                    return Err(ErrorResponse::Unauthorized(msg));
+                }
+                Err(AinariError::InvalidInput(msg)) => {
+                    return Err(ErrorResponse::BadRequest(msg));
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{msg}");
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            };
 
-        match read_data_set_file(&PathBuf::from(dataset.file_path)) {
+        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -127,14 +123,24 @@ pub async fn create_train_task(
 
     // prepare outputs for task
     for output in &body.outputs {
-        let dataset = match dataset_table::get_dataset(&output.dataset_uuid, &context) {
-            Ok(dataset) => dataset,
-            Err(_) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        // get dataset information
+        let bento_connection = &ainari_config::CONFIG.bento;
+        let dataset_resp =
+            match get_dataset(bento_connection, &context.token, &output.dataset_uuid).await {
+                Ok(body) => body,
+                Err(AinariError::Unauthorized(msg)) => {
+                    return Err(ErrorResponse::Unauthorized(msg));
+                }
+                Err(AinariError::InvalidInput(msg)) => {
+                    return Err(ErrorResponse::BadRequest(msg));
+                }
+                Err(AinariError::Error(msg)) => {
+                    log::error!("{msg}");
+                    return Err(ErrorResponse::InternalError("".to_string()));
+                }
+            };
 
-        match read_data_set_file(&PathBuf::from(dataset.file_path)) {
+        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -177,13 +183,27 @@ pub async fn create_train_task(
         }
     };
 
+    // get cluster-handle
+    let cluster_handler = cluster_handler::CLUSTER_HANDLER
+        .read()
+        .expect("mutex poisoned");
+    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
+        Some(cluster_handle) => cluster_handle,
+        None => return Err(ErrorResponse::InternalError("".to_string())),
+    };
+    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
+        interface
+    } else {
+        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
+        return Err(ErrorResponse::NotFound(msg));
+    };
+
     // create new task
     let task = Task {
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        user_id: context.user_id.clone(),
-        project_id: context.project_id.clone(),
+        token: context.token.clone(),
         info: TaskVariant::Training(info),
         meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
     };

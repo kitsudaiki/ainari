@@ -15,10 +15,9 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use super::auth_structs::UserTokenValidateResp;
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::auth_structs::*;
+use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "auth",
@@ -32,6 +31,8 @@ pub async fn validate_token(
     context: UserContext,
 ) -> Result<Json<UserTokenValidateResp>, ErrorResponse> {
     let response = UserTokenValidateResp { context };
-
+    // HINT(kitsudaki): Here is not validation-code, even the funktion is named this way,
+    // because it provides only the endpoint itself. The token-validation will be done
+    // in the middleway, like for the other endpoints
     return Ok(Json(response));
 }

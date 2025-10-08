@@ -15,8 +15,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use crate::api::http_endpoints::cluster::task::task_structs::TaskState;
 use crate::database::task_table;
+use ainari_api_structs::task_structs::*;
 
 use super::tasks::Task;
 
@@ -70,8 +70,7 @@ mod tests {
             uuid: uuid1,
             cluster_uuid,
             name: "task1".to_string(),
-            user_id: "user0815".to_string(),
-            project_id: "project0815".to_string(),
+            token: "user0815".to_string(),
             info: TaskVariant::CheckpointSave(info1),
             meta: TaskMeta::new(1, 1, 1),
         };
@@ -79,8 +78,7 @@ mod tests {
             uuid: uuid2,
             cluster_uuid,
             name: "task2".to_string(),
-            user_id: "user0816".to_string(),
-            project_id: "project0816".to_string(),
+            token: "user0816".to_string(),
             info: TaskVariant::CheckpointSave(info2),
             meta: TaskMeta::new(1, 1, 1),
         };

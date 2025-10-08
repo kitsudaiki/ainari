@@ -14,6 +14,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod config;
 pub mod constants;
 pub mod counter;
 pub mod enums;

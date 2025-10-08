@@ -120,7 +120,8 @@ API.
 
     ```bash
     export HANAMI_ADDRESS=http://127.0.0.1:11418
-    export TORII_ADDRESS=http://127.0.0.1:11417
+    export MIKO_ADDRESS=http://127.0.0.1:11417
+    export BENTO_ADDRESS=http://127.0.0.1:11416
     export HANAMI_USER=asdf
     export HANAMI_PASSPHRASE=asdfasdf
 

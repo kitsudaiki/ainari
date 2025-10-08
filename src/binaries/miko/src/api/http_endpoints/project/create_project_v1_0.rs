@@ -19,10 +19,9 @@ use validator::Validate;
 
 use crate::database::project_table;
 
-use super::project_structs::{ProjectCreateReq, ProjectResp};
-
 use ainari_api::errors::ErrorResponse;
-use ainari_api::user_context::UserContext;
+use ainari_api_structs::project_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(

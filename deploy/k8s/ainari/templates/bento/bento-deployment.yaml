@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bento
+  labels:
+    app: bento
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bento
+  template:
+    metadata:
+      labels:
+        app: bento
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: bento-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - bento
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: bento
+        image: {{ .Values.docker.registry }}/bento:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/bento/
+        - name: shared-vol
+          mountPath: /etc/ainari/bento_data
+        - name: bento-config
+          mountPath: /etc/ainari/bento.toml
+          subPath: bento.toml
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: bento-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: bento-config
+          configMap:
+            name: bento-config
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: bento-pvc
+        - name: tls-certs
+          secret:
+            secretName: bento-selfsigned-secret
+        - name: bento-nginx-config
+          configMap:
+            name: bento-nginx-config
+        - name: shared-vol
+          persistentVolumeClaim:
+            claimName: shared-longhorn-pvc

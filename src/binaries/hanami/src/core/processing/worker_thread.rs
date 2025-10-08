@@ -116,6 +116,10 @@ impl WorkerThread {
                     drop(worker_queue);
                     match process_task(&worker_task) {
                         Ok(()) => {}
+                        Err(AinariError::Unauthorized(msg)) => {
+                            log::error!("{msg}");
+                            // TODO: better error-handling
+                        }
                         Err(AinariError::InvalidInput(msg)) => {
                             log::error!("{msg}");
                             // TODO: better error-handling
