@@ -13,19 +13,12 @@
 // limitations under the License.
 
 use actix_web::web::Json;
-use apistos::ApiComponent;
 use apistos::api_operation;
 use once_cell::sync::Lazy;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 use crate::errors::ErrorResponse;
+use ainari_api_structs::common_structs::VersionResp;
 use ainari_api_structs::user_context::UserContext;
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct VersionResp {
-    pub version: String,
-}
 
 #[api_operation(
     tag = "version",
@@ -37,13 +30,25 @@ pub struct VersionResp {
 )]
 pub async fn get_version(_: UserContext) -> Result<Json<VersionResp>, ErrorResponse> {
     let resp = VersionResp {
-        version: VERSION.clone(),
+        version: GIT_VERSION.clone(),
+        commit_hash: COMMIT_HASH.clone(),
+        timestamp: COMPILE_TIMESTAMP.clone(),
     };
 
     return Ok(Json(resp));
 }
 
-pub static VERSION: Lazy<String> = Lazy::new(|| {
+pub static GIT_VERSION: Lazy<String> = Lazy::new(|| {
     let git_version = option_env!("GIT_VERSION").unwrap_or("unknown");
     git_version.to_string()
+});
+
+pub static COMMIT_HASH: Lazy<String> = Lazy::new(|| {
+    let commit_hash = option_env!("COMMIT_HASH").unwrap_or("unknown");
+    commit_hash.to_string()
+});
+
+pub static COMPILE_TIMESTAMP: Lazy<String> = Lazy::new(|| {
+    let compile_timestamp = option_env!("COMPILE_TIMESTAMP").unwrap_or("unknown");
+    compile_timestamp.to_string()
 });
