@@ -8,12 +8,17 @@
 
 - added new component named "Miko", where the endpoints for tokens, users and projects moved to.
 - Hanami now uses the Miko to check provided token over a new client-connection
+- improved version-output 
 
 #### Config-Breaking
 
 - Because of the new component, Hanami requires a new client-connection in its config
 
+### Added
 
+- new component "Miko" for authentication
+- new componentn "Bento" for storage
+- use shared storage in kubernetes-setup to share files between Bento and Hanami
 
 ## v0.9.0
 

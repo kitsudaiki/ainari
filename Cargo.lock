@@ -293,6 +293,7 @@ dependencies = [
  "apistos-schemars",
  "awc",
  "base64",
+ "chrono",
  "env_logger",
  "futures",
  "futures-util",

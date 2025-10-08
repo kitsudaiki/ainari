@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use chrono::Local;
 use std::process::Command;
 
 fn main() {
     let commit_hash = run_cmd(&["rev-parse", "--short", "HEAD"]);
-    let tag = run_cmd(&["tag", "--points-at", "HEAD"]);
 
+    // try to get tag-name of the current commit.
+    // if the commit is not tagged, use the name of the branch.
+    let tag = run_cmd(&["tag", "--points-at", "HEAD"]);
     let version_string = if !tag.is_empty() {
-        format!("{}_{}", tag, commit_hash)
+        tag
     } else {
-        let branch = run_cmd(&["rev-parse", "--abbrev-ref", "HEAD"]);
-        format!("{}_{}", branch, commit_hash)
+        run_cmd(&["rev-parse", "--abbrev-ref", "HEAD"])
     };
 
     // Fallback if everything fails
@@ -32,7 +34,13 @@ fn main() {
         version_string
     };
 
+    // get the timestamp, when this binary was compiled
+    let now = Local::now();
+    let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+
     println!("cargo:rustc-env=GIT_VERSION={}", final_version);
+    println!("cargo:rustc-env=COMMIT_HASH={}", commit_hash);
+    println!("cargo:rustc-env=COMPILE_TIMESTAMP={}", timestamp);
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/");
     println!("cargo:rerun-if-changed=build.rs");
