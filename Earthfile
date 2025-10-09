@@ -198,7 +198,7 @@ generate-docs:
     RUN . ainari_env/bin/activate && \
         hap run /tmp/bento && \
         sleep 5 && \
-        curl 127.0.0.1:11417/openapi.json > ./bento.json
+        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_bento.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
