@@ -19,6 +19,7 @@ pub mod checkpoint_structs;
 pub mod cluster_structs;
 pub mod common_structs;
 pub mod dataset_structs;
+pub mod endpoints_structs;
 pub mod project_structs;
 pub mod task_structs;
 pub mod user_context;

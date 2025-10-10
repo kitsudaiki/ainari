@@ -23,9 +23,26 @@ use actix_web::{
 use crate::errors::ErrorResponse;
 
 use ainari_clients::auth::check_token;
-use ainari_common::config;
+use ainari_common::config::MikoEndpoint;
 use ainari_common::error::AinariError;
 use ainari_common::functions::split_bearer_token;
+
+#[derive(Debug, Clone)]
+pub struct MikoConfig {
+    pub address: String,
+    pub port: u16,
+    pub insecure_connection: bool,
+}
+
+impl MikoConfig {
+    pub fn new(conn: &MikoEndpoint, insecure_connection: bool) -> Self {
+        MikoConfig {
+            address: conn.address.clone(),
+            port: conn.port,
+            insecure_connection,
+        }
+    }
+}
 
 pub async fn authorization_middleware(
     req: ServiceRequest,
@@ -34,7 +51,7 @@ pub async fn authorization_middleware(
     let mut skip_check = false;
     let uri = req.uri();
     let miko_config = req
-        .app_data::<web::Data<config::MikoConnection>>()
+        .app_data::<web::Data<MikoConfig>>()
         .expect("Miko-config missing!");
 
     // skip check for specific endpoints
@@ -76,7 +93,12 @@ pub async fn authorization_middleware(
         let miko_address = miko_config.address.clone();
         let miko_port: u16 = miko_config.port;
         let complete_address = format!("{miko_address}:{miko_port}");
-        let response = check_token(complete_address, token.to_string(), miko_config.insecure).await;
+        let response = check_token(
+            complete_address,
+            token.to_string(),
+            miko_config.insecure_connection,
+        )
+        .await;
 
         match response {
             Ok(_) => {

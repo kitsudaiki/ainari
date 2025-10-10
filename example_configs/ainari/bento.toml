@@ -1,5 +1,6 @@
 debug = true
 log_path = "/var/log"
+insecure_clients = true
 
 [database]
 file_path = "/etc/ainari/bento_db"
@@ -17,5 +18,4 @@ port = 11416
 [miko]
 address = "http://127.0.0.1"
 port = 11417
-insecure = true
 

@@ -17,6 +17,8 @@ use serde::Deserialize;
 use std::fs;
 use std::process;
 
+use ainari_common::config as ainari_config;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
@@ -25,6 +27,7 @@ pub struct Config {
     pub auth: Auth,
     pub api: Api,
     pub database: Database,
+    pub endpoints: ainari_config::Endpoints,
 }
 
 #[derive(Debug, Deserialize)]

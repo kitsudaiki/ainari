@@ -30,6 +30,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::checkpoint::*;
+use ainari_clients::endpoints::*;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
@@ -72,21 +73,46 @@ pub async fn checkpoint_restore_task(
     };
 
     // get checkpoint information
-    let bento_connection = &ainari_config::CONFIG.bento;
-    let checkpoint_resp =
-        match get_checkpoint(bento_connection, &context.token, &body.checkpoint_uuid).await {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+    let miko_endpoint = &ainari_config::CONFIG.miko;
+    let endpoints = match get_endpoints(
+        miko_endpoint,
+        &context.token,
+        ainari_config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+    let checkpoint_resp = match get_checkpoint(
+        &endpoints.bento,
+        &context.token,
+        &body.checkpoint_uuid,
+        ainari_config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     // get cluster-handle
     let cluster_handler = cluster_handler::CLUSTER_HANDLER

@@ -12,33 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct MikoEndpoint {
-    pub address: String,
-    #[serde(default = "default_miko_port")]
-    pub port: u16,
-}
-
-fn default_miko_port() -> u16 {
-    0
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct HanamiEndpoints {
-    pub public_address: String,
-    pub public_port: u16,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct BentoEndpoints {
-    pub public_address: String,
-    pub public_port: u16,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct Endpoints {
-    pub hanami: HanamiEndpoints,
-    pub bento: BentoEndpoints,
-}
+pub mod get_endpoints_v1_0;

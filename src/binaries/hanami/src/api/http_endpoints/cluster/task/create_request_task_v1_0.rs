@@ -32,6 +32,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
+use ainari_clients::endpoints::*;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
@@ -80,21 +81,47 @@ pub async fn create_request_task(
     };
 
     // initialize datbase for output
-    let bento_connection = &ainari_config::CONFIG.bento;
-    let dataset_create_resp =
-        match init_dataset(bento_connection, &context.token, &task_uuid, &body.name).await {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+    let miko_endpoint = &ainari_config::CONFIG.miko;
+    let endpoints = match get_endpoints(
+        miko_endpoint,
+        &context.token,
+        ainari_config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+    let dataset_create_resp = match init_dataset(
+        &endpoints.bento,
+        &context.token,
+        &task_uuid,
+        &body.name,
+        ainari_config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     let description = task_uuid.to_string().clone();
     let mut columns: HashMap<String, Column> = HashMap::new();
@@ -162,21 +189,26 @@ pub async fn create_request_task(
     // prepare inputs for task
     for input in &body.inputs {
         // get dataset information
-        let bento_connection = &ainari_config::CONFIG.bento;
-        let dataset_resp =
-            match get_dataset(bento_connection, &context.token, &input.dataset_uuid).await {
-                Ok(body) => body,
-                Err(AinariError::Unauthorized(msg)) => {
-                    return Err(ErrorResponse::Unauthorized(msg));
-                }
-                Err(AinariError::InvalidInput(msg)) => {
-                    return Err(ErrorResponse::BadRequest(msg));
-                }
-                Err(AinariError::Error(msg)) => {
-                    log::error!("{msg}");
-                    return Err(ErrorResponse::InternalError("".to_string()));
-                }
-            };
+        let dataset_resp = match get_dataset(
+            &endpoints.bento,
+            &context.token,
+            &input.dataset_uuid,
+            ainari_config::CONFIG.insecure_clients,
+        )
+        .await
+        {
+            Ok(body) => body,
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{msg}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        };
 
         match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
             Ok(mut file_handle) => {

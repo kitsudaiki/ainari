@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod auth;
+pub mod endpoints;
 pub mod project;
 pub mod user;

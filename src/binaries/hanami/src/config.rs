@@ -23,12 +23,17 @@ use ainari_common::config as ainari_config;
 pub struct Config {
     // general values
     pub debug: bool,
+    #[serde(default = "default_insecure_clients")]
+    pub insecure_clients: bool,
     // groups
     pub processing: Processing,
     pub api: Api,
     pub database: Database,
-    pub miko: ainari_config::MikoConnection,
-    pub bento: ainari_config::BentoConnection,
+    pub miko: ainari_config::MikoEndpoint,
+}
+
+fn default_insecure_clients() -> bool {
+    false
 }
 
 #[derive(Debug, Deserialize)]

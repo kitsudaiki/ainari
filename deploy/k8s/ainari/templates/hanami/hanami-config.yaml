@@ -5,6 +5,7 @@ data:
   hanami.toml: |+
     debug = true
     log_path = ""
+    insecure_clients = true
 
     [processing]
     max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
@@ -19,11 +20,5 @@ data:
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local"
     port = 8443
-    insecure = true
-
-    [bento]
-    address = "https://bento-tls-service.default.svc.cluster.local"
-    port = 8443
-    insecure = true
 
 kind: ConfigMap

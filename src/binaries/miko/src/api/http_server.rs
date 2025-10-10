@@ -27,6 +27,7 @@ use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::auth::*;
+use crate::api::http_endpoints::endpoints::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::user::*;
 use crate::api::miko_auth_middleware::authorization_middleware;
@@ -44,6 +45,10 @@ fn v1alpha_routes() -> Scope {
                     .route(post().to(create_token_v1_0::create_token))
                     .route(get().to(validate_token_v1_0::validate_token)),
             ),
+        )
+        .service(
+            scope("/endpoints")
+                .service(resource("").route(get().to(get_endpoints_v1_0::get_endpoints))),
         )
         .service(
             scope("/project")
