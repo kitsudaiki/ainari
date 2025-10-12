@@ -18,6 +18,7 @@ api:
   domain_hanami: local-hanami
   domain_miko: local-miko
   domain_bento: local-bento
+  internal_api_key: "dummy-key"
 
 processing:
   max_number_of_threads: 0

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use actix_web::middleware::{Logger, from_fn};
-use actix_web::web::PayloadConfig;
+use actix_web::web::{self, PayloadConfig};
 use actix_web::{App, HttpServer};
 use apistos::app::OpenApiWrapper;
 use apistos::info::Info;
@@ -23,8 +23,10 @@ use apistos::spec::Spec;
 use apistos::web::{Scope, delete, get, post, put, resource, scope};
 use std::error::Error;
 
+use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::*;
+use ainari_common::config as ainari_config;
 
 use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::endpoints::*;
@@ -81,10 +83,19 @@ fn v1alpha_routes() -> Scope {
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {
     log::debug!("initialize server");
+
     // get server-address from config
-    let ip = config::CONFIG.api.ip.clone();
-    let port = config::CONFIG.api.port;
-    log::info!("HTTP-server listen on {ip}:{port}");
+    let public_ip = config::CONFIG.api.public_ip.clone();
+    let public_port = config::CONFIG.api.public_port;
+    log::info!("HTTP-server listen public on {public_ip}:{public_port}");
+    let internal_ip = config::CONFIG.api.internal_ip.clone();
+    let internal_port = config::CONFIG.api.internal_port;
+    log::info!("HTTP-server listen internally on {internal_ip}:{internal_port}");
+
+    // create api-validation-config
+    let miko_dummy_config = ainari_config::MikoEndpoint::default();
+    let api_validation_config =
+        ApiValidationConfig::new(&miko_dummy_config, &config::CONFIG.api, false);
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {
@@ -113,6 +124,7 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
+            .app_data(web::Data::new(api_validation_config.clone())) // provide validation configs to the middleware
             .wrap(from_fn(authorization_middleware))
             .wrap(from_fn(cors_middleware))
             .wrap(Logger::default())
@@ -120,7 +132,8 @@ pub async fn run_server() -> Result<(), impl Error> {
             .service(v1alpha_routes())
             .build("/openapi.json")
     })
-    .bind((ip, port))?
+    .bind((public_ip, public_port))?
+    .bind((internal_ip, internal_port))?
     .run()
     .await
 }

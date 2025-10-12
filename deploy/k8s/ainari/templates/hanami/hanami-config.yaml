@@ -11,8 +11,11 @@ data:
     max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
 
     [api]
-    ip = "127.0.0.1"
-    port = 11418
+    public_ip = "127.0.0.1"
+    public_port = 11418
+    internal_ip = "127.0.0.1"
+    internal_port = 10418
+    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/hanami/hanami_db"

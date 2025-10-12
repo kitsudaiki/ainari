@@ -39,7 +39,7 @@ where
             ))
             .insert_header((
                 "access-control-allow-headers",
-                "Content-Type, Authorization",
+                "Content-Type, Authorization, X-Internal-API-Key",
             ))
             .finish();
 

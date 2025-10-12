@@ -13,8 +13,11 @@ data:
     tempfile_location = "/etc/ainari/bento_data/tempfiles"
 
     [api]
-    ip = "127.0.0.1"
-    port = 11416
+    public_ip = "127.0.0.1"
+    public_port = 11416
+    internal_ip = "127.0.0.1"
+    internal_port = 10416
+    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/bento/bento_db"

@@ -14,7 +14,7 @@
 
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct MikoEndpoint {
     pub address: String,
     #[serde(default = "default_miko_port")]
@@ -41,4 +41,18 @@ pub struct BentoEndpoints {
 pub struct Endpoints {
     pub hanami: HanamiEndpoints,
     pub bento: BentoEndpoints,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Api {
+    pub public_ip: String,
+    pub public_port: u16,
+    pub internal_ip: String,
+    pub internal_port: u16,
+    pub internal_api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Database {
+    pub file_path: String,
 }

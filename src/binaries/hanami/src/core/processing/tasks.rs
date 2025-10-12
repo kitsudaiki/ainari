@@ -555,6 +555,7 @@ fn handle_checkpoint_save_task(
         init_checkpoint(
             &endpoints.bento,
             token,
+            &ainari_config::CONFIG.api.internal_api_key,
             task_uuid,
             task_name,
             ainari_config::CONFIG.insecure_clients,

@@ -10,8 +10,11 @@ file_path = "/etc/ainari/hanami_db"
 max_number_of_threads = 0
 
 [api]
-ip = "0.0.0.0"
-port = 11418
+public_ip = "0.0.0.0"
+public_port = 11418
+internal_ip = "0.0.0.0"
+internal_port = 10418
+internal_api_key = "asdf"
 
 [miko]
 address = "http://127.0.0.1"

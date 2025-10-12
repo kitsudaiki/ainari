@@ -27,8 +27,8 @@ pub struct Config {
     pub insecure_clients: bool,
     // groups
     pub storage: Storage,
-    pub api: Api,
-    pub database: Database,
+    pub api: ainari_config::Api,
+    pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
 }
 
@@ -41,17 +41,6 @@ pub struct Storage {
     pub dataset_location: String,
     pub checkpoint_location: String,
     pub tempfile_location: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Api {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Database {
-    pub file_path: String,
 }
 
 // Global singleton config

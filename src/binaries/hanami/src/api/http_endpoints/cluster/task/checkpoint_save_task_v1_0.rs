@@ -96,6 +96,7 @@ pub async fn checkpoint_save_task(
     let checkpoint_create_resp = match init_checkpoint(
         &endpoints.bento,
         &context.token,
+        &ainari_config::CONFIG.api.internal_api_key,
         &task_uuid,
         &body.name,
         ainari_config::CONFIG.insecure_clients,

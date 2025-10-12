@@ -114,6 +114,7 @@ pub async fn create_train_task(
         let dataset_resp = match get_dataset(
             &endpoints.bento,
             &context.token,
+            &ainari_config::CONFIG.api.internal_api_key,
             &input.dataset_uuid,
             ainari_config::CONFIG.insecure_clients,
         )
@@ -154,6 +155,7 @@ pub async fn create_train_task(
         let dataset_resp = match get_dataset(
             &endpoints.bento,
             &context.token,
+            &ainari_config::CONFIG.api.internal_api_key,
             &output.dataset_uuid,
             ainari_config::CONFIG.insecure_clients,
         )

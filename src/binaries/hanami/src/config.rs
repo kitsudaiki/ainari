@@ -27,8 +27,8 @@ pub struct Config {
     pub insecure_clients: bool,
     // groups
     pub processing: Processing,
-    pub api: Api,
-    pub database: Database,
+    pub api: ainari_config::Api,
+    pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
 }
 
@@ -44,17 +44,6 @@ pub struct Processing {
 
 fn default_max_number_of_threads() -> usize {
     0
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Api {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Database {
-    pub file_path: String,
 }
 
 // Global singleton config

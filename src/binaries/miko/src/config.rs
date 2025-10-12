@@ -25,8 +25,8 @@ pub struct Config {
     pub debug: bool,
     // groups
     pub auth: Auth,
-    pub api: Api,
-    pub database: Database,
+    pub api: ainari_config::Api,
+    pub database: ainari_config::Database,
     pub endpoints: ainari_config::Endpoints,
 }
 
@@ -34,17 +34,6 @@ pub struct Config {
 pub struct Auth {
     pub token_key_path: String,
     pub token_expire_time: u64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Api {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Database {
-    pub file_path: String,
 }
 
 // Global singleton config

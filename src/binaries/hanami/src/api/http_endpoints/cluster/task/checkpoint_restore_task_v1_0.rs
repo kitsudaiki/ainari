@@ -96,6 +96,7 @@ pub async fn checkpoint_restore_task(
     let checkpoint_resp = match get_checkpoint(
         &endpoints.bento,
         &context.token,
+        &ainari_config::CONFIG.api.internal_api_key,
         &body.checkpoint_uuid,
         ainari_config::CONFIG.insecure_clients,
     )

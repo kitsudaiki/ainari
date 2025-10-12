@@ -24,6 +24,7 @@ use crate::prepare_client;
 pub async fn init_checkpoint(
     bento_endpoint: &ainari_config::BentoEndpoints,
     token: &String,
+    internal_api_key: &str,
     checkpoint_uuid: &Uuid,
     name: &str,
     insecure_client: bool,
@@ -43,6 +44,7 @@ pub async fn init_checkpoint(
     let response = client
         .post(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)
         .await;
@@ -93,6 +95,7 @@ pub async fn init_checkpoint(
 pub async fn get_checkpoint(
     bento_endpoint: &ainari_config::BentoEndpoints,
     token: &String,
+    internal_api_key: &str,
     checkpoint_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<CheckpointInternalResp, AinariError> {
@@ -106,6 +109,7 @@ pub async fn get_checkpoint(
     let response = client
         .get(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
         .send()
         .await;
 
