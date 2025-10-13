@@ -18,6 +18,7 @@ import os
 from requests_toolbelt import MultipartEncoder
 
 from . import ainari_exceptions
+from .access_context import AccessContext
 
 
 def _handle_response(response) -> str:
@@ -38,25 +39,39 @@ def _handle_response(response) -> str:
         raise ainari_exceptions.InternalServerErrorException()
 
 
-def send_post_request(token: str,
+def send_post_request(context: AccessContext,
                       address: str,
                       path: str,
-                      body: dict,
-                      verify: bool) -> dict:
+                      body: dict) -> dict:
     body_str = json.dumps(body)
     url = f'{address}{path}'
-    bearer_token = "Bearer " + token
+    bearer_token = "Bearer " + context.token
     headers = {'Authorization': bearer_token,
                'content-type': 'application/json'}
-    response = requests.post(url, data=body_str, headers=headers, verify=verify)
+    response = requests.post(url, data=body_str, headers=headers, verify=context.verify_connection)
     return json.loads(_handle_response(response))
 
 
-def send_get_request(token: str,
+def send_get_request(context: AccessContext,
                      address: str,
                      path: str,
-                     values: str,
-                     verify: bool) -> dict:
+                     values: str) -> dict:
+    if values:
+        url = f'{address}{path}?{values}'
+    else:
+        url = f'{address}{path}'
+
+    bearer_token = "Bearer " + context.token
+    headers = {'Authorization': bearer_token}
+    response = requests.get(url, headers=headers, verify=context.verify_connection)
+    return json.loads(_handle_response(response))
+
+
+def send_get_request_without_context(token: str,
+                                     address: str,
+                                     path: str,
+                                     values: str,
+                                     verify: bool) -> dict:
     if values:
         url = f'{address}{path}?{values}'
     else:
@@ -68,39 +83,36 @@ def send_get_request(token: str,
     return json.loads(_handle_response(response))
 
 
-def send_put_request(token: str,
+def send_put_request(context: AccessContext,
                      address: str,
                      path: str,
-                     body: dict,
-                     verify: bool) -> dict:
+                     body: dict) -> dict:
     body_str = json.dumps(body)
     url = f'{address}{path}'
-    bearer_token = "Bearer " + token
+    bearer_token = "Bearer " + context.token
     headers = {'Authorization': bearer_token,
                'content-type': 'application/json'}
-    response = requests.put(url, data=body_str, headers=headers, verify=verify)
+    response = requests.put(url, data=body_str, headers=headers, verify=context.verify_connection)
     return json.loads(_handle_response(response))
 
 
-def send_delete_request(token: str,
+def send_delete_request(context: AccessContext,
                         address: str,
                         path: str,
-                        values: str,
-                        verify: bool):
+                        values: str):
     url = f'{address}{path}?{values}'
-    bearer_token = "Bearer " + token
+    bearer_token = "Bearer " + context.token
     headers = {'Authorization': bearer_token}
-    response = requests.delete(url, headers=headers, verify=verify)
+    response = requests.delete(url, headers=headers, verify=context.verify_connection)
     _handle_response(response)
 
 
-def upload_files(token: str,
+def upload_files(context: AccessContext,
                  address: str,
                  path: str,
-                 file_paths,
-                 verify: bool):
+                 file_paths):
     url = f'{address}{path}'
-    bearer_token = "Bearer " + token
+    bearer_token = "Bearer " + context.token
 
     fields = {}
     open_files = []
@@ -117,7 +129,8 @@ def upload_files(token: str,
     }
 
     try:
-        response = requests.post(url, data=encoder, headers=headers, verify=verify)
+        response = requests.post(url, data=encoder, headers=headers,
+                                 verify=context.verify_connection)
         return json.loads(_handle_response(response))
     except requests.exceptions.RequestException as e:
         raise e
