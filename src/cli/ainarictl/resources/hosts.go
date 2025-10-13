@@ -38,9 +38,12 @@ var listHostsCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all logical hosts.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		content, err := ainari_sdk.ListHosts(address, token, ainarictl_common.DisableTlsVerification)
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListHosts(context)
 		if err == nil {
 			ainarictl_common.PrintList(content["hosts"].([]interface{}))
 		} else {

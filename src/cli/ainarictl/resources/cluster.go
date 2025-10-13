@@ -40,15 +40,18 @@ var createClusterCmd = &cobra.Command{
 	Short: "Create a new cluster.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterName := args[0]
 		templateContent, err := os.ReadFile(templatePath)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.CreateCluster(address, token, clusterName, string(templateContent), ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateCluster(context, clusterName, string(templateContent))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -62,10 +65,13 @@ var getClusterCmd = &cobra.Command{
 	Short: "Get information of a specific cluster.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
-		content, err := ainari_sdk.GetCluster(address, token, clusterUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.GetCluster(context, clusterUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -78,9 +84,12 @@ var listClusterCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all cluster.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		content, err := ainari_sdk.ListCluster(address, token, ainarictl_common.DisableTlsVerification)
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListCluster(context)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -94,10 +103,13 @@ var deleteClusterCmd = &cobra.Command{
 	Short: "Delete a specific cluster from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
-		_, err := ainari_sdk.DeleteCluster(address, token, clusterUuid, ainarictl_common.DisableTlsVerification)
+		_, err = ainari_sdk.DeleteCluster(context, clusterUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

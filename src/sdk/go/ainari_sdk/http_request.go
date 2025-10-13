@@ -45,22 +45,22 @@ func (r *RequestError) Error() string {
 	return fmt.Sprintf("status %d: err %v", r.StatusCode, r.Err)
 }
 
-func SendPost(address, token, path string, jsonBody map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
-	return sendGenericRequest(address, token, "POST", path, &jsonBody, skipTlsVerification)
+func SendPost(context AccessContext, address, path string, jsonBody map[string]interface{}) (map[string]interface{}, error) {
+	return sendGenericRequest(address, context.token, "POST", path, &jsonBody, context.skipTlsVerification)
 }
 
-func SendPut(address, token, path string, jsonBody map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
-	return sendGenericRequest(address, token, "PUT", path, &jsonBody, skipTlsVerification)
+func SendPut(context AccessContext, address, path string, jsonBody map[string]interface{}) (map[string]interface{}, error) {
+	return sendGenericRequest(address, context.token, "PUT", path, &jsonBody, context.skipTlsVerification)
 }
 
-func SendGet(address, token, path string, vars map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
+func SendGet(context AccessContext, address, path string, vars map[string]interface{}) (map[string]interface{}, error) {
 	completePath := path + prepareVars(vars)
-	return sendGenericRequest(address, token, "GET", completePath, nil, skipTlsVerification)
+	return sendGenericRequest(address, context.token, "GET", completePath, nil, context.skipTlsVerification)
 }
 
-func SendDelete(address, token, path string, vars map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
+func SendDelete(context AccessContext, address, path string, vars map[string]interface{}) (map[string]interface{}, error) {
 	completePath := path + prepareVars(vars)
-	return sendGenericRequest(address, token, "DELETE", completePath, nil, skipTlsVerification)
+	return sendGenericRequest(address, context.token, "DELETE", completePath, nil, context.skipTlsVerification)
 }
 
 func prepareVars(vars map[string]interface{}) string {
@@ -190,7 +190,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	return outputMap, nil
 }
 
-func UploadFiles(address, token, path string, filePaths []string, skipTlsVerification bool) (map[string]interface{}, error) {
+func UploadFiles(context AccessContext, path string, filePaths []string) (map[string]interface{}, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	outputMap := map[string]interface{}{}
@@ -229,12 +229,12 @@ func UploadFiles(address, token, path string, filePaths []string, skipTlsVerific
 	}
 
 	// check if https or not
-	if strings.Contains(address, "https") {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
+	if strings.Contains(context.BentoAddress, "https") {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: context.skipTlsVerification}
 	}
 
 	// Create the request
-	completePath := fmt.Sprintf("%s/%s", address, path)
+	completePath := fmt.Sprintf("%s/%s", context.BentoAddress, path)
 	// fmt.Println("completePath: " + completePath)
 	// fmt.Println("request-body: " + jsonDataStr)
 	req, err := http.NewRequest("POST", completePath, body)
@@ -242,7 +242,7 @@ func UploadFiles(address, token, path string, filePaths []string, skipTlsVerific
 		return outputMap, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	var bearer_token = fmt.Sprintf("Bearer %s", token)
+	var bearer_token = fmt.Sprintf("Bearer %s", context.token)
 	req.Header.Set("Authorization",  bearer_token)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 

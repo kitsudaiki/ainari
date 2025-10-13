@@ -19,9 +19,12 @@
  */
 
 package ainari_sdk
+ 	
 
-func GetThreadMapping(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
-	path := "v1alpha/threading"
-	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+type AccessContext struct {
+    token               string
+    MikoAddress         string
+    HanamiAddress       string
+    BentoAddress        string
+	skipTlsVerification bool
 }

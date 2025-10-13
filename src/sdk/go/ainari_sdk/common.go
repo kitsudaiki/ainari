@@ -24,8 +24,8 @@ import (
 	"fmt"
 )
 
-func GetVersion(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetVersion(context AccessContext, address string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/version")
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, address, path, vars)
 }

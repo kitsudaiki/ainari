@@ -44,9 +44,11 @@ var createUserCmd = &cobra.Command{
 	Short: "Create a new user.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
-		var err error
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		if len(passphrase) == 0 {
 			fmt.Print("Enter Passphrase: ")
 			bytePassphrase1, err := term.ReadPassword(syscall.Stdin)
@@ -75,7 +77,7 @@ var createUserCmd = &cobra.Command{
 		}
 		userId := args[0]
 
-		content, err := ainari_sdk.CreateUser(address, token, userId, userName, passphrase, isAdmin, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateUser(context, userId, userName, passphrase, isAdmin)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -89,10 +91,13 @@ var getUserCmd = &cobra.Command{
 	Short: "Get information of a specific user.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		userId := args[0]
-		content, err := ainari_sdk.GetUser(address, token, userId, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.GetUser(context, userId)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -105,9 +110,12 @@ var listUserCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all user.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
-		content, err := ainari_sdk.ListUser(address, token, ainarictl_common.DisableTlsVerification)
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListUser(context)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -121,10 +129,13 @@ var deleteUserCmd = &cobra.Command{
 	Short: "Delete a specific user from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		userId := args[0]
-		_, err := ainari_sdk.DeleteUser(address, token, userId, ainarictl_common.DisableTlsVerification)
+		_, err = ainari_sdk.DeleteUser(context, userId)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

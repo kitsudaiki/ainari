@@ -25,15 +25,34 @@ import (
 	//b64 "encoding/base64"
 )
 
-func RequestToken(address, user, passphrase string, skipTlsVerification bool) string {
+func RequestContext(address, user, passphrase string, skipTlsVerification bool) (AccessContext, error){
+	var context AccessContext
+
 	path := "v1alpha/token"
 	//b64.StdEncoding.EncodeToString([]byte(passphrase))
 	var body = fmt.Sprintf("token_format=jwt&grant_type=client_credentials&client_id=%s&client_secret=%s", user, passphrase)
 
 	content, err := sendAuthRequest(address, path, body, skipTlsVerification)
 	if err != nil {
-		return ""
+		return context, err
 	}
 
-	return content["access_token"].(string)
+	token := content["access_token"].(string)
+
+	path = "v1alpha/endpoints"
+	resp, err := sendGenericRequest(address, token, "GET", path, nil, skipTlsVerification)
+	if err != nil {
+		return context, err
+	}
+
+	hanamiAddr := resp["hanami"].(map[string]interface{})
+	bentoAddr := resp["bento"].(map[string]interface{})
+
+	context.token = token
+	context.MikoAddress = address
+	context.HanamiAddress = fmt.Sprintf("%s:%d", hanamiAddr["public_address"].(string), int(hanamiAddr["public_port"].(float64)))
+	context.BentoAddress = fmt.Sprintf("%s:%d", bentoAddr["public_address"].(string), int(bentoAddr["public_port"].(float64)))
+	context.skipTlsVerification = skipTlsVerification
+
+	return context, nil
 }

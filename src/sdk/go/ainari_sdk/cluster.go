@@ -24,29 +24,29 @@ import (
 	"fmt"
 )
 
-func CreateCluster(address, token, name, template string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateCluster(context AccessContext, name, template string) (map[string]interface{}, error) {
 	path := "v1alpha/cluster"
 	jsonBody := map[string]interface{}{
 		"name":     name,
 		"template": template,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func GetCluster(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetCluster(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func ListCluster(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListCluster(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/cluster"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func DeleteCluster(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteCluster(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.HanamiAddress, path, vars)
 }

@@ -24,29 +24,29 @@ import (
 	"fmt"
 )
 
-func CreateProject(address, token, projectId, projectName string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateProject(context AccessContext, projectId, projectName string) (map[string]interface{}, error) {
 	path := "v1alpha/project"
 	jsonBody := map[string]interface{}{
 		"id":   projectId,
 		"name": projectName,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.MikoAddress, path, jsonBody)
 }
 
-func GetProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetProject(context AccessContext, projectId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/project/%s", projectId)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func ListProject(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListProject(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/project"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func DeleteProject(address, token, projectId string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteProject(context AccessContext, projectId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/project/%s", projectId)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.MikoAddress, path, vars)
 }

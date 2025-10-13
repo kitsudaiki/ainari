@@ -26,46 +26,46 @@ import (
 
 // const chunkSize = 128 * 1024 // 128 KiB
 
-func CreateMnistDataset(address, token, datasetName, imageFilePath, labelFilePath string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateMnistDataset(context AccessContext, datasetName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/mnist/%s", datasetName)
 	files := []string{imageFilePath, labelFilePath}
-	return UploadFiles(address, token, path, files, skipTlsVerification)
+	return UploadFiles(context, path, files)
 }
 
-func CreateCsvDataset(address, token, datasetName, filePath string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateCsvDataset(context AccessContext, datasetName, filePath string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/csv/%s", datasetName)
 	files := []string{filePath}
-	return UploadFiles(address, token, path, files, skipTlsVerification)
+	return UploadFiles(context, path, files)
 }
 
-func GetDataset(address, token, datasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
 
-func ListDataset(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListDataset(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/dataset"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
 
-func DeleteDataset(address, token, datasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.BentoAddress, path, vars)
 }
 
-func CheckDataset(address, token, uuid, referenceDatasetUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CheckDataset(context AccessContext, uuid, referenceDatasetUuid string,) (map[string]interface{}, error) {
 	path := "v1alpha/dataset/check"
 	vars := map[string]interface{}{
 		"uuid":           uuid,
 		"reference_uuid": referenceDatasetUuid,
 	}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
 
-func DownloadDatasetContent(address, token, datasetUuid, columnName string, numberOfRows, rowOffset int, skipTlsVerification bool) (map[string]interface{}, error) {
+func DownloadDatasetContent(context AccessContext, datasetUuid, columnName string, numberOfRows, rowOffset int,) (map[string]interface{}, error) {
 	path := "v1alpha/dataset/content"
 	vars := map[string]interface{}{
 		"uuid":           datasetUuid,
@@ -73,5 +73,5 @@ func DownloadDatasetContent(address, token, datasetUuid, columnName string, numb
 		"number_of_rows": numberOfRows,
 		"row_offset":     rowOffset,
 	}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
