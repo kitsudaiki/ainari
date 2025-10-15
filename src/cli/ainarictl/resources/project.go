@@ -38,10 +38,13 @@ var createProjectCmd = &cobra.Command{
 	Short: "Create a new project.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		projectId := args[0]
-		content, err := ainari_sdk.CreateProject(address, token, projectId, projectName, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateProject(context, projectId, projectName)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -56,10 +59,13 @@ var getProjectCmd = &cobra.Command{
 	Short: "Get information of a specific project.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		projectId := args[0]
-		content, err := ainari_sdk.GetProject(address, token, projectId, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.GetProject(context, projectId)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -73,9 +79,12 @@ var listProjectCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all project.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
-		content, err := ainari_sdk.ListProject(address, token, ainarictl_common.DisableTlsVerification)
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListProject(context)
 		if err == nil {
 			ainarictl_common.PrintList(content["projects"].([]interface{}))
 		} else {
@@ -90,10 +99,13 @@ var deleteProjectCmd = &cobra.Command{
 	Short: "Delete a specific project from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("MIKO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		projectId := args[0]
-		_, err := ainari_sdk.DeleteProject(address, token, projectId, ainarictl_common.DisableTlsVerification)
+		_, err = ainari_sdk.DeleteProject(context, projectId)
 		if err == nil {
 			fmt.Printf("successfully deleted project '%v'\n", projectId)
 		} else {

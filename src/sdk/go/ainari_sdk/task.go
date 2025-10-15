@@ -35,7 +35,7 @@ type TaskResult struct {
 	DatasetColumnName  string `json:"dataset_column"`
 }
 
-func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateTrainTask(context AccessContext, name, clusterUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int) (map[string]interface{}, error) {
     var inputArray []interface{}
     for _, input := range inputs {
         inputArray = append(inputArray, input)
@@ -54,10 +54,10 @@ func CreateTrainTask(address, token, name, clusterUuid string, inputs, outputs [
 		"outputs":          outputArray,
 		"time_length":      timeLenght,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskInput, results []TaskResult, timeLenght int, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateRequestTask(context AccessContext, name, clusterUuid string, inputs []TaskInput, results []TaskResult, timeLenght int) (map[string]interface{}, error) {
 	var inputArray []interface{}
     for _, input := range inputs {
         inputArray = append(inputArray, input)
@@ -75,46 +75,46 @@ func CreateRequestTask(address, token, name, clusterUuid string, inputs []TaskIn
 		"results":      resultArray,
 		"time_length":  timeLenght,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func CreateCheckpointSaveTask(address, token, name, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateCheckpointSaveTask(context AccessContext, name, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_save", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func CreateCheckpointRestoreTask(address, token, name, clusterUuid, checkpointUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateCheckpointRestoreTask(context AccessContext, name, clusterUuid, checkpointUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_restore", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 		"checkpoint_uuid": checkpointUuid,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func GetTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func ListTask(address, token, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListTask(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func DeleteTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.HanamiAddress, path, vars)
 }
 
-func AbortTask(address, token, taskUuid, clusterUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func AbortTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s/abort", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendPut(address, token, path, vars, skipTlsVerification)
+	return SendPut(context, context.HanamiAddress, path, vars)
 }

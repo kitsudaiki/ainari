@@ -34,10 +34,13 @@ var getCheckpointCmd = &cobra.Command{
 	Short: "Get information of a specific checkpoint.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("BENTO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		checkpointUuid := args[0]
-		content, err := ainari_sdk.GetCheckpoint(address, token, checkpointUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.GetCheckpoint(context, checkpointUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -50,9 +53,12 @@ var listCheckpointCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all checkpoint.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("BENTO_ADDRESS")
-		content, err := ainari_sdk.ListCheckpoint(address, token, ainarictl_common.DisableTlsVerification)
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListCheckpoint(context)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -66,10 +72,13 @@ var deleteCheckpointCmd = &cobra.Command{
 	Short: "Delete a specific checkpoint from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("BENTO_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		checkpointUuid := args[0]
-		_, err := ainari_sdk.DeleteCheckpoint(address, token, checkpointUuid, ainarictl_common.DisableTlsVerification)
+		_, err = ainari_sdk.DeleteCheckpoint(context, checkpointUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

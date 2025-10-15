@@ -13,99 +13,80 @@
 # limitations under the License.
 
 from . import ainari_request
+from .access_context import AccessContext
 
 
-def create_cluster(token: str,
-                   address: str,
+def create_cluster(context: AccessContext,
                    name: str,
-                   template: str,
-                   verify_connection: bool = True) -> dict:
+                   template: str) -> dict:
     path = "/v1alpha/cluster"
     json_body = {
         "name": name,
         "template": template,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def get_cluster(token: str,
-                address: str,
-                cluster_uuid: str,
-                verify_connection: bool = True) -> dict:
+def get_cluster(context: AccessContext,
+                cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.hanami_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def list_clusters(token: str,
-                  address: str,
-                  verify_connection: bool = True) -> dict:
+def list_clusters(context: AccessContext) -> dict:
     path = "/v1alpha/cluster"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.hanami_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def delete_cluster(token: str,
-                   address: str,
-                   cluster_uuid: str,
-                   verify_connection: bool = True):
+def delete_cluster(context: AccessContext,
+                   cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}"
-    ainari_request.send_delete_request(token,
-                                       address,
+    ainari_request.send_delete_request(context,
+                                       context.hanami_address,
                                        path,
-                                       "",
-                                       verify=verify_connection)
+                                       "")
 
 
-def delete_all_cluster(token: str,
-                       address: str,
-                       verify_connection: bool = True):
-    body = list_clusters(token, address, False)["clusters"]
+def delete_all_cluster(context: AccessContext):
+    body = list_clusters(context)["clusters"]
     for entry in body:
-        delete_cluster(token, address, entry["uuid"], verify_connection)
+        delete_cluster(context, entry["uuid"])
 
 
-def train(token: str,
-          address: str,
+def train(context: AccessContext,
           cluster_uuid: str,
           inputs: dict,
-          outputs: dict,
-          verify_connection: bool = True):
+          outputs: dict):
     path = f"/v1alpha/cluster/{cluster_uuid}/train"
     json_body = {
         "inputs": inputs,
         "outputs": outputs,
     }
-    ainari_request.send_put_request(token,
-                                    address,
+    ainari_request.send_put_request(context,
+                                    context.hanami_address,
                                     path,
-                                    json_body,
-                                    verify=verify_connection)
+                                    json_body)
 
 
-def request(token: str,
-            address: str,
+def request(context: AccessContext,
             cluster_uuid: str,
             inputs: dict,
-            outputs: list,
-            verify_connection: bool = True):
+            outputs: list):
     path = f"/v1alpha/cluster/{cluster_uuid}/request"
     json_body = {
         "inputs": inputs,
         "outputs": outputs,
     }
-    return ainari_request.send_put_request(token,
-                                           address,
+    return ainari_request.send_put_request(context,
+                                           context.hanami_address,
                                            path,
-                                           json_body,
-                                           verify=verify_connection)
+                                           json_body)

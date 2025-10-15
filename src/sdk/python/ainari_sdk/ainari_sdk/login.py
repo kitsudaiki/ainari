@@ -14,23 +14,27 @@
 
 import requests
 from . import ainari_exceptions
+from . import ainari_request
+
 # import base64
+from .access_context import AccessContext
 
 
-def request_token(address: str,
-                  user_id: str,
-                  passphrase: str,
-                  verify_connection: bool = True) -> str:
-    url = f'{address}/v1alpha/token'
+def request_context(address: str,
+                    user_id: str,
+                    passphrase: str,
+                    verify_connection: bool = True) -> AccessContext:
+    auth_url = f'{address}/v1alpha/token'
     # passphrase_bytes = passphrase.encode('utf-8')
     # base64_encoded = base64.b64encode(passphrase_bytes)
 
     body = "token_format=jwt&grant_type=client_credentials" \
            f'&client_id={user_id}&client_secret={passphrase}'
 
-    response = requests.post(url, data=body, verify=verify_connection)
+    response = requests.post(auth_url, data=body, verify=verify_connection)
+    token = ""
     if response.status_code == 200:
-        return response.json()["access_token"]
+        token = response.json()["access_token"]
     if response.status_code == 400:
         raise ainari_exceptions.BadRequestException(response.content)
     if response.status_code == 401:
@@ -41,3 +45,22 @@ def request_token(address: str,
         raise ainari_exceptions.ConflictException(response.content)
     if response.status_code == 500:
         raise ainari_exceptions.InternalServerErrorException()
+
+    # request where to reach the other endpoints
+    path = "/v1alpha/endpoints"
+    response = ainari_request.send_get_request_without_context(token,
+                                                               address,
+                                                               path,
+                                                               "",
+                                                               verify=verify_connection)
+
+    # get addresses
+    miko_address = address
+    hanami_address = f'{response["hanami"]["public_address"]}:{response["hanami"]["public_port"]}'
+    bento_adress = f'{response["bento"]["public_address"]}:{response["bento"]["public_port"]}'
+
+    context = AccessContext(token, miko_address, hanami_address, bento_adress)
+
+    # print(context)
+
+    return context

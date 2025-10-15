@@ -25,7 +25,7 @@ import (
 	// b64 "encoding/base64"
 )
 
-func CreateUser(address, token, userId, userName, passphrase string, is_admin, skipTlsVerification bool) (map[string]interface{}, error) {
+func CreateUser(context AccessContext, userId, userName, passphrase string, is_admin bool) (map[string]interface{}, error) {
 	// "passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
 	path := "v1alpha/user"
 	jsonBody := map[string]interface{}{
@@ -34,23 +34,23 @@ func CreateUser(address, token, userId, userName, passphrase string, is_admin, s
 		"passphrase": passphrase,
 		"is_admin":   is_admin,
 	}
-	return SendPost(address, token, path, jsonBody, skipTlsVerification)
+	return SendPost(context, context.MikoAddress, path, jsonBody)
 }
 
-func GetUser(address, token, userId string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetUser(context AccessContext, userId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/user/%s", userId)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func ListUser(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListUser(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/user"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func DeleteUser(address, token, userId string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteUser(context AccessContext, userId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/user/%s", userId)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.MikoAddress, path, vars)
 }

@@ -20,8 +20,8 @@
 
 package ainari_sdk
 
-func ListHosts(address, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListHosts(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/host"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }

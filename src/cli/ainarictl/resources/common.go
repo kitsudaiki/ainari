@@ -33,9 +33,14 @@ var getVersionCmd = &cobra.Command{
 	Use:   "get version",
 	Short: "Get version of the backend.",
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
-		content, err := ainari_sdk.GetVersion(address, token, ainarictl_common.DisableTlsVerification)
+		var context ainari_sdk.AccessContext
+		var err error
+		context, err = Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.GetVersion(context, context.MikoAddress)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

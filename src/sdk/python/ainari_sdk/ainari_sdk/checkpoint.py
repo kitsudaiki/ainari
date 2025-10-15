@@ -13,34 +13,27 @@
 # limitations under the License.
 
 from . import ainari_request
+from .access_context import AccessContext
 
 
-def list_checkpoints(token: str,
-                     address: str,
-                     verify_connection: bool = True) -> dict:
+def list_checkpoints(context: AccessContext) -> dict:
     path = "/v1alpha/checkpoint"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.bento_adress,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def delete_checkpoint(token: str,
-                      address: str,
-                      checkpoint_uuid: str,
-                      verify_connection: bool = True):
+def delete_checkpoint(context: AccessContext,
+                      checkpoint_uuid: str):
     path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
-    ainari_request.send_delete_request(token,
-                                       address,
+    ainari_request.send_delete_request(context,
+                                       context.bento_adress,
                                        path,
-                                       "",
-                                       verify=verify_connection)
+                                       "")
 
 
-def delete_all_checkpoints(token: str,
-                           address: str,
-                           verify_connection: bool = True):
-    body = list_checkpoints(token, address, False)["checkpoints"]
+def delete_all_checkpoints(context: AccessContext):
+    body = list_checkpoints(context)["checkpoints"]
     for entry in body:
-        delete_checkpoint(token, address, entry["uuid"], verify_connection)
+        delete_checkpoint(context, entry["uuid"])

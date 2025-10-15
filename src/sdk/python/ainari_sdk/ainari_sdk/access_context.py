@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import ainari_request
-from .access_context import AccessContext
+from dataclasses import dataclass
 
 
-def get_version(context: AccessContext,
-                address: str) -> dict:
-    path = "/v1alpha/version"
-    return ainari_request.send_get_request(context,
-                                           address,
-                                           path,
-                                           "")
+@dataclass
+class AccessContext:
+    token: str
+    miko_address: str
+    hanami_address: str
+    bento_adress: str
+    verify_connection: bool = True

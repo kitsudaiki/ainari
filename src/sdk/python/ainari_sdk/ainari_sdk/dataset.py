@@ -14,58 +14,46 @@
 
 from . import ainari_request
 # from .ainari_messages import proto3_pb2
+from .access_context import AccessContext
 
 
-def list_datasets(token: str,
-                  address: str,
-                  verify_connection: bool = True) -> dict:
+def list_datasets(context: AccessContext) -> dict:
     path = "/v1alpha/dataset"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.bento_adress,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def get_dataset(token: str,
-                address: str,
-                dataset_uuid: str,
-                verify_connection: bool = True) -> dict:
+def get_dataset(context: AccessContext,
+                dataset_uuid: str) -> dict:
     path = f"/v1alpha/dataset/{dataset_uuid}"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.bento_adress,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def delete_dataset(token: str,
-                   address: str,
-                   dataset_uuid: str,
-                   verify_connection: bool = True):
+def delete_dataset(context: AccessContext,
+                   dataset_uuid: str):
     path = f"/v1alpha/dataset/{dataset_uuid}"
-    ainari_request.send_delete_request(token,
-                                       address,
+    ainari_request.send_delete_request(context,
+                                       context.bento_adress,
                                        path,
-                                       "",
-                                       verify=verify_connection)
+                                       "")
 
 
-def delete_all_datasets(token: str,
-                        address: str,
-                        verify_connection: bool = True):
-    body = list_datasets(token, address, False)["datasets"]
+def delete_all_datasets(context: AccessContext):
+    body = list_datasets(context)["datasets"]
     for entry in body:
-        delete_dataset(token, address, entry["uuid"], verify_connection)
+        delete_dataset(context, entry["uuid"])
 
 
-def check_dataset(token: str,
-                  address: str,
+def check_dataset(context: AccessContext,
                   dataset_uuid: str,
                   dataset_column: str,
                   reference_uuid: str,
-                  reference_column: str,
-                  verify_connection: bool = True) -> dict:
+                  reference_column: str) -> dict:
     path = f"/v1alpha/dataset/{dataset_uuid}/check"
     json_body = {
         "dataset_column": dataset_column,
@@ -73,39 +61,32 @@ def check_dataset(token: str,
         "reference_column": reference_column,
     }
 
-    return ainari_request.send_put_request(token,
-                                           address,
+    return ainari_request.send_put_request(context,
+                                           context.bento_adress,
                                            path,
-                                           json_body,
-                                           verify=verify_connection)
+                                           json_body)
 
 
-def upload_mnist_files(token: str,
-                       address: str,
+def upload_mnist_files(context: AccessContext,
                        name: str,
                        input_file_path: str,
-                       label_file_path: str,
-                       verify_connection: bool = True) -> str:
+                       label_file_path: str) -> str:
     path = f"/v1alpha/dataset/mnist/{name}"
     files = [input_file_path, label_file_path]
 
-    return ainari_request.upload_files(token,
-                                       address,
+    return ainari_request.upload_files(context,
+                                       context.bento_adress,
                                        path,
-                                       files,
-                                       verify=verify_connection)
+                                       files)
 
 
-def upload_csv_files(token: str,
-                     address: str,
+def upload_csv_files(context: AccessContext,
                      name: str,
-                     input_file_path: str,
-                     verify_connection: bool = True) -> str:
+                     input_file_path: str) -> str:
     path = f"/v1alpha/dataset/csv/{name}"
     files = [input_file_path]
 
-    return ainari_request.upload_files(token,
-                                       address,
+    return ainari_request.upload_files(context,
+                                       context.bento_adress,
                                        path,
-                                       files,
-                                       verify=verify_connection)
+                                       files)

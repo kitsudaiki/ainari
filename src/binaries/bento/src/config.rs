@@ -23,11 +23,17 @@ use ainari_common::config as ainari_config;
 pub struct Config {
     // general values
     pub debug: bool,
+    #[serde(default = "default_insecure_clients")]
+    pub insecure_clients: bool,
     // groups
     pub storage: Storage,
-    pub api: Api,
-    pub database: Database,
-    pub miko: ainari_config::MikoConnection,
+    pub api: ainari_config::Api,
+    pub database: ainari_config::Database,
+    pub miko: ainari_config::MikoEndpoint,
+}
+
+fn default_insecure_clients() -> bool {
+    false
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,17 +41,6 @@ pub struct Storage {
     pub dataset_location: String,
     pub checkpoint_location: String,
     pub tempfile_location: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Api {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Database {
-    pub file_path: String,
 }
 
 // Global singleton config

@@ -82,10 +82,20 @@ fn v1alpha_routes() -> Scope {
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {
     log::debug!("initialize server");
+
     // get server-address from config
-    let ip = config::CONFIG.api.ip.clone();
-    let port = config::CONFIG.api.port;
-    log::info!("HTTP-server listen on {ip}:{port}");
+    let public_ip = config::CONFIG.api.public_ip.clone();
+    let public_port = config::CONFIG.api.public_port;
+    log::info!("HTTP-server listen public on {public_ip}:{public_port}");
+    let internal_ip = config::CONFIG.api.internal_ip.clone();
+    let internal_port = config::CONFIG.api.internal_port;
+    log::info!("HTTP-server listen internally on {internal_ip}:{internal_port}");
+
+    let api_validation_config = ApiValidationConfig::new(
+        &config::CONFIG.miko,
+        &config::CONFIG.api,
+        config::CONFIG.insecure_clients,
+    );
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {
@@ -114,7 +124,7 @@ pub async fn run_server() -> Result<(), impl Error> {
 
         App::new()
             .document(spec)
-            .app_data(web::Data::new(config::CONFIG.miko.clone())) // to provide the address of the miko to the middleware
+            .app_data(web::Data::new(api_validation_config.clone())) // provide validation configs to the middleware
             .wrap(from_fn(authorization_middleware))
             .wrap(from_fn(cors_middleware))
             .wrap(Logger::default())
@@ -122,7 +132,8 @@ pub async fn run_server() -> Result<(), impl Error> {
             .service(v1alpha_routes())
             .build("/openapi.json")
     })
-    .bind((ip, port))?
+    .bind((public_ip, public_port))?
+    .bind((internal_ip, internal_port))?
     .run()
     .await
 }

@@ -15,6 +15,7 @@
 pub mod auth;
 pub mod checkpoint;
 pub mod dataset;
+pub mod endpoints;
 
 use awc::{Client, Connector};
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};

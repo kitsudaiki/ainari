@@ -13,63 +13,50 @@
 # limitations under the License.
 
 from . import ainari_request
+from .access_context import AccessContext
 
 
-def create_project(token: str,
-                   address: str,
+def create_project(context: AccessContext,
                    project_id: str,
-                   project_name: str,
-                   verify_connection: bool = True) -> dict:
+                   project_name: str) -> dict:
     path = "/v1alpha/project"
     json_body = {
         "id": project_id,
         "name": project_name,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.miko_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def get_project(token: str,
-                address: str,
-                project_id: str,
-                verify_connection: bool = True) -> dict:
+def get_project(context: AccessContext,
+                project_id: str) -> dict:
     path = f"/v1alpha/project/{project_id}"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def list_projects(token: str,
-                  address: str,
-                  verify_connection: bool = True) -> dict:
+def list_projects(context: AccessContext) -> dict:
     path = "/v1alpha/project"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def delete_project(token: str,
-                   address: str,
-                   project_id: str,
-                   verify_connection: bool = True):
+def delete_project(context: AccessContext,
+                   project_id: str):
     path = f"/v1alpha/project/{project_id}"
-    ainari_request.send_delete_request(token,
-                                       address,
+    ainari_request.send_delete_request(context,
+                                       context.miko_address,
                                        path,
-                                       "",
-                                       verify=verify_connection)
+                                       "")
 
 
-def delete_all_projects(token: str,
-                        address: str,
-                        verify_connection: bool = True):
-    body = list_projects(token, address, False)["projects"]
+def delete_all_projects(context: AccessContext):
+    body = list_projects(context)["projects"]
     for entry in body:
-        delete_project(token, address, entry["id"], verify_connection)
+        delete_project(context, entry["id"])

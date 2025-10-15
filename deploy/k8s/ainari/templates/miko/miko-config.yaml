@@ -11,10 +11,25 @@ data:
     token_expire_time = {{ .Values.token.expire_time }}
 
     [api]
-    ip = "127.0.0.1"
-    port = 11417
+    public_ip = "127.0.0.1"
+    public_port = 11417
+    internal_ip = "127.0.0.1"
+    internal_port = 10417
+    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/miko/miko_db"
+
+    [endpoints.hanami]
+    public_address = "https://hanami-tls-service.default.svc.cluster.local"
+    public_port = 8443
+    internal_address = "https://hanami-tls-service.default.svc.cluster.local"
+    internal_port = 8443
+
+    [endpoints.bento]
+    public_address = "https://bento-tls-service.default.svc.cluster.local"
+    public_port = 8443
+    internal_address = "https://bento-tls-service.default.svc.cluster.local"
+    internal_port = 8443
 
 kind: ConfigMap

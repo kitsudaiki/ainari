@@ -27,7 +27,7 @@ import (
 	ainari_sdk "github.com/kitsudaiki/ainari"
 )
 
-func Login() string {
+func Login() (ainari_sdk.AccessContext, error) {
 
 	user := os.Getenv("HANAMI_USER")
 	passphrase := os.Getenv("HANAMI_PASSPHRASE")
@@ -43,5 +43,5 @@ func Login() string {
 		panic("MIKO_ADDRESS is not set")
 	}
 
-	return ainari_sdk.RequestToken(address, user, passphrase, ainarictl_common.DisableTlsVerification)
+	return ainari_sdk.RequestContext(address, user, passphrase, ainarictl_common.DisableTlsVerification)
 }

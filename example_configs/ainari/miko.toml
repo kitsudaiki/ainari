@@ -9,5 +9,20 @@ token_key_path = "/etc/ainari/token_key"
 token_expire_time = 3600
 
 [api]
-ip = "0.0.0.0"
-port = 11417
+public_ip = "0.0.0.0"
+public_port = 11417
+internal_ip = "0.0.0.0"
+internal_port = 10417
+internal_api_key = "asdf"
+
+[endpoints.hanami]
+public_address = "http://127.0.0.1"
+public_port = 11418
+internal_address = "http://127.0.0.1"
+internal_port = 10418
+
+[endpoints.bento]
+public_address = "http://127.0.0.1"
+public_port = 11416
+internal_address = "http://127.0.0.1"
+internal_port = 10416

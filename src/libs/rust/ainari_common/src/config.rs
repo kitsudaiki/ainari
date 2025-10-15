@@ -14,36 +14,45 @@
 
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct MikoConnection {
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MikoEndpoint {
     pub address: String,
     #[serde(default = "default_miko_port")]
     pub port: u16,
-    #[serde(default = "default_miko_insecure")]
-    pub insecure: bool,
-}
-
-fn default_miko_insecure() -> bool {
-    false
 }
 
 fn default_miko_port() -> u16 {
     0
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct BentoConnection {
-    pub address: String,
-    #[serde(default = "default_bento_port")]
-    pub port: u16,
-    #[serde(default = "default_bento_insecure")]
-    pub insecure: bool,
+#[derive(Debug, Deserialize, Default)]
+pub struct HanamiEndpoints {
+    pub public_address: String,
+    pub public_port: u16,
 }
 
-fn default_bento_insecure() -> bool {
-    false
+#[derive(Debug, Deserialize, Default)]
+pub struct BentoEndpoints {
+    pub public_address: String,
+    pub public_port: u16,
 }
 
-fn default_bento_port() -> u16 {
-    0
+#[derive(Debug, Deserialize, Default)]
+pub struct Endpoints {
+    pub hanami: HanamiEndpoints,
+    pub bento: BentoEndpoints,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Api {
+    pub public_ip: String,
+    pub public_port: u16,
+    pub internal_ip: String,
+    pub internal_port: u16,
+    pub internal_api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Database {
+    pub file_path: String,
 }

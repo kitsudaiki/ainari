@@ -13,19 +13,18 @@
 # limitations under the License.
 
 from . import ainari_request
+from .access_context import AccessContext
 
 import time
 
 
-def create_train_task(token: str,
-                      address: str,
+def create_train_task(context: AccessContext,
                       name: str,
                       cluster_uuid: str,
                       inputs: list,
                       outputs: list,
                       number_of_epochs: int = 1,
-                      timeLength: int = 1,
-                      verify_connection: bool = True) -> dict:
+                      timeLength: int = 1) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/train"
     json_body = {
         "name": name,
@@ -34,21 +33,18 @@ def create_train_task(token: str,
         "outputs": outputs,
         "time_length": timeLength,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def create_request_task(token: str,
-                        address: str,
+def create_request_task(context: AccessContext,
                         name: str,
                         cluster_uuid: str,
                         inputs: list,
                         results: list,
-                        timeLength: int = 1,
-                        verify_connection: bool = True) -> dict:
+                        timeLength: int = 1) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/request"
     json_body = {
         "name": name,
@@ -56,107 +52,86 @@ def create_request_task(token: str,
         "results": results,
         "time_length": timeLength,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def create_checkpoint_save_task(token: str,
-                                address: str,
+def create_checkpoint_save_task(context: AccessContext,
                                 cluster_uuid: str,
-                                name: str,
-                                verify_connection: bool = True) -> dict:
+                                name: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_save"
     json_body = {
         "name": name,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def create_checkpoint_restore_task(token: str,
-                                   address: str,
+def create_checkpoint_restore_task(context: AccessContext,
                                    cluster_uuid: str,
                                    name: str,
-                                   checkpoint_uuid: str,
-                                   verify_connection: bool = True) -> dict:
+                                   checkpoint_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_restore"
     json_body = {
         "name": name,
         "checkpoint_uuid": checkpoint_uuid,
     }
-    return ainari_request.send_post_request(token,
-                                            address,
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
                                             path,
-                                            json_body,
-                                            verify=verify_connection)
+                                            json_body)
 
 
-def get_task(token: str,
-             address: str,
+def get_task(context: AccessContext,
              task_uuid: str,
-             cluster_uuid: str,
-             verify_connection: bool = True) -> dict:
+             cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.hanami_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def list_tasks(token: str,
-               address: str,
-               cluster_uuid: str,
-               verify_connection: bool = True) -> dict:
+def list_tasks(context: AccessContext,
+               cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task"
-    return ainari_request.send_get_request(token,
-                                           address,
+    return ainari_request.send_get_request(context,
+                                           context.hanami_address,
                                            path,
-                                           "",
-                                           verify=verify_connection)
+                                           "")
 
 
-def delete_task(token: str,
-                address: str,
+def delete_task(context: AccessContext,
                 task_uuid: str,
-                cluster_uuid: str,
-                verify_connection: bool = True):
+                cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
-    ainari_request.send_delete_request(token,
-                                       address,
+    ainari_request.send_delete_request(context,
+                                       context.hanami_address,
                                        path,
-                                       "",
-                                       verify=verify_connection)
+                                       "")
 
 
-def abort_task(token: str,
-               address: str,
+def abort_task(context: AccessContext,
                task_uuid: str,
-               cluster_uuid: str,
-               verify_connection: bool = True):
+               cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort"
-    ainari_request.send_put_request(token,
-                                    address,
+    ainari_request.send_put_request(context,
+                                    context.hanami_address,
                                     path,
-                                    "",
-                                    verify=verify_connection)
+                                    "")
 
 
-def wait_for_task_finished(token: str,
-                           address: str,
+def wait_for_task_finished(context: AccessContext,
                            task_uuid: str,
                            cluster_uuid: str,
-                           time_interval: float = 1.0,
-                           verify_connection: bool = True):
+                           time_interval: float = 1.0):
     finished = False
     while not finished:
-        result = get_task(token, address, task_uuid, cluster_uuid, verify_connection)
+        result = get_task(context, context.hanami_address, task_uuid, cluster_uuid)
         finished = result["state"] == "FINISHED"
         # in case that the task is already finished, an unnecessary sleep should be avoided
         if finished:

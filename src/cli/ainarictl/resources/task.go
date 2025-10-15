@@ -105,8 +105,11 @@ var createTrainTaskCmd = &cobra.Command{
 	Short: "Create a new train task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
@@ -119,7 +122,7 @@ var createTrainTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.CreateTrainTask(address, token, taskName, clusterUuid, taskInput, taskOutput, numberOfEpochs, timeLength, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateTrainTask(context, taskName, clusterUuid, taskInput, taskOutput, numberOfEpochs, timeLength)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -134,8 +137,11 @@ var createRequestTaskCmd = &cobra.Command{
 	Short: "Create a new request task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
@@ -148,7 +154,7 @@ var createRequestTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.CreateRequestTask(address, token, taskName, clusterUuid, taskInput, taskOutput, timeLength, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateRequestTask(context, taskName, clusterUuid, taskInput, taskOutput, timeLength)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -163,11 +169,14 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 	Short: "Create a new task to create a checkpoint from a cluster.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointSaveTask(address, token, taskName, clusterUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateCheckpointSaveTask(context, taskName, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -182,11 +191,14 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 	Short: "Create a new task to restore a checkpoint into a cluster.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointRestoreTask(address, token, taskName, clusterUuid, checkpointUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, taskName, clusterUuid, checkpointUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -201,11 +213,14 @@ var getTaskCmd = &cobra.Command{
 	Short: "Get information of a specific task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskUuid := args[1]
-		content, err := ainari_sdk.GetTask(address, token, taskUuid, clusterUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.GetTask(context, taskUuid, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -220,10 +235,13 @@ var listTaskCmd = &cobra.Command{
 	Short: "List all task.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
-		content, err := ainari_sdk.ListTask(address, token, clusterUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.ListTask(context, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintList(content["tasks"].([]interface{}))
 		} else {
@@ -238,11 +256,14 @@ var deleteTaskCmd = &cobra.Command{
 	Short: "Delete a specific task from the backend.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskUuid := args[1]
-		_, err := ainari_sdk.DeleteTask(address, token, taskUuid, clusterUuid, ainarictl_common.DisableTlsVerification)
+		_, err = ainari_sdk.DeleteTask(context, taskUuid, clusterUuid)
 		if err == nil {
 			fmt.Printf("successfully deleted task '%v'\n", taskUuid)
 		} else {
@@ -257,11 +278,14 @@ var abortTaskCmd = &cobra.Command{
 	Short: "Abort a specific task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		token := Login()
-		address := os.Getenv("HANAMI_ADDRESS")
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		clusterUuid := args[0]
 		taskUuid := args[1]
-		content, err := ainari_sdk.AbortTask(address, token, taskUuid, clusterUuid, ainarictl_common.DisableTlsVerification)
+		content, err := ainari_sdk.AbortTask(context, taskUuid, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

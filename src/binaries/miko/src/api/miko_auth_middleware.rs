@@ -17,9 +17,12 @@ use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
     http::Method,
     middleware::Next,
+    web,
 };
 
 use crate::api::token_handling;
+
+use ainari_api::auth_middleware::{ApiValidationConfig, check_internal_request};
 use ainari_api::errors::ErrorResponse;
 use ainari_common::functions::split_bearer_token;
 
@@ -29,8 +32,11 @@ pub async fn authorization_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
     let mut skip_check = false;
     let uri = req.uri();
+    let api_validation_config = req
+        .app_data::<web::Data<ApiValidationConfig>>()
+        .expect("Api-validation-config missing!");
 
-    log::debug!("call uri: '{uri}' method: {}", *req.method());
+    log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
 
     // skip check for specific endpoints
     let is_post_req = *req.method() == Method::POST;
@@ -40,45 +46,8 @@ pub async fn authorization_middleware(
     skip_check |= *req.method() == Method::OPTIONS;
 
     if !skip_check {
-        log::debug!("Check token for request against {uri}");
-        // get token from header
-        let auth_header = match req.headers().get("Authorization") {
-            Some(value) => value,
-            _ => {
-                return Err(ErrorResponse::Unauthorized(
-                    "Authorization-header not set".to_string(),
-                )
-                .into());
-            }
-        };
-
-        // convert into string
-        let auth_header_str = match auth_header.to_str() {
-            Ok(auth_header_str) => auth_header_str,
-            Err(_) => {
-                return Err(ErrorResponse::Unauthorized("Bad auth-header".to_string()).into());
-            }
-        };
-
-        // parse token from the auth-header
-        let token = match split_bearer_token(auth_header_str) {
-            Some(token) => token,
-            None => {
-                println!("Invalid token format");
-                return Err(
-                    ErrorResponse::Unauthorized("Missing token in header".to_string()).into(),
-                );
-            }
-        };
-
-        // check token
-        match token_handling::validate_token(token) {
-            Ok(_) => {}
-            Err(e) => {
-                log::debug!("{e}");
-                return Err(ErrorResponse::Unauthorized(e).into());
-            }
-        }
+        check_internal_request(&req, api_validation_config)?;
+        check_auth_header(&req).await?;
     }
     //else {
     //    log::debug!("skip token-check");
@@ -96,4 +65,47 @@ pub async fn authorization_middleware(
     };
 
     resp
+}
+
+async fn check_auth_header(req: &ServiceRequest) -> Result<(), actix_web::Error> {
+    let uri = req.uri();
+
+    log::debug!("Check token for request against {uri}");
+    // get token from header
+    let auth_header = match req.headers().get("Authorization") {
+        Some(value) => value,
+        _ => {
+            return Err(
+                ErrorResponse::Unauthorized("Authorization-header not set".to_string()).into(),
+            );
+        }
+    };
+
+    // convert into string
+    let auth_header_str = match auth_header.to_str() {
+        Ok(auth_header_str) => auth_header_str,
+        Err(_) => {
+            return Err(ErrorResponse::Unauthorized("Bad auth-header".to_string()).into());
+        }
+    };
+
+    // parse token from the auth-header
+    let token = match split_bearer_token(auth_header_str) {
+        Some(token) => token,
+        None => {
+            println!("Invalid token format");
+            return Err(ErrorResponse::Unauthorized("Missing token in header".to_string()).into());
+        }
+    };
+
+    // check token
+    match token_handling::validate_token(token) {
+        Ok(_) => {}
+        Err(e) => {
+            log::debug!("{e}");
+            return Err(ErrorResponse::Unauthorized(e).into());
+        }
+    }
+
+    Ok(())
 }

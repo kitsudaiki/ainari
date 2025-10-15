@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+(Changes since v0.9.0)
+
 ### BREAKING-CHANGES
 
 #### API-Breaking
@@ -19,6 +21,15 @@
 - new component "Miko" for authentication
 - new componentn "Bento" for storage
 - use shared storage in kubernetes-setup to share files between Bento and Hanami
+- the new Miko-component provides the addresses of all components
+
+### Changed
+
+- use context-object, which includes token, public-addresses and insecure-flag in one object, to make the sdk-functions smaller and cleaner
+
+### Fixed
+
+- fixed miscalculation in the potential-overflow between sections, to fix massive accuracy problems in bigger tests
 
 ## v0.9.0
 

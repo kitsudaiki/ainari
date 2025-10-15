@@ -1,5 +1,6 @@
 debug = true
 log_path = "/var/log"
+insecure_clients = true
 
 [database]
 file_path = "/etc/ainari/bento_db"
@@ -11,11 +12,13 @@ tempfile_location = "/etc/ainari/tempfiles"
 tempfile_timeout = 10
 
 [api]
-ip = "0.0.0.0"
-port = 11416
+public_ip = "0.0.0.0"
+public_port = 11416
+internal_ip = "0.0.0.0"
+internal_port = 10416
+internal_api_key = "asdf"
 
 [miko]
 address = "http://127.0.0.1"
 port = 11417
-insecure = true
 

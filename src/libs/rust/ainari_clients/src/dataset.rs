@@ -22,15 +22,17 @@ use ainari_common::error::AinariError;
 use crate::prepare_client;
 
 pub async fn init_dataset(
-    bento_connection: &ainari_config::BentoConnection,
+    bento_endpoint: &ainari_config::BentoEndpoints,
     token: &String,
+    internal_api_key: &str,
     dataset_uuid: &Uuid,
     name: &str,
+    insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    let address = bento_connection.address.clone();
-    let port = bento_connection.port;
+    let address = bento_endpoint.public_address.clone();
+    let port = bento_endpoint.public_port;
     let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, bento_connection.insecure);
+    let client = prepare_client(https_connection, insecure_client);
     let address_complete = format!("{address}:{port}/v1alpha/dataset/internal");
 
     let body = DatasetCreateReq {
@@ -43,6 +45,7 @@ pub async fn init_dataset(
     let response = client
         .post(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)
         .await;
@@ -90,19 +93,22 @@ pub async fn init_dataset(
 }
 
 pub async fn get_dataset(
-    bento_connection: &ainari_config::BentoConnection,
+    bento_endpoint: &ainari_config::BentoEndpoints,
     token: &String,
+    internal_api_key: &str,
     dataset_uuid: &Uuid,
+    insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    let address = bento_connection.address.clone();
-    let port = bento_connection.port;
+    let address = bento_endpoint.public_address.clone();
+    let port = bento_endpoint.public_port;
     let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, bento_connection.insecure);
+    let client = prepare_client(https_connection, insecure_client);
     let address_complete = format!("{address}:{port}/v1alpha/dataset/{dataset_uuid}/internal");
 
     let response = client
         .get(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
         .send()
         .await;
 

@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 use ainari_api_structs::task_structs::*;
 use ainari_clients::checkpoint::init_checkpoint;
+use ainari_clients::endpoints::get_endpoints;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
 
@@ -524,10 +525,6 @@ fn handle_checkpoint_save_task(
         }
     }
 
-    // add information of new checkpoint to the database
-    // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
-    let bento_connection = &ainari_config::CONFIG.bento;
-
     // Create a single-threaded runtime
     let rt = Builder::new_current_thread()
         .enable_all() // I/O & timers
@@ -537,9 +534,33 @@ fn handle_checkpoint_save_task(
     // LocalSet allows spawn_local to work
     let local = LocalSet::new();
 
+    // get endpoints from miko
+    let miko_endpoint = &ainari_config::CONFIG.miko;
+    let endpoints_resp = local.block_on(&rt, async {
+        get_endpoints(miko_endpoint, token, ainari_config::CONFIG.insecure_clients).await
+    });
+
+    let endpoints = match endpoints_resp {
+        Ok(body) => body,
+        Err(e) => {
+            log::error!("Checkpoint-create request responded with: {e}");
+            let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
+            return;
+        }
+    };
+
     // Run the async future inside the LocalSet + runtime
+    // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
     let create_resp = local.block_on(&rt, async {
-        init_checkpoint(bento_connection, token, task_uuid, task_name).await
+        init_checkpoint(
+            &endpoints.bento,
+            token,
+            &ainari_config::CONFIG.api.internal_api_key,
+            task_uuid,
+            task_name,
+            ainari_config::CONFIG.insecure_clients,
+        )
+        .await
     });
 
     match create_resp {

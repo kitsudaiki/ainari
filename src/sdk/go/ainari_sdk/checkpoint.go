@@ -24,20 +24,20 @@ import (
 	"fmt"
 )
 
-func GetCheckpoint(address string, token string, checkpointUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func GetCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
 
-func ListCheckpoint(address string, token string, skipTlsVerification bool) (map[string]interface{}, error) {
+func ListCheckpoint(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/checkpoint"
 	vars := map[string]interface{}{}
-	return SendGet(address, token, path, vars, skipTlsVerification)
+	return SendGet(context, context.BentoAddress, path, vars)
 }
 
-func DeleteCheckpoint(address string, token string, checkpointUuid string, skipTlsVerification bool) (map[string]interface{}, error) {
+func DeleteCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(address, token, path, vars, skipTlsVerification)
+	return SendDelete(context, context.BentoAddress, path, vars)
 }

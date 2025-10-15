@@ -17,31 +17,23 @@ use serde::Deserialize;
 use std::fs;
 use std::process;
 
+use ainari_common::config as ainari_config;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
     pub debug: bool,
     // groups
     pub auth: Auth,
-    pub api: Api,
-    pub database: Database,
+    pub api: ainari_config::Api,
+    pub database: ainari_config::Database,
+    pub endpoints: ainari_config::Endpoints,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Auth {
     pub token_key_path: String,
     pub token_expire_time: u64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Api {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Database {
-    pub file_path: String,
 }
 
 // Global singleton config
