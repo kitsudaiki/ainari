@@ -15,9 +15,9 @@ The CLI and the SDK-library provides functions to interact with the API of the b
     cd src/cli/ainarictl/
 
     # build protobuf-messages
-    pushd ../sdk/go/ainari_sdk
-    protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
-    popd
+    # pushd ../sdk/go/ainari_sdk
+    # protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
+    # popd
 
     # build cli-tool
     go build .
@@ -84,7 +84,6 @@ amount of time until it expires, based on the configuration of the server.
     In case of the cli, the address and login credentials only have to be set via environment variables
 
     ```bash
-    export HANAMI_ADDRESS=http://127.0.0.1:11418
     export MIKO_ADDRESS=http://127.0.0.1:11417
     export HANAMI_USER=asdf
     export HANAMI_PASSPHRASE=asdfasdf
@@ -95,11 +94,11 @@ amount of time until it expires, based on the configuration of the server.
     ```python
     from ainari_sdk import ainari_token
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     test_user = "asdf"
     test_passphrase = "asdfasdf"
 
-    token = ainari_token.request_token(address, test_user, test_passphrase)
+    context = login.request_context(address, test_user, test_passphrase)
 
     ```
 
@@ -139,14 +138,14 @@ Create new empty project.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     project_id = "test_project"
     project_name = "Test Project"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = project.create_project(token, address, projet_id, project_name)
+    result = project.create_project(context, projet_id, project_name)
 
     # example-content of result:
     #
@@ -185,13 +184,13 @@ Get information about a project.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = project.get_project(token, address, projet_id)
+    result = project.get_project(context, projet_id)
 
     # example-content of result:
     #
@@ -229,7 +228,7 @@ List all projects.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -281,13 +280,13 @@ Delete a project.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    project.delete_project(token, address, projet_id)
+    project.delete_project(context, projet_id)
     ```
 
 ### Delete all projects
@@ -303,7 +302,7 @@ Delete all projects.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -353,7 +352,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     new_user = "new_user"
     new_id = "new_user"
     new_pw = "asdfasdf"
@@ -362,7 +361,7 @@ If the `is_admin` is set to true, the user becomes a global admin.
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = user.create_user(token, address, new_id, new_user, new_pw, is_admin)
+    result = user.create_user(context, new_id, new_user, new_pw, is_admin)
 
     # example-content of result:
     #
@@ -405,13 +404,13 @@ Get information about a specific user.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = user.get_user(token, address, user_id)
+    result = user.get_user(context, user_id)
 
     # example-content of result:
     #
@@ -451,7 +450,7 @@ List all user.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -514,13 +513,13 @@ Delete a user from the backend.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    user.delete_user(token, address, user_id)
+    user.delete_user(context, user_id)
     ```
 
 ### Delete all users
@@ -536,7 +535,7 @@ Delete all users, except the one, who executed this action.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -569,7 +568,7 @@ project.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     user_id = "new_user"
     project_id = "test_project"
     role = "member"
@@ -601,13 +600,13 @@ Unassign a project from a user.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     user_id = "new_user"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    remove_project_fromUser(token, address, user_id, project_id)
+    remove_project_fromUser(context, user_id, project_id)
     ```
 
 ### List projects of current user
@@ -625,7 +624,7 @@ List projects only of the current user, which are enabled by the current token.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -648,13 +647,13 @@ Switch to another project with the current user.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     project_id = "test_project"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = switch_project(token, address, project_id)
+    result = switch_project(context, project_id)
     ```
 
 ## Dataset
@@ -701,7 +700,7 @@ label-file of the same dataset.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     train_dataset_name = "train_test_dataset"
     train_inputs = "/tmp/mnist/train-images.idx3-ubyte"
     train_labels = "/tmp/mnist/train-labels.idx1-ubyte"
@@ -709,7 +708,7 @@ label-file of the same dataset.
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    dataset_uuid = dataset.upload_mnist_files(token, address, train_dataset_name, train_inputs, train_labels)
+    dataset_uuid = dataset.upload_mnist_files(context, train_dataset_name, train_inputs, train_labels)
 
     # example-content of dataset_uuid:
     #
@@ -753,14 +752,14 @@ label-file of the same dataset.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     train_dataset_name = "train_test_dataset"
     train_inputs = "/tmp/csv/test-file.csv"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    dataset_uuid = dataset.upload_csv_files(token, address, train_dataset_name, train_inputs)
+    dataset_uuid = dataset.upload_csv_files(context, train_dataset_name, train_inputs)
 
     # example-content of dataset_uuid:
     #
@@ -802,13 +801,13 @@ Get information about a specific dataset.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = dataset.get_dataset(token, address, dataset_uuid)
+    result = dataset.get_dataset(context, dataset_uuid)
 
     # example-content of result:
     #
@@ -856,7 +855,7 @@ List all visible datasets.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -930,13 +929,13 @@ Delete a dataset.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    dataset.delete_dataset(token, address, dataset_uuid)
+    dataset.delete_dataset(context, dataset_uuid)
     ```
 
 ### Delete all Datasets
@@ -952,7 +951,7 @@ Delete all datasets.
     ```python
     from ainari_sdk import dataset
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -987,7 +986,7 @@ is primary used for automatic testing.
     ```python
     from ainari_sdk import request_result
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     reference_dataset_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
     dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
 
@@ -1045,7 +1044,7 @@ the upload. For now there is only an endpoint to request a slice of a dataset.
     ```python
     from ainari_sdk import request_result
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
     column_name = "test_output"
 
@@ -1128,7 +1127,7 @@ network (see documentation of the
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_name = "test_cluster"
     cluster_template = \
         "version: 1\n" \
@@ -1150,7 +1149,7 @@ network (see documentation of the
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.create_cluster(token, address, cluster_name, cluster_template)
+    result = cluster.create_cluster(context, cluster_name, cluster_template)
 
     # example-content of result:
     #
@@ -1199,13 +1198,13 @@ used memory and so on are still missing in this output currently.
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.get_cluster(token, address, cluster_uuid)
+    result = cluster.get_cluster(context, cluster_uuid)
 
     # example-content of result:
     #
@@ -1247,7 +1246,7 @@ List all visible cluster.
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -1299,13 +1298,13 @@ Delete a cluster from a backend.
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    cluster.delete_cluster(token, address, cluster_uuid)
+    cluster.delete_cluster(context, cluster_uuid)
     ```
 
 ### Delete all Cluster
@@ -1321,7 +1320,7 @@ Delete all cluster.
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -1355,13 +1354,13 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     checkpoint_name = "test_checkpoint"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.save_cluster(token, address, checkpoint_name, cluster_uuid)
+    result = cluster.save_cluster(context, checkpoint_name, cluster_uuid)
 
     # example-content of result:
     #
@@ -1396,14 +1395,14 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.restore_cluster(token, address, checkpoint_uuid, cluster_uuid)
+    result = cluster.restore_cluster(context, checkpoint_uuid, cluster_uuid)
 
     # example-content of result:
     #
@@ -1431,14 +1430,14 @@ avaialble hosts there is the
     ```python
     from ainari_sdk import cluster
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     host_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
     cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.switch_host(token, address, cluster_uuid, host_uuid)
+    result = cluster.switch_host(context, cluster_uuid, host_uuid)
 
     # example-content of result:
     #
@@ -1495,7 +1494,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     task_name = "test_task"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     inputs = [
@@ -1532,7 +1531,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
     task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, 1.0)
+    task.wait_for_task_finished(context, task_uuid, cluster_uuid, 1.0)
     ```
 
 ### Create Request-Task
@@ -1575,7 +1574,7 @@ used, which had to be uplaoded first.
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     task_name = "test_task"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     inputs = [
@@ -1611,7 +1610,7 @@ used, which had to be uplaoded first.
     task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, 1.0)
+    task.wait_for_task_finished(context, task_uuid, cluster_uuid, 1.0)
     ```
 
 ### Get Task
@@ -1643,14 +1642,14 @@ used, which had to be uplaoded first.
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = task.get_task(token, address, task_uuid, cluster_uuid)
+    result = task.get_task(context, task_uuid, cluster_uuid)
 
     # example-content of result:
     #
@@ -1691,13 +1690,13 @@ List all tasks for a cluster, together with their progress.
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = task.list_tasks(token, address, cluster_uuid)
+    result = task.list_tasks(context, cluster_uuid)
 
     # example-content of result:
     #
@@ -1747,14 +1746,14 @@ will not be deleted.
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    task.delete_task(token, address, task_uuid, cluster_uuid)
+    task.delete_task(context, task_uuid, cluster_uuid)
     ```
 
 ### Wait until Task is finished
@@ -1771,7 +1770,7 @@ will not be deleted.
     ```python
     from ainari_sdk import task
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
     time_interval = 0.1  # time-interval to check if finished, in seconds
@@ -1779,7 +1778,7 @@ will not be deleted.
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    task.wait_for_task_finished(token, address, task_uuid, cluster_uuid, time_interval)
+    task.wait_for_task_finished(context, task_uuid, cluster_uuid, time_interval)
     ```
 
 ## Checkpoint
@@ -1818,7 +1817,7 @@ List all visible checkpoints.
     ```python
     from ainari_sdk import checkpoint
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -1870,13 +1869,13 @@ Delete a checkpoint from the backend.
     ```python
     from ainari_sdk import checkpoint
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
     checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    checkpoint.delete_checkpoint(token, address, checkpoint_uuid)
+    checkpoint.delete_checkpoint(context, checkpoint_uuid)
 
     ```
 
@@ -1893,7 +1892,7 @@ Delete all checkpoint.
     ```python
     from ainari_sdk import checkpoint
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
@@ -1931,7 +1930,7 @@ the data. These logical hosts can be listed with this endpoint.
     ```python
     from ainari_sdk import hosts
 
-    address = "http://127.0.0.1:11418"
+    address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
