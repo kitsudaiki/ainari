@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use actix_web::web::Json;
-use ainari_api_structs::endpoints_structs::HanamiEndpontsResp;
+use ainari_api_structs::endpoints_structs::EndpointField;
 use apistos::api_operation;
 
 use crate::config;
@@ -33,13 +33,17 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
     let enpoint_config = &config::CONFIG.endpoints;
 
     let response = EndpontsResp {
-        hanami: HanamiEndpontsResp {
+        hanami: EndpointField {
             public_address: enpoint_config.hanami.public_address.clone(),
             public_port: enpoint_config.hanami.public_port,
+            internal_address: enpoint_config.hanami.internal_address.clone(),
+            internal_port: enpoint_config.hanami.internal_port,
         },
-        bento: BentoEndpontsResp {
+        bento: EndpointField {
             public_address: enpoint_config.bento.public_address.clone(),
             public_port: enpoint_config.bento.public_port,
+            internal_address: enpoint_config.bento.internal_address.clone(),
+            internal_port: enpoint_config.bento.internal_port,
         },
     };
 

@@ -66,13 +66,17 @@ pub async fn get_endpoints(
 
                     // converting
                     let endpoints = ainari_config::Endpoints {
-                        hanami: ainari_config::HanamiEndpoints {
+                        hanami: ainari_config::Endpoint {
                             public_address: deserialized.hanami.public_address,
                             public_port: deserialized.hanami.public_port,
+                            internal_address: deserialized.hanami.internal_address,
+                            internal_port: deserialized.hanami.internal_port,
                         },
-                        bento: ainari_config::BentoEndpoints {
+                        bento: ainari_config::Endpoint {
                             public_address: deserialized.bento.public_address,
                             public_port: deserialized.bento.public_port,
+                            internal_address: deserialized.bento.internal_address,
+                            internal_port: deserialized.bento.internal_port,
                         },
                     };
 

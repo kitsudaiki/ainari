@@ -21,14 +21,14 @@ data:
     file_path = "/etc/ainari/miko/miko_db"
 
     [endpoints.hanami]
-    public_address = "https://hanami-tls-service.default.svc.cluster.local"
-    public_port = 8443
+    public_address = "https://local-hanami"
+    public_port = 443
     internal_address = "https://hanami-tls-service.default.svc.cluster.local"
     internal_port = 8443
 
     [endpoints.bento]
-    public_address = "https://bento-tls-service.default.svc.cluster.local"
-    public_port = 8443
+    public_address = "https://local-bento"
+    public_port = 443
     internal_address = "https://bento-tls-service.default.svc.cluster.local"
     internal_port = 8443
 

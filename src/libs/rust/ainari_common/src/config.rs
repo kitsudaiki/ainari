@@ -26,21 +26,17 @@ fn default_miko_port() -> u16 {
 }
 
 #[derive(Debug, Deserialize, Default)]
-pub struct HanamiEndpoints {
+pub struct Endpoint {
     pub public_address: String,
     pub public_port: u16,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct BentoEndpoints {
-    pub public_address: String,
-    pub public_port: u16,
+    pub internal_address: String,
+    pub internal_port: u16,
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Endpoints {
-    pub hanami: HanamiEndpoints,
-    pub bento: BentoEndpoints,
+    pub hanami: Endpoint,
+    pub bento: Endpoint,
 }
 
 #[derive(Debug, Deserialize)]
