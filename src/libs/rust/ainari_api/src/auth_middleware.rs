@@ -26,13 +26,14 @@ use ainari_clients::auth::check_token;
 use ainari_common::config::{Api, MikoEndpoint};
 use ainari_common::error::AinariError;
 use ainari_common::functions::split_bearer_token;
+use ainari_common::secret::*;
 
 #[derive(Debug, Clone)]
 pub struct ApiValidationConfig {
     pub miko_address: String,
     pub miko_port: u16,
     pub internal_ip: String,
-    pub internal_api_key: String,
+    pub internal_api_key: Secret,
     pub insecure_connection: bool,
 }
 
@@ -124,7 +125,7 @@ pub fn check_internal_request(
 
         // convert into string
         let api_key_str = match api_key_header.to_str() {
-            Ok(api_key_str) => api_key_str,
+            Ok(api_key_str) => Secret::from(api_key_str),
             Err(_) => {
                 log::debug!("Bad api-key-header");
                 return Err(ErrorResponse::Unauthorized("Bad api-key-header".to_string()).into());

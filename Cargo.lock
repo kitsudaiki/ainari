@@ -373,11 +373,13 @@ dependencies = [
 name = "ainari_common"
 version = "0.1.0"
 dependencies = [
+ "apistos-schemars",
  "hex",
  "serde",
  "serde_json",
  "serde_with",
  "sha2",
+ "validator",
 ]
 
 [[package]]

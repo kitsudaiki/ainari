@@ -25,6 +25,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::functions::sha256_hash;
+use ainari_common::secret::Secret;
 
 // Define the schema
 table! {
@@ -95,8 +96,8 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    let admin_passphrase: String = match env::var("HANAMI_ADMIN_PASSPHRASE") {
-        Ok(val) => val,
+    let admin_passphrase: Secret = match env::var("HANAMI_ADMIN_PASSPHRASE") {
+        Ok(val) => Secret::from(val),
         Err(_) => {
             log::error!("couldn't find env-variable: HANAMI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
@@ -142,7 +143,7 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_user(
     user_id: &String,
     user_name: &str,
-    passphrase: &String,
+    passphrase: &Secret,
     is_admin: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
@@ -168,10 +169,10 @@ pub fn add_new_user(
         .take(64)
         .map(char::from)
         .collect();
-    let salted_passphrase = format!("{passphrase}{salt}");
+    let salted_passphrase = Secret::from(format!("{}{salt}", passphrase.reveal()));
 
     // create sha256-hash from the salted passphrase to store the hash in the database
-    let pw_hash = sha256_hash(salted_passphrase.as_str());
+    let pw_hash = sha256_hash(salted_passphrase.reveal());
 
     let user = UserEntry {
         id: user_id.clone(),
