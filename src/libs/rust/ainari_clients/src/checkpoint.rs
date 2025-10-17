@@ -22,15 +22,15 @@ use ainari_common::error::AinariError;
 use crate::prepare_client;
 
 pub async fn init_checkpoint(
-    bento_endpoint: &ainari_config::BentoEndpoints,
+    bento_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &str,
     checkpoint_uuid: &Uuid,
     name: &str,
     insecure_client: bool,
 ) -> Result<CheckpointInternalResp, AinariError> {
-    let address = bento_endpoint.public_address.clone();
-    let port = bento_endpoint.public_port;
+    let address = bento_endpoint.internal_address.clone();
+    let port = bento_endpoint.internal_port;
     let https_connection = address.starts_with("https://");
     let client = prepare_client(https_connection, insecure_client);
     let address_complete = format!("{address}:{port}/v1alpha/checkpoint/internal");
@@ -93,14 +93,14 @@ pub async fn init_checkpoint(
 }
 
 pub async fn get_checkpoint(
-    bento_endpoint: &ainari_config::BentoEndpoints,
+    bento_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &str,
     checkpoint_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<CheckpointInternalResp, AinariError> {
-    let address = bento_endpoint.public_address.clone();
-    let port = bento_endpoint.public_port;
+    let address = bento_endpoint.internal_address.clone();
+    let port = bento_endpoint.internal_port;
     let https_connection = address.starts_with("https://");
     let client = prepare_client(https_connection, insecure_client);
     let address_complete =
