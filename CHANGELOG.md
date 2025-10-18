@@ -26,6 +26,7 @@
 ### Changed
 
 - use context-object, which includes token, public-addresses and insecure-flag in one object, to make the sdk-functions smaller and cleaner
+- keys are internally handled as new object, to prevent them from being printed on the console by accident
 
 ### Fixed
 

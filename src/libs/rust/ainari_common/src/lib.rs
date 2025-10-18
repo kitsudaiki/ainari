@@ -21,3 +21,4 @@ pub mod enums;
 pub mod error;
 pub mod functions;
 pub mod objects;
+pub mod secret;

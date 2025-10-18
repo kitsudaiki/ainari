@@ -23,6 +23,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config;
 
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::secret::Secret;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Claims {
@@ -40,8 +41,7 @@ pub struct Claims {
 
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
     // validate token
-    let secret = TOKEN_KEY.as_bytes();
-    let key = DecodingKey::from_secret(secret);
+    let key = DecodingKey::from_secret(TOKEN_KEY.reveal().as_bytes());
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
         Ok(context) => {
@@ -83,11 +83,10 @@ pub fn create_token(
     };
 
     // create token
-    let secret = TOKEN_KEY.as_bytes();
     match encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(secret),
+        &EncodingKey::from_secret(TOKEN_KEY.reveal().as_bytes()),
     ) {
         Ok(token) => {
             log::debug!(
@@ -102,14 +101,14 @@ pub fn create_token(
     }
 }
 
-static TOKEN_KEY: Lazy<String> = Lazy::new(|| {
+static TOKEN_KEY: Lazy<Secret> = Lazy::new(|| {
     let file_path = &config::CONFIG.auth.token_key_path;
     log::debug!("read token-key from file: '{file_path}'");
 
     match fs::read_to_string(file_path) {
         Ok(content) => {
             log::debug!("successfully read token-key-file '{file_path}'");
-            content
+            Secret::from(content)
         }
         Err(e) => {
             log::error!("Failed read token-key-file '{file_path}'");

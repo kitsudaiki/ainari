@@ -18,13 +18,14 @@ use uuid::Uuid;
 use ainari_api_structs::dataset_structs::*;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
+use ainari_common::secret::Secret;
 
 use crate::prepare_client;
 
 pub async fn init_dataset(
     bento_endpoint: &ainari_config::Endpoint,
     token: &String,
-    internal_api_key: &str,
+    internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     name: &str,
     insecure_client: bool,
@@ -45,7 +46,7 @@ pub async fn init_dataset(
     let response = client
         .post(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)
         .await;
@@ -95,7 +96,7 @@ pub async fn init_dataset(
 pub async fn get_dataset(
     bento_endpoint: &ainari_config::Endpoint,
     token: &String,
-    internal_api_key: &str,
+    internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
@@ -108,7 +109,7 @@ pub async fn get_dataset(
     let response = client
         .get(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.to_owned()))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
         .await;
 
