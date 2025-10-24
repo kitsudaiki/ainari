@@ -43,7 +43,7 @@ executed.
 
 ![Workflow-component](Azuki_internal.drawio)
 
-In the current version this is quite static and simple. Each worker-thread of hanami, which process
+In the current version this is quite static and simple. Each worker-thread of sakura, which process
 the neural network, runs on the CPU-cores >1 and every other thread is executed on the first
 physical CPU-core. It also identifies in case of hyperthreading, which cpu-threads are sharing the
 same physical core and consider this, when binding the threads. By enforcing that the 2 threads of
@@ -56,7 +56,7 @@ energy.
 
     Disabled at the moment because of less priority
 
-Hanami can change the frequency of the CPU. It was tested in an earlier state and the result looked
+Sakura can change the frequency of the CPU. It was tested in an earlier state and the result looked
 like this:
 
 ![Workflow-component](cpu_power.jpg)

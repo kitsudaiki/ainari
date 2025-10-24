@@ -37,7 +37,7 @@ pub struct Endpoint {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Endpoints {
-    pub hanami: Endpoint,
+    pub sakura: Endpoint,
     pub bento: Endpoint,
 }
 

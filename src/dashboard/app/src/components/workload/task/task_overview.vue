@@ -113,7 +113,7 @@ async function fetchTasks() {
     console.log("task-uuid: ", props.id);
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get(
+        const response = await api.sakura_api.get(
             `/v1alpha/cluster/${props.id}/task`,
             {
                 headers: { Authorization: `Bearer ${token}` },

@@ -99,7 +99,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 async function fetchDatasets() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/dataset", {
+        const response = await api.sakura_api.get("/v1alpha/dataset", {
             headers: { Authorization: `Bearer ${token}` },
         });
         datasets.value = response.data.datasets;

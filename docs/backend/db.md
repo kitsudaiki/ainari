@@ -36,7 +36,7 @@
 | deleted_at  | VARCHAR(64) |  | 
 | deleted_by  | VARCHAR(256)  |  | 
 
-## Hanami
+## Sakura
 
 ### clusters
 

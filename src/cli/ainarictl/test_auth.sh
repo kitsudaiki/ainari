@@ -1,5 +1,5 @@
-export HANAMI_ADDRESS=http://127.0.0.1:11417
-#export HANAMI_ADDRESS=https://local-hanami
-export HANAMI_USER=asdf
-export HANAMI_PASSPHRASE=asdfasdf
+export SAKURA_ADDRESS=http://127.0.0.1:11417
+#export SAKURA_ADDRESS=https://local-sakura
+export SAKURA_USER=asdf
+export SAKURA_PASSPHRASE=asdfasdf
 

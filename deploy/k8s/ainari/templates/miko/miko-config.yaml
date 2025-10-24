@@ -20,10 +20,10 @@ data:
     [database]
     file_path = "/etc/ainari/miko/miko_db"
 
-    [endpoints.hanami]
-    public_address = "https://local-hanami"
+    [endpoints.sakura]
+    public_address = "https://local-sakura"
     public_port = 443
-    internal_address = "https://hanami-tls-service.default.svc.cluster.local"
+    internal_address = "https://sakura-tls-service.default.svc.cluster.local"
     internal_port = 8443
 
     [endpoints.bento]

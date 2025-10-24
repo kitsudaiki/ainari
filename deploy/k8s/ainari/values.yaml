@@ -15,7 +15,7 @@ docker:
   registry: "kitsudaiki"
 
 api:
-  domain_hanami: local-hanami
+  domain_sakura: local-sakura
   domain_miko: local-miko
   domain_bento: local-bento
   internal_api_key: "dummy-key"

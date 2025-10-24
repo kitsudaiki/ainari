@@ -8,9 +8,9 @@ permissions:
 
 env:
   REGISTRY_DOCS_IMAGE: kitsudaiki/ainari_docs
-  HANAMI_ADMIN_ID: asdf
-  HANAMI_ADMIN_NAME: asdf
-  HANAMI_ADMIN_PASSPHRASE: asdfasdf
+  SAKURA_ADMIN_ID: asdf
+  SAKURA_ADMIN_NAME: asdf
+  SAKURA_ADMIN_PASSPHRASE: asdfasdf
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
@@ -242,22 +242,22 @@ jobs:
           git submodule init
           git submodule update --recursive
       -
-        name: Compile hanami
+        name: Compile sakura
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           earthly --artifact +compile-ainari/tmp/ainari ./builds/
       -
         name: Copy files
         run: |
-          mkdir /tmp/Hanami_debug_build_result
+          mkdir /tmp/Sakura_debug_build_result
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/ainari /tmp/Hanami_debug_build_result/
+          cp -r builds/ainari /tmp/Sakura_debug_build_result/
       -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
           retention-days: 1
 
 
@@ -329,7 +329,7 @@ jobs:
         name: Compile code
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly +test-hanami
+          earthly +test-sakura
 
 
 
@@ -371,8 +371,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -394,18 +394,18 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -450,8 +450,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
@@ -476,18 +476,18 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -501,8 +501,8 @@ jobs:
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
           export MIKO_ADDRESS=http://127.0.0.1:11417
-          export HANAMI_USER=asdf
-          export HANAMI_PASSPHRASE=asdfasdf
+          export SAKURA_USER=asdf
+          export SAKURA_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
           export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
           export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte
@@ -561,8 +561,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -584,18 +584,18 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -609,7 +609,7 @@ jobs:
         with:
           python-version: "${{ matrix.python_version.version }}"
       -
-        name: Install hanami-sdk
+        name: Install sakura-sdk
         run: |
           cd /tmp/ainari_python_build_result
           ls -l
@@ -636,7 +636,7 @@ jobs:
       #   name: Get log-output for debugging
       #   id: docker_log
       #   if: ${{ always() }}
-      #   run: docker logs hanami
+      #   run: docker logs sakura
       -
         name: Update Result
         id: status
@@ -654,8 +654,8 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami", platform: "linux/amd64", regitry: "kitsudaiki/hanami" }
-          - { component: "hanami", platform: "linux/arm64", regitry: "kitsudaiki/hanami" }
+          - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
+          - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
           - { component: "miko", platform: "linux/amd64", regitry: "kitsudaiki/miko" }
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
           - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
@@ -740,7 +740,7 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami", regitry: "kitsudaiki/hanami" }
+          - { component: "sakura", regitry: "kitsudaiki/sakura" }
           - { component: "miko", regitry: "kitsudaiki/miko" }
           - { component: "bento", regitry: "kitsudaiki/bento" }
     steps:
@@ -959,13 +959,13 @@ jobs:
       -
         name: Label nodes
         run: |
-          kubectl label nodes --all hanami-node=true
+          kubectl label nodes --all sakura-node=true
           kubectl label nodes --all miko-node=true
           kubectl label nodes --all bento-node=true
       -
-        name: Install hanami
+        name: Install sakura
         run: |
-          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-hanami  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
+          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-sakura  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
       -
         name: Sleep for 120 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
@@ -978,14 +978,14 @@ jobs:
           kubectl get configmaps
           kubectl get deployments
           kubectl get storageclass
-          kubectl describe $(kubectl get pod -o name | grep ^pod/hanami)
+          kubectl describe $(kubectl get pod -o name | grep ^pod/sakura)
           df -h
           ls -l /mnt/
       -
         name: Update hosts-file
         run: |
-          ingress_ip_hanami=$(kubectl get ingress hanami-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "$ingress_ip_hanami  local-hanami" | sudo tee -a /etc/hosts
+          ingress_ip_sakura=$(kubectl get ingress sakura-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "$ingress_ip_sakura  local-sakura" | sudo tee -a /etc/hosts
           ingress_ip_miko=$(kubectl get ingress miko-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_miko  local-miko" | sudo tee -a /etc/hosts
           ingress_ip_bento=$(kubectl get ingress bento-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -1008,7 +1008,7 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           sudo cp -r ./example_configs/ainari /etc/
-          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-bento/g' /etc/ainari/hanami_testing.conf
       -
@@ -1022,9 +1022,9 @@ jobs:
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
       -
-        name: Print logs of the hanami-pod to make debugging easier in case of an error
+        name: Print logs of the sakura-pod to make debugging easier in case of an error
         if: ${{ always() }}
-        run: kubectl logs -c hanami $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^hanami-')
+        run: kubectl logs -c sakura $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^sakura-')
       -
         name: Print logs of the miko-pod to make debugging easier in case of an error
         if: ${{ always() }}

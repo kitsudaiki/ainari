@@ -1,0 +1,27 @@
+apiVersion: v1
+metadata:
+  name: sakura-config
+data:
+  sakura.toml: |+
+    debug = true
+    log_path = ""
+    insecure_clients = true
+
+    [processing]
+    max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
+
+    [api]
+    public_ip = "127.0.0.1"
+    public_port = 11418
+    internal_ip = "127.0.0.1"
+    internal_port = 10418
+    internal_api_key = "{{ .Values.api.internal_api_key }}"
+
+    [database]
+    file_path = "/etc/ainari/sakura/sakura_db"
+    
+    [miko]
+    address = "https://miko-tls-service.default.svc.cluster.local"
+    port = 8443
+
+kind: ConfigMap

@@ -34,7 +34,7 @@ def create_train_task(context: AccessContext,
         "time_length": timeLength,
     }
     return ainari_request.send_post_request(context,
-                                            context.hanami_address,
+                                            context.sakura_address,
                                             path,
                                             json_body)
 
@@ -53,7 +53,7 @@ def create_request_task(context: AccessContext,
         "time_length": timeLength,
     }
     return ainari_request.send_post_request(context,
-                                            context.hanami_address,
+                                            context.sakura_address,
                                             path,
                                             json_body)
 
@@ -66,7 +66,7 @@ def create_checkpoint_save_task(context: AccessContext,
         "name": name,
     }
     return ainari_request.send_post_request(context,
-                                            context.hanami_address,
+                                            context.sakura_address,
                                             path,
                                             json_body)
 
@@ -81,7 +81,7 @@ def create_checkpoint_restore_task(context: AccessContext,
         "checkpoint_uuid": checkpoint_uuid,
     }
     return ainari_request.send_post_request(context,
-                                            context.hanami_address,
+                                            context.sakura_address,
                                             path,
                                             json_body)
 
@@ -91,7 +91,7 @@ def get_task(context: AccessContext,
              cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     return ainari_request.send_get_request(context,
-                                           context.hanami_address,
+                                           context.sakura_address,
                                            path,
                                            "")
 
@@ -100,7 +100,7 @@ def list_tasks(context: AccessContext,
                cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}/task"
     return ainari_request.send_get_request(context,
-                                           context.hanami_address,
+                                           context.sakura_address,
                                            path,
                                            "")
 
@@ -110,7 +110,7 @@ def delete_task(context: AccessContext,
                 cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.hanami_address,
+                                       context.sakura_address,
                                        path,
                                        "")
 
@@ -120,7 +120,7 @@ def abort_task(context: AccessContext,
                cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort"
     ainari_request.send_put_request(context,
-                                    context.hanami_address,
+                                    context.sakura_address,
                                     path,
                                     "")
 
@@ -131,7 +131,7 @@ def wait_for_task_finished(context: AccessContext,
                            time_interval: float = 1.0):
     finished = False
     while not finished:
-        result = get_task(context, context.hanami_address, task_uuid, cluster_uuid)
+        result = get_task(context, context.sakura_address, task_uuid, cluster_uuid)
         finished = result["state"] == "FINISHED"
         # in case that the task is already finished, an unnecessary sleep should be avoided
         if finished:

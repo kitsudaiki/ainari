@@ -56,10 +56,10 @@ def request_context(address: str,
 
     # get addresses
     miko_address = address
-    hanami_address = f'{response["hanami"]["public_address"]}:{response["hanami"]["public_port"]}'
+    sakura_address = f'{response["sakura"]["public_address"]}:{response["sakura"]["public_port"]}'
     bento_adress = f'{response["bento"]["public_address"]}:{response["bento"]["public_port"]}'
 
-    context = AccessContext(token, miko_address, hanami_address, bento_adress)
+    context = AccessContext(token, miko_address, sakura_address, bento_adress)
 
     # print(context)
 

@@ -54,7 +54,7 @@ func CreateTrainTask(context AccessContext, name, clusterUuid string, inputs, ou
 		"outputs":          outputArray,
 		"time_length":      timeLenght,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, context.SakuraAddress, path, jsonBody)
 }
 
 func CreateRequestTask(context AccessContext, name, clusterUuid string, inputs []TaskInput, results []TaskResult, timeLenght int) (map[string]interface{}, error) {
@@ -75,7 +75,7 @@ func CreateRequestTask(context AccessContext, name, clusterUuid string, inputs [
 		"results":      resultArray,
 		"time_length":  timeLenght,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, context.SakuraAddress, path, jsonBody)
 }
 
 func CreateCheckpointSaveTask(context AccessContext, name, clusterUuid string) (map[string]interface{}, error) {
@@ -83,7 +83,7 @@ func CreateCheckpointSaveTask(context AccessContext, name, clusterUuid string) (
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, context.SakuraAddress, path, jsonBody)
 }
 
 func CreateCheckpointRestoreTask(context AccessContext, name, clusterUuid, checkpointUuid string) (map[string]interface{}, error) {
@@ -92,29 +92,29 @@ func CreateCheckpointRestoreTask(context AccessContext, name, clusterUuid, check
 		"name": name,
 		"checkpoint_uuid": checkpointUuid,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, context.SakuraAddress, path, jsonBody)
 }
 
 func GetTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.HanamiAddress, path, vars)
+	return SendGet(context, context.SakuraAddress, path, vars)
 }
 
 func ListTask(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.HanamiAddress, path, vars)
+	return SendGet(context, context.SakuraAddress, path, vars)
 }
 
 func DeleteTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.HanamiAddress, path, vars)
+	return SendDelete(context, context.SakuraAddress, path, vars)
 }
 
 func AbortTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s/abort", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendPut(context, context.HanamiAddress, path, vars)
+	return SendPut(context, context.SakuraAddress, path, vars)
 }

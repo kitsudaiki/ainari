@@ -23,5 +23,5 @@ package ainari_sdk
 func ListHosts(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/host"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.HanamiAddress, path, vars)
+	return SendGet(context, context.SakuraAddress, path, vars)
 }

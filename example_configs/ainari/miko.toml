@@ -15,7 +15,7 @@ internal_ip = "0.0.0.0"
 internal_port = 10417
 internal_api_key = "asdf"
 
-[endpoints.hanami]
+[endpoints.sakura]
 public_address = "http://127.0.0.1"
 public_port = 11418
 internal_address = "http://127.0.0.1"

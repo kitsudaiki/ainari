@@ -1,7 +1,7 @@
 #!/bin/bash
 # export MIKO_ADDRESS=http://127.0.0.1:11417
-# export HANAMI_USER=asdf
-# export HANAMI_PASSPHRASE=asdfasdf
+# export SAKURA_USER=asdf
+# export SAKURA_PASSPHRASE=asdfasdf
 
 # export TRAIN_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
 # export TRAIN_LABELS=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte

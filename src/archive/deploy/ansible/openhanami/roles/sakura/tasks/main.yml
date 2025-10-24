@@ -1,0 +1,12 @@
+---
+- name: Install docker
+  ansible.builtin.include_tasks:
+    file: install_docker.yml
+
+- name: Deploy Ainari
+  ansible.builtin.include_tasks:
+    file: deploy_sakura.yml
+
+- name: Install and configure nginx with ssl
+  ansible.builtin.include_tasks:
+    file: install_and_configure_nginx.yml

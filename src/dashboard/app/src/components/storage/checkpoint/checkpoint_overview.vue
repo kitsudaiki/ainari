@@ -90,7 +90,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 async function fetchCheckpoints() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/checkpoint", {
+        const response = await api.sakura_api.get("/v1alpha/checkpoint", {
             headers: { Authorization: `Bearer ${token}` },
         });
         checkpoints.value = response.data.checkpoints;

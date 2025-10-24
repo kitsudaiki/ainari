@@ -12,9 +12,9 @@
 
     This documentation contains only the plain REST-API-endpoints. The workflow to upload files or interact with the Clusters over the websocket are not part of this documentation. [See instead](/How_To/4_websocket_workflow)
 
-## Hanami
+## Sakura
 
-<swagger-ui src="open_api_docu_hanami.json"/>
+<swagger-ui src="open_api_docu_sakura.json"/>
 
 ## Miko
 

@@ -111,7 +111,7 @@ function switchToTasks(cluster_uuid: string) {
 async function fetchClusters() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/cluster", {
+        const response = await api.sakura_api.get("/v1alpha/cluster", {
             headers: { Authorization: `Bearer ${token}` },
         });
         clusters.value = response.data.clusters;

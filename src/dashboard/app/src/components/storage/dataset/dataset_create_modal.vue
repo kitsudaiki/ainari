@@ -115,7 +115,7 @@ async function handleAccept() {
 
         try {
             const token = localStorage.getItem("jwtToken");
-            const response = await api.hanami_api.post(
+            const response = await api.sakura_api.post(
                 `/v1alpha/dataset/mnist/${form.datasetName}`,
                 formData,
                 {
@@ -139,7 +139,7 @@ async function handleAccept() {
 
         try {
             const token = localStorage.getItem("jwtToken");
-            const response = await api.hanami_api.post(
+            const response = await api.sakura_api.post(
                 `/v1alpha/dataset/csv/${form.datasetName}`,
                 formData,
                 {

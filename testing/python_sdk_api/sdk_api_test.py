@@ -44,7 +44,7 @@ config.read('/etc/ainari/hanami_testing.conf')
 
 bento_address = ""
 miko_address = config["connection"]["miko_address"]
-hanami_address = ""
+sakura_address = ""
 
 test_user_id = config["connection"]["test_user"]
 test_user_pw = config["connection"]["test_passphrase"]
@@ -419,8 +419,8 @@ cluster.delete_all_cluster(context)
 project.delete_all_projects(context)
 user.delete_all_user(context)
 
-version = common.get_version(context, context.hanami_address)
-print(f"hanami-version: {version}")
+version = common.get_version(context, context.sakura_address)
+print(f"sakura-version: {version}")
 version = common.get_version(context, context.miko_address)
 print(f"miko-version: {version}")
 version = common.get_version(context, context.bento_adress)

@@ -25,7 +25,7 @@ def create_cluster(context: AccessContext,
         "template": template,
     }
     return ainari_request.send_post_request(context,
-                                            context.hanami_address,
+                                            context.sakura_address,
                                             path,
                                             json_body)
 
@@ -34,7 +34,7 @@ def get_cluster(context: AccessContext,
                 cluster_uuid: str) -> dict:
     path = f"/v1alpha/cluster/{cluster_uuid}"
     return ainari_request.send_get_request(context,
-                                           context.hanami_address,
+                                           context.sakura_address,
                                            path,
                                            "")
 
@@ -42,7 +42,7 @@ def get_cluster(context: AccessContext,
 def list_clusters(context: AccessContext) -> dict:
     path = "/v1alpha/cluster"
     return ainari_request.send_get_request(context,
-                                           context.hanami_address,
+                                           context.sakura_address,
                                            path,
                                            "")
 
@@ -51,7 +51,7 @@ def delete_cluster(context: AccessContext,
                    cluster_uuid: str):
     path = f"/v1alpha/cluster/{cluster_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.hanami_address,
+                                       context.sakura_address,
                                        path,
                                        "")
 
@@ -72,7 +72,7 @@ def train(context: AccessContext,
         "outputs": outputs,
     }
     ainari_request.send_put_request(context,
-                                    context.hanami_address,
+                                    context.sakura_address,
                                     path,
                                     json_body)
 
@@ -87,6 +87,6 @@ def request(context: AccessContext,
         "outputs": outputs,
     }
     return ainari_request.send_put_request(context,
-                                           context.hanami_address,
+                                           context.sakura_address,
                                            path,
                                            json_body)

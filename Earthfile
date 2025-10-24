@@ -97,7 +97,7 @@ prepare-build-dependencies:
                            libssl-dev \
                            rustup \
                            # TODO:enable gpu init here again
-                           # related issue: https://github.com/kitsudaiki/Hanami/issues/325
+                           # related issue: https://github.com/kitsudaiki/Sakura/issues/325
                            # nvidia-cuda-toolkit \
                            nano && \
         rustup install stable --no-self-update
@@ -123,13 +123,13 @@ compile-ainari:
         apt-get install -y libsqlite3-dev
     RUN cargo build
     RUN mkdir /tmp/ainari/
-    RUN cp ./target/debug/hanami /tmp/ainari/
+    RUN cp ./target/debug/sakura /tmp/ainari/
     RUN cp ./target/debug/miko /tmp/ainari/
     RUN cp ./target/debug/bento /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
-test-hanami:
+test-sakura:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
@@ -145,22 +145,22 @@ build-image:
         apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 && \
         apt-get clean autoclean && \
         apt-get autoremove --yes && \
-        chmod +x /usr/bin/hanami
+        chmod +x /usr/bin/sakura
 
-    COPY +compile-code/ainari_core/hanami /usr/bin/
+    COPY +compile-code/ainari_core/sakura /usr/bin/
 
-    # run hanami
-    ENTRYPOINT ["/usr/bin/hanami"]
+    # run sakura
+    ENTRYPOINT ["/usr/bin/sakura"]
 
     SAVE IMAGE "$image_name"
 
 
 generate-docs:
-    ENV HANAMI_ADMIN_ID asdf
-    ENV HANAMI_ADMIN_NAME asdf
-    ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
+    ENV SAKURA_ADMIN_ID asdf
+    ENV SAKURA_ADMIN_NAME asdf
+    ENV SAKURA_ADMIN_PASSPHRASE asdfasdf
 
-    COPY +compile-ainari/ainari/hanami /tmp/hanami
+    COPY +compile-ainari/ainari/sakura /tmp/sakura
     COPY +compile-ainari/ainari/miko /tmp/miko
     COPY +compile-ainari/ainari/bento /tmp/bento
     COPY example_configs/ainari /etc/ainari
@@ -184,11 +184,11 @@ generate-docs:
         curl -s https://api.github.com/repos/jgraph/drawio-desktop/releases/latest | grep browser_download_url | grep "amd64"  | grep "deb" | cut -d "\"" -f 4 | wget -i - && \
         apt -f -y install ./drawio-amd64-*.deb
 
-    RUN chmod +x /tmp/hanami
+    RUN chmod +x /tmp/sakura
     RUN . ainari_env/bin/activate && \
-        hap run /tmp/hanami && \
+        hap run /tmp/sakura && \
         sleep 5 && \
-        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
+        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_sakura.json
     RUN chmod +x /tmp/miko
     RUN . ainari_env/bin/activate && \
         hap run /tmp/miko && \
@@ -205,7 +205,7 @@ generate-docs:
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
-    RUN cp ./open_api_docu_hanami.json docs/frontend/
+    RUN cp ./open_api_docu_sakura.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
     RUN cp ./open_api_docu_bento.json docs/frontend/
 

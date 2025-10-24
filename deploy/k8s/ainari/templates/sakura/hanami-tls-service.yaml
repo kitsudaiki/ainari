@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sakura-tls-service
+  labels:
+    run: sakura
+spec:
+  selector:
+    app: sakura
+  ports:
+    - name: input
+      protocol: TCP
+      port: 8443
+      targetPort: 8443
+  type: ClusterIP

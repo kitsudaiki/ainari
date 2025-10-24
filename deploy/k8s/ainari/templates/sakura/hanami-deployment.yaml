@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sakura
+  labels:
+    app: sakura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sakura
+  template:
+    metadata:
+      labels:
+        app: sakura
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: sakura-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - sakura
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: sakura
+        image: {{ .Values.docker.registry }}/sakura:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/sakura/
+        - name: shared-vol
+          mountPath: /etc/ainari/bento_data
+        - name: sakura-config
+          mountPath: /etc/ainari/sakura.toml
+          subPath: sakura.toml
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: sakura-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: sakura-config
+          configMap:
+            name: sakura-config
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: sakura-pvc
+        - name: tls-certs
+          secret:
+            secretName: sakura-selfsigned-secret
+        - name: sakura-nginx-config
+          configMap:
+            name: sakura-nginx-config
+        - name: shared-vol
+          persistentVolumeClaim:
+            claimName: shared-longhorn-pvc
