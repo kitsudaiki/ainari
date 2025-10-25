@@ -14,14 +14,22 @@
 
 #![forbid(unsafe_code)]
 
-pub mod auth_structs;
-pub mod checkpoint_structs;
-pub mod cluster_structs;
-pub mod common_structs;
-pub mod dataset_structs;
-pub mod endpoints_structs;
-pub mod host_structs;
-pub mod project_structs;
-pub mod task_structs;
-pub mod user_context;
-pub mod user_structs;
+mod api;
+mod config;
+mod database;
+
+use log::LevelFilter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    let enable_debug_log = config::CONFIG.debug;
+    if !enable_debug_log {
+        log::set_max_level(LevelFilter::Info);
+    }
+
+    database::init_database()?;
+
+    api::http_server::run_server()?;
+
+    Ok(())
+}

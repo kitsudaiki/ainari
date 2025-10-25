@@ -3,11 +3,11 @@
     "compounds": [
         {
             "name": "Ainari Debug",
-            "configurations": ["Debug Build sakura", "Debug Build miko", "Debug Build bento"],
+            "configurations": ["Debug Build sakura", "Debug Build hanami", "Debug Build miko", "Debug Build bento"],
         },
         {
             "name": "Ainari Release",
-            "configurations": ["Release Build sakura", "Release Build miko", "Release Build bento"],
+            "configurations": ["Release Build sakura", "Release Build hanami", "Release Build miko", "Release Build bento"],
         }
     ],
     "configurations": [
@@ -39,6 +39,43 @@
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "preLaunchTask": "build sakura release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "SAKURA_ADMIN_ID": "asdf",
+                "SAKURA_ADMIN_NAME": "asdf",
+                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Debug Build hanami",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/hanami",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build hanami debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "SAKURA_ADMIN_ID": "asdf",
+                "SAKURA_ADMIN_NAME": "asdf",
+                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build hanami",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/hanami",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build hanami release",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing

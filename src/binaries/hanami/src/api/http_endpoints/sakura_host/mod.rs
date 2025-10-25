@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![forbid(unsafe_code)]
-
-pub mod auth_structs;
-pub mod checkpoint_structs;
-pub mod cluster_structs;
-pub mod common_structs;
-pub mod dataset_structs;
-pub mod endpoints_structs;
-pub mod host_structs;
-pub mod project_structs;
-pub mod task_structs;
-pub mod user_context;
-pub mod user_structs;
+pub mod delete_host_v1_0;
+pub mod get_host_v1_0;
+pub mod list_host_v1_0;
+pub mod register_host_internal_v1_0;

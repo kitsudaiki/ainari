@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![forbid(unsafe_code)]
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use std::sync::{Arc, Mutex};
 
-pub mod auth_structs;
-pub mod checkpoint_structs;
-pub mod cluster_structs;
-pub mod common_structs;
-pub mod dataset_structs;
-pub mod endpoints_structs;
-pub mod host_structs;
-pub mod project_structs;
-pub mod task_structs;
-pub mod user_context;
-pub mod user_structs;
+use crate::config;
+
+lazy_static::lazy_static! {
+    pub static ref DB_CONN: Arc<Mutex<SqliteConnection>> = Arc::new(Mutex::new(establish_connection()));
+}
+
+pub fn establish_connection() -> SqliteConnection {
+    let file_path = config::CONFIG.database.file_path.clone();
+    //let database_url = ":memory:".to_string();
+    SqliteConnection::establish(&file_path).expect("Error connecting to database")
+}

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "src/binaries/sakura",
+    "src/binaries/hanami",
     "src/binaries/miko", 
     "src/binaries/bento", 
     "src/libs/rust/ainari_common",
