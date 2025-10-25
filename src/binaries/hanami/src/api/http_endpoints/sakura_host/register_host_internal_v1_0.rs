@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
 use crate::database::host_table;
 
 use ainari_api::errors::ErrorResponse;
@@ -46,6 +47,12 @@ pub async fn register_host_internal(
     };
 
     let host_uuid = Uuid::new_v4();
+
+    // check registration key
+    let conf_registration_key = &config::CONFIG.sakura.registation_key;
+    if conf_registration_key != &body.registration_key {
+        return Err(ErrorResponse::Unauthorized("Invalid Registration-key".to_string()));
+    }
 
     // add new host to database
     match host_table::add_new_host(&host_uuid, &body.name, &context) {

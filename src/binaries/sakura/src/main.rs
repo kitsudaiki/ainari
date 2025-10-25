@@ -18,6 +18,7 @@ mod api;
 mod config;
 mod core;
 mod database;
+mod hanami_interaction;
 
 use log::LevelFilter;
 
@@ -40,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(cluster_data_handler);
 
     database::init_database()?;
+
+    hanami_interaction::register_host()?;
 
     api::http_server::run_server()?;
 

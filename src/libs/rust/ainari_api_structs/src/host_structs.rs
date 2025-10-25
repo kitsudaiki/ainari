@@ -18,10 +18,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use ainari_common::secret::Secret;
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct HostCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(length(min = 4, max = 127))]
+    pub registration_key: Secret,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

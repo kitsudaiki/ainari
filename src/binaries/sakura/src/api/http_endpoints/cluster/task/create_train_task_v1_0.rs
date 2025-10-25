@@ -88,12 +88,7 @@ pub async fn create_train_task(
     let mut number_of_cycles = u64::MAX;
 
     let miko_endpoint = &ainari_config::CONFIG.miko;
-    let endpoints = match get_endpoints(
-        miko_endpoint,
-        &context.token,
-        ainari_config::CONFIG.insecure_clients,
-    )
-    .await
+    let endpoints = match get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
     {
         Ok(body) => body,
         Err(AinariError::Unauthorized(msg)) => {

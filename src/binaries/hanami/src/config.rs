@@ -18,6 +18,7 @@ use std::fs;
 use std::process;
 
 use ainari_common::config as ainari_config;
+use ainari_common::secret::Secret;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -29,10 +30,16 @@ pub struct Config {
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
+    pub sakura: SakuraConf,
 }
 
 fn default_insecure_clients() -> bool {
     false
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SakuraConf {
+    pub registation_key: Secret,
 }
 
 // Global singleton config

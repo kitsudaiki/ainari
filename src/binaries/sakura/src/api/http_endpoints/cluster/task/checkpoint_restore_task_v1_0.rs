@@ -74,12 +74,7 @@ pub async fn checkpoint_restore_task(
 
     // get checkpoint information
     let miko_endpoint = &ainari_config::CONFIG.miko;
-    let endpoints = match get_endpoints(
-        miko_endpoint,
-        &context.token,
-        ainari_config::CONFIG.insecure_clients,
-    )
-    .await
+    let endpoints = match get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
     {
         Ok(body) => body,
         Err(AinariError::Unauthorized(msg)) => {

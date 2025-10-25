@@ -33,11 +33,11 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
     let enpoint_config = &config::CONFIG.endpoints;
 
     let response = EndpontsResp {
-        sakura: EndpointField {
-            public_address: enpoint_config.sakura.public_address.clone(),
-            public_port: enpoint_config.sakura.public_port,
-            internal_address: enpoint_config.sakura.internal_address.clone(),
-            internal_port: enpoint_config.sakura.internal_port,
+        hanami: EndpointField {
+            public_address: enpoint_config.hanami.public_address.clone(),
+            public_port: enpoint_config.hanami.public_port,
+            internal_address: enpoint_config.hanami.internal_address.clone(),
+            internal_port: enpoint_config.hanami.internal_port,
         },
         bento: EndpointField {
             public_address: enpoint_config.bento.public_address.clone(),

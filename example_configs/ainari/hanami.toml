@@ -7,11 +7,14 @@ file_path = "/etc/ainari/hanami_db"
 
 [api]
 public_ip = "0.0.0.0"
-public_port = 11420
+public_port = 11418
 internal_ip = "0.0.0.0"
-internal_port = 10420
+internal_port = 10418
 internal_api_key = "asdf"
 
 [miko]
 address = "http://127.0.0.1"
 port = 11417
+
+[sakura]
+registation_key = "test-registration-key"

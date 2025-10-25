@@ -2569,6 +2569,7 @@ dependencies = [
  "serde_urlencoded",
  "serial_test",
  "static_assertions",
+ "sysinfo",
  "tokio",
  "toml",
  "uuid",

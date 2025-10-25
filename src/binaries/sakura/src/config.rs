@@ -18,6 +18,7 @@ use std::fs;
 use std::process;
 
 use ainari_common::config as ainari_config;
+use ainari_common::secret::Secret;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -30,6 +31,7 @@ pub struct Config {
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
+    pub hanami: HanamiConf,
 }
 
 fn default_insecure_clients() -> bool {
@@ -44,6 +46,11 @@ pub struct Processing {
 
 fn default_max_number_of_threads() -> usize {
     0
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HanamiConf {
+    pub registation_key: Secret,
 }
 
 // Global singleton config

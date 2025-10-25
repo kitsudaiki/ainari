@@ -26,7 +26,7 @@ use ainari_common::enums;
 #[api_operation(
     tag = "host",
     summary = "Delete host",
-    description = r###"Delete a host from the database and core."###,
+    description = r###"Delete a host from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

@@ -39,10 +39,10 @@ fn v1alpha_routes() -> Scope {
         .service(
             scope("/host")
                 .service(
-                    resource("")
-                        .route(post().to(register_host_internal_v1_0::register_host_internal))
-                        .route(get().to(list_host_v1_0::list_host)),
+                    resource("/internal")
+                        .route(post().to(register_host_internal_v1_0::register_host_internal)),
                 )
+                .service(resource("").route(get().to(list_host_v1_0::list_host)))
                 .service(
                     resource("/{host_uuid}")
                         .route(get().to(get_host_v1_0::get_host))

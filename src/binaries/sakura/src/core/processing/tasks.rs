@@ -537,13 +537,13 @@ fn handle_checkpoint_save_task(
     // get endpoints from miko
     let miko_endpoint = &ainari_config::CONFIG.miko;
     let endpoints_resp = local.block_on(&rt, async {
-        get_endpoints(miko_endpoint, token, ainari_config::CONFIG.insecure_clients).await
+        get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
     });
 
     let endpoints = match endpoints_resp {
         Ok(body) => body,
         Err(e) => {
-            log::error!("Checkpoint-create request responded with: {e}");
+            log::error!("Endpoint request responded with: {e}");
             let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
             return;
         }
