@@ -67,8 +67,8 @@ pub struct UserEntry {
 pub fn init_admin() -> Result<(), Box<dyn Error>> {
     let fake_admin_context = UserContext {
         token: "".to_string(),
-        user_id: "SAKURA_INIT".to_string(),
-        project_id: "SAKURA_INIT".to_string(),
+        user_id: "AINARI_INIT".to_string(),
+        project_id: "AINARI_INIT".to_string(),
         is_admin: true,
         is_project_admin: false,
     };
@@ -80,26 +80,26 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     }
     log::info!("No user found in user-table -> Create a new initial admin.");
 
-    let admin_id: String = match env::var("SAKURA_ADMIN_ID") {
+    let admin_id: String = match env::var("AINARI_ADMIN_ID") {
         Ok(val) => val,
         Err(_) => {
-            log::error!("couldn't find env-variable: SAKURA_ADMIN_ID");
+            log::error!("couldn't find env-variable: AINARI_ADMIN_ID");
             return Err("An error occurred while initializing new admin-user".into());
         }
     };
 
-    let admin_name: String = match env::var("SAKURA_ADMIN_NAME") {
+    let admin_name: String = match env::var("AINARI_ADMIN_NAME") {
         Ok(val) => val,
         Err(_) => {
-            log::error!("couldn't find env-variable: SAKURA_ADMIN_NAME");
+            log::error!("couldn't find env-variable: AINARI_ADMIN_NAME");
             return Err("An error occurred while initializing new admin-user".into());
         }
     };
 
-    let admin_passphrase: Secret = match env::var("SAKURA_ADMIN_PASSPHRASE") {
+    let admin_passphrase: Secret = match env::var("AINARI_ADMIN_PASSPHRASE") {
         Ok(val) => Secret::from(val),
         Err(_) => {
-            log::error!("couldn't find env-variable: SAKURA_ADMIN_PASSPHRASE");
+            log::error!("couldn't find env-variable: AINARI_ADMIN_PASSPHRASE");
             return Err("An error occurred while initializing new admin-user".into());
         }
     };

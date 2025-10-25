@@ -8,9 +8,9 @@ permissions:
 
 env:
   REGISTRY_DOCS_IMAGE: kitsudaiki/ainari_docs
-  SAKURA_ADMIN_ID: asdf
-  SAKURA_ADMIN_NAME: asdf
-  SAKURA_ADMIN_PASSPHRASE: asdfasdf
+  AINARI_ADMIN_ID: asdf
+  AINARI_ADMIN_NAME: asdf
+  AINARI_ADMIN_PASSPHRASE: asdfasdf
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
@@ -501,8 +501,8 @@ jobs:
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
           export MIKO_ADDRESS=http://127.0.0.1:11417
-          export SAKURA_USER=asdf
-          export SAKURA_PASSPHRASE=asdfasdf
+          export AINARI_USER=asdf
+          export AINARI_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
           export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
           export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte

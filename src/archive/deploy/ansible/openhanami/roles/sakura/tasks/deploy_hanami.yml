@@ -56,9 +56,9 @@
     detach: true
     command: "sakura"
     env:
-      SAKURA_ADMIN_ID: "{{ lookup('env', 'ADMIN_USER_ID') }}"
-      SAKURA_ADMIN_NAME: "{{ lookup('env', 'ADMIN_USER_NAME') }}"
-      SAKURA_ADMIN_PASSPHRASE: "{{ lookup('env', 'ADMIN_PASSPHRASE') }}"
+      AINARI_ADMIN_ID: "{{ lookup('env', 'ADMIN_USER_ID') }}"
+      AINARI_ADMIN_NAME: "{{ lookup('env', 'ADMIN_USER_NAME') }}"
+      AINARI_ADMIN_PASSPHRASE: "{{ lookup('env', 'ADMIN_PASSPHRASE') }}"
     ports:
       - "11418:11418"
     mounts:

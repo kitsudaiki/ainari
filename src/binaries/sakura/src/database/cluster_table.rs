@@ -188,7 +188,7 @@ pub fn delete_all_cluster() -> Result<(), enums::DbError> {
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("SAKURA_START"),
+            deleted_by.eq("AINARI_START"),
         ))
         .execute(&mut *conn)
     {

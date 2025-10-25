@@ -39,9 +39,9 @@ This document should help to setup a local environment for development.
     create the first admin-user:
 
     ```bash
-    export SAKURA_ADMIN_ID=asdf
-    export SAKURA_ADMIN_NAME=asdf
-    export SAKURA_ADMIN_PASSPHRASE=asdfasdf
+    export AINARI_ADMIN_ID=asdf
+    export AINARI_ADMIN_NAME=asdf
+    export AINARI_ADMIN_PASSPHRASE=asdfasdf
     ```
 
     These are the default testing-configs, to match with the test-confic
@@ -119,11 +119,11 @@ API.
 -   export environment-variables
 
     ```bash
-    export SAKURA_ADDRESS=http://127.0.0.1:11418
+    export AINARI_ADDRESS=http://127.0.0.1:11418
     export MIKO_ADDRESS=http://127.0.0.1:11417
     export BENTO_ADDRESS=http://127.0.0.1:11416
-    export SAKURA_USER=asdf
-    export SAKURA_PASSPHRASE=asdfasdf
+    export AINARI_USER=asdf
+    export AINARI_PASSPHRASE=asdfasdf
 
     export train_inputs=/tmp/train-images-idx3-ubyte
     export train_labels=/tmp/train-labels-idx1-ubyte

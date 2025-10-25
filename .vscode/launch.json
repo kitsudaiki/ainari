@@ -23,9 +23,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -42,9 +42,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         },
@@ -60,9 +60,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -79,9 +79,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         },
@@ -97,9 +97,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -116,9 +116,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         },
@@ -134,9 +134,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -153,9 +153,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "SAKURA_ADMIN_ID": "asdf",
-                "SAKURA_ADMIN_NAME": "asdf",
-                "SAKURA_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         }

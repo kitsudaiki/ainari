@@ -29,15 +29,15 @@ import (
 
 func Login() (ainari_sdk.AccessContext, error) {
 
-	user := os.Getenv("SAKURA_USER")
-	passphrase := os.Getenv("SAKURA_PASSPHRASE")
+	user := os.Getenv("AINARI_USER")
+	passphrase := os.Getenv("AINARI_PASSPHRASE")
 	address := os.Getenv("MIKO_ADDRESS")
 
 	if user == "" {
-		panic("SAKURA_USER is not set")
+		panic("AINARI_USER is not set")
 	}
 	if passphrase == "" {
-		panic("SAKURA_PASSPHRASE is not set")
+		panic("AINARI_PASSPHRASE is not set")
 	}
 	if address == "" {
 		panic("MIKO_ADDRESS is not set")

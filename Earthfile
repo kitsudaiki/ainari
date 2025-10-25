@@ -156,9 +156,9 @@ build-image:
 
 
 generate-docs:
-    ENV SAKURA_ADMIN_ID asdf
-    ENV SAKURA_ADMIN_NAME asdf
-    ENV SAKURA_ADMIN_PASSPHRASE asdfasdf
+    ENV AINARI_ADMIN_ID asdf
+    ENV AINARI_ADMIN_NAME asdf
+    ENV AINARI_ADMIN_PASSPHRASE asdfasdf
 
     COPY +compile-ainari/ainari/sakura /tmp/sakura
     COPY +compile-ainari/ainari/miko /tmp/miko

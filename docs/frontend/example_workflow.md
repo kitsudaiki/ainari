@@ -38,17 +38,17 @@ directly with the neural network via the python-version of the SDK. See for furt
 -   Export env-variables for connect and login-information:
 
     ```bash
-    export SAKURA_ADDRESS=<ADDRESS_OF_SAKURA_DEPLOYMENT>
-    export SAKURA_USER=<USER_ID>
-    export SAKURA_PASSPHRASE=<USER_PASSPHRASE>
+    export AINARI_ADDRESS=<ADDRESS_OF_AINARI_DEPLOYMENT>
+    export AINARI_USER=<USER_ID>
+    export AINARI_PASSPHRASE=<USER_PASSPHRASE>
     ```
 
     !!! example
 
           ```bash
-          export SAKURA_ADDRESS=https://local-sakura-new
-          export SAKURA_USER=asdf
-          export SAKURA_PASSPHRASE=asdfasdf
+          export AINARI_ADDRESS=https://local-sakura-new
+          export AINARI_USER=asdf
+          export AINARI_PASSPHRASE=asdfasdf
           ```
 
 ## Example
