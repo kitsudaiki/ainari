@@ -4,6 +4,7 @@ members = [
     "src/binaries/hanami",
     "src/binaries/miko", 
     "src/binaries/bento", 
+    "src/binaries/torii", 
     "src/libs/rust/ainari_common",
     "src/libs/rust/ainari_cluster_parser",
     "src/libs/rust/ainari_dataset", 

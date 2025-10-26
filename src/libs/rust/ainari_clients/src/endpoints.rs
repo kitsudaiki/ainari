@@ -67,6 +67,12 @@ pub async fn get_endpoints(
                             internal_address: deserialized.bento.internal_address,
                             internal_port: deserialized.bento.internal_port,
                         },
+                        torii: ainari_config::Endpoint {
+                            public_address: deserialized.torii.public_address,
+                            public_port: deserialized.torii.public_port,
+                            internal_address: deserialized.torii.internal_address,
+                            internal_port: deserialized.torii.internal_port,
+                        },
                     };
 
                     Ok(endpoints)

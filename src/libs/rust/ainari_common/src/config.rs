@@ -39,6 +39,7 @@ pub struct Endpoint {
 pub struct Endpoints {
     pub hanami: Endpoint,
     pub bento: Endpoint,
+    pub torii: Endpoint,
 }
 
 #[derive(Debug, Deserialize)]

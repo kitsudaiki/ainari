@@ -51,7 +51,9 @@ pub async fn register_host_internal(
     // check registration key
     let conf_registration_key = &config::CONFIG.sakura.registation_key;
     if conf_registration_key != &body.registration_key {
-        return Err(ErrorResponse::Unauthorized("Invalid Registration-key".to_string()));
+        return Err(ErrorResponse::Unauthorized(
+            "Invalid Registration-key".to_string(),
+        ));
     }
 
     // add new host to database

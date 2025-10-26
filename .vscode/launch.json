@@ -158,6 +158,43 @@
                 "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
+        },
+        {
+            "name": "Debug Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build torii debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build torii release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
         }
     ]
 }
