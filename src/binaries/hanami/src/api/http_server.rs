@@ -27,14 +27,27 @@ use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::cluster::*;
 use crate::api::http_endpoints::sakura_host::*;
-
 use crate::config;
 
 fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(
             scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
+        )
+        .service(
+            scope("/cluster")
+                .service(
+                    resource("")
+                        .route(post().to(create_cluster_v1_0::create_cluster))
+                        .route(get().to(list_cluster_v1_0::list_cluster)),
+                )
+                .service(
+                    resource("/{cluster_uuid}")
+                        .route(get().to(get_cluster_v1_0::get_cluster))
+                        .route(delete().to(delete_cluster_v1_0::delete_cluster)),
+                ),
         )
         .service(
             scope("/host")

@@ -99,6 +99,28 @@ func convertTaskResult(input []string) ([]ainari_sdk.TaskResult, error) {
 	return ret, nil
 }
 
+func getToriiPort(context ainari_sdk.AccessContext, clusterUuid string) int {
+
+	cluster_data, err := ainari_sdk.GetCluster(context, clusterUuid)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	value, ok := cluster_data["torii_port"]
+	if !ok {
+		fmt.Println("key 'torii_port' not found in cluster-output")
+		os.Exit(1)
+	}
+
+	toriiPort, ok := value.(float64) // Golang is stupid! Why beomes a 'u16' and 'float64' ?!?!?!
+	if !ok {
+		fmt.Println("toriiPort is not an int")
+		os.Exit(1)
+	}
+
+	return int(toriiPort)
+}
 
 var createTrainTaskCmd = &cobra.Command{
 	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
@@ -111,6 +133,7 @@ var createTrainTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
 		if err != nil {
@@ -122,7 +145,7 @@ var createTrainTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.CreateTrainTask(context, taskName, clusterUuid, taskInput, taskOutput, numberOfEpochs, timeLength)
+		content, err := ainari_sdk.CreateTrainTask(context, toriiPort, taskName, clusterUuid, taskInput, taskOutput, numberOfEpochs, timeLength)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -143,6 +166,7 @@ var createRequestTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskName := args[1]
 		taskInput, err := convertTaskIO(inputData)
 		if err != nil {
@@ -154,7 +178,7 @@ var createRequestTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.CreateRequestTask(context, taskName, clusterUuid, taskInput, taskOutput, timeLength)
+		content, err := ainari_sdk.CreateRequestTask(context, toriiPort, taskName, clusterUuid, taskInput, taskOutput, timeLength)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -175,8 +199,9 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointSaveTask(context, taskName, clusterUuid)
+		content, err := ainari_sdk.CreateCheckpointSaveTask(context, toriiPort, taskName, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -197,8 +222,9 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, taskName, clusterUuid, checkpointUuid)
+		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, toriiPort, taskName, clusterUuid, checkpointUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -219,8 +245,9 @@ var getTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.GetTask(context, taskUuid, clusterUuid)
+		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -241,7 +268,8 @@ var listTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
-		content, err := ainari_sdk.ListTask(context, clusterUuid)
+		toriiPort := getToriiPort(context, clusterUuid)
+		content, err := ainari_sdk.ListTask(context, toriiPort, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintList(content["tasks"].([]interface{}))
 		} else {
@@ -262,8 +290,9 @@ var deleteTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskUuid := args[1]
-		_, err = ainari_sdk.DeleteTask(context, taskUuid, clusterUuid)
+		_, err = ainari_sdk.DeleteTask(context, toriiPort, taskUuid, clusterUuid)
 		if err == nil {
 			fmt.Printf("successfully deleted task '%v'\n", taskUuid)
 		} else {
@@ -284,8 +313,9 @@ var abortTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		clusterUuid := args[0]
+		toriiPort := getToriiPort(context, clusterUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.AbortTask(context, taskUuid, clusterUuid)
+		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid, clusterUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

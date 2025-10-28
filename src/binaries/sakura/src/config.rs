@@ -26,6 +26,7 @@ pub struct Config {
     pub debug: bool,
     #[serde(default = "default_insecure_clients")]
     pub insecure_clients: bool,
+    pub address: String,
     // groups
     pub processing: Processing,
     pub api: ainari_config::Api,

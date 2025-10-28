@@ -45,9 +45,9 @@ fn v1alpha_routes() -> Scope {
                         .route(post().to(set_proxy_internal_v1_0::register_proxy_internal)),
                 )
                 .service(resource("").route(get().to(list_proxy_v1_0::list_proxy)))
+                .service(resource("/{proxy_uuid}").route(get().to(get_proxy_v1_0::get_proxy)))
                 .service(
-                    resource("/{proxy_uuid}")
-                        .route(get().to(get_proxy_v1_0::get_proxy))
+                    resource("/{proxy_uuid}/internal")
                         .route(delete().to(delete_proxy_v1_0::delete_proxy)),
                 ),
         )

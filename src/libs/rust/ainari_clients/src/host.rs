@@ -25,6 +25,7 @@ pub async fn register_sakura_host(
     hanami_endpoint: &ainari_config::Endpoint,
     internal_api_key: &Secret,
     name: &str,
+    sakura_address: &str,
     registration_key: &Secret,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
@@ -35,6 +36,7 @@ pub async fn register_sakura_host(
 
     let body = HostCreateReq {
         name: name.to_owned(),
+        sakura_address: sakura_address.to_owned(),
         registration_key: Secret::from(registration_key.reveal()),
     };
     let json_str = serde_json::to_string(&body).unwrap();

@@ -39,10 +39,9 @@ fn v1alpha_routes() -> Scope {
         .service(
             scope("/cluster")
                 .service(
-                    resource("")
-                        .route(post().to(create_cluster_v1_0::create_cluster))
-                        .route(get().to(list_cluster_v1_0::list_cluster)),
+                    resource("/internal").route(post().to(create_cluster_v1_0::create_cluster)),
                 )
+                .service(resource("").route(get().to(list_cluster_v1_0::list_cluster)))
                 .service(
                     resource("/{cluster_uuid}")
                         .route(get().to(get_cluster_v1_0::get_cluster))

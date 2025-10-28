@@ -24,7 +24,9 @@ package ainari_sdk
 type AccessContext struct {
     token               string
     MikoAddress         string
-    SakuraAddress       string
+    HanamiAddress       string
     BentoAddress        string
+    ToriiAddress        string
+    ToriiBaseAddress    string
 	skipTlsVerification bool
 }

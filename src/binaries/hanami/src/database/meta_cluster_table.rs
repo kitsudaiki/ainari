@@ -25,11 +25,10 @@ use ainari_common::enums;
 
 // Define the schema
 table! {
-    proxys (uuid) {
+    meta_clusters (uuid) {
         uuid -> Varchar,
-        port -> Integer,
-        target_address -> Varchar,
-        cluster_uuid -> Varchar,
+        sakura_host_uuid -> Varchar,
+        proxy_uuid -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -43,12 +42,11 @@ table! {
 }
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
-#[diesel(table_name = proxys)]
-pub struct ProxyEntry {
+#[diesel(table_name = meta_clusters)]
+pub struct MetaClusterEntry {
     pub uuid: String,
-    pub port: i32,
-    pub target_address: String,
-    pub cluster_uuid: String,
+    pub sakura_host_uuid: String,
+    pub proxy_uuid: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -60,14 +58,13 @@ pub struct ProxyEntry {
     pub deleted_by: Option<String>,
 }
 
-pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
+pub fn init_meta_cluster_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS proxys (
+        "CREATE TABLE IF NOT EXISTS meta_clusters (
         uuid VARCHAR(40) PRIMARY KEY,
-        port INTEGER,
-        target_address VARCHAR(256),
-        cluster_uuid VARCHAR(256),
+        sakura_host_uuid VARCHAR(40),
+        proxy_uuid VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),
@@ -83,18 +80,16 @@ pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn add_new_proxy(
+pub fn add_new_meta_cluster(
+    meta_cluster_uuid: &Uuid,
+    sakura_host_uuid: &Uuid,
     proxy_uuid: &Uuid,
-    port: u16,
-    target_address: &str,
-    cluster_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    let proxy = ProxyEntry {
-        uuid: proxy_uuid.to_string().clone(),
-        port: port.into(),
-        target_address: target_address.to_owned(),
-        cluster_uuid: cluster_uuid.to_string().clone(),
+    let meta_cluster = MetaClusterEntry {
+        uuid: meta_cluster_uuid.to_string().clone(),
+        sakura_host_uuid: sakura_host_uuid.to_string().clone(),
+        proxy_uuid: proxy_uuid.to_string().clone(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -106,23 +101,29 @@ pub fn add_new_proxy(
         deleted_by: None,
     };
 
-    add_proxy(&proxy)
+    add_meta_cluster(&meta_cluster)
 }
 
-pub fn add_proxy(proxy: &ProxyEntry) -> QueryResult<usize> {
+pub fn add_meta_cluster(meta_cluster: &MetaClusterEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    diesel::insert_into(proxys)
-        .values(proxy)
+    use self::meta_clusters::dsl::*;
+    diesel::insert_into(meta_clusters)
+        .values(meta_cluster)
         .execute(&mut *conn)
 }
 
-pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry, enums::DbError> {
+pub fn get_meta_cluster(
+    meta_cluster_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<MetaClusterEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
+    use self::meta_clusters::dsl::*;
 
-    let mut query = proxys
-        .filter(uuid.eq(proxy_uuid.to_string()).and(status.eq("ACTIVE")))
+    let mut query = meta_clusters
+        .filter(
+            uuid.eq(meta_cluster_uuid.to_string())
+                .and(status.eq("ACTIVE")),
+        )
         .into_boxed();
 
     if !context.is_admin {
@@ -133,10 +134,10 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 
     match query
-        .select(ProxyEntry::as_select())
-        .first::<ProxyEntry>(&mut *conn)
+        .select(MetaClusterEntry::as_select())
+        .first::<MetaClusterEntry>(&mut *conn)
     {
-        Ok(proxy) => Ok(proxy),
+        Ok(meta_cluster) => Ok(meta_cluster),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
             log::error!("Database-error: {e:?}");
@@ -145,11 +146,12 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 }
 
-pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
+#[allow(dead_code)]
+pub fn list_meta_clusters(context: &UserContext) -> QueryResult<Vec<MetaClusterEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
+    use self::meta_clusters::dsl::*;
 
-    let mut query = proxys.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = meta_clusters.filter(status.eq("ACTIVE")).into_boxed();
 
     if !context.is_admin {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -158,15 +160,18 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
         }
     }
 
-    query.select(ProxyEntry::as_select()).load(&mut *conn)
+    query.select(MetaClusterEntry::as_select()).load(&mut *conn)
 }
 
-pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
-    get_proxy(proxy_uuid, context)?;
+pub fn delete_meta_cluster(
+    meta_cluster_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    get_meta_cluster(meta_cluster_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    match diesel::update(proxys.filter(uuid.eq(proxy_uuid.to_string())))
+    use self::meta_clusters::dsl::*;
+    match diesel::update(meta_clusters.filter(uuid.eq(meta_cluster_uuid.to_string())))
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
@@ -183,14 +188,15 @@ pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     }
 }
 
-pub fn delete_all_proxy() -> Result<(), enums::DbError> {
+#[allow(dead_code)]
+pub fn delete_all_meta_cluster() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    match diesel::update(proxys.filter(status.eq("ACTIVE")))
+    use self::meta_clusters::dsl::*;
+    match diesel::update(meta_clusters.filter(status.eq("ACTIVE")))
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HANAMI_START"),
+            deleted_by.eq("AINARI_START"),
         ))
         .execute(&mut *conn)
     {
@@ -208,19 +214,20 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    fn hard_delete_proxy(proxy_uuid: &Uuid) {
-        use self::proxys::dsl::*;
+    fn hard_delete_meta_cluster(meta_cluster_uuid: &Uuid) {
+        use self::meta_clusters::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        let _ = diesel::delete(proxys.filter(uuid.eq(proxy_uuid.to_string()))).execute(&mut *conn);
+        let _ = diesel::delete(meta_clusters.filter(uuid.eq(meta_cluster_uuid.to_string())))
+            .execute(&mut *conn);
     }
 
     #[test]
     #[serial]
-    fn test_add_get_proxy() {
-        let _ = init_proxy_table();
+    fn test_add_get_meta_cluster() {
+        let _ = init_meta_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
-        let target_address1: String = "127.0.0.1:443".to_string();
-        let cluster_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -232,11 +239,10 @@ mod tests {
             is_project_admin: false,
         };
 
-        let proxy = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
-            port: 42,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster = MetaClusterEntry {
+            uuid: uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -248,37 +254,41 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_proxy(&proxy_uuid1);
+        hard_delete_meta_cluster(&uuid1);
 
-        add_proxy(&proxy).unwrap();
-        match get_proxy(&proxy_uuid1, &context) {
-            Ok(retrieved_proxy) => {
-                assert_eq!(retrieved_proxy.uuid, proxy.uuid);
-                assert_eq!(retrieved_proxy.port, proxy.port);
-                assert_eq!(retrieved_proxy.target_address, proxy.target_address);
-                assert_eq!(retrieved_proxy.cluster_uuid, proxy.cluster_uuid);
-                assert_eq!(retrieved_proxy.status, proxy.status);
-                assert_eq!(retrieved_proxy.created_by, proxy.created_by);
-                assert_eq!(retrieved_proxy.updated_by, proxy.updated_by);
-                assert_eq!(retrieved_proxy.deleted_at, proxy.deleted_at);
-                assert_eq!(retrieved_proxy.deleted_by, proxy.deleted_by);
+        add_meta_cluster(&meta_cluster).unwrap();
+        match get_meta_cluster(&uuid1, &context) {
+            Ok(retrieved_meta_cluster) => {
+                assert_eq!(retrieved_meta_cluster.uuid, meta_cluster.uuid);
+                assert_eq!(retrieved_meta_cluster.proxy_uuid, meta_cluster.proxy_uuid);
+                assert_eq!(
+                    retrieved_meta_cluster.sakura_host_uuid,
+                    meta_cluster.sakura_host_uuid
+                );
+                assert_eq!(retrieved_meta_cluster.owner_id, meta_cluster.owner_id);
+                assert_eq!(retrieved_meta_cluster.project_id, meta_cluster.project_id);
+                assert_eq!(retrieved_meta_cluster.status, meta_cluster.status);
+                assert_eq!(retrieved_meta_cluster.created_by, meta_cluster.created_by);
+                assert_eq!(retrieved_meta_cluster.updated_by, meta_cluster.updated_by);
+                assert_eq!(retrieved_meta_cluster.deleted_at, meta_cluster.deleted_at);
+                assert_eq!(retrieved_meta_cluster.deleted_by, meta_cluster.deleted_by);
             }
             Err(_) => {
                 assert_eq!(true, false);
             }
         };
 
-        hard_delete_proxy(&proxy_uuid1);
+        hard_delete_meta_cluster(&uuid1);
     }
 
     #[test]
     #[serial]
-    fn test_list_proxys() {
-        let _ = init_proxy_table();
+    fn test_list_meta_clusters() {
+        let _ = init_meta_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
-        let proxy_uuid2 = Uuid::new_v4();
-        let target_address1: String = "127.0.0.1:443".to_string();
-        let cluster_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -290,11 +300,10 @@ mod tests {
             is_project_admin: false,
         };
 
-        let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
-            port: 42,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster1 = MetaClusterEntry {
+            uuid: uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -306,11 +315,10 @@ mod tests {
             deleted_by: None,
         };
 
-        let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2.to_string(),
-            port: 43,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster2 = MetaClusterEntry {
+            uuid: uuid2.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -322,24 +330,24 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
 
-        add_proxy(&proxy1).unwrap();
-        add_proxy(&proxy2).unwrap();
-        let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 1);
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
+        add_meta_cluster(&meta_cluster1).unwrap();
+        add_meta_cluster(&meta_cluster2).unwrap();
+        let meta_clusters = list_meta_clusters(&context).unwrap();
+        assert_eq!(meta_clusters.len(), 1);
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
     }
 
     #[test]
     #[serial]
-    fn test_delete_proxy() {
-        let _ = init_proxy_table();
+    fn test_delete_meta_cluster() {
+        let _ = init_meta_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
-        let target_address1: String = "127.0.0.1:443".to_string();
-        let cluster_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -351,11 +359,10 @@ mod tests {
             is_project_admin: false,
         };
 
-        let proxy = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
-            port: 42,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster = MetaClusterEntry {
+            uuid: uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -367,29 +374,28 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_proxy(&proxy_uuid1);
+        hard_delete_meta_cluster(&uuid1);
 
-        add_proxy(&proxy).unwrap();
-        let _ = delete_proxy(&proxy_uuid1, &context);
-        let result = get_proxy(&proxy_uuid1, &context);
+        add_meta_cluster(&meta_cluster).unwrap();
+        let _ = delete_meta_cluster(&uuid1, &context);
+        let result = get_meta_cluster(&uuid1, &context);
         assert!(result.is_err());
     }
 
     #[test]
     #[serial]
-    fn test_proxys_permissions() {
-        let _ = init_proxy_table();
+    fn test_meta_clusters_permissions() {
+        let _ = init_meta_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
-        let proxy_uuid2 = Uuid::new_v4();
-        let proxy_uuid3 = Uuid::new_v4();
-        let target_address1: String = "127.0.0.1:443".to_string();
-        let cluster_uuid1 = Uuid::new_v4();
 
-        let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
-            port: 42,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster1 = MetaClusterEntry {
+            uuid: uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -401,11 +407,10 @@ mod tests {
             deleted_by: None,
         };
 
-        let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2.to_string(),
-            port: 43,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster2 = MetaClusterEntry {
+            uuid: uuid2.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -417,11 +422,10 @@ mod tests {
             deleted_by: None,
         };
 
-        let proxy3 = ProxyEntry {
-            uuid: proxy_uuid3.to_string(),
-            port: 44,
-            target_address: target_address1.clone(),
-            cluster_uuid: cluster_uuid1.to_string(),
+        let meta_cluster3 = MetaClusterEntry {
+            uuid: uuid3.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
@@ -433,13 +437,13 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
-        hard_delete_proxy(&proxy_uuid3);
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
+        hard_delete_meta_cluster(&uuid3);
 
-        add_proxy(&proxy1).unwrap();
-        add_proxy(&proxy2).unwrap();
-        add_proxy(&proxy3).unwrap();
+        add_meta_cluster(&meta_cluster1).unwrap();
+        add_meta_cluster(&meta_cluster2).unwrap();
+        add_meta_cluster(&meta_cluster3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -449,8 +453,8 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 1);
+        let meta_clusters = list_meta_clusters(&context).unwrap();
+        assert_eq!(meta_clusters.len(), 1);
 
         // list-test project-admin
         let context = UserContext {
@@ -460,8 +464,8 @@ mod tests {
             is_admin: false,
             is_project_admin: true,
         };
-        let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 2);
+        let meta_clusters = list_meta_clusters(&context).unwrap();
+        assert_eq!(meta_clusters.len(), 2);
 
         // list-test admin
         let context = UserContext {
@@ -471,8 +475,8 @@ mod tests {
             is_admin: true,
             is_project_admin: false,
         };
-        let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 3);
+        let meta_clusters = list_meta_clusters(&context).unwrap();
+        assert_eq!(meta_clusters.len(), 3);
 
         // get-test normal user
         let context = UserContext {
@@ -482,9 +486,9 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        match get_proxy(&proxy_uuid1, &context) {
-            Ok(retrieved_proxy) => {
-                assert_eq!(retrieved_proxy.uuid, proxy_uuid1.to_string());
+        match get_meta_cluster(&uuid1, &context) {
+            Ok(retrieved_meta_cluster) => {
+                assert_eq!(retrieved_meta_cluster.uuid, uuid1.to_string());
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -499,7 +503,7 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        if get_proxy(&proxy_uuid3, &context).is_ok() {
+        if get_meta_cluster(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -511,12 +515,12 @@ mod tests {
             is_admin: false,
             is_project_admin: false,
         };
-        if delete_proxy(&proxy_uuid3, &context).is_ok() {
+        if delete_meta_cluster(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
-        hard_delete_proxy(&proxy_uuid3);
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
+        hard_delete_meta_cluster(&uuid3);
     }
 }

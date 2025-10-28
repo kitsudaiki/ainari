@@ -126,10 +126,12 @@ compile-ainari:
     RUN cp ./target/debug/sakura /tmp/ainari/
     RUN cp ./target/debug/miko /tmp/ainari/
     RUN cp ./target/debug/bento /tmp/ainari/
+    RUN cp ./target/debug/hanami /tmp/ainari/
+    RUN cp ./target/debug/torii /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
-test-sakura:
+test-hanami:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
@@ -163,6 +165,8 @@ generate-docs:
     COPY +compile-ainari/ainari/sakura /tmp/sakura
     COPY +compile-ainari/ainari/miko /tmp/miko
     COPY +compile-ainari/ainari/bento /tmp/bento
+    COPY +compile-ainari/ainari/hanami /tmp/hanami
+    COPY +compile-ainari/ainari/torii /tmp/torii
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
@@ -199,6 +203,16 @@ generate-docs:
         hap run /tmp/bento && \
         sleep 5 && \
         curl 127.0.0.1:11416/openapi.json > ./open_api_docu_bento.json
+    RUN chmod +x /tmp/hanami
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/hanami && \
+        sleep 5 && \
+        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_hanami.json
+    RUN chmod +x /tmp/torii
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/torii && \
+        sleep 5 && \
+        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_torii.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
@@ -208,6 +222,8 @@ generate-docs:
     RUN cp ./open_api_docu_sakura.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
     RUN cp ./open_api_docu_bento.json docs/frontend/
+    RUN cp ./open_api_docu_hanami.json docs/frontend/
+    RUN cp ./open_api_docu_torii.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage

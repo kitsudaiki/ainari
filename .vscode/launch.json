@@ -3,11 +3,23 @@
     "compounds": [
         {
             "name": "Ainari Debug",
-            "configurations": ["Debug Build sakura", "Debug Build hanami", "Debug Build miko", "Debug Build bento"],
+            "configurations": [
+                "Debug Build hanami", 
+                "Debug Build miko", 
+                "Debug Build bento", 
+                "Debug Build torii", 
+                "Debug Build sakura"
+            ],
         },
         {
             "name": "Ainari Release",
-            "configurations": ["Release Build sakura", "Release Build hanami", "Release Build miko", "Release Build bento"],
+            "configurations": [
+                "Release Build hanami", 
+                "Release Build miko", 
+                "Release Build bento", 
+                "Release Build torii", 
+                "Release Build sakura"
+            ],
         }
     ],
     "configurations": [

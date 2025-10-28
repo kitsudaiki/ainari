@@ -1,6 +1,7 @@
 debug = true
 log_path = "/var/log"
 insecure_clients = true
+address = "http://127.0.0.1:11420"
 
 [database]
 file_path = "/etc/ainari/sakura_db"

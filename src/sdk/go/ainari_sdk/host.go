@@ -20,8 +20,24 @@
 
 package ainari_sdk
 
-func ListHosts(context AccessContext) (map[string]interface{}, error) {
+import (
+	"fmt"
+)
+
+func GetHost(context AccessContext, hostId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/host/%s", hostId)
+	vars := map[string]interface{}{}
+	return SendGet(context, context.HanamiAddress, path, vars)
+}
+
+func ListHost(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/host"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.SakuraAddress, path, vars)
+	return SendGet(context, context.HanamiAddress, path, vars)
+}
+
+func DeleteHost(context AccessContext, hostId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/host/%s", hostId)
+	vars := map[string]interface{}{}
+	return SendDelete(context, context.HanamiAddress, path, vars)
 }

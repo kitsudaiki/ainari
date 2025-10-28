@@ -80,7 +80,6 @@ pub async fn create_request_task(
         }
     };
 
-    // initialize datbase for output
     let miko_endpoint = &ainari_config::CONFIG.miko;
     let endpoints = match get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
     {
@@ -96,6 +95,8 @@ pub async fn create_request_task(
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
+
+    // initialize datbase for output
     let dataset_create_resp = match init_dataset(
         &endpoints.bento,
         &context.token,

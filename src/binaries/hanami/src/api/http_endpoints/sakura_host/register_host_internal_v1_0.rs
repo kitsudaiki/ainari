@@ -57,7 +57,7 @@ pub async fn register_host_internal(
     }
 
     // add new host to database
-    match host_table::add_new_host(&host_uuid, &body.name, &context) {
+    match host_table::add_new_host(&host_uuid, &body.name, &body.sakura_address, &context) {
         Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add host with UUID '{host_uuid}' to database.");
@@ -81,6 +81,7 @@ pub async fn register_host_internal(
     let resp = HostResp {
         uuid: host_uuid,
         name: host_data.name.clone(),
+        sakura_address: host_data.address.clone(),
         created_by: host_data.created_by.clone(),
         created_at: host_data.created_at.clone(),
         updated_by: host_data.updated_by.clone(),

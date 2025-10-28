@@ -51,6 +51,7 @@ pub fn register_host() -> Result<(), AinariError> {
             &endpoints.hanami,
             &config::CONFIG.api.internal_api_key,
             &host_name,
+            &config::CONFIG.address,
             &config::CONFIG.hanami.registation_key,
             config::CONFIG.insecure_clients,
         )

@@ -51,6 +51,7 @@ pub async fn get_host(
     let resp = HostResp {
         uuid: *host_uuid,
         name: host_data.name.clone(),
+        sakura_address: host_data.address.clone(),
         created_by: host_data.created_by.clone(),
         created_at: host_data.created_at.clone(),
         updated_by: host_data.updated_by.clone(),

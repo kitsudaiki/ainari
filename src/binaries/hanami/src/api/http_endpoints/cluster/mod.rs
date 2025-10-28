@@ -12,5 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod sakura_host;
+pub mod create_cluster_v1_0;
+pub mod delete_cluster_v1_0;
+pub mod get_cluster_v1_0;
+pub mod list_cluster_v1_0;

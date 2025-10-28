@@ -1,12 +1,12 @@
 #!/bin/bash
-# export MIKO_ADDRESS=http://127.0.0.1:11417
-# export AINARI_USER=asdf
-# export AINARI_PASSPHRASE=asdfasdf
+#export AINARI_ADDRESS=http://127.0.0.1:11417
+#export AINARI_USER=asdf
+#export AINARI_PASSPHRASE=asdfasdf
 
-# export TRAIN_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
-# export TRAIN_LABELS=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte
-# export REQUEST_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
-# export REQUEST_LABELS=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
+#export TRAIN_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
+#export TRAIN_LABELS=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte
+#export REQUEST_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
+#export REQUEST_LABELS=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
 
 # build protobuffer for go sdk
 # pushd ../../src/sdk/go/ainari_sdk
@@ -78,6 +78,7 @@ echo "Cluster-UUID: $CLUSTER_UUID"
 
 # train test
 echo "$EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task"
+echo "$($EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task)"
 task_uuid=$($EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task | jq -r '.uuid')
 echo "Train-Task-UUID: $task_uuid"
 

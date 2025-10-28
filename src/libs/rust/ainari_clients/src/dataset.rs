@@ -110,6 +110,7 @@ pub async fn get_dataset(
         .get(address_complete)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .insert_header(("Content-Type", "application/json"))
         .send()
         .await;
 

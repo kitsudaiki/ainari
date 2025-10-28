@@ -14,6 +14,7 @@
 
 pub mod db_handle;
 pub mod host_table;
+pub mod meta_cluster_table;
 
 use std::io;
 
@@ -25,6 +26,15 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initilaized host-database-table"),
         Err(e) => {
             log::error!("Failed to initialize host-database-table: {e}");
+            return Err(e);
+        }
+    };
+
+    // Initialize host-table
+    match meta_cluster_table::init_meta_cluster_table() {
+        Ok(_) => log::info!("Initilaized cluster-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize cluster-database-table: {e}");
             return Err(e);
         }
     };

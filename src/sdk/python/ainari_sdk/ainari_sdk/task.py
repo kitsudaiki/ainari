@@ -19,12 +19,15 @@ import time
 
 
 def create_train_task(context: AccessContext,
+                      torii_port: int,
                       name: str,
                       cluster_uuid: str,
                       inputs: list,
                       outputs: list,
                       number_of_epochs: int = 1,
                       timeLength: int = 1) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
+    print(f"address: {address}")
     path = f"/v1alpha/cluster/{cluster_uuid}/task/train"
     json_body = {
         "name": name,
@@ -34,17 +37,19 @@ def create_train_task(context: AccessContext,
         "time_length": timeLength,
     }
     return ainari_request.send_post_request(context,
-                                            context.sakura_address,
+                                            address,
                                             path,
                                             json_body)
 
 
 def create_request_task(context: AccessContext,
+                        torii_port: int,
                         name: str,
                         cluster_uuid: str,
                         inputs: list,
                         results: list,
                         timeLength: int = 1) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/request"
     json_body = {
         "name": name,
@@ -53,85 +58,99 @@ def create_request_task(context: AccessContext,
         "time_length": timeLength,
     }
     return ainari_request.send_post_request(context,
-                                            context.sakura_address,
+                                            address,
                                             path,
                                             json_body)
 
 
 def create_checkpoint_save_task(context: AccessContext,
+                                torii_port: int,
                                 cluster_uuid: str,
                                 name: str) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_save"
     json_body = {
         "name": name,
     }
     return ainari_request.send_post_request(context,
-                                            context.sakura_address,
+                                            address,
                                             path,
                                             json_body)
 
 
 def create_checkpoint_restore_task(context: AccessContext,
+                                   torii_port: int,
                                    cluster_uuid: str,
                                    name: str,
                                    checkpoint_uuid: str) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/checkpoint_restore"
     json_body = {
         "name": name,
         "checkpoint_uuid": checkpoint_uuid,
     }
     return ainari_request.send_post_request(context,
-                                            context.sakura_address,
+                                            address,
                                             path,
                                             json_body)
 
 
 def get_task(context: AccessContext,
+             torii_port: int,
              task_uuid: str,
              cluster_uuid: str) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     return ainari_request.send_get_request(context,
-                                           context.sakura_address,
+                                           address,
                                            path,
                                            "")
 
 
 def list_tasks(context: AccessContext,
+               torii_port: int,
                cluster_uuid: str) -> dict:
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task"
     return ainari_request.send_get_request(context,
-                                           context.sakura_address,
+                                           address,
                                            path,
                                            "")
 
 
 def delete_task(context: AccessContext,
+                torii_port: int,
                 task_uuid: str,
                 cluster_uuid: str):
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.sakura_address,
+                                       address,
                                        path,
                                        "")
 
 
 def abort_task(context: AccessContext,
+               torii_port: int,
                task_uuid: str,
                cluster_uuid: str):
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort"
     ainari_request.send_put_request(context,
-                                    context.sakura_address,
+                                    address,
                                     path,
                                     "")
 
 
 def wait_for_task_finished(context: AccessContext,
+                           torii_port: int,
                            task_uuid: str,
                            cluster_uuid: str,
                            time_interval: float = 1.0):
+    address = f"{context.torii_base_address}:{torii_port}"
     finished = False
     while not finished:
-        result = get_task(context, context.sakura_address, task_uuid, cluster_uuid)
+        result = get_task(context, address, task_uuid, cluster_uuid)
         finished = result["state"] == "FINISHED"
         # in case that the task is already finished, an unnecessary sleep should be avoided
         if finished:

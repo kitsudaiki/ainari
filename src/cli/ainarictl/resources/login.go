@@ -31,7 +31,7 @@ func Login() (ainari_sdk.AccessContext, error) {
 
 	user := os.Getenv("AINARI_USER")
 	passphrase := os.Getenv("AINARI_PASSPHRASE")
-	address := os.Getenv("MIKO_ADDRESS")
+	address := os.Getenv("AINARI_ADDRESS")
 
 	if user == "" {
 		panic("AINARI_USER is not set")
@@ -40,7 +40,7 @@ func Login() (ainari_sdk.AccessContext, error) {
 		panic("AINARI_PASSPHRASE is not set")
 	}
 	if address == "" {
-		panic("MIKO_ADDRESS is not set")
+		panic("AINARI_ADDRESS is not set")
 	}
 
 	return ainari_sdk.RequestContext(address, user, passphrase, ainarictl_common.DisableTlsVerification)

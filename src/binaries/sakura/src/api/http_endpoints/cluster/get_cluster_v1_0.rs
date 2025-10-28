@@ -52,6 +52,7 @@ pub async fn get_cluster(
         uuid: *cluster_uuid,
         name: cluster_data.name.clone(),
         template: cluster_data.template.clone(),
+        torii_port: 0,
         created_by: cluster_data.created_by.clone(),
         created_at: cluster_data.created_at.clone(),
         updated_by: cluster_data.updated_by.clone(),

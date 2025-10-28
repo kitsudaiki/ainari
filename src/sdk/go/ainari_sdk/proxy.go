@@ -18,48 +18,26 @@
  *      limitations under the License.
  */
 
-package ainari_resources
+package ainari_sdk
 
 import (
 	"fmt"
-	ainarictl_common "ainarictl/common"
-	"os"
-
-	ainari_sdk "github.com/kitsudaiki/ainari"
-	"github.com/spf13/cobra"
 )
 
-var hostHeader = []string{
-	"uuid",
-	"type",
+func GetProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/proxy/%s", proxyId)
+	vars := map[string]interface{}{}
+	return SendGet(context, context.ToriiAddress, path, vars)
 }
 
-var listHostsCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all logical hosts.",
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.ListHosts(context)
-		if err == nil {
-			ainarictl_common.PrintList(content["hosts"].([]interface{}))
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
+func ListProxy(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/proxy"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.ToriiAddress, path, vars)
 }
 
-var hostsCmd = &cobra.Command{
-	Use:   "host",
-	Short: "Manage hosts.",
-}
-
-func Init_Host_Commands(rootCmd *cobra.Command) {
-	rootCmd.AddCommand(hostsCmd)
-
-	hostsCmd.AddCommand(listHostsCmd)
+func DeleteProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/proxy/%s", proxyId)
+	vars := map[string]interface{}{}
+	return SendDelete(context, context.ToriiAddress, path, vars)
 }

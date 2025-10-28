@@ -242,7 +242,7 @@ jobs:
           git submodule init
           git submodule update --recursive
       -
-        name: Compile sakura
+        name: Compile hanami
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           earthly --artifact +compile-ainari/tmp/ainari ./builds/
@@ -329,7 +329,7 @@ jobs:
         name: Compile code
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly +test-sakura
+          earthly +test-hanami
 
 
 
@@ -397,15 +397,21 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
           chmod +x /tmp/Sakura_debug_build_result/ainari/miko
           chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
           /tmp/Sakura_debug_build_result/ainari/miko &
           /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -479,15 +485,21 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
           chmod +x /tmp/Sakura_debug_build_result/ainari/miko
           chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
           /tmp/Sakura_debug_build_result/ainari/miko &
           /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -500,7 +512,7 @@ jobs:
         run: |
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
-          export MIKO_ADDRESS=http://127.0.0.1:11417
+          export AINARI_ADDRESS=http://127.0.0.1:11417
           export AINARI_USER=asdf
           export AINARI_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
@@ -587,15 +599,21 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
           chmod +x /tmp/Sakura_debug_build_result/ainari/miko
           chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Sakura_debug_build_result/ainari/sakura &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
           /tmp/Sakura_debug_build_result/ainari/miko &
           /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -609,7 +627,7 @@ jobs:
         with:
           python-version: "${{ matrix.python_version.version }}"
       -
-        name: Install sakura-sdk
+        name: Install hanami-sdk
         run: |
           cd /tmp/ainari_python_build_result
           ls -l
@@ -636,7 +654,7 @@ jobs:
       #   name: Get log-output for debugging
       #   id: docker_log
       #   if: ${{ always() }}
-      #   run: docker logs sakura
+      #   run: docker logs hanami
       -
         name: Update Result
         id: status
@@ -654,8 +672,8 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
-          - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
+          - { component: "hanami", platform: "linux/amd64", regitry: "kitsudaiki/hanami" }
+          - { component: "hanami", platform: "linux/arm64", regitry: "kitsudaiki/hanami" }
           - { component: "miko", platform: "linux/amd64", regitry: "kitsudaiki/miko" }
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
           - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
@@ -740,7 +758,7 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "sakura", regitry: "kitsudaiki/sakura" }
+          - { component: "hanami", regitry: "kitsudaiki/hanami" }
           - { component: "miko", regitry: "kitsudaiki/miko" }
           - { component: "bento", regitry: "kitsudaiki/bento" }
     steps:
@@ -959,13 +977,13 @@ jobs:
       -
         name: Label nodes
         run: |
-          kubectl label nodes --all sakura-node=true
+          kubectl label nodes --all hanami-node=true
           kubectl label nodes --all miko-node=true
           kubectl label nodes --all bento-node=true
       -
-        name: Install sakura
+        name: Install hanami
         run: |
-          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-sakura  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
+          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-hanami  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
       -
         name: Sleep for 120 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
@@ -978,14 +996,14 @@ jobs:
           kubectl get configmaps
           kubectl get deployments
           kubectl get storageclass
-          kubectl describe $(kubectl get pod -o name | grep ^pod/sakura)
+          kubectl describe $(kubectl get pod -o name | grep ^pod/hanami)
           df -h
           ls -l /mnt/
       -
         name: Update hosts-file
         run: |
-          ingress_ip_sakura=$(kubectl get ingress sakura-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "$ingress_ip_sakura  local-sakura" | sudo tee -a /etc/hosts
+          ingress_ip_hanami=$(kubectl get ingress hanami-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "$ingress_ip_hanami  local-hanami" | sudo tee -a /etc/hosts
           ingress_ip_miko=$(kubectl get ingress miko-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_miko  local-miko" | sudo tee -a /etc/hosts
           ingress_ip_bento=$(kubectl get ingress bento-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -1008,7 +1026,7 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           sudo cp -r ./example_configs/ainari /etc/
-          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-bento/g' /etc/ainari/hanami_testing.conf
       -
@@ -1022,9 +1040,9 @@ jobs:
           cd test_dir
           /usr/bin/python3 sdk_api_test.py
       -
-        name: Print logs of the sakura-pod to make debugging easier in case of an error
+        name: Print logs of the hanami-pod to make debugging easier in case of an error
         if: ${{ always() }}
-        run: kubectl logs -c sakura $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^sakura-')
+        run: kubectl logs -c hanami $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^hanami-')
       -
         name: Print logs of the miko-pod to make debugging easier in case of an error
         if: ${{ always() }}

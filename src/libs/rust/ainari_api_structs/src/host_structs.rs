@@ -25,6 +25,8 @@ pub struct HostCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
     #[validate(length(min = 4, max = 127))]
+    pub sakura_address: String,
+    #[validate(length(min = 4, max = 127))]
     pub registration_key: Secret,
 }
 
@@ -32,6 +34,7 @@ pub struct HostCreateReq {
 pub struct HostResp {
     pub uuid: Uuid,
     pub name: String,
+    pub sakura_address: String,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -42,6 +45,7 @@ pub struct HostResp {
 pub struct HostBasicResp {
     pub uuid: Uuid,
     pub name: String,
+    pub sakura_address: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

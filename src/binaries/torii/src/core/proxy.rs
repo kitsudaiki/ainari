@@ -53,6 +53,7 @@ impl Proxy {
     }
 
     pub fn stop(&mut self) {
+        log::debug!("Stop proxy with listen-address '{}'", self.public_addr);
         let _ = self.shutdown_tx.send(());
     }
 }
@@ -63,25 +64,47 @@ impl Drop for Proxy {
     }
 }
 
+fn remove_http_prefix(url: &str) -> &str {
+    url.strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .unwrap_or(url)
+}
+
 async fn run_listener(
     listen_addr: SocketAddr,
     target_addr: String,
-    shutdown: watch::Receiver<()>,
+    mut shutdown: watch::Receiver<()>,
 ) -> Result<()> {
     let listener = TcpListener::bind(listen_addr).await?;
     log::debug!("Listening on {} -> {}", listen_addr, target_addr);
 
     loop {
-        let (mut inbound, peer) = listener.accept().await?;
-        let target = target_addr.clone();
-        let mut shutdown_clone = shutdown.clone();
-
-        tokio::spawn(async move {
-            if let Err(e) = handle_one_connection(&mut inbound, &target, &mut shutdown_clone).await
-            {
-                log::error!("Connection {peer} -> {target} error: {e}");
+        tokio::select! {
+            _ = shutdown.changed() => {
+                log::debug!("Run-listener: shutdown received, stopping accept loop");
+                break Ok(()); // drop listener and stop accepting
             }
-        });
+            accept_res = listener.accept() => {
+                let (mut inbound, peer) = match accept_res {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        log::error!("Accept failed: {}", e);
+                        continue;
+                    }
+                };
+
+                // prepare per-connection state
+                let target = remove_http_prefix(&target_addr).to_owned();
+                let mut conn_shutdown = shutdown.clone(); // clone for the spawned task
+
+                // move inbound (owned) into the spawned task — avoids borrow issues
+                tokio::spawn(async move {
+                    if let Err(e) = handle_one_connection(&mut inbound, &target, &mut conn_shutdown).await {
+                        log::error!("Connection {} -> {} error: {}", peer, target, e);
+                    }
+                });
+            }
+        }
     }
 }
 

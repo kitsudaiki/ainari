@@ -30,23 +30,23 @@ func CreateCluster(context AccessContext, name, template string) (map[string]int
 		"name":     name,
 		"template": template,
 	}
-	return SendPost(context, context.SakuraAddress, path, jsonBody)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
 func GetCluster(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.SakuraAddress, path, vars)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
 func ListCluster(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/cluster"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.SakuraAddress, path, vars)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
 func DeleteCluster(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/cluster/%s", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.SakuraAddress, path, vars)
+	return SendDelete(context, context.HanamiAddress, path, vars)
 }

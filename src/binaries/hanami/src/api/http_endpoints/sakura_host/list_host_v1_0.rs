@@ -53,6 +53,7 @@ pub async fn list_host(context: UserContext) -> Result<Json<HostListResp>, Error
         let obj = HostBasicResp {
             uuid,
             name: host.name.clone(),
+            sakura_address: host.address.clone(),
         };
 
         resp.hosts.push(obj);

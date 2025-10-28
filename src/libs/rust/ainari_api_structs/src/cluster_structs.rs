@@ -32,6 +32,7 @@ pub struct ClusterResp {
     pub uuid: Uuid,
     pub name: String,
     pub template: String,
+    pub torii_port: u16,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,

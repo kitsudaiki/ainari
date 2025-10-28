@@ -18,16 +18,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-use ainari_common::secret::Secret;
-
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ProxyCreateReq {
     pub port: u16,
     #[validate(length(min = 4, max = 127))]
     pub target_address: String,
     pub cluster_uuid: Uuid,
-    #[validate(length(min = 4, max = 127))]
-    pub registration_key: Secret,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

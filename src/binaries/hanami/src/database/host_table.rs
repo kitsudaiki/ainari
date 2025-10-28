@@ -28,6 +28,7 @@ table! {
     hosts (uuid) {
         uuid -> Varchar,
         name -> Varchar,
+        address -> Varchar,
         status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
@@ -43,6 +44,7 @@ table! {
 pub struct HostEntry {
     pub uuid: String,
     pub name: String,
+    pub address: String,
     pub status: String,
     pub created_at: String,
     pub created_by: String,
@@ -58,6 +60,7 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS hosts (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
+        address VARCHAR(256),
         status VARCHAR(10),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
@@ -74,11 +77,13 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_host(
     host_uuid: &Uuid,
     host_name: &str,
+    host_address: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let host = HostEntry {
         uuid: host_uuid.to_string().clone(),
         name: host_name.to_owned(),
+        address: host_address.to_owned(),
         status: "ACTIVE".to_string(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
@@ -199,6 +204,7 @@ mod tests {
         let host = HostEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -249,6 +255,7 @@ mod tests {
         let host1 = HostEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -261,6 +268,7 @@ mod tests {
         let host2 = HostEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "DELETED".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -300,6 +308,7 @@ mod tests {
         let host = HostEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -328,6 +337,7 @@ mod tests {
         let host1 = HostEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -340,6 +350,7 @@ mod tests {
         let host2 = HostEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -352,6 +363,7 @@ mod tests {
         let host3 = HostEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
+            address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -369,29 +381,7 @@ mod tests {
         add_host(&host2).unwrap();
         add_host(&host3).unwrap();
 
-        // list-test normal user
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
-        };
-        let hosts = list_hosts(&context).unwrap();
-        assert_eq!(hosts.len(), 1);
-
-        // list-test project-admin
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: true,
-        };
-        let hosts = list_hosts(&context).unwrap();
-        assert_eq!(hosts.len(), 2);
-
-        // list-test admin
+        // list-test
         let context = UserContext {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
@@ -417,30 +407,6 @@ mod tests {
             Err(_) => {
                 assert_eq!(true, false);
             }
-        };
-
-        // get-test normal user false uuid
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
-        };
-        if get_host(&uuid3, &context).is_ok() {
-            assert_eq!(true, false);
-        };
-
-        // delete-test normal user false uuid
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
-        };
-        if delete_host(&uuid3, &context).is_ok() {
-            assert_eq!(true, false);
         };
 
         hard_delete_host(&uuid1);

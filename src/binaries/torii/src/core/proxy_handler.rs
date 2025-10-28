@@ -22,6 +22,7 @@ use crate::config;
 use crate::core::proxy::Proxy;
 use crate::database::proxy_table;
 
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
 lazy_static::lazy_static! {
@@ -76,13 +77,23 @@ impl ProxyHandler {
             return Err(AinariError::InvalidInput(msg));
         }
 
-        self.proxys.remove(proxy_uuid);
+        if let Some(mut proxy) = self.proxys.remove(proxy_uuid) {
+            proxy.stop();
+        }
 
         Ok(())
     }
 
     pub async fn fill_proxy_handler(&mut self) -> Result<(), AinariError> {
-        let proxys = match proxy_table::list_proxys() {
+        // need an internal dummy-conext, which is allowed to read all proxies to initialize them after restart
+        let dummy_context = UserContext {
+            token: "".to_string(),
+            user_id: "dummy".to_string(),
+            project_id: "dummy".to_string(),
+            is_admin: true,
+            is_project_admin: true,
+        };
+        let proxys = match proxy_table::list_proxys(&dummy_context) {
             Ok(proxys) => proxys,
             Err(e) => {
                 let msg = format!("Failed to get list of proxys form database: '{e}'");
