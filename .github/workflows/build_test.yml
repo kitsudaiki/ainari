@@ -627,7 +627,7 @@ jobs:
         with:
           python-version: "${{ matrix.python_version.version }}"
       -
-        name: Install hanami-sdk
+        name: Install ainari-sdk
         run: |
           cd /tmp/ainari_python_build_result
           ls -l
@@ -678,6 +678,10 @@ jobs:
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
           - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
           - { component: "bento", platform: "linux/arm64", regitry: "kitsudaiki/bento" }
+          - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
+          - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
+          - { component: "torii", platform: "linux/amd64", regitry: "kitsudaiki/torii" }
+          - { component: "torii", platform: "linux/arm64", regitry: "kitsudaiki/torii" }
     steps:
       -
         name: Prepare
@@ -761,6 +765,8 @@ jobs:
           - { component: "hanami", regitry: "kitsudaiki/hanami" }
           - { component: "miko", regitry: "kitsudaiki/miko" }
           - { component: "bento", regitry: "kitsudaiki/bento" }
+          - { component: "sakura", regitry: "kitsudaiki/sakura" }
+          - { component: "torii", regitry: "kitsudaiki/torii" }
     steps:
       -
         name: Set branch name as environment variable
@@ -980,6 +986,8 @@ jobs:
           kubectl label nodes --all hanami-node=true
           kubectl label nodes --all miko-node=true
           kubectl label nodes --all bento-node=true
+          kubectl label nodes --all sakura-node=true
+          kubectl label nodes --all torii-node=true
       -
         name: Install hanami
         run: |
@@ -1029,6 +1037,8 @@ jobs:
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-bento/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-torii/g' /etc/ainari/hanami_testing.conf
       -
         name: Run test
         run: |
