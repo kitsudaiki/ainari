@@ -59,7 +59,7 @@ impl Default for DataSetBaseHeader {
 impl DataSetBaseHeader {
     pub fn new() -> Self {
         DataSetBaseHeader {
-            type_identifier: "hanami".to_string(),
+            type_identifier: "sakura".to_string(),
             version: "1".to_string(),
             minor_version: "0alpha".to_string(),
         }

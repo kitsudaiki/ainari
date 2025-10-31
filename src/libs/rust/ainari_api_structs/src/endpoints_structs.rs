@@ -28,4 +28,5 @@ pub struct EndpointField {
 pub struct EndpontsResp {
     pub hanami: EndpointField,
     pub bento: EndpointField,
+    pub torii: EndpointField,
 }

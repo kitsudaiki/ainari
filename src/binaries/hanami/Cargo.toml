@@ -5,12 +5,9 @@ edition = "2024"
 rust-version = "1.85.1"
 
 [dependencies]
-ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
 ainari_common = { path = "../../libs/rust/ainari_common" }
-ainari_cluster_parser = { path = "../../libs/rust/ainari_cluster_parser" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
-ainari_hardware = { path = "../../libs/rust/ainari_hardware" }
 ainari_clients = { path = "../../libs/rust/ainari_clients" }
 # web-server
 actix-web = "4"
@@ -36,8 +33,6 @@ log = "0.4"
 env_logger = "0.11"
 # database
 diesel = { version = "2.2", features = ["sqlite", "uuid"] }
-# threading
-core_affinity = "0.8.3"
 # common stuff
 rand = "0.9.2"
 lazy_static = "1.4"

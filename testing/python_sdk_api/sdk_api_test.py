@@ -18,8 +18,8 @@ from ainari_sdk import login
 from ainari_sdk import checkpoint
 from ainari_sdk import cluster
 from ainari_sdk import dataset
-# from ainari_sdk import direct_io
-from ainari_sdk import hosts
+from ainari_sdk import host
+from ainari_sdk import proxy
 from ainari_sdk import project
 from ainari_sdk import task
 from ainari_sdk import user
@@ -42,9 +42,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 config = configparser.ConfigParser()
 config.read('/etc/ainari/hanami_testing.conf')
 
-bento_address = ""
 miko_address = config["connection"]["miko_address"]
-hanami_address = ""
 
 test_user_id = config["connection"]["test_user"]
 test_user_pw = config["connection"]["test_passphrase"]
@@ -194,49 +192,23 @@ def test_cluster():
         pass
 
 
-async def test_direct_io(context, cluster_uuid):
-    # check direct-mode
-    ws = await cluster.switch_to_direct_mode(context, cluster_uuid)
-    for i in range(0, 1):
-        await direct_io.send_train_input(ws,
-                                         "picture_hex",
-                                         test_values.get_direct_io_test_intput(),
-                                         True,
-                                         False,
-                                         False)
-        await direct_io.send_train_input(ws,
-                                         "label_hex",
-                                         test_values.get_direct_io_test_output(),
-                                         False,
-                                         True,
-                                         False)
-    output_values = await direct_io.send_request_input(ws,
-                                                       "picture_hex",
-                                                       test_values.get_direct_io_test_intput(),
-                                                       True,
-                                                       False)
-    # print(output_values)
-    await ws.close()
-
-    cluster.switch_to_task_mode(context, cluster_uuid)
-    print(output_values)
-    assert list(output_values).index(max(output_values)) == 5
-
-
-def _creat_and_resore_checkpoint(cluster_uuid):
+def _creat_and_resore_checkpoint(cluster_uuid, torii_port):
     # save and reload checkpoint
     checkpoint_uuid = task.create_checkpoint_save_task(
-        context, cluster_uuid, checkpoint_name)["uuid"]
+        context, torii_port, cluster_uuid, checkpoint_name)["uuid"]
     time.sleep(2)
     result = checkpoint.list_checkpoints(context)
     # print(json.dumps(result, indent=4))
 
     cluster.delete_cluster(context, cluster_uuid)
-    cluster_uuid = cluster.create_cluster(
-        context, cluster_name, cluster_template)["uuid"]
+    time.sleep(2)
+    new_cluster = cluster.create_cluster(
+        context, cluster_name, cluster_template)
+    cluster_uuid = new_cluster["uuid"]
+    torii_port = new_cluster["torii_port"]
 
     task.create_checkpoint_restore_task(
-        context, cluster_uuid, "restore", checkpoint_uuid)
+        context, torii_port, cluster_uuid, "restore", checkpoint_uuid)
     time.sleep(2)
     checkpoint.delete_checkpoint(context, checkpoint_uuid)
     try:
@@ -244,10 +216,10 @@ def _creat_and_resore_checkpoint(cluster_uuid):
     except ainari_exceptions.NotFoundException:
         pass
 
-    return cluster_uuid
+    return cluster_uuid, torii_port
 
 
-def _train(cluster_uuid, train_dataset_uuid):
+def _train(cluster_uuid, torii_port, train_dataset_uuid):
     inputs = [
         {
             "dataset_uuid": train_dataset_uuid,
@@ -265,12 +237,12 @@ def _train(cluster_uuid, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        context, generic_task_name, cluster_uuid, inputs, outputs, 1, 1)["uuid"]
+        context, torii_port, generic_task_name, cluster_uuid, inputs, outputs, 1, 1)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(context, task_uuid, cluster_uuid)
+        result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -284,15 +256,15 @@ def _train(cluster_uuid, train_dataset_uuid):
                      suffix_cycle='Complete',
                      length=50)
 
-    result = task.get_task(context, task_uuid, cluster_uuid)
+    result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
     # print(json.dumps(result, indent=4))
 
     print("\n")
     result = cluster.get_cluster(context, cluster_uuid)
-    task.delete_task(context, task_uuid, cluster_uuid)
+    task.delete_task(context, torii_port, task_uuid, cluster_uuid)
 
 
-def _test(cluster_uuid, request_dataset_uuid):
+def _test(cluster_uuid, torii_port, request_dataset_uuid):
     # run testing
     inputs = [
         {
@@ -309,12 +281,12 @@ def _test(cluster_uuid, request_dataset_uuid):
     ]
 
     task_uuid = task.create_request_task(
-        context, generic_task_name, cluster_uuid, inputs, results, 1)["uuid"]
+        context, torii_port, generic_task_name, cluster_uuid, inputs, results, 1)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(context, task_uuid, cluster_uuid)
+        result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -329,9 +301,9 @@ def _test(cluster_uuid, request_dataset_uuid):
                      length=50)
 
     print("\n")
-    result = task.list_tasks(context, cluster_uuid)
+    result = task.list_tasks(context, torii_port, cluster_uuid)
     # print(json.dumps(result, indent=4))
-    task.delete_task(context, task_uuid, cluster_uuid)
+    task.delete_task(context, torii_port, task_uuid, cluster_uuid)
     time.sleep(1)
 
     accuracy = dataset.check_dataset(
@@ -351,8 +323,10 @@ def test_workflow():
     print("test workflow")
 
     # init
-    cluster_uuid = cluster.create_cluster(
-        context, cluster_name, cluster_template)["uuid"]
+    cluster_resp = cluster.create_cluster(context, cluster_name, cluster_template)
+    cluster_uuid = cluster_resp["uuid"]
+    torii_port = cluster_resp["torii_port"]
+
     train_dataset_uuid = ""
     request_dataset_uuid = ""
     try:
@@ -379,16 +353,14 @@ def test_workflow():
     #     target_host_uuid = hosts_json[1][0]
     #     cluster.switch_host(context, cluster_uuid, target_host_uuid)
 
-    _train(cluster_uuid, train_dataset_uuid)
+    _train(cluster_uuid, torii_port, train_dataset_uuid)
 
-    _test(cluster_uuid, request_dataset_uuid)
-    _test(cluster_uuid, request_dataset_uuid)
+    _test(cluster_uuid, torii_port, request_dataset_uuid)
+    _test(cluster_uuid, torii_port, request_dataset_uuid)
 
-    cluster_uuid = _creat_and_resore_checkpoint(cluster_uuid)
+    cluster_uuid, torii_port = _creat_and_resore_checkpoint(cluster_uuid, torii_port)
 
-    _test(cluster_uuid, request_dataset_uuid)
-
-    # asyncio.run(test_direct_io(context, cluster_uuid))
+    _test(cluster_uuid, torii_port, request_dataset_uuid)
 
     inputs = dict()
     inputs["picture_hex"] = test_values.get_direct_io_test_intput()
@@ -396,10 +368,10 @@ def test_workflow():
     outputs["label_hex"] = test_values.get_direct_io_test_output()
 
     for i in range(0, 100):
-        cluster.train(context, cluster_uuid, inputs, outputs)
+        cluster.train(context, torii_port, cluster_uuid, inputs, outputs)
 
     output_names = ["label_hex"]
-    output_values = cluster.request(context, cluster_uuid, inputs, output_names)
+    output_values = cluster.request(context, torii_port, cluster_uuid, inputs, output_names)
     print("output: %s" % json.dumps(output_values, indent=4))
     assert list(output_values["outputs"]["label_hex"]).index(
         max(output_values["outputs"]["label_hex"])) == 5
@@ -425,6 +397,8 @@ version = common.get_version(context, context.miko_address)
 print(f"miko-version: {version}")
 version = common.get_version(context, context.bento_adress)
 print(f"bento-version: {version}")
+version = common.get_version(context, context.torii_address)
+print(f"torii-version: {version}")
 
 test_project()
 test_user()

@@ -2,6 +2,20 @@
     "version": "2.0.0",
     "tasks": [
       {
+        "label": "build sakura debug",
+        "type": "shell",
+        "command": "sleep 5 && cargo build -p sakura",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build sakura release",
+        "type": "shell",
+        "command": "sleep 5 && cargo build --release -p sakura",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
         "label": "build hanami debug",
         "type": "shell",
         "command": "cargo build -p hanami",
@@ -42,6 +56,20 @@
         "command": "cargo build --release -p bento",
         "group": "build",
         "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build torii debug",
+        "type": "shell",
+        "command": "cargo build -p torii",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build torii release",
+        "type": "shell",
+        "command": "cargo build --release -p torii",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
       }
-    ]
+    ],
 }

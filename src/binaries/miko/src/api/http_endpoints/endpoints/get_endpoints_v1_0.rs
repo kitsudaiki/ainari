@@ -45,6 +45,12 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
             internal_address: enpoint_config.bento.internal_address.clone(),
             internal_port: enpoint_config.bento.internal_port,
         },
+        torii: EndpointField {
+            public_address: enpoint_config.torii.public_address.clone(),
+            public_port: enpoint_config.torii.public_port,
+            internal_address: enpoint_config.torii.internal_address.clone(),
+            internal_port: enpoint_config.torii.internal_port,
+        },
     };
 
     return Ok(Json(response));

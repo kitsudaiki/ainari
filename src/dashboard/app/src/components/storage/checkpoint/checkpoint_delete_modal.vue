@@ -59,7 +59,7 @@ async function handleAccept(checkpoint_uuid: string) {
     if (!checkpoint_uuid) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
+        await api.sakura_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
     } catch (err) {

@@ -2,7 +2,7 @@
 
 ## General
 
-The dashboard is one way to interact with hanami.
+The dashboard is one way to interact with sakura.
 
 !!! warning
 

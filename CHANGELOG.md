@@ -9,18 +9,18 @@
 #### API-Breaking
 
 - added new component named "Miko", where the endpoints for tokens, users and projects moved to.
-- Hanami now uses the Miko to check provided token over a new client-connection
+- Sakura now uses the Miko to check provided token over a new client-connection
 - improved version-output 
 
 #### Config-Breaking
 
-- Because of the new component, Hanami requires a new client-connection in its config
+- Because of the new component, Sakura requires a new client-connection in its config
 
 ### Added
 
 - new component "Miko" for authentication
 - new componentn "Bento" for storage
-- use shared storage in kubernetes-setup to share files between Bento and Hanami
+- use shared storage in kubernetes-setup to share files between Bento and Sakura
 - the new Miko-component provides the addresses of all components
 
 ### Changed
@@ -36,7 +36,7 @@
 
 **Release-Date**: 2025-08-24
 
-- Renamed project from OpenHanami to Ainari
+- Renamed project from OpenSakura to Ainari
 - Translated the rest of the C++-code into Rust
 
 ### BREAKING-CHANGES
@@ -218,8 +218,8 @@ Translated big parts of the program from C++ into Rust:
 
 ### Changed
 
-- renamed repo from `Hanami` to `Ainari`
-- tls-termination in kubernetes setup was moved from the ingress into a container within the same pod like the hanami-process
+- renamed repo from `Sakura` to `Ainari`
+- tls-termination in kubernetes setup was moved from the ingress into a container within the same pod like the sakura-process
 - number of input- and output-neurons now scales with the given data, so defining them hard inside of the cluster-template is not longer necessary
 - moved converting user-context from the endpoints to a central position to avoid unnecessary redundant code
 - moved cluster io-functions internally into the processing and backpropagarion files for the cpu-code
@@ -319,7 +319,7 @@ Translated big parts of the program from C++ into Rust:
 - the registration of new database-columns within the code were updated to look like the style of config-registrations and so on
 - internal handling of tasks was updated for cleaner code
 - endpoint to list projects of a user, were moved within the code
-- renamed src-subdirectory `Hanami` to `hanami` to be more consistent to the rest
+- renamed src-subdirectory `Sakura` to `sakura` to be more consistent to the rest
 - split CUDA-kernel into multiple files
 - replace the json submodule by the apt-package
 
@@ -337,7 +337,7 @@ Translated big parts of the program from C++ into Rust:
 
 ### Removed
 
-- the `common`-directory in Hanami was removed and most of the functions were moved to the `ainari_common`-lib
+- the `common`-directory in Sakura was removed and most of the functions were moved to the `ainari_common`-lib
 - disabled CUDA-kernel, because at the moment it doesn't brings a performance increasement, but only slows down the development (will be added in the future again, after finding a better use-case for the GPU)
 - disabled dashboard and moved it to the archive subdirectory (will be added in the future again, after a complete refactoring of the code)
 - removed old OpenCL-kernel
@@ -436,7 +436,7 @@ Translated big parts of the program from C++ into Rust:
     - now use cert-manager to generate certificates 
     - ingress was added for ssl-termination of https-connections
     - persistent volume was added to persist data like database within the kuberntes-setup
-    - node label was added to define the node, where hanami should be deployed by kubernetes
+    - node label was added to define the node, where sakura should be deployed by kubernetes
 - `clang-format` file was added with a git pre-commit hook
 - `clang-format` check and basic `cppcheck` were added to the ci-pipeline
 - first contribution-guide and code-styling guide was added
@@ -516,8 +516,8 @@ Translated big parts of the program from C++ into Rust:
 
 ### Changed
 
-- Rename repository/project from `Hanami-AI` to `Hanami`
-- Renamed libraries to `ainari_...` and namespaces of the libraries to `Hanami`, because the originally naming and structure was from the time, when they were separate repositores and desired also for other projects. The new naming makes the names shorter and easier.
+- Rename repository/project from `Sakura-AI` to `Sakura`
+- Renamed libraries to `ainari_...` and namespaces of the libraries to `Sakura`, because the originally naming and structure was from the time, when they were separate repositores and desired also for other projects. The new naming makes the names shorter and easier.
 - replace custom jwt lib by `jwt-cpp` (https://github.com/Thalhammer/jwt-cpp)
 - REST-API documentation is now generated as OpenAPI-specification and added to the documentation via swagger-ui
 - merged networking-libraries in context of the renaming
@@ -565,7 +565,7 @@ Translated big parts of the program from C++ into Rust:
 - made token expire-time configurable in Misaki
 - core-internal renamings of structs and functions
 - use dropdown-menu instead of single buttons in table-entries within the dashboard
-- use nested namespaces in sakura- and hanami-layer
+- use nested namespaces in sakura- and sakura-layer
 - changed a huge amount of map-iterators to c++17 style
 
 ### Added 
@@ -619,12 +619,12 @@ Translated big parts of the program from C++ into Rust:
 
 Repository-Name | Version-Tag | Download-Path
 --- | --- | ---
-Hanami-AI-Documentation | v0.1.0 | https://github.com/kitsudaiki/Hanami-AI-Documentation.git
-Hanami-AI-Dockerbuilder | v0.1.0 | https://github.com/kitsudaiki/Hanami-AI-Dockerbuilder.git
-Hanami-AI-Dashboard | v0.2.0 | https://github.com/kitsudaiki/Hanami-AI-Dashboard.git
-Hanami-AI-Dashboard-Dependencies | v0.1.0 | https://github.com/kitsudaiki/anamiAI-Dashboard-Dependencies.git
-Hanami-AI-K8s | v0.1.0 | https://github.com/kitsudaiki/Hanami-AI-K8s.git
-libHanamiAiSdk | v0.4.0 | https://github.com/kitsudaiki/libHanamiAiSdk.git
+Sakura-AI-Documentation | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-Documentation.git
+Sakura-AI-Dockerbuilder | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-Dockerbuilder.git
+Sakura-AI-Dashboard | v0.2.0 | https://github.com/kitsudaiki/Sakura-AI-Dashboard.git
+Sakura-AI-Dashboard-Dependencies | v0.1.0 | https://github.com/kitsudaiki/anamiAI-Dashboard-Dependencies.git
+Sakura-AI-K8s | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-K8s.git
+libSakuraAiSdk | v0.4.0 | https://github.com/kitsudaiki/libSakuraAiSdk.git
 KyoukoMind | v0.9.1 | https://github.com/kitsudaiki/KyoukoMind.git
 MisakiGuard | v0.3.0 | https://github.com/kitsudaiki/MisakiGuard.git
 ShioriArchive | v0.4.0 | https://github.com/kitsudaiki/ShioriArchive.git
@@ -634,12 +634,12 @@ TsugumiTester | v0.4.0 | https://github.com/kitsudaiki/TsugumiTester.git
 libAzukiHeart | v0.3.0 | https://github.com/kitsudaiki/libAzukiHeart.git
 libMisakiGuard | v0.2.0 | https://github.com/kitsudaiki/libMisakiGuard.git
 ibShioriArchive | v0.3.0 | https://github.com/kitsudaiki/ibShioriArchive.git
-libKitsunemimiHanamiMessages | v0.1.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiMessages.git
-libKitsunemimiHanamiNetwork | v0.5.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiNetwork.git
-libKitsunemimiHanamiPolicies | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiPolicies.git
-libKitsunemimiHanamiEndpoints | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiEndpoints.git
-libKitsunemimiHanamiDatabase | v0.4.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiDatabase.git
-libKitsunemimiHanamiCommon | v0.3.0 |  https://github.com/kitsudaiki/libKitsunemimiHanamiCommon.git
+libKitsunemimiSakuraMessages | v0.1.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraMessages.git
+libKitsunemimiSakuraNetwork | v0.5.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git
+libKitsunemimiSakuraPolicies | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraPolicies.git
+libKitsunemimiSakuraEndpoints | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraEndpoints.git
+libKitsunemimiSakuraDatabase | v0.4.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git
+libKitsunemimiSakuraCommon | v0.3.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraCommon.git
 libKitsunemimiSakuraNetwork | v0.9.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git
 libKitsunemimiSakuraLang | v0.13.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraLang.git
 libKitsunemimiSakuraDatabase | v0.6.1 |  https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git

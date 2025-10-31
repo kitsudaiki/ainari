@@ -16,13 +16,9 @@
 
 mod api;
 mod config;
-mod core;
 mod database;
 
 use log::LevelFilter;
-
-use core::cluster_handler::*;
-use core::processing::worker_handler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -30,14 +26,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
     }
-
-    // Initialize processing
-    let worker_handler = worker_handler::WORKER_HANDLER
-        .lock()
-        .expect("mutex poisoned");
-    drop(worker_handler);
-    let cluster_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-    drop(cluster_data_handler);
 
     database::init_database()?;
 

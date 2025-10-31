@@ -195,7 +195,7 @@ All objects are automatically build and uploaded by the
 [CI-pipeline](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml) for each merge
 on `develop`-branch and for each tag.
 
--   [Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/hanami/tags)
+-   [Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/sakura/tags)
 
 -   [client, SDK and helm-chart](https://files.ainari.cloud/)
 

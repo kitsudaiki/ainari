@@ -17,13 +17,15 @@ COPY . .
 
 RUN rustup install stable --no-self-update
 RUN cargo build --release
-RUN cp target/release/hanami /app/
+RUN cp target/release/sakura /app/
 RUN cp target/release/miko /app/
 RUN cp target/release/bento /app/
+RUN cp target/release/hanami /app/
+RUN cp target/release/torii /app/
 
 # ---------------------------------------------------
 
-FROM ubuntu:24.04 AS hanami
+FROM ubuntu:24.04 AS sakura
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -32,9 +34,9 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# hanami
-COPY --from=builder /app/hanami /usr/bin/hanami
-CMD [ "hanami" ]
+# sakura
+COPY --from=builder /app/sakura /usr/bin/sakura
+CMD [ "sakura" ]
 
 # ---------------------------------------------------
 
@@ -65,3 +67,33 @@ RUN apt-get update && \
 # bento
 COPY --from=builder /app/bento /usr/bin/bento
 CMD [ "bento" ]
+
+# ---------------------------------------------------
+
+FROM ubuntu:24.04 AS hanami
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# hanami
+COPY --from=builder /app/hanami /usr/bin/hanami
+CMD [ "hanami" ]
+
+# ---------------------------------------------------
+
+FROM ubuntu:24.04 AS torii
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# torii
+COPY --from=builder /app/torii /usr/bin/torii
+CMD [ "torii" ]

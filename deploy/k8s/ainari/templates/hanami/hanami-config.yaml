@@ -7,9 +7,6 @@ data:
     log_path = ""
     insecure_clients = true
 
-    [processing]
-    max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
-
     [api]
     public_ip = "127.0.0.1"
     public_port = 11418

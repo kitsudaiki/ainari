@@ -3,14 +3,63 @@
     "compounds": [
         {
             "name": "Ainari Debug",
-            "configurations": ["Debug Build hanami", "Debug Build miko", "Debug Build bento"],
+            "configurations": [
+                "Debug Build hanami", 
+                "Debug Build miko", 
+                "Debug Build bento", 
+                "Debug Build torii", 
+                "Debug Build sakura"
+            ],
         },
         {
             "name": "Ainari Release",
-            "configurations": ["Release Build hanami", "Release Build miko", "Release Build bento"],
+            "configurations": [
+                "Release Build hanami", 
+                "Release Build miko", 
+                "Release Build bento", 
+                "Release Build torii", 
+                "Release Build sakura"
+            ],
         }
     ],
     "configurations": [
+        {
+            "name": "Debug Build sakura",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/sakura",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build sakura debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build sakura",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/sakura",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build sakura release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        },
         {
             "name": "Debug Build hanami",
             "type": "lldb",
@@ -23,9 +72,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -42,9 +91,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         },
@@ -60,9 +109,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -79,9 +128,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         },
@@ -97,9 +146,9 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
             },
@@ -116,9 +165,46 @@
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
-                "HANAMI_ADMIN_ID": "asdf",
-                "HANAMI_ADMIN_NAME": "asdf",
-                "HANAMI_ADMIN_PASSPHRASE": "asdfasdf",
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Debug Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build torii debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build torii",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/torii",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build torii release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
             },
         }

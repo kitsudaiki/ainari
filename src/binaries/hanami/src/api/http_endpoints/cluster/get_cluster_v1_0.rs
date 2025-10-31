@@ -17,12 +17,18 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::cluster_table;
+use crate::config;
+use crate::database::host_table;
+use crate::database::meta_cluster_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::cluster as cluster_clients;
+use ainari_clients::endpoints::*;
+use ainari_clients::proxy as proxy_clients;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -37,7 +43,7 @@ pub async fn get_cluster(
     cluster_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ClusterResp>, ErrorResponse> {
-    let cluster_data = match cluster_table::get_cluster(&cluster_uuid, &context) {
+    let cluster_data = match meta_cluster_table::get_meta_cluster(&cluster_uuid, &context) {
         Ok(cluster_data) => cluster_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -48,15 +54,99 @@ pub async fn get_cluster(
         }
     };
 
-    let resp = ClusterResp {
-        uuid: *cluster_uuid,
-        name: cluster_data.name.clone(),
-        template: cluster_data.template.clone(),
-        created_by: cluster_data.created_by.clone(),
-        created_at: cluster_data.created_at.clone(),
-        updated_by: cluster_data.updated_by.clone(),
-        updated_at: cluster_data.updated_at.clone(),
+    let sakura_uuid = match Uuid::parse_str(&cluster_data.sakura_host_uuid) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!("Failed to convert sakura-uuid with error: '{e}'");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
     };
 
-    return Ok(Json(resp));
+    let host_data = match host_table::get_host(&sakura_uuid, &context) {
+        Ok(host_data) => host_data,
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Sakura-host with UUID '{sakura_uuid}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    let proxy_uuid = match Uuid::parse_str(&cluster_data.proxy_uuid) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!(
+                "Failed to parse proxy-uuid '{}' with error: {}",
+                cluster_data.proxy_uuid,
+                e
+            );
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // get endpoints from miko
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = match get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // send request to torii to get port
+    let proxy_resp = match proxy_clients::get_proxy(
+        &endpoints.torii,
+        &context.token,
+        &proxy_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    let mut cluster_resp = match cluster_clients::get_cluster(
+        &host_data.address,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &cluster_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // set port in response
+    cluster_resp.torii_port = proxy_resp.port;
+
+    return Ok(Json(cluster_resp));
 }

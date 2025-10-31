@@ -35,7 +35,8 @@ type TaskResult struct {
 	DatasetColumnName  string `json:"dataset_column"`
 }
 
-func CreateTrainTask(context AccessContext, name, clusterUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int) (map[string]interface{}, error) {
+func CreateTrainTask(context AccessContext, toriiPort int, name, clusterUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
     var inputArray []interface{}
     for _, input := range inputs {
         inputArray = append(inputArray, input)
@@ -54,10 +55,11 @@ func CreateTrainTask(context AccessContext, name, clusterUuid string, inputs, ou
 		"outputs":          outputArray,
 		"time_length":      timeLenght,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateRequestTask(context AccessContext, name, clusterUuid string, inputs []TaskInput, results []TaskResult, timeLenght int) (map[string]interface{}, error) {
+func CreateRequestTask(context AccessContext, toriiPort int, name, clusterUuid string, inputs []TaskInput, results []TaskResult, timeLenght int) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	var inputArray []interface{}
     for _, input := range inputs {
         inputArray = append(inputArray, input)
@@ -75,46 +77,52 @@ func CreateRequestTask(context AccessContext, name, clusterUuid string, inputs [
 		"results":      resultArray,
 		"time_length":  timeLenght,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateCheckpointSaveTask(context AccessContext, name, clusterUuid string) (map[string]interface{}, error) {
+func CreateCheckpointSaveTask(context AccessContext, toriiPort int, name, clusterUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_save", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateCheckpointRestoreTask(context AccessContext, name, clusterUuid, checkpointUuid string) (map[string]interface{}, error) {
+func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, clusterUuid, checkpointUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/checkpoint_restore", clusterUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 		"checkpoint_uuid": checkpointUuid,
 	}
-	return SendPost(context, context.HanamiAddress, path, jsonBody)
+	return SendPost(context, address, path, jsonBody)
 }
 
-func GetTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+func GetTask(context AccessContext, toriiPort int, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.HanamiAddress, path, vars)
+	return SendGet(context, address, path, vars)
 }
 
-func ListTask(context AccessContext, clusterUuid string) (map[string]interface{}, error) {
+func ListTask(context AccessContext, toriiPort int, clusterUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task", clusterUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.HanamiAddress, path, vars)
+	return SendGet(context, address, path, vars)
 }
 
-func DeleteTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+func DeleteTask(context AccessContext, toriiPort int, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.HanamiAddress, path, vars)
+	return SendDelete(context, address, path, vars)
 }
 
-func AbortTask(context AccessContext, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+func AbortTask(context AccessContext, toriiPort int, taskUuid, clusterUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/cluster/%s/task/%s/abort", clusterUuid, taskUuid)
 	vars := map[string]interface{}{}
-	return SendPut(context, context.HanamiAddress, path, vars)
+	return SendPut(context, address, path, vars)
 }

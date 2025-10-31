@@ -1,0 +1,25 @@
+debug = true
+log_path = "/var/log"
+insecure_clients = true
+address = "http://127.0.0.1:11420"
+
+[database]
+file_path = "/etc/ainari/sakura_db"
+
+[processing]
+# 0 means there is no limitation
+max_number_of_threads = 0
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11420
+internal_ip = "0.0.0.0"
+internal_port = 10420
+internal_api_key = "asdf"
+
+[miko]
+address = "http://127.0.0.1"
+port = 11417
+
+[hanami]
+registation_key = "test-registration-key"

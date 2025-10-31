@@ -63,11 +63,11 @@ impl FromRequest for UserContext {
             Some(value) => match split_bearer_token(value.to_str().unwrap_or("")) {
                 Some(val) => token = val,
                 None => {
-                    println!("Invalid token format");
+                    log::debug!("Invalid token format");
                 }
             },
             _ => {
-                println!("❌ Invalid or missing X-Auth-Token.");
+                log::debug!("Invalid or missing Authorization-header.");
             }
         }
 

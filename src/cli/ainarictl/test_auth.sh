@@ -1,5 +1,5 @@
-export HANAMI_ADDRESS=http://127.0.0.1:11417
-#export HANAMI_ADDRESS=https://local-hanami
-export HANAMI_USER=asdf
-export HANAMI_PASSPHRASE=asdfasdf
+export AINARI_ADDRESS=http://127.0.0.1:11417
+#export AINARI_ADDRESS=https://local-sakura
+export AINARI_USER=asdf
+export AINARI_PASSPHRASE=asdfasdf
 

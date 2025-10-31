@@ -18,12 +18,16 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::cluster_handler::CLUSTER_HANDLER;
-use crate::database::cluster_table;
+use crate::config;
+use crate::database::host_table;
+use crate::database::meta_cluster_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::cluster as cluster_clients;
+use ainari_clients::endpoints::*;
+use ainari_clients::proxy as proxy_clients;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -47,27 +51,115 @@ pub async fn create_cluster(
         }
     };
 
-    let cluster_uuid = Uuid::new_v4();
+    // list all avaialble hosts
+    let hosts = match host_table::list_hosts(&context) {
+        Ok(hosts) => hosts,
+        Err(e) => {
+            log::error!("Failed to get list of hosts form database: '{e}'");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
-    // parse cluster-template and create cluster from it
-    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-    match cluster_handler.init_new_cluster(&cluster_uuid, &body.name, body.template.clone()) {
-        Ok(_) => {}
+    // check that there is at least one host
+    if hosts.is_empty() {
+        log::error!("No hosts to schedule new cluster.");
+        return Err(ErrorResponse::InternalError("".to_string()));
+    }
+
+    // select first host
+    // TODO: also be able to select one of many hosts
+    let selected_host = if let Some(host) = hosts.first() {
+        host
+    } else {
+        log::error!("No hosts with list-position 0 doesn't exist.");
+        return Err(ErrorResponse::InternalError("".to_string()));
+    };
+
+    // send request to the selected sakura-host to create a cluster
+    let mut cluster_resp = match cluster_clients::create_cluster(
+        &selected_host.address,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &body.name,
+        &body.template,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
         Err(AinariError::Unauthorized(msg)) => {
             return Err(ErrorResponse::Unauthorized(msg));
         }
-        Err(AinariError::InvalidInput(e)) => {
-            let msg = format!("Invalid input: {e}");
+        Err(AinariError::InvalidInput(msg)) => {
             return Err(ErrorResponse::BadRequest(msg));
         }
-        Err(AinariError::Error(e)) => {
-            log::error!("{e}");
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // get endpoints from miko
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = match get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // send request to torii to create a proxy
+    let proxy_resp = match proxy_clients::create_proxy(
+        &endpoints.torii,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &cluster_resp.uuid,
+        &selected_host.address,
+        10042,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // set port-number for the response
+    cluster_resp.torii_port = proxy_resp.port;
+
+    // parse uuid-string
+    let sakura_uuid = match Uuid::parse_str(&selected_host.uuid) {
+        Ok(uuid) => uuid,
+        Err(e) => {
+            log::error!("Failed to convert cluster-uuid with error: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
     // add new cluster to database
-    match cluster_table::add_new_cluster(&cluster_uuid, &body.name, &body.template, &context) {
+    let cluster_uuid = cluster_resp.uuid;
+    match meta_cluster_table::add_new_meta_cluster(
+        &cluster_uuid,
+        &sakura_uuid,
+        &proxy_resp.uuid,
+        &context,
+    ) {
         Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
@@ -76,30 +168,5 @@ pub async fn create_cluster(
         }
     };
 
-    // get new created cluster from database to get addtional information
-    let cluster_data: cluster_table::ClusterEntry = match cluster_table::get_cluster(
-        &cluster_uuid,
-        &context,
-    ) {
-        Ok(cluster_data) => cluster_data,
-        Err(_) => {
-            let msg = format!(
-                "Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist."
-            );
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    let resp = ClusterResp {
-        uuid: cluster_uuid,
-        name: cluster_data.name.clone(),
-        template: cluster_data.template.clone(),
-        created_by: cluster_data.created_by.clone(),
-        created_at: cluster_data.created_at.clone(),
-        updated_by: cluster_data.updated_by.clone(),
-        updated_at: cluster_data.updated_at.clone(),
-    };
-
-    return Ok(CreatedJson(resp));
+    return Ok(CreatedJson(cluster_resp));
 }

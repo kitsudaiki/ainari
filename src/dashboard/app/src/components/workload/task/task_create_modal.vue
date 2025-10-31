@@ -164,7 +164,7 @@ async function handleAccept(cluster_uuid: string) {
         const outputs = JSON.parse(form.outputMapping);
 
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
+        await api.sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/train`,
             {
                 name: form.taskName,
@@ -187,7 +187,7 @@ async function handleAccept(cluster_uuid: string) {
         const outputs = JSON.parse(form.outputMapping);
 
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
+        await api.sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/request`,
             {
                 name: form.taskName,
@@ -206,7 +206,7 @@ async function handleAccept(cluster_uuid: string) {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
 
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
+        await api.sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_save`,
             {
                 name: form.taskName,
@@ -222,7 +222,7 @@ async function handleAccept(cluster_uuid: string) {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
 
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
+        await api.sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_restore`,
             {
                 name: form.taskName,
@@ -268,7 +268,7 @@ const selectedCheckpointUuid = ref<string>("");
 async function fetchCheckpoints() {
     try {
         const token = localStorage.getItem("jwtToken");
-        const response = await api.hanami_api.get("/v1alpha/checkpoint", {
+        const response = await api.sakura_api.get("/v1alpha/checkpoint", {
             headers: { Authorization: `Bearer ${token}` },
         });
         console.log(response);

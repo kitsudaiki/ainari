@@ -20,7 +20,7 @@
 
 ## Build hamami plain
 
--   Compile hanami
+-   Compile sakura
 
     ```bash
     cd ainari
@@ -31,10 +31,10 @@
 -   Resulting binary
 
     ```bash
-    ./target/release/hanami
+    ./target/release/sakura
     ```
 
-## Build hanami as docker-image
+## Build sakura as docker-image
 
 ### With docker-build
 
@@ -43,7 +43,7 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 !!! example
 
     ```bash
-    docker build -t hanami:test .
+    docker build -t sakura:test .
     ```
 
 ### With earthly
@@ -59,7 +59,7 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
     !!! example
 
         ```bash
-        earthly +build-image --image_name=hanami:test
+        earthly +build-image --image_name=sakura:test
         ```
 
 ## Build CLI-client

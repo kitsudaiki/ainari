@@ -53,7 +53,8 @@ pub async fn authorization_middleware(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
 ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
-    let mut skip_check = false;
+    let mut skip_internal_endpoint_check = false;
+    let mut skip_token_check = false;
     let uri = req.uri();
     let api_validation_config = req
         .app_data::<web::Data<ApiValidationConfig>>()
@@ -61,12 +62,20 @@ pub async fn authorization_middleware(
 
     log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
 
-    // skip check for specific endpoints
-    skip_check |= uri == "/openapi.json";
-    skip_check |= *req.method() == Method::OPTIONS;
+    // request of openapi-specs can be done without token
+    skip_token_check |= uri == "/openapi.json";
+    // sakura-hosts can call a registration without token, becuase it is triggered by themself
+    // without user-interaction, but this call is saved by the internal-key and registration-key,
+    // which are provided by the sakura-hosts and validated in the endpoint
+    skip_token_check |= uri == "/v1alpha/host/internal" && *req.method() == Method::POST;
+    // options-request used by browsers also need no checks to be done
+    skip_token_check |= *req.method() == Method::OPTIONS;
+    skip_internal_endpoint_check |= *req.method() == Method::OPTIONS;
 
-    if !skip_check {
+    if !skip_internal_endpoint_check {
         check_internal_request(&req, api_validation_config)?;
+    }
+    if !skip_token_check {
         check_auth_header(&req, api_validation_config).await?;
     }
     //else {
@@ -134,11 +143,6 @@ pub fn check_internal_request(
 
         // check key
         if api_key_str != api_validation_config.internal_api_key {
-            log::debug!(
-                "Invalid API-key: '{}' : '{}'",
-                api_key_str,
-                api_validation_config.internal_api_key
-            );
             return Err(ErrorResponse::Unauthorized("Invalid internal API-key".to_string()).into());
         }
     }
@@ -199,7 +203,7 @@ async fn check_auth_header(
         Err(AinariError::Unauthorized(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::InvalidInput(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::Error(msg)) => {
-            log::error!("Failed to load mnist-images with error: '{msg}'");
+            log::error!("Failed check token against Miko with error: '{msg}'");
             Err(ErrorResponse::InternalError("".to_string()).into())
         }
     }

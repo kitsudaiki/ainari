@@ -8,9 +8,9 @@ permissions:
 
 env:
   REGISTRY_DOCS_IMAGE: kitsudaiki/ainari_docs
-  HANAMI_ADMIN_ID: asdf
-  HANAMI_ADMIN_NAME: asdf
-  HANAMI_ADMIN_PASSPHRASE: asdfasdf
+  AINARI_ADMIN_ID: asdf
+  AINARI_ADMIN_NAME: asdf
+  AINARI_ADMIN_PASSPHRASE: asdfasdf
   RUSTFLAGS: "-Dwarnings"
 
 jobs:
@@ -249,15 +249,15 @@ jobs:
       -
         name: Copy files
         run: |
-          mkdir /tmp/Hanami_debug_build_result
+          mkdir /tmp/Sakura_debug_build_result
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/ainari /tmp/Hanami_debug_build_result/
+          cp -r builds/ainari /tmp/Sakura_debug_build_result/
       -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
           retention-days: 1
 
 
@@ -371,8 +371,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -394,18 +394,24 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -450,8 +456,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
@@ -476,18 +482,24 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -500,9 +512,9 @@ jobs:
         run: |
           export PATH=$PATH:/usr/local/go/bin
           cd ${GITHUB_REPOSITORY#*/}/testing/go_cli_api
-          export MIKO_ADDRESS=http://127.0.0.1:11417
-          export HANAMI_USER=asdf
-          export HANAMI_PASSPHRASE=asdfasdf
+          export AINARI_ADDRESS=http://127.0.0.1:11417
+          export AINARI_USER=asdf
+          export AINARI_PASSPHRASE=asdfasdf
           export TRAIN_INPUTS=/tmp/train-images-idx3-ubyte
           export TRAIN_LABELS=/tmp/train-labels-idx1-ubyte
           export REQUEST_INPUTS=/tmp/t10k-images-idx3-ubyte
@@ -561,8 +573,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Hanami_debug_build_result
-          path: /tmp/Hanami_debug_build_result
+          name: Sakura_debug_build_result
+          path: /tmp/Sakura_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -584,18 +596,24 @@ jobs:
           gzip -d t10k-images-idx3-ubyte.gz
           gzip -d t10k-labels-idx1-ubyte.gz
       -
-        name: run Hanami in background
+        name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          chmod +x /tmp/Hanami_debug_build_result/ainari/hanami
-          chmod +x /tmp/Hanami_debug_build_result/ainari/miko
-          chmod +x /tmp/Hanami_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/hanami
+          chmod +x /tmp/Sakura_debug_build_result/ainari/miko
+          chmod +x /tmp/Sakura_debug_build_result/ainari/bento
+          chmod +x /tmp/Sakura_debug_build_result/ainari/sakura
+          chmod +x /tmp/Sakura_debug_build_result/ainari/torii
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Hanami_debug_build_result/ainari/hanami &
-          /tmp/Hanami_debug_build_result/ainari/miko &
-          /tmp/Hanami_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/hanami &
+          /tmp/Sakura_debug_build_result/ainari/miko &
+          /tmp/Sakura_debug_build_result/ainari/bento &
+          /tmp/Sakura_debug_build_result/ainari/torii &
+          # sleep to make sure, that hanami is started before sakura starts
+          sleep 10
+          /tmp/Sakura_debug_build_result/ainari/sakura &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -609,7 +627,7 @@ jobs:
         with:
           python-version: "${{ matrix.python_version.version }}"
       -
-        name: Install hanami-sdk
+        name: Install ainari-sdk
         run: |
           cd /tmp/ainari_python_build_result
           ls -l
@@ -660,6 +678,10 @@ jobs:
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
           - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
           - { component: "bento", platform: "linux/arm64", regitry: "kitsudaiki/bento" }
+          - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
+          - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
+          - { component: "torii", platform: "linux/amd64", regitry: "kitsudaiki/torii" }
+          - { component: "torii", platform: "linux/arm64", regitry: "kitsudaiki/torii" }
     steps:
       -
         name: Prepare
@@ -743,6 +765,8 @@ jobs:
           - { component: "hanami", regitry: "kitsudaiki/hanami" }
           - { component: "miko", regitry: "kitsudaiki/miko" }
           - { component: "bento", regitry: "kitsudaiki/bento" }
+          - { component: "sakura", regitry: "kitsudaiki/sakura" }
+          - { component: "torii", regitry: "kitsudaiki/torii" }
     steps:
       -
         name: Set branch name as environment variable
@@ -962,6 +986,8 @@ jobs:
           kubectl label nodes --all hanami-node=true
           kubectl label nodes --all miko-node=true
           kubectl label nodes --all bento-node=true
+          kubectl label nodes --all sakura-node=true
+          kubectl label nodes --all torii-node=true
       -
         name: Install hanami
         run: |
@@ -1011,6 +1037,8 @@ jobs:
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-bento/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-torii/g' /etc/ainari/hanami_testing.conf
       -
         name: Run test
         run: |

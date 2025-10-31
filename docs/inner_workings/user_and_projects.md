@@ -24,7 +24,7 @@ Folling tasks:
     -   can manage (create, delete, ...) users and projects. This is hard defined by the code and
         can not be changed by the policy-file
     -   an Admin-user can not deleted by him/her self, so at least one Admin does every time exist
-    -   the initial Admin, after a rollout of a new deployment, is created by hanami
+    -   the initial Admin, after a rollout of a new deployment, is created by sakura
     -   Admins have per default the role `admin` and the project-id `admin`
 -   **Project-Admin**:
     -   role is bonded to a specific project

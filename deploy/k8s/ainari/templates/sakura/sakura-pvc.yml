@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sakura-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: sakura-sc
+  resources:
+    requests:
+      storage: 100Mi

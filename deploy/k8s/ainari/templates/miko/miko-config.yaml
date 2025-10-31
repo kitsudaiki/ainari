@@ -32,4 +32,10 @@ data:
     internal_address = "https://bento-tls-service.default.svc.cluster.local"
     internal_port = 8443
 
+    [endpoints.torii]
+    public_address = "https://local-torii"
+    public_port = 443
+    internal_address = "https://torii-tls-service.default.svc.cluster.local"
+    internal_port = 8443
+
 kind: ConfigMap

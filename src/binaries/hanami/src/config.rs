@@ -18,6 +18,7 @@ use std::fs;
 use std::process;
 
 use ainari_common::config as ainari_config;
+use ainari_common::secret::Secret;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -26,10 +27,10 @@ pub struct Config {
     #[serde(default = "default_insecure_clients")]
     pub insecure_clients: bool,
     // groups
-    pub processing: Processing,
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
+    pub sakura: SakuraConf,
 }
 
 fn default_insecure_clients() -> bool {
@@ -37,13 +38,8 @@ fn default_insecure_clients() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Processing {
-    #[serde(default = "default_max_number_of_threads")]
-    pub max_number_of_threads: usize,
-}
-
-fn default_max_number_of_threads() -> usize {
-    0
+pub struct SakuraConf {
+    pub registation_key: Secret,
 }
 
 // Global singleton config
