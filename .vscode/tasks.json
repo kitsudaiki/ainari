@@ -70,6 +70,20 @@
         "command": "cargo build --release -p torii",
         "group": "build",
         "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omamori debug",
+        "type": "shell",
+        "command": "cargo build -p omamori",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omamori release",
+        "type": "shell",
+        "command": "cargo build --release -p omamori",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
       }
     ],
 }

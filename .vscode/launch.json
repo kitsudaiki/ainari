@@ -8,6 +8,7 @@
                 "Debug Build miko", 
                 "Debug Build bento", 
                 "Debug Build torii", 
+                "Debug Build omamori", 
                 "Debug Build sakura"
             ],
         },
@@ -18,6 +19,7 @@
                 "Release Build miko", 
                 "Release Build bento", 
                 "Release Build torii", 
+                "Release Build omamori",
                 "Release Build sakura"
             ],
         }
@@ -199,6 +201,43 @@
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "preLaunchTask": "build torii release",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Debug Build omamori",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/omamori",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build omamori debug",
+            "sourceLanguages": ["rust"],
+            "env": {
+                // test-env-variables to initialize a basic user for testing
+                "AINARI_ADMIN_ID": "asdf",
+                "AINARI_ADMIN_NAME": "asdf",
+                "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
+                "RUST_BACKTRACE": "full",
+                "RUST_LOG": "debug",
+            },
+        },
+        {
+            "name": "Release Build omamori",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/omamori",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "preLaunchTask": "build omamori release",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing

@@ -22,6 +22,7 @@ from ainari_sdk import host
 from ainari_sdk import proxy
 from ainari_sdk import project
 from ainari_sdk import task
+from ainari_sdk import secret
 from ainari_sdk import user
 from ainari_sdk import common
 from ainari_sdk import ainari_exceptions
@@ -83,7 +84,8 @@ generic_task_name = "test_task"
 template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
-
+secret_name = "test_secret"
+secret_payload = "this is a dummy secret-payload for testing"
 
 def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suffix_epoch='', prefix_cycle='', suffix_cycle='', length=50, fill='█'):
     percent1 = "{0:.1f}".format(100 * (epoch / float(total_epochs)))
@@ -188,6 +190,27 @@ def test_cluster():
     cluster.delete_cluster(context, cluster_uuid)
     try:
         cluster.delete_cluster(context, cluster_uuid)
+    except ainari_exceptions.NotFoundException:
+        pass
+
+
+def test_secret():
+    print("test secret")
+
+    secret_uuid = secret.create_secret(
+        context, secret_name, secret_payload)["uuid"]
+    secret.list_secrets(context)
+    secret.get_secret(context, secret_uuid)
+    try:
+        secret.get_secret(context, "569003fd-bf24-410b-8678-28f141877ac9")
+    except ainari_exceptions.NotFoundException:
+        pass
+    req_secret_payload = secret.get_secret_payload(context, secret_uuid)["secret_payload"]
+    assert req_secret_payload == secret_payload
+
+    secret.delete_secret(context, secret_uuid)
+    try:
+        secret.delete_secret(context, secret_uuid)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -404,4 +427,5 @@ test_project()
 test_user()
 test_dataset()
 test_cluster()
+test_secret()
 test_workflow()

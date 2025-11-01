@@ -21,6 +21,7 @@ class AccessContext:
     miko_address: str
     hanami_address: str
     bento_adress: str
+    omamori_address: str
     torii_address: str
     torii_base_address: str
     verify_connection: bool = True

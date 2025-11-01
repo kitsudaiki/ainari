@@ -48,11 +48,13 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 	hanamiAddr := resp["hanami"].(map[string]interface{})
 	bentoAddr := resp["bento"].(map[string]interface{})
 	toriiAddr := resp["torii"].(map[string]interface{})
+	omamoriAddr := resp["omamori"].(map[string]interface{})
 
 	context.token = token
 	context.MikoAddress = address
 	context.HanamiAddress = fmt.Sprintf("%s:%d", hanamiAddr["public_address"].(string), int(hanamiAddr["public_port"].(float64)))
 	context.BentoAddress = fmt.Sprintf("%s:%d", bentoAddr["public_address"].(string), int(bentoAddr["public_port"].(float64)))
+	context.OmamoriAddress = fmt.Sprintf("%s:%d", omamoriAddr["public_address"].(string), int(omamoriAddr["public_port"].(float64)))
 	context.ToriiAddress = fmt.Sprintf("%s:%d", toriiAddr["public_address"].(string), int(toriiAddr["public_port"].(float64)))
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification

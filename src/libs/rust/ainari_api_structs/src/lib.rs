@@ -23,6 +23,7 @@ pub mod endpoints_structs;
 pub mod host_structs;
 pub mod project_structs;
 pub mod proxy_structs;
+pub mod secret_structs;
 pub mod task_structs;
 pub mod user_context;
 pub mod user_structs;
