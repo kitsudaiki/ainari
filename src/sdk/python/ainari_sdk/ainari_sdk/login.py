@@ -31,40 +31,41 @@ def request_context(address: str,
     body = "token_format=jwt&grant_type=client_credentials" \
            f'&client_id={user_id}&client_secret={passphrase}'
 
-    response = requests.post(auth_url, data=body, verify=verify_connection)
+    resp = requests.post(auth_url, data=body, verify=verify_connection)
     token = ""
-    if response.status_code == 200:
-        token = response.json()["access_token"]
-    if response.status_code == 400:
-        raise ainari_exceptions.BadRequestException(response.content)
-    if response.status_code == 401:
-        raise ainari_exceptions.UnauthorizedException(response.content)
-    if response.status_code == 404:
-        raise ainari_exceptions.NotFoundException(response.content)
-    if response.status_code == 409:
-        raise ainari_exceptions.ConflictException(response.content)
-    if response.status_code == 500:
+    if resp.status_code == 200:
+        token = resp.json()["access_token"]
+    if resp.status_code == 400:
+        raise ainari_exceptions.BadRequestException(resp.content)
+    if resp.status_code == 401:
+        raise ainari_exceptions.UnauthorizedException(resp.content)
+    if resp.status_code == 404:
+        raise ainari_exceptions.NotFoundException(resp.content)
+    if resp.status_code == 409:
+        raise ainari_exceptions.ConflictException(resp.content)
+    if resp.status_code == 500:
         raise ainari_exceptions.InternalServerErrorException()
 
     # request where to reach the other endpoints
     path = "/v1alpha/endpoints"
-    response = ainari_request.send_get_request_without_context(token,
-                                                               address,
-                                                               path,
-                                                               "",
-                                                               verify=verify_connection)
+    resp = ainari_request.send_get_request_without_context(token,
+                                                           address,
+                                                           path,
+                                                           "",
+                                                           verify=verify_connection)
 
     # get addresses
     miko_address = address
-    hanami_address = f'{response["hanami"]["public_address"]}:{response["hanami"]["public_port"]}'
-    bento_address = f'{response["bento"]["public_address"]}:{response["bento"]["public_port"]}'
-    torii_address = f'{response["torii"]["public_address"]}:{response["torii"]["public_port"]}'
+    hanami_address = f'{resp["hanami"]["public_address"]}:{resp["hanami"]["public_port"]}'
+    bento_address = f'{resp["bento"]["public_address"]}:{resp["bento"]["public_port"]}'
+    torii_address = f'{resp["torii"]["public_address"]}:{resp["torii"]["public_port"]}'
+    omamori_address = f'{resp["omamori"]["public_address"]}:{resp["omamori"]["public_port"]}'
 
     torii_address_split = torii_address.split(":")
     torii_base_address = torii_address_split[0] + ":" + torii_address_split[1]
 
     context = AccessContext(token, miko_address, hanami_address,
-                            bento_address, torii_address, torii_base_address)
+                            bento_address, omamori_address, torii_address, torii_base_address)
 
     # print(context)
 

@@ -14,6 +14,6 @@
 
 pub mod create_secret_v1_0;
 pub mod delete_secret_v1_0;
-pub mod get_secret_v1_0;
 pub mod get_secret_payload_v1_0;
+pub mod get_secret_v1_0;
 pub mod list_secret_v1_0;

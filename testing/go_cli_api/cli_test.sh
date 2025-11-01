@@ -61,6 +61,16 @@ $EXECUTABLE cluster get $CLUSTER_UUID
 $EXECUTABLE cluster list
 $EXECUTABLE cluster delete $CLUSTER_UUID
 
+# ########################
+echo ""
+echo "########################### secret tests ###########################"
+echo ""
+SECRET_UUID=$($EXECUTABLE secret create -j -p 'this is a test-secret' cli_test_cluster | jq -r '.uuid')
+$EXECUTABLE secret get $SECRET_UUID
+$EXECUTABLE secret get-payload $SECRET_UUID
+$EXECUTABLE secret list
+$EXECUTABLE secret delete $SECRET_UUID
+
 ########################
 echo ""
 echo "########################### workfloat tests ##########################"

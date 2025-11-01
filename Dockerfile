@@ -22,6 +22,7 @@ RUN cp target/release/miko /app/
 RUN cp target/release/bento /app/
 RUN cp target/release/hanami /app/
 RUN cp target/release/torii /app/
+RUN cp target/release/omamori /app/
 
 # ---------------------------------------------------
 
@@ -97,3 +98,18 @@ RUN apt-get update && \
 # torii
 COPY --from=builder /app/torii /usr/bin/torii
 CMD [ "torii" ]
+
+# ---------------------------------------------------
+
+FROM ubuntu:24.04 AS omamori
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# omamori
+COPY --from=builder /app/torii /usr/bin/omamori
+CMD [ "omamori" ]

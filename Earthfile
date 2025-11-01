@@ -128,6 +128,7 @@ compile-ainari:
     RUN cp ./target/debug/bento /tmp/ainari/
     RUN cp ./target/debug/hanami /tmp/ainari/
     RUN cp ./target/debug/torii /tmp/ainari/
+    RUN cp ./target/debug/omamori /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
@@ -167,6 +168,7 @@ generate-docs:
     COPY +compile-ainari/ainari/bento /tmp/bento
     COPY +compile-ainari/ainari/hanami /tmp/hanami
     COPY +compile-ainari/ainari/torii /tmp/torii
+    COPY +compile-ainari/ainari/omamori /tmp/omamori
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
@@ -192,7 +194,7 @@ generate-docs:
     RUN . ainari_env/bin/activate && \
         hap run /tmp/sakura && \
         sleep 5 && \
-        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_sakura.json
+        curl 127.0.0.1:11420/openapi.json > ./open_api_docu_sakura.json
     RUN chmod +x /tmp/miko
     RUN . ainari_env/bin/activate && \
         hap run /tmp/miko && \
@@ -207,12 +209,17 @@ generate-docs:
     RUN . ainari_env/bin/activate && \
         hap run /tmp/hanami && \
         sleep 5 && \
-        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_hanami.json
+        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
     RUN chmod +x /tmp/torii
     RUN . ainari_env/bin/activate && \
         hap run /tmp/torii && \
         sleep 5 && \
-        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_torii.json
+        curl 127.0.0.1:11419/openapi.json > ./open_api_docu_torii.json
+    RUN chmod +x /tmp/torii
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/torii && \
+        sleep 5 && \
+        curl 127.0.0.1:11421/openapi.json > ./open_api_docu_omamori.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
@@ -224,6 +231,7 @@ generate-docs:
     RUN cp ./open_api_docu_bento.json docs/frontend/
     RUN cp ./open_api_docu_hanami.json docs/frontend/
     RUN cp ./open_api_docu_torii.json docs/frontend/
+    RUN cp ./open_api_docu_omamori.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
