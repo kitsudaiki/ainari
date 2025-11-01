@@ -11,7 +11,6 @@ hex = "0.4"
 
 # json
 serde = { version = "1", features = ["derive", "serde_derive", "alloc"] }
-serde_with = "3.14"
 serde_json = "1"
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 validator = { version = "0.20", features = ["derive"] }

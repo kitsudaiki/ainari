@@ -28,6 +28,5 @@ base64 = "0.22"
 once_cell = "1.18"
 # logger
 log = "0.4"
-env_logger = "0.11"
 # ssl
 openssl = "0.10"
