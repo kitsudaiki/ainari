@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::ApiComponent;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+pub mod db_handle;
+pub mod secret_table;
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpointField {
-    pub public_address: String,
-    pub public_port: u16,
-    pub internal_address: String,
-    pub internal_port: u16,
-}
+pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize host-table
+    match secret_table::init_secret_table() {
+        Ok(_) => log::info!("Initilaized secret-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize secret-database-table: {e}");
+            return Err(e);
+        }
+    };
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpontsResp {
-    pub hanami: EndpointField,
-    pub bento: EndpointField,
-    pub torii: EndpointField,
-    pub omamori: EndpointField,
+    Ok(())
 }

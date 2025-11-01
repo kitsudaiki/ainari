@@ -12,22 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::ApiComponent;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpointField {
-    pub public_address: String,
-    pub public_port: u16,
-    pub internal_address: String,
-    pub internal_port: u16,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpontsResp {
-    pub hanami: EndpointField,
-    pub bento: EndpointField,
-    pub torii: EndpointField,
-    pub omamori: EndpointField,
-}
+pub mod create_secret_v1_0;
+pub mod delete_secret_v1_0;
+pub mod get_secret_v1_0;
+pub mod get_secret_payload_v1_0;
+pub mod list_secret_v1_0;

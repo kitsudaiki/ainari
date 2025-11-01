@@ -73,6 +73,12 @@ pub async fn get_endpoints(
                             internal_address: deserialized.torii.internal_address,
                             internal_port: deserialized.torii.internal_port,
                         },
+                        omamori: ainari_config::Endpoint {
+                            public_address: deserialized.omamori.public_address,
+                            public_port: deserialized.omamori.public_port,
+                            internal_address: deserialized.omamori.internal_address,
+                            internal_port: deserialized.omamori.internal_port,
+                        },
                     };
 
                     Ok(endpoints)

@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::ApiComponent;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use std::sync::{Arc, Mutex};
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpointField {
-    pub public_address: String,
-    pub public_port: u16,
-    pub internal_address: String,
-    pub internal_port: u16,
+use crate::config;
+
+lazy_static::lazy_static! {
+    pub static ref DB_CONN: Arc<Mutex<SqliteConnection>> = Arc::new(Mutex::new(establish_connection()));
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpontsResp {
-    pub hanami: EndpointField,
-    pub bento: EndpointField,
-    pub torii: EndpointField,
-    pub omamori: EndpointField,
+pub fn establish_connection() -> SqliteConnection {
+    let file_path = config::CONFIG.database.file_path.clone();
+    //let database_url = ":memory:".to_string();
+    SqliteConnection::establish(&file_path).expect("Error connecting to database")
 }

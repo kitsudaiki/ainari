@@ -32,3 +32,9 @@ public_address = "http://127.0.0.1"
 public_port = 11419
 internal_address = "http://127.0.0.1"
 internal_port = 10419
+
+[endpoints.omamori]
+public_address = "http://127.0.0.1"
+public_port = 11421
+internal_address = "http://127.0.0.1"
+internal_port = 10421

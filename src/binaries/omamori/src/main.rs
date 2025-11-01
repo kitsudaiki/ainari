@@ -12,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::ApiComponent;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+#![forbid(unsafe_code)]
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpointField {
-    pub public_address: String,
-    pub public_port: u16,
-    pub internal_address: String,
-    pub internal_port: u16,
-}
+mod api;
+mod config;
+mod core;
+mod database;
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct EndpontsResp {
-    pub hanami: EndpointField,
-    pub bento: EndpointField,
-    pub torii: EndpointField,
-    pub omamori: EndpointField,
+use log::LevelFilter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    let enable_debug_log = config::CONFIG.debug;
+    if !enable_debug_log {
+        log::set_max_level(LevelFilter::Info);
+    }
+
+    database::init_database()?;
+
+    api::http_server::run_server()?;
+
+    Ok(())
 }

@@ -51,6 +51,12 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
             internal_address: enpoint_config.torii.internal_address.clone(),
             internal_port: enpoint_config.torii.internal_port,
         },
+        omamori: EndpointField {
+            public_address: enpoint_config.omamori.public_address.clone(),
+            public_port: enpoint_config.omamori.public_port,
+            internal_address: enpoint_config.omamori.internal_address.clone(),
+            internal_port: enpoint_config.omamori.internal_port,
+        },
     };
 
     return Ok(Json(response));
