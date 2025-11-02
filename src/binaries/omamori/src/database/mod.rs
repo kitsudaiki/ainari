@@ -14,6 +14,7 @@
 
 pub mod db_handle;
 pub mod secret_table;
+pub mod simple_crypto_table;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize host-table
@@ -21,6 +22,15 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initilaized secret-database-table"),
         Err(e) => {
             log::error!("Failed to initialize secret-database-table: {e}");
+            return Err(e);
+        }
+    };
+
+    // Initialize host-table
+    match simple_crypto_table::init_simple_crypto_table() {
+        Ok(_) => log::info!("Initilaized simple-crypto-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize simple-crypto-database-table: {e}");
             return Err(e);
         }
     };

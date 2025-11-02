@@ -17,11 +17,14 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::core::crypto_trait::CryptoModule;
+use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "secret",
@@ -38,15 +41,30 @@ pub async fn delete_secret(
 ) -> Result<NoContent, ErrorResponse> {
     // delete secret from database
     match secret_table::delete_secret(&secret_uuid, &context) {
-        Ok(_) => {
-            return Ok(NoContent);
-        }
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Secret with ID '{secret_uuid}' not found.");
+            let msg = format!("Secret with UUID '{secret_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    let simple_crypto = SimpleCrypto::new();
+    match simple_crypto.delete(&secret_uuid) {
+        Ok(_) => {
+            return Ok(NoContent);
+        }
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 }

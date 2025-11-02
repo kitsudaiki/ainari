@@ -8,6 +8,7 @@
 
 #### API-Breaking
 
+- split "hanami" into a new "hanami", "sakura" and "torii"
 - added new component named "Miko", where the endpoints for tokens, users and projects moved to.
 - Sakura now uses the Miko to check provided token over a new client-connection
 - improved version-output 
@@ -20,6 +21,9 @@
 
 - new component "Miko" for authentication
 - new componentn "Bento" for storage
+- new component "Sakura", which contains the core of the previous "Hanami"
+- new component "Torii" as proxy to the sakura-hosts
+- new component "Omamori" with a very simple AES-crypto backend to store and download secrets
 - use shared storage in kubernetes-setup to share files between Bento and Sakura
 - the new Miko-component provides the addresses of all components
 
@@ -27,6 +31,10 @@
 
 - use context-object, which includes token, public-addresses and insecure-flag in one object, to make the sdk-functions smaller and cleaner
 - keys are internally handled as new object, to prevent them from being printed on the console by accident
+- Dockerfiles:
+    - split into multiple-files, where each build only its own binary and not all, to reduce the build-time in the CI
+    - base-images are pinned by a hash now
+    - switch from ubuntu to debian-slim as base image to reduce the size
 
 ### Fixed
 

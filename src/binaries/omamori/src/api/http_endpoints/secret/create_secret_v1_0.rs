@@ -18,7 +18,6 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::config;
 use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
@@ -52,10 +51,9 @@ pub async fn create_secret(
     let secret_uuid = Uuid::new_v4();
 
     // encrypt the secret with the simple-crypto-module
-    let key_b64 = &config::CONFIG.simple_crypto.key_b64;
     let simple_crypto = SimpleCrypto::new();
-    let encrypted_secret = match simple_crypto.encrypt(&body.secret_payload, key_b64) {
-        Ok(encrypted_secret) => encrypted_secret,
+    match simple_crypto.store(&secret_uuid, &body.secret_payload) {
+        Ok(()) => {}
         Err(AinariError::Unauthorized(msg)) => {
             return Err(ErrorResponse::Unauthorized(msg));
         }
@@ -69,10 +67,10 @@ pub async fn create_secret(
     };
 
     // add new secret to datbase
-    match secret_table::add_new_secret(&secret_uuid, &body.name, &encrypted_secret, &context) {
+    match secret_table::add_new_secret(&secret_uuid, &body.name, &context) {
         Ok(_) => {}
         Err(e) => {
-            log::error!("Failed to add secret with ID '{secret_uuid}' to database.: {e}");
+            log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -93,7 +91,7 @@ pub async fn create_secret(
         }
         Err(_) => {
             log::error!(
-                "Failed to get secret with ID '{secret_uuid}' from database, even the secret should exist"
+                "Failed to get secret with UUID '{secret_uuid}' from database, even the secret should exist"
             );
             return Err(ErrorResponse::InternalError("".to_string()));
         }

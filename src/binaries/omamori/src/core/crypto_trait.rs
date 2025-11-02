@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use uuid::Uuid;
+
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
 pub trait CryptoModule {
-    fn encrypt(&self, plaintext: &Secret, key_b64: &Secret) -> Result<String, AinariError>;
-    fn decrypt(&self, encrypted_secret_b64: &str, key_b64: &Secret) -> Result<Secret, AinariError>;
+    fn store(&self, secret_uuid: &Uuid, plaintext: &Secret) -> Result<(), AinariError>;
+    fn retrieve(&self, secret_uuid: &Uuid) -> Result<Secret, AinariError>;
+    fn delete(&self, secret_uuid: &Uuid) -> Result<(), AinariError>;
     #[allow(dead_code)]
     fn get_name(&self) -> String;
 }

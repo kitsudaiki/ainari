@@ -17,9 +17,14 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use rand::RngCore; // needed to use .encode() and .decode()
+use uuid::Uuid;
+
+use crate::config;
+use crate::database::simple_crypto_table;
 
 use super::crypto_trait::*;
 
+use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
@@ -37,32 +42,6 @@ impl SimpleCrypto {
             name: "simple_crypto".to_owned(),
         }
     }
-}
-
-fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
-    // decode base64 key
-    let key_bytes = match STANDARD.decode(key_b64.reveal().as_bytes()) {
-        Ok(key_bytes) => key_bytes,
-        Err(_) => {
-            // HINT (kitsudaiki): do NOT use the error-message of the decode-function to avoid the risk
-            // of printing information of the key in the log-output
-            let msg = "Provided key is not a valid base64-encoded string.".to_string();
-            return Err(AinariError::InvalidInput(msg));
-        }
-    };
-    if key_bytes.len() != KEY_SIZE {
-        let msg = format!(
-            "Invalid key length: expected {}, got {}",
-            KEY_SIZE,
-            key_bytes.len()
-        );
-        return Err(AinariError::InvalidInput(msg));
-    }
-
-    Ok(key_bytes)
-}
-
-impl CryptoModule for SimpleCrypto {
     fn encrypt(&self, plaintext: &Secret, key_b64: &Secret) -> Result<String, AinariError> {
         let key_bytes = decode_base64_key(key_b64)?;
 
@@ -129,6 +108,77 @@ impl CryptoModule for SimpleCrypto {
             }
         };
         Ok(Secret::from(plaintext))
+    }
+}
+
+fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
+    // decode base64 key
+    let key_bytes = match STANDARD.decode(key_b64.reveal().as_bytes()) {
+        Ok(key_bytes) => key_bytes,
+        Err(_) => {
+            // HINT (kitsudaiki): do NOT use the error-message of the decode-function to avoid the risk
+            // of printing information of the key in the log-output
+            let msg = "Provided key is not a valid base64-encoded string.".to_string();
+            return Err(AinariError::InvalidInput(msg));
+        }
+    };
+    if key_bytes.len() != KEY_SIZE {
+        let msg = format!(
+            "Invalid key length: expected {}, got {}",
+            KEY_SIZE,
+            key_bytes.len()
+        );
+        return Err(AinariError::InvalidInput(msg));
+    }
+
+    Ok(key_bytes)
+}
+
+impl CryptoModule for SimpleCrypto {
+    fn store(&self, secret_uuid: &Uuid, plaintext: &Secret) -> Result<(), AinariError> {
+        let key_b64 = &config::CONFIG.simple_crypto.key_b64;
+        let encrypted_secret = self.encrypt(plaintext, key_b64)?;
+
+        // add new secret to datbase
+        match simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret) {
+            Ok(_) => {}
+            Err(_) => {
+                let msg = format!(
+                    "Failed to add simple-crypto-secret with UUID '{secret_uuid}' to database."
+                );
+                return Err(AinariError::Error(msg));
+            }
+        };
+
+        Ok(())
+    }
+
+    fn retrieve(&self, secret_uuid: &Uuid) -> Result<Secret, AinariError> {
+        let secret_data = match simple_crypto_table::get_secret(secret_uuid) {
+            Ok(secret_data) => secret_data,
+            Err(enums::DbError::InternalError) => {
+                return Err(AinariError::Error("".to_string()));
+            }
+            Err(enums::DbError::NotFound) => {
+                let msg = format!("Secret with UUID '{secret_uuid}' not found.");
+                return Err(AinariError::InvalidInput(msg));
+            }
+        };
+
+        let key_b64 = &config::CONFIG.simple_crypto.key_b64;
+        self.decrypt(&secret_data.encrypted_secret, key_b64)
+    }
+
+    fn delete(&self, secret_uuid: &Uuid) -> Result<(), AinariError> {
+        // delete secret from database
+        match simple_crypto_table::delete_secret(secret_uuid) {
+            Ok(_) => Ok(()),
+            Err(enums::DbError::InternalError) => Err(AinariError::Error("".to_string())),
+            Err(enums::DbError::NotFound) => {
+                let msg = format!("Secret with UUID '{secret_uuid}' not found.");
+                Err(AinariError::InvalidInput(msg))
+            }
+        }
     }
 
     fn get_name(&self) -> String {
