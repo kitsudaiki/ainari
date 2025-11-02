@@ -23,7 +23,6 @@ validator = { version = "0.20", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
-serde-big-array = "0.5"
 # config-file
 toml = "0.9"
 # singleton (like used for the config-variable)
@@ -40,11 +39,6 @@ chrono = "0.4.40"
 futures = "0.3"
 bytes = "1"
 uuid = { version = "1.18.0", features = ["serde", "fast-rng", "v4"] }
-sanitize-filename = "0.6"
-byteorder = "1.5"
-bincode = { version = "2.0", features = ["serde"] }
-bytemuck = "1.23"
-static_assertions = "1.1.0"
 
 [dev-dependencies]
 serial_test = "3"

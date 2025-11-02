@@ -16,13 +16,13 @@ For the installation on a kubernetes `helm` is used.
 | [![kubernetes-1_33][img_kubernetes-1_33]][Workflow] |
 
 [img_kubernetes-1_30]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
 [img_kubernetes-1_31]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
 [img_kubernetes-1_32]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
 [img_kubernetes-1_33]:
-    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/Ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
 [Workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
 
 ### Requirements
@@ -135,9 +135,12 @@ For the installation on a kubernetes `helm` is used.
     To all avaialbe nodes, where it is allowed to be deployed:
 
     ```
-    kubectl label nodes NODE_NAME sakura-node=true
+    kubectl label nodes NODE_NAME hanami-node=true
     kubectl label nodes NODE_NAME miko-node=true
     kubectl label nodes NODE_NAME bento-node=true
+    kubectl label nodes NODE_NAME sakura-node=true
+    kubectl label nodes NODE_NAME torii-node=true
+    kubectl label nodes NODE_NAME omamori-node=true
     ```
 
     !!! info
@@ -162,7 +165,7 @@ For the installation on a kubernetes `helm` is used.
 ```bash
 git clone https://github.com/kitsudaiki/ainari.git
 
-cd Ainari/deploy/k8s
+cd ainari/deploy/k8s
 
 helm install \
     --set docker.tag=DOCKER_IMAGE_TAG \

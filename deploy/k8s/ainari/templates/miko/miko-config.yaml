@@ -38,4 +38,10 @@ data:
     internal_address = "https://torii-tls-service.default.svc.cluster.local"
     internal_port = 8443
 
+    [endpoints.omamori]
+    public_address = "https://local-omamori"
+    public_port = 443
+    internal_address = "https://omamori-tls-service.default.svc.cluster.local"
+    internal_port = 8443
+
 kind: ConfigMap

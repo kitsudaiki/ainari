@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omamori-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: omamori-sc
+  resources:
+    requests:
+      storage: 100Mi
