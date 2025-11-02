@@ -6,7 +6,7 @@ data:
     debug = true
     log_path = ""
     insecure_clients = true
-    address = "https://sakura-tls-service.default.svc.cluster.local"
+    address = "https://sakura-tls-service.default.svc.cluster.local:8443"
 
     [processing]
     max_number_of_threads = {{ .Values.processing.max_number_of_threads }}
@@ -15,7 +15,7 @@ data:
     public_ip = "127.0.0.1"
     public_port = 11420
     internal_ip = "127.0.0.1"
-    internal_port = 11420
+    internal_port = 10420
     internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
@@ -24,5 +24,8 @@ data:
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local"
     port = 8443
+
+    [hanami]
+    registation_key = "{{ .Values.hanami.registation_key }}"
 
 kind: ConfigMap

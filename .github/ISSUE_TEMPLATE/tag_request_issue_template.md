@@ -11,5 +11,6 @@ assignees: kitsudaiki
 
 - [ ] Update Changelog
 - [ ] Test with SDK-API-Tester
+- [ ] Version in helm-chart increased
 - [ ] Create Docker-Images
 - [ ] Create Release-Tag

@@ -1,24 +1,27 @@
 apiVersion: v1
 metadata:
-  name: torii-config
+  name: omamori-config
 data:
-  torii.toml: |+
+  omamori.toml: |+
     debug = true
     log_path = ""
     insecure_clients = true
 
     [api]
-    public_ip = "0.0.0.0"
-    public_port = 11419
-    internal_ip = "0.0.0.0"
-    internal_port = 10419
+    public_ip = "127.0.0.1"
+    public_port = 11421
+    internal_ip = "127.0.0.1"
+    internal_port = 10421
     internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
-    file_path = "/etc/ainari/torii/torii_db"
+    file_path = "/etc/ainari/omamori/omamori_db"
     
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local"
     port = 8443
+
+    [simple_crypto]
+    key_b64 = "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE="
 
 kind: ConfigMap

@@ -187,14 +187,9 @@ generate-docs:
                      mkdocs-material \
                      mkdocs-swagger-ui-tag \
                      mkdocs-drawio-exporter && \
-        curl -s https://api.github.com/repos/jgraph/drawio-desktop/releases/latest | grep browser_download_url | grep "amd64"  | grep "deb" | cut -d "\"" -f 4 | wget -i - && \
+        wget https://github.com/jgraph/drawio-desktop/releases/download/v28.2.5/drawio-amd64-28.2.5.deb && \
         apt -f -y install ./drawio-amd64-*.deb
 
-    RUN chmod +x /tmp/sakura
-    RUN . ainari_env/bin/activate && \
-        hap run /tmp/sakura && \
-        sleep 5 && \
-        curl 127.0.0.1:11420/openapi.json > ./open_api_docu_sakura.json
     RUN chmod +x /tmp/miko
     RUN . ainari_env/bin/activate && \
         hap run /tmp/miko && \
@@ -215,18 +210,23 @@ generate-docs:
         hap run /tmp/torii && \
         sleep 5 && \
         curl 127.0.0.1:11419/openapi.json > ./open_api_docu_torii.json
-    RUN chmod +x /tmp/torii
+    RUN chmod +x /tmp/omamori
     RUN . ainari_env/bin/activate && \
-        hap run /tmp/torii && \
+        hap run /tmp/omamori && \
         sleep 5 && \
         curl 127.0.0.1:11421/openapi.json > ./open_api_docu_omamori.json
+    # RUN chmod +x /tmp/sakura
+    # RUN . ainari_env/bin/activate && \
+    #     hap run /tmp/sakura && \
+    #     sleep 5 && \
+    #     curl 127.0.0.1:11420/openapi.json > ./open_api_docu_sakura.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
-    RUN cp ./open_api_docu_sakura.json docs/frontend/
+    # RUN cp ./open_api_docu_sakura.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
     RUN cp ./open_api_docu_bento.json docs/frontend/
     RUN cp ./open_api_docu_hanami.json docs/frontend/
