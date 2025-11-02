@@ -17,7 +17,6 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::config;
 use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
@@ -41,7 +40,7 @@ pub async fn get_secret_with_payload(
     secret_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<SecretWithPayloadResp>, ErrorResponse> {
-    let secret_data = match secret_table::get_secret(&secret_uuid, &context) {
+    let _ = match secret_table::get_secret(&secret_uuid, &context) {
         Ok(secret_data) => secret_data,
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
@@ -53,9 +52,8 @@ pub async fn get_secret_with_payload(
     };
 
     // decrypt the secret with the simple-crypto-module
-    let key_b64 = &config::CONFIG.simple_crypto.key_b64;
     let simple_crypto = SimpleCrypto::new();
-    let plaintext = match simple_crypto.decrypt(&secret_data.encrypted_secret, key_b64) {
+    let plaintext = match simple_crypto.retrieve(&secret_uuid) {
         Ok(plaintext) => plaintext,
         Err(AinariError::Unauthorized(msg)) => {
             return Err(ErrorResponse::Unauthorized(msg));
