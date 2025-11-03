@@ -15,4 +15,5 @@
 pub mod auth;
 pub mod endpoints;
 pub mod project;
+pub mod quota;
 pub mod user;

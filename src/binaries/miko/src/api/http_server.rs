@@ -31,6 +31,7 @@ use ainari_common::config as ainari_config;
 use crate::api::http_endpoints::auth::*;
 use crate::api::http_endpoints::endpoints::*;
 use crate::api::http_endpoints::project::*;
+use crate::api::http_endpoints::quota::*;
 use crate::api::http_endpoints::user::*;
 use crate::api::miko_auth_middleware::authorization_middleware;
 use crate::config;
@@ -76,6 +77,15 @@ fn v1alpha_routes() -> Scope {
                     resource("/{user_id}")
                         .route(get().to(get_user_v1_0::get_user))
                         .route(delete().to(delete_user_v1_0::delete_user)),
+                ),
+        )
+        .service(
+            scope("/quota")
+                .service(resource("").route(get().to(list_quota_v1_0::list_quota)))
+                .service(
+                    resource("/{user_id}")
+                        .route(get().to(get_quota_v1_0::get_quota))
+                        .route(put().to(set_quota_v1_0::set_quota)),
                 ),
         )
 }
