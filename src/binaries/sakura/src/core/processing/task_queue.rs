@@ -35,6 +35,10 @@ impl TaskQueue {
     pub fn get(&mut self) -> Option<Arc<Mutex<Task>>> {
         self.queue.pop_front()
     }
+
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
 }
 
 pub fn init_task_queue() -> TaskQueue {
@@ -85,6 +89,9 @@ mod tests {
 
         queue.add(task1);
         queue.add(task2);
+
+        let queue_len = queue.len();
+        assert_eq!(queue_len, 2);
 
         let task1 = queue.get().unwrap();
         assert_eq!(task1.lock().expect("mutex poisoned").uuid, uuid1);
