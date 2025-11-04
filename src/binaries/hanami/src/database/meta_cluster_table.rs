@@ -14,6 +14,7 @@
 
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::dsl::count_star;
 use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
@@ -161,6 +162,22 @@ pub fn list_meta_clusters(context: &UserContext) -> QueryResult<Vec<MetaClusterE
     }
 
     query.select(MetaClusterEntry::as_select()).load(&mut *conn)
+}
+
+pub fn count_meta_clusters(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_clusters::dsl::*;
+
+    let mut query = meta_clusters.filter(status.eq("ACTIVE")).into_boxed();
+
+    if !context.is_admin {
+        query = query.filter(project_id.eq(context.project_id.clone()));
+        if !context.is_project_admin {
+            query = query.filter(owner_id.eq(context.user_id.clone()));
+        }
+    }
+
+    query.select(count_star()).first::<i64>(&mut *conn)
 }
 
 pub fn delete_meta_cluster(
@@ -380,6 +397,87 @@ mod tests {
         let _ = delete_meta_cluster(&uuid1, &context);
         let result = get_meta_cluster(&uuid1, &context);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_count_meta_clusters() {
+        let _ = init_meta_cluster_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let sakura_host_uuid1 = Uuid::new_v4();
+        let proxy_uuid1 = Uuid::new_v4();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let meta_cluster1 = MetaClusterEntry {
+            uuid: uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let meta_cluster2 = MetaClusterEntry {
+            uuid: uuid2.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let meta_cluster3 = MetaClusterEntry {
+            uuid: uuid3.to_string(),
+            sakura_host_uuid: sakura_host_uuid1.to_string(),
+            proxy_uuid: proxy_uuid1.to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
+        hard_delete_meta_cluster(&uuid3);
+
+        add_meta_cluster(&meta_cluster1).unwrap();
+        add_meta_cluster(&meta_cluster2).unwrap();
+        add_meta_cluster(&meta_cluster3).unwrap();
+
+        let number = count_meta_clusters(&context).unwrap();
+        assert_eq!(number, 3);
+
+        hard_delete_meta_cluster(&uuid1);
+        hard_delete_meta_cluster(&uuid2);
+        hard_delete_meta_cluster(&uuid3);
     }
 
     #[test]

@@ -24,7 +24,9 @@ use crate::database::dataset_table;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::quota::get_quota;
 use ainari_common::enums;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "dataset",
@@ -47,6 +49,8 @@ pub async fn init_dataset(
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
+
+    check_quota(&context).await?;
 
     let name = &body.name;
     let dataset_uuid = &body.uuid.clone();
@@ -90,4 +94,48 @@ pub async fn init_dataset(
             return Err(ErrorResponse::NotFound(msg));
         }
     };
+}
+
+async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
+    // get number of datasets of the user
+    let current_number_of_datasets = match dataset_table::count_datasets(context) {
+        Ok(number) => number,
+        Err(e) => {
+            log::error!("Failed to count datasets in database.: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check the maximum number of datasets defined in miko
+    let miko_endpoint = &config::CONFIG.miko;
+    let max_number_of_datasets = match get_quota(
+        miko_endpoint,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &context.user_id,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body.max_dataset as i64,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check if quota is already exceeded
+    if current_number_of_datasets as i64 >= max_number_of_datasets {
+        return Err(ErrorResponse::Conflict(
+            "Maximum number of datasets exceeded.".to_string(),
+        ));
+    }
+
+    Ok(())
 }

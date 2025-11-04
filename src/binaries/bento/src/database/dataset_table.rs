@@ -14,6 +14,7 @@
 
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
+use diesel::dsl::count_star;
 use diesel::prelude::*;
 use std::error::Error;
 use uuid::Uuid;
@@ -158,6 +159,22 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
     }
 
     query.select(DatasetEntry::as_select()).load(&mut *conn)
+}
+
+pub fn count_datasets(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::datasets::dsl::*;
+
+    let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
+
+    if !context.is_admin {
+        query = query.filter(project_id.eq(context.project_id.clone()));
+        if !context.is_project_admin {
+            query = query.filter(owner_id.eq(context.user_id.clone()));
+        }
+    }
+
+    query.select(count_star()).first::<i64>(&mut *conn)
 }
 
 pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
@@ -338,6 +355,86 @@ mod tests {
         let _ = delete_dataset(&uuid1, &context);
         let result = get_dataset(&uuid1, &context);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_count_datasets() {
+        let _ = init_dataset_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let name = "test-dataset".to_string();
+
+        let project_id = "test-project".to_string();
+        let owner_id = "test-user".to_string();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            is_admin: false,
+            is_project_admin: false,
+        };
+
+        let dataset1 = DatasetEntry {
+            uuid: uuid1.to_string(),
+            name: name.clone(),
+            file_path: "/tmp/bla".to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let dataset2 = DatasetEntry {
+            uuid: uuid2.to_string(),
+            name: name.clone(),
+            file_path: "/tmp/bla".to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let dataset3 = DatasetEntry {
+            uuid: uuid3.to_string(),
+            name: name.clone(),
+            file_path: "/tmp/bla".to_string(),
+            owner_id: owner_id.clone(),
+            project_id: project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid2);
+        hard_delete_dataset(&uuid3);
+
+        add_dataset(&dataset1).unwrap();
+        add_dataset(&dataset2).unwrap();
+        add_dataset(&dataset3).unwrap();
+
+        let number = count_datasets(&context).unwrap();
+        assert_eq!(number, 3);
+
+        hard_delete_dataset(&uuid1);
+        hard_delete_dataset(&uuid2);
+        hard_delete_dataset(&uuid3);
     }
 
     #[test]

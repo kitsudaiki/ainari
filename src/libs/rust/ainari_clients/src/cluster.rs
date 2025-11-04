@@ -47,9 +47,7 @@ pub async fn create_cluster(
         .send_body(json_str)
         .await;
 
-    let dummy_uuid = Uuid::nil();
-    let resp: Result<ClusterResp, AinariError> =
-        handle_response(response, &dummy_uuid, "cluster").await;
+    let resp: Result<ClusterResp, AinariError> = handle_response(response, "", "cluster").await;
     resp
 }
 
@@ -72,7 +70,7 @@ pub async fn get_cluster(
         .await;
 
     let resp: Result<ClusterResp, AinariError> =
-        handle_response(response, cluster_uuid, "cluster").await;
+        handle_response(response, &cluster_uuid.to_string(), "cluster").await;
     resp
 }
 
@@ -93,9 +91,7 @@ pub async fn list_cluster(
         .send()
         .await;
 
-    let dummy_uuid = Uuid::nil();
-    let resp: Result<ClusterListResp, AinariError> =
-        handle_response(response, &dummy_uuid, "cluster").await;
+    let resp: Result<ClusterListResp, AinariError> = handle_response(response, "", "cluster").await;
     resp
 }
 

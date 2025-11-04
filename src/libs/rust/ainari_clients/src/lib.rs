@@ -19,6 +19,7 @@ pub mod dataset;
 pub mod endpoints;
 pub mod host;
 pub mod proxy;
+pub mod quota;
 
 use awc::http::StatusCode;
 use awc::{Client, Connector};
@@ -52,7 +53,7 @@ pub async fn handle_response<T>(
         awc::ClientResponse<actix_web::dev::Decompress<actix_web::dev::Payload>>,
         awc::error::SendRequestError,
     >,
-    uuid: &Uuid,
+    uuid: &str,
     obj: &str,
 ) -> Result<T, AinariError>
 where
