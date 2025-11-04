@@ -16,6 +16,7 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
+use crate::database::quota_table;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
@@ -47,7 +48,19 @@ pub async fn delete_user(
         ));
     }
 
-    // get new created user from database to get addtional information
+    // delete quota of user from database
+    match quota_table::delete_quota(&user_id, &context) {
+        Ok(_) => {}
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("Quota of user with ID '{user_id}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    // delete user from database
     match user_table::delete_user(&user_id, &context) {
         Ok(_) => {
             return Ok(NoContent);

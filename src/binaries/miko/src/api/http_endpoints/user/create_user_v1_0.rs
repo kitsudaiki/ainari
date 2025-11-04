@@ -17,6 +17,7 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::database::quota_table;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
@@ -68,10 +69,21 @@ pub async fn create_user(
         }
     };
 
+    // add new quota for the user to datbase
+    match quota_table::add_new_quota(id, 10, 10, 10, 10, 10, &context) {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Failed to add quota for user with ID '{id}' to database.: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
     // add new user to datbase
     match user_table::add_new_user(id, &body.name, &body.passphrase, body.is_admin, &context) {
         Ok(_) => {}
         Err(e) => {
+            // delete quota again, if adding of the user failed, to avoid inconsistent database
+            quota_table::hard_delete_quota(id, &context);
             log::error!("Failed to add user with ID '{id}' to database.: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }

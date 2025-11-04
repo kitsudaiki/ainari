@@ -9,6 +9,7 @@ ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
 ainari_common = { path = "../../libs/rust/ainari_common" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
+ainari_clients = { path = "../../libs/rust/ainari_clients" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"

@@ -45,6 +45,16 @@ $EXECUTABLE user delete cli_test_user
 
 # ########################
 echo ""
+echo "########################### quota tests ##########################"
+echo ""
+$EXECUTABLE user create -n "cli test user" -p "asdfasdf" cli_test_user
+$EXECUTABLE quota get cli_test_user
+$EXECUTABLE quota list
+$EXECUTABLE quota set --max_checkpoint 5 --max_cluster 6 --max_dataset 7 --max_secret 9 cli_test_user
+$EXECUTABLE user delete cli_test_user
+
+# ########################
+echo ""
 echo "########################### dataset tests ##########################"
 echo ""
 DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_dataset | jq -r '.uuid')

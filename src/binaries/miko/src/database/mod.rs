@@ -14,6 +14,7 @@
 
 pub mod db_handle;
 pub mod project_table;
+pub mod quota_table;
 pub mod user_table;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,11 +26,21 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e);
         }
     };
+
     // Initialize project-table
     match project_table::init_project_table() {
         Ok(_) => log::info!("Initilaized project-database-table"),
         Err(e) => {
             log::error!("Failed to initialize project-database-table: {e}");
+            return Err(e);
+        }
+    };
+
+    // Initialize quota-table
+    match quota_table::init_quota_table() {
+        Ok(_) => log::info!("Initilaized quota-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize quota-database-table: {e}");
             return Err(e);
         }
     };

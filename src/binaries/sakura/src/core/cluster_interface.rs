@@ -121,6 +121,11 @@ impl ClusterInterface {
         queue_handle.add(task);
     }
 
+    pub fn get_number_open_tasks(&mut self) -> usize {
+        let queue_handle = self.queue.lock().expect("mutex poisoned");
+        queue_handle.len()
+    }
+
     pub fn request(
         &mut self,
         inputs: &HashMap<String, Vec<f32>>,

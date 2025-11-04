@@ -21,6 +21,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
+use super::check_quota;
 use crate::config as ainari_config;
 use crate::core::cluster_handler;
 use crate::core::cluster_handler::*;
@@ -58,6 +59,8 @@ pub async fn create_request_task(
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
+
+    check_quota(&cluster_uuid, &context).await?;
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::Request;

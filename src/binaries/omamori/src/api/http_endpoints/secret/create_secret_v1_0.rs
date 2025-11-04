@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
 use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
@@ -25,6 +26,7 @@ use crate::database::secret_table;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::quota::get_quota;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -47,6 +49,8 @@ pub async fn create_secret(
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
+
+    check_quota(&context).await?;
 
     let secret_uuid = Uuid::new_v4();
 
@@ -96,4 +100,48 @@ pub async fn create_secret(
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
+}
+
+async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
+    // get number of secrets of the user
+    let current_number_of_secrets = match secret_table::count_secrets(context) {
+        Ok(number) => number,
+        Err(e) => {
+            log::error!("Failed to count secrets in database.: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check the maximum number of secrets defined in miko
+    let miko_endpoint = &config::CONFIG.miko;
+    let max_number_of_secrets = match get_quota(
+        miko_endpoint,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &context.user_id,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body.max_secret as i64,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check if quota is already exceeded
+    if current_number_of_secrets as i64 >= max_number_of_secrets {
+        return Err(ErrorResponse::Conflict(
+            "Maximum number of secrets exceeded.".to_string(),
+        ));
+    }
+
+    Ok(())
 }

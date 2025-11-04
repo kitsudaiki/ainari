@@ -52,9 +52,7 @@ pub async fn create_proxy(
         .send_body(json_str)
         .await;
 
-    let dummy_uuid = Uuid::nil();
-    let resp: Result<ProxyResp, AinariError> =
-        handle_response(response, &dummy_uuid, "proxy").await;
+    let resp: Result<ProxyResp, AinariError> = handle_response(response, "", "proxy").await;
     resp
 }
 
@@ -76,7 +74,8 @@ pub async fn get_proxy(
         .send()
         .await;
 
-    let resp: Result<ProxyResp, AinariError> = handle_response(response, proxy_uuid, "proxy").await;
+    let resp: Result<ProxyResp, AinariError> =
+        handle_response(response, &proxy_uuid.to_string(), "proxy").await;
     resp
 }
 
@@ -97,9 +96,7 @@ pub async fn list_proxy(
         .send()
         .await;
 
-    let dummy_uuid = Uuid::nil();
-    let resp: Result<ProxyResp, AinariError> =
-        handle_response(response, &dummy_uuid, "proxy").await;
+    let resp: Result<ProxyResp, AinariError> = handle_response(response, "", "proxy").await;
     resp
 }
 

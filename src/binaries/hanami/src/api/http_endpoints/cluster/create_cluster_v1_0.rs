@@ -28,6 +28,7 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::cluster as cluster_clients;
 use ainari_clients::endpoints::*;
 use ainari_clients::proxy as proxy_clients;
+use ainari_clients::quota::get_quota;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -50,6 +51,8 @@ pub async fn create_cluster(
             return Err(ErrorResponse::BadRequest(msg));
         }
     };
+
+    check_quota(&context).await?;
 
     // list all avaialble hosts
     let hosts = match host_table::list_hosts(&context) {
@@ -169,4 +172,48 @@ pub async fn create_cluster(
     };
 
     return Ok(CreatedJson(cluster_resp));
+}
+
+async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
+    // get number of meta_clusters of the user
+    let current_number_of_meta_clusters = match meta_cluster_table::count_meta_clusters(context) {
+        Ok(number) => number,
+        Err(e) => {
+            log::error!("Failed to count meta_clusters in database.: {e}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check the maximum number of meta_clusters defined in miko
+    let miko_endpoint = &config::CONFIG.miko;
+    let max_number_of_meta_clusters = match get_quota(
+        miko_endpoint,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        &context.user_id,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    {
+        Ok(body) => body.max_cluster as i64,
+        Err(AinariError::Unauthorized(msg)) => {
+            return Err(ErrorResponse::Unauthorized(msg));
+        }
+        Err(AinariError::InvalidInput(msg)) => {
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        Err(AinariError::Error(msg)) => {
+            log::error!("{msg}");
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
+
+    // check if quota is already exceeded
+    if current_number_of_meta_clusters as i64 >= max_number_of_meta_clusters {
+        return Err(ErrorResponse::Conflict(
+            "Maximum number of meta_clusters exceeded.".to_string(),
+        ));
+    }
+
+    Ok(())
 }
