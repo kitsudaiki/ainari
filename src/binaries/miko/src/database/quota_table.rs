@@ -16,6 +16,7 @@ use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
+use std::env;
 use std::error::Error;
 
 use crate::database::db_handle;
@@ -81,6 +82,35 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
     )?;
     // release lock on the connection to avoid dead-lock
     drop(conn);
+
+    init_admin_quota()
+}
+
+pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
+    let fake_admin_context = UserContext {
+        token: "".to_string(),
+        user_id: "AINARI_INIT".to_string(),
+        project_id: "AINARI_INIT".to_string(),
+        is_admin: true,
+        is_project_admin: false,
+    };
+
+    let quotas = list_quotas(&fake_admin_context).unwrap();
+    if !quotas.is_empty() {
+        log::debug!("Already existing user found, so no new admin will be created.");
+        return Ok(());
+    }
+    log::info!("No user found in user-table -> Create a new initial admin.");
+
+    let admin_id: String = match env::var("AINARI_ADMIN_ID") {
+        Ok(val) => val,
+        Err(_) => {
+            log::error!("couldn't find env-variable: AINARI_ADMIN_ID");
+            return Err("An error occurred while initializing new admin-user".into());
+        }
+    };
+
+    add_new_quota(&admin_id, 10, 10, 10, 10, 10, &fake_admin_context)?;
 
     Ok(())
 }

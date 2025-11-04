@@ -45,6 +45,7 @@ func init() {
 	ainari_resources.Init_Proxy_Commands(rootCmd)
 	ainari_resources.Init_Host_Commands(rootCmd)
 	ainari_resources.Init_Secret_Commands(rootCmd)
+	ainari_resources.Init_Quota_Commands(rootCmd)
 }
 
 func main() {

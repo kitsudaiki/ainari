@@ -24,6 +24,7 @@ from ainari_sdk import project
 from ainari_sdk import task
 from ainari_sdk import secret
 from ainari_sdk import user
+from ainari_sdk import quota
 from ainari_sdk import common
 from ainari_sdk import ainari_exceptions
 import test_values
@@ -86,6 +87,7 @@ request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 secret_name = "test_secret"
 secret_payload = "this is a dummy secret-payload for testing"
+
 
 def progress_bar(epoch, total_epochs, cycle, total_cycles, prefix_epoch='', suffix_epoch='', prefix_cycle='', suffix_cycle='', length=50, fill='█'):
     percent1 = "{0:.1f}".format(100 * (epoch / float(total_epochs)))
@@ -213,6 +215,36 @@ def test_secret():
         secret.delete_secret(context, secret_uuid)
     except ainari_exceptions.NotFoundException:
         pass
+
+
+def test_quota():
+    print("test quota")
+
+    user.create_user(context, user_id, user_name, passphrase, is_admin)
+
+    quota.list_quotas(context)
+    user_quota = quota.get_quota(context, user_id)
+    assert user_quota["max_cluster"] == 10
+    assert user_quota["max_dataset"] == 10
+    assert user_quota["max_checkpoint"] == 10
+    assert user_quota["max_secret"] == 10
+    assert user_quota["max_taskqueue"] == 10
+
+    try:
+        quota.get_quota(context, "fail-user")
+    except ainari_exceptions.NotFoundException:
+        pass
+
+    # set and check quota
+    user_quota = quota.set_quota(context, user_id, 11, 12, 13, 14, 0)
+    user_quota = quota.get_quota(context, user_id)
+    assert user_quota["max_cluster"] == 11
+    assert user_quota["max_dataset"] == 12
+    assert user_quota["max_checkpoint"] == 13
+    assert user_quota["max_secret"] == 14
+    assert user_quota["max_taskqueue"] == 10
+
+    user.delete_user(context, user_id)
 
 
 def _creat_and_resore_checkpoint(cluster_uuid, torii_port):
@@ -428,4 +460,5 @@ test_user()
 test_dataset()
 test_cluster()
 test_secret()
+test_quota()
 test_workflow()
