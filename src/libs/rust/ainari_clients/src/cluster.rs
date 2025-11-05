@@ -47,7 +47,7 @@ pub async fn create_cluster(
         .send_body(json_str)
         .await;
 
-    let resp: Result<ClusterResp, AinariError> = handle_response(response, "", "cluster").await;
+    let resp: Result<ClusterResp, AinariError> = handle_response(response, "cluster", "").await;
     resp
 }
 
@@ -70,7 +70,7 @@ pub async fn get_cluster(
         .await;
 
     let resp: Result<ClusterResp, AinariError> =
-        handle_response(response, &cluster_uuid.to_string(), "cluster").await;
+        handle_response(response, "cluster", &cluster_uuid.to_string()).await;
     resp
 }
 
@@ -91,7 +91,7 @@ pub async fn list_cluster(
         .send()
         .await;
 
-    let resp: Result<ClusterListResp, AinariError> = handle_response(response, "", "cluster").await;
+    let resp: Result<ClusterListResp, AinariError> = handle_response(response, "cluster", "").await;
     resp
 }
 
@@ -113,5 +113,5 @@ pub async fn delete_cluster(
         .send()
         .await;
 
-    handle_empty_response(response, cluster_uuid, "cluster").await
+    handle_empty_response(response, "cluster", &cluster_uuid.to_string()).await
 }

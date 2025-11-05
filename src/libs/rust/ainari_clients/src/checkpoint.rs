@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use awc::http::StatusCode;
 use uuid::Uuid;
 
 use ainari_api_structs::checkpoint_structs::*;
@@ -20,6 +19,7 @@ use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
+use crate::handle_response;
 use crate::prepare_client;
 
 pub async fn init_checkpoint(
@@ -50,47 +50,9 @@ pub async fn init_checkpoint(
         .send_body(json_str)
         .await;
 
-    match response {
-        Ok(mut resp) => {
-            let body_str = match resp.body().await {
-                Ok(body) => String::from_utf8_lossy(&body).into_owned(),
-                Err(e) => {
-                    log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
-                }
-            };
-
-            match resp.status() {
-                StatusCode::UNAUTHORIZED => {
-                    Err(AinariError::Unauthorized("Invalid token".to_string()))
-                }
-                StatusCode::FORBIDDEN => {
-                    Err(AinariError::Unauthorized("Invalid token".to_string()))
-                }
-                StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
-                StatusCode::CREATED => {
-                    let deserialized: CheckpointInternalResp = match serde_json::from_str(&body_str)
-                    {
-                        Ok(body) => body,
-                        Err(e) => {
-                            let msg = format!("Error while creating checkpoint: {e}");
-                            return Err(AinariError::Error(msg));
-                        }
-                    };
-
-                    Ok(deserialized)
-                }
-                code => {
-                    let msg = format!("Error while creating checkpoint. Got response-code: {code}");
-                    Err(AinariError::Error(msg))
-                }
-            }
-        }
-        Err(e) => {
-            let msg = format!("Error while creating checkpoint: {e}");
-            Err(AinariError::Error(msg))
-        }
-    }
+    let resp: Result<CheckpointInternalResp, AinariError> =
+        handle_response(response, "checkpoint", "").await;
+    resp
 }
 
 pub async fn get_checkpoint(
@@ -114,48 +76,7 @@ pub async fn get_checkpoint(
         .send()
         .await;
 
-    match response {
-        Ok(mut resp) => {
-            let body_str = match resp.body().await {
-                Ok(body) => String::from_utf8_lossy(&body).into_owned(),
-                Err(e) => {
-                    log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
-                }
-            };
-
-            match resp.status() {
-                StatusCode::UNAUTHORIZED => {
-                    Err(AinariError::Unauthorized("Invalid token".to_string()))
-                }
-                StatusCode::FORBIDDEN => {
-                    Err(AinariError::Unauthorized("Invalid token".to_string()))
-                }
-                StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
-                StatusCode::OK => {
-                    let deserialized: CheckpointInternalResp = match serde_json::from_str(&body_str)
-                    {
-                        Ok(body) => body,
-                        Err(e) => {
-                            let msg =
-                                format!("Error while creating checkpoint {checkpoint_uuid} : {e}");
-                            return Err(AinariError::Error(msg));
-                        }
-                    };
-
-                    Ok(deserialized)
-                }
-                code => {
-                    let msg = format!(
-                        "Error while getting checkpoint {checkpoint_uuid}. Got response-code: {code}"
-                    );
-                    Err(AinariError::Error(msg))
-                }
-            }
-        }
-        Err(e) => {
-            let msg = format!("Error while getting checkpoint {checkpoint_uuid} : {e}");
-            Err(AinariError::Error(msg))
-        }
-    }
+    let resp: Result<CheckpointInternalResp, AinariError> =
+        handle_response(response, "checkpoint", &checkpoint_uuid.to_string()).await;
+    resp
 }

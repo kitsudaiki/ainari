@@ -40,6 +40,6 @@ pub async fn get_quota(
         .send()
         .await;
 
-    let resp: Result<QuotaResp, AinariError> = handle_response(response, user_id, "quota").await;
+    let resp: Result<QuotaResp, AinariError> = handle_response(response, "quota", user_id).await;
     resp
 }
