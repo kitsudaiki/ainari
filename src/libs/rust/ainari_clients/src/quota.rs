@@ -28,13 +28,11 @@ pub async fn get_quota(
     insecure_client: bool,
 ) -> Result<QuotaResp, AinariError> {
     let address = miko_endpoint.address.clone();
-    let port = miko_endpoint.port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/quota/{user_id}");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/quota/{user_id}");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()

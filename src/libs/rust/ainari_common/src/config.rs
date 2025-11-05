@@ -19,20 +19,12 @@ use crate::secret::Secret;
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct MikoEndpoint {
     pub address: String,
-    #[serde(default = "default_miko_port")]
-    pub port: u16,
-}
-
-fn default_miko_port() -> u16 {
-    0
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Endpoint {
     pub public_address: String,
-    pub public_port: u16,
     pub internal_address: String,
-    pub internal_port: u16,
 }
 
 #[derive(Debug, Deserialize, Default)]

@@ -28,7 +28,8 @@ use std::time::Duration;
 
 use ainari_common::error::AinariError;
 
-pub fn prepare_client(use_ssl: bool, insecure: bool) -> Client {
+pub fn prepare_client(address: &str, insecure: bool) -> Client {
+    let use_ssl = address.starts_with("https://");
     if use_ssl {
         let mut ssl_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
@@ -77,7 +78,7 @@ where
                     let deserialized: T = match serde_json::from_str(&body_str) {
                         Ok(body) => body,
                         Err(e) => {
-                            if uuid.len() == 0 {
+                            if uuid.is_empty() {
                                 let msg = format!("Error while converting response of {obj} : {e}");
                                 return Err(AinariError::Error(msg));
                             } else {
@@ -92,7 +93,7 @@ where
                     Ok(deserialized)
                 }
                 code => {
-                    if uuid.len() == 0 {
+                    if uuid.is_empty() {
                         let msg = format!("Error while creating {obj}. Got response-code: {code}");
                         Err(AinariError::Error(msg))
                     } else {

@@ -56,10 +56,10 @@ def request_context(address: str,
 
     # get addresses
     miko_address = address
-    hanami_address = f'{resp["hanami"]["public_address"]}:{resp["hanami"]["public_port"]}'
-    bento_address = f'{resp["bento"]["public_address"]}:{resp["bento"]["public_port"]}'
-    torii_address = f'{resp["torii"]["public_address"]}:{resp["torii"]["public_port"]}'
-    omamori_address = f'{resp["omamori"]["public_address"]}:{resp["omamori"]["public_port"]}'
+    hanami_address = resp["hanami"]["public_address"]
+    bento_address = resp["bento"]["public_address"]
+    torii_address = resp["torii"]["public_address"]
+    omamori_address = resp["omamori"]["public_address"]
 
     torii_address_split = torii_address.split(":")
     torii_base_address = torii_address_split[0] + ":" + torii_address_split[1]

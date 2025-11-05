@@ -29,9 +29,8 @@ pub async fn create_cluster(
     template: &str,
     insecure_client: bool,
 ) -> Result<ClusterResp, AinariError> {
-    let https_connection = sakura_address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{sakura_address}/v1alpha/cluster/internal");
+    let client = prepare_client(sakura_address, insecure_client);
+    let url = format!("{sakura_address}/v1alpha/cluster/internal");
 
     let body = ClusterCreateReq {
         template: template.to_owned(),
@@ -40,7 +39,7 @@ pub async fn create_cluster(
     let json_str = serde_json::to_string(&body).unwrap();
 
     let response = client
-        .post(address_complete)
+        .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
@@ -58,12 +57,11 @@ pub async fn get_cluster(
     cluster_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<ClusterResp, AinariError> {
-    let https_connection = sakura_address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
+    let client = prepare_client(sakura_address, insecure_client);
+    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
@@ -80,12 +78,11 @@ pub async fn list_cluster(
     internal_api_key: &Secret,
     insecure_client: bool,
 ) -> Result<ClusterListResp, AinariError> {
-    let https_connection = sakura_address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{sakura_address}/v1alpha/cluster");
+    let client = prepare_client(sakura_address, insecure_client);
+    let url = format!("{sakura_address}/v1alpha/cluster");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
@@ -102,12 +99,11 @@ pub async fn delete_cluster(
     cluster_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<(), AinariError> {
-    let https_connection = sakura_address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
+    let client = prepare_client(sakura_address, insecure_client);
+    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
 
     let response = client
-        .delete(address_complete)
+        .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()

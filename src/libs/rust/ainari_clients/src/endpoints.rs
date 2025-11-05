@@ -25,12 +25,10 @@ pub async fn get_endpoints(
     insecure_client: bool,
 ) -> Result<ainari_config::Endpoints, AinariError> {
     let address = miko_endpoint.address.clone();
-    let port = miko_endpoint.port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/endpoints");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/endpoints");
 
-    let response = client.get(address_complete).send().await;
+    let response = client.get(url).send().await;
 
     match response {
         Ok(mut resp) => {
@@ -57,27 +55,19 @@ pub async fn get_endpoints(
                     let endpoints = ainari_config::Endpoints {
                         hanami: ainari_config::Endpoint {
                             public_address: deserialized.hanami.public_address,
-                            public_port: deserialized.hanami.public_port,
                             internal_address: deserialized.hanami.internal_address,
-                            internal_port: deserialized.hanami.internal_port,
                         },
                         bento: ainari_config::Endpoint {
                             public_address: deserialized.bento.public_address,
-                            public_port: deserialized.bento.public_port,
                             internal_address: deserialized.bento.internal_address,
-                            internal_port: deserialized.bento.internal_port,
                         },
                         torii: ainari_config::Endpoint {
                             public_address: deserialized.torii.public_address,
-                            public_port: deserialized.torii.public_port,
                             internal_address: deserialized.torii.internal_address,
-                            internal_port: deserialized.torii.internal_port,
                         },
                         omamori: ainari_config::Endpoint {
                             public_address: deserialized.omamori.public_address,
-                            public_port: deserialized.omamori.public_port,
                             internal_address: deserialized.omamori.internal_address,
-                            internal_port: deserialized.omamori.internal_port,
                         },
                     };
 

@@ -31,7 +31,6 @@ use ainari_common::secret::*;
 #[derive(Debug, Clone)]
 pub struct ApiValidationConfig {
     pub miko_address: String,
-    pub miko_port: u16,
     pub internal_ip: String,
     pub internal_api_key: Secret,
     pub insecure_connection: bool,
@@ -41,7 +40,6 @@ impl ApiValidationConfig {
     pub fn new(conn: &MikoEndpoint, api: &Api, insecure_connection: bool) -> Self {
         ApiValidationConfig {
             miko_address: conn.address.clone(),
-            miko_port: conn.port,
             internal_ip: api.internal_ip.clone(),
             internal_api_key: api.internal_api_key.clone(),
             insecure_connection,
@@ -186,10 +184,8 @@ async fn check_auth_header(
     };
 
     let miko_address = api_validation_config.miko_address.clone();
-    let miko_port: u16 = api_validation_config.miko_port;
-    let complete_address = format!("{miko_address}:{miko_port}");
     let response = check_token(
-        complete_address,
+        miko_address,
         token.to_string(),
         api_validation_config.insecure_connection,
     )

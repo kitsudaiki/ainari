@@ -29,9 +29,8 @@ pub async fn register_sakura_host(
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
     let address = hanami_endpoint.internal_address.clone();
-    let port = hanami_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/host/internal");
 
     let body = HostCreateReq {
         name: name.to_owned(),
@@ -40,9 +39,8 @@ pub async fn register_sakura_host(
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
-    let address_complete = format!("{address}:{port}/v1alpha/host/internal");
     let response = client
-        .post(address_complete)
+        .post(url)
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)

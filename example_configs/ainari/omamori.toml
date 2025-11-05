@@ -13,8 +13,7 @@ internal_port = 10421
 internal_api_key = "asdf"
 
 [miko]
-address = "http://127.0.0.1"
-port = 11417
+address = "http://127.0.0.1:11417"
 
 [simple_crypto]
 key_b64 = "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE="

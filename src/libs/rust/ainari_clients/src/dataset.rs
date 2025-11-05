@@ -31,10 +31,8 @@ pub async fn init_dataset(
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
     let address = bento_endpoint.internal_address.clone();
-    let port = bento_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/dataset/internal");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/dataset/internal");
 
     let body = DatasetCreateReq {
         uuid: *dataset_uuid,
@@ -44,7 +42,7 @@ pub async fn init_dataset(
     let json_str = serde_json::to_string(&body).unwrap();
 
     let response = client
-        .post(address_complete)
+        .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
@@ -64,13 +62,11 @@ pub async fn get_dataset(
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
     let address = bento_endpoint.internal_address.clone();
-    let port = bento_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/dataset/{dataset_uuid}/internal");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/dataset/{dataset_uuid}/internal");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))

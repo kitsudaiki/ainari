@@ -22,6 +22,7 @@ package ainari_sdk
 
 import (
 	"fmt"
+	"strings"
 	//b64 "encoding/base64"
 )
 
@@ -52,12 +53,19 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 
 	context.token = token
 	context.MikoAddress = address
-	context.HanamiAddress = fmt.Sprintf("%s:%d", hanamiAddr["public_address"].(string), int(hanamiAddr["public_port"].(float64)))
-	context.BentoAddress = fmt.Sprintf("%s:%d", bentoAddr["public_address"].(string), int(bentoAddr["public_port"].(float64)))
-	context.OmamoriAddress = fmt.Sprintf("%s:%d", omamoriAddr["public_address"].(string), int(omamoriAddr["public_port"].(float64)))
-	context.ToriiAddress = fmt.Sprintf("%s:%d", toriiAddr["public_address"].(string), int(toriiAddr["public_port"].(float64)))
+	context.HanamiAddress = hanamiAddr["public_address"].(string)
+	context.BentoAddress = bentoAddr["public_address"].(string)
+	context.OmamoriAddress = omamoriAddr["public_address"].(string)
+	context.ToriiAddress = toriiAddr["public_address"].(string)
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification
 
+	parts := strings.Split(context.ToriiAddress, ":")
+	if len(parts) >= 2 {
+		context.ToriiBaseAddress = parts[0] + ":" + parts[1]
+	} else {
+		context.ToriiBaseAddress = context.ToriiAddress
+	}
+	
 	return context, nil
 }
