@@ -15,4 +15,5 @@
 pub mod http_endpoints;
 pub mod http_server;
 pub mod miko_auth_middleware;
+pub mod routes;
 pub mod token_handling;

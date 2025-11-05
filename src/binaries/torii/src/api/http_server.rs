@@ -20,38 +20,16 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, post, resource, scope};
 use std::error::Error;
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 // use crate::core::proxy::Proxy;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
-use ainari_api::endpoints::*;
-
-use crate::api::http_endpoints::proxy::*;
 
 use crate::config;
 
-fn v1alpha_routes() -> Scope {
-    scope("/v1alpha")
-        .service(
-            scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
-        )
-        .service(
-            scope("/proxy")
-                .service(
-                    resource("/internal")
-                        .route(post().to(set_proxy_internal_v1_0::register_proxy_internal)),
-                )
-                .service(resource("").route(get().to(list_proxy_v1_0::list_proxy)))
-                .service(resource("/{proxy_uuid}").route(get().to(get_proxy_v1_0::get_proxy)))
-                .service(
-                    resource("/{proxy_uuid}/internal")
-                        .route(delete().to(delete_proxy_v1_0::delete_proxy)),
-                ),
-        )
-}
+use super::routes::v1alpha::v1alpha_routes;
 
 pub async fn run_server() -> Result<(), impl Error> {
     log::debug!("initialize server");
