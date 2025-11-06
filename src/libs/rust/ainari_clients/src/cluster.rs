@@ -58,7 +58,7 @@ pub async fn get_cluster(
     insecure_client: bool,
 ) -> Result<ClusterResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
+    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}/internal");
 
     let response = client
         .get(url)
@@ -79,7 +79,7 @@ pub async fn list_cluster(
     insecure_client: bool,
 ) -> Result<ClusterListResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/cluster");
+    let url = format!("{sakura_address}/v1alpha/cluster/internal");
 
     let response = client
         .get(url)
@@ -100,7 +100,7 @@ pub async fn delete_cluster(
     insecure_client: bool,
 ) -> Result<(), AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}");
+    let url = format!("{sakura_address}/v1alpha/cluster/{cluster_uuid}/internal");
 
     let response = client
         .delete(url)

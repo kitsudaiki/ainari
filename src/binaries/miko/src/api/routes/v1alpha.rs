@@ -42,36 +42,39 @@ pub fn v1alpha_routes() -> Scope {
         .service(
             scope("/project")
                 .service(
-                    resource("")
-                        .route(post().to(create_project_v1_0::create_project))
-                        .route(get().to(list_project_v1_0::list_project)),
+                    resource("/admin")
+                        .route(post().to(create_project_admin_v1_0::create_project_admin))
+                        .route(get().to(list_project_admin_v1_0::list_project_admin)),
                 )
                 .service(
-                    resource("/{project_id}")
-                        .route(get().to(get_project_v1_0::get_project))
-                        .route(delete().to(delete_project_v1_0::delete_project)),
+                    resource("/{project_id}/admin")
+                        .route(get().to(get_project_admin_v1_0::get_project_admin))
+                        .route(delete().to(delete_project_admin_v1_0::delete_project_admin)),
                 ),
         )
         .service(
             scope("/user")
                 .service(
-                    resource("")
-                        .route(post().to(create_user_v1_0::create_user))
-                        .route(get().to(list_user_v1_0::list_user)),
+                    resource("/admin")
+                        .route(post().to(create_user_admin_v1_0::create_user_admin))
+                        .route(get().to(list_user_admin_v1_0::list_user_admin)),
                 )
                 .service(
-                    resource("/{user_id}")
-                        .route(get().to(get_user_v1_0::get_user))
-                        .route(delete().to(delete_user_v1_0::delete_user)),
+                    resource("/{user_id}/admin")
+                        .route(get().to(get_user_admin_v1_0::get_user_admin))
+                        .route(delete().to(delete_user_admin_v1_0::delete_user_admin)),
                 ),
         )
         .service(
             scope("/quota")
-                .service(resource("").route(get().to(list_quota_v1_0::list_quota)))
+                .service(resource("").route(get().to(get_quota_v1_0::get_quota)))
                 .service(
-                    resource("/{user_id}")
-                        .route(get().to(get_quota_v1_0::get_quota))
-                        .route(put().to(set_quota_v1_0::set_quota)),
+                    resource("/admin").route(get().to(list_quota_admin_v1_0::list_quota_admin)),
+                )
+                .service(
+                    resource("/{user_id}/admin")
+                        .route(get().to(get_quota_admin_v1_0::get_quota_admin))
+                        .route(put().to(set_quota_admin_v1_0::set_quota_admin)),
                 ),
         )
 }

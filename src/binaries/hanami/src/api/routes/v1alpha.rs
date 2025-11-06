@@ -43,11 +43,11 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/internal")
                         .route(post().to(register_host_internal_v1_0::register_host_internal)),
                 )
-                .service(resource("").route(get().to(list_host_v1_0::list_host)))
+                .service(resource("/admin").route(get().to(list_host_admin_v1_0::list_host_admin)))
                 .service(
-                    resource("/{host_uuid}")
-                        .route(get().to(get_host_v1_0::get_host))
-                        .route(delete().to(delete_host_v1_0::delete_host)),
+                    resource("/{host_uuid}/admin")
+                        .route(get().to(get_host_admin_v1_0::get_host_admin))
+                        .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
                 ),
         )
 }

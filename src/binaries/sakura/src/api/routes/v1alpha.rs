@@ -27,13 +27,14 @@ pub fn v1alpha_routes() -> Scope {
         .service(
             scope("/cluster")
                 .service(
-                    resource("/internal").route(post().to(create_cluster_v1_0::create_cluster)),
+                    resource("/internal")
+                        .route(post().to(create_cluster_internal_v1_0::create_cluster_internal))
+                        .route(get().to(list_cluster_internal_v1_0::list_cluster_internal)),
                 )
-                .service(resource("").route(get().to(list_cluster_v1_0::list_cluster)))
                 .service(
-                    resource("/{cluster_uuid}")
-                        .route(get().to(get_cluster_v1_0::get_cluster))
-                        .route(delete().to(delete_cluster_v1_0::delete_cluster)),
+                    resource("/{cluster_uuid}/internal")
+                        .route(get().to(get_cluster_internal_v1_0::get_cluster_internal))
+                        .route(delete().to(delete_cluster_internal_v1_0::delete_cluster_internal)),
                 )
                 .service(
                     resource("/{cluster_uuid}/request")

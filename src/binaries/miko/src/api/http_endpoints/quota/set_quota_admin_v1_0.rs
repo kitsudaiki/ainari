@@ -32,11 +32,17 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn set_quota(
+pub async fn set_quota_admin(
     quota_id: Path<String>,
     body: Json<QuotaSetReq>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
+
     // get current quota from database
     let mut current_quota = match quota_table::get_quota(&quota_id, &context) {
         Ok(quota) => quota,

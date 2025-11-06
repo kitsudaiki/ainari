@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete_proxy_v1_0;
+pub mod delete_proxy_internal_v1_0;
 pub mod get_proxy_v1_0;
 pub mod list_proxy_v1_0;
 pub mod set_proxy_internal_v1_0;

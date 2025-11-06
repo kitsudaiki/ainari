@@ -60,7 +60,6 @@ async fn check_quota(cluster_uuid: &Uuid, context: &UserContext) -> Result<(), E
     let max_number_of_open_tasks = match get_quota(
         miko_endpoint,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )

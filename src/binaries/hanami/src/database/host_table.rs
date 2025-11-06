@@ -132,7 +132,7 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     query.select(HostEntry::as_select()).load(&mut *conn)
 }
 
-pub fn delete_host(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     get_host(host_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -321,7 +321,7 @@ mod tests {
         hard_delete_host(&uuid1);
 
         add_host(&host).unwrap();
-        let _ = delete_host(&uuid1, &context);
+        let _ = delete_host_admin(&uuid1, &context);
         let result = get_host(&uuid1, &context);
         assert!(result.is_err());
     }

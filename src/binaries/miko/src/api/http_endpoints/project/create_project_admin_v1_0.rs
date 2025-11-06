@@ -33,7 +33,7 @@ use ainari_common::enums;
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_project(
+pub async fn create_project_admin(
     body: Json<ProjectCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {

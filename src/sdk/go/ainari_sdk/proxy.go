@@ -37,7 +37,7 @@ func ListProxy(context AccessContext) (map[string]interface{}, error) {
 }
 
 func DeleteProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/proxy/%s", proxyId)
+	path := fmt.Sprintf("v1alpha/proxy/%s/admin", proxyId)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.ToriiAddress, path, vars)
 }

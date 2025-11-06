@@ -12,46 +12,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Path;
-use apistos::actix::NoContent;
+use actix_web::web::Json;
 use apistos::api_operation;
 
 use crate::database::project_table;
 
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "project",
-    summary = "Delete project",
-    description = r###"Delete a project from the database. This can only be done by an admin."###,
-    error_code = 400,
+    summary = "List project",
+    description = r###"List basic information of all project from the database. This can only be done by an admin."###,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
-pub async fn delete_project(
-    project_id: Path<String>,
+pub async fn list_project_admin(
     context: UserContext,
-) -> Result<NoContent, ErrorResponse> {
+) -> Result<Json<ProjectListResp>, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    // delete project from database
-    match project_table::delete_project(&project_id, &context) {
-        Ok(_) => {
-            return Ok(NoContent);
-        }
-        Err(enums::DbError::InternalError) => {
+    let projects = match project_table::list_projects(&context) {
+        Ok(result) => result,
+        Err(e) => {
+            let msg = format!("Failed to list projects with error: '{e}'");
+            log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Project with ID '{project_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
     };
+
+    let mut resp = ProjectListResp {
+        projects: Vec::new(),
+    };
+
+    for project in projects {
+        let obj = ProjectBasicResp {
+            id: project.id.clone(),
+            name: project.name.clone(),
+        };
+
+        resp.projects.push(obj); // fill the vector with objects
+    }
+
+    Ok(Json(resp))
 }

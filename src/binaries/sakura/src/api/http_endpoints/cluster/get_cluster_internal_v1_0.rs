@@ -33,7 +33,7 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_cluster(
+pub async fn get_cluster_internal(
     cluster_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ClusterResp>, ErrorResponse> {

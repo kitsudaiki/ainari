@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod get_quota_admin_v1_0;
 pub mod get_quota_v1_0;
-pub mod list_quota_v1_0;
-pub mod set_quota_v1_0;
+pub mod list_quota_admin_v1_0;
+pub mod set_quota_admin_v1_0;

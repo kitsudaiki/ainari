@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use actix_web::web::Json;
-use actix_web::web::Path;
 use apistos::api_operation;
 
 use crate::database::quota_table;
@@ -32,11 +31,9 @@ use ainari_common::enums;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_quota(
-    quota_id: Path<String>,
-    context: UserContext,
-) -> Result<Json<QuotaResp>, ErrorResponse> {
-    match quota_table::get_quota(&quota_id, &context) {
+pub async fn get_quota(context: UserContext) -> Result<Json<QuotaResp>, ErrorResponse> {
+    let user_id = &context.user_id;
+    match quota_table::get_quota(user_id, &context) {
         Ok(quota) => {
             let resp = QuotaResp {
                 user_id: quota.id.clone(),
@@ -57,7 +54,7 @@ pub async fn get_quota(
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Quota with UUID '{quota_id}' not found.");
+            let msg = format!("Quota of user with ID '{user_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
