@@ -16,47 +16,50 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::host_table;
+use crate::database::cluster_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::host_structs::*;
+use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "host",
-    summary = "List host",
-    description = r###"List basic information of all host from the database."###,
+    tag = "cluster",
+    summary = "List cluster",
+    description = r###"List basic information of all cluster from the database."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_host(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
-    let hosts = match host_table::list_hosts(&context) {
-        Ok(hosts) => hosts,
+pub async fn list_cluster_internal(
+    context: UserContext,
+) -> Result<Json<ClusterListResp>, ErrorResponse> {
+    let clusters = match cluster_table::list_clusters(&context) {
+        Ok(clusters) => clusters,
         Err(e) => {
-            log::error!("Failed to get list of hosts form database: '{e}'");
+            log::error!("Failed to get list of clusters form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut resp = HostListResp { hosts: Vec::new() };
+    let mut resp = ClusterListResp {
+        clusters: Vec::new(),
+    };
 
-    for host in hosts {
+    for cluster in clusters {
         // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&host.uuid) {
+        let uuid = match Uuid::parse_str(&cluster.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                log::error!("Failed to convert host-uuid with error: '{e}'");
+                log::error!("Failed to convert cluster-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
 
-        let obj = HostBasicResp {
+        let obj = ClusterBasicResp {
             uuid,
-            name: host.name.clone(),
-            sakura_address: host.address.clone(),
+            name: cluster.name.clone(),
         };
 
-        resp.hosts.push(obj);
+        resp.clusters.push(obj);
     }
 
     Ok(Json(resp))

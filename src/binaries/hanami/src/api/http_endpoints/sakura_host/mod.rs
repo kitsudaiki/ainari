@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete_host_v1_0;
-pub mod get_host_v1_0;
-pub mod list_host_v1_0;
+pub mod delete_host_admin_v1_0;
+pub mod get_host_admin_v1_0;
+pub mod list_host_admin_v1_0;
 pub mod register_host_internal_v1_0;

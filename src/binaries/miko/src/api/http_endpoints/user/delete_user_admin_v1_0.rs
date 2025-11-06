@@ -15,59 +15,62 @@
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::core::cluster_handler;
-use crate::database::cluster_table;
+use crate::database::quota_table;
+use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
-    tag = "cluster",
-    summary = "Delete cluster",
-    description = r###"Delete a cluster from the database and core."###,
+    tag = "user",
+    summary = "Delete user",
+    description = r###"Delete a user from the database. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_cluster(
-    cluster_uuid: Path<Uuid>,
+pub async fn delete_user_admin(
+    user_id: Path<String>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // delete cluster from database
-    match cluster_table::delete_cluster(&cluster_uuid, &context) {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
+
+    if context.user_id == user_id.to_string() {
+        return Err(ErrorResponse::Conflict(
+            "A user can not delete himself.".to_string(),
+        ));
+    }
+
+    // delete quota of user from database
+    match quota_table::delete_quota(&user_id, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
+            let msg = format!("Quota of user with ID '{user_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
 
-    // delete cluster from core
-    let mut cluster_handle = cluster_handler::CLUSTER_HANDLER
-        .write()
-        .expect("mutex poisoned");
-    match cluster_handle.delete_cluster(&cluster_uuid) {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
+    // delete user from database
+    match user_table::delete_user(&user_id, &context) {
+        Ok(_) => {
+            return Ok(NoContent);
         }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
+        Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
-    }
-
-    Ok(NoContent)
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("User with ID '{user_id}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
 }

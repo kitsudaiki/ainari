@@ -15,48 +15,53 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::database::host_table;
+use crate::database::project_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::host_structs::*;
+use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(
-    tag = "host",
-    summary = "Get host",
-    description = r###"Get information of a host from the database."###,
+    tag = "project",
+    summary = "Get project",
+    description = r###"Get information of a project from the database. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_host(
-    host_uuid: Path<Uuid>,
+pub async fn get_project_admin(
+    project_id: Path<String>,
     context: UserContext,
-) -> Result<Json<HostResp>, ErrorResponse> {
-    let host_data = match host_table::get_host(&host_uuid, &context) {
-        Ok(host_data) => host_data,
+) -> Result<Json<ProjectResp>, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
+
+    // get new created project from database to get addtional information
+    match project_table::get_project(&project_id, &context) {
+        Ok(project) => {
+            let resp = ProjectResp {
+                id: project.id.clone(),
+                name: project.name.clone(),
+                created_by: project.created_by.clone(),
+                created_at: project.created_at.clone(),
+                updated_by: project.updated_by.clone(),
+                updated_at: project.updated_at.clone(),
+            };
+
+            return Ok(Json(resp));
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Host with UUID '{host_uuid}' not found.");
+            let msg = format!("Project with ID '{project_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
-
-    let resp = HostResp {
-        uuid: *host_uuid,
-        name: host_data.name.clone(),
-        sakura_address: host_data.address.clone(),
-        created_by: host_data.created_by.clone(),
-        created_at: host_data.created_at.clone(),
-        updated_by: host_data.updated_by.clone(),
-        updated_at: host_data.updated_at.clone(),
-    };
-
-    return Ok(Json(resp));
 }

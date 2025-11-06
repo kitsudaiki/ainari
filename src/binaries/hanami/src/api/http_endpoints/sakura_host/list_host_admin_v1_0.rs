@@ -16,48 +16,53 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::cluster_table;
+use crate::database::host_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::cluster_structs::*;
+use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "cluster",
-    summary = "List cluster",
-    description = r###"List basic information of all cluster from the database."###,
+    tag = "host",
+    summary = "List host",
+    description = r###"List basic information of all host from the database."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
-    let clusters = match cluster_table::list_clusters(&context) {
-        Ok(clusters) => clusters,
+pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
+
+    let hosts = match host_table::list_hosts(&context) {
+        Ok(hosts) => hosts,
         Err(e) => {
-            log::error!("Failed to get list of clusters form database: '{e}'");
+            log::error!("Failed to get list of hosts form database: '{e}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut resp = ClusterListResp {
-        clusters: Vec::new(),
-    };
+    let mut resp = HostListResp { hosts: Vec::new() };
 
-    for cluster in clusters {
+    for host in hosts {
         // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&cluster.uuid) {
+        let uuid = match Uuid::parse_str(&host.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
-                log::error!("Failed to convert cluster-uuid with error: '{e}'");
+                log::error!("Failed to convert host-uuid with error: '{e}'");
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
 
-        let obj = ClusterBasicResp {
+        let obj = HostBasicResp {
             uuid,
-            name: cluster.name.clone(),
+            name: host.name.clone(),
+            sakura_address: host.address.clone(),
         };
 
-        resp.clusters.push(obj);
+        resp.hosts.push(obj);
     }
 
     Ok(Json(resp))

@@ -32,10 +32,8 @@ pub async fn create_proxy(
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
-    let port = torii_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/proxy/internal");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy/internal");
 
     let body = ProxyCreateReq {
         port: proxy_port,
@@ -45,14 +43,14 @@ pub async fn create_proxy(
     let json_str = serde_json::to_string(&body).unwrap();
 
     let response = client
-        .post(address_complete)
+        .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)
         .await;
 
-    let resp: Result<ProxyResp, AinariError> = handle_response(response, "", "proxy").await;
+    let resp: Result<ProxyResp, AinariError> = handle_response(response, "proxy", "").await;
     resp
 }
 
@@ -63,19 +61,17 @@ pub async fn get_proxy(
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
-    let port = torii_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/proxy/{proxy_uuid}");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy/{proxy_uuid}");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
     let resp: Result<ProxyResp, AinariError> =
-        handle_response(response, &proxy_uuid.to_string(), "proxy").await;
+        handle_response(response, "proxy", &proxy_uuid.to_string()).await;
     resp
 }
 
@@ -85,18 +81,16 @@ pub async fn list_proxy(
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
-    let port = torii_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/proxy");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
-    let resp: Result<ProxyResp, AinariError> = handle_response(response, "", "proxy").await;
+    let resp: Result<ProxyResp, AinariError> = handle_response(response, "proxy", "").await;
     resp
 }
 
@@ -108,17 +102,15 @@ pub async fn delete_proxy(
     insecure_client: bool,
 ) -> Result<(), AinariError> {
     let address = torii_endpoint.internal_address.clone();
-    let port = torii_endpoint.internal_port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/proxy/{proxy_uuid}/internal");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy/{proxy_uuid}/internal");
 
     let response = client
-        .delete(address_complete)
+        .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
         .await;
 
-    handle_empty_response(response, proxy_uuid, "proxy").await
+    handle_empty_response(response, "proxy", &proxy_uuid.to_string()).await
 }

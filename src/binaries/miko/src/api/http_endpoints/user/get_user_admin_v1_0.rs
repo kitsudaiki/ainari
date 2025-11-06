@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use actix_web::web::Json;
+use actix_web::web::Path;
 use apistos::api_operation;
 
 use crate::database::user_table;
@@ -20,41 +21,48 @@ use crate::database::user_table;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "user",
-    summary = "List user",
-    description = r###"List basic information of all user from the database. This can only be done by an admin."###,
+    summary = "Get user",
+    description = r###"Get information of a user from the database. This can only be done by an admin."###,
+    error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
-pub async fn list_user(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
+pub async fn get_user_admin(
+    user_id: Path<String>,
+    context: UserContext,
+) -> Result<Json<UserResp>, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    let users = match user_table::list_users(&context) {
-        Ok(result) => result,
-        Err(e) => {
-            let msg = format!("Failed to list users with error: '{e}'");
-            log::error!("{msg}");
+    // get new created user from database to get addtional information
+    match user_table::get_user(&user_id, &context) {
+        Ok(user) => {
+            let resp = UserResp {
+                id: user.id.clone(),
+                name: user.name.clone(),
+                is_admin: user.is_admin,
+                created_by: user.created_by.clone(),
+                created_at: user.created_at.clone(),
+                updated_by: user.updated_by.clone(),
+                updated_at: user.updated_at.clone(),
+            };
+
+            return Ok(Json(resp));
+        }
+        Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
+        Err(enums::DbError::NotFound) => {
+            let msg = format!("User with ID '{user_id}' not found.");
+            return Err(ErrorResponse::NotFound(msg));
+        }
     };
-
-    let mut resp = UserListResp { users: Vec::new() };
-
-    for user in users {
-        let obj = UserBasicResp {
-            id: user.id.clone(),
-            name: user.name.clone(),
-            is_admin: user.is_admin,
-        };
-
-        resp.users.push(obj);
-    }
-
-    Ok(Json(resp))
 }

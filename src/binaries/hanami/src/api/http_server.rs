@@ -20,49 +20,14 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, post, resource, scope};
 use std::error::Error;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
-use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::cluster::*;
-use crate::api::http_endpoints::sakura_host::*;
 use crate::config;
 
-fn v1alpha_routes() -> Scope {
-    scope("/v1alpha")
-        .service(
-            scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
-        )
-        .service(
-            scope("/cluster")
-                .service(
-                    resource("")
-                        .route(post().to(create_cluster_v1_0::create_cluster))
-                        .route(get().to(list_cluster_v1_0::list_cluster)),
-                )
-                .service(
-                    resource("/{cluster_uuid}")
-                        .route(get().to(get_cluster_v1_0::get_cluster))
-                        .route(delete().to(delete_cluster_v1_0::delete_cluster)),
-                ),
-        )
-        .service(
-            scope("/host")
-                .service(
-                    resource("/internal")
-                        .route(post().to(register_host_internal_v1_0::register_host_internal)),
-                )
-                .service(resource("").route(get().to(list_host_v1_0::list_host)))
-                .service(
-                    resource("/{host_uuid}")
-                        .route(get().to(get_host_v1_0::get_host))
-                        .route(delete().to(delete_host_v1_0::delete_host)),
-                ),
-        )
-}
+use super::routes::v1alpha::v1alpha_routes;
 
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {

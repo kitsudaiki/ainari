@@ -25,19 +25,19 @@ import (
 )
 
 func GetQuota(context AccessContext, userId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/quota/%s", userId)
+	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func ListQuota(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/quota"
+	path := "v1alpha/quota/admin"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func SetQuota(context AccessContext, userId string, maxCluster, maxDataset, maxCheckpoint, maxSecret, maxTaskqueue int) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/quota/%s", userId)
+	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
 	jsonBody := map[string]interface{}{
 		"max_cluster":    maxCluster,
 		"max_dataset":    maxDataset,

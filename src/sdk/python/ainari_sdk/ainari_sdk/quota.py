@@ -18,7 +18,7 @@ from .access_context import AccessContext
 
 def get_quota(context: AccessContext,
               user_id: str) -> dict:
-    path = f'/v1alpha/quota/{user_id}'
+    path = f'/v1alpha/quota/{user_id}/admin'
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -26,7 +26,7 @@ def get_quota(context: AccessContext,
 
 
 def list_quotas(context: AccessContext) -> dict:
-    path = "/v1alpha/quota"
+    path = "/v1alpha/quota/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -40,7 +40,7 @@ def set_quota(context: AccessContext,
               max_checkpoint: int,
               max_secret: int,
               max_taskqueue: int) -> dict:
-    path = f"/v1alpha/quota/{user_id}"
+    path = f"/v1alpha/quota/{user_id}/admin"
     json_body = {
         "max_cluster": max_cluster,
         "max_dataset": max_dataset,

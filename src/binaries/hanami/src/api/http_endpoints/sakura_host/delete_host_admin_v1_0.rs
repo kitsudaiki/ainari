@@ -12,57 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Json;
 use actix_web::web::Path;
+use apistos::actix::NoContent;
 use apistos::api_operation;
+use uuid::Uuid;
 
-use crate::database::user_table;
+use crate::database::host_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_api_structs::user_structs::*;
 use ainari_common::enums;
 
 #[api_operation(
-    tag = "user",
-    summary = "Get user",
-    description = r###"Get information of a user from the database. This can only be done by an admin."###,
+    tag = "host",
+    summary = "Delete host",
+    description = r###"Delete a host from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_user(
-    user_id: Path<String>,
+pub async fn delete_host_admin(
+    host_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<UserResp>, ErrorResponse> {
+) -> Result<NoContent, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    // get new created user from database to get addtional information
-    match user_table::get_user(&user_id, &context) {
-        Ok(user) => {
-            let resp = UserResp {
-                id: user.id.clone(),
-                name: user.name.clone(),
-                is_admin: user.is_admin,
-                created_by: user.created_by.clone(),
-                created_at: user.created_at.clone(),
-                updated_by: user.updated_by.clone(),
-                updated_at: user.updated_at.clone(),
-            };
-
-            return Ok(Json(resp));
-        }
+    // delete host from database
+    match host_table::delete_host_admin(&host_uuid, &context) {
+        Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("User with ID '{user_id}' not found.");
+            let msg = format!("Host with UUID '{host_uuid}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
+
+    Ok(NoContent)
 }

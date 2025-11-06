@@ -34,7 +34,7 @@ use ainari_common::error::AinariError;
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_cluster(
+pub async fn create_cluster_internal(
     body: Json<ClusterCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {

@@ -15,7 +15,6 @@
 use ainari_api_structs::quota_structs::*;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
-use ainari_common::secret::Secret;
 
 use crate::handle_response;
 use crate::prepare_client;
@@ -23,23 +22,19 @@ use crate::prepare_client;
 pub async fn get_quota(
     miko_endpoint: &ainari_config::MikoEndpoint,
     token: &String,
-    internal_api_key: &Secret,
-    user_id: &String,
+    user_id: &str,
     insecure_client: bool,
 ) -> Result<QuotaResp, AinariError> {
     let address = miko_endpoint.address.clone();
-    let port = miko_endpoint.port;
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure_client);
-    let address_complete = format!("{address}:{port}/v1alpha/quota/{user_id}");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/quota");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
         .await;
 
-    let resp: Result<QuotaResp, AinariError> = handle_response(response, user_id, "quota").await;
+    let resp: Result<QuotaResp, AinariError> = handle_response(response, "quota", user_id).await;
     resp
 }

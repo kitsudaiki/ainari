@@ -15,38 +15,43 @@
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::database::host_table;
+use crate::database::project_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
 #[api_operation(
-    tag = "host",
-    summary = "Delete host",
-    description = r###"Delete a host from the database."###,
+    tag = "project",
+    summary = "Delete project",
+    description = r###"Delete a project from the database. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_host(
-    host_uuid: Path<Uuid>,
+pub async fn delete_project_admin(
+    project_id: Path<String>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // delete host from database
-    match host_table::delete_host(&host_uuid, &context) {
-        Ok(_) => {}
+    if !context.is_admin {
+        return Err(ErrorResponse::Unauthorized(
+            "Only Admins are allowed to use this endpoint".to_string(),
+        ));
+    }
+
+    // delete project from database
+    match project_table::delete_project(&project_id, &context) {
+        Ok(_) => {
+            return Ok(NoContent);
+        }
         Err(enums::DbError::InternalError) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
         Err(enums::DbError::NotFound) => {
-            let msg = format!("Host with UUID '{host_uuid}' not found.");
+            let msg = format!("Project with ID '{project_id}' not found.");
             return Err(ErrorResponse::NotFound(msg));
         }
     };
-
-    Ok(NoContent)
 }

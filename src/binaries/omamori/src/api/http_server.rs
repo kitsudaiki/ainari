@@ -20,39 +20,14 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, post, resource, scope};
 use std::error::Error;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
-use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::secret::*;
 use crate::config;
 
-fn v1alpha_routes() -> Scope {
-    scope("/v1alpha")
-        .service(
-            scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
-        )
-        .service(
-            scope("/secret")
-                .service(
-                    resource("")
-                        .route(post().to(create_secret_v1_0::create_secret))
-                        .route(get().to(list_secret_v1_0::list_secret)),
-                )
-                .service(
-                    resource("/{secret_uuid}")
-                        .route(get().to(get_secret_v1_0::get_secret))
-                        .route(delete().to(delete_secret_v1_0::delete_secret)),
-                )
-                .service(
-                    resource("/{secret_uuid}/payload")
-                        .route(get().to(get_secret_payload_v1_0::get_secret_with_payload)),
-                ),
-        )
-}
+use super::routes::v1alpha::v1alpha_routes;
 
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {

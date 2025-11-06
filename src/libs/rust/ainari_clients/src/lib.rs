@@ -25,11 +25,11 @@ use awc::http::StatusCode;
 use awc::{Client, Connector};
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 use std::time::Duration;
-use uuid::Uuid;
 
 use ainari_common::error::AinariError;
 
-pub fn prepare_client(use_ssl: bool, insecure: bool) -> Client {
+pub fn prepare_client(address: &str, insecure: bool) -> Client {
+    let use_ssl = address.starts_with("https://");
     if use_ssl {
         let mut ssl_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
@@ -53,8 +53,8 @@ pub async fn handle_response<T>(
         awc::ClientResponse<actix_web::dev::Decompress<actix_web::dev::Payload>>,
         awc::error::SendRequestError,
     >,
-    uuid: &str,
     obj: &str,
+    uuid: &str,
 ) -> Result<T, AinariError>
 where
     T: serde::de::DeserializeOwned,
@@ -78,20 +78,30 @@ where
                     let deserialized: T = match serde_json::from_str(&body_str) {
                         Ok(body) => body,
                         Err(e) => {
-                            let msg = format!(
-                                "Error while converting response of {obj} with uuid '{uuid}' : {e}"
-                            );
-                            return Err(AinariError::Error(msg));
+                            if uuid.is_empty() {
+                                let msg = format!("Error while converting response of {obj} : {e}");
+                                return Err(AinariError::Error(msg));
+                            } else {
+                                let msg = format!(
+                                    "Error while converting response of {obj} with uuid '{uuid}' : {e}"
+                                );
+                                return Err(AinariError::Error(msg));
+                            }
                         }
                     };
 
                     Ok(deserialized)
                 }
                 code => {
-                    let msg = format!(
-                        "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
-                    );
-                    Err(AinariError::Error(msg))
+                    if uuid.is_empty() {
+                        let msg = format!("Error while creating {obj}. Got response-code: {code}");
+                        Err(AinariError::Error(msg))
+                    } else {
+                        let msg = format!(
+                            "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
+                        );
+                        Err(AinariError::Error(msg))
+                    }
                 }
             }
         }
@@ -107,8 +117,8 @@ pub async fn handle_empty_response(
         awc::ClientResponse<actix_web::dev::Decompress<actix_web::dev::Payload>>,
         awc::error::SendRequestError,
     >,
-    uuid: &Uuid,
     obj: &str,
+    uuid: &str,
 ) -> Result<(), AinariError> {
     match response {
         Ok(mut resp) => {

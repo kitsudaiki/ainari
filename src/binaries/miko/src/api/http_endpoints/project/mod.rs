@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod create_project_v1_0;
-pub mod delete_project_v1_0;
-pub mod get_project_v1_0;
-pub mod list_project_v1_0;
+pub mod create_project_admin_v1_0;
+pub mod delete_project_admin_v1_0;
+pub mod get_project_admin_v1_0;
+pub mod list_project_admin_v1_0;

@@ -15,46 +15,48 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::project_table;
+use crate::database::quota_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::project_structs::*;
+use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "project",
-    summary = "List project",
-    description = r###"List basic information of all project from the database. This can only be done by an admin."###,
+    tag = "quota",
+    summary = "List quota",
+    description = r###"List basic information of all quota from the database. This can only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_project(context: UserContext) -> Result<Json<ProjectListResp>, ErrorResponse> {
+pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp>, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    let projects = match project_table::list_projects(&context) {
+    let quotas = match quota_table::list_quotas(&context) {
         Ok(result) => result,
         Err(e) => {
-            let msg = format!("Failed to list projects with error: '{e}'");
+            let msg = format!("Failed to list quotas with error: '{e}'");
             log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut resp = ProjectListResp {
-        projects: Vec::new(),
-    };
+    let mut resp = QuotaListResp { quotas: Vec::new() };
 
-    for project in projects {
-        let obj = ProjectBasicResp {
-            id: project.id.clone(),
-            name: project.name.clone(),
+    for quota in quotas {
+        let obj = QuotaBasicResp {
+            user_id: quota.id.clone(),
+            max_cluster: quota.max_cluster,
+            max_dataset: quota.max_dataset,
+            max_checkpoint: quota.max_checkpoint,
+            max_secret: quota.max_secret,
+            max_taskqueue: quota.max_taskqueue,
         };
 
-        resp.projects.push(obj); // fill the vector with objects
+        resp.quotas.push(obj); // fill the vector with objects
     }
 
     Ok(Json(resp))

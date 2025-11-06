@@ -25,7 +25,7 @@ import (
 )
 
 func CreateProject(context AccessContext, projectId, projectName string) (map[string]interface{}, error) {
-	path := "v1alpha/project"
+	path := "v1alpha/project/admin"
 	jsonBody := map[string]interface{}{
 		"id":   projectId,
 		"name": projectName,
@@ -34,19 +34,19 @@ func CreateProject(context AccessContext, projectId, projectName string) (map[st
 }
 
 func GetProject(context AccessContext, projectId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/project/%s", projectId)
+	path := fmt.Sprintf("v1alpha/project/%s/admin", projectId)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func ListProject(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/project"
+	path := "v1alpha/project/admin"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func DeleteProject(context AccessContext, projectId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/project/%s", projectId)
+	path := fmt.Sprintf("v1alpha/project/%s/admin", projectId)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.MikoAddress, path, vars)
 }

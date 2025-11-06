@@ -18,7 +18,7 @@ from .access_context import AccessContext
 
 def get_host(context: AccessContext,
              host_uuid: str) -> dict:
-    path = f"/v1alpha/host/{host_uuid}"
+    path = f"/v1alpha/host/{host_uuid}/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -26,7 +26,7 @@ def get_host(context: AccessContext,
 
 
 def list_hosts(context: AccessContext) -> dict:
-    path = "/v1alpha/host"
+    path = "/v1alpha/host/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -35,7 +35,7 @@ def list_hosts(context: AccessContext) -> dict:
 
 def delete_host(context: AccessContext,
                 host_uuid: str):
-    path = f"/v1alpha/host/{host_uuid}"
+    path = f"/v1alpha/host/{host_uuid}/admin"
     ainari_request.send_delete_request(context,
                                        context.miko_address,
                                        path,

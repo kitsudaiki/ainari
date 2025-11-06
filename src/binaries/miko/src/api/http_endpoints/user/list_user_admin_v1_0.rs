@@ -15,48 +15,45 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::quota_table;
+use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::user_structs::*;
 
 #[api_operation(
-    tag = "quota",
-    summary = "List quota",
-    description = r###"List basic information of all quota from the database. This can only be done by an admin."###,
+    tag = "user",
+    summary = "List user",
+    description = r###"List basic information of all user from the database. This can only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_quota(context: UserContext) -> Result<Json<QuotaListResp>, ErrorResponse> {
+pub async fn list_user_admin(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
     if !context.is_admin {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));
     }
 
-    let quotas = match quota_table::list_quotas(&context) {
+    let users = match user_table::list_users(&context) {
         Ok(result) => result,
         Err(e) => {
-            let msg = format!("Failed to list quotas with error: '{e}'");
+            let msg = format!("Failed to list users with error: '{e}'");
             log::error!("{msg}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut resp = QuotaListResp { quotas: Vec::new() };
+    let mut resp = UserListResp { users: Vec::new() };
 
-    for quota in quotas {
-        let obj = QuotaBasicResp {
-            user_id: quota.id.clone(),
-            max_cluster: quota.max_cluster,
-            max_dataset: quota.max_dataset,
-            max_checkpoint: quota.max_checkpoint,
-            max_secret: quota.max_secret,
-            max_taskqueue: quota.max_taskqueue,
+    for user in users {
+        let obj = UserBasicResp {
+            id: user.id.clone(),
+            name: user.name.clone(),
+            is_admin: user.is_admin,
         };
 
-        resp.quotas.push(obj); // fill the vector with objects
+        resp.users.push(obj);
     }
 
     Ok(Json(resp))

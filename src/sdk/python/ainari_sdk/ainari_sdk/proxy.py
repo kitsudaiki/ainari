@@ -35,7 +35,7 @@ def list_proxys(context: AccessContext) -> dict:
 
 def delete_proxy(context: AccessContext,
                  proxy_uuid: str):
-    path = f"/v1alpha/proxy/{proxy_uuid}"
+    path = f"/v1alpha/proxy/{proxy_uuid}/admin"
     ainari_request.send_delete_request(context,
                                        context.miko_address,
                                        path,

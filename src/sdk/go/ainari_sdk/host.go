@@ -25,19 +25,19 @@ import (
 )
 
 func GetHost(context AccessContext, hostId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/host/%s", hostId)
+	path := fmt.Sprintf("v1alpha/host/%s/admin", hostId)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
 func ListHost(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/host"
+	path := "v1alpha/host/admin"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
 func DeleteHost(context AccessContext, hostId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/host/%s", hostId)
+	path := fmt.Sprintf("v1alpha/host/%s/admin", hostId)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.HanamiAddress, path, vars)
 }

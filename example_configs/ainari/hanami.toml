@@ -13,8 +13,7 @@ internal_port = 10418
 internal_api_key = "asdf"
 
 [miko]
-address = "http://127.0.0.1"
-port = 11417
+address = "http://127.0.0.1:11417"
 
 [sakura]
 registation_key = "test-registration-key"

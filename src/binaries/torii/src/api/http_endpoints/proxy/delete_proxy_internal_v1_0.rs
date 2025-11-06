@@ -34,7 +34,7 @@ use ainari_common::error::AinariError;
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_proxy(
+pub async fn delete_proxy_internal(
     proxy_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {

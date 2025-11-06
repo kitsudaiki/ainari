@@ -19,7 +19,7 @@ from .access_context import AccessContext
 def create_project(context: AccessContext,
                    project_id: str,
                    project_name: str) -> dict:
-    path = "/v1alpha/project"
+    path = "/v1alpha/project/admin"
     json_body = {
         "id": project_id,
         "name": project_name,
@@ -32,7 +32,7 @@ def create_project(context: AccessContext,
 
 def get_project(context: AccessContext,
                 project_id: str) -> dict:
-    path = f"/v1alpha/project/{project_id}"
+    path = f"/v1alpha/project/{project_id}/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -40,7 +40,7 @@ def get_project(context: AccessContext,
 
 
 def list_projects(context: AccessContext) -> dict:
-    path = "/v1alpha/project"
+    path = "/v1alpha/project/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -49,7 +49,7 @@ def list_projects(context: AccessContext) -> dict:
 
 def delete_project(context: AccessContext,
                    project_id: str):
-    path = f"/v1alpha/project/{project_id}"
+    path = f"/v1alpha/project/{project_id}/admin"
     ainari_request.send_delete_request(context,
                                        context.miko_address,
                                        path,

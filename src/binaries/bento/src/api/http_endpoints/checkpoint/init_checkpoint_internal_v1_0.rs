@@ -111,7 +111,6 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     let max_number_of_checkpoints = match get_quota(
         miko_endpoint,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )

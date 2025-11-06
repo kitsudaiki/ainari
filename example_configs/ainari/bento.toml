@@ -19,6 +19,4 @@ internal_port = 10416
 internal_api_key = "asdf"
 
 [miko]
-address = "http://127.0.0.1"
-port = 11417
-
+address = "http://127.0.0.1:11417"

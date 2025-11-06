@@ -34,7 +34,7 @@ use ainari_common::enums;
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_user(
+pub async fn create_user_admin(
     body: Json<UserCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<UserResp>, ErrorResponse> {

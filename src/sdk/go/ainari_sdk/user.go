@@ -27,7 +27,7 @@ import (
 
 func CreateUser(context AccessContext, userId, userName, passphrase string, is_admin bool) (map[string]interface{}, error) {
 	// "passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
-	path := "v1alpha/user"
+	path := "v1alpha/user/admin"
 	jsonBody := map[string]interface{}{
 		"id":         userId,
 		"name":       userName,
@@ -38,19 +38,19 @@ func CreateUser(context AccessContext, userId, userName, passphrase string, is_a
 }
 
 func GetUser(context AccessContext, userId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/user/%s", userId)
+	path := fmt.Sprintf("v1alpha/user/%s/admin", userId)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func ListUser(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/user"
+	path := "v1alpha/user/admin"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
 func DeleteUser(context AccessContext, userId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/user/%s", userId)
+	path := fmt.Sprintf("v1alpha/user/%s/admin", userId)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.MikoAddress, path, vars)
 }
