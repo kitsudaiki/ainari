@@ -14,6 +14,7 @@
 
 use super::objects::*;
 use sha2::{Digest, Sha256};
+use std::path::{Component, Path};
 
 pub fn sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
@@ -29,6 +30,31 @@ pub fn split_bearer_token(token: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+pub fn create_sha256_hash(input: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input);
+    let result = hasher.finalize();
+    format!("{:x}", result)
+}
+
+pub fn is_safe_subpath(path: &Path) -> bool {
+    // Reject absolute paths immediately
+    if path.is_absolute() {
+        return false;
+    }
+
+    // Check each component of the path
+    for comp in path.components() {
+        match comp {
+            Component::ParentDir => return false, // contains ".."
+            Component::RootDir => return false,   // starts with "/"
+            _ => {}
+        }
+    }
+
+    true
 }
 
 #[inline]

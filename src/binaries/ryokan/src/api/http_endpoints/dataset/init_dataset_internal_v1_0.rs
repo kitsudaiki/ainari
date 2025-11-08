@@ -15,11 +15,11 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::path::PathBuf;
 use validator::Validate;
 
 use crate::config;
 use crate::database::dataset_table;
+use crate::onsen_functions::select_onsen;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
@@ -52,16 +52,20 @@ pub async fn init_dataset(
 
     check_quota(&context).await?;
 
+    let selected_onsen = select_onsen(&context)?;
+
     let name = &body.name;
     let dataset_uuid = &body.uuid.clone();
-
-    let upload_dir_path = config::CONFIG.storage.dataset_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(dataset_uuid.to_string());
-    let file_path_str: String = target_filepath.to_string_lossy().into();
+    let file_path_str: String = format!("datasets/{}", dataset_uuid);
 
     // add new dataset to datbase
-    match dataset_table::add_new_dataset(dataset_uuid, name, &file_path_str, &context) {
+    match dataset_table::add_new_dataset(
+        dataset_uuid,
+        name,
+        &selected_onsen.address,
+        &file_path_str,
+        &context,
+    ) {
         Ok(_) => {}
         Err(e) => {
             let msg = format!("Failed to add dataset to database: {e}");
@@ -76,6 +80,7 @@ pub async fn init_dataset(
             let resp = DatasetInternalResp {
                 uuid: *dataset_uuid,
                 name: dataset.name.clone(),
+                onsen_address: dataset.onsen_address.clone(),
                 file_path: dataset.file_path.clone(),
                 created_by: dataset.created_by.clone(),
                 created_at: dataset.created_at.clone(),

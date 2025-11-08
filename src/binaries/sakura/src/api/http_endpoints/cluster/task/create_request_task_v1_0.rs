@@ -16,7 +16,6 @@ use actix_web::web::{Json, Path};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
@@ -34,9 +33,12 @@ use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
 use ainari_clients::endpoints::*;
+use ainari_clients::onsen_file_transfer::*;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
-use ainari_dataset::dataset_io::{Column, DataSetType, init_new_data_set_file, read_data_set_file};
+use ainari_dataset::dataset_io::{
+    Column, DataSetType, DatasetLink, init_new_data_set_file, read_data_set_file,
+};
 
 #[api_operation(
     tag = "task",
@@ -65,6 +67,7 @@ pub async fn create_request_task(
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::Request;
     let time_length = body.time_length.unwrap_or(1);
+    let result_path = format!("/tmp/task_result_{task_uuid}");
 
     if time_length < 1 {
         let msg = "Time-length must be 1 or bigger.".to_string();
@@ -162,11 +165,17 @@ pub async fn create_request_task(
         total_output_size += size;
     }
 
+    let link = DatasetLink {
+        onsen_address: dataset_create_resp.onsen_address,
+        remote_file_path: dataset_create_resp.file_path,
+        local_file_path: result_path,
+    };
+
     // create new dataset for the resulting data
     let result_file_handle = match init_new_data_set_file(
-        &PathBuf::from(&dataset_create_resp.file_path),
+        &link,
         task_uuid,
-        name,
+        &name,
         description,
         total_output_size,
         columns,
@@ -211,7 +220,23 @@ pub async fn create_request_task(
             }
         };
 
-        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
+        // TODO: change path
+        let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
+        match download_file(
+            &dataset_resp.onsen_address,
+            &local_file_path,
+            &dataset_resp.file_path,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                log::error!("Failed to download dataset-file from onsen: {e}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        }
+
+        match read_data_set_file(&local_file_path) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -221,7 +246,11 @@ pub async fn create_request_task(
 
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             }
-            Err(_) => {
+            Err(e) => {
+                log::error!(
+                    "Failed to read dataset-file '{}' with error: {e}",
+                    dataset_resp.file_path
+                );
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -246,8 +275,8 @@ pub async fn create_request_task(
         &context,
     ) {
         Ok(_) => {}
-        Err(_) => {
-            log::error!("Failed to add task with UUID '{task_uuid}' to database.");
+        Err(e) => {
+            log::error!("Failed to add task with UUID '{task_uuid}' to database: {e}");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -272,7 +301,6 @@ pub async fn create_request_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        token: context.token.clone(),
         info: TaskVariant::Request(info),
         meta: TaskMeta::new(number_of_cycles, 1, time_length),
     };

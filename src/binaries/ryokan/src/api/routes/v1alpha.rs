@@ -18,6 +18,7 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::dataset::*;
+use crate::api::http_endpoints::onsen_host::*;
 
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
@@ -63,6 +64,19 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{checkpoint_uuid}/internal")
                         .route(get().to(get_checkpoint_internal_v1_0::get_checkpoint_internal)),
+                ),
+        )
+        .service(
+            scope("/host")
+                .service(
+                    resource("/internal")
+                        .route(post().to(register_host_internal_v1_0::register_host_internal)),
+                )
+                .service(resource("/admin").route(get().to(list_host_admin_v1_0::list_host_admin)))
+                .service(
+                    resource("/{host_uuid}/admin")
+                        .route(get().to(get_host_admin_v1_0::get_host_admin))
+                        .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
                 ),
         )
 }

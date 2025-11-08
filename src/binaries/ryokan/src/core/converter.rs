@@ -22,7 +22,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use super::dataset_io::*;
+use ainari_dataset::dataset_io::*;
 
 #[derive(Debug)]
 pub struct MnistImage {
@@ -37,9 +37,9 @@ fn convert_vec_u8_to_f32(vec_u8: &[u8]) -> Vec<f32> {
 pub fn load_mnist_images(
     image_path: &PathBuf,
     label_path: &PathBuf,
-    target_filepath: &PathBuf,
+    target_filepath: &str,
     uuid: Uuid,
-    name: String,
+    name: &str,
     limit: Option<usize>,
 ) -> Result<(), Box<dyn Error>> {
     let mut img_reader = BufReader::new(File::open(image_path)?);
@@ -100,8 +100,13 @@ pub fn load_mnist_images(
     columns.insert("label".to_string(), labels);
 
     let row_size = picture_size + 10;
+    let link = DatasetLink {
+        onsen_address: "".to_string(),
+        remote_file_path: "".to_string(),
+        local_file_path: target_filepath.to_owned(),
+    };
     let mut dataset_handle = init_new_data_set_file(
-        target_filepath,
+        &link,
         uuid,
         name,
         "".to_string(),
@@ -136,12 +141,12 @@ pub fn load_mnist_images(
 }
 
 pub fn load_csv_file(
-    file_path: &PathBuf,
-    target_filepath: &PathBuf,
+    csv_file_path: &PathBuf,
+    target_filepath: &str,
     uuid: Uuid,
-    name: String,
+    name: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let file = File::open(file_path)?;
+    let file = File::open(csv_file_path)?;
     let mut rdr = ReaderBuilder::new().has_headers(true).from_reader(file);
 
     // get number of columns from header
@@ -159,8 +164,13 @@ pub fn load_csv_file(
     }
 
     // init dataset
+    let link = DatasetLink {
+        onsen_address: "".to_string(),
+        remote_file_path: "".to_string(),
+        local_file_path: target_filepath.to_owned(),
+    };
     let mut dataset_handle = init_new_data_set_file(
-        target_filepath,
+        &link,
         uuid,
         name,
         "".to_string(),

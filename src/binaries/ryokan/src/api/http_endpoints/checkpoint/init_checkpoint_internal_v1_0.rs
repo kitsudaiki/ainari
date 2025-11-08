@@ -15,11 +15,11 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::path::PathBuf;
 use validator::Validate;
 
 use crate::config;
 use crate::database::checkpoint_table;
+use crate::onsen_functions::select_onsen;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::checkpoint_structs::*;
@@ -51,17 +51,20 @@ pub async fn init_checkpoint(
     };
 
     check_quota(&context).await?;
+    let selected_onsen = select_onsen(&context)?;
 
     let name = &body.name;
     let checkpoint_uuid = &body.uuid.clone();
-
-    let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(checkpoint_uuid.to_string());
-    let file_path_str: String = target_filepath.to_string_lossy().into();
+    let file_path_str: String = format!("checkpoints/{}", checkpoint_uuid);
 
     // add new checkpoint to datbase
-    match checkpoint_table::add_new_checkpoint(checkpoint_uuid, name, &file_path_str, &context) {
+    match checkpoint_table::add_new_checkpoint(
+        checkpoint_uuid,
+        name,
+        &selected_onsen.address,
+        &file_path_str,
+        &context,
+    ) {
         Ok(_) => {}
         Err(e) => {
             let msg = format!("Failed to add checkpoint to database: {e}");
@@ -76,6 +79,7 @@ pub async fn init_checkpoint(
             let resp = CheckpointInternalResp {
                 uuid: *checkpoint_uuid,
                 name: checkpoint.name.clone(),
+                onsen_address: checkpoint.onsen_address.clone(),
                 file_path: checkpoint.file_path.clone(),
                 created_by: checkpoint.created_by.clone(),
                 created_at: checkpoint.created_at.clone(),

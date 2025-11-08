@@ -14,5 +14,4 @@
 
 #![forbid(unsafe_code)]
 
-pub mod converter;
 pub mod dataset_io;

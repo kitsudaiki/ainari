@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
-
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
@@ -23,6 +21,7 @@ use crate::database::checkpoint_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 
 #[api_operation(
@@ -49,11 +48,12 @@ pub async fn delete_checkpoint(
         }
     };
 
-    match fs::remove_file(&checkpoint.file_path) {
+    match onsen_file_transfer::delete_file(&checkpoint.onsen_address, &checkpoint.file_path).await {
         Ok(_) => {}
         Err(_) => {
+            let onsen_address = checkpoint.onsen_address;
             let file_path = checkpoint.file_path;
-            log::error!("Failed to delete file '{file_path}' from disc");
+            log::error!("Failed to delete file '{file_path}' from onsen '{onsen_address}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }

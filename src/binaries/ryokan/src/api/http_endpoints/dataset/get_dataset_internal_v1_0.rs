@@ -51,6 +51,7 @@ pub async fn get_dataset_internal(
     let resp = DatasetInternalResp {
         uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
+        onsen_address: dataset_data.onsen_address.clone(),
         file_path: dataset_data.file_path.clone(),
         created_by: dataset_data.created_by.clone(),
         created_at: dataset_data.created_at.clone(),

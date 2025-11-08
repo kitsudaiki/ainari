@@ -15,7 +15,6 @@
 use actix_web::web::{Json, Path};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::path::PathBuf;
 use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
@@ -130,8 +129,10 @@ pub async fn checkpoint_save_task(
     };
 
     // prepare task-info
-    let file_path = PathBuf::from(&checkpoint_create_resp.file_path);
-    let info = CheckpointSaveInfo { path: file_path };
+    let info = CheckpointSaveInfo {
+        onsen_address: checkpoint_create_resp.onsen_address,
+        file_path: checkpoint_create_resp.file_path,
+    };
 
     // add new task to database
     match task_table::add_new_task(
@@ -155,7 +156,6 @@ pub async fn checkpoint_save_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        token: context.token.clone(),
         info: TaskVariant::CheckpointSave(info),
         meta: TaskMeta::new(1, 1, 1),
     };

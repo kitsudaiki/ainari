@@ -15,7 +15,6 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 use crate::database::dataset_table;
@@ -23,8 +22,8 @@ use crate::database::dataset_table;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
-use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
     tag = "dataset",
@@ -50,9 +49,19 @@ pub async fn get_dataset(
         }
     };
 
-    let file_handle = match read_data_set_file(&PathBuf::from(dataset_data.file_path)) {
-        Ok(file_handle) => file_handle,
-        Err(_) => {
+    let (number_of_rows, number_of_columns) = match onsen_file_transfer::get_dataset_dimension(
+        &dataset_data.onsen_address,
+        &dataset_data.file_path,
+    )
+    .await
+    {
+        Ok((number_of_rows, number_of_columns)) => (number_of_rows, number_of_columns),
+        Err(e) => {
+            let onsen_addr = dataset_data.onsen_address;
+            let file_path = dataset_data.file_path;
+            log::error!(
+                "Failed to get dataset-dimensions form onsen '{onsen_addr}' to '{file_path}' with error: {e}"
+            );
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
@@ -60,8 +69,8 @@ pub async fn get_dataset(
     let resp = DatasetResp {
         uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
-        number_of_rows: file_handle.get_number_of_rows(),
-        number_of_columns: file_handle.header.columns.len() as u64,
+        number_of_rows: number_of_rows as u64,
+        number_of_columns: number_of_columns as u64,
         created_by: dataset_data.created_by.clone(),
         created_at: dataset_data.created_at.clone(),
         updated_by: dataset_data.updated_by.clone(),

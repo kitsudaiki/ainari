@@ -29,6 +29,7 @@ table! {
     datasets (uuid) {
         uuid -> Varchar,
         name -> Varchar,
+        onsen_address -> Varchar,
         file_path -> Text,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -47,6 +48,7 @@ table! {
 pub struct DatasetEntry {
     pub uuid: String,
     pub name: String,
+    pub onsen_address: String,
     pub file_path: String,
     pub owner_id: String,
     pub project_id: String,
@@ -65,6 +67,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS datasets (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
+        onsen_address VARCHAR(256),
         file_path TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
@@ -84,12 +87,14 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_dataset(
     dataset_uuid: &Uuid,
     dataset_name: &str,
+    onsen_address: &str,
     file_path: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let dataset = DatasetEntry {
         uuid: dataset_uuid.to_string().clone(),
         name: dataset_name.to_owned(),
+        onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -217,6 +222,7 @@ mod tests {
     fn test_add_get_dataset() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
+        let onsen_address = "127.0.0.1:1234".to_string();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -231,6 +237,7 @@ mod tests {
         let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -266,6 +273,7 @@ mod tests {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
+        let onsen_address = "127.0.0.1:1234".to_string();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -280,6 +288,7 @@ mod tests {
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -295,6 +304,7 @@ mod tests {
         let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -323,6 +333,7 @@ mod tests {
     fn test_delete_dataset() {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
+        let onsen_address = "127.0.0.1:1234".to_string();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -337,6 +348,7 @@ mod tests {
         let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -365,6 +377,7 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let name = "test-dataset".to_string();
+        let onsen_address = "127.0.0.1:1234".to_string();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -379,6 +392,7 @@ mod tests {
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -394,6 +408,7 @@ mod tests {
         let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -409,6 +424,7 @@ mod tests {
         let dataset3 = DatasetEntry {
             uuid: uuid3.to_string(),
             name: name.clone(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -444,10 +460,12 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let onsen_address = "127.0.0.1:1234".to_string();
 
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -463,6 +481,7 @@ mod tests {
         let dataset2 = DatasetEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -478,6 +497,7 @@ mod tests {
         let dataset3 = DatasetEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
+            onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),

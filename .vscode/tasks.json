@@ -4,14 +4,14 @@
       {
         "label": "build sakura debug",
         "type": "shell",
-        "command": "sleep 5 && cargo build -p sakura",
+        "command": "cargo build -p sakura && sleep 5",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },
       {
         "label": "build sakura release",
         "type": "shell",
-        "command": "sleep 5 && cargo build --release -p sakura",
+        "command": "cargo build --release -p sakura && sleep 5",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },
@@ -84,6 +84,29 @@
         "command": "cargo build --release -p omamori",
         "group": "build",
         "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build onsen debug",
+        "type": "shell",
+        "command": "cargo build -p onsen && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build onsen release",
+        "type": "shell",
+        "command": "cargo build --release -p onsen && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "cargo clippy fix",
+        "type": "shell",
+        "command": "cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged",
+        "group": "build",
+        "problemMatcher": [
+            "$rustc"
+        ]
       }
     ],
 }

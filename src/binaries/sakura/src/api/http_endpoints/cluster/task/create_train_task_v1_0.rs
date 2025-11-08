@@ -16,7 +16,6 @@ use actix_web::web::{Json, Path};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
@@ -33,6 +32,7 @@ use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
 use ainari_clients::endpoints::*;
+use ainari_clients::onsen_file_transfer::*;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::read_data_set_file;
@@ -131,7 +131,23 @@ pub async fn create_train_task(
             }
         };
 
-        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
+        // TODO: change path
+        let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
+        match download_file(
+            &dataset_resp.onsen_address,
+            &local_file_path,
+            &dataset_resp.file_path,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                log::error!("Failed to download dataset-file from onsen: {e}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        }
+
+        match read_data_set_file(&local_file_path) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -141,7 +157,11 @@ pub async fn create_train_task(
 
                 info.inputs.insert(input.hexagon.clone(), file_handle);
             }
-            Err(_) => {
+            Err(e) => {
+                log::error!(
+                    "Failed to read dataset-file '{}' with error: {e}",
+                    dataset_resp.file_path
+                );
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -172,7 +192,23 @@ pub async fn create_train_task(
             }
         };
 
-        match read_data_set_file(&PathBuf::from(&dataset_resp.file_path)) {
+        // TODO: change path
+        let local_file_path = format!("/tmp/task/dataset/{}", dataset_resp.uuid);
+        match download_file(
+            &dataset_resp.onsen_address,
+            &local_file_path,
+            &dataset_resp.file_path,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                log::error!("Failed to download dataset-file from onsen: {e}");
+                return Err(ErrorResponse::InternalError("".to_string()));
+            }
+        }
+
+        match read_data_set_file(&local_file_path) {
             Ok(mut file_handle) => {
                 let number_of_rows = file_handle.get_number_of_rows();
                 if number_of_cycles > number_of_rows {
@@ -182,7 +218,11 @@ pub async fn create_train_task(
 
                 info.outputs.insert(output.hexagon.clone(), file_handle);
             }
-            Err(_) => {
+            Err(e) => {
+                log::error!(
+                    "Failed to read dataset-file '{}' with error: {e}",
+                    dataset_resp.file_path
+                );
                 return Err(ErrorResponse::InternalError("".to_string()));
             }
         };
@@ -235,7 +275,6 @@ pub async fn create_train_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        token: context.token.clone(),
         info: TaskVariant::Training(info),
         meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
     };

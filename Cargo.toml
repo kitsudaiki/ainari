@@ -6,6 +6,7 @@ members = [
     "src/binaries/ryokan", 
     "src/binaries/torii", 
     "src/binaries/omamori", 
+    "src/binaries/onsen", 
     "src/libs/rust/ainari_common",
     "src/libs/rust/ainari_cluster_parser",
     "src/libs/rust/ainari_dataset", 

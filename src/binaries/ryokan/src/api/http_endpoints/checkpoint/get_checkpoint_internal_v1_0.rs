@@ -42,6 +42,7 @@ pub async fn get_checkpoint_internal(
             let resp = CheckpointInternalResp {
                 uuid: *checkpoint_uuid,
                 name: checkpoint.name.clone(),
+                onsen_address: checkpoint.onsen_address.clone(),
                 file_path: checkpoint.file_path.clone(),
                 created_by: checkpoint.created_by.clone(),
                 created_at: checkpoint.created_at.clone(),

@@ -15,13 +15,13 @@
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use std::fs;
 use uuid::Uuid;
 
 use crate::database::dataset_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 
 #[api_operation(
@@ -47,11 +47,12 @@ pub async fn delete_dataset(
         }
     };
 
-    match fs::remove_file(&dataset.file_path) {
+    match onsen_file_transfer::delete_file(&dataset.onsen_address, &dataset.file_path).await {
         Ok(_) => {}
         Err(_) => {
+            let onsen_address = dataset.onsen_address;
             let file_path = dataset.file_path;
-            log::error!("Failed to delete file '{file_path}' from disc");
+            log::error!("Failed to delete file '{file_path}' from onsen '{onsen_address}'");
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     }

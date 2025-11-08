@@ -20,7 +20,6 @@ use bytemuck::cast_slice_mut;
 use std::cmp::Ordering;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
-use std::path::PathBuf;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -31,7 +30,7 @@ use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_dataset::dataset_io::{Column, DataSetFileReadHandleV1_0};
+use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle};
 
 #[api_operation(
     tag = "dataset",
@@ -85,20 +84,19 @@ pub async fn check_dataset(
     };
 
     // get file-handle
-    let mut dataset_file_handle = match read_data_set_file(&PathBuf::from(dataset_data.file_path)) {
+    let mut dataset_file_handle = match read_data_set_file(&dataset_data.file_path) {
         Ok(dataset_file_handle) => dataset_file_handle,
         Err(_) => {
             return Err(ErrorResponse::InternalError("".to_string()));
         }
     };
 
-    let mut reference_file_handle =
-        match read_data_set_file(&PathBuf::from(reference_data.file_path)) {
-            Ok(reference_file_handle) => reference_file_handle,
-            Err(_) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+    let mut reference_file_handle = match read_data_set_file(&reference_data.file_path) {
+        Ok(reference_file_handle) => reference_file_handle,
+        Err(_) => {
+            return Err(ErrorResponse::InternalError("".to_string()));
+        }
+    };
 
     // get column-information
     let dataset_col_get = match dataset_file_handle.header.columns.get(&dataset_column) {
@@ -155,9 +153,9 @@ pub async fn check_dataset(
 }
 
 fn check_row(
-    dataset_file_handle: &mut DataSetFileReadHandleV1_0,
+    dataset_file_handle: &mut DataSetFileReadHandle,
     dataset_column: &Column,
-    reference_file_handle: &mut DataSetFileReadHandleV1_0,
+    reference_file_handle: &mut DataSetFileReadHandle,
     reference_columns: &Column,
     row: u64,
 ) -> Result<bool, AinariError> {
@@ -173,7 +171,7 @@ fn check_row(
 }
 
 fn get_highest_pos_in_row(
-    file_handle: &mut DataSetFileReadHandleV1_0,
+    file_handle: &mut DataSetFileReadHandle,
     col_get: &Column,
     row: u64,
 ) -> Result<u64, AinariError> {
