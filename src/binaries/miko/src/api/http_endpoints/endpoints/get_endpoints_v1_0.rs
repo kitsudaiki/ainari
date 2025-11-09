@@ -37,9 +37,9 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
             public_address: enpoint_config.hanami.public_address.clone(),
             internal_address: enpoint_config.hanami.internal_address.clone(),
         },
-        bento: EndpointField {
-            public_address: enpoint_config.bento.public_address.clone(),
-            internal_address: enpoint_config.bento.internal_address.clone(),
+        ryokan: EndpointField {
+            public_address: enpoint_config.ryokan.public_address.clone(),
+            internal_address: enpoint_config.ryokan.internal_address.clone(),
         },
         torii: EndpointField {
             public_address: enpoint_config.torii.public_address.clone(),

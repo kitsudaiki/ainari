@@ -19,7 +19,7 @@ from .access_context import AccessContext
 def list_checkpoints(context: AccessContext) -> dict:
     path = "/v1alpha/checkpoint"
     return ainari_request.send_get_request(context,
-                                           context.bento_adress,
+                                           context.ryokan_adress,
                                            path,
                                            "")
 
@@ -28,7 +28,7 @@ def delete_checkpoint(context: AccessContext,
                       checkpoint_uuid: str):
     path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.bento_adress,
+                                       context.ryokan_adress,
                                        path,
                                        "")
 

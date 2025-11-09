@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: bento-tls-service
+  name: ryokan-tls-service
   labels:
-    run: bento
+    run: ryokan
 spec:
   selector:
-    app: bento
+    app: ryokan
   ports:
     - name: input
       protocol: TCP

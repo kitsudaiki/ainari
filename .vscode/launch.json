@@ -6,7 +6,7 @@
             "configurations": [
                 "Debug Build hanami", 
                 "Debug Build miko", 
-                "Debug Build bento", 
+                "Debug Build ryokan", 
                 "Debug Build torii", 
                 "Debug Build omamori", 
                 "Debug Build sakura"
@@ -17,7 +17,7 @@
             "configurations": [
                 "Release Build hanami", 
                 "Release Build miko", 
-                "Release Build bento", 
+                "Release Build ryokan", 
                 "Release Build torii", 
                 "Release Build omamori",
                 "Release Build sakura"
@@ -137,14 +137,14 @@
             },
         },
         {
-            "name": "Debug Build bento",
+            "name": "Debug Build ryokan",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/bento",
+            "program": "${workspaceFolder}/target/debug/ryokan",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "build bento debug",
+            "preLaunchTask": "build ryokan debug",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing
@@ -156,14 +156,14 @@
             },
         },
         {
-            "name": "Release Build bento",
+            "name": "Release Build ryokan",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/release/bento",
+            "program": "${workspaceFolder}/target/release/ryokan",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "preLaunchTask": "build bento release",
+            "preLaunchTask": "build ryokan release",
             "sourceLanguages": ["rust"],
             "env": {
                 // test-env-variables to initialize a basic user for testing

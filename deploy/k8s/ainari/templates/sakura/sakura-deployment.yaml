@@ -43,7 +43,7 @@ spec:
         - name: data-volume
           mountPath: /etc/ainari/sakura/
         - name: shared-vol
-          mountPath: /etc/ainari/bento_data
+          mountPath: /etc/ainari/ryokan_data
         - name: sakura-config
           mountPath: /etc/ainari/sakura.toml
           subPath: sakura.toml

@@ -137,7 +137,7 @@ For the installation on a kubernetes `helm` is used.
     ```
     kubectl label nodes NODE_NAME hanami-node=true
     kubectl label nodes NODE_NAME miko-node=true
-    kubectl label nodes NODE_NAME bento-node=true
+    kubectl label nodes NODE_NAME ryokan-node=true
     kubectl label nodes NODE_NAME sakura-node=true
     kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME omamori-node=true

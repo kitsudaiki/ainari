@@ -57,7 +57,7 @@ def request_context(address: str,
     # get addresses
     miko_address = address
     hanami_address = resp["hanami"]["public_address"]
-    bento_address = resp["bento"]["public_address"]
+    ryokan_address = resp["ryokan"]["public_address"]
     torii_address = resp["torii"]["public_address"]
     omamori_address = resp["omamori"]["public_address"]
 
@@ -65,7 +65,7 @@ def request_context(address: str,
     torii_base_address = torii_address_split[0] + ":" + torii_address_split[1]
 
     context = AccessContext(token, miko_address, hanami_address,
-                            bento_address, omamori_address, torii_address, torii_base_address)
+                            ryokan_address, omamori_address, torii_address, torii_base_address)
 
     # print(context)
 

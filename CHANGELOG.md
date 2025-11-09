@@ -20,11 +20,11 @@
 ### Added
 
 - new component "Miko" for authentication
-- new componentn "Bento" for storage
+- new componentn "Ryokan" for storage
 - new component "Sakura", which contains the core of the previous "Hanami"
 - new component "Torii" as proxy to the sakura-hosts
 - new component "Omamori" with a very simple AES-crypto backend to store and download secrets
-- use shared storage in kubernetes-setup to share files between Bento and Sakura
+- use shared storage in kubernetes-setup to share files between Ryokan and Sakura
 - the new Miko-component provides the addresses of all components
 
 ### Changed

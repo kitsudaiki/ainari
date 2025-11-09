@@ -14,8 +14,8 @@ RUN apt-get update && \
 
 COPY . .
 
-RUN ~/.cargo/bin/cargo build --release -p bento
-RUN cp target/release/bento /app/
+RUN ~/.cargo/bin/cargo build --release -p ryokan
+RUN cp target/release/ryokan /app/
 
 # ---------------------------------------------------
 
@@ -28,6 +28,6 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# bento
-COPY --from=builder /app/bento /usr/bin/bento
-CMD [ "bento" ]
+# ryokan
+COPY --from=builder /app/ryokan /usr/bin/ryokan
+CMD [ "ryokan" ]

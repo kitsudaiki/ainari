@@ -19,7 +19,7 @@ internal_api_key = "asdf"
 public_address = "http://127.0.0.1:11418"
 internal_address = "http://127.0.0.1:10418"
 
-[endpoints.bento]
+[endpoints.ryokan]
 public_address = "http://127.0.0.1:11416"
 internal_address = "http://127.0.0.1:10416"
 

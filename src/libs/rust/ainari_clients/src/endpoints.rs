@@ -57,9 +57,9 @@ pub async fn get_endpoints(
                             public_address: deserialized.hanami.public_address,
                             internal_address: deserialized.hanami.internal_address,
                         },
-                        bento: ainari_config::Endpoint {
-                            public_address: deserialized.bento.public_address,
-                            internal_address: deserialized.bento.internal_address,
+                        ryokan: ainari_config::Endpoint {
+                            public_address: deserialized.ryokan.public_address,
+                            internal_address: deserialized.ryokan.internal_address,
                         },
                         torii: ainari_config::Endpoint {
                             public_address: deserialized.torii.public_address,

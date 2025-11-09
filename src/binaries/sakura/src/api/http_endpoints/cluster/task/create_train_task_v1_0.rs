@@ -110,7 +110,7 @@ pub async fn create_train_task(
     for input in &body.inputs {
         // get dataset information
         let dataset_resp = match get_dataset(
-            &endpoints.bento,
+            &endpoints.ryokan,
             &context.token,
             &ainari_config::CONFIG.api.internal_api_key,
             &input.dataset_uuid,
@@ -151,7 +151,7 @@ pub async fn create_train_task(
     for output in &body.outputs {
         // get dataset information
         let dataset_resp = match get_dataset(
-            &endpoints.bento,
+            &endpoints.ryokan,
             &context.token,
             &ainari_config::CONFIG.api.internal_api_key,
             &output.dataset_uuid,

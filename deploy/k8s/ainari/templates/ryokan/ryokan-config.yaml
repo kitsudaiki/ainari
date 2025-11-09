@@ -1,16 +1,16 @@
 apiVersion: v1
 metadata:
-  name: bento-config
+  name: ryokan-config
 data:
-  bento.toml: |+
+  ryokan.toml: |+
     debug = true
     log_path = ""
     insecure_clients = true
 
     [storage]
-    dataset_location = "/etc/ainari/bento_data/datasets"
-    checkpoint_location = "/etc/ainari/bento_data/checkpoints"
-    tempfile_location = "/etc/ainari/bento_data/tempfiles"
+    dataset_location = "/etc/ainari/ryokan_data/datasets"
+    checkpoint_location = "/etc/ainari/ryokan_data/checkpoints"
+    tempfile_location = "/etc/ainari/ryokan_data/tempfiles"
 
     [api]
     public_ip = "127.0.0.1"
@@ -20,7 +20,7 @@ data:
     internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
-    file_path = "/etc/ainari/bento/bento_db"
+    file_path = "/etc/ainari/ryokan/ryokan_db"
     
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local"

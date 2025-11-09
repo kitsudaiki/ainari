@@ -17,7 +17,7 @@ docker:
 api:
   domain_sakura: local-sakura
   domain_miko: local-miko
-  domain_bento: local-bento
+  domain_ryokan: local-ryokan
   domain_torii: local-torii
   domain_hanami: local-hanami
   domain_omamori: local-omamori
