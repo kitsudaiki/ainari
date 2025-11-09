@@ -44,16 +44,16 @@
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "build bento debug",
+        "label": "build ryokan debug",
         "type": "shell",
-        "command": "cargo build -p bento",
+        "command": "cargo build -p ryokan",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "build bento release",
+        "label": "build ryokan release",
         "type": "shell",
-        "command": "cargo build --release -p bento",
+        "command": "cargo build --release -p ryokan",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },

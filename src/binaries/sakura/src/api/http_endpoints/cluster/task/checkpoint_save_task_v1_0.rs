@@ -92,7 +92,7 @@ pub async fn checkpoint_save_task(
         }
     };
     let checkpoint_create_resp = match init_checkpoint(
-        &endpoints.bento,
+        &endpoints.ryokan,
         &context.token,
         &ainari_config::CONFIG.api.internal_api_key,
         &task_uuid,

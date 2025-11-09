@@ -229,12 +229,12 @@ func UploadFiles(context AccessContext, path string, filePaths []string) (map[st
 	}
 
 	// check if https or not
-	if strings.Contains(context.BentoAddress, "https") {
+	if strings.Contains(context.RyokanAddress, "https") {
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: context.skipTlsVerification}
 	}
 
 	// Create the request
-	completePath := fmt.Sprintf("%s/%s", context.BentoAddress, path)
+	completePath := fmt.Sprintf("%s/%s", context.RyokanAddress, path)
 	// fmt.Println("completePath: " + completePath)
 	// fmt.Println("request-body: " + jsonDataStr)
 	req, err := http.NewRequest("POST", completePath, body)

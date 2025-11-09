@@ -125,7 +125,7 @@ compile-ainari:
     RUN mkdir /tmp/ainari/
     RUN cp ./target/debug/sakura /tmp/ainari/
     RUN cp ./target/debug/miko /tmp/ainari/
-    RUN cp ./target/debug/bento /tmp/ainari/
+    RUN cp ./target/debug/ryokan /tmp/ainari/
     RUN cp ./target/debug/hanami /tmp/ainari/
     RUN cp ./target/debug/torii /tmp/ainari/
     RUN cp ./target/debug/omamori /tmp/ainari/
@@ -165,7 +165,7 @@ generate-docs:
 
     COPY +compile-ainari/ainari/sakura /tmp/sakura
     COPY +compile-ainari/ainari/miko /tmp/miko
-    COPY +compile-ainari/ainari/bento /tmp/bento
+    COPY +compile-ainari/ainari/ryokan /tmp/ryokan
     COPY +compile-ainari/ainari/hanami /tmp/hanami
     COPY +compile-ainari/ainari/torii /tmp/torii
     COPY +compile-ainari/ainari/omamori /tmp/omamori
@@ -195,11 +195,11 @@ generate-docs:
         hap run /tmp/miko && \
         sleep 5 && \
         curl 127.0.0.1:11417/openapi.json > ./open_api_docu_miko.json
-    RUN chmod +x /tmp/bento
+    RUN chmod +x /tmp/ryokan
     RUN . ainari_env/bin/activate && \
-        hap run /tmp/bento && \
+        hap run /tmp/ryokan && \
         sleep 5 && \
-        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_bento.json
+        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_ryokan.json
     RUN chmod +x /tmp/hanami
     RUN . ainari_env/bin/activate && \
         hap run /tmp/hanami && \
@@ -228,7 +228,7 @@ generate-docs:
     COPY docs docs
     # RUN cp ./open_api_docu_sakura.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
-    RUN cp ./open_api_docu_bento.json docs/frontend/
+    RUN cp ./open_api_docu_ryokan.json docs/frontend/
     RUN cp ./open_api_docu_hanami.json docs/frontend/
     RUN cp ./open_api_docu_torii.json docs/frontend/
     RUN cp ./open_api_docu_omamori.json docs/frontend/

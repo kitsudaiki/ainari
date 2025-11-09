@@ -553,7 +553,7 @@ fn handle_checkpoint_save_task(
     // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
     let create_resp = local.block_on(&rt, async {
         init_checkpoint(
-            &endpoints.bento,
+            &endpoints.ryokan,
             token,
             &ainari_config::CONFIG.api.internal_api_key,
             task_uuid,

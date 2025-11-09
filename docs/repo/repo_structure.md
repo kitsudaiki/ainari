@@ -17,7 +17,7 @@ it easier for a new person to understand the code.
     │   ├── archive
     │   │
     │   ├── binaries
-    │   │       ├── bento
+    │   │       ├── ryokan
     │   │       ├── sakura
     │   │       └── miko
     │   │

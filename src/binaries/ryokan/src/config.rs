@@ -45,7 +45,7 @@ pub struct Storage {
 
 // Global singleton config
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/bento.toml";
+    let file_path = "/etc/ainari/ryokan.toml";
     log::debug!("read config '{file_path}'");
 
     match fs::read_to_string(file_path) {

@@ -25,7 +25,7 @@ pub struct EndpointField {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct EndpontsResp {
     pub hanami: EndpointField,
-    pub bento: EndpointField,
+    pub ryokan: EndpointField,
     pub torii: EndpointField,
     pub omamori: EndpointField,
 }

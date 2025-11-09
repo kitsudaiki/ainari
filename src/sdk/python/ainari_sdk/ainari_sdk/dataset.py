@@ -20,7 +20,7 @@ from .access_context import AccessContext
 def list_datasets(context: AccessContext) -> dict:
     path = "/v1alpha/dataset"
     return ainari_request.send_get_request(context,
-                                           context.bento_adress,
+                                           context.ryokan_adress,
                                            path,
                                            "")
 
@@ -29,7 +29,7 @@ def get_dataset(context: AccessContext,
                 dataset_uuid: str) -> dict:
     path = f"/v1alpha/dataset/{dataset_uuid}"
     return ainari_request.send_get_request(context,
-                                           context.bento_adress,
+                                           context.ryokan_adress,
                                            path,
                                            "")
 
@@ -38,7 +38,7 @@ def delete_dataset(context: AccessContext,
                    dataset_uuid: str):
     path = f"/v1alpha/dataset/{dataset_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.bento_adress,
+                                       context.ryokan_adress,
                                        path,
                                        "")
 
@@ -62,7 +62,7 @@ def check_dataset(context: AccessContext,
     }
 
     return ainari_request.send_put_request(context,
-                                           context.bento_adress,
+                                           context.ryokan_adress,
                                            path,
                                            json_body)
 
@@ -75,7 +75,7 @@ def upload_mnist_files(context: AccessContext,
     files = [input_file_path, label_file_path]
 
     return ainari_request.upload_files(context,
-                                       context.bento_adress,
+                                       context.ryokan_adress,
                                        path,
                                        files)
 
@@ -87,6 +87,6 @@ def upload_csv_files(context: AccessContext,
     files = [input_file_path]
 
     return ainari_request.upload_files(context,
-                                       context.bento_adress,
+                                       context.ryokan_adress,
                                        path,
                                        files)

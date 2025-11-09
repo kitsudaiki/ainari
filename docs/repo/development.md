@@ -121,7 +121,7 @@ API.
     ```bash
     export AINARI_ADDRESS=http://127.0.0.1:11418
     export MIKO_ADDRESS=http://127.0.0.1:11417
-    export BENTO_ADDRESS=http://127.0.0.1:11416
+    export RYOKAN_ADDRESS=http://127.0.0.1:11416
     export AINARI_USER=asdf
     export AINARI_PASSPHRASE=asdfasdf
 

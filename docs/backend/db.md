@@ -1,6 +1,6 @@
 # Database-Tables
 
-## Bento
+## Ryokan
 
 ### checkpoints
 

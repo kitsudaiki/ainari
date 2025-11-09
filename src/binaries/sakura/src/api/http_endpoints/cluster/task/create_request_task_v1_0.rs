@@ -101,7 +101,7 @@ pub async fn create_request_task(
 
     // initialize datbase for output
     let dataset_create_resp = match init_dataset(
-        &endpoints.bento,
+        &endpoints.ryokan,
         &context.token,
         &ainari_config::CONFIG.api.internal_api_key,
         &task_uuid,
@@ -190,7 +190,7 @@ pub async fn create_request_task(
     for input in &body.inputs {
         // get dataset information
         let dataset_resp = match get_dataset(
-            &endpoints.bento,
+            &endpoints.ryokan,
             &context.token,
             &ainari_config::CONFIG.api.internal_api_key,
             &input.dataset_uuid,

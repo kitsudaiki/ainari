@@ -399,7 +399,7 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/bento
+          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
@@ -408,7 +408,7 @@ jobs:
           sudo chmod 777 -R /etc/ainari
           /tmp/Ainari_debug_build_result/ainari/hanami &
           /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/bento &
+          /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
@@ -489,7 +489,7 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/bento
+          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
@@ -498,7 +498,7 @@ jobs:
           sudo chmod 777 -R /etc/ainari
           /tmp/Ainari_debug_build_result/ainari/hanami &
           /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/bento &
+          /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
@@ -605,7 +605,7 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/bento
+          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
@@ -614,7 +614,7 @@ jobs:
           sudo chmod 777 -R /etc/ainari
           /tmp/Ainari_debug_build_result/ainari/hanami &
           /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/bento &
+          /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
@@ -682,8 +682,8 @@ jobs:
           - { component: "hanami", platform: "linux/arm64", regitry: "kitsudaiki/hanami" }
           - { component: "miko", platform: "linux/amd64", regitry: "kitsudaiki/miko" }
           - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
-          - { component: "bento", platform: "linux/amd64", regitry: "kitsudaiki/bento" }
-          - { component: "bento", platform: "linux/arm64", regitry: "kitsudaiki/bento" }
+          - { component: "ryokan", platform: "linux/amd64", regitry: "kitsudaiki/ryokan" }
+          - { component: "ryokan", platform: "linux/arm64", regitry: "kitsudaiki/ryokan" }
           - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
           - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
           - { component: "torii", platform: "linux/amd64", regitry: "kitsudaiki/torii" }
@@ -768,7 +768,7 @@ jobs:
         builds:
           - { component: "hanami", regitry: "kitsudaiki/hanami" }
           - { component: "miko", regitry: "kitsudaiki/miko" }
-          - { component: "bento", regitry: "kitsudaiki/bento" }
+          - { component: "ryokan", regitry: "kitsudaiki/ryokan" }
           - { component: "sakura", regitry: "kitsudaiki/sakura" }
           - { component: "torii", regitry: "kitsudaiki/torii" }
           - { component: "omamori", regitry: "kitsudaiki/omamori" }
@@ -990,7 +990,7 @@ jobs:
         run: |
           kubectl label nodes --all hanami-node=true
           kubectl label nodes --all miko-node=true
-          kubectl label nodes --all bento-node=true
+          kubectl label nodes --all ryokan-node=true
           kubectl label nodes --all sakura-node=true
           kubectl label nodes --all torii-node=true
           kubectl label nodes --all omamori-node=true
@@ -1020,8 +1020,8 @@ jobs:
           echo "$ingress_ip_hanami  local-hanami" | sudo tee -a /etc/hosts
           ingress_ip_miko=$(kubectl get ingress miko-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_miko  local-miko" | sudo tee -a /etc/hosts
-          ingress_ip_bento=$(kubectl get ingress bento-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "$ingress_ip_bento  local-bento" | sudo tee -a /etc/hosts
+          ingress_ip_ryokan=$(kubectl get ingress ryokan-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "$ingress_ip_ryokan  local-ryokan" | sudo tee -a /etc/hosts
           ingress_ip_torii=$(kubectl get ingress torii-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_torii  local-torii" | sudo tee -a /etc/hosts
           ingress_ip_sakura=$(kubectl get ingress sakura-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -1048,7 +1048,7 @@ jobs:
           sudo cp -r ./example_configs/ainari /etc/
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
-          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-bento/g' /etc/ainari/hanami_testing.conf
+          sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-ryokan/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-torii/g' /etc/ainari/hanami_testing.conf
           sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-omamori/g' /etc/ainari/hanami_testing.conf
@@ -1071,9 +1071,9 @@ jobs:
         if: ${{ always() }}
         run: kubectl logs -c miko $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^miko-')
       -
-        name: Print logs of the bento-pod to make debugging easier in case of an error
+        name: Print logs of the ryokan-pod to make debugging easier in case of an error
         if: ${{ always() }}
-        run: kubectl logs -c bento $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^bento-')
+        run: kubectl logs -c ryokan $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^ryokan-')
       -
         name: Print logs of the sakura-pod to make debugging easier in case of an error
         if: ${{ always() }}

@@ -1,6 +1,6 @@
 apiVersion: v1
 metadata:
-  name: bento-nginx-config
+  name: ryokan-nginx-config
 data:
   nginx.conf: |+
     user nginx;
@@ -15,14 +15,14 @@ data:
         {
             listen 80;
             server_tokens off;
-            server_name {{ .Values.api.domain_bento }};
+            server_name {{ .Values.api.domain_ryokan }};
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name {{ .Values.api.domain_bento }};
+            server_name {{ .Values.api.domain_ryokan }};
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -74,7 +74,7 @@ data:
 
                 proxy_pass http://127.0.0.1:11416/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:11416 https://{{ .Values.api.domain_bento }};
+                proxy_redirect http://127.0.0.1:11416 https://{{ .Values.api.domain_ryokan }};
             }
         }
     }

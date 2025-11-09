@@ -3,7 +3,7 @@ log_path = "/var/log"
 insecure_clients = true
 
 [database]
-file_path = "/etc/ainari/bento_db"
+file_path = "/etc/ainari/ryokan_db"
 
 [storage]
 dataset_location = "/etc/ainari/datasets"

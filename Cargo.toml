@@ -3,7 +3,7 @@ members = [
     "src/binaries/sakura",
     "src/binaries/hanami",
     "src/binaries/miko", 
-    "src/binaries/bento", 
+    "src/binaries/ryokan", 
     "src/binaries/torii", 
     "src/binaries/omamori", 
     "src/libs/rust/ainari_common",

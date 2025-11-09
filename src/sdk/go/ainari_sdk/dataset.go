@@ -41,19 +41,19 @@ func CreateCsvDataset(context AccessContext, datasetName, filePath string,) (map
 func GetDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
 func ListDataset(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/dataset"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
 func DeleteDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.BentoAddress, path, vars)
+	return SendDelete(context, context.RyokanAddress, path, vars)
 }
 
 func CheckDataset(context AccessContext, uuid, referenceDatasetUuid string,) (map[string]interface{}, error) {
@@ -62,7 +62,7 @@ func CheckDataset(context AccessContext, uuid, referenceDatasetUuid string,) (ma
 		"uuid":           uuid,
 		"reference_uuid": referenceDatasetUuid,
 	}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
 func DownloadDatasetContent(context AccessContext, datasetUuid, columnName string, numberOfRows, rowOffset int,) (map[string]interface{}, error) {
@@ -73,5 +73,5 @@ func DownloadDatasetContent(context AccessContext, datasetUuid, columnName strin
 		"number_of_rows": numberOfRows,
 		"row_offset":     rowOffset,
 	}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }

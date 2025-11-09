@@ -23,14 +23,14 @@ use crate::handle_response;
 use crate::prepare_client;
 
 pub async fn init_dataset(
-    bento_endpoint: &ainari_config::Endpoint,
+    ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     name: &str,
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    let address = bento_endpoint.internal_address.clone();
+    let address = ryokan_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/dataset/internal");
 
@@ -55,13 +55,13 @@ pub async fn init_dataset(
 }
 
 pub async fn get_dataset(
-    bento_endpoint: &ainari_config::Endpoint,
+    ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    let address = bento_endpoint.internal_address.clone();
+    let address = ryokan_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/dataset/{dataset_uuid}/internal");
 

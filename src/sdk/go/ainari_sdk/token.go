@@ -47,14 +47,14 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 	}
 
 	hanamiAddr := resp["hanami"].(map[string]interface{})
-	bentoAddr := resp["bento"].(map[string]interface{})
+	ryokanAddr := resp["ryokan"].(map[string]interface{})
 	toriiAddr := resp["torii"].(map[string]interface{})
 	omamoriAddr := resp["omamori"].(map[string]interface{})
 
 	context.token = token
 	context.MikoAddress = address
 	context.HanamiAddress = hanamiAddr["public_address"].(string)
-	context.BentoAddress = bentoAddr["public_address"].(string)
+	context.RyokanAddress = ryokanAddr["public_address"].(string)
 	context.OmamoriAddress = omamoriAddr["public_address"].(string)
 	context.ToriiAddress = toriiAddr["public_address"].(string)
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
