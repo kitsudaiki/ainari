@@ -34,7 +34,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
         Ok(proxys) => proxys,
         Err(e) => {
             log::error!("Failed to get list of proxys form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -46,7 +46,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert proxy-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 
@@ -54,7 +54,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
             Ok(cluster_uuid) => cluster_uuid,
             Err(e) => {
                 log::error!("Failed to convert cluster-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 

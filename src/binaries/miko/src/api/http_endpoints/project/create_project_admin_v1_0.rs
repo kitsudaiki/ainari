@@ -19,6 +19,7 @@ use validator::Validate;
 
 use crate::database::project_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -37,11 +38,7 @@ pub async fn create_project_admin(
     body: Json<ProjectCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<ProjectResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     // validate incoming json
     match body.validate() {
@@ -61,7 +58,7 @@ pub async fn create_project_admin(
             return Err(ErrorResponse::Conflict(msg));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             // it is desired, that the project not already exist, so this error will be ignored
@@ -73,7 +70,7 @@ pub async fn create_project_admin(
         Ok(_) => {}
         Err(e) => {
             log::error!("Failed to add project with ID '{id}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -96,7 +93,7 @@ pub async fn create_project_admin(
                 "Failed to get project with ID '{id}' from database, even the project should exist."
             );
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 }

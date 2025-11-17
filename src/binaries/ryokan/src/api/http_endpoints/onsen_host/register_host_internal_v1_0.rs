@@ -62,7 +62,7 @@ pub async fn register_host_internal(
         Err(_) => {
             let msg = format!("Failed to add host with UUID '{host_uuid}' to database.");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -74,7 +74,7 @@ pub async fn register_host_internal(
                 "Failed to get host with ID '{host_uuid}' from database, even the host should exist."
             );
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

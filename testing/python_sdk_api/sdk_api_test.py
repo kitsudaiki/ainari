@@ -361,12 +361,12 @@ def _test(cluster_uuid, torii_port, request_dataset_uuid):
     task.delete_task(context, torii_port, task_uuid, cluster_uuid)
     time.sleep(1)
 
-    #accuracy = dataset.check_dataset(
-    #    context, task_uuid, "label_hex", request_dataset_uuid, "label")["accuracy"]
-    #print("=======================================")
-    #print("test-result: " + str(accuracy))
-    #print("=======================================")
-    #assert accuracy > 0.85
+    accuracy = dataset.check_dataset(
+        context, task_uuid, "label_hex", request_dataset_uuid, "label")["accuracy"]
+    print("=======================================")
+    print("test-result: " + str(accuracy))
+    print("=======================================")
+    assert accuracy > 0.85
 
     # # download part of the resulting dataset
     # data = dataset.download_dataset_content(
@@ -413,7 +413,7 @@ def test_workflow():
     _test(cluster_uuid, torii_port, request_dataset_uuid)
     _test(cluster_uuid, torii_port, request_dataset_uuid)
 
-    # cluster_uuid, torii_port = _creat_and_resore_checkpoint(cluster_uuid, torii_port)
+    cluster_uuid, torii_port = _creat_and_resore_checkpoint(cluster_uuid, torii_port)
 
     _test(cluster_uuid, torii_port, request_dataset_uuid)
 

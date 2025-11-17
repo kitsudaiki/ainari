@@ -17,6 +17,7 @@ use apistos::api_operation;
 
 use crate::database::quota_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -29,18 +30,14 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let quotas = match quota_table::list_quotas(&context) {
         Ok(result) => result,
         Err(e) => {
             let msg = format!("Failed to list quotas with error: '{e}'");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

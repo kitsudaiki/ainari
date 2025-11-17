@@ -18,6 +18,7 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,11 +37,7 @@ pub async fn get_project_admin(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<ProjectResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     // get new created project from database to get addtional information
     match project_table::get_project(&project_id, &context) {
@@ -57,7 +54,7 @@ pub async fn get_project_admin(
             return Ok(Json(resp));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Project with ID '{project_id}' not found.");

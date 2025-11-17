@@ -17,16 +17,11 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::config;
-use crate::database::dataset_table;
 use crate::onsen_functions::select_onsen;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::quota::get_quota;
-use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "dataset",
@@ -50,96 +45,22 @@ pub async fn init_dataset(
         }
     };
 
-    check_quota(&context).await?;
-
-    let selected_onsen = select_onsen(&context)?;
-
     let name = &body.name;
     let dataset_uuid = &body.uuid.clone();
     let file_path_str: String = format!("datasets/{}", dataset_uuid);
 
-    // add new dataset to datbase
-    match dataset_table::add_new_dataset(
+    super::check_dataset_quota(&context).await?;
+
+    let selected_onsen = select_onsen(&context)?;
+
+    super::add_dataset_to_database(
         dataset_uuid,
         name,
         &selected_onsen.address,
         &file_path_str,
         &context,
-    ) {
-        Ok(_) => {}
-        Err(e) => {
-            let msg = format!("Failed to add dataset to database: {e}");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError(msg));
-        }
-    }
+    )?;
 
-    // get new created dataset from database to get addtional information
-    match dataset_table::get_dataset(dataset_uuid, &context) {
-        Ok(dataset) => {
-            let resp = DatasetInternalResp {
-                uuid: *dataset_uuid,
-                name: dataset.name.clone(),
-                onsen_address: dataset.onsen_address.clone(),
-                file_path: dataset.file_path.clone(),
-                created_by: dataset.created_by.clone(),
-                created_at: dataset.created_at.clone(),
-                updated_by: dataset.updated_by.clone(),
-                updated_at: dataset.updated_at.clone(),
-            };
-
-            return Ok(CreatedJson(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            log::error!("Error while getting dataset from DB");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-}
-
-async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of datasets of the user
-    let current_number_of_datasets = match dataset_table::count_datasets(context) {
-        Ok(number) => number,
-        Err(e) => {
-            log::error!("Failed to count datasets in database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // check the maximum number of datasets defined in miko
-    let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_datasets = match get_quota(
-        miko_endpoint,
-        &context.token,
-        &context.user_id,
-        config::CONFIG.insecure_clients,
-    )
-    .await
-    {
-        Ok(body) => body.max_dataset as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // check if quota is already exceeded
-    if current_number_of_datasets as i64 >= max_number_of_datasets {
-        return Err(ErrorResponse::Conflict(
-            "Maximum number of datasets exceeded.".to_string(),
-        ));
-    }
-
-    Ok(())
+    let resp = super::get_dataset_internal(dataset_uuid, &context)?;
+    return Ok(CreatedJson(resp));
 }

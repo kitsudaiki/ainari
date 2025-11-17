@@ -39,7 +39,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_BACKTRACE": "full",
-                "RUST_LOG": "debug",
+                "RUST_LOG": "debug,h2=info",
             },
         },
         {
@@ -53,7 +53,7 @@
             "preLaunchTask": "build sakura release",
             "sourceLanguages": ["rust"],
             "env": {
-                "RUST_LOG": "debug",
+                "RUST_LOG": "debug,h2=info",
             },
         },
         {

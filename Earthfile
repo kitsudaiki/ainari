@@ -26,31 +26,6 @@ local-setup:
     RUN git config --local core.hooksPath .githooks
 
 
-cppcheck:
-    RUN apt-get update && \
-        apt-get install -y cppcheck
-    COPY src src
-    RUN rm -rf \
-          src/libs/protobuf/ainari_messages.proto3.pb.h
-    RUN cppcheck --error-exitcode=1 src/libs/cpp
-
-
-clang-format:
-    RUN apt-get update && \
-        apt-get install -y clang-format-15
-    COPY src src
-    RUN rm -rf \
-          src/sdk/python \
-          src/third-party-libs \
-          src/libs/protobuf/ainari_messages.proto3.pb.h
-    COPY .clang-format .
-    RUN find . -regex '.*\.\(h$\|c$\|hpp$\|cpp$\)' | while read f; do \
-              clang-format-15 -style=file:.clang-format --dry-run --Werror $f; \
-              if [ $? -ne 0 ]; then \
-                  exit 1; \
-              fi; done
-
-
 flake8:
     RUN apt-get update && \
         apt-get install -y python3 python3-pip python3-venv && \
@@ -120,7 +95,7 @@ compile-cli:
 compile-ainari:
     FROM +prepare-build-dependencies
     RUN apt-get update && \
-        apt-get install -y libsqlite3-dev
+        apt-get install -y protobuf-compiler  libsqlite3-dev
     RUN cargo build
     RUN mkdir /tmp/ainari/
     RUN cp ./target/debug/sakura /tmp/ainari/
@@ -129,6 +104,7 @@ compile-ainari:
     RUN cp ./target/debug/hanami /tmp/ainari/
     RUN cp ./target/debug/torii /tmp/ainari/
     RUN cp ./target/debug/omamori /tmp/ainari/
+    RUN cp ./target/debug/onsen /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
@@ -136,26 +112,9 @@ test-hanami:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
-        apt-get install -y libsqlite3-dev libssl-dev
+        apt-get install -y protobuf-compiler libsqlite3-dev libssl-dev
     # only one test-thread to avoid conflicts between tests, which access the same singleton
     RUN cargo test -- --test-threads=1
-
-
-build-image:
-    ARG image_name
-
-    RUN apt-get update && \
-        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 && \
-        apt-get clean autoclean && \
-        apt-get autoremove --yes && \
-        chmod +x /usr/bin/sakura
-
-    COPY +compile-code/ainari_core/sakura /usr/bin/
-
-    # run sakura
-    ENTRYPOINT ["/usr/bin/sakura"]
-
-    SAVE IMAGE "$image_name"
 
 
 generate-docs:
@@ -169,10 +128,11 @@ generate-docs:
     COPY +compile-ainari/ainari/hanami /tmp/hanami
     COPY +compile-ainari/ainari/torii /tmp/torii
     COPY +compile-ainari/ainari/omamori /tmp/omamori
+    COPY +compile-ainari/ainari/onsen /tmp/onsen
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
-        apt-get install -y openssl libsqlite3-0 libgbm-dev xvfb dbus
+        apt-get install -y protobuf-compiler openssl libsqlite3-0 libgbm-dev xvfb dbus
 
     RUN apt-get update && \
         apt-get install -y python3 \

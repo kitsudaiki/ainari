@@ -61,7 +61,7 @@ pub async fn register_proxy_internal(
         Err(_) => {
             let msg = format!("Failed to add proxy with UUID '{proxy_uuid}' to database.");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -80,7 +80,7 @@ pub async fn register_proxy_internal(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
 
@@ -92,7 +92,7 @@ pub async fn register_proxy_internal(
                 "Failed to get proxy with ID '{proxy_uuid}' from database, even the proxy should exist."
             );
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

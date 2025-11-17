@@ -160,9 +160,7 @@ jobs:
       -
         name: Build python package
         run: |
-          cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/ainari_sdk/ainari_sdk
-          protoc --python_out=. --proto_path ../../../../libs/protobuf  ainari_messages.proto3
-          cd ..
+          cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/ainari_sdk
           python3 setup.py bdist_wheel --universal
       -
         name: Copy files
@@ -417,10 +415,10 @@ jobs:
           /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -509,10 +507,10 @@ jobs:
           /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -627,10 +625,10 @@ jobs:
           /tmp/Ainari_debug_build_result/ainari/ryokan &
           /tmp/Ainari_debug_build_result/ainari/torii &
           /tmp/Ainari_debug_build_result/ainari/omamori &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -

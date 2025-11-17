@@ -59,14 +59,14 @@ pub async fn create_cluster(
         Ok(hosts) => hosts,
         Err(e) => {
             log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     // check that there is at least one host
     if hosts.is_empty() {
         log::error!("No hosts to schedule new cluster.");
-        return Err(ErrorResponse::InternalError("".to_string()));
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     // select first host
@@ -75,7 +75,7 @@ pub async fn create_cluster(
         host
     } else {
         log::error!("No hosts with list-position 0 doesn't exist.");
-        return Err(ErrorResponse::InternalError("".to_string()));
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 
     // send request to the selected sakura-host to create a cluster
@@ -98,7 +98,7 @@ pub async fn create_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -114,7 +114,7 @@ pub async fn create_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -139,7 +139,7 @@ pub async fn create_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -151,7 +151,7 @@ pub async fn create_cluster(
         Ok(uuid) => uuid,
         Err(e) => {
             log::error!("Failed to convert cluster-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -167,7 +167,7 @@ pub async fn create_cluster(
         Err(_) => {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -180,7 +180,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         Ok(number) => number,
         Err(e) => {
             log::error!("Failed to count meta_clusters in database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -203,7 +203,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

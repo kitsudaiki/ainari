@@ -66,7 +66,7 @@ pub async fn create_secret(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -75,7 +75,7 @@ pub async fn create_secret(
         Ok(_) => {}
         Err(e) => {
             log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -97,7 +97,7 @@ pub async fn create_secret(
             log::error!(
                 "Failed to get secret with UUID '{secret_uuid}' from database, even the secret should exist"
             );
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 }
@@ -108,7 +108,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         Ok(number) => number,
         Err(e) => {
             log::error!("Failed to count secrets in database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -131,7 +131,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

@@ -156,6 +156,38 @@ impl Task {
     }
 
     pub fn finalize_task(&mut self) {
+        if let TaskVariant::Request(task_info) = &mut self.info {
+            let rt = Builder::new_current_thread()
+                .enable_all() // I/O & timers
+                .build()
+                .expect("failed to build runtime");
+
+            // LocalSet allows spawn_local to work
+            let local = LocalSet::new();
+            let upload_resp = local.block_on(&rt, async {
+                upload_file(
+                    &task_info.results.link.onsen_address,
+                    &task_info.results.link.remote_file_path,
+                    &task_info.results.link.local_file_path,
+                )
+                .await
+            });
+
+            match upload_resp {
+                Ok(()) => {}
+                Err(_) => {
+                    let _ = fs::remove_file(&task_info.results.link.local_file_path);
+                    let _ = task_table::update_task_state(&self.uuid, &TaskState::Error);
+                    let _ = task_table::update_task_progress(
+                        &self.uuid,
+                        &(self.meta.number_of_epochs as i64),
+                        &(self.meta.number_of_cycles as i64),
+                    );
+                    return;
+                }
+            }
+        }
+
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
         let _ = task_table::update_task_progress(
             &self.uuid,
@@ -513,7 +545,7 @@ fn handle_checkpoint_save_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
-    let local_temp_file_path = format!("/temp/checkpoint/{cluster_uuid}");
+    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
 
     let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
@@ -537,8 +569,8 @@ fn handle_checkpoint_save_task(
     let upload_resp = local.block_on(&rt, async {
         upload_file(
             &task_info.onsen_address,
-            &local_temp_file_path,
             &task_info.file_path,
+            &local_temp_file_path,
         )
         .await
     });
@@ -564,7 +596,7 @@ fn handle_checkpoint_restore_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
-    let local_temp_file_path = format!("/temp/checkpoint/{cluster_uuid}");
+    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
 
     // Create a single-threaded runtime
     let rt = Builder::new_current_thread()
@@ -577,8 +609,8 @@ fn handle_checkpoint_restore_task(
     let download_resp = local.block_on(&rt, async {
         download_file(
             &task_info.onsen_address,
-            &local_temp_file_path,
             &task_info.file_path,
+            &local_temp_file_path,
         )
         .await
     });

@@ -19,9 +19,9 @@ use uuid::Uuid;
 
 use crate::database::dataset_table;
 
+use ainari_api::common_functions::delete_file_from_onsen;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 
 #[api_operation(
@@ -36,31 +36,14 @@ pub async fn delete_dataset(
     dataset_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset) => dataset,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let dataset = super::get_dataset_internal(&dataset_uuid, &context)?;
 
-    match onsen_file_transfer::delete_file(&dataset.onsen_address, &dataset.file_path).await {
-        Ok(_) => {}
-        Err(_) => {
-            let onsen_address = dataset.onsen_address;
-            let file_path = dataset.file_path;
-            log::error!("Failed to delete file '{file_path}' from onsen '{onsen_address}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    }
+    delete_file_from_onsen(&dataset.onsen_address, &dataset.file_path).await?;
 
     match dataset_table::delete_dataset(&dataset_uuid, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");

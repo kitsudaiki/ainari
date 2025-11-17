@@ -42,7 +42,7 @@ pub async fn delete_proxy_internal(
     match proxy_table::delete_proxy(&proxy_uuid, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Proxy with UUID '{proxy_uuid}' not found.");
@@ -63,7 +63,7 @@ pub async fn delete_proxy_internal(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
 

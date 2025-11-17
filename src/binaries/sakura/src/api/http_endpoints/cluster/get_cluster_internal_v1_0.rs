@@ -17,12 +17,9 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::cluster_table;
-
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "cluster",
@@ -37,16 +34,7 @@ pub async fn get_cluster_internal(
     cluster_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ClusterResp>, ErrorResponse> {
-    let cluster_data = match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(cluster_data) => cluster_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let cluster_data = super::get_cluster_from_database(&cluster_uuid, &context)?;
 
     let resp = ClusterResp {
         uuid: *cluster_uuid,

@@ -16,26 +16,17 @@ use actix_web::web::{Json, Path};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use std::collections::HashMap;
-use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use super::check_quota;
-use crate::config as ainari_config;
-use crate::core::cluster_handler;
+use super::check_task_queue_quota;
+use crate::config;
 use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant, TrainInfo};
-use crate::database::cluster_table;
-use crate::database::task_table;
 
+use ainari_api::common_functions::get_endpoints;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::dataset::*;
-use ainari_clients::endpoints::*;
-use ainari_clients::onsen_file_transfer::*;
-use ainari_common::enums;
-use ainari_common::error::AinariError;
-use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
     tag = "task",
@@ -59,11 +50,12 @@ pub async fn create_train_task(
         }
     };
 
-    check_quota(&cluster_uuid, &context).await?;
+    check_task_queue_quota(&cluster_uuid, &context).await?;
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::Train;
     let time_length = body.time_length.unwrap_or(1);
+    let mut number_of_cycles = u64::MAX;
 
     if time_length < 1 {
         let msg = "Time-length must be 1 or bigger.".to_string();
@@ -71,16 +63,7 @@ pub async fn create_train_task(
     }
 
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
 
     // prepare task-info
     let mut info = TrainInfo {
@@ -88,144 +71,20 @@ pub async fn create_train_task(
         outputs: HashMap::new(),
     };
 
-    let mut number_of_cycles = u64::MAX;
-
-    let miko_endpoint = &ainari_config::CONFIG.miko;
-    let endpoints = match get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients).await?;
 
     // prepare inputs for task
     for input in &body.inputs {
-        // get dataset information
-        let dataset_resp = match get_dataset(
-            &endpoints.ryokan,
-            &context.token,
-            &ainari_config::CONFIG.api.internal_api_key,
-            &input.dataset_uuid,
-            ainari_config::CONFIG.insecure_clients,
-        )
-        .await
-        {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
-        // TODO: change path
-        let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
-        match download_file(
-            &dataset_resp.onsen_address,
-            &local_file_path,
-            &dataset_resp.file_path,
-        )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                log::error!("Failed to download dataset-file from onsen: {e}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        }
-
-        match read_data_set_file(&local_file_path) {
-            Ok(mut file_handle) => {
-                let number_of_rows = file_handle.get_number_of_rows();
-                if number_of_cycles > number_of_rows {
-                    number_of_cycles = number_of_rows;
-                }
-                file_handle.selected_column = input.dataset_column.clone();
-
-                info.inputs.insert(input.hexagon.clone(), file_handle);
-            }
-            Err(e) => {
-                log::error!(
-                    "Failed to read dataset-file '{}' with error: {e}",
-                    dataset_resp.file_path
-                );
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        let file_handle =
+            super::handle_input(input, &endpoints.ryokan, &context, &mut number_of_cycles).await?;
+        info.inputs.insert(input.hexagon.clone(), file_handle);
     }
 
     // prepare outputs for task
     for output in &body.outputs {
-        // get dataset information
-        let dataset_resp = match get_dataset(
-            &endpoints.ryokan,
-            &context.token,
-            &ainari_config::CONFIG.api.internal_api_key,
-            &output.dataset_uuid,
-            ainari_config::CONFIG.insecure_clients,
-        )
-        .await
-        {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
-        // TODO: change path
-        let local_file_path = format!("/tmp/task/dataset/{}", dataset_resp.uuid);
-        match download_file(
-            &dataset_resp.onsen_address,
-            &local_file_path,
-            &dataset_resp.file_path,
-        )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                log::error!("Failed to download dataset-file from onsen: {e}");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        }
-
-        match read_data_set_file(&local_file_path) {
-            Ok(mut file_handle) => {
-                let number_of_rows = file_handle.get_number_of_rows();
-                if number_of_cycles > number_of_rows {
-                    number_of_cycles = number_of_rows;
-                }
-                file_handle.selected_column = output.dataset_column.clone();
-
-                info.outputs.insert(output.hexagon.clone(), file_handle);
-            }
-            Err(e) => {
-                log::error!(
-                    "Failed to read dataset-file '{}' with error: {e}",
-                    dataset_resp.file_path
-                );
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        let file_handle =
+            super::handle_input(output, &endpoints.ryokan, &context, &mut number_of_cycles).await?;
+        info.outputs.insert(output.hexagon.clone(), file_handle);
     }
 
     // handle the time-lenght-value
@@ -237,39 +96,6 @@ pub async fn create_train_task(
     }
     number_of_cycles -= time_length - 1;
 
-    // add new task to database
-    match task_table::add_new_task(
-        &task_uuid,
-        &cluster_uuid,
-        &body.name,
-        &task_type,
-        &body.number_of_epochs,
-        &number_of_cycles,
-        &context,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add task with UUID '{task_uuid}' to database.");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
-    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string())),
-    };
-    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
-        interface
-    } else {
-        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
-        return Err(ErrorResponse::NotFound(msg));
-    };
-
     // create new task
     let task = Task {
         uuid: task_uuid,
@@ -278,36 +104,12 @@ pub async fn create_train_task(
         info: TaskVariant::Training(info),
         meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
     };
-    cluster_interface
-        .lock()
-        .expect("mutex poisoned")
-        .add_task(task);
+    super::add_task_to_cluster(task, &task_type, &context)?;
 
     // get new created task from database to get addtional information
-    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
-        Ok(task_data) => task_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
-        }
-    };
-
-    // convert task-type
-    let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
-        Ok(task_type) => task_type,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-    // convert task-state
-    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
-        Ok(task_state) => task_state,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let task_data = super::get_task_from_database(&task_uuid, &cluster_uuid, &context)?;
+    let task_type = super::convert_task_type(&task_data.task_type)?;
+    let task_state = super::convert_task_state(&task_data.task_state)?;
 
     let resp = TaskResp {
         uuid: task_uuid,

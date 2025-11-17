@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::database::host_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -37,16 +38,12 @@ pub async fn get_host_admin(
     host_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<HostResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let host_data = match host_table::get_host(&host_uuid, &context) {
         Ok(host_data) => host_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Host with UUID '{host_uuid}' not found.");

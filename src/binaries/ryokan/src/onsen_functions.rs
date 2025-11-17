@@ -24,14 +24,14 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
         Ok(hosts) => hosts,
         Err(e) => {
             log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     // check that there is at least one host
     if hosts.is_empty() {
         log::error!("No hosts to schedule new cluster.");
-        return Err(ErrorResponse::InternalError("".to_string()));
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     // select first host
@@ -40,7 +40,7 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
         host.clone()
     } else {
         log::error!("No hosts with list-position 0 doesn't exist.");
-        return Err(ErrorResponse::InternalError("".to_string()));
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 
     Ok(selected_host)

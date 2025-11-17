@@ -42,7 +42,7 @@ pub async fn delete_cluster_internal(
     match cluster_table::delete_cluster(&cluster_uuid, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
@@ -65,7 +65,7 @@ pub async fn delete_cluster_internal(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
 

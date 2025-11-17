@@ -20,6 +20,7 @@ use validator::Validate;
 use crate::database::quota_table;
 use crate::database::user_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
@@ -38,11 +39,7 @@ pub async fn create_user_admin(
     body: Json<UserCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<UserResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     // validate incoming json
     match body.validate() {
@@ -62,7 +59,7 @@ pub async fn create_user_admin(
             return Err(ErrorResponse::Conflict(msg));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             // it is desired, that the user not already exist, so this error will be ignored
@@ -74,7 +71,7 @@ pub async fn create_user_admin(
         Ok(_) => {}
         Err(e) => {
             log::error!("Failed to add quota for user with ID '{id}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -85,7 +82,7 @@ pub async fn create_user_admin(
             // delete quota again, if adding of the user failed, to avoid inconsistent database
             quota_table::hard_delete_quota(id, &context);
             log::error!("Failed to add user with ID '{id}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -108,7 +105,7 @@ pub async fn create_user_admin(
             log::error!(
                 "Failed to get user with ID '{id}' from database, even the user should exist"
             );
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 }

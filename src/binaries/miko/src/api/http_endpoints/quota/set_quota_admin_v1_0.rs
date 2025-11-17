@@ -18,6 +18,7 @@ use apistos::api_operation;
 
 use crate::database::quota_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -37,17 +38,13 @@ pub async fn set_quota_admin(
     body: Json<QuotaSetReq>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     // get current quota from database
     let mut current_quota = match quota_table::get_quota(&quota_id, &context) {
         Ok(quota) => quota,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Quota with UUID '{quota_id}' not found.");
@@ -84,7 +81,7 @@ pub async fn set_quota_admin(
     ) {
         Ok(()) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Quota with UUID '{quota_id}' not found.");
@@ -111,7 +108,7 @@ pub async fn set_quota_admin(
             return Ok(Json(resp));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Quota with UUID '{quota_id}' not found.");

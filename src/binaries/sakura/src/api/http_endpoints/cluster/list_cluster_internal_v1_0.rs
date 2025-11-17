@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::cluster_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,7 +36,7 @@ pub async fn list_cluster_internal(
         Ok(clusters) => clusters,
         Err(e) => {
             log::error!("Failed to get list of clusters form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -45,15 +45,7 @@ pub async fn list_cluster_internal(
     };
 
     for cluster in clusters {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&cluster.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert cluster-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&cluster.uuid)?;
         let obj = ClusterBasicResp {
             uuid,
             name: cluster.name.clone(),

@@ -23,12 +23,10 @@ use std::io::{Read, Seek};
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::database::dataset_table;
-
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
+use ainari_clients::onsen_file_transfer::*;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle};
 
@@ -60,65 +58,11 @@ pub async fn check_dataset(
     let dataset_column = body.dataset_column.clone();
     let reference_column = body.reference_column.clone();
 
-    // get information from dataset
-    let dataset_data = match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset_data) => dataset_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let (mut dataset_file_handle, dataset_col_get, mut row_count) =
+        get_dataset_column(&dataset_uuid, &dataset_column, &context).await?;
+    let (mut reference_file_handle, ref_col_get, ref_row_count) =
+        get_dataset_column(&reference_uuid, &reference_column, &context).await?;
 
-    let reference_data = match dataset_table::get_dataset(&reference_uuid, &context) {
-        Ok(reference_data) => reference_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{reference_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    // get file-handle
-    let mut dataset_file_handle = match read_data_set_file(&dataset_data.file_path) {
-        Ok(dataset_file_handle) => dataset_file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    let mut reference_file_handle = match read_data_set_file(&reference_data.file_path) {
-        Ok(reference_file_handle) => reference_file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // get column-information
-    let dataset_col_get = match dataset_file_handle.header.columns.get(&dataset_column) {
-        Some(col) => col.clone(),
-        _ => {
-            let msg = format!("Column with name '{dataset_column}' not found in dataset.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    let ref_col_get = match reference_file_handle.header.columns.get(&reference_column) {
-        Some(col) => col.clone(),
-        _ => {
-            let msg =
-                format!("Column with name '{reference_column}' not found in reference-dataset.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    // get number of rows to check
-    let mut row_count = dataset_file_handle.get_number_of_rows();
-    let ref_row_count = reference_file_handle.get_number_of_rows();
     if row_count > ref_row_count {
         row_count = ref_row_count;
     }
@@ -140,7 +84,7 @@ pub async fn check_dataset(
             }
             Err(e) => {
                 log::error!("{e}");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
     }
@@ -206,4 +150,54 @@ fn get_highest_pos_in_row(
         log::error!("{msg}");
         Err(AinariError::Error(msg))
     }
+}
+
+async fn get_dataset_column(
+    dataset_uuid: &Uuid,
+    column_name: &String,
+    context: &UserContext,
+) -> Result<(DataSetFileReadHandle, Column, u64), ErrorResponse> {
+    let dataset_resp = super::get_dataset_internal(dataset_uuid, context)?;
+
+    // TODO: change path
+    let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
+    match download_file(
+        &dataset_resp.onsen_address,
+        &dataset_resp.file_path,
+        &local_file_path,
+    )
+    .await
+    {
+        Ok(()) => {}
+        Err(e) => {
+            log::error!("Failed to download dataset-file from onsen: {e}");
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+    }
+
+    let file_handle = match read_data_set_file(&local_file_path) {
+        Ok(file_handle) => file_handle,
+        Err(e) => {
+            log::error!(
+                "Failed to read dataset-file '{}' with error: {e}",
+                dataset_resp.file_path
+            );
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+    };
+
+    // get column-information
+    let dataset_col_get = match file_handle.header.columns.get(column_name) {
+        Some(col) => col.clone(),
+        _ => {
+            let msg = format!(
+                "Column with name '{column_name}' not found in dataset with UUID '{dataset_uuid}."
+            );
+            return Err(ErrorResponse::NotFound(msg));
+        }
+    };
+
+    let row_count = file_handle.get_number_of_rows();
+
+    Ok((file_handle, dataset_col_get, row_count))
 }

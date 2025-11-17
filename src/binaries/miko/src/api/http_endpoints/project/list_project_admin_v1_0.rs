@@ -17,6 +17,7 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -31,18 +32,14 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_project_admin(
     context: UserContext,
 ) -> Result<Json<ProjectListResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let projects = match project_table::list_projects(&context) {
         Ok(result) => result,
         Err(e) => {
             let msg = format!("Failed to list projects with error: '{e}'");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

@@ -15,8 +15,8 @@ RUN apt-get update && \
 
 COPY . .
 
-RUN ~/.cargo/bin/cargo build --release -p ryokan
-RUN cp target/release/ryokan /app/
+RUN ~/.cargo/bin/cargo build --release -p onsen
+RUN cp target/release/onsen /app/
 
 # ---------------------------------------------------
 
@@ -25,10 +25,10 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y openssl libsqlite3-0 && \
+    apt-get install -y openssl && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# ryokan
-COPY --from=builder /app/ryokan /usr/bin/ryokan
-CMD [ "ryokan" ]
+# onsen
+COPY --from=builder /app/onsen /usr/bin/onsen
+CMD [ "onsen" ]

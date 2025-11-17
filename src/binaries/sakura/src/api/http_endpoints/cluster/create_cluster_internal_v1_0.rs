@@ -62,7 +62,7 @@ pub async fn create_cluster_internal(
         }
         Err(AinariError::Error(e)) => {
             log::error!("{e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -72,24 +72,12 @@ pub async fn create_cluster_internal(
         Err(_) => {
             let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     // get new created cluster from database to get addtional information
-    let cluster_data: cluster_table::ClusterEntry = match cluster_table::get_cluster(
-        &cluster_uuid,
-        &context,
-    ) {
-        Ok(cluster_data) => cluster_data,
-        Err(_) => {
-            let msg = format!(
-                "Failed to get cluster with ID '{cluster_uuid}' from database, even the cluster should exist."
-            );
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let cluster_data = super::get_cluster_from_database(&cluster_uuid, &context)?;
 
     let resp = ClusterResp {
         uuid: cluster_uuid,

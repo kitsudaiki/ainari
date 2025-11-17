@@ -40,7 +40,7 @@ pub async fn get_proxy(
     let proxy_data = match proxy_table::get_proxy(&proxy_uuid, &context) {
         Ok(proxy_data) => proxy_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Proxy with UUID '{proxy_uuid}' not found.");
@@ -52,7 +52,7 @@ pub async fn get_proxy(
         Ok(cluster_uuid) => cluster_uuid,
         Err(e) => {
             log::error!("Failed to convert cluster-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

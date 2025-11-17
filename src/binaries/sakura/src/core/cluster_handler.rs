@@ -715,7 +715,6 @@ mod tests {
     use ainari_cluster_parser::cluster_meta_structs::Settings;
     use ainari_common::enums::*;
     use serial_test::serial;
-    use std::path::PathBuf;
 
     use super::*;
 
@@ -923,8 +922,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_create_restore_checkpoint() {
-        let file_path_str = "/tmp/test_checkpoint".to_string();
-        let file_path: PathBuf = PathBuf::from(&file_path_str);
+        let file_path = "/tmp/test_checkpoint".to_string();
         let _ = fs::remove_file(&file_path).is_ok();
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let cluster_uuid = Uuid::new_v4();
@@ -1005,8 +1003,8 @@ mod tests {
         let _ = root_handler.add_output_buffer(&output_buffer_mutex);
 
         // save and restore
-        //let _ = root_handler.create_checkpoint(&cluster_uuid, &file_path);
-        //let _ = root_handler.restore_checkpoint(&cluster_uuid_new, &file_path);
+        let _ = root_handler.create_checkpoint(&cluster_uuid, &file_path);
+        let _ = root_handler.restore_checkpoint(&cluster_uuid_new, &file_path);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid_new).unwrap();

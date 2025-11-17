@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::host_table;
 
+use ainari_api::common_functions::{check_admin_context, convert_uuid};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,32 +30,20 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let hosts = match host_table::list_hosts(&context) {
         Ok(hosts) => hosts,
         Err(e) => {
             log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     let mut resp = HostListResp { hosts: Vec::new() };
 
     for host in hosts {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&host.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert host-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&host.uuid)?;
         let obj = HostBasicResp {
             uuid,
             name: host.name.clone(),

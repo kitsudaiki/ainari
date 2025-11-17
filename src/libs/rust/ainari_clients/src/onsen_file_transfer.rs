@@ -34,8 +34,8 @@ pub mod data {
 
 pub async fn upload_file(
     onsen_address: &str,
-    local_file_path: &str,
     remote_file_path: &str,
+    local_file_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // TODO: check if local_file_path exist
 
@@ -83,8 +83,8 @@ pub async fn upload_file(
 
 pub async fn download_file(
     onsen_address: &str,
-    local_file_path: &str,
     remote_file_path: &str,
+    local_file_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = DataServiceClient::connect(onsen_address.to_owned()).await?;
 
