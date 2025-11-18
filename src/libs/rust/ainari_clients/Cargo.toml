@@ -30,3 +30,10 @@ once_cell = "1.18"
 log = "0.4"
 # ssl
 openssl = "0.10"
+# file-transfer
+tonic = "0.12"
+prost = "0.13"
+async-stream = "0.3"
+
+[build-dependencies]
+tonic-build = "0.12"

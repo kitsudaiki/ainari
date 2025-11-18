@@ -40,7 +40,7 @@ pub async fn get_secret(
     let secret_data = match secret_table::get_secret(&secret_uuid, &context) {
         Ok(secret_data) => secret_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Secret with UUID '{secret_uuid}' not found.");

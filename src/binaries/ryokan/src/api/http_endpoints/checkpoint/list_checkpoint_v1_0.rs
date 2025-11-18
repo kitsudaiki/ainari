@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::checkpoint_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::checkpoint_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,7 +36,7 @@ pub async fn list_checkpoint(
         Ok(checkpoints) => checkpoints,
         Err(e) => {
             log::error!("Failed to get list of checkpoints form database: '{e:?}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -45,20 +45,13 @@ pub async fn list_checkpoint(
     };
 
     for checkpoint in checkpoints {
-        match Uuid::parse_str(&checkpoint.uuid) {
-            Ok(uuid) => {
-                let obj = CheckpointBasicResp {
-                    uuid,
-                    name: checkpoint.name.clone(),
-                };
+        let uuid = convert_uuid(&checkpoint.uuid)?;
+        let obj = CheckpointBasicResp {
+            uuid,
+            name: checkpoint.name.clone(),
+        };
 
-                resp.checkpoints.push(obj);
-            }
-            Err(e) => {
-                log::error!("Error while listing checkpoint: '{e:?}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        }
+        resp.checkpoints.push(obj);
     }
 
     Ok(Json(resp))

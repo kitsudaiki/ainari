@@ -8,11 +8,6 @@
 #export REQUEST_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
 #export REQUEST_LABELS=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
 
-# build protobuffer for go sdk
-# pushd ../../src/sdk/go/ainari_sdk
-# protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
-# popd
-
 # build cli-binarygolangci-lint
 pushd ../../src/cli/ainarictl
 go build .
@@ -98,7 +93,6 @@ echo "Cluster-UUID: $CLUSTER_UUID"
 
 # train test
 echo "$EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task"
-echo "$($EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task)"
 task_uuid=$($EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task | jq -r '.uuid')
 echo "Train-Task-UUID: $task_uuid"
 

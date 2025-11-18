@@ -24,14 +24,14 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::config;
-use crate::database::dataset_table;
+use crate::core::converter::{load_csv_file, load_mnist_images};
+use crate::onsen_functions::select_onsen;
 
+use ainari_api::common_functions::{create_directory, upload_file_to_onsen};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
-use ainari_dataset::converter::{load_csv_file, load_mnist_images};
-use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
     tag = "dataset",
@@ -42,48 +42,68 @@ use ainari_dataset::dataset_io::read_data_set_file;
     error_code = 500
 )]
 pub async fn upload_binary(
-    mut payload: Multipart,
+    payload: Multipart,
     path: Path<(String, String)>,
     context: UserContext,
 ) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
-    let tempfile_location = config::CONFIG.storage.tempfile_location.clone();
-    let dataset_location = config::CONFIG.storage.dataset_location.clone();
-
-    let tempfile_dir = PathBuf::from(&tempfile_location);
-    let dataset_dir = PathBuf::from(&dataset_location);
-
+    let (dataset_type, name) = path.into_inner();
     let dataset_uuid = Uuid::new_v4();
-    let target_filepath: PathBuf = dataset_dir.join(dataset_uuid.to_string());
+    let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
+    let target_dir_path = format!("{tempfile_dir}/{}", dataset_uuid);
+    let converted_result_path = format!("{target_dir_path}/converted_result");
+    let upload_file_path_str: String = format!("datasets/{dataset_uuid}");
 
-    let (dataset_type_str, name) = path.into_inner();
-    let dataset_type = dataset_type_str.to_string();
+    super::check_dataset_type(&dataset_type)?;
 
-    // check given type
-    if !["mnist", "csv"].contains(&dataset_type.as_str()) {
-        let msg = format!("Type '{dataset_type}' is not in list [ mnist, csv ]");
-        return Err(ErrorResponse::BadRequest(msg.to_string()));
-    }
+    create_directory(&target_dir_path).await?;
 
-    // Ensure directory exists
-    match fs::create_dir_all(&tempfile_dir).await {
-        Ok(_) => (),
+    super::check_dataset_quota(&context).await?;
+
+    let selected_onsen = select_onsen(&context)?;
+
+    let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
+
+    convert_uploaded_files(
+        &dataset_uuid,
+        &name,
+        &dataset_type,
+        &converted_result_path,
+        &temp_file_paths,
+    )
+    .await?;
+
+    upload_file_to_onsen(
+        &selected_onsen.address,
+        &upload_file_path_str,
+        &converted_result_path,
+    )
+    .await?;
+
+    // delete all temporary files
+    match std::fs::remove_dir_all(&target_dir_path) {
+        Ok(()) => {}
         Err(e) => {
-            log::error!(
-                "Failed to create dataset-upload-directory '{tempfile_location}' with error: {e}"
-            );
-            return Err(ErrorResponse::InternalError("".to_string()));
+            log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
         }
     }
-    match fs::create_dir_all(&dataset_dir).await {
-        Ok(_) => (),
-        Err(e) => {
-            log::error!(
-                "Failed to create dataset-upload-directory '{dataset_location}' with error: {e}"
-            );
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    }
 
+    super::add_dataset_to_database(
+        &dataset_uuid,
+        &name,
+        &selected_onsen.address,
+        &upload_file_path_str,
+        &context,
+    )?;
+
+    let resp = super::get_dataset(&dataset_uuid, &context).await?;
+
+    return Ok(CreatedJson(resp));
+}
+
+async fn write_payload_into_file(
+    mut payload: Multipart,
+    target_dir_path: &String,
+) -> Result<Vec<PathBuf>, ErrorResponse> {
     let mut temp_file_paths = Vec::new();
     // process items from payload
     while let Some(item) = payload.next().await {
@@ -115,7 +135,7 @@ pub async fn upload_binary(
         };
 
         // create file
-        let temp_file_path: PathBuf = tempfile_dir.join(filename + &dataset_uuid.to_string());
+        let temp_file_path = PathBuf::from(format!("{target_dir_path}/{filename}"));
         let mut f = match fs::File::create(&temp_file_path).await {
             Ok(value) => value,
             Err(e) => {
@@ -125,7 +145,7 @@ pub async fn upload_binary(
                     .unwrap_or("Invalid-path");
                 let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
                 log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 
@@ -148,7 +168,7 @@ pub async fn upload_binary(
                     Ok(()) => {}
                     Err(e) => {
                         log::error!("Failed to write all chunks into file with error: '{e}'");
-                        return Err(ErrorResponse::InternalError("".to_string()));
+                        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
                     }
                 };
             }
@@ -157,7 +177,7 @@ pub async fn upload_binary(
                 Ok(()) => {}
                 Err(e) => {
                     log::error!("Failed to sync file to disc with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("".to_string()));
+                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
                 }
             };
 
@@ -183,6 +203,16 @@ pub async fn upload_binary(
         }
     }
 
+    Ok(temp_file_paths)
+}
+
+async fn convert_uploaded_files(
+    dataset_uuid: &Uuid,
+    name: &str,
+    dataset_type: &String,
+    target_filepath: &str,
+    temp_file_paths: &[PathBuf],
+) -> Result<(), ErrorResponse> {
     // process mnist-dataset
     if dataset_type == "mnist" {
         let path_len = temp_file_paths.len();
@@ -195,9 +225,9 @@ pub async fn upload_binary(
         match load_mnist_images(
             &temp_file_paths[0],
             &temp_file_paths[1],
-            &target_filepath,
-            dataset_uuid,
-            name.clone(),
+            target_filepath,
+            *dataset_uuid,
+            name,
             None,
         ) {
             Ok(()) => {}
@@ -208,7 +238,7 @@ pub async fn upload_binary(
                 }
                 _ => {
                     log::error!("Failed to load mnist-images with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("".to_string()));
+                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
                 }
             },
         };
@@ -220,12 +250,7 @@ pub async fn upload_binary(
             );
             return Err(ErrorResponse::BadRequest(msg));
         }
-        match load_csv_file(
-            &temp_file_paths[0],
-            &target_filepath,
-            dataset_uuid,
-            name.clone(),
-        ) {
+        match load_csv_file(&temp_file_paths[0], target_filepath, *dataset_uuid, name) {
             Ok(()) => {}
             Err(e) => match e.downcast_ref::<AinariError>() {
                 Some(AinariError::InvalidInput(e)) => {
@@ -234,63 +259,11 @@ pub async fn upload_binary(
                 }
                 _ => {
                     log::error!("Failed to load csv-data with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("".to_string()));
+                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
                 }
             },
         };
     }
 
-    // add new dataset to datbase
-    let file_path_str: String = target_filepath.to_string_lossy().into();
-    match dataset_table::add_new_dataset(&dataset_uuid, &name, &file_path_str, &context) {
-        Ok(_) => {}
-        Err(_) => {
-            log::error!("Failed to add dataset with ID '{dataset_uuid}' to database.");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // get new created dataset from database to get addtional information
-    let dataset = match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset) => dataset,
-        Err(_) => {
-            log::error!(
-                "Failed to get dataset with ID '{dataset_uuid}' from database, even the user should exist."
-            );
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    for file_path in temp_file_paths {
-        match std::fs::remove_file(&file_path) {
-            Ok(()) => {}
-            Err(e) => {
-                let tempfile_path_str: String = file_path.to_string_lossy().into();
-                log::error!(
-                    "Failed to delete temp-file {tempfile_path_str} from disc with error {e}."
-                );
-            }
-        }
-    }
-
-    let file_handle = match read_data_set_file(&target_filepath) {
-        Ok(file_handle) => file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // create response
-    let resp = DatasetResp {
-        uuid: dataset_uuid,
-        name: dataset.name.clone(),
-        number_of_rows: file_handle.get_number_of_rows(),
-        number_of_columns: file_handle.header.columns.len() as u64,
-        created_by: dataset.created_by.clone(),
-        created_at: dataset.created_at.clone(),
-        updated_by: dataset.updated_by.clone(),
-        updated_at: dataset.updated_at.clone(),
-    };
-
-    return Ok(CreatedJson(resp));
+    Ok(())
 }

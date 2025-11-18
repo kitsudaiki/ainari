@@ -46,7 +46,7 @@ pub async fn abort_task(
     match cluster_table::get_cluster(&cluster_uuid, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
@@ -69,7 +69,7 @@ pub async fn abort_task(
             }
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
@@ -81,7 +81,7 @@ pub async fn abort_task(
     match task_table::update_task_state(&task_uuid, &TaskState::Aborted) {
         Ok(()) => {}
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
@@ -93,7 +93,7 @@ pub async fn abort_task(
     let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
         Ok(task_data) => task_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Task with UUID '{task_uuid}' not found.");
@@ -105,13 +105,13 @@ pub async fn abort_task(
     let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
         Ok(task_type) => task_type,
         Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
     let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
         Ok(task_state) => task_state,
         Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

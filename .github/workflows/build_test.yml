@@ -33,6 +33,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       -
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+      -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
         name: Run Clippy
@@ -155,9 +160,7 @@ jobs:
       -
         name: Build python package
         run: |
-          cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/ainari_sdk/ainari_sdk
-          protoc --python_out=. --proto_path ../../../../libs/protobuf  ainari_messages.proto3
-          cd ..
+          cd ${GITHUB_REPOSITORY#*/}/src/sdk/python/ainari_sdk
           python3 setup.py bdist_wheel --universal
       -
         name: Copy files
@@ -403,6 +406,7 @@ jobs:
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
@@ -414,6 +418,7 @@ jobs:
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -493,6 +498,7 @@ jobs:
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
@@ -504,6 +510,7 @@ jobs:
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -609,6 +616,7 @@ jobs:
           chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
           chmod +x /tmp/Ainari_debug_build_result/ainari/torii
           chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
@@ -620,6 +628,7 @@ jobs:
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
           /tmp/Ainari_debug_build_result/ainari/sakura &
+          /tmp/Ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -690,6 +699,8 @@ jobs:
           - { component: "torii", platform: "linux/arm64", regitry: "kitsudaiki/torii" }
           - { component: "omamori", platform: "linux/amd64", regitry: "kitsudaiki/omamori" }
           - { component: "omamori", platform: "linux/arm64", regitry: "kitsudaiki/omamori" }
+          - { component: "onsen", platform: "linux/amd64", regitry: "kitsudaiki/onsen" }
+          - { component: "onsen", platform: "linux/arm64", regitry: "kitsudaiki/onsen" }
     steps:
       -
         name: Prepare
@@ -772,6 +783,7 @@ jobs:
           - { component: "sakura", regitry: "kitsudaiki/sakura" }
           - { component: "torii", regitry: "kitsudaiki/torii" }
           - { component: "omamori", regitry: "kitsudaiki/omamori" }
+          - { component: "onsen", regitry: "kitsudaiki/onsen" }
     steps:
       -
         name: Set branch name as environment variable

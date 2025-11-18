@@ -18,6 +18,7 @@ pub mod cluster;
 pub mod dataset;
 pub mod endpoints;
 pub mod host;
+pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;
 

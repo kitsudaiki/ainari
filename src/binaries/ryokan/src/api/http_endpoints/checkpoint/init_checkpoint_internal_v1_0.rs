@@ -15,18 +15,13 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::path::PathBuf;
 use validator::Validate;
 
-use crate::config;
-use crate::database::checkpoint_table;
+use crate::onsen_functions::select_onsen;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::checkpoint_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::quota::get_quota;
-use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "checkpoint",
@@ -50,91 +45,22 @@ pub async fn init_checkpoint(
         }
     };
 
-    check_quota(&context).await?;
-
     let name = &body.name;
     let checkpoint_uuid = &body.uuid.clone();
+    let file_path_str: String = format!("checkpoints/{}", checkpoint_uuid);
 
-    let upload_dir_path = config::CONFIG.storage.checkpoint_location.clone();
-    let upload_dir = PathBuf::from(&upload_dir_path);
-    let target_filepath: PathBuf = upload_dir.join(checkpoint_uuid.to_string());
-    let file_path_str: String = target_filepath.to_string_lossy().into();
+    super::check_checkpoint_quota(&context).await?;
 
-    // add new checkpoint to datbase
-    match checkpoint_table::add_new_checkpoint(checkpoint_uuid, name, &file_path_str, &context) {
-        Ok(_) => {}
-        Err(e) => {
-            let msg = format!("Failed to add checkpoint to database: {e}");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError(msg));
-        }
-    }
+    let selected_onsen = select_onsen(&context)?;
 
-    // get new created checkpoint from database to get addtional information
-    match checkpoint_table::get_checkpoint(checkpoint_uuid, &context) {
-        Ok(checkpoint) => {
-            let resp = CheckpointInternalResp {
-                uuid: *checkpoint_uuid,
-                name: checkpoint.name.clone(),
-                file_path: checkpoint.file_path.clone(),
-                created_by: checkpoint.created_by.clone(),
-                created_at: checkpoint.created_at.clone(),
-                updated_by: checkpoint.updated_by.clone(),
-                updated_at: checkpoint.updated_at.clone(),
-            };
+    super::add_checkpoint_to_database(
+        checkpoint_uuid,
+        name,
+        &selected_onsen.address,
+        &file_path_str,
+        &context,
+    )?;
 
-            return Ok(CreatedJson(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            log::error!("Error while getting checkpoint from DB");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-}
-
-async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of checkpoints of the user
-    let current_number_of_checkpoints = match checkpoint_table::count_checkpoints(context) {
-        Ok(number) => number,
-        Err(e) => {
-            log::error!("Failed to count checkpoints in database.: {e}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // check the maximum number of checkpoints defined in miko
-    let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_checkpoints = match get_quota(
-        miko_endpoint,
-        &context.token,
-        &context.user_id,
-        config::CONFIG.insecure_clients,
-    )
-    .await
-    {
-        Ok(body) => body.max_checkpoint as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    // check if quota is already exceeded
-    if current_number_of_checkpoints as i64 >= max_number_of_checkpoints {
-        return Err(ErrorResponse::Conflict(
-            "Maximum number of checkpoints exceeded.".to_string(),
-        ));
-    }
-
-    Ok(())
+    let resp = super::get_checkpoint_internal(checkpoint_uuid, &context)?;
+    return Ok(CreatedJson(resp));
 }

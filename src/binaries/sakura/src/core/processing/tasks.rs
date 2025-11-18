@@ -14,8 +14,8 @@
 
 use bytemuck::cast_slice;
 use std::collections::HashMap;
+use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::runtime::Builder;
@@ -23,12 +23,10 @@ use tokio::task::LocalSet;
 use uuid::Uuid;
 
 use ainari_api_structs::task_structs::*;
-use ainari_clients::checkpoint::init_checkpoint;
-use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::onsen_file_transfer::*;
 use ainari_common::error::AinariError;
-use ainari_dataset::dataset_io::{DataSetFileReadHandleV1_0, DataSetFileWriteHandleV1_0};
+use ainari_dataset::dataset_io::{DataSetFileReadHandle, DataSetFileWriteHandle};
 
-use crate::config as ainari_config;
 use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
 use crate::database::task_table;
@@ -38,24 +36,26 @@ use super::super::processing::worker_queue::*;
 
 #[derive(Debug)]
 pub struct TrainInfo {
-    pub inputs: HashMap<String, DataSetFileReadHandleV1_0>,
-    pub outputs: HashMap<String, DataSetFileReadHandleV1_0>,
+    pub inputs: HashMap<String, DataSetFileReadHandle>,
+    pub outputs: HashMap<String, DataSetFileReadHandle>,
 }
 
 #[derive(Debug)]
 pub struct RequestInfo {
-    pub inputs: HashMap<String, DataSetFileReadHandleV1_0>,
-    pub results: DataSetFileWriteHandleV1_0,
+    pub inputs: HashMap<String, DataSetFileReadHandle>,
+    pub results: DataSetFileWriteHandle,
 }
 
 #[derive(Debug)]
 pub struct CheckpointSaveInfo {
-    pub path: PathBuf,
+    pub onsen_address: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]
 pub struct CheckpointRestoreInfo {
-    pub path: PathBuf,
+    pub onsen_address: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]
@@ -101,8 +101,8 @@ impl TaskMeta {
 pub struct Task {
     pub uuid: Uuid,
     pub cluster_uuid: Uuid,
+    #[allow(dead_code)]
     pub name: String,
-    pub token: String,
 
     pub info: TaskVariant,
     pub meta: TaskMeta,
@@ -138,8 +138,6 @@ impl Task {
                 handle_checkpoint_save_task(
                     &self.uuid,
                     &self.cluster_uuid,
-                    &self.name,
-                    &self.token,
                     &mut self.meta,
                     task_info,
                 );
@@ -158,6 +156,38 @@ impl Task {
     }
 
     pub fn finalize_task(&mut self) {
+        if let TaskVariant::Request(task_info) = &mut self.info {
+            let rt = Builder::new_current_thread()
+                .enable_all() // I/O & timers
+                .build()
+                .expect("failed to build runtime");
+
+            // LocalSet allows spawn_local to work
+            let local = LocalSet::new();
+            let upload_resp = local.block_on(&rt, async {
+                upload_file(
+                    &task_info.results.link.onsen_address,
+                    &task_info.results.link.remote_file_path,
+                    &task_info.results.link.local_file_path,
+                )
+                .await
+            });
+
+            match upload_resp {
+                Ok(()) => {}
+                Err(_) => {
+                    let _ = fs::remove_file(&task_info.results.link.local_file_path);
+                    let _ = task_table::update_task_state(&self.uuid, &TaskState::Error);
+                    let _ = task_table::update_task_progress(
+                        &self.uuid,
+                        &(self.meta.number_of_epochs as i64),
+                        &(self.meta.number_of_cycles as i64),
+                    );
+                    return;
+                }
+            }
+        }
+
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
         let _ = task_table::update_task_progress(
             &self.uuid,
@@ -412,7 +442,7 @@ pub fn apply_plain_input(
 fn apply_dataset_to_input(
     cluster_uuid: &Uuid,
     hexagon_name: &String,
-    file_handle: &mut DataSetFileReadHandleV1_0,
+    file_handle: &mut DataSetFileReadHandle,
     cycle_count: u64,
     time_length: u64,
     task_type: &WorkerTaskType,
@@ -473,7 +503,7 @@ pub fn apply_expected(
 fn apply_dataset_to_expected(
     cluster_uuid: &Uuid,
     hexagon_name: &String,
-    file_handle: &mut DataSetFileReadHandleV1_0,
+    file_handle: &mut DataSetFileReadHandle,
     cycle_count: u64,
     time_length: u64,
 ) -> Result<(), AinariError> {
@@ -487,7 +517,7 @@ fn apply_dataset_to_expected(
 
 fn write_output_into_dataset(
     cluster_uuid: &Uuid,
-    file_handle: &mut DataSetFileWriteHandleV1_0,
+    file_handle: &mut DataSetFileWriteHandle,
 ) -> Result<(), AinariError> {
     let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
@@ -512,15 +542,18 @@ fn write_output_into_dataset(
 fn handle_checkpoint_save_task(
     task_uuid: &Uuid,
     cluster_uuid: &Uuid,
-    task_name: &str,
-    token: &String,
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
+    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
+
     let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-    match cluster_handler.create_checkpoint(cluster_uuid, &task_info.path) {
+    match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
         Ok(()) => {}
         Err(_) => {
+            let _ = fs::remove_file(&local_temp_file_path);
+            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+            let _ = task_table::update_task_progress(task_uuid, &1, &1);
             return;
         }
     }
@@ -533,47 +566,26 @@ fn handle_checkpoint_save_task(
 
     // LocalSet allows spawn_local to work
     let local = LocalSet::new();
-
-    // get endpoints from miko
-    let miko_endpoint = &ainari_config::CONFIG.miko;
-    let endpoints_resp = local.block_on(&rt, async {
-        get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
-    });
-
-    let endpoints = match endpoints_resp {
-        Ok(body) => body,
-        Err(e) => {
-            log::error!("Endpoint request responded with: {e}");
-            let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
-            return;
-        }
-    };
-
-    // Run the async future inside the LocalSet + runtime
-    // HINT (kitsudaiki): It is intended that the task-uuid is also the checkpoint-uuid, because of easier identification
-    let create_resp = local.block_on(&rt, async {
-        init_checkpoint(
-            &endpoints.ryokan,
-            token,
-            &ainari_config::CONFIG.api.internal_api_key,
-            task_uuid,
-            task_name,
-            ainari_config::CONFIG.insecure_clients,
+    let upload_resp = local.block_on(&rt, async {
+        upload_file(
+            &task_info.onsen_address,
+            &task_info.file_path,
+            &local_temp_file_path,
         )
         .await
     });
 
-    match create_resp {
-        Ok(body) => {
-            task_info.path = PathBuf::from(&body.file_path);
-        }
-        Err(e) => {
-            log::error!("Checkpoint-create request responded with: {e}");
-            let _ = task_table::set_error_state(task_uuid, &"Internal error".to_string());
+    match upload_resp {
+        Ok(()) => {}
+        Err(_) => {
+            let _ = fs::remove_file(&local_temp_file_path);
+            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+            let _ = task_table::update_task_progress(task_uuid, &1, &1);
             return;
         }
     }
 
+    let _ = fs::remove_file(&local_temp_file_path);
     let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }
@@ -584,14 +596,48 @@ fn handle_checkpoint_restore_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
-    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-    match cluster_handler.restore_checkpoint(cluster_uuid, &task_info.path) {
+    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
+
+    // Create a single-threaded runtime
+    let rt = Builder::new_current_thread()
+        .enable_all() // I/O & timers
+        .build()
+        .expect("failed to build runtime");
+
+    // LocalSet allows spawn_local to work
+    let local = LocalSet::new();
+    let download_resp = local.block_on(&rt, async {
+        download_file(
+            &task_info.onsen_address,
+            &task_info.file_path,
+            &local_temp_file_path,
+        )
+        .await
+    });
+
+    match download_resp {
         Ok(()) => {}
         Err(_) => {
+            let _ = fs::remove_file(&local_temp_file_path);
+            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+            let _ = task_table::update_task_progress(task_uuid, &1, &1);
             return;
         }
     }
 
+    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    match cluster_handler.restore_checkpoint(cluster_uuid, &local_temp_file_path) {
+        Ok(()) => {}
+        Err(_) => {
+            let _ = fs::remove_file(&local_temp_file_path);
+            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+            let _ = task_table::update_task_progress(task_uuid, &1, &1);
+            return;
+        }
+    }
+
+    // delete temporary checkpoint-file
+    let _ = fs::remove_file(&local_temp_file_path);
     let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }

@@ -14,16 +14,14 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::database::cluster_table;
 use crate::database::task_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "task",
@@ -38,52 +36,22 @@ pub async fn list_task(
     context: UserContext,
 ) -> Result<Json<TaskListResp>, ErrorResponse> {
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
 
     let tasks = match task_table::list_tasks(&cluster_uuid, &context) {
         Ok(tasks) => tasks,
         Err(e) => {
             log::error!("Failed to get list of tasks form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     let mut resp = TaskListResp { tasks: Vec::new() };
 
     for task in tasks {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&task.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert task-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
-        // convert task-type
-        let task_type = match TaskType::from_str(task.task_type.as_str()) {
-            Ok(task_type) => task_type,
-            Err(()) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
-        // convert task-state
-        let task_state = match TaskState::from_str(task.task_state.as_str()) {
-            Ok(task_state) => task_state,
-            Err(()) => {
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
+        let uuid = convert_uuid(&task.uuid)?;
+        let task_type = super::convert_task_type(&task.task_type)?;
+        let task_state = super::convert_task_state(&task.task_state)?;
 
         let obj = TaskBasicResp {
             uuid,

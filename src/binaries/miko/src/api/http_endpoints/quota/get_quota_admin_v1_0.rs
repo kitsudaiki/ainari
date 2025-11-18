@@ -18,6 +18,7 @@ use apistos::api_operation;
 
 use crate::database::quota_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,11 +37,7 @@ pub async fn get_quota_admin(
     user_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     match quota_table::get_quota(&user_id, &context) {
         Ok(quota) => {
@@ -60,7 +57,7 @@ pub async fn get_quota_admin(
             return Ok(Json(resp));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Quota of user with ID '{user_id}' not found.");

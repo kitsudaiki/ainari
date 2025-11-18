@@ -51,7 +51,7 @@ pub async fn get_quota(context: UserContext) -> Result<Json<QuotaResp>, ErrorRes
             return Ok(Json(resp));
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Quota of user with ID '{user_id}' not found.");

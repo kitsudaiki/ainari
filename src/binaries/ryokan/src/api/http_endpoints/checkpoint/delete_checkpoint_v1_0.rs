@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs;
-
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
@@ -21,6 +19,7 @@ use uuid::Uuid;
 
 use crate::database::checkpoint_table;
 
+use ainari_api::common_functions::delete_file_from_onsen;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -38,31 +37,15 @@ pub async fn delete_checkpoint(
     checkpoint_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let checkpoint = match checkpoint_table::get_checkpoint(&checkpoint_uuid, &context) {
-        Ok(checkpoint) => checkpoint,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let checkpoint = super::get_checkpoint_internal(&checkpoint_uuid, &context)?;
 
-    match fs::remove_file(&checkpoint.file_path) {
-        Ok(_) => {}
-        Err(_) => {
-            let file_path = checkpoint.file_path;
-            log::error!("Failed to delete file '{file_path}' from disc");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    }
+    delete_file_from_onsen(&checkpoint.onsen_address, &checkpoint.file_path).await?;
 
-    match checkpoint_table::delete_checkpoint(&checkpoint_uuid, &context) {
+    match checkpoint_table::delete_checkpoint(&checkpoint.uuid, &context) {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
             log::error!("Error while deleting checkpoint from DB");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");

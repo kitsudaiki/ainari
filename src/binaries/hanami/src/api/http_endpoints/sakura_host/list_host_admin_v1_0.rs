@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use crate::database::host_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,17 +31,13 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let hosts = match host_table::list_hosts(&context) {
         Ok(hosts) => hosts,
         Err(e) => {
             log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -52,14 +49,14 @@ pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>,
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert host-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 
         let obj = HostBasicResp {
             uuid,
             name: host.name.clone(),
-            sakura_address: host.address.clone(),
+            host_address: host.address.clone(),
         };
 
         resp.hosts.push(obj);

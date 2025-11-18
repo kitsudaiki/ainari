@@ -34,7 +34,7 @@ pub async fn register_sakura_host(
 
     let body = HostCreateReq {
         name: name.to_owned(),
-        sakura_address: sakura_address.to_owned(),
+        host_address: sakura_address.to_owned(),
         registration_key: Secret::from(registration_key.reveal()),
     };
     let json_str = serde_json::to_string(&body).unwrap();
@@ -47,5 +47,35 @@ pub async fn register_sakura_host(
         .await;
 
     let resp: Result<HostResp, AinariError> = handle_response(response, "sakura-host", "").await;
+    resp
+}
+
+pub async fn register_onsen_host(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    internal_api_key: &Secret,
+    name: &str,
+    sakura_address: &str,
+    registration_key: &Secret,
+    insecure_client: bool,
+) -> Result<HostResp, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/host/internal");
+
+    let body = HostCreateReq {
+        name: name.to_owned(),
+        host_address: sakura_address.to_owned(),
+        registration_key: Secret::from(registration_key.reveal()),
+    };
+    let json_str = serde_json::to_string(&body).unwrap();
+
+    let response = client
+        .post(url)
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .insert_header(("Content-Type", "application/json"))
+        .send_body(json_str)
+        .await;
+
+    let resp: Result<HostResp, AinariError> = handle_response(response, "onsen-host", "").await;
     resp
 }

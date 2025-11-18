@@ -20,12 +20,10 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::core::cluster_handler;
-use crate::database::cluster_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -52,16 +50,7 @@ pub async fn train_cluster(
     };
 
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let _ = super::get_cluster_from_database(&cluster_uuid, &context)?;
 
     // get cluster-interface
     let cluster_handler = cluster_handler::CLUSTER_HANDLER
@@ -78,7 +67,7 @@ pub async fn train_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
     drop(cluster_handler);
@@ -96,7 +85,7 @@ pub async fn train_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
 

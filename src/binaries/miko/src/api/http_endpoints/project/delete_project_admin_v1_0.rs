@@ -18,6 +18,7 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -35,11 +36,7 @@ pub async fn delete_project_admin(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     // delete project from database
     match project_table::delete_project(&project_id, &context) {
@@ -47,7 +44,7 @@ pub async fn delete_project_admin(
             return Ok(NoContent);
         }
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Project with ID '{project_id}' not found.");

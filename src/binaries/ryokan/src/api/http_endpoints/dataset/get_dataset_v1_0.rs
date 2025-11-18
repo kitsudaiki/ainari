@@ -15,16 +15,11 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use std::path::PathBuf;
 use uuid::Uuid;
-
-use crate::database::dataset_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
-use ainari_dataset::dataset_io::read_data_set_file;
 
 #[api_operation(
     tag = "dataset",
@@ -39,34 +34,6 @@ pub async fn get_dataset(
     dataset_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<DatasetResp>, ErrorResponse> {
-    let dataset_data = match dataset_table::get_dataset(&dataset_uuid, &context) {
-        Ok(dataset_data) => dataset_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    let file_handle = match read_data_set_file(&PathBuf::from(dataset_data.file_path)) {
-        Ok(file_handle) => file_handle,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    let resp = DatasetResp {
-        uuid: *dataset_uuid,
-        name: dataset_data.name.clone(),
-        number_of_rows: file_handle.get_number_of_rows(),
-        number_of_columns: file_handle.header.columns.len() as u64,
-        created_by: dataset_data.created_by.clone(),
-        created_at: dataset_data.created_at.clone(),
-        updated_by: dataset_data.updated_by.clone(),
-        updated_at: dataset_data.updated_at.clone(),
-    };
-
+    let resp = super::get_dataset(&dataset_uuid, &context).await?;
     return Ok(Json(resp));
 }

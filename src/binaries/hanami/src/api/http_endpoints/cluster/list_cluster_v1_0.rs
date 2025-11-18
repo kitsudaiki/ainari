@@ -40,7 +40,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         Ok(hosts) => hosts,
         Err(e) => {
             log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -62,7 +62,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
             }
             Err(AinariError::Error(msg)) => {
                 log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 

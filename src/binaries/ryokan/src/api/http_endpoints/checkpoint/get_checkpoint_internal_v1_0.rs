@@ -17,12 +17,9 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::checkpoint_table;
-
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::checkpoint_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "checkpoint",
@@ -37,27 +34,6 @@ pub async fn get_checkpoint_internal(
     checkpoint_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<CheckpointInternalResp>, ErrorResponse> {
-    match checkpoint_table::get_checkpoint(&checkpoint_uuid, &context) {
-        Ok(checkpoint) => {
-            let resp = CheckpointInternalResp {
-                uuid: *checkpoint_uuid,
-                name: checkpoint.name.clone(),
-                file_path: checkpoint.file_path.clone(),
-                created_by: checkpoint.created_by.clone(),
-                created_at: checkpoint.created_at.clone(),
-                updated_by: checkpoint.updated_by.clone(),
-                updated_at: checkpoint.updated_at.clone(),
-            };
-
-            return Ok(Json(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            log::error!("Error while getting checkpoint from DB");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let resp = super::get_checkpoint_internal(&checkpoint_uuid, &context)?;
+    return Ok(Json(resp));
 }

@@ -15,16 +15,11 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use std::str::FromStr;
 use uuid::Uuid;
-
-use crate::database::cluster_table;
-use crate::database::task_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "task",
@@ -42,40 +37,11 @@ pub async fn get_task(
     let (cluster_uuid, task_uuid) = uuids.into_inner();
 
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
 
-    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
-        Ok(task_data) => task_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Task with UUID '{task_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
-        Ok(task_type) => task_type,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
-        Ok(task_state) => task_state,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let task_data = super::get_task_from_database(&task_uuid, &cluster_uuid, &context)?;
+    let task_type = super::convert_task_type(&task_data.task_type)?;
+    let task_state = super::convert_task_state(&task_data.task_state)?;
 
     let resp = TaskResp {
         uuid: task_uuid,

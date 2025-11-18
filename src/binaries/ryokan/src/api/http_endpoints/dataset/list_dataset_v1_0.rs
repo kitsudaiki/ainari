@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::dataset_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -34,7 +34,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
         Ok(datasets) => datasets,
         Err(e) => {
             log::error!("Failed to get list of datasets form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -43,15 +43,7 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
     };
 
     for dataset in datasets {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&dataset.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert dataset-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&dataset.uuid)?;
         let obj = DatasetBasicResp {
             uuid,
             name: dataset.name.clone(),

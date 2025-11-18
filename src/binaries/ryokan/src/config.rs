@@ -18,6 +18,7 @@ use std::fs;
 use std::process;
 
 use ainari_common::config as ainari_config;
+use ainari_common::secret::Secret;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -30,10 +31,16 @@ pub struct Config {
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
+    pub onsen: OnsenConf,
 }
 
 fn default_insecure_clients() -> bool {
     false
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OnsenConf {
+    pub registation_key: Secret,
 }
 
 #[derive(Debug, Deserialize)]

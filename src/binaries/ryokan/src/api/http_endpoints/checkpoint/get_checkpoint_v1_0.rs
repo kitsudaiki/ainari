@@ -52,7 +52,7 @@ pub async fn get_checkpoint(
         }
         Err(enums::DbError::InternalError) => {
             log::error!("Error while getting checkpoint from DB");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Checkpoint with UUID '{checkpoint_uuid}' not found.");

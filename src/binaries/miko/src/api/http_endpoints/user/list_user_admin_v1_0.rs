@@ -17,6 +17,7 @@ use apistos::api_operation;
 
 use crate::database::user_table;
 
+use ainari_api::common_functions::check_admin_context;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
@@ -29,18 +30,14 @@ use ainari_api_structs::user_structs::*;
     error_code = 500
 )]
 pub async fn list_user_admin(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
-    if !context.is_admin {
-        return Err(ErrorResponse::Unauthorized(
-            "Only Admins are allowed to use this endpoint".to_string(),
-        ));
-    }
+    check_admin_context(&context)?;
 
     let users = match user_table::list_users(&context) {
         Ok(result) => result,
         Err(e) => {
             let msg = format!("Failed to list users with error: '{e}'");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

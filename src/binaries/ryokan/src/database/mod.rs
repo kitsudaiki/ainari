@@ -15,8 +15,18 @@
 pub mod checkpoint_table;
 pub mod dataset_table;
 pub mod db_handle;
+pub mod host_table;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize host-table
+    match host_table::init_host_table() {
+        Ok(_) => log::info!("Initilaized host-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize host-database-table: {e}");
+            return Err(e);
+        }
+    };
+
     // Initialize dataset-table
     match dataset_table::init_dataset_table() {
         Ok(_) => log::info!("Initilaized dataset-database-table"),
@@ -25,6 +35,7 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e);
         }
     };
+
     // Initialize checkpoint-table
     match checkpoint_table::init_checkpoint_table() {
         Ok(_) => log::info!("Initilaized checkpoint-database-table"),

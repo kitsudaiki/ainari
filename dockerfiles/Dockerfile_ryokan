@@ -5,7 +5,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 RUN apt-get update && \
-        apt-get install -y gcc \
+        apt-get install -y protobuf-compiler \
+                           gcc \
                            curl \
                            pkg-config \
                            libssl-dev \

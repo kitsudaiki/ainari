@@ -21,7 +21,6 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::io::{BufReader, BufWriter, Read, Seek};
 use std::path::Path;
-use std::path::PathBuf;
 use std::str;
 use uuid::Uuid;
 
@@ -35,6 +34,13 @@ pub enum DataSetType {
     UndefinedType = 0,
     Uint8Type = 1,
     FloatType = 4,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetLink {
+    pub onsen_address: String,
+    pub remote_file_path: String,
+    pub local_file_path: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -80,7 +86,7 @@ pub struct DataSetHeaderV1_0 {
 impl DataSetHeaderV1_0 {
     pub fn new(
         uuid: Uuid,
-        name: String,
+        name: &str,
         description: String,
         dataset_type: DataSetType,
         row_size: u64,
@@ -88,7 +94,7 @@ impl DataSetHeaderV1_0 {
     ) -> Self {
         DataSetHeaderV1_0 {
             uuid: uuid.to_string(),
-            name,
+            name: name.to_owned(),
             description,
             data_type: dataset_type.clone(),
             type_size: dataset_type as u8,
@@ -99,14 +105,16 @@ impl DataSetHeaderV1_0 {
 }
 
 #[derive(Debug)]
-pub struct DataSetFileWriteHandleV1_0 {
+pub struct DataSetFileWriteHandle {
+    pub link: DatasetLink,
     pub header: DataSetHeaderV1_0,
     pub target_file: BufWriter<fs::File>,
     pub payload_offset: u64,
 }
 
 #[derive(Debug)]
-pub struct DataSetFileReadHandleV1_0 {
+pub struct DataSetFileReadHandle {
+    pub link: DatasetLink,
     pub header: DataSetHeaderV1_0,
     pub target_file: BufReader<fs::File>,
     pub payload_offset: u64,
@@ -116,7 +124,7 @@ pub struct DataSetFileReadHandleV1_0 {
     buffer_end_row: u64,
 }
 
-impl DataSetFileReadHandleV1_0 {
+impl DataSetFileReadHandle {
     pub fn get_number_of_rows(&self) -> u64 {
         match self.target_file.get_ref().metadata() {
             Ok(metadata) => {
@@ -184,15 +192,14 @@ impl DataSetFileReadHandleV1_0 {
 }
 
 pub fn init_new_data_set_file(
-    file_path: &PathBuf,
+    link: &DatasetLink,
     uuid: Uuid,
-    name: String,
+    name: &str,
     description: String,
     row_size: u64,
     columns: HashMap<String, Column>,
     data_type: DataSetType,
-) -> Result<DataSetFileWriteHandleV1_0, Box<dyn std::error::Error>> {
-    let file_path_str: String = file_path.to_string_lossy().into();
+) -> Result<DataSetFileWriteHandle, Box<dyn std::error::Error>> {
     let bincode_config = config::standard();
 
     // check give dataset-type
@@ -203,22 +210,23 @@ pub fn init_new_data_set_file(
     }
 
     // check if file already exist
-    if Path::new(file_path).exists() {
-        let msg = format!("Dataset file '{file_path_str}' already exists.");
+    if Path::new(&link.local_file_path).exists() {
+        let msg = format!("Dataset file '{}' already exists.", link.local_file_path);
         // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
         // so here should be an internal error instand of an input-error
         return Err(Box::new(AinariError::Error(msg)));
     }
 
     // initialize file
-    let file = fs::File::create(file_path)?;
+    let file = fs::File::create(&link.local_file_path)?;
 
     // initialize header
     let base_header = DataSetBaseHeader::new();
     let header = DataSetHeaderV1_0::new(uuid, name, description, data_type, row_size, columns);
 
     // initialize resulting file-handle
-    let mut result = DataSetFileWriteHandleV1_0 {
+    let mut result = DataSetFileWriteHandle {
+        link: link.clone(),
         header,
         target_file: BufWriter::new(file),
         payload_offset: 0,
@@ -248,22 +256,26 @@ pub fn init_new_data_set_file(
 }
 
 pub fn read_data_set_file(
-    file_path: &PathBuf,
-) -> Result<DataSetFileReadHandleV1_0, Box<dyn std::error::Error>> {
-    let file_path_str: String = file_path.to_string_lossy().into();
+    local_file_path: &String,
+) -> Result<DataSetFileReadHandle, Box<dyn std::error::Error>> {
     let bincode_config = config::standard();
 
     // check if file even exist
-    if !Path::new(file_path).exists() {
-        let msg = format!("Dataset file '{file_path_str}' does not exists.");
+    if !Path::new(local_file_path).exists() {
+        let msg = format!("Dataset file '{local_file_path}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user,
         // so here should be an internal error instand of an input-error
         return Err(Box::new(AinariError::Error(msg)));
     }
 
-    let file = fs::File::open(file_path)?;
+    let file = fs::File::open(local_file_path)?;
 
-    let mut result = DataSetFileReadHandleV1_0 {
+    let mut result = DataSetFileReadHandle {
+        link: DatasetLink {
+            onsen_address: "".to_string(),
+            remote_file_path: "".to_string(),
+            local_file_path: local_file_path.clone(),
+        },
         header: DataSetHeaderV1_0::default(),
         target_file: BufReader::with_capacity(4096, file),
         payload_offset: 0,
@@ -317,12 +329,15 @@ mod tests {
 
     #[test]
     fn test_dataset() {
-        let file_path_str = "/tmp/test".to_string();
-        let file_path: PathBuf = PathBuf::from(&file_path_str);
-
-        let _ = fs::remove_file(&file_path).is_ok();
-
         let uuid = Uuid::new_v4();
+        let link = DatasetLink {
+            onsen_address: "127.0.0.1".to_string(),
+            remote_file_path: format!("{uuid}"),
+            local_file_path: format!("/tmp/{uuid}"),
+        };
+
+        let _ = fs::remove_file(&link.local_file_path).is_ok();
+
         let name = "test_dataset".to_string();
         let description = "This is a test-dataset".to_string();
         let mut columns: HashMap<String, Column> = HashMap::new();
@@ -336,9 +351,9 @@ mod tests {
         let row_size = 15;
 
         let mut write_dataset_handle = init_new_data_set_file(
-            &file_path,
+            &link,
             uuid,
-            name.clone(),
+            &name,
             description.clone(),
             row_size,
             columns.clone(),
@@ -367,7 +382,7 @@ mod tests {
         // buffer must be flush, so the written columns are in the file on the disc and can be read again
         let _ = write_dataset_handle.target_file.flush();
 
-        assert!(Path::new(&file_path_str).exists());
+        assert!(Path::new(&link.local_file_path).exists());
 
         // check single fields of the created header
         assert_eq!(write_dataset_handle.header.uuid, uuid.to_string());
@@ -377,7 +392,7 @@ mod tests {
         assert_eq!(write_dataset_handle.header.type_size, 4);
         assert_eq!(write_dataset_handle.header.columns.clone(), columns);
 
-        let mut read_dataset_handle = read_data_set_file(&file_path).unwrap();
+        let mut read_dataset_handle = read_data_set_file(&link.local_file_path).unwrap();
 
         // compare written and read header
         assert_eq!(write_dataset_handle.header, read_dataset_handle.header);

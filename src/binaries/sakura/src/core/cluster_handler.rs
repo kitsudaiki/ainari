@@ -17,7 +17,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufReader, BufWriter, Read, Write};
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use uuid::Uuid;
 
@@ -477,7 +476,7 @@ impl ClusterDataHandler {
     pub fn create_checkpoint(
         &self,
         cluster_uuid: &Uuid,
-        file_path: &PathBuf,
+        local_temp_file_path: &String,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // get cluster
         let cluster_link = if let Some(c) = self.clusters.get(cluster_uuid) {
@@ -487,18 +486,16 @@ impl ClusterDataHandler {
             return Err(Box::new(AinariError::Error(msg)));
         };
 
-        let file_path_str: String = file_path.to_string_lossy().into();
-
         // check if file already exist
-        if Path::new(file_path).exists() {
-            let msg = format!("Checkpoint file '{file_path_str}' already exists.");
+        if Path::new(&local_temp_file_path).exists() {
+            let msg = format!("Checkpoint file '{local_temp_file_path}' already exists.");
             // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
             // so here should be an internal error instand of an input-error
             return Err(Box::new(AinariError::Error(msg)));
         }
 
         // initialize file
-        let file = fs::File::create(file_path)?;
+        let file = fs::File::create(local_temp_file_path)?;
         let mut target_file = BufWriter::new(file);
 
         // write cluster-meta into checkpoint-file
@@ -534,7 +531,7 @@ impl ClusterDataHandler {
     pub fn restore_checkpoint(
         &mut self,
         cluster_uuid: &Uuid,
-        file_path: &PathBuf,
+        local_temp_file_path: &String,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // in cluster with this uuid already exist, it fill be removed first in order to create it new from the checkpoint
         let mut cluster_interface = None;
@@ -549,7 +546,7 @@ impl ClusterDataHandler {
         }
 
         // init file and other components for reading
-        let file = fs::File::open(file_path)?;
+        let file = fs::File::open(local_temp_file_path)?;
         let mut reader = BufReader::with_capacity(10 * 1024 * 1024, file);
         let cfg = bincode::config::standard();
         let mut len_buf = [0u8; 4];
@@ -925,8 +922,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_create_restore_checkpoint() {
-        let file_path_str = "/tmp/test_checkpoint".to_string();
-        let file_path: PathBuf = PathBuf::from(&file_path_str);
+        let file_path = "/tmp/test_checkpoint".to_string();
         let _ = fs::remove_file(&file_path).is_ok();
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let cluster_uuid = Uuid::new_v4();

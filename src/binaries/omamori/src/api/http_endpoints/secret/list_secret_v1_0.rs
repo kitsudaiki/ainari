@@ -34,7 +34,7 @@ pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, E
         Ok(secrets) => secrets,
         Err(e) => {
             log::error!("Failed to get list of secrets form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -48,7 +48,7 @@ pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, E
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert secret-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 

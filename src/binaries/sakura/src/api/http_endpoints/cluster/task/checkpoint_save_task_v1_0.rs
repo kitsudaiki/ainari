@@ -15,24 +15,18 @@
 use actix_web::web::{Json, Path};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::path::PathBuf;
-use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
-use super::check_quota;
-use crate::config as ainari_config;
-use crate::core::cluster_handler;
+use super::check_task_queue_quota;
+use crate::config;
 use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
-use crate::database::cluster_table;
-use crate::database::task_table;
 
+use ainari_api::common_functions::get_endpoints;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::checkpoint::*;
-use ainari_clients::endpoints::*;
-use ainari_common::enums;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -58,46 +52,23 @@ pub async fn checkpoint_save_task(
         }
     };
 
-    check_quota(&cluster_uuid, &context).await?;
+    check_task_queue_quota(&cluster_uuid, &context).await?;
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointSave;
 
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
 
-    // initialize checkpoint
-    let miko_endpoint = &ainari_config::CONFIG.miko;
-    let endpoints = match get_endpoints(miko_endpoint, ainari_config::CONFIG.insecure_clients).await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients).await?;
+
     let checkpoint_create_resp = match init_checkpoint(
         &endpoints.ryokan,
         &context.token,
-        &ainari_config::CONFIG.api.internal_api_key,
+        &config::CONFIG.api.internal_api_key,
         &task_uuid,
         &body.name,
-        ainari_config::CONFIG.insecure_clients,
+        config::CONFIG.insecure_clients,
     )
     .await
     {
@@ -110,44 +81,14 @@ pub async fn checkpoint_save_task(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
-    };
-
-    // get cluster-handle
-    let cluster_handler = cluster_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
-    let cluster_handle = match cluster_handler.clusters.get(&cluster_uuid) {
-        Some(cluster_handle) => cluster_handle,
-        None => return Err(ErrorResponse::InternalError("".to_string())),
-    };
-    let cluster_interface = if let Some(interface) = &cluster_handle.cluster_interface {
-        interface
-    } else {
-        let msg = format!("Cluster with UUID '{cluster_uuid}' has not interface on the host.");
-        return Err(ErrorResponse::NotFound(msg));
     };
 
     // prepare task-info
-    let file_path = PathBuf::from(&checkpoint_create_resp.file_path);
-    let info = CheckpointSaveInfo { path: file_path };
-
-    // add new task to database
-    match task_table::add_new_task(
-        &task_uuid,
-        &cluster_uuid,
-        &body.name,
-        &task_type,
-        &1,
-        &1,
-        &context,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            log::error!("Failed to add task with UUID '{task_uuid}' to database.");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
+    let info = CheckpointSaveInfo {
+        onsen_address: checkpoint_create_resp.onsen_address,
+        file_path: checkpoint_create_resp.file_path,
     };
 
     // create new task
@@ -155,40 +96,15 @@ pub async fn checkpoint_save_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        token: context.token.clone(),
         info: TaskVariant::CheckpointSave(info),
         meta: TaskMeta::new(1, 1, 1),
     };
-    cluster_interface
-        .lock()
-        .expect("mutex poisoned")
-        .add_task(task);
+    super::add_task_to_cluster(task, &task_type, &context)?;
 
     // get new created task from database to get addtional information
-    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
-        Ok(task_data) => task_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
-        }
-    };
-
-    // convert task-type
-    let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
-        Ok(task_type) => task_type,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-    // convert task-state
-    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
-        Ok(task_state) => task_state,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
+    let task_data = super::get_task_from_database(&task_uuid, &cluster_uuid, &context)?;
+    let task_type = super::convert_task_type(&task_data.task_type)?;
+    let task_state = super::convert_task_state(&task_data.task_state)?;
 
     let resp = TaskResp {
         uuid: task_uuid,

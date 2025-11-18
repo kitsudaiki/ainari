@@ -64,17 +64,18 @@ mod tests {
         let uuid2 = Uuid::new_v4();
 
         let info1 = CheckpointSaveInfo {
-            path: "asdf".to_string().into(),
+            onsen_address: "127.0.0.1".to_string(),
+            file_path: "asdf".to_string(),
         };
         let info2 = CheckpointSaveInfo {
-            path: "asdf".to_string().into(),
+            onsen_address: "127.0.0.1".to_string(),
+            file_path: "asdf".to_string(),
         };
 
         let task1 = Task {
             uuid: uuid1,
             cluster_uuid,
             name: "task1".to_string(),
-            token: "user0815".to_string(),
             info: TaskVariant::CheckpointSave(info1),
             meta: TaskMeta::new(1, 1, 1),
         };
@@ -82,7 +83,6 @@ mod tests {
             uuid: uuid2,
             cluster_uuid,
             name: "task2".to_string(),
-            token: "user0816".to_string(),
             info: TaskVariant::CheckpointSave(info2),
             meta: TaskMeta::new(1, 1, 1),
         };

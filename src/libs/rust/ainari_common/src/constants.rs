@@ -33,3 +33,6 @@ pub const RELATIVE_CREATE_BORDER: f32 = 0.05f32;
 
 // processing
 pub const NUMBER_OF_RESERVED_THREADS: usize = 2;
+
+// files
+pub const CHUNK_SIZE: usize = 1024 * 1024; // 1 MiB

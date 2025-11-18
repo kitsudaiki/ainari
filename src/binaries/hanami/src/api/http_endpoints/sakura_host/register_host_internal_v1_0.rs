@@ -57,12 +57,12 @@ pub async fn register_host_internal(
     }
 
     // add new host to database
-    match host_table::add_new_host(&host_uuid, &body.name, &body.sakura_address, &context) {
+    match host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context) {
         Ok(_) => {}
         Err(_) => {
             let msg = format!("Failed to add host with UUID '{host_uuid}' to database.");
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -74,14 +74,14 @@ pub async fn register_host_internal(
                 "Failed to get host with ID '{host_uuid}' from database, even the host should exist."
             );
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     let resp = HostResp {
         uuid: host_uuid,
         name: host_data.name.clone(),
-        sakura_address: host_data.address.clone(),
+        host_address: host_data.address.clone(),
         created_by: host_data.created_by.clone(),
         created_at: host_data.created_at.clone(),
         updated_by: host_data.updated_by.clone(),

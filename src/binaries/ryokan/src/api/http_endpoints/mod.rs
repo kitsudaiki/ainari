@@ -14,3 +14,4 @@
 
 pub mod checkpoint;
 pub mod dataset;
+pub mod onsen_host;

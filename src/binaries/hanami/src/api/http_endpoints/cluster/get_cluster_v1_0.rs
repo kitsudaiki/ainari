@@ -46,7 +46,7 @@ pub async fn get_cluster(
     let cluster_data = match meta_cluster_table::get_meta_cluster(&cluster_uuid, &context) {
         Ok(cluster_data) => cluster_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
@@ -58,14 +58,14 @@ pub async fn get_cluster(
         Ok(uuid) => uuid,
         Err(e) => {
             log::error!("Failed to convert sakura-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     let host_data = match host_table::get_host(&sakura_uuid, &context) {
         Ok(host_data) => host_data,
         Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {
             let msg = format!("Sakura-host with UUID '{sakura_uuid}' not found.");
@@ -81,7 +81,7 @@ pub async fn get_cluster(
                 cluster_data.proxy_uuid,
                 e
             );
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -97,7 +97,7 @@ pub async fn get_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -119,7 +119,7 @@ pub async fn get_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -141,7 +141,7 @@ pub async fn get_cluster(
         }
         Err(AinariError::Error(msg)) => {
             log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
