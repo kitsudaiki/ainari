@@ -41,7 +41,7 @@ byteorder = "1.5"
 bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.23"
 # file-server
-tonic = "0.12"
+tonic = "0.14"
 prost = "0.13"
 async-stream = "0.3"
 futures-core = "0.3"
