@@ -21,14 +21,13 @@ use crate::prepare_client;
 pub async fn check_token(
     address: String,
     token: String,
-    insecure: bool,
+    insecure_client: bool,
 ) -> Result<String, AinariError> {
-    let https_connection = address.starts_with("https://");
-    let client = prepare_client(https_connection, insecure);
-    let address_complete = format!("{address}/v1alpha/token");
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/token");
 
     let response = client
-        .get(address_complete)
+        .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;

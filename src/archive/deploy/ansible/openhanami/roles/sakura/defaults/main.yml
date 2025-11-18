@@ -1,0 +1,16 @@
+---
+ainari_debug: true
+
+ainari_docker_tag: "develop"
+ainari_listen_address: "0.0.0.0"
+ainari_log_dir: "/var/log/sakura"
+
+ainari_dataset_location: "/etc/ainari/datasets"
+ainari_checkpoint_location: "/etc/ainari/checkpoints"
+ainari_tempfile_location: "/etc/ainari/tempfiles"
+
+ainari_use_of_free_memory: 0.5
+
+ainari_token_key_path: "/etc/ainari/token_key"
+ainari_ssl_cert_path: "/etc/ainari/cert.pem"
+ainari_ssl_key_path: "/etc/ainari/key.pem"

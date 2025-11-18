@@ -63,30 +63,34 @@ def delete_all_cluster(context: AccessContext):
 
 
 def train(context: AccessContext,
+          torii_port: int,
           cluster_uuid: str,
           inputs: dict,
           outputs: dict):
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/train"
     json_body = {
         "inputs": inputs,
         "outputs": outputs,
     }
     ainari_request.send_put_request(context,
-                                    context.hanami_address,
+                                    address,
                                     path,
                                     json_body)
 
 
 def request(context: AccessContext,
+            torii_port: int,
             cluster_uuid: str,
             inputs: dict,
             outputs: list):
+    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/cluster/{cluster_uuid}/request"
     json_body = {
         "inputs": inputs,
         "outputs": outputs,
     }
     return ainari_request.send_put_request(context,
-                                           context.hanami_address,
+                                           address,
                                            path,
                                            json_body)

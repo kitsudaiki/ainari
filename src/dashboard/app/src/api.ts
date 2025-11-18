@@ -18,11 +18,11 @@ const miko_api = axios.create({
     baseURL: import.meta.env.VITE_API_URL_TORII,
 });
 
-const hanami_api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL_HANAMI,
+const sakura_api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL_SAKURA,
 });
 
 export default {
     miko_api,
-    hanami_api,
+    sakura_api,
 };

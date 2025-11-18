@@ -2,6 +2,20 @@
     "version": "2.0.0",
     "tasks": [
       {
+        "label": "build sakura debug",
+        "type": "shell",
+        "command": "cargo build -p sakura && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build sakura release",
+        "type": "shell",
+        "command": "cargo build --release -p sakura && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
         "label": "build hanami debug",
         "type": "shell",
         "command": "cargo build -p hanami",
@@ -30,18 +44,69 @@
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "build bento debug",
+        "label": "build ryokan debug",
         "type": "shell",
-        "command": "cargo build -p bento",
+        "command": "cargo build -p ryokan",
         "group": "build",
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "build bento release",
+        "label": "build ryokan release",
         "type": "shell",
-        "command": "cargo build --release -p bento",
+        "command": "cargo build --release -p ryokan",
         "group": "build",
         "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build torii debug",
+        "type": "shell",
+        "command": "cargo build -p torii",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build torii release",
+        "type": "shell",
+        "command": "cargo build --release -p torii",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omamori debug",
+        "type": "shell",
+        "command": "cargo build -p omamori",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omamori release",
+        "type": "shell",
+        "command": "cargo build --release -p omamori",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build onsen debug",
+        "type": "shell",
+        "command": "cargo build -p onsen && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build onsen release",
+        "type": "shell",
+        "command": "cargo build --release -p onsen && sleep 5",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "cargo clippy fix",
+        "type": "shell",
+        "command": "cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged",
+        "group": "build",
+        "problemMatcher": [
+            "$rustc"
+        ]
       }
-    ]
+    ],
 }

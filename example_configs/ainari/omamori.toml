@@ -1,0 +1,19 @@
+debug = true
+log_path = "/var/log"
+insecure_clients = true
+
+[database]
+file_path = "/etc/ainari/omamori_db"
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11421
+internal_ip = "0.0.0.0"
+internal_port = 10421
+internal_api_key = "asdf"
+
+[miko]
+address = "http://127.0.0.1:11417"
+
+[simple_crypto]
+key_b64 = "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE="

@@ -25,6 +25,9 @@ type AccessContext struct {
     token               string
     MikoAddress         string
     HanamiAddress       string
-    BentoAddress        string
+    RyokanAddress        string
+    OmamoriAddress      string
+    ToriiAddress        string
+    ToriiBaseAddress    string
 	skipTlsVerification bool
 }

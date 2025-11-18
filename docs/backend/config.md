@@ -4,7 +4,7 @@
 
     example config-file can be found in the repository under `example_configs/ainari/`
 
-## Bento
+## Ryokan
 
 ### without group
 
@@ -71,7 +71,7 @@
 
 
 
-## Hanami
+## Sakura
 
 ### without group
 
@@ -129,7 +129,7 @@
 - *Default*: false
 
 
-### `bento`
+### `ryokan`
 
 #### `address` 
 

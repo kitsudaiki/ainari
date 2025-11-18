@@ -16,13 +16,17 @@ internal_port = 10417
 internal_api_key = "asdf"
 
 [endpoints.hanami]
-public_address = "http://127.0.0.1"
-public_port = 11418
-internal_address = "http://127.0.0.1"
-internal_port = 10418
+public_address = "http://127.0.0.1:11418"
+internal_address = "http://127.0.0.1:10418"
 
-[endpoints.bento]
-public_address = "http://127.0.0.1"
-public_port = 11416
-internal_address = "http://127.0.0.1"
-internal_port = 10416
+[endpoints.ryokan]
+public_address = "http://127.0.0.1:11416"
+internal_address = "http://127.0.0.1:10416"
+
+[endpoints.torii]
+public_address = "http://127.0.0.1:11419"
+internal_address = "http://127.0.0.1:10419"
+
+[endpoints.omamori]
+public_address = "http://127.0.0.1:11421"
+internal_address = "http://127.0.0.1:10421"

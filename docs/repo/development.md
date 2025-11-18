@@ -39,21 +39,21 @@ This document should help to setup a local environment for development.
     create the first admin-user:
 
     ```bash
-    export HANAMI_ADMIN_ID=asdf
-    export HANAMI_ADMIN_NAME=asdf
-    export HANAMI_ADMIN_PASSPHRASE=asdfasdf
+    export AINARI_ADMIN_ID=asdf
+    export AINARI_ADMIN_NAME=asdf
+    export AINARI_ADMIN_PASSPHRASE=asdfasdf
     ```
 
     These are the default testing-configs, to match with the test-confic
     `/etc/ainari/hanami_testing.conf`.
 
 -   Exectute the binary without any flags. It uses by default the config of
-    `/etc/ainari/hanami.toml` and the values of the example-config are enough for testing. The
+    `/etc/ainari/sakura.toml` and the values of the example-config are enough for testing. The
     SQLite-database-file `/etc/ainari/ainari_db` is automatically created by the initial start.
 
 ## Testing
 
-Run the compiled `hanami`-binary.
+Run the compiled `sakura`-binary.
 
 ### Python-SDK-Test
 
@@ -119,11 +119,11 @@ API.
 -   export environment-variables
 
     ```bash
-    export HANAMI_ADDRESS=http://127.0.0.1:11418
+    export AINARI_ADDRESS=http://127.0.0.1:11418
     export MIKO_ADDRESS=http://127.0.0.1:11417
-    export BENTO_ADDRESS=http://127.0.0.1:11416
-    export HANAMI_USER=asdf
-    export HANAMI_PASSPHRASE=asdfasdf
+    export RYOKAN_ADDRESS=http://127.0.0.1:11416
+    export AINARI_USER=asdf
+    export AINARI_PASSPHRASE=asdfasdf
 
     export train_inputs=/tmp/train-images-idx3-ubyte
     export train_labels=/tmp/train-labels-idx1-ubyte

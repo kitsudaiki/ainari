@@ -1,0 +1,24 @@
+apiVersion: v1
+metadata:
+  name: torii-config
+data:
+  torii.toml: |+
+    debug = true
+    log_path = ""
+    insecure_clients = true
+
+    [api]
+    public_ip = "0.0.0.0"
+    public_port = 11419
+    internal_ip = "0.0.0.0"
+    internal_port = 10419
+    internal_api_key = "{{ .Values.api.internal_api_key }}"
+
+    [database]
+    file_path = "/etc/ainari/torii/torii_db"
+    
+    [miko]
+    address = "https://miko-tls-service.default.svc.cluster.local"
+    port = 8443
+
+kind: ConfigMap

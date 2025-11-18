@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: torii
+  labels:
+    app: torii
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: torii
+  template:
+    metadata:
+      labels:
+        app: torii
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: torii-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - torii
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: torii
+        image: {{ .Values.docker.registry }}/torii:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/torii/
+        - name: torii-config
+          mountPath: /etc/ainari/torii.toml
+          subPath: torii.toml
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: torii-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: torii-config
+          configMap:
+            name: torii-config
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: torii-pvc
+        - name: tls-certs
+          secret:
+            secretName: torii-selfsigned-secret
+        - name: torii-nginx-config
+          configMap:
+            name: torii-nginx-config

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omamori
+  labels:
+    app: omamori
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: omamori
+  template:
+    metadata:
+      labels:
+        app: omamori
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: omamori-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - omamori
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: omamori
+        image: {{ .Values.docker.registry }}/omamori:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/omamori/
+        - name: omamori-config
+          mountPath: /etc/ainari/omamori.toml
+          subPath: omamori.toml
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: omamori-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: omamori-config
+          configMap:
+            name: omamori-config
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: omamori-pvc
+        - name: tls-certs
+          secret:
+            secretName: omamori-selfsigned-secret
+        - name: omamori-nginx-config
+          configMap:
+            name: omamori-nginx-config

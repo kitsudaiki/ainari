@@ -85,8 +85,8 @@ amount of time until it expires, based on the configuration of the server.
 
     ```bash
     export MIKO_ADDRESS=http://127.0.0.1:11417
-    export HANAMI_USER=asdf
-    export HANAMI_PASSPHRASE=asdfasdf
+    export AINARI_USER=asdf
+    export AINARI_PASSPHRASE=asdfasdf
     ```
 
 === "Python-SDK"
@@ -440,7 +440,7 @@ List all user.
 
     |      ID       |     NAME      | IS ADMIN | PROJECTS | CREATOR ID  |     CREATED AT      |
     +---------------+---------------+----------+----------+-------------+---------------------+
-    | asdf          | asdf          | true     | []       | HANAMI_INIT | 2024-06-26 16:57:35 |
+    | asdf          | asdf          | true     | []       | AINARI_INIT | 2024-06-26 16:57:35 |
     | cli_test_user | cli test user | false    | []       | asdf        | 2024-07-12 20:52:21 |
     +---------------+---------------+----------+----------+-------------+---------------------+
     ```

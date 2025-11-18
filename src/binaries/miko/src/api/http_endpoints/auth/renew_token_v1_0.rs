@@ -40,7 +40,7 @@ pub async fn renew_token(
     ) {
         Ok(token) => token,
         Err(_) => {
-            return Err(ErrorResponse::InternalError("".to_string()));
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 

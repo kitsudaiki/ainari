@@ -1,0 +1,17 @@
+debug = true
+log_path = "/var/log"
+insecure_clients = true
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11419
+internal_ip = "0.0.0.0"
+internal_port = 10419
+internal_api_key = "asdf"
+
+[miko]
+address = "http://127.0.0.1:11417"
+

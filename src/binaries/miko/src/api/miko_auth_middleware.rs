@@ -39,10 +39,9 @@ pub async fn authorization_middleware(
     log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
 
     // skip check for specific endpoints
-    let is_post_req = *req.method() == Method::POST;
-    let is_get_req = *req.method() == Method::GET;
-    skip_check |= uri == "/v1alpha/token" && is_post_req;
-    skip_check |= uri == "/openapi.json" && is_get_req;
+    skip_check |= uri == "/v1alpha/token" && *req.method() == Method::POST;
+    skip_check |= uri == "/openapi.json" && *req.method() == Method::GET;
+    skip_check |= uri == "/v1alpha/endpoints" && *req.method() == Method::GET;
     skip_check |= *req.method() == Method::OPTIONS;
 
     if !skip_check {

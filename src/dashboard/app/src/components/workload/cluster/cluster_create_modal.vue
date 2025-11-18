@@ -73,7 +73,7 @@ const form = reactive({
 async function handleAccept() {
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.post(
+        await api.sakura_api.post(
             "/v1alpha/cluster",
             {
                 name: form.clusterName,

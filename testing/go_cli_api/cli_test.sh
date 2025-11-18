@@ -1,17 +1,12 @@
 #!/bin/bash
-# export MIKO_ADDRESS=http://127.0.0.1:11417
-# export HANAMI_USER=asdf
-# export HANAMI_PASSPHRASE=asdfasdf
+#export AINARI_ADDRESS=http://127.0.0.1:11417
+#export AINARI_USER=asdf
+#export AINARI_PASSPHRASE=asdfasdf
 
-# export TRAIN_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
-# export TRAIN_LABELS=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte
-# export REQUEST_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
-# export REQUEST_LABELS=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
-
-# build protobuffer for go sdk
-# pushd ../../src/sdk/go/ainari_sdk
-# protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
-# popd
+#export TRAIN_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/train-images-idx3-ubyte
+#export TRAIN_LABELS=/home/neptune/Schreibtisch/Projects/mnist/train-labels-idx1-ubyte
+#export REQUEST_INPUTS=/home/neptune/Schreibtisch/Projects/mnist/t10k-images-idx3-ubyte
+#export REQUEST_LABELS=/home/neptune/Schreibtisch/Projects/mnist/t10k-labels-idx1-ubyte
 
 # build cli-binarygolangci-lint
 pushd ../../src/cli/ainarictl
@@ -45,6 +40,16 @@ $EXECUTABLE user delete cli_test_user
 
 # ########################
 echo ""
+echo "########################### quota tests ##########################"
+echo ""
+$EXECUTABLE user create -n "cli test user" -p "asdfasdf" cli_test_user
+$EXECUTABLE quota get cli_test_user
+$EXECUTABLE quota list
+$EXECUTABLE quota set --max_checkpoint 5 --max_cluster 6 --max_dataset 7 --max_secret 9 cli_test_user
+$EXECUTABLE user delete cli_test_user
+
+# ########################
+echo ""
 echo "########################### dataset tests ##########################"
 echo ""
 DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_dataset | jq -r '.uuid')
@@ -60,6 +65,16 @@ CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_clus
 $EXECUTABLE cluster get $CLUSTER_UUID
 $EXECUTABLE cluster list
 $EXECUTABLE cluster delete $CLUSTER_UUID
+
+# ########################
+echo ""
+echo "########################### secret tests ###########################"
+echo ""
+SECRET_UUID=$($EXECUTABLE secret create -j -p 'this is a test-secret' cli_test_cluster | jq -r '.uuid')
+$EXECUTABLE secret get $SECRET_UUID
+$EXECUTABLE secret get-payload $SECRET_UUID
+$EXECUTABLE secret list
+$EXECUTABLE secret delete $SECRET_UUID
 
 ########################
 echo ""

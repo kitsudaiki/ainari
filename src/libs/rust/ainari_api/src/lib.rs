@@ -15,6 +15,7 @@
 #![forbid(unsafe_code)]
 
 pub mod auth_middleware;
+pub mod common_functions;
 pub mod cors_middleware;
 pub mod endpoints;
 pub mod errors;

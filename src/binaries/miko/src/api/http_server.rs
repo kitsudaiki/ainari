@@ -20,65 +20,16 @@ use apistos::info::Info;
 use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
-use apistos::web::{Scope, delete, get, post, put, resource, scope};
 use std::error::Error;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
-use ainari_api::endpoints::*;
 use ainari_common::config as ainari_config;
 
-use crate::api::http_endpoints::auth::*;
-use crate::api::http_endpoints::endpoints::*;
-use crate::api::http_endpoints::project::*;
-use crate::api::http_endpoints::user::*;
 use crate::api::miko_auth_middleware::authorization_middleware;
 use crate::config;
 
-fn v1alpha_routes() -> Scope {
-    scope("/v1alpha")
-        .service(
-            scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
-        )
-        .service(
-            scope("/token").service(
-                resource("")
-                    .route(put().to(renew_token_v1_0::renew_token))
-                    .route(post().to(create_token_v1_0::create_token))
-                    .route(get().to(validate_token_v1_0::validate_token)),
-            ),
-        )
-        .service(
-            scope("/endpoints")
-                .service(resource("").route(get().to(get_endpoints_v1_0::get_endpoints))),
-        )
-        .service(
-            scope("/project")
-                .service(
-                    resource("")
-                        .route(post().to(create_project_v1_0::create_project))
-                        .route(get().to(list_project_v1_0::list_project)),
-                )
-                .service(
-                    resource("/{project_id}")
-                        .route(get().to(get_project_v1_0::get_project))
-                        .route(delete().to(delete_project_v1_0::delete_project)),
-                ),
-        )
-        .service(
-            scope("/user")
-                .service(
-                    resource("")
-                        .route(post().to(create_user_v1_0::create_user))
-                        .route(get().to(list_user_v1_0::list_user)),
-                )
-                .service(
-                    resource("/{user_id}")
-                        .route(get().to(get_user_v1_0::get_user))
-                        .route(delete().to(delete_user_v1_0::delete_user)),
-                ),
-        )
-}
+use super::routes::v1alpha::v1alpha_routes;
 
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {

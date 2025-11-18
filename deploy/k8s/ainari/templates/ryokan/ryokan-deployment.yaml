@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ryokan
+  labels:
+    app: ryokan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ryokan
+  template:
+    metadata:
+      labels:
+        app: ryokan
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: ryokan-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ryokan
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: ryokan
+        image: {{ .Values.docker.registry }}/ryokan:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /etc/ainari/ryokan/
+        - name: shared-vol
+          mountPath: /etc/ainari/ryokan_data
+        - name: ryokan-config
+          mountPath: /etc/ainari/ryokan.toml
+          subPath: ryokan.toml
+          readOnly: true
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: ryokan-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: ryokan-config
+          configMap:
+            name: ryokan-config
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: ryokan-pvc
+        - name: tls-certs
+          secret:
+            secretName: ryokan-selfsigned-secret
+        - name: ryokan-nginx-config
+          configMap:
+            name: ryokan-nginx-config
+        - name: shared-vol
+          persistentVolumeClaim:
+            claimName: shared-longhorn-pvc

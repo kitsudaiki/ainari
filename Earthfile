@@ -26,31 +26,6 @@ local-setup:
     RUN git config --local core.hooksPath .githooks
 
 
-cppcheck:
-    RUN apt-get update && \
-        apt-get install -y cppcheck
-    COPY src src
-    RUN rm -rf \
-          src/libs/protobuf/ainari_messages.proto3.pb.h
-    RUN cppcheck --error-exitcode=1 src/libs/cpp
-
-
-clang-format:
-    RUN apt-get update && \
-        apt-get install -y clang-format-15
-    COPY src src
-    RUN rm -rf \
-          src/sdk/python \
-          src/third-party-libs \
-          src/libs/protobuf/ainari_messages.proto3.pb.h
-    COPY .clang-format .
-    RUN find . -regex '.*\.\(h$\|c$\|hpp$\|cpp$\)' | while read f; do \
-              clang-format-15 -style=file:.clang-format --dry-run --Werror $f; \
-              if [ $? -ne 0 ]; then \
-                  exit 1; \
-              fi; done
-
-
 flake8:
     RUN apt-get update && \
         apt-get install -y python3 python3-pip python3-venv && \
@@ -97,7 +72,7 @@ prepare-build-dependencies:
                            libssl-dev \
                            rustup \
                            # TODO:enable gpu init here again
-                           # related issue: https://github.com/kitsudaiki/Hanami/issues/325
+                           # related issue: https://github.com/kitsudaiki/Sakura/issues/325
                            # nvidia-cuda-toolkit \
                            nano && \
         rustup install stable --no-self-update
@@ -120,12 +95,16 @@ compile-cli:
 compile-ainari:
     FROM +prepare-build-dependencies
     RUN apt-get update && \
-        apt-get install -y libsqlite3-dev
+        apt-get install -y protobuf-compiler  libsqlite3-dev
     RUN cargo build
     RUN mkdir /tmp/ainari/
-    RUN cp ./target/debug/hanami /tmp/ainari/
+    RUN cp ./target/debug/sakura /tmp/ainari/
     RUN cp ./target/debug/miko /tmp/ainari/
-    RUN cp ./target/debug/bento /tmp/ainari/
+    RUN cp ./target/debug/ryokan /tmp/ainari/
+    RUN cp ./target/debug/hanami /tmp/ainari/
+    RUN cp ./target/debug/torii /tmp/ainari/
+    RUN cp ./target/debug/omamori /tmp/ainari/
+    RUN cp ./target/debug/onsen /tmp/ainari/
     SAVE ARTIFACT /tmp/ainari /tmp/ainari
     SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
 
@@ -133,40 +112,27 @@ test-hanami:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \
-        apt-get install -y libsqlite3-dev libssl-dev
+        apt-get install -y protobuf-compiler libsqlite3-dev libssl-dev
     # only one test-thread to avoid conflicts between tests, which access the same singleton
     RUN cargo test -- --test-threads=1
 
 
-build-image:
-    ARG image_name
-
-    RUN apt-get update && \
-        apt-get install -y openssl libuuid1 libcrypto++8 libsqlite3-0 libprotobuf23 libboost1.74 && \
-        apt-get clean autoclean && \
-        apt-get autoremove --yes && \
-        chmod +x /usr/bin/hanami
-
-    COPY +compile-code/ainari_core/hanami /usr/bin/
-
-    # run hanami
-    ENTRYPOINT ["/usr/bin/hanami"]
-
-    SAVE IMAGE "$image_name"
-
-
 generate-docs:
-    ENV HANAMI_ADMIN_ID asdf
-    ENV HANAMI_ADMIN_NAME asdf
-    ENV HANAMI_ADMIN_PASSPHRASE asdfasdf
+    ENV AINARI_ADMIN_ID asdf
+    ENV AINARI_ADMIN_NAME asdf
+    ENV AINARI_ADMIN_PASSPHRASE asdfasdf
 
-    COPY +compile-ainari/ainari/hanami /tmp/hanami
+    COPY +compile-ainari/ainari/sakura /tmp/sakura
     COPY +compile-ainari/ainari/miko /tmp/miko
-    COPY +compile-ainari/ainari/bento /tmp/bento
+    COPY +compile-ainari/ainari/ryokan /tmp/ryokan
+    COPY +compile-ainari/ainari/hanami /tmp/hanami
+    COPY +compile-ainari/ainari/torii /tmp/torii
+    COPY +compile-ainari/ainari/omamori /tmp/omamori
+    COPY +compile-ainari/ainari/onsen /tmp/onsen
     COPY example_configs/ainari /etc/ainari
 
     RUN apt-get update && \
-        apt-get install -y openssl libsqlite3-0 libgbm-dev xvfb dbus
+        apt-get install -y protobuf-compiler openssl libsqlite3-0 libgbm-dev xvfb dbus
 
     RUN apt-get update && \
         apt-get install -y python3 \
@@ -181,33 +147,51 @@ generate-docs:
                      mkdocs-material \
                      mkdocs-swagger-ui-tag \
                      mkdocs-drawio-exporter && \
-        curl -s https://api.github.com/repos/jgraph/drawio-desktop/releases/latest | grep browser_download_url | grep "amd64"  | grep "deb" | cut -d "\"" -f 4 | wget -i - && \
+        wget https://github.com/jgraph/drawio-desktop/releases/download/v28.2.5/drawio-amd64-28.2.5.deb && \
         apt -f -y install ./drawio-amd64-*.deb
 
-    RUN chmod +x /tmp/hanami
-    RUN . ainari_env/bin/activate && \
-        hap run /tmp/hanami && \
-        sleep 5 && \
-        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
     RUN chmod +x /tmp/miko
     RUN . ainari_env/bin/activate && \
         hap run /tmp/miko && \
         sleep 5 && \
         curl 127.0.0.1:11417/openapi.json > ./open_api_docu_miko.json
-    RUN chmod +x /tmp/bento
+    RUN chmod +x /tmp/ryokan
     RUN . ainari_env/bin/activate && \
-        hap run /tmp/bento && \
+        hap run /tmp/ryokan && \
         sleep 5 && \
-        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_bento.json
+        curl 127.0.0.1:11416/openapi.json > ./open_api_docu_ryokan.json
+    RUN chmod +x /tmp/hanami
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/hanami && \
+        sleep 5 && \
+        curl 127.0.0.1:11418/openapi.json > ./open_api_docu_hanami.json
+    RUN chmod +x /tmp/torii
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/torii && \
+        sleep 5 && \
+        curl 127.0.0.1:11419/openapi.json > ./open_api_docu_torii.json
+    RUN chmod +x /tmp/omamori
+    RUN . ainari_env/bin/activate && \
+        hap run /tmp/omamori && \
+        sleep 5 && \
+        curl 127.0.0.1:11421/openapi.json > ./open_api_docu_omamori.json
+    # RUN chmod +x /tmp/sakura
+    # RUN . ainari_env/bin/activate && \
+    #     hap run /tmp/sakura && \
+    #     sleep 5 && \
+    #     curl 127.0.0.1:11420/openapi.json > ./open_api_docu_sakura.json
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
-    RUN cp ./open_api_docu_hanami.json docs/frontend/
+    # RUN cp ./open_api_docu_sakura.json docs/frontend/
     RUN cp ./open_api_docu_miko.json docs/frontend/
-    RUN cp ./open_api_docu_bento.json docs/frontend/
+    RUN cp ./open_api_docu_ryokan.json docs/frontend/
+    RUN cp ./open_api_docu_hanami.json docs/frontend/
+    RUN cp ./open_api_docu_torii.json docs/frontend/
+    RUN cp ./open_api_docu_omamori.json docs/frontend/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage

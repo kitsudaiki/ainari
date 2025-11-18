@@ -17,8 +17,8 @@ it easier for a new person to understand the code.
     │   ├── archive
     │   │
     │   ├── binaries
-    │   │       ├── bento
-    │   │       ├── hanami
+    │   │       ├── ryokan
+    │   │       ├── sakura
     │   │       └── miko
     │   │
     │   ├── cli
@@ -47,7 +47,7 @@ it easier for a new person to understand the code.
 
 -   **deploy**
 
-    Contains the helm-chart doploying hanami on kubernetes.
+    Contains the helm-chart doploying sakura on kubernetes.
 
 -   **docs**
 
@@ -55,7 +55,7 @@ it easier for a new person to understand the code.
 
 -   **example_configs**
 
-    Example-configs for hanami. They are also used for tests within the CI-pipeline to make sure,
+    Example-configs for sakura. They are also used for tests within the CI-pipeline to make sure,
     that these examples are up-to-date.
 
 -   **src**

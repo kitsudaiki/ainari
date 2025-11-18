@@ -59,7 +59,7 @@ async function handleAccept(dataset_uuid: string) {
     if (!dataset_uuid) return;
     try {
         const token = localStorage.getItem("jwtToken");
-        await api.hanami_api.delete(`/v1alpha/dataset/${dataset_uuid}`, {
+        await api.sakura_api.delete(`/v1alpha/dataset/${dataset_uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
     } catch (err) {

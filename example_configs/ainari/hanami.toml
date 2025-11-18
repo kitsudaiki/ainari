@@ -5,10 +5,6 @@ insecure_clients = true
 [database]
 file_path = "/etc/ainari/hanami_db"
 
-[processing]
-# 0 means there is no limitation
-max_number_of_threads = 0
-
 [api]
 public_ip = "0.0.0.0"
 public_port = 11418
@@ -17,5 +13,7 @@ internal_port = 10418
 internal_api_key = "asdf"
 
 [miko]
-address = "http://127.0.0.1"
-port = 11417
+address = "http://127.0.0.1:11417"
+
+[sakura]
+registation_key = "test-registration-key"

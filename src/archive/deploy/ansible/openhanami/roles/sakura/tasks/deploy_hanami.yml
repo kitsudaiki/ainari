@@ -1,0 +1,72 @@
+---
+- name: Create base-directory
+  become: true
+  file:
+    path: /etc/ainari
+    state: directory
+    mode: "0777"
+
+- name: Create checkpoint-directory
+  file:
+    path: "{{ ainari_checkpoint_location }}"
+    state: directory
+    mode: "0777"
+
+- name: Create dataset-directory
+  file:
+    path: "{{ ainari_dataset_location }}"
+    state: directory
+    mode: "0777"
+
+
+- name: Create log-directory
+  become: true
+  file:
+    path: "{{ ainari_log_dir }}"
+    state: directory
+    mode: "0777"
+
+
+- name: Copy policies
+  copy:
+    src: policies
+    dest: /etc/ainari/policies
+    mode: "0777"
+
+- name: Create sakura-config from template
+  template:
+    src: sakura.conf.j2
+    dest: /etc/ainari/sakura.conf
+    mode: "0777"
+
+- name: Create a token-file
+  copy:
+    dest: "{{ ainari_token_key_path }}"
+    content: "{{ lookup('env', 'TOKEN_KEY') }}"
+    mode: "0600"
+
+
+- name: Create sakura docker-container
+  become: true
+  community.docker.docker_container:
+    name: sakura
+    image: kitsudaiki/sakura:{{ ainari_docker_tag }}
+    state: started
+    pull: true
+    detach: true
+    command: "sakura"
+    env:
+      AINARI_ADMIN_ID: "{{ lookup('env', 'ADMIN_USER_ID') }}"
+      AINARI_ADMIN_NAME: "{{ lookup('env', 'ADMIN_USER_NAME') }}"
+      AINARI_ADMIN_PASSPHRASE: "{{ lookup('env', 'ADMIN_PASSPHRASE') }}"
+    ports:
+      - "11418:11418"
+    mounts:
+      - source: /etc/ainari
+        target: /etc/ainari
+        type: bind
+        read_only: false
+      - source: "{{ ainari_log_dir }}"
+        target: "{{ ainari_log_dir }}"
+        type: bind
+        read_only: false

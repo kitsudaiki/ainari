@@ -15,10 +15,23 @@ docker:
   registry: "kitsudaiki"
 
 api:
-  domain_hanami: local-hanami
+  domain_sakura: local-sakura
   domain_miko: local-miko
-  domain_bento: local-bento
+  domain_ryokan: local-ryokan
+  domain_torii: local-torii
+  domain_hanami: local-hanami
+  domain_omamori: local-omamori
   internal_api_key: "dummy-key"
+
+hanami:
+  registation_key: "test-registration-key"
+
+torii:
+  service:
+    type: LoadBalancer
+  portRange:
+    start: 10040
+    end: 10050
 
 processing:
   max_number_of_threads: 0

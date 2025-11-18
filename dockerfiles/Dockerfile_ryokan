@@ -1,0 +1,34 @@
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+RUN apt-get update && \
+        apt-get install -y protobuf-compiler \
+                           gcc \
+                           curl \
+                           pkg-config \
+                           libssl-dev \
+                           libsqlite3-dev && \
+     curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+COPY . .
+
+RUN ~/.cargo/bin/cargo build --release -p ryokan
+RUN cp target/release/ryokan /app/
+
+# ---------------------------------------------------
+
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# ryokan
+COPY --from=builder /app/ryokan /usr/bin/ryokan
+CMD [ "ryokan" ]

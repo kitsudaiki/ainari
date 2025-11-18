@@ -35,15 +35,19 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
     let response = EndpontsResp {
         hanami: EndpointField {
             public_address: enpoint_config.hanami.public_address.clone(),
-            public_port: enpoint_config.hanami.public_port,
             internal_address: enpoint_config.hanami.internal_address.clone(),
-            internal_port: enpoint_config.hanami.internal_port,
         },
-        bento: EndpointField {
-            public_address: enpoint_config.bento.public_address.clone(),
-            public_port: enpoint_config.bento.public_port,
-            internal_address: enpoint_config.bento.internal_address.clone(),
-            internal_port: enpoint_config.bento.internal_port,
+        ryokan: EndpointField {
+            public_address: enpoint_config.ryokan.public_address.clone(),
+            internal_address: enpoint_config.ryokan.internal_address.clone(),
+        },
+        torii: EndpointField {
+            public_address: enpoint_config.torii.public_address.clone(),
+            internal_address: enpoint_config.torii.internal_address.clone(),
+        },
+        omamori: EndpointField {
+            public_address: enpoint_config.omamori.public_address.clone(),
+            internal_address: enpoint_config.omamori.internal_address.clone(),
         },
     };
 

@@ -24,7 +24,7 @@ def create_user(context: AccessContext,
                 user_name: str,
                 passphrase: str,
                 is_admin: bool) -> dict:
-    path = "/v1alpha/user"
+    path = "/v1alpha/user/admin"
     json_body = {
         "id": user_id,
         "name": user_name,
@@ -39,7 +39,7 @@ def create_user(context: AccessContext,
 
 def get_user(context: AccessContext,
              user_id: str) -> dict:
-    path = f'/v1alpha/user/{user_id}'
+    path = f'/v1alpha/user/{user_id}/admin'
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -47,7 +47,7 @@ def get_user(context: AccessContext,
 
 
 def list_users(context: AccessContext) -> dict:
-    path = "/v1alpha/user"
+    path = "/v1alpha/user/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -56,7 +56,7 @@ def list_users(context: AccessContext) -> dict:
 
 def delete_user(context: AccessContext,
                 user_id: str):
-    path = f'/v1alpha/user/{user_id}'
+    path = f'/v1alpha/user/{user_id}/admin'
     ainari_request.send_delete_request(context,
                                        context.miko_address,
                                        path,
@@ -79,7 +79,7 @@ def add_roject_to_user(context: AccessContext,
                        project_id: str,
                        role: str,
                        is_project_admin: bool) -> dict:
-    path = "/v1alpha/user/project"
+    path = "/v1alpha/user/project/admin"
     json_body = {
         "id": user_id,
         "project_id": project_id,
@@ -95,7 +95,7 @@ def add_roject_to_user(context: AccessContext,
 def remove_project_fromUser(context: AccessContext,
                             user_id: str,
                             project_id: str):
-    path = "/v1alpha/user/project"
+    path = "/v1alpha/user/project/admin"
     values = f'project_id={project_id}&id={user_id}'
     ainari_request.send_delete_request(context,
                                        context.miko_address,
@@ -104,7 +104,7 @@ def remove_project_fromUser(context: AccessContext,
 
 
 def list_projects_of_user(context: AccessContext) -> dict:
-    path = "/v1alpha/user/project"
+    path = "/v1alpha/user/project/admin"
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -113,7 +113,7 @@ def list_projects_of_user(context: AccessContext) -> dict:
 
 def switch_project(context: AccessContext,
                    project_id: str) -> dict:
-    path = "/v1alpha/user/project"
+    path = "/v1alpha/user/project/admin"
     json_body = {
         "project_id": project_id,
     }

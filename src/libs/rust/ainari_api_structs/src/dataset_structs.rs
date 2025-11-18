@@ -30,6 +30,7 @@ pub struct DatasetCreateReq {
 pub struct DatasetInternalResp {
     pub uuid: Uuid,
     pub name: String,
+    pub onsen_address: String,
     pub file_path: String,
     pub created_at: String,
     pub created_by: String,

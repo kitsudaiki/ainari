@@ -27,17 +27,17 @@ import (
 func GetCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
 func ListCheckpoint(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/checkpoint"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.BentoAddress, path, vars)
+	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
 func DeleteCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.BentoAddress, path, vars)
+	return SendDelete(context, context.RyokanAddress, path, vars)
 }

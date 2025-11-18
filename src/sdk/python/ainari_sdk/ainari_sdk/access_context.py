@@ -20,5 +20,8 @@ class AccessContext:
     token: str
     miko_address: str
     hanami_address: str
-    bento_adress: str
+    ryokan_adress: str
+    omamori_address: str
+    torii_address: str
+    torii_base_address: str
     verify_connection: bool = True

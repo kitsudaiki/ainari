@@ -14,13 +14,15 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::database::cluster_table;
+use crate::config;
+use crate::database::host_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::cluster as cluster_clients;
+use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -30,35 +32,44 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
-    let clusters = match cluster_table::list_clusters(&context) {
-        Ok(clusters) => clusters,
-        Err(e) => {
-            log::error!("Failed to get list of clusters form database: '{e}'");
-            return Err(ErrorResponse::InternalError("".to_string()));
-        }
-    };
-
-    let mut resp = ClusterListResp {
+    let mut complete_resp = ClusterListResp {
         clusters: Vec::new(),
     };
 
-    for cluster in clusters {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&cluster.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert cluster-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("".to_string()));
+    let host_list = match host_table::list_hosts(&context) {
+        Ok(hosts) => hosts,
+        Err(e) => {
+            log::error!("Failed to get list of hosts form database: '{e}'");
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+    };
+
+    for host in host_list {
+        let cluster_list_resp = match cluster_clients::list_cluster(
+            &host.address,
+            &context.token,
+            &config::CONFIG.api.internal_api_key,
+            config::CONFIG.insecure_clients,
+        )
+        .await
+        {
+            Ok(body) => body,
+            Err(AinariError::Unauthorized(msg)) => {
+                return Err(ErrorResponse::Unauthorized(msg));
+            }
+            Err(AinariError::InvalidInput(msg)) => {
+                return Err(ErrorResponse::BadRequest(msg));
+            }
+            Err(AinariError::Error(msg)) => {
+                log::error!("{msg}");
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         };
 
-        let obj = ClusterBasicResp {
-            uuid,
-            name: cluster.name.clone(),
-        };
-
-        resp.clusters.push(obj);
+        for cluster in cluster_list_resp.clusters {
+            complete_resp.clusters.push(cluster);
+        }
     }
 
-    Ok(Json(resp))
+    Ok(Json(complete_resp))
 }

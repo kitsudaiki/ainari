@@ -179,7 +179,7 @@ itself:
     [CI-pipeline](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml) for
     each merge on `develop`-branch and for each tag.
 
-    [:octicons-arrow-right-24: Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/hanami/tags)
+    [:octicons-arrow-right-24: Docker-images](https://hub.docker.com/repository/docker/kitsudaiki/sakura/tags)
 
     [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.ainari.cloud/)
 

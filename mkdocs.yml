@@ -8,7 +8,7 @@ repo_url: https://github.com/kitsudaiki/ainari
 theme:
   name: material
   language: en
-  logo: img/hanami-logo-pink.png
+  logo: img/sakura-logo-pink.png
   palette:
     scheme: default  # or "slate" for dark
   features:
