@@ -15,3 +15,8 @@ bincode = "2.0"
 bytemuck = "1.23"
 csv = "1.4"
 uuid = { version = "1.18.0", features = ["v4", "serde"] }
+tokio = { version = "1.41", features = ["rt-multi-thread", "macros", "fs"] }
+# encryption
+openssl = "0.10"
+hex = "0.4"
+base64 = "0.22"

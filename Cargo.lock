@@ -421,12 +421,16 @@ name = "ainari_dataset"
 version = "0.1.0"
 dependencies = [
  "ainari_common",
+ "base64",
  "bincode",
  "bytemuck",
  "byteorder",
  "csv",
+ "hex",
+ "openssl",
  "serde",
  "serde_json",
+ "tokio",
  "uuid",
 ]
 
