@@ -38,16 +38,26 @@ spec:
         imagePullPolicy: Always
         env:
         - name: RUST_LOG
-          value: "debug"
+          value: "debug,h2=info"
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/ryokan/
-        - name: shared-vol
-          mountPath: /etc/ainari/ryokan_data
         - name: ryokan-config
           mountPath: /etc/ainari/ryokan.toml
           subPath: ryokan.toml
           readOnly: true
+        - name: wg-secret
+          mountPath: /etc/wireguard
+          readOnly: true
+        securityContext:
+          seccompProfile: 
+            type: RuntimeDefault
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_MODULE
+
+                
 
       - name: tls-termination
         image: nginx:latest
@@ -75,6 +85,6 @@ spec:
         - name: ryokan-nginx-config
           configMap:
             name: ryokan-nginx-config
-        - name: shared-vol
-          persistentVolumeClaim:
-            claimName: shared-longhorn-pvc
+        - name: wg-secret
+          secret:
+            secretName: wg-ryokan-secret

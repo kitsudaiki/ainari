@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ryokan-pvc
+  name: onsen-pvc
 spec:
   accessModes:
     - ReadWriteOnce

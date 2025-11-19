@@ -18,8 +18,7 @@ data:
     file_path = "/etc/ainari/omamori/omamori_db"
     
     [miko]
-    address = "https://miko-tls-service.default.svc.cluster.local"
-    port = 8443
+    address = "https://miko-tls-service.default.svc.cluster.local:8443"
 
     [simple_crypto]
     key_b64 = "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE="

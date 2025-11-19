@@ -9,7 +9,6 @@ file_path = "/etc/ainari/ryokan_db"
 dataset_location = "/etc/ainari/datasets"
 checkpoint_location = "/etc/ainari/checkpoints"
 tempfile_location = "/etc/ainari/tempfiles"
-tempfile_timeout = 10
 
 [api]
 public_ip = "0.0.0.0"

@@ -680,7 +680,7 @@ jobs:
 
   docker_build:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    name: "Build Docker-images"
+    name: "Build"
     needs: [ sdk_api_tests, cli_api_tests ]
     runs-on: ubuntu-24.04
     strategy:
@@ -966,37 +966,12 @@ jobs:
           kubectl create namespace cert-manager
           helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
       -
-        name: Install rancher-longhorn
+        name: Create wireguard-configs
         run: |
-          sudo apt-get update
-          sudo apt-get install -y open-iscsi nfs-common
-          sudo systemctl enable --now iscsid
-          helm repo add longhorn https://charts.longhorn.io
-          helm repo update
-          kubectl create namespace longhorn-system
-          helm install longhorn longhorn/longhorn --namespace longhorn-system --set defaultSettings.defaultDataPath="/mnt/longhorn"
-          sleep 60
-          cat <<EOF > longhorn-storageclass.yaml
-          ---
-
-          apiVersion: storage.k8s.io/v1
-          kind: StorageClass
-          metadata:
-            name: longhorn
-          provisioner: driver.longhorn.io
-          parameters:
-            numberOfReplicas: "1"
-            staleReplicaTimeout: "30"
-          volumeBindingMode: Immediate
-          reclaimPolicy: Delete
-          allowVolumeExpansion: true
-          mountOptions: []
-          parameters: {}
-
-          EOF
-          cat longhorn-storageclass.yaml
-          kubectl apply -f longhorn-storageclass.yaml
-          sleep 15
+          sudo apt-get install -y wireguard-tools
+          pip3 install jinja2
+          cd ${GITHUB_REPOSITORY#*/}/deploy/k8s
+          python3 wg_gen.py
       -
         name: Label nodes
         run: |
@@ -1006,6 +981,7 @@ jobs:
           kubectl label nodes --all sakura-node=true
           kubectl label nodes --all torii-node=true
           kubectl label nodes --all omamori-node=true
+          kubectl label nodes --all onsen-node=true
       -
         name: Install hanami
         run: |

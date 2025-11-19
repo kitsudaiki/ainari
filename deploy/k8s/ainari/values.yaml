@@ -21,6 +21,7 @@ api:
   domain_torii: local-torii
   domain_hanami: local-hanami
   domain_omamori: local-omamori
+  domain_onsen: local-onsen
   internal_api_key: "dummy-key"
 
 hanami:
@@ -32,6 +33,9 @@ torii:
   portRange:
     start: 10040
     end: 10050
+
+storage:
+  storage_class: local-path
 
 processing:
   max_number_of_threads: 0

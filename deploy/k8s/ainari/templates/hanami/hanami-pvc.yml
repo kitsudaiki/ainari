@@ -5,7 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: hanami-sc
+  storageClassName: {{ .Values.storage.storage_class }}
   resources:
     requests:
       storage: 100Mi

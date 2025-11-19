@@ -92,42 +92,24 @@ For the installation on a kubernetes `helm` is used.
     helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
     ```
 
-5.  **Install longhorn**
+5.  **Prepare wiregurad-configs**
 
-    Install required apt-package:
+    These configs are necessary for the wireguard-connection between sakura and ryokan to the onsen
 
-    ```
-    sudo apt-get install -y open-iscsi nfs-common
-    sudo systemctl enable --now iscsid
-    ```
-
-    Install longhorn
+    Install required apt- and python-package:
 
     ```
-    helm repo add longhorn https://charts.longhorn.io
-    helm repo update
-    kubectl create namespace longhorn-system
-    helm install longhorn longhorn/longhorn --namespace longhorn-system
+    sudo apt-get install wireguard-tools
+    python3 -m venv venv
+    source venv/bin/activate
+    pip3 install jinja2
     ```
 
-    Create storage-class by applying:
+    Generate configs and upload them into kubernestes as secrets (kubectl required on the host)
 
     ```
-    ---
-
-    apiVersion: storage.k8s.io/v1
-    kind: StorageClass
-    metadata:
-      name: longhorn
-    provisioner: driver.longhorn.io
-    parameters:
-      numberOfReplicas: "1"
-      staleReplicaTimeout: "30"
-    volumeBindingMode: Immediate
-    reclaimPolicy: Delete
-    allowVolumeExpansion: true
-    mountOptions: []
-    parameters: {}
+    cd deploy/k8s
+    python3 wg_gen.py
     ```
 
 6.  **Node label**
@@ -141,6 +123,7 @@ For the installation on a kubernetes `helm` is used.
     kubectl label nodes NODE_NAME sakura-node=true
     kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME omamori-node=true
+    kubectl label nodes NODE_NAME onsen-node=true
     ```
 
     !!! info
