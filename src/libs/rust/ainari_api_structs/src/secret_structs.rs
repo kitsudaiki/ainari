@@ -28,6 +28,12 @@ pub struct SecretCreateReq {
     pub secret_payload: Secret,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct SecretGenerateReq {
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct SecretResp {
     pub uuid: Uuid,

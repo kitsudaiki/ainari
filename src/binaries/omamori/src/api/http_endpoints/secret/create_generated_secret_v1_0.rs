@@ -15,8 +15,11 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use rand::RngCore;
 use uuid::Uuid;
-use validator::Validate;
+use validator::Validate; // needed to use .encode() and .decode()
 
 use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
@@ -26,6 +29,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
+use ainari_common::secret::Secret;
 
 #[api_operation(
     tag = "secret",
@@ -36,7 +40,7 @@ use ainari_common::error::AinariError;
     error_code = 500
 )]
 pub async fn create_secret(
-    body: Json<SecretCreateReq>,
+    body: Json<SecretGenerateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<SecretResp>, ErrorResponse> {
     // validate incoming json
@@ -52,9 +56,12 @@ pub async fn create_secret(
 
     let secret_uuid = Uuid::new_v4();
 
+    // generate key
+    let b64 = generate_256bit_key_base64();
+
     // encrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
-    match simple_crypto.store(&secret_uuid, &body.secret_payload) {
+    match simple_crypto.store(&secret_uuid, &b64) {
         Ok(()) => {}
         Err(AinariError::Unauthorized(msg)) => {
             return Err(ErrorResponse::Unauthorized(msg));
@@ -98,4 +105,10 @@ pub async fn create_secret(
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
+}
+
+fn generate_256bit_key_base64() -> Secret {
+    let mut key = [0u8; 32];
+    rand::rng().fill_bytes(&mut key);
+    Secret::from(STANDARD.encode(key))
 }
