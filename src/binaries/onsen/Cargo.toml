@@ -41,13 +41,15 @@ byteorder = "1.5"
 bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.23"
 # file-server
-tonic = "0.12"
-prost = "0.13"
+tonic = "0.14"
+prost = "0.14"
+# only if you need the Prost codec at runtime
+tonic-prost = "0.14"
 async-stream = "0.3"
 futures-core = "0.3"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-prost-build = "0.14"
 
 [dev-dependencies]
 serial_test = "3"
