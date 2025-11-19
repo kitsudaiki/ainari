@@ -31,9 +31,11 @@ log = "0.4"
 # ssl
 openssl = "0.10"
 # file-transfer
-tonic = "0.12"
-prost = "0.13"
+tonic = "0.14"
+prost = "0.14"
+# only if you need the Prost codec at runtime
+tonic-prost = "0.14"
 async-stream = "0.3"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-prost-build = "0.14"
