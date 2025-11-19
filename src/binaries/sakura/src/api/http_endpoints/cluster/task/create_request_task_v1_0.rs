@@ -20,16 +20,17 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::check_task_queue_quota;
+use crate::api::http_endpoints::cluster::task::get_secret;
 use crate::config;
 use crate::core::processing::tasks::{RequestInfo, Task, TaskMeta, TaskVariant};
 
 use ainari_api::common_functions::get_endpoints;
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
 use ainari_common::config::Endpoint;
-use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::{
     Column, DataSetFileWriteHandle, DataSetType, DatasetLink, init_new_data_set_file,
 };
@@ -83,7 +84,7 @@ pub async fn create_request_task(
     }
 
     // initialize datbase for output
-    let result_file_handle = init_output_dataset(
+    let (result_file_handle, secret_uuid) = init_output_dataset(
         &endpoints.ryokan,
         &context.token,
         &task_uuid,
@@ -93,10 +94,13 @@ pub async fn create_request_task(
     )
     .await?;
 
+    let secret = get_secret(&secret_uuid, &context).await?;
+
     // prepare task-info
     let mut info = RequestInfo {
         inputs: HashMap::new(),
         results: result_file_handle,
+        output_secret: secret,
     };
 
     // prepare inputs for task
@@ -119,7 +123,7 @@ pub async fn create_request_task(
         uuid: task_uuid,
         cluster_uuid: *cluster_uuid,
         name: body.name.clone(),
-        info: TaskVariant::Request(info),
+        info: TaskVariant::Request(Box::new(info)),
         meta: TaskMeta::new(number_of_cycles, 1, time_length),
     };
     super::add_task_to_cluster(task, &task_type, &context)?;
@@ -156,37 +160,30 @@ async fn init_output_dataset(
     name: &str,
     total_output_size: u64,
     columns: HashMap<String, Column>,
-) -> Result<DataSetFileWriteHandle, ErrorResponse> {
+) -> Result<(DataSetFileWriteHandle, Uuid), ErrorResponse> {
+    // TODO: make configurable
     let result_path = format!("/tmp/task_result_{task_uuid}");
+    let result_path_encrypted = format!("/tmp/task_result_{task_uuid}_encrypted");
     let description = task_uuid.to_string().clone();
 
-    let dataset_create_resp = match init_dataset(
+    let dataset_create_resp = init_dataset(
         ryokan_endpoint,
         token,
         &config::CONFIG.api.internal_api_key,
         task_uuid,
         name,
+        total_output_size,
+        columns.len() as u64,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     let link = DatasetLink {
         onsen_address: dataset_create_resp.onsen_address,
         remote_file_path: dataset_create_resp.file_path,
         local_file_path: result_path,
+        local_encrypted_file_path: result_path_encrypted,
     };
 
     // create new dataset for the resulting data
@@ -205,5 +202,7 @@ async fn init_output_dataset(
         }
     };
 
-    Ok(result_file_handle)
+    let secret_uuid = dataset_create_resp.secret_uuid;
+
+    Ok((result_file_handle, secret_uuid))
 }

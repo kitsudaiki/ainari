@@ -21,10 +21,10 @@ use validator::Validate;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "proxy",
@@ -67,22 +67,10 @@ pub async fn register_proxy_internal(
 
     // create new proxy and add it to the handler
     let mut proxy_handler = PROXY_HANDLER.write().await;
-    match proxy_handler
+    proxy_handler
         .add_proxy(&proxy_uuid, body.port, &body.target_address)
         .await
-    {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+        .map_err(map_ainari_error_to_api_response)?;
 
     // get new created proxy from database to get addtional information
     let proxy_data: proxy_table::ProxyEntry = match proxy_table::get_proxy(&proxy_uuid, &context) {

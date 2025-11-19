@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::proxy_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -41,23 +41,8 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
     let mut resp = ProxyListResp { proxys: Vec::new() };
 
     for proxy in proxys {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&proxy.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert proxy-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
-
-        let cluster_uuid = match Uuid::parse_str(&proxy.cluster_uuid) {
-            Ok(cluster_uuid) => cluster_uuid,
-            Err(e) => {
-                log::error!("Failed to convert cluster-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&proxy.uuid)?;
+        let cluster_uuid = convert_uuid(&proxy.cluster_uuid)?;
         let obj = ProxyBasicResp {
             uuid,
             port: proxy.port as u16,

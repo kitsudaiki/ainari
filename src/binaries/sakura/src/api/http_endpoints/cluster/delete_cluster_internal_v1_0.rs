@@ -20,10 +20,10 @@ use uuid::Uuid;
 use crate::core::cluster_handler;
 use crate::database::cluster_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -54,20 +54,9 @@ pub async fn delete_cluster_internal(
     let mut cluster_handle = cluster_handler::CLUSTER_HANDLER
         .write()
         .expect("mutex poisoned");
-    match cluster_handle.delete_cluster(&cluster_uuid) {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    cluster_handle
+        .delete_cluster(&cluster_uuid)
+        .map_err(map_ainari_error_to_api_response)?;
 
     Ok(NoContent)
 }

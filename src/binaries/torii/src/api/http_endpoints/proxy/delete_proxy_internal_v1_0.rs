@@ -20,10 +20,10 @@ use uuid::Uuid;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "proxy",
@@ -52,20 +52,10 @@ pub async fn delete_proxy_internal(
 
     // delete proxy from handler
     let mut proxy_handle = PROXY_HANDLER.write().await;
-    match proxy_handle.delete_proxy(&proxy_uuid).await {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    proxy_handle
+        .delete_proxy(&proxy_uuid)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     Ok(NoContent)
 }

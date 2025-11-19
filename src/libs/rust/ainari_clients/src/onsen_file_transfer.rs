@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use ainari_common::error::AinariError;
 use data::DataChunk;
-use data::DatasetDimensionRequest;
 use data::DeleteRequest;
 use data::DownloadRequest;
 use data::data_service_client::DataServiceClient;
@@ -85,14 +85,28 @@ pub async fn download_file(
     onsen_address: &str,
     remote_file_path: &str,
     local_file_path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = DataServiceClient::connect(onsen_address.to_owned()).await?;
+) -> Result<(), AinariError> {
+    let mut client = DataServiceClient::connect(onsen_address.to_owned())
+        .await
+        .map_err(|e| {
+            AinariError::Error(format!(
+                "Failed to open grpc-connection to onsen with error: {e}"
+            ))
+        })?;
 
     let req = DownloadRequest {
         remote_file_path: remote_file_path.to_owned(),
     };
 
-    let mut stream = client.download_file(Request::new(req)).await?.into_inner();
+    let mut stream = client
+        .download_file(Request::new(req))
+        .await
+        .map_err(|e| {
+            AinariError::Error(format!(
+                "Failed start file-download over grpc with error: {e}"
+            ))
+        })?
+        .into_inner();
     //fs::create_dir_all(&local_file_path)?;
 
     // Open local destination file for writing
@@ -102,20 +116,32 @@ pub async fn download_file(
         .truncate(true)
         .open(&local_file_path)
         .await
-        .expect("failed to open local dest file");
+        .map_err(|e| {
+            AinariError::Error(format!("Failed to open local dest file with error: {e}"))
+        })?;
 
     while let Some(chunk_res) = stream.message().await.transpose() {
-        let chunk = chunk_res?;
+        let chunk = chunk_res.map_err(|e| {
+            AinariError::Error(format!(
+                "Failed to receive downloaded chunk with error: {e}"
+            ))
+        })?;
         if !chunk.chunk.is_empty() {
-            fh.write_all(&chunk.chunk).await?;
+            fh.write_all(&chunk.chunk).await.map_err(|e| {
+                AinariError::Error(format!(
+                    "Failed to write downloaded chunk into dest file with error: {e}"
+                ))
+            })?;
         }
         if chunk.eof {
             break;
         }
     }
 
-    fh.flush().await?;
-    println!("Downloaded to {}", local_file_path);
+    fh.flush()
+        .await
+        .map_err(|e| AinariError::Error(format!("Failed to flush dest file with error: {e}")))?;
+    log::debug!("Downloaded to {}", local_file_path);
 
     Ok(())
 }
@@ -134,21 +160,4 @@ pub async fn delete_file(
     println!("Server response: {:?}", response.into_inner().status);
 
     Ok(())
-}
-
-pub async fn get_dataset_dimension(
-    onsen_address: &str,
-    remote_file_path: &str,
-) -> Result<(i64, i64), Box<dyn std::error::Error>> {
-    let mut client = DataServiceClient::connect(onsen_address.to_owned()).await?;
-
-    let req = DatasetDimensionRequest {
-        remote_file_path: remote_file_path.to_owned(),
-    };
-
-    let response = client.get_dataset_dimension(Request::new(req)).await?;
-    let resp_msg = response.into_inner();
-    println!("Server response: {:?}", resp_msg.status);
-
-    Ok((resp_msg.number_of_rows, resp_msg.number_of_columns))
 }

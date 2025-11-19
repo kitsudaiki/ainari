@@ -33,7 +33,7 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn init_dataset(
-    body: Json<DatasetCreateReq>,
+    body: Json<DatasetInitReq>,
     context: UserContext,
 ) -> Result<CreatedJson<DatasetInternalResp>, ErrorResponse> {
     // validate incoming json
@@ -51,6 +51,8 @@ pub async fn init_dataset(
 
     super::check_dataset_quota(&context).await?;
 
+    let (secret_uuid, _) = super::generate_new_key(dataset_uuid, &context).await?;
+
     let selected_onsen = select_onsen(&context)?;
 
     super::add_dataset_to_database(
@@ -58,6 +60,9 @@ pub async fn init_dataset(
         name,
         &selected_onsen.address,
         &file_path_str,
+        &secret_uuid,
+        body.number_of_rows as i64,
+        body.number_of_columns as i64,
         &context,
     )?;
 

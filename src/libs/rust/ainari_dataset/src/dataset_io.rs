@@ -41,6 +41,7 @@ pub struct DatasetLink {
     pub onsen_address: String,
     pub remote_file_path: String,
     pub local_file_path: String,
+    pub local_encrypted_file_path: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -275,6 +276,7 @@ pub fn read_data_set_file(
             onsen_address: "".to_string(),
             remote_file_path: "".to_string(),
             local_file_path: local_file_path.clone(),
+            local_encrypted_file_path: local_file_path.to_owned(),
         },
         header: DataSetHeaderV1_0::default(),
         target_file: BufReader::with_capacity(4096, file),
@@ -334,6 +336,7 @@ mod tests {
             onsen_address: "127.0.0.1".to_string(),
             remote_file_path: format!("{uuid}"),
             local_file_path: format!("/tmp/{uuid}"),
+            local_encrypted_file_path: format!("/tmp/{uuid}_encrypted"),
         };
 
         let _ = fs::remove_file(&link.local_file_path).is_ok();

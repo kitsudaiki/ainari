@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::secret_table;
 
+use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -43,15 +43,7 @@ pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, E
     };
 
     for secret in secrets {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&secret.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert secret-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&secret.uuid)?;
         let obj = SecretBasicResp {
             uuid,
             name: secret.name.clone(),

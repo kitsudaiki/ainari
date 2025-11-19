@@ -31,18 +31,6 @@ use super::routes::v1alpha::v1alpha_routes;
 
 #[actix_web::main]
 pub async fn run_server() -> Result<(), impl Error> {
-    // let local_path1 = "/tmp/test".to_owned();
-    // let local_path2 = "/tmp/test2".to_owned();
-    // let server_address = "http://127.0.0.1:50051".to_owned();
-    // let remote_path = "/tmp/down/test".to_owned();
-
-    // onsen_file_transfer::upload_file(&server_address, &local_path1, &remote_path)
-    //     .await
-    //     .unwrap();
-    // onsen_file_transfer::download_file(&server_address, &local_path2, &remote_path)
-    //     .await
-    //     .unwrap();
-
     log::debug!("initialize server");
 
     // get server-address from config

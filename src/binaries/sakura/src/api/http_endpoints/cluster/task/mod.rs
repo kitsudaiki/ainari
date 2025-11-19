@@ -29,6 +29,8 @@ use crate::core::cluster_handler::*;
 use crate::core::processing::tasks::Task;
 use crate::database::task_table::{self, TaskEntry};
 
+use ainari_api::common_functions::get_endpoints;
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::task_structs::{TaskState, TaskType};
@@ -36,10 +38,12 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
 use ainari_clients::onsen_file_transfer::*;
 use ainari_clients::quota::get_quota;
+use ainari_clients::secret::get_secret_payload;
 use ainari_common::config::Endpoint;
 use ainari_common::enums;
-use ainari_common::error::AinariError;
+use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle, read_data_set_file};
+use ainari_dataset::file_encryption::decrypt_file;
 
 fn get_current_number_of_open_tasks(cluster_uuid: &Uuid) -> Result<usize, ErrorResponse> {
     // get cluster-handle
@@ -71,26 +75,16 @@ async fn check_task_queue_quota(
 
     // check the maximum number of secrets defined in miko
     let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_open_tasks = match get_quota(
+    let quota = get_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body.max_taskqueue as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
+
+    let max_number_of_open_tasks = quota.max_taskqueue as i64;
 
     // check if quota is already exceeded
     if current_number_of_open_tasks as i64 >= max_number_of_open_tasks {
@@ -221,23 +215,14 @@ fn handle_output(
 ) -> Result<(Column, u64), ErrorResponse> {
     let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
-    let size = match cluster_handler.get_output_buffer(cluster_uuid, &output.hexagon) {
-        Ok(output_buffer_mutex) => {
-            let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
-            output_buffer.output_neurons.len() as u64
-        }
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
+    let size = {
+        let output_buffer_mutex = cluster_handler
+            .get_output_buffer(cluster_uuid, &output.hexagon)
+            .map_err(map_ainari_error_to_api_response)?;
+        let output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
+        output_buffer.output_neurons.len() as u64
     };
+
     // HINT(kitsudaiki): drop lock here, because otherwise cargo clipply has a problem with the lock
     // in combination with the later coming await-call
     drop(cluster_handler);
@@ -250,6 +235,22 @@ fn handle_output(
     Ok((col, size))
 }
 
+async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await?;
+
+    let secret_payload = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        secret_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
+    Ok(Secret::from(secret_payload.secret_payload))
+}
+
 async fn handle_input(
     input: &TaskDatasetLink,
     endpoint: &Endpoint,
@@ -257,7 +258,7 @@ async fn handle_input(
     number_of_cycles: &mut u64,
 ) -> Result<DataSetFileReadHandle, ErrorResponse> {
     // get dataset information
-    let dataset_resp = match get_dataset(
+    let dataset_resp = get_dataset(
         endpoint,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -265,26 +266,16 @@ async fn handle_input(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // TODO: change path
+    // TODO: delete files
+    let local_encrypted_file_path = format!("/tmp/{}_encrypted", dataset_resp.uuid);
     let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
     match download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
-        &local_file_path,
+        &local_encrypted_file_path,
     )
     .await
     {
@@ -294,6 +285,12 @@ async fn handle_input(
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
+
+    // decrypt dataset
+    let secret = get_secret(&dataset_resp.secret_uuid, context).await?;
+    decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     let file_handle = match read_data_set_file(&local_file_path) {
         Ok(mut file_handle) => {

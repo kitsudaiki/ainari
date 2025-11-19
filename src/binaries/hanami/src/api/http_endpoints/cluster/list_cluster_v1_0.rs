@@ -18,11 +18,11 @@ use apistos::api_operation;
 use crate::config;
 use crate::database::host_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::cluster as cluster_clients;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -45,26 +45,14 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
     };
 
     for host in host_list {
-        let cluster_list_resp = match cluster_clients::list_cluster(
+        let cluster_list_resp = cluster_clients::list_cluster(
             &host.address,
             &context.token,
             &config::CONFIG.api.internal_api_key,
             config::CONFIG.insecure_clients,
         )
         .await
-        {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
+        .map_err(map_ainari_error_to_api_response)?;
 
         for cluster in cluster_list_resp.clusters {
             complete_resp.clusters.push(cluster);

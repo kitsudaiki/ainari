@@ -22,6 +22,7 @@ use crate::config;
 use crate::database::host_table;
 use crate::database::meta_cluster_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -79,7 +80,7 @@ pub async fn create_cluster(
     };
 
     // send request to the selected sakura-host to create a cluster
-    let mut cluster_resp = match cluster_clients::create_cluster(
+    let mut cluster_resp = cluster_clients::create_cluster(
         &selected_host.address,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -88,35 +89,13 @@ pub async fn create_cluster(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = match get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     // send request to torii to create a proxy
     let proxy_resp = match proxy_clients::create_proxy(
@@ -186,27 +165,16 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
 
     // check the maximum number of meta_clusters defined in miko
     let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_meta_clusters = match get_quota(
+    let quota = get_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body.max_cluster as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
+    let max_number_of_meta_clusters = quota.max_cluster as i64;
     // check if quota is already exceeded
     if current_number_of_meta_clusters as i64 >= max_number_of_meta_clusters {
         return Err(ErrorResponse::Conflict(

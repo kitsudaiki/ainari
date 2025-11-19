@@ -25,13 +25,15 @@ use uuid::Uuid;
 use crate::config;
 use crate::database::dataset_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::{convert_uuid, get_endpoints};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
 use ainari_clients::quota::get_quota;
+use ainari_clients::secret::{generate_secret, get_secret_payload};
 use ainari_common::enums;
-use ainari_common::error::AinariError;
+use ainari_common::secret::Secret;
 
 /// Validates that the provided dataset type is one of the supported types.
 ///
@@ -72,14 +74,6 @@ fn check_dataset_type(dataset_type: &String) -> Result<(), ErrorResponse> {
 /// * `Err(ErrorResponse::Conflict)` - If the user has exceeded their dataset quota
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error checking the quota
 ///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Database access failures when counting datasets
-/// - Network errors when communicating with the Miko service
-/// - Authentication failures when accessing the Miko service
-/// - Invalid input parameters when checking the quota
-///
 async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of datasets of the user
     let current_number_of_datasets = match dataset_table::count_datasets(context) {
@@ -92,27 +86,16 @@ async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse>
 
     // check the maximum number of datasets defined in miko
     let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_datasets = match get_quota(
+    let quota = get_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body.max_dataset as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
+    let max_number_of_datasets = quota.max_dataset as i64;
     // check if quota is already exceeded
     if current_number_of_datasets as i64 >= max_number_of_datasets {
         return Err(ErrorResponse::Conflict(
@@ -139,17 +122,14 @@ async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse>
 ///
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error adding the dataset
 ///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Database access failures when adding the new dataset
-/// - Invalid input parameters when creating the dataset record
-///
 fn add_dataset_to_database(
     dataset_uuid: &Uuid,
     dataset_name: &str,
     onsen_address: &str,
     file_path: &str,
+    secret_uuid: &Uuid,
+    number_of_rows: i64,
+    number_of_columns: i64,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     // add new dataset to datbase
@@ -158,6 +138,9 @@ fn add_dataset_to_database(
         dataset_name,
         onsen_address,
         file_path,
+        secret_uuid,
+        number_of_rows,
+        number_of_columns,
         context,
     ) {
         Ok(_) => {}
@@ -185,14 +168,6 @@ fn add_dataset_to_database(
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error retrieving the dataset
 /// * `Err(ErrorResponse::NotFound)` - If the dataset with the given UUID was not found
 ///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Database access failures when retrieving the dataset
-/// - Network errors when communicating with the Onsen file transfer service
-/// - Invalid input parameters when retrieving dataset dimensions
-/// - Authentication failures when accessing the Onsen service
-///
 async fn get_dataset(
     dataset_uuid: &Uuid,
     context: &UserContext,
@@ -208,29 +183,11 @@ async fn get_dataset(
         }
     };
 
-    // request the number of rows and columns from the onsen, where the file is located
-    let (number_of_rows, number_of_columns) = match onsen_file_transfer::get_dataset_dimension(
-        &dataset_data.onsen_address,
-        &dataset_data.file_path,
-    )
-    .await
-    {
-        Ok((number_of_rows, number_of_columns)) => (number_of_rows, number_of_columns),
-        Err(e) => {
-            let onsen_addr = dataset_data.onsen_address;
-            let file_path = dataset_data.file_path;
-            log::error!(
-                "Failed to get dataset-dimensions form onsen '{onsen_addr}' to '{file_path}' with error: {e}"
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
-
     let resp = DatasetResp {
         uuid: *dataset_uuid,
         name: dataset_data.name.clone(),
-        number_of_rows: number_of_rows as u64,
-        number_of_columns: number_of_columns as u64,
+        number_of_rows: dataset_data.number_of_rows as u64,
+        number_of_columns: dataset_data.number_of_columns as u64,
         created_by: dataset_data.created_by.clone(),
         created_at: dataset_data.created_at.clone(),
         updated_by: dataset_data.updated_by.clone(),
@@ -254,13 +211,6 @@ async fn get_dataset(
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error accessing the database
 /// * `Err(ErrorResponse::NotFound)` - If no dataset was found with the provided UUID
 ///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Database access failures when retrieving the dataset
-/// - Invalid UUID formats when querying the database
-/// - Authentication failures when accessing the database
-///
 fn get_dataset_internal(
     dataset_uuid: &Uuid,
     context: &UserContext,
@@ -268,11 +218,15 @@ fn get_dataset_internal(
     // get new created dataset from database to get addtional information
     match dataset_table::get_dataset(dataset_uuid, context) {
         Ok(dataset) => {
+            let secret_uuid = convert_uuid(&dataset.secret_uuid)?;
             let resp = DatasetInternalResp {
                 uuid: *dataset_uuid,
                 name: dataset.name.clone(),
                 onsen_address: dataset.onsen_address.clone(),
                 file_path: dataset.file_path.clone(),
+                number_of_rows: dataset.number_of_rows as u64,
+                number_of_columns: dataset.number_of_columns as u64,
+                secret_uuid,
                 created_by: dataset.created_by.clone(),
                 created_at: dataset.created_at.clone(),
                 updated_by: dataset.updated_by.clone(),
@@ -290,4 +244,36 @@ fn get_dataset_internal(
             Err(ErrorResponse::NotFound(msg))
         }
     }
+}
+
+async fn generate_new_key(
+    dataset_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(Uuid, Secret), ErrorResponse> {
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await?;
+    let secret_name = format!("autogenerated secret for dataset {dataset_uuid}");
+
+    let secret_meta = generate_secret(
+        &endpoints.omamori,
+        &context.token,
+        &secret_name,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
+    let secret_payload = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        &secret_meta.uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
+    Ok((
+        secret_meta.uuid,
+        Secret::from(secret_payload.secret_payload),
+    ))
 }

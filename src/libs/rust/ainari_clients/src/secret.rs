@@ -14,70 +14,56 @@
 
 use uuid::Uuid;
 
-use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::secret_structs::*;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
-use ainari_common::secret::Secret;
 
 use crate::handle_response;
 use crate::prepare_client;
 
-pub async fn init_dataset(
-    ryokan_endpoint: &ainari_config::Endpoint,
+pub async fn generate_secret(
+    omamori_endpoint: &ainari_config::Endpoint,
     token: &String,
-    internal_api_key: &Secret,
-    dataset_uuid: &Uuid,
     name: &str,
-    number_of_rows: u64,
-    number_of_columns: u64,
     insecure_client: bool,
-) -> Result<DatasetInternalResp, AinariError> {
-    let address = ryokan_endpoint.internal_address.clone();
+) -> Result<SecretResp, AinariError> {
+    let address = omamori_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
-    let url = format!("{address}/v1alpha/dataset/internal");
+    let url = format!("{address}/v1alpha/secret/generate");
 
-    let body = DatasetInitReq {
-        uuid: *dataset_uuid,
+    let body = SecretGenerateReq {
         name: name.to_owned(),
-        dataset_type: "csv".to_string(),
-        number_of_rows,
-        number_of_columns,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .insert_header(("Content-Type", "application/json"))
         .send_body(json_str)
         .await;
 
-    let resp: Result<DatasetInternalResp, AinariError> =
-        handle_response(response, "dataset", "").await;
+    let resp: Result<SecretResp, AinariError> = handle_response(response, "secret", "").await;
     resp
 }
 
-pub async fn get_dataset(
-    ryokan_endpoint: &ainari_config::Endpoint,
+pub async fn get_secret_payload(
+    omamori_endpoint: &ainari_config::Endpoint,
     token: &String,
-    internal_api_key: &Secret,
-    dataset_uuid: &Uuid,
+    secret_uuid: &Uuid,
     insecure_client: bool,
-) -> Result<DatasetInternalResp, AinariError> {
-    let address = ryokan_endpoint.internal_address.clone();
+) -> Result<SecretWithPayloadResp, AinariError> {
+    let address = omamori_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
-    let url = format!("{address}/v1alpha/dataset/{dataset_uuid}/internal");
+    let url = format!("{address}/v1alpha/secret/{secret_uuid}/payload");
 
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .insert_header(("Content-Type", "application/json"))
         .send()
         .await;
 
-    let resp: Result<DatasetInternalResp, AinariError> =
-        handle_response(response, "dataset", &dataset_uuid.to_string()).await;
+    let resp: Result<SecretWithPayloadResp, AinariError> =
+        handle_response(response, "secret", &secret_uuid.to_string()).await;
     resp
 }

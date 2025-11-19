@@ -23,11 +23,11 @@ use crate::config;
 use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
 
 use ainari_api::common_functions::get_endpoints;
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::checkpoint::*;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "task",
@@ -62,7 +62,7 @@ pub async fn checkpoint_save_task(
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients).await?;
 
-    let checkpoint_create_resp = match init_checkpoint(
+    let checkpoint_create_resp = init_checkpoint(
         &endpoints.ryokan,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -71,19 +71,7 @@ pub async fn checkpoint_save_task(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // prepare task-info
     let info = CheckpointSaveInfo {

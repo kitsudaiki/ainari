@@ -27,11 +27,14 @@ use crate::config;
 use crate::core::converter::{load_csv_file, load_mnist_images};
 use crate::onsen_functions::select_onsen;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::common_functions::{create_directory, upload_file_to_onsen};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
+use ainari_dataset::dataset_io::read_data_set_file;
+use ainari_dataset::file_encryption::encrypt_file;
 
 #[api_operation(
     tag = "dataset",
@@ -51,13 +54,14 @@ pub async fn upload_binary(
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
     let target_dir_path = format!("{tempfile_dir}/{}", dataset_uuid);
     let converted_result_path = format!("{target_dir_path}/converted_result");
+    let encrypted_result_path = format!("{target_dir_path}/encrypted_result");
     let upload_file_path_str: String = format!("datasets/{dataset_uuid}");
 
     super::check_dataset_type(&dataset_type)?;
 
-    create_directory(&target_dir_path).await?;
-
     super::check_dataset_quota(&context).await?;
+
+    create_directory(&target_dir_path).await?;
 
     let selected_onsen = select_onsen(&context)?;
 
@@ -72,10 +76,18 @@ pub async fn upload_binary(
     )
     .await?;
 
+    let (number_of_rows, number_of_columns) = get_dataset_dimension(&converted_result_path)?;
+
+    let (secret_uuid, secret) = super::generate_new_key(&dataset_uuid, &context).await?;
+
+    let _ = encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
+        .await
+        .map_err(map_ainari_error_to_api_response);
+
     upload_file_to_onsen(
         &selected_onsen.address,
         &upload_file_path_str,
-        &converted_result_path,
+        &encrypted_result_path,
     )
     .await?;
 
@@ -92,6 +104,9 @@ pub async fn upload_binary(
         &name,
         &selected_onsen.address,
         &upload_file_path_str,
+        &secret_uuid,
+        number_of_rows as i64,
+        number_of_columns as i64,
         &context,
     )?;
 
@@ -266,4 +281,21 @@ async fn convert_uploaded_files(
     }
 
     Ok(())
+}
+
+fn get_dataset_dimension(target_path: &String) -> Result<(u64, u64), ErrorResponse> {
+    let file_handle = match read_data_set_file(target_path) {
+        Ok(file_handle) => file_handle,
+        Err(e) => {
+            log::error!(
+                "Failed to read dataset dimensions from file '{target_path}' with error: {e}"
+            );
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+    };
+
+    let number_of_rows = file_handle.get_number_of_rows();
+    let number_of_columns = file_handle.header.columns.len() as u64;
+
+    Ok((number_of_rows, number_of_columns))
 }

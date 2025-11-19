@@ -18,7 +18,6 @@ use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
-use std::path::Path;
 
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
@@ -52,8 +51,8 @@ fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
 }
 
 pub async fn encrypt_file(
-    in_path: &Path,
-    out_path: &Path,
+    in_path: &String,
+    out_path: &String,
     key_b64: &Secret,
 ) -> Result<(), AinariError> {
     let key_bytes = decode_base64_key(key_b64)?;
@@ -133,8 +132,8 @@ pub async fn encrypt_file(
 }
 
 pub async fn decrypt_file(
-    in_path: &Path,
-    out_path: &Path,
+    in_path: &String,
+    out_path: &String,
     key_b64: &Secret,
 ) -> Result<(), AinariError> {
     let key_bytes = decode_base64_key(key_b64)?;
@@ -189,7 +188,7 @@ pub async fn decrypt_file(
         .map_err(|e| AinariError::Error(format!("Error while decrypting data: {e}")))?;
 
     // Use temp file
-    let tmp_path = out_path.with_extension("tmp");
+    let tmp_path = format!("{out_path}tmp");
     let tmp_file = File::create(&tmp_path).map_err(|e| {
         AinariError::Error(format!(
             "Error while creating temp-file for decryption: {e}"
@@ -245,9 +244,8 @@ mod tests {
     use openssl::rand::rand_bytes;
     use std::fs::{File, remove_file};
     use std::io::{Read, Write};
-    use std::path::Path;
 
-    fn create_random_file(path: &Path, size: usize) {
+    fn create_random_file(path: &String, size: usize) {
         let mut f = File::create(path).expect("create random file");
         let mut remaining = size;
         let mut buf = vec![0u8; CHUNK_SIZE];
@@ -261,7 +259,7 @@ mod tests {
         f.flush().expect("flush random file");
     }
 
-    fn read_all(path: &Path) -> Vec<u8> {
+    fn read_all(path: &String) -> Vec<u8> {
         let mut v = Vec::new();
         let mut f = File::open(path).expect("open file for read");
         f.read_to_end(&mut v).expect("read_to_end");
@@ -271,42 +269,42 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn encrypt_decrypt_roundtrip_10mb() {
         let file_size = 10 * 1024 * 1024;
-        let in_path = Path::new("/tmp/test_10mb_input.bin");
-        let enc_path = Path::new("/tmp/test_10mb_encrypted.bin");
-        let dec_path = Path::new("/tmp/test_10mb_decrypted.bin");
+        let in_path = "/tmp/test_10mb_input.bin".to_owned();
+        let enc_path = "/tmp/test_10mb_encrypted.bin".to_owned();
+        let dec_path = "/tmp/test_10mb_decrypted.bin".to_owned();
         let key_b64 = Secret::from("q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE=");
         let other_key_b64 = Secret::from("Wv7gD9jR5mM8zX4oU1kTb2eYvG0qHp9wF3sLrNdChKI=");
         let invalid_key_b64 = Secret::from("oQK1JvU5xgq8vFzE=");
 
         // Ensure no leftover files
-        let _ = remove_file(in_path);
-        let _ = remove_file(enc_path);
-        let _ = remove_file(dec_path);
+        let _ = remove_file(&in_path);
+        let _ = remove_file(&enc_path);
+        let _ = remove_file(&dec_path);
 
         // create input
-        create_random_file(in_path, file_size);
+        create_random_file(&in_path, file_size);
 
         // test encrypt and decrypt
-        encrypt_file(in_path, enc_path, &key_b64).await.unwrap();
-        decrypt_file(enc_path, dec_path, &key_b64).await.unwrap();
+        encrypt_file(&in_path, &enc_path, &key_b64).await.unwrap();
+        decrypt_file(&enc_path, &dec_path, &key_b64).await.unwrap();
 
         // read original and decrypted, compare full contents
-        let orig = read_all(in_path);
-        let recovered = read_all(dec_path);
+        let orig = read_all(&in_path);
+        let recovered = read_all(&dec_path);
         assert_eq!(orig.len(), recovered.len(), "length mismatch");
         assert_eq!(orig, recovered, "decrypted content does not match original");
 
         // test with invalid key 1
-        let ret_dec1 = decrypt_file(enc_path, dec_path, &other_key_b64).await;
+        let ret_dec1 = decrypt_file(&enc_path, &dec_path, &other_key_b64).await;
         assert!(ret_dec1.is_err());
 
         // test with invalid key 2
-        let ret_dec2 = decrypt_file(enc_path, dec_path, &invalid_key_b64).await;
+        let ret_dec2 = decrypt_file(&enc_path, &dec_path, &invalid_key_b64).await;
         assert!(ret_dec2.is_err());
 
         // cleanup
-        let _ = remove_file(in_path);
-        let _ = remove_file(enc_path);
-        let _ = remove_file(dec_path);
+        let _ = remove_file(&in_path);
+        let _ = remove_file(&enc_path);
+        let _ = remove_file(&dec_path);
     }
 }

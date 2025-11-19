@@ -21,6 +21,7 @@ use validator::Validate;
 
 use crate::core::cluster_handler;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -56,20 +57,9 @@ pub async fn request_cluster(
     let cluster_handler = cluster_handler::CLUSTER_HANDLER
         .read()
         .expect("mutex poisoned");
-    let cluster_interface_mutex = match cluster_handler.get_cluster_interface(&cluster_uuid) {
-        Ok(cluster_interface_mutex) => cluster_interface_mutex,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let cluster_interface_mutex = cluster_handler
+        .get_cluster_interface(&cluster_uuid)
+        .map_err(map_ainari_error_to_api_response)?;
     drop(cluster_handler);
 
     let mut resp = ClusterRequestResp {

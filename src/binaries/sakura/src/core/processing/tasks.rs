@@ -25,7 +25,9 @@ use uuid::Uuid;
 use ainari_api_structs::task_structs::*;
 use ainari_clients::onsen_file_transfer::*;
 use ainari_common::error::AinariError;
+use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::{DataSetFileReadHandle, DataSetFileWriteHandle};
+use ainari_dataset::file_encryption::encrypt_file;
 
 use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
@@ -44,6 +46,7 @@ pub struct TrainInfo {
 pub struct RequestInfo {
     pub inputs: HashMap<String, DataSetFileReadHandle>,
     pub results: DataSetFileWriteHandle,
+    pub output_secret: Secret,
 }
 
 #[derive(Debug)]
@@ -61,7 +64,7 @@ pub struct CheckpointRestoreInfo {
 #[derive(Debug)]
 pub enum TaskVariant {
     Training(TrainInfo),
-    Request(RequestInfo),
+    Request(Box<RequestInfo>),
     CheckpointSave(CheckpointSaveInfo),
     CheckpointRestore(CheckpointRestoreInfo),
 }
@@ -165,18 +168,28 @@ impl Task {
             // LocalSet allows spawn_local to work
             let local = LocalSet::new();
             let upload_resp = local.block_on(&rt, async {
+                encrypt_file(
+                    &task_info.results.link.local_file_path,
+                    &task_info.results.link.local_encrypted_file_path,
+                    &task_info.output_secret,
+                )
+                .await?;
                 upload_file(
                     &task_info.results.link.onsen_address,
                     &task_info.results.link.remote_file_path,
-                    &task_info.results.link.local_file_path,
+                    &task_info.results.link.local_encrypted_file_path,
                 )
                 .await
             });
 
             match upload_resp {
-                Ok(()) => {}
+                Ok(()) => {
+                    let _ = fs::remove_file(&task_info.results.link.local_file_path);
+                    let _ = fs::remove_file(&task_info.results.link.local_encrypted_file_path);
+                }
                 Err(_) => {
                     let _ = fs::remove_file(&task_info.results.link.local_file_path);
+                    let _ = fs::remove_file(&task_info.results.link.local_encrypted_file_path);
                     let _ = task_table::update_task_state(&self.uuid, &TaskState::Error);
                     let _ = task_table::update_task_progress(
                         &self.uuid,
@@ -617,7 +630,8 @@ fn handle_checkpoint_restore_task(
 
     match download_resp {
         Ok(()) => {}
-        Err(_) => {
+        Err(e) => {
+            log::error!("Error in checkpoint-restore-task: {e}");
             let _ = fs::remove_file(&local_temp_file_path);
             let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
             let _ = task_table::update_task_progress(task_uuid, &1, &1);

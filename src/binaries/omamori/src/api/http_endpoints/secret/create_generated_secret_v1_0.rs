@@ -25,10 +25,10 @@ use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
 #[api_operation(
@@ -61,19 +61,9 @@ pub async fn create_secret(
 
     // encrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
-    match simple_crypto.store(&secret_uuid, &b64) {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    simple_crypto
+        .store(&secret_uuid, &b64)
+        .map_err(map_ainari_error_to_api_response)?;
 
     // add new secret to datbase
     match secret_table::add_new_secret(&secret_uuid, &body.name, &context) {

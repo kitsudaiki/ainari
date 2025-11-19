@@ -23,12 +23,19 @@ use std::io::{Read, Seek};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
+
+use ainari_api::common_functions::get_endpoints;
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::onsen_file_transfer::*;
+use ainari_clients::secret::get_secret_payload;
+use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle};
+use ainari_dataset::file_encryption::decrypt_file;
 
 #[api_operation(
     tag = "dataset",
@@ -159,12 +166,16 @@ async fn get_dataset_column(
 ) -> Result<(DataSetFileReadHandle, Column, u64), ErrorResponse> {
     let dataset_resp = super::get_dataset_internal(dataset_uuid, context)?;
 
+    let secret = get_secret(&dataset_resp.secret_uuid, context).await?;
+
     // TODO: change path
     let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
+    let local_encrypted_file_path = format!("/tmp/{}_encrypted", dataset_resp.uuid);
+
     match download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
-        &local_file_path,
+        &local_encrypted_file_path,
     )
     .await
     {
@@ -174,6 +185,10 @@ async fn get_dataset_column(
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
+
+    decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     let file_handle = match read_data_set_file(&local_file_path) {
         Ok(file_handle) => file_handle,
@@ -200,4 +215,20 @@ async fn get_dataset_column(
     let row_count = file_handle.get_number_of_rows();
 
     Ok((file_handle, dataset_col_get, row_count))
+}
+
+async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await?;
+
+    let secret_payload = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        secret_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
+    Ok(Secret::from(secret_payload.secret_payload))
 }
