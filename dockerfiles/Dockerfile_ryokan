@@ -25,10 +25,22 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y openssl libsqlite3-0 && \
+    apt-get install -y --no-install-recommends openssl \
+                       libsqlite3-0 \
+                       wireguard-tools \
+                       iptables-persistent \
+                       iproute2 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
+# horrible dirty workaround to prevent the error
+# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
+# when starting wireguard inside the pod. Didn't found a better solution so far... 
+RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+
 # ryokan
 COPY --from=builder /app/ryokan /usr/bin/ryokan
-CMD [ "ryokan" ]
+COPY dockerfiles/files/start_ryokan.sh /start_ryokan.sh
+RUN chmod +x /start_ryokan.sh
+
+CMD ["/start_ryokan.sh"]

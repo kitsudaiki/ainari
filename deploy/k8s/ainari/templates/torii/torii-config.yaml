@@ -18,7 +18,6 @@ data:
     file_path = "/etc/ainari/torii/torii_db"
     
     [miko]
-    address = "https://miko-tls-service.default.svc.cluster.local"
-    port = 8443
+    address = "https://miko-tls-service.default.svc.cluster.local:8443"
 
 kind: ConfigMap

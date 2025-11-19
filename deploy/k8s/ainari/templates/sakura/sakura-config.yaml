@@ -22,8 +22,7 @@ data:
     file_path = "/etc/ainari/sakura/sakura_db"
     
     [miko]
-    address = "https://miko-tls-service.default.svc.cluster.local"
-    port = 8443
+    address = "https://miko-tls-service.default.svc.cluster.local:8443"
 
     [hanami]
     registation_key = "{{ .Values.hanami.registation_key }}"

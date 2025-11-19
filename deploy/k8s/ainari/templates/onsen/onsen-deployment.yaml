@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sakura
+  name: onsen
   labels:
-    app: sakura
+    app: onsen
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sakura
+      app: onsen
   template:
     metadata:
       labels:
-        app: sakura
+        app: onsen
     spec:
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: sakura-node
+              - key: onsen-node
                 operator: In
                 values:
                 - "true"
@@ -30,21 +30,24 @@ spec:
               - key: app
                 operator: In
                 values:
-                - sakura
+                - onsen
             topologyKey: kubernetes.io/hostname
       containers:
-      - name: sakura
-        image: {{ .Values.docker.registry }}/sakura:{{ .Values.docker.tag }}
+      - name: onsen
+        image: {{ .Values.docker.registry }}/onsen:{{ .Values.docker.tag }}
         imagePullPolicy: Always
         env:
         - name: RUST_LOG
           value: "debug,h2=info"
+        ports:
+        - containerPort: 50051
+          name: grpc
         volumeMounts:
         - name: data-volume
-          mountPath: /etc/ainari/sakura/
-        - name: sakura-config
-          mountPath: /etc/ainari/sakura.toml
-          subPath: sakura.toml
+          mountPath: /etc/ainari/onsen/
+        - name: onsen-config
+          mountPath: /etc/ainari/onsen.toml
+          subPath: onsen.toml
           readOnly: true
         - name: wg-secret
           mountPath: /etc/wireguard
@@ -55,33 +58,13 @@ spec:
               - NET_ADMIN
               - SYS_MODULE
 
-      - name: tls-termination
-        image: nginx:latest
-        volumeMounts:
-        - name: tls-certs
-          mountPath: /etc/nginx/certs
-        - name: sakura-nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
-
       volumes:
-        - name: sakura-config
+        - name: onsen-config
           configMap:
-            name: sakura-config
+            name: onsen-config
         - name: data-volume
           persistentVolumeClaim:
-            claimName: sakura-pvc
-        - name: tls-certs
-          secret:
-            secretName: sakura-selfsigned-secret
-        - name: sakura-nginx-config
-          configMap:
-            name: sakura-nginx-config
+            claimName: onsen-pvc
         - name: wg-secret
           secret:
-            secretName: wg-sakura-secret
-
+            secretName: wg-onsen-secret
