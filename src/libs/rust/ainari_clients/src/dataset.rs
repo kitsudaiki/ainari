@@ -22,14 +22,13 @@ use ainari_common::secret::Secret;
 use crate::handle_response;
 use crate::prepare_client;
 
-pub async fn init_dataset(
+pub async fn init_dataset_in_ryokan(
     ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     name: &str,
-    number_of_rows: u64,
-    number_of_columns: u64,
+    dimension: (u64, u64),
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
@@ -40,8 +39,8 @@ pub async fn init_dataset(
         uuid: *dataset_uuid,
         name: name.to_owned(),
         dataset_type: "csv".to_string(),
-        number_of_rows,
-        number_of_columns,
+        number_of_rows: dimension.0,
+        number_of_columns: dimension.1,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
@@ -77,7 +76,5 @@ pub async fn get_dataset(
         .send()
         .await;
 
-    let resp: Result<DatasetInternalResp, AinariError> =
-        handle_response(response, "dataset", &dataset_uuid.to_string()).await;
-    resp
+    handle_response::<DatasetInternalResp>(response, "dataset", &dataset_uuid.to_string()).await
 }

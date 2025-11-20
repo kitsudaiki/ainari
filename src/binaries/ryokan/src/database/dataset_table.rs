@@ -99,8 +99,7 @@ pub fn add_new_dataset(
     onsen_address: &str,
     file_path: &str,
     secret_uuid: &Uuid,
-    number_of_rows: i64,
-    number_of_columns: i64,
+    dimension: (i64, i64),
     context: &UserContext,
 ) -> QueryResult<usize> {
     let dataset = DatasetEntry {
@@ -109,8 +108,8 @@ pub fn add_new_dataset(
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
         secret_uuid: secret_uuid.to_string().clone(),
-        number_of_rows,
-        number_of_columns,
+        number_of_rows: dimension.0,
+        number_of_columns: dimension.1,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),

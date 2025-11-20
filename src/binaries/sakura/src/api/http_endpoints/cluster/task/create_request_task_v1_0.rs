@@ -23,13 +23,15 @@ use super::check_task_queue_quota;
 use crate::api::http_endpoints::cluster::task::get_secret;
 use crate::config;
 use crate::core::processing::tasks::{RequestInfo, Task, TaskMeta, TaskVariant};
+use crate::database::cluster_table;
+use crate::database::task_table;
 
-use ainari_api::common_functions::get_endpoints;
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
+use ainari_clients::endpoints::get_endpoints;
 use ainari_common::config::Endpoint;
 use ainari_dataset::dataset_io::{
     Column, DataSetFileWriteHandle, DataSetType, DatasetLink, init_new_data_set_file,
@@ -49,13 +51,8 @@ pub async fn create_request_task(
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     check_task_queue_quota(&cluster_uuid, &context).await?;
 
@@ -71,9 +68,12 @@ pub async fn create_request_task(
     }
 
     // check if cluster exist
-    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
+    cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients).await?;
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     // prepare outputs for task
     let mut total_output_size: u64 = 0;
@@ -129,7 +129,8 @@ pub async fn create_request_task(
     super::add_task_to_cluster(task, &task_type, &context)?;
 
     // get new created task from database to get addtional information
-    let task_data = super::get_task_from_database(&task_uuid, &cluster_uuid, &context)?;
+    let task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
     let task_type = super::convert_task_type(&task_data.task_type)?;
     let task_state = super::convert_task_state(&task_data.task_state)?;
 
@@ -150,7 +151,7 @@ pub async fn create_request_task(
         created_at: task_data.created_at.clone(),
     };
 
-    return Ok(CreatedJson(resp));
+    Ok(CreatedJson(resp))
 }
 
 async fn init_output_dataset(
@@ -166,14 +167,14 @@ async fn init_output_dataset(
     let result_path_encrypted = format!("/tmp/task_result_{task_uuid}_encrypted");
     let description = task_uuid.to_string().clone();
 
-    let dataset_create_resp = init_dataset(
+    let dimension: (u64, u64) = (total_output_size, columns.len() as u64);
+    let dataset_create_resp = init_dataset_in_ryokan(
         ryokan_endpoint,
         token,
         &config::CONFIG.api.internal_api_key,
         task_uuid,
         name,
-        total_output_size,
-        columns.len() as u64,
+        dimension,
         config::CONFIG.insecure_clients,
     )
     .await

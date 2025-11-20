@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::dataset_table;
 
-use ainari_api::common_functions::convert_uuid;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,13 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>, ErrorResponse> {
-    let datasets = match dataset_table::list_datasets(&context) {
-        Ok(datasets) => datasets,
-        Err(e) => {
-            log::error!("Failed to get list of datasets form database: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let datasets =
+        dataset_table::list_datasets(&context).map_err(|e| map_db_list_error("datasets", e))?;
 
     let mut resp = DatasetListResp {
         datasets: Vec::new(),

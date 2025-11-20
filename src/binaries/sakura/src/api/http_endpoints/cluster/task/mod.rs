@@ -27,20 +27,19 @@ use crate::config;
 use crate::core::cluster_handler;
 use crate::core::cluster_handler::*;
 use crate::core::processing::tasks::Task;
-use crate::database::task_table::{self, TaskEntry};
+use crate::database::task_table;
 
-use ainari_api::common_functions::get_endpoints;
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::task_structs::{TaskState, TaskType};
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
+use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::onsen_file_transfer::*;
 use ainari_clients::quota::get_quota;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::config::Endpoint;
-use ainari_common::enums;
 use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle, read_data_set_file};
 use ainari_dataset::file_encryption::decrypt_file;
@@ -84,10 +83,8 @@ async fn check_task_queue_quota(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let max_number_of_open_tasks = quota.max_taskqueue as i64;
-
     // check if quota is already exceeded
-    if current_number_of_open_tasks as i64 >= max_number_of_open_tasks {
+    if current_number_of_open_tasks as i64 >= quota.max_taskqueue as i64 {
         let msg = format!(
             "Maximum number of open tasks for cluster with UUID '{cluster_uuid}' exceeded."
         );
@@ -98,73 +95,21 @@ async fn check_task_queue_quota(
 }
 
 fn convert_task_type(task_type: &String) -> Result<TaskType, ErrorResponse> {
-    let converted_task_type = match TaskType::from_str(task_type.as_str()) {
-        Ok(converted_task_type) => converted_task_type,
-        Err(()) => {
-            log::error!("Failed to convert task-type '{task_type}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let converted_task_type = TaskType::from_str(task_type.as_str()).map_err(|_| {
+        log::error!("Failed to convert task-type '{task_type}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     Ok(converted_task_type)
 }
 
 fn convert_task_state(task_state: &String) -> Result<TaskState, ErrorResponse> {
-    let converted_task_state = match TaskState::from_str(task_state.as_str()) {
-        Ok(converted_task_state) => converted_task_state,
-        Err(()) => {
-            log::error!("Failed to convert task-state '{task_state}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let converted_task_state = TaskState::from_str(task_state.as_str()).map_err(|_| {
+        log::error!("Failed to convert task-state '{task_state}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     Ok(converted_task_state)
-}
-
-fn add_task_to_database(
-    task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
-    task_name: &str,
-    task_type: &TaskType,
-    total_number_of_epochs: &u64,
-    total_number_of_cycles: &u64,
-    context: &UserContext,
-) -> Result<(), ErrorResponse> {
-    match task_table::add_new_task(
-        task_uuid,
-        cluster_uuid,
-        task_name,
-        task_type,
-        total_number_of_epochs,
-        total_number_of_cycles,
-        context,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            log::error!("Failed to add task with UUID '{task_uuid}' to database.");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
-
-    Ok(())
-}
-
-fn get_task_from_database(
-    task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<TaskEntry, ErrorResponse> {
-    let task_data = match task_table::get_task(task_uuid, cluster_uuid, context) {
-        Ok(task_data) => task_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            return Err(ErrorResponse::NotFound("".to_string()));
-        }
-    };
-
-    Ok(task_data)
 }
 
 fn add_task_to_cluster(
@@ -189,8 +134,7 @@ fn add_task_to_cluster(
         return Err(ErrorResponse::NotFound(msg));
     };
 
-    // get new created task from database to get addtional information
-    add_task_to_database(
+    task_table::add_new_task(
         &task.uuid,
         &task.cluster_uuid,
         &task.name,
@@ -198,7 +142,14 @@ fn add_task_to_cluster(
         &task.meta.number_of_epochs,
         &task.meta.number_of_cycles,
         context,
-    )?;
+    )
+    .map_err(|e| {
+        log::error!(
+            "Failed to add task with UUID '{}' to database with error: {e}.",
+            task.uuid
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     cluster_interface
         .lock()
@@ -237,7 +188,9 @@ fn handle_output(
 
 async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await?;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     let secret_payload = get_secret_payload(
         &endpoints.omamori,
@@ -272,19 +225,16 @@ async fn handle_input(
     // TODO: delete files
     let local_encrypted_file_path = format!("/tmp/{}_encrypted", dataset_resp.uuid);
     let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
-    match download_file(
+    download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
         &local_encrypted_file_path,
     )
     .await
-    {
-        Ok(()) => {}
-        Err(e) => {
-            log::error!("Failed to download dataset-file from onsen: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    .map_err(|e| {
+        log::error!("Failed to download dataset-file from onsen: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // decrypt dataset
     let secret = get_secret(&dataset_resp.secret_uuid, context).await?;
@@ -292,24 +242,19 @@ async fn handle_input(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    let file_handle = match read_data_set_file(&local_file_path) {
-        Ok(mut file_handle) => {
-            let number_of_rows = file_handle.get_number_of_rows();
-            if *number_of_cycles > number_of_rows {
-                *number_of_cycles = number_of_rows;
-            }
-            file_handle.selected_column = input.dataset_column.clone();
+    let mut file_handle = read_data_set_file(&local_file_path).map_err(|e| {
+        log::error!(
+            "Failed to read dataset-file '{}' with error: {e}",
+            dataset_resp.file_path
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
-            file_handle
-        }
-        Err(e) => {
-            log::error!(
-                "Failed to read dataset-file '{}' with error: {e}",
-                dataset_resp.file_path
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let number_of_rows = file_handle.get_number_of_rows();
+    if *number_of_cycles > number_of_rows {
+        *number_of_cycles = number_of_rows;
+    }
+    file_handle.selected_column = input.dataset_column.clone();
 
     Ok(file_handle)
 }

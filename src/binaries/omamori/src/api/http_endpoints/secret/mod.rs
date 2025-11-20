@@ -22,46 +22,33 @@ pub mod list_secret_v1_0;
 use crate::config;
 use crate::database::secret_table;
 
+use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::quota::get_quota;
-use ainari_common::error::AinariError;
 
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of secrets of the user
-    let current_number_of_secrets = match secret_table::count_secrets(context) {
-        Ok(number) => number,
-        Err(e) => {
+    let current_number_of_secrets = secret_table::count_secrets(context)
+        .inspect_err(|e| {
             log::error!("Failed to count secrets in database.: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+        })
+        .map_err(|_| ErrorResponse::InternalError("Internal Error".into()))?;
+    {};
 
     // check the maximum number of secrets defined in miko
     let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_secrets = match get_quota(
+    let quota = get_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body.max_secret as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // check if quota is already exceeded
-    if current_number_of_secrets as i64 >= max_number_of_secrets {
+    if current_number_of_secrets as i64 >= quota.max_secret as i64 {
         return Err(ErrorResponse::Conflict(
             "Maximum number of secrets exceeded.".to_string(),
         ));

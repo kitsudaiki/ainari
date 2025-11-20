@@ -32,6 +32,8 @@ once_cell = "1.18"
 log = "0.4"
 # ssl
 openssl = "0.10"
+# database
+diesel = { version = "2.3", features = ["sqlite", "uuid"] }
 
 [build-dependencies]
 chrono = "0.4.40"

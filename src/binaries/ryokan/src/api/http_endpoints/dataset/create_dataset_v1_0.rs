@@ -25,10 +25,10 @@ use uuid::Uuid;
 
 use crate::config;
 use crate::core::converter::{load_csv_file, load_mnist_images};
+use crate::database::dataset_table;
 use crate::onsen_functions::select_onsen;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
-use ainari_api::common_functions::{create_directory, upload_file_to_onsen};
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -80,9 +80,9 @@ pub async fn upload_binary(
 
     let (secret_uuid, secret) = super::generate_new_key(&dataset_uuid, &context).await?;
 
-    let _ = encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
+    encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
         .await
-        .map_err(map_ainari_error_to_api_response);
+        .map_err(map_ainari_error_to_api_response)?;
 
     upload_file_to_onsen(
         &selected_onsen.address,
@@ -99,20 +99,36 @@ pub async fn upload_binary(
         }
     }
 
-    super::add_dataset_to_database(
+    let dimension = (number_of_rows as i64, number_of_columns as i64);
+    dataset_table::add_new_dataset(
         &dataset_uuid,
         &name,
         &selected_onsen.address,
         &upload_file_path_str,
         &secret_uuid,
-        number_of_rows as i64,
-        number_of_columns as i64,
+        dimension,
         &context,
-    )?;
+    )
+    .map_err(|e| {
+        log::error!("Failed to add dataset to database: {e}");
+        ErrorResponse::InternalError("Internal error".to_string())
+    })?;
 
-    let resp = super::get_dataset(&dataset_uuid, &context).await?;
+    let dataset_data = dataset_table::get_dataset(&dataset_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
 
-    return Ok(CreatedJson(resp));
+    let resp = DatasetResp {
+        uuid: dataset_uuid,
+        name: dataset_data.name,
+        number_of_rows: dataset_data.number_of_rows as u64,
+        number_of_columns: dataset_data.number_of_columns as u64,
+        created_by: dataset_data.created_by,
+        created_at: dataset_data.created_at,
+        updated_by: dataset_data.updated_by,
+        updated_at: dataset_data.updated_at,
+    };
+
+    Ok(CreatedJson(resp))
 }
 
 async fn write_payload_into_file(
@@ -122,14 +138,9 @@ async fn write_payload_into_file(
     let mut temp_file_paths = Vec::new();
     // process items from payload
     while let Some(item) = payload.next().await {
-        let mut field = match item {
-            Ok(value) => value,
-            Err(_) => {
-                return Err(ErrorResponse::BadRequest(
-                    "Failed to read next item from input.".to_string(),
-                ));
-            }
-        };
+        let mut field = item.map_err(|_| {
+            ErrorResponse::BadRequest("Failed to read next item from input.".to_string())
+        })?;
 
         // get file-name of item
         let content_disposition = field.content_disposition();
@@ -151,50 +162,35 @@ async fn write_payload_into_file(
 
         // create file
         let temp_file_path = PathBuf::from(format!("{target_dir_path}/{filename}"));
-        let mut f = match fs::File::create(&temp_file_path).await {
-            Ok(value) => value,
-            Err(e) => {
-                let path = temp_file_path
-                    .as_os_str()
-                    .to_str()
-                    .unwrap_or("Invalid-path");
-                let msg = format!("Failed to create upload-file '{path}' with error: {e}.");
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
+        let mut f = fs::File::create(&temp_file_path).await.map_err(|e| {
+            let path = temp_file_path
+                .as_os_str()
+                .to_str()
+                .unwrap_or("Invalid-path");
+            log::error!("Failed to create upload-file '{path}' with error: {e}.");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
 
         temp_file_paths.push(temp_file_path.clone());
 
         // fill content into file
         let result = async {
             while let Some(chunk) = field.next().await {
-                let data = match chunk {
-                    Ok(value) => value,
-                    Err(e) => {
-                        log::error!("Failed to fill content into file with error '{e}'");
-                        return Err(ErrorResponse::BadRequest(
-                            "Failed to read chunk.".to_string(),
-                        ));
-                    }
-                };
+                let data = chunk.map_err(|e| {
+                    log::error!("Failed to fill content into file with error '{e}'");
+                    ErrorResponse::InternalError("Internal Error".to_string())
+                })?;
 
-                match f.write_all(&data).await {
-                    Ok(()) => {}
-                    Err(e) => {
-                        log::error!("Failed to write all chunks into file with error: '{e}'");
-                        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-                    }
-                };
+                f.write_all(&data).await.map_err(|e| {
+                    log::error!("Failed to write all chunks into file with error: '{e}'");
+                    ErrorResponse::InternalError("Internal Error".to_string())
+                })?;
             }
 
-            match f.sync_all().await {
-                Ok(()) => {}
-                Err(e) => {
-                    log::error!("Failed to sync file to disc with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-                }
-            };
+            f.sync_all().await.map_err(|e| {
+                log::error!("Failed to sync file to disc with error: '{e}'");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
 
             Ok(())
         }
@@ -204,15 +200,12 @@ async fn write_payload_into_file(
             Ok(_) => {}
             Err(e) => {
                 log::debug!("Dataset-upload broken or canceled.");
-                match std::fs::remove_file(&temp_file_path) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
-                        log::error!(
-                            "Failed to delete temp-file {tempfile_path_str} from disc with error {e}."
-                        );
-                    }
-                }
+                let _ = std::fs::remove_file(&temp_file_path).map_err(|e| {
+                    let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
+                    log::error!(
+                        "Failed to delete temp-file {tempfile_path_str} from disc with error {e}."
+                    );
+                });
                 return Err(e);
             }
         }
@@ -232,10 +225,9 @@ async fn convert_uploaded_files(
     if dataset_type == "mnist" {
         let path_len = temp_file_paths.len();
         if temp_file_paths.len() != 2 {
-            let msg = format!(
+            return Err(ErrorResponse::BadRequest(format!(
                 "MNIST-dataset expect 2 uploaded files, but there were {path_len} files found."
-            );
-            return Err(ErrorResponse::BadRequest(msg));
+            )));
         }
         match load_mnist_images(
             &temp_file_paths[0],
@@ -260,10 +252,9 @@ async fn convert_uploaded_files(
     } else if dataset_type == "csv" {
         let path_len = temp_file_paths.len();
         if temp_file_paths.len() != 1 {
-            let msg = format!(
+            return Err(ErrorResponse::BadRequest(format!(
                 "CSV-dataset expect 1 uploaded files, but there were {path_len} files found."
-            );
-            return Err(ErrorResponse::BadRequest(msg));
+            )));
         }
         match load_csv_file(&temp_file_paths[0], target_filepath, *dataset_uuid, name) {
             Ok(()) => {}
@@ -284,15 +275,10 @@ async fn convert_uploaded_files(
 }
 
 fn get_dataset_dimension(target_path: &String) -> Result<(u64, u64), ErrorResponse> {
-    let file_handle = match read_data_set_file(target_path) {
-        Ok(file_handle) => file_handle,
-        Err(e) => {
-            log::error!(
-                "Failed to read dataset dimensions from file '{target_path}' with error: {e}"
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let file_handle = read_data_set_file(target_path).map_err(|e| {
+        log::error!("Failed to read dataset dimensions from file '{target_path}' with error: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     let number_of_rows = file_handle.get_number_of_rows();
     let number_of_columns = file_handle.header.columns.len() as u64;

@@ -21,11 +21,10 @@ use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "secret",
@@ -40,16 +39,9 @@ pub async fn get_secret_with_payload(
     secret_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<SecretWithPayloadResp>, ErrorResponse> {
-    let _ = match secret_table::get_secret(&secret_uuid, &context) {
-        Ok(secret_data) => secret_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Secret with UUID '{secret_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    // check if secret exist
+    secret_table::get_secret(&secret_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
 
     // decrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
@@ -61,5 +53,5 @@ pub async fn get_secret_with_payload(
         secret_payload: plaintext.reveal().to_string(),
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }

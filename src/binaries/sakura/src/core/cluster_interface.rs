@@ -327,7 +327,7 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
         let finish_counter_mutex = root_handler.get_finish_counter(&cluster_uuid).unwrap();
         drop(root_handler);
 

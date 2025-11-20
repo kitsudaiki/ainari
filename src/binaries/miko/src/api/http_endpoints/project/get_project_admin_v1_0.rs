@@ -18,11 +18,10 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "project",
@@ -37,28 +36,21 @@ pub async fn get_project_admin(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<ProjectResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    // get new created project from database to get addtional information
-    match project_table::get_project(&project_id, &context) {
-        Ok(project) => {
-            let resp = ProjectResp {
-                id: project.id.clone(),
-                name: project.name.clone(),
-                created_by: project.created_by.clone(),
-                created_at: project.created_at.clone(),
-                updated_by: project.updated_by.clone(),
-                updated_at: project.updated_at.clone(),
-            };
+    // get project from database
+    let project = project_table::get_project(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
 
-            return Ok(Json(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Project with ID '{project_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
+    let resp = ProjectResp {
+        id: project.id,
+        name: project.name,
+        created_by: project.created_by,
+        created_at: project.created_at,
+        updated_by: project.updated_by,
+        updated_at: project.updated_at,
     };
+
+    Ok(Json(resp))
 }

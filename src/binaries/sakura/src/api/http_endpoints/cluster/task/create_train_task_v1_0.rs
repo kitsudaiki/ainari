@@ -22,11 +22,14 @@ use validator::Validate;
 use super::check_task_queue_quota;
 use crate::config;
 use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant, TrainInfo};
+use crate::database::cluster_table;
+use crate::database::task_table;
 
-use ainari_api::common_functions::get_endpoints;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::endpoints::get_endpoints;
 
 #[api_operation(
     tag = "task",
@@ -42,13 +45,8 @@ pub async fn create_train_task(
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     check_task_queue_quota(&cluster_uuid, &context).await?;
 
@@ -63,7 +61,8 @@ pub async fn create_train_task(
     }
 
     // check if cluster exist
-    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
+    cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     // prepare task-info
     let mut info = TrainInfo {
@@ -71,7 +70,9 @@ pub async fn create_train_task(
         outputs: HashMap::new(),
     };
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients).await?;
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     // prepare inputs for task
     for input in &body.inputs {
@@ -107,26 +108,27 @@ pub async fn create_train_task(
     super::add_task_to_cluster(task, &task_type, &context)?;
 
     // get new created task from database to get addtional information
-    let task_data = super::get_task_from_database(&task_uuid, &cluster_uuid, &context)?;
+    let task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
     let task_type = super::convert_task_type(&task_data.task_type)?;
     let task_state = super::convert_task_state(&task_data.task_state)?;
 
     let resp = TaskResp {
         uuid: task_uuid,
-        name: task_data.name.clone(),
+        name: task_data.name,
         task_type,
         state: task_state,
         total_number_of_epochs: task_data.total_number_of_epochs,
         current_epoch: task_data.current_epoch,
         total_number_of_cycles: task_data.total_number_of_cycles,
         current_cycle: task_data.current_cycle,
-        queued_at: task_data.queued_at.clone(),
-        started_at: task_data.started_at.clone(),
-        finished_at: task_data.finished_at.clone(),
-        error_message: task_data.error_message.clone(),
-        created_by: task_data.created_by.clone(),
-        created_at: task_data.created_at.clone(),
+        queued_at: task_data.queued_at,
+        started_at: task_data.started_at,
+        finished_at: task_data.finished_at,
+        error_message: task_data.error_message,
+        created_by: task_data.created_by,
+        created_at: task_data.created_at,
     };
 
-    return Ok(CreatedJson(resp));
+    Ok(CreatedJson(resp))
 }

@@ -19,10 +19,10 @@ use uuid::Uuid;
 
 use crate::database::secret_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "secret",
@@ -37,25 +37,17 @@ pub async fn get_secret(
     secret_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<SecretResp>, ErrorResponse> {
-    let secret_data = match secret_table::get_secret(&secret_uuid, &context) {
-        Ok(secret_data) => secret_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Secret with UUID '{secret_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let secret = secret_table::get_secret(&secret_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
 
     let resp = SecretResp {
         uuid: *secret_uuid,
-        name: secret_data.name.clone(),
-        created_by: secret_data.created_by.clone(),
-        created_at: secret_data.created_at.clone(),
-        updated_by: secret_data.updated_by.clone(),
-        updated_at: secret_data.updated_at.clone(),
+        name: secret.name,
+        created_by: secret.created_by,
+        created_at: secret.created_at,
+        updated_by: secret.updated_by,
+        updated_at: secret.updated_at,
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }

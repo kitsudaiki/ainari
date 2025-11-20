@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -32,28 +32,25 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_project_admin(
     context: UserContext,
 ) -> Result<Json<ProjectListResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    let projects = match project_table::list_projects(&context) {
-        Ok(result) => result,
-        Err(e) => {
-            let msg = format!("Failed to list projects with error: '{e}'");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    // get list of all projects from database
+    let projects =
+        project_table::list_projects(&context).map_err(|e| map_db_list_error("projects", e))?;
 
     let mut resp = ProjectListResp {
         projects: Vec::new(),
     };
 
+    // convert database-output
     for project in projects {
         let obj = ProjectBasicResp {
-            id: project.id.clone(),
-            name: project.name.clone(),
+            id: project.id,
+            name: project.name,
         };
 
-        resp.projects.push(obj); // fill the vector with objects
+        resp.projects.push(obj);
     }
 
     Ok(Json(resp))

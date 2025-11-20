@@ -20,9 +20,9 @@ use uuid::Uuid;
 use crate::database::host_table;
 
 use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::map_db_uuid_get_delete_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "host",
@@ -40,16 +40,8 @@ pub async fn delete_host_admin(
     check_admin_context(&context)?;
 
     // delete host from database
-    match host_table::delete_host_admin(&host_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Host with UUID '{host_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    host_table::delete_host_admin(&host_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &host_uuid, e))?;
 
     Ok(NoContent)
 }

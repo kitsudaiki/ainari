@@ -21,7 +21,7 @@ use validator::Validate;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -39,20 +39,15 @@ pub async fn create_cluster_internal(
     context: UserContext,
 ) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let cluster_uuid = Uuid::new_v4();
 
     // parse cluster-template and create cluster from it
     let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     cluster_handler
-        .init_new_cluster(&cluster_uuid, &body.name, body.template.clone())
+        .init_new_cluster(&cluster_uuid, &body.name, &body.template)
         .map_err(map_ainari_error_to_api_response)?;
 
     // add new cluster to database
@@ -66,18 +61,19 @@ pub async fn create_cluster_internal(
     };
 
     // get new created cluster from database to get addtional information
-    let cluster_data = super::get_cluster_from_database(&cluster_uuid, &context)?;
+    let cluster_data = cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     let resp = ClusterResp {
         uuid: cluster_uuid,
-        name: cluster_data.name.clone(),
-        template: cluster_data.template.clone(),
+        name: cluster_data.name,
+        template: cluster_data.template,
         torii_port: 0,
-        created_by: cluster_data.created_by.clone(),
-        created_at: cluster_data.created_at.clone(),
-        updated_by: cluster_data.updated_by.clone(),
-        updated_at: cluster_data.updated_at.clone(),
+        created_by: cluster_data.created_by,
+        created_at: cluster_data.created_at,
+        updated_by: cluster_data.updated_by,
+        updated_at: cluster_data.updated_at,
     };
 
-    return Ok(CreatedJson(resp));
+    Ok(CreatedJson(resp))
 }

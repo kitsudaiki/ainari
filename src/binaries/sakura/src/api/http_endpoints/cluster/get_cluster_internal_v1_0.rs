@@ -17,6 +17,9 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::database::cluster_table;
+
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -34,18 +37,19 @@ pub async fn get_cluster_internal(
     cluster_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ClusterResp>, ErrorResponse> {
-    let cluster_data = super::get_cluster_from_database(&cluster_uuid, &context)?;
+    let cluster_data = cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     let resp = ClusterResp {
         uuid: *cluster_uuid,
-        name: cluster_data.name.clone(),
-        template: cluster_data.template.clone(),
+        name: cluster_data.name,
+        template: cluster_data.template,
         torii_port: 0,
-        created_by: cluster_data.created_by.clone(),
-        created_at: cluster_data.created_at.clone(),
-        updated_by: cluster_data.updated_by.clone(),
-        updated_at: cluster_data.updated_at.clone(),
+        created_by: cluster_data.created_by,
+        created_at: cluster_data.created_at,
+        updated_by: cluster_data.updated_by,
+        updated_at: cluster_data.updated_at,
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }

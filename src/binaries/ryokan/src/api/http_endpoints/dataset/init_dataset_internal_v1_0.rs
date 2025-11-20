@@ -17,8 +17,10 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::database::dataset_table;
 use crate::onsen_functions::select_onsen;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -37,13 +39,8 @@ pub async fn init_dataset(
     context: UserContext,
 ) -> Result<CreatedJson<DatasetInternalResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let name = &body.name;
     let dataset_uuid = &body.uuid.clone();
@@ -55,17 +52,38 @@ pub async fn init_dataset(
 
     let selected_onsen = select_onsen(&context)?;
 
-    super::add_dataset_to_database(
+    let dimension = (body.number_of_rows as i64, body.number_of_columns as i64);
+    dataset_table::add_new_dataset(
         dataset_uuid,
         name,
         &selected_onsen.address,
         &file_path_str,
         &secret_uuid,
-        body.number_of_rows as i64,
-        body.number_of_columns as i64,
+        dimension,
         &context,
-    )?;
+    )
+    .map_err(|e| {
+        log::error!("Failed to add dataset to database: {e}");
+        ErrorResponse::InternalError("Internal error".to_string())
+    })?;
 
-    let resp = super::get_dataset_internal(dataset_uuid, &context)?;
-    return Ok(CreatedJson(resp));
+    let dataset_data = dataset_table::get_dataset(dataset_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("dataset", dataset_uuid, e))?;
+
+    let secret_uuid = convert_uuid(&dataset_data.secret_uuid)?;
+    let resp = DatasetInternalResp {
+        uuid: *dataset_uuid,
+        name: dataset_data.name,
+        onsen_address: dataset_data.onsen_address,
+        file_path: dataset_data.file_path,
+        number_of_rows: dataset_data.number_of_rows as u64,
+        number_of_columns: dataset_data.number_of_columns as u64,
+        secret_uuid,
+        created_by: dataset_data.created_by,
+        created_at: dataset_data.created_at,
+        updated_by: dataset_data.updated_by,
+        updated_at: dataset_data.updated_at,
+    };
+
+    Ok(CreatedJson(resp))
 }

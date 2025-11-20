@@ -21,10 +21,9 @@ use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "secret",
@@ -39,18 +38,11 @@ pub async fn delete_secret(
     secret_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // delete secret from database
-    match secret_table::delete_secret(&secret_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Secret with UUID '{secret_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    // delete secret-metadata-from db
+    secret_table::delete_secret(&secret_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
 
+    // delete secrete from crypto-module
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
         .delete(&secret_uuid)

@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::user_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
@@ -30,16 +30,10 @@ use ainari_api_structs::user_structs::*;
     error_code = 500
 )]
 pub async fn list_user_admin(context: UserContext) -> Result<Json<UserListResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    let users = match user_table::list_users(&context) {
-        Ok(result) => result,
-        Err(e) => {
-            let msg = format!("Failed to list users with error: '{e}'");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let users = user_table::list_users(&context).map_err(|e| map_db_list_error("users", e))?;
 
     let mut resp = UserListResp { users: Vec::new() };
 

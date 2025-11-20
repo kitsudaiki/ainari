@@ -25,7 +25,7 @@ use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
 use crate::database::secret_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -44,13 +44,8 @@ pub async fn create_secret(
     context: UserContext,
 ) -> Result<CreatedJson<SecretResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     super::check_quota(&context).await?;
 
@@ -66,35 +61,25 @@ pub async fn create_secret(
         .map_err(map_ainari_error_to_api_response)?;
 
     // add new secret to datbase
-    match secret_table::add_new_secret(&secret_uuid, &body.name, &context) {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    secret_table::add_new_secret(&secret_uuid, &body.name, &context).map_err(|e| {
+        log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // get new created secret from database to get addtional information
-    match secret_table::get_secret(&secret_uuid, &context) {
-        Ok(secret) => {
-            let resp = SecretResp {
-                uuid: secret_uuid,
-                name: secret.name.clone(),
-                created_by: secret.created_by.clone(),
-                created_at: secret.created_at.clone(),
-                updated_by: secret.updated_by.clone(),
-                updated_at: secret.updated_at.clone(),
-            };
+    let secret = secret_table::get_secret(&secret_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("project", &secret_uuid, e))?;
 
-            return Ok(CreatedJson(resp));
-        }
-        Err(_) => {
-            log::error!(
-                "Failed to get secret with UUID '{secret_uuid}' from database, even the secret should exist"
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
+    let resp = SecretResp {
+        uuid: secret_uuid,
+        name: secret.name,
+        created_by: secret.created_by,
+        created_at: secret.created_at,
+        updated_by: secret.updated_by,
+        updated_at: secret.updated_at,
     };
+
+    Ok(CreatedJson(resp))
 }
 
 fn generate_256bit_key_base64() -> Secret {

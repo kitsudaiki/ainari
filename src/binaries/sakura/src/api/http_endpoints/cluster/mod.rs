@@ -20,30 +20,3 @@ pub mod request_cluster_v1_0;
 pub mod train_cluster_v1_0;
 
 pub mod task;
-
-use uuid::Uuid;
-
-use crate::database::cluster_table;
-
-use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
-
-pub fn get_cluster_from_database(
-    cluster_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<cluster_table::ClusterEntry, ErrorResponse> {
-    let cluster = match cluster_table::get_cluster(cluster_uuid, context) {
-        Ok(cluster) => cluster,
-        Err(enums::DbError::InternalError) => {
-            log::error!("Internal error while requesting cluster from database");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    Ok(cluster)
-}

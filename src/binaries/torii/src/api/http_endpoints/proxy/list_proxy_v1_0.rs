@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::proxy_table;
 
-use ainari_api::common_functions::convert_uuid;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,13 +30,7 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, ErrorResponse> {
-    let proxys = match proxy_table::list_proxys(&context) {
-        Ok(proxys) => proxys,
-        Err(e) => {
-            log::error!("Failed to get list of proxys form database: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let proxys = proxy_table::list_proxys(&context).map_err(|e| map_db_list_error("proxys", e))?;
 
     let mut resp = ProxyListResp { proxys: Vec::new() };
 
@@ -46,7 +40,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
         let obj = ProxyBasicResp {
             uuid,
             port: proxy.port as u16,
-            target_address: proxy.target_address.clone(),
+            target_address: proxy.target_address,
             cluster_uuid,
         };
 

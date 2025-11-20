@@ -19,10 +19,9 @@ use uuid::Uuid;
 
 use crate::database::dataset_table;
 
-use ainari_api::common_functions::delete_file_from_onsen;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "dataset",
@@ -36,20 +35,13 @@ pub async fn delete_dataset(
     dataset_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let dataset = super::get_dataset_internal(&dataset_uuid, &context)?;
+    let dataset_data = dataset_table::get_dataset(&dataset_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
 
-    delete_file_from_onsen(&dataset.onsen_address, &dataset.file_path).await?;
+    delete_file_from_onsen(&dataset_data.onsen_address, &dataset_data.file_path).await?;
 
-    match dataset_table::delete_dataset(&dataset_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Dataset with UUID '{dataset_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    dataset_table::delete_dataset(&dataset_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
 
     Ok(NoContent)
 }

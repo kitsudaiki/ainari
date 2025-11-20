@@ -20,12 +20,12 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::core::cluster_handler;
+use crate::database::cluster_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -42,16 +42,12 @@ pub async fn request_cluster(
     context: UserContext,
 ) -> Result<Json<ClusterRequestResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     // check if cluster exist
-    let _ = super::get_cluster_from_database(&cluster_uuid, &context)?;
+    cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     // get cluster-interface
     let cluster_handler = cluster_handler::CLUSTER_HANDLER
@@ -72,20 +68,9 @@ pub async fn request_cluster(
 
     // run request-process in cluster
     let mut cluster_interface = cluster_interface_mutex.lock().expect("mutex poisoned");
-    match cluster_interface.request(&body.inputs, &mut resp.outputs) {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            let msg = format!("Invalid input: {msg}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    cluster_interface
+        .request(&body.inputs, &mut resp.outputs)
+        .map_err(map_ainari_error_to_api_response)?;
 
     Ok(Json(resp))
 }

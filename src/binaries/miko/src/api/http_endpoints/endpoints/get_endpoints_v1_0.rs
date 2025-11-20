@@ -51,5 +51,5 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
         },
     };
 
-    return Ok(Json(response));
+    Ok(Json(response))
 }

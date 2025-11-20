@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::checkpoint_table;
 
-use ainari_api::common_functions::convert_uuid;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::checkpoint_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -32,13 +32,8 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_checkpoint(
     context: UserContext,
 ) -> Result<Json<CheckpointListResp>, ErrorResponse> {
-    let checkpoints = match checkpoint_table::list_checkpoints(&context) {
-        Ok(checkpoints) => checkpoints,
-        Err(e) => {
-            log::error!("Failed to get list of checkpoints form database: '{e:?}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let checkpoints = checkpoint_table::list_checkpoints(&context)
+        .map_err(|e| map_db_list_error("checkpoints", e))?;
 
     let mut resp = CheckpointListResp {
         checkpoints: Vec::new(),

@@ -18,7 +18,7 @@ use apistos::api_operation;
 use crate::config;
 use crate::database::host_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,13 +36,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         clusters: Vec::new(),
     };
 
-    let host_list = match host_table::list_hosts(&context) {
-        Ok(hosts) => hosts,
-        Err(e) => {
-            log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let host_list = host_table::list_hosts(&context).map_err(|e| map_db_list_error("hosts", e))?;
 
     for host in host_list {
         let cluster_list_resp = cluster_clients::list_cluster(

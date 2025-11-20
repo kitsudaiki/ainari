@@ -54,13 +54,9 @@ impl SimpleCrypto {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // encrypt
-        let ciphertext = match cipher.encrypt(nonce, plaintext.reveal().as_bytes()) {
-            Ok(ciphertext) => ciphertext,
-            Err(_) => {
-                let msg = "Failed to encrypt plaintext".to_string();
-                return Err(AinariError::InvalidInput(msg));
-            }
-        };
+        let ciphertext = cipher
+            .encrypt(nonce, plaintext.reveal().as_bytes())
+            .map_err(|_| AinariError::InvalidInput("Failed to encrypt plaintext".to_string()))?;
 
         // output: nonce + ciphertext, base64 encoded
         let mut combined = Vec::new();
@@ -74,14 +70,15 @@ impl SimpleCrypto {
         let key_bytes = decode_base64_key(key_b64)?;
         let key = GenericArray::from_slice(&key_bytes);
 
-        let encrypted_secret_bytes = match STANDARD.decode(encrypted_secret_b64.as_bytes()) {
-            Ok(encrypted_secret_bytes) => encrypted_secret_bytes,
-            Err(_) => {
-                let msg =
-                    "Provided encrypted-secret is not a valid base64-encoded string.".to_string();
-                return Err(AinariError::InvalidInput(msg));
-            }
-        };
+        let encrypted_secret_bytes =
+            STANDARD
+                .decode(encrypted_secret_b64.as_bytes())
+                .map_err(|_| {
+                    AinariError::InvalidInput(
+                        "Provided encrypted-secret is not a valid base64-encoded string."
+                            .to_string(),
+                    )
+                })?;
 
         if encrypted_secret_bytes.len() < NONCE_SIZE {
             let msg = "Provided encrpted secret is too short.".to_string();
@@ -92,36 +89,24 @@ impl SimpleCrypto {
         let cipher = Aes256Gcm::new(key);
         let nonce = Nonce::from_slice(nonce_bytes);
 
-        let plaintext_bytes = match cipher.decrypt(nonce, ciphertext) {
-            Ok(plaintext_bytes) => plaintext_bytes,
-            Err(_) => {
-                let msg = "Failed to decrypt secret".to_string();
-                return Err(AinariError::InvalidInput(msg));
-            }
-        };
+        let plaintext_bytes = cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| AinariError::InvalidInput("Failed to decrypt secret".to_string()))?;
 
-        let plaintext = match String::from_utf8(plaintext_bytes) {
-            Ok(plaintext) => plaintext,
-            Err(_) => {
-                let msg = "Failed to convert decrypted secret into text.".to_string();
-                return Err(AinariError::InvalidInput(msg));
-            }
-        };
+        let plaintext = String::from_utf8(plaintext_bytes).map_err(|_| {
+            AinariError::InvalidInput("Failed to convert decrypted secret into text.".to_string())
+        })?;
+
         Ok(Secret::from(plaintext))
     }
 }
 
 fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
     // decode base64 key
-    let key_bytes = match STANDARD.decode(key_b64.reveal().as_bytes()) {
-        Ok(key_bytes) => key_bytes,
-        Err(_) => {
-            // HINT (kitsudaiki): do NOT use the error-message of the decode-function to avoid the risk
-            // of printing information of the key in the log-output
-            let msg = "Provided key is not a valid base64-encoded string.".to_string();
-            return Err(AinariError::InvalidInput(msg));
-        }
-    };
+    let key_bytes = STANDARD.decode(key_b64.reveal().as_bytes()).map_err(|_| {
+        AinariError::InvalidInput("Provided key is not a valid base64-encoded string.".to_string())
+    })?;
+
     if key_bytes.len() != KEY_SIZE {
         let msg = format!(
             "Invalid key length: expected {}, got {}",
@@ -140,15 +125,13 @@ impl CryptoModule for SimpleCrypto {
         let encrypted_secret = self.encrypt(plaintext, key_b64)?;
 
         // add new secret to datbase
-        match simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret) {
-            Ok(_) => {}
-            Err(_) => {
-                let msg = format!(
+        simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
+            |_| {
+                AinariError::Error(format!(
                     "Failed to add simple-crypto-secret with UUID '{secret_uuid}' to database."
-                );
-                return Err(AinariError::Error(msg));
-            }
-        };
+                ))
+            },
+        )?;
 
         Ok(())
     }
