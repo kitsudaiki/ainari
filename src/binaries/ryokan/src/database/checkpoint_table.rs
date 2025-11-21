@@ -31,6 +31,7 @@ table! {
         name -> Varchar,
         onsen_address -> Varchar,
         file_path -> Text,
+        secret_uuid -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -50,6 +51,7 @@ pub struct CheckpointEntry {
     pub name: String,
     pub onsen_address: String,
     pub file_path: String,
+    pub secret_uuid: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -69,6 +71,7 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
         name VARCHAR(256),
         onsen_address VARCHAR(256),
         file_path TEXT,
+        secret_uuid VARCHAR(32),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),
@@ -89,6 +92,7 @@ pub fn add_new_checkpoint(
     checkpoint_name: &str,
     onsen_address: &str,
     file_path: &str,
+    secret_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let checkpoint = CheckpointEntry {
@@ -96,6 +100,7 @@ pub fn add_new_checkpoint(
         name: checkpoint_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
+        secret_uuid: secret_uuid.to_string().clone(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -229,6 +234,7 @@ mod tests {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -245,6 +251,7 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -280,6 +287,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -296,6 +304,7 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -312,6 +321,7 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -340,6 +350,7 @@ mod tests {
         let _ = init_checkpoint_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -356,6 +367,7 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -384,6 +396,7 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let name = "test-checkpoint".to_string();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -400,6 +413,7 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -416,6 +430,7 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -432,6 +447,7 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -467,12 +483,14 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
 
         let checkpoint1 = CheckpointEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -489,6 +507,7 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -505,6 +524,7 @@ mod tests {
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string().clone(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

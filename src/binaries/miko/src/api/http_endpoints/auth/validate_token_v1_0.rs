@@ -34,5 +34,5 @@ pub async fn validate_token(
     // HINT(kitsudaki): Here is not validation-code, even the funktion is named this way,
     // because it provides only the endpoint itself. The token-validation will be done
     // in the middleway, like for the other endpoints
-    return Ok(Json(response));
+    Ok(Json(response))
 }

@@ -48,7 +48,7 @@ pub async fn list_cluster_internal(
         let uuid = convert_uuid(&cluster.uuid)?;
         let obj = ClusterBasicResp {
             uuid,
-            name: cluster.name.clone(),
+            name: cluster.name,
         };
 
         resp.clusters.push(obj);

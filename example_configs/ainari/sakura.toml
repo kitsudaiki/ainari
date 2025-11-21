@@ -10,6 +10,9 @@ file_path = "/etc/ainari/sakura_db"
 # 0 means there is no limitation
 max_number_of_threads = 0
 
+[storage]
+tempfile_location = "/tmp/sakura"
+
 [api]
 public_ip = "0.0.0.0"
 public_port = 11420

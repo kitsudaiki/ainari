@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::quota_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,22 +30,16 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    let quotas = match quota_table::list_quotas(&context) {
-        Ok(result) => result,
-        Err(e) => {
-            let msg = format!("Failed to list quotas with error: '{e}'");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let quotas = quota_table::list_quotas(&context).map_err(|e| map_db_list_error("quotas", e))?;
 
     let mut resp = QuotaListResp { quotas: Vec::new() };
 
     for quota in quotas {
         let obj = QuotaBasicResp {
-            user_id: quota.id.clone(),
+            user_id: quota.id,
             max_cluster: quota.max_cluster,
             max_dataset: quota.max_dataset,
             max_checkpoint: quota.max_checkpoint,
@@ -53,7 +47,7 @@ pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp
             max_taskqueue: quota.max_taskqueue,
         };
 
-        resp.quotas.push(obj); // fill the vector with objects
+        resp.quotas.push(obj);
     }
 
     Ok(Json(resp))

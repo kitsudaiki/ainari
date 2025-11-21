@@ -15,13 +15,13 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
 use crate::database::meta_cluster_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -29,7 +29,6 @@ use ainari_clients::cluster as cluster_clients;
 use ainari_clients::endpoints::*;
 use ainari_clients::proxy as proxy_clients;
 use ainari_clients::quota::get_quota;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -44,24 +43,16 @@ pub async fn create_cluster(
     context: UserContext,
 ) -> Result<CreatedJson<ClusterResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     check_quota(&context).await?;
 
     // list all avaialble hosts
-    let hosts = match host_table::list_hosts(&context) {
-        Ok(hosts) => hosts,
-        Err(e) => {
-            log::error!("Failed to get list of hosts form database: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let hosts = host_table::list_hosts(&context).map_err(|e| {
+        log::error!("Failed to get list of hosts form database: '{e}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // check that there is at least one host
     if hosts.is_empty() {
@@ -79,7 +70,7 @@ pub async fn create_cluster(
     };
 
     // send request to the selected sakura-host to create a cluster
-    let mut cluster_resp = match cluster_clients::create_cluster(
+    let mut cluster_resp = cluster_clients::create_cluster(
         &selected_host.address,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -88,38 +79,16 @@ pub async fn create_cluster(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = match get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     // send request to torii to create a proxy
-    let proxy_resp = match proxy_clients::create_proxy(
+    let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -129,84 +98,52 @@ pub async fn create_cluster(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // set port-number for the response
     cluster_resp.torii_port = proxy_resp.port;
 
     // parse uuid-string
-    let sakura_uuid = match Uuid::parse_str(&selected_host.uuid) {
-        Ok(uuid) => uuid,
-        Err(e) => {
-            log::error!("Failed to convert cluster-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let sakura_uuid = convert_uuid(&selected_host.uuid)?;
 
     // add new cluster to database
     let cluster_uuid = cluster_resp.uuid;
-    match meta_cluster_table::add_new_meta_cluster(
+    meta_cluster_table::add_new_meta_cluster(
         &cluster_uuid,
         &sakura_uuid,
         &proxy_resp.uuid,
         &context,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    )
+    .map_err(|e| {
+        log::error!(
+            "Failed to add cluster with UUID '{cluster_uuid}' to database with error: {e}."
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
-    return Ok(CreatedJson(cluster_resp));
+    Ok(CreatedJson(cluster_resp))
 }
 
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of meta_clusters of the user
-    let current_number_of_meta_clusters = match meta_cluster_table::count_meta_clusters(context) {
-        Ok(number) => number,
-        Err(e) => {
+    let current_number_of_meta_clusters = meta_cluster_table::count_meta_clusters(context)
+        .map_err(|e| {
             log::error!("Failed to count meta_clusters in database.: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
 
     // check the maximum number of meta_clusters defined in miko
     let miko_endpoint = &config::CONFIG.miko;
-    let max_number_of_meta_clusters = match get_quota(
+    let quota = get_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(body) => body.max_cluster as i64,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
+    let max_number_of_meta_clusters = quota.max_cluster as i64;
     // check if quota is already exceeded
     if current_number_of_meta_clusters as i64 >= max_number_of_meta_clusters {
         return Err(ErrorResponse::Conflict(

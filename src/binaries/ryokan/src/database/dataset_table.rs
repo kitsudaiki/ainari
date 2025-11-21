@@ -31,6 +31,9 @@ table! {
         name -> Varchar,
         onsen_address -> Varchar,
         file_path -> Text,
+        secret_uuid -> Varchar,
+        number_of_rows -> BigInt,
+        number_of_columns -> BigInt,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -50,6 +53,9 @@ pub struct DatasetEntry {
     pub name: String,
     pub onsen_address: String,
     pub file_path: String,
+    pub secret_uuid: String,
+    pub number_of_rows: i64,
+    pub number_of_columns: i64,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -69,6 +75,9 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         name VARCHAR(256),
         onsen_address VARCHAR(256),
         file_path TEXT,
+        secret_uuid VARCHAR(32),
+        number_of_rows BIGINT,
+        number_of_columns BIGINT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),
@@ -89,6 +98,8 @@ pub fn add_new_dataset(
     dataset_name: &str,
     onsen_address: &str,
     file_path: &str,
+    secret_uuid: &Uuid,
+    dimension: (i64, i64),
     context: &UserContext,
 ) -> QueryResult<usize> {
     let dataset = DatasetEntry {
@@ -96,6 +107,9 @@ pub fn add_new_dataset(
         name: dataset_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
+        secret_uuid: secret_uuid.to_string().clone(),
+        number_of_rows: dimension.0,
+        number_of_columns: dimension.1,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -223,6 +237,9 @@ mod tests {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
+        let number_of_rows = 42;
+        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -239,6 +256,9 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -257,6 +277,12 @@ mod tests {
             assert_eq!(retrieved_dataset.uuid, dataset.uuid);
             assert_eq!(retrieved_dataset.name, dataset.name);
             assert_eq!(retrieved_dataset.file_path, dataset.file_path);
+            assert_eq!(retrieved_dataset.secret_uuid, dataset.secret_uuid);
+            assert_eq!(retrieved_dataset.number_of_rows, dataset.number_of_rows);
+            assert_eq!(
+                retrieved_dataset.number_of_columns,
+                dataset.number_of_columns
+            );
             assert_eq!(retrieved_dataset.status, dataset.status);
             assert_eq!(retrieved_dataset.created_by, dataset.created_by);
             assert_eq!(retrieved_dataset.updated_by, dataset.updated_by);
@@ -274,6 +300,9 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
+        let number_of_rows = 42;
+        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -290,6 +319,9 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -306,6 +338,9 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -334,6 +369,9 @@ mod tests {
         let _ = init_dataset_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
+        let number_of_rows = 42;
+        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -350,6 +388,9 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -378,6 +419,9 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let name = "test-dataset".to_string();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
+        let number_of_rows = 42;
+        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -394,6 +438,9 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -410,6 +457,9 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -426,6 +476,9 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -461,12 +514,18 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
+        let secret_uuid = Uuid::new_v4();
+        let number_of_rows = 42;
+        let number_of_columns = 43;
 
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -483,6 +542,9 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -499,6 +561,9 @@ mod tests {
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            secret_uuid: secret_uuid.to_string(),
+            number_of_rows,
+            number_of_columns,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

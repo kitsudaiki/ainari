@@ -9,10 +9,8 @@ data:
     address = "http://10.10.0.1:50051"
 
     [storage]
-    dataset_location = "/etc/ainari/onsen_data/datasets"
-    checkpoint_location = "/etc/ainari/onsen_data/checkpoints"
-    tempfile_location = "/etc/ainari/onsen_data/tempfiles"
-
+    location = "/tmp/onsen"
+    
     [api]
     public_ip = "127.0.0.1"
     public_port = 11416

@@ -14,10 +14,10 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::secret_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -30,28 +30,15 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, ErrorResponse> {
-    let secrets = match secret_table::list_secrets(&context) {
-        Ok(secrets) => secrets,
-        Err(e) => {
-            log::error!("Failed to get list of secrets form database: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let secrets =
+        secret_table::list_secrets(&context).map_err(|e| map_db_list_error("secrets", e))?;
 
     let mut resp = SecretListResp {
         secrets: Vec::new(),
     };
 
     for secret in secrets {
-        // parse-uuid-string coming from the database
-        let uuid = match Uuid::parse_str(&secret.uuid) {
-            Ok(uuid) => uuid,
-            Err(e) => {
-                log::error!("Failed to convert secret-uuid with error: '{e}'");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
-
+        let uuid = convert_uuid(&secret.uuid)?;
         let obj = SecretBasicResp {
             uuid,
             name: secret.name.clone(),

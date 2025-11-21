@@ -19,11 +19,13 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct DatasetCreateReq {
+pub struct DatasetInitReq {
     pub uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub name: String,
     pub dataset_type: String,
+    pub number_of_rows: u64,
+    pub number_of_columns: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -32,6 +34,9 @@ pub struct DatasetInternalResp {
     pub name: String,
     pub onsen_address: String,
     pub file_path: String,
+    pub number_of_rows: u64,
+    pub number_of_columns: u64,
+    pub secret_uuid: Uuid,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,

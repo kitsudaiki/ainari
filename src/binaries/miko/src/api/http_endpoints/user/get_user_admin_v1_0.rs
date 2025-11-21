@@ -18,11 +18,10 @@ use apistos::api_operation;
 
 use crate::database::user_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "user",
@@ -37,29 +36,22 @@ pub async fn get_user_admin(
     user_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<UserResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    // get new created user from database to get addtional information
-    match user_table::get_user(&user_id, &context) {
-        Ok(user) => {
-            let resp = UserResp {
-                id: user.id.clone(),
-                name: user.name.clone(),
-                is_admin: user.is_admin,
-                created_by: user.created_by.clone(),
-                created_at: user.created_at.clone(),
-                updated_by: user.updated_by.clone(),
-                updated_at: user.updated_at.clone(),
-            };
+    // get user from database
+    let user = user_table::get_user(&user_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e))?;
 
-            return Ok(Json(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("User with ID '{user_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
+    let resp = UserResp {
+        id: user.id,
+        name: user.name,
+        is_admin: user.is_admin,
+        created_by: user.created_by,
+        created_at: user.created_at,
+        updated_by: user.updated_by,
+        updated_at: user.updated_at,
     };
+
+    Ok(Json(resp))
 }

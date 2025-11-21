@@ -26,6 +26,10 @@ pub fn v1alpha_routes() -> Scope {
         .service(
             scope("/secret")
                 .service(
+                    resource("/generate")
+                        .route(post().to(create_generated_secret_v1_0::create_secret)),
+                )
+                .service(
                     resource("")
                         .route(post().to(create_secret_v1_0::create_secret))
                         .route(get().to(list_secret_v1_0::list_secret)),

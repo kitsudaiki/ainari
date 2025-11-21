@@ -95,17 +95,16 @@ impl ClusterDataHandler {
         &mut self,
         cluster_uuid: &Uuid,
         name: &str,
-        cluster_template: String,
+        cluster_template: &str,
     ) -> Result<(), AinariError> {
         // parse cluster-template
-        let mut parsed_cluster: ClusterMeta =
-            match parse_cluster_template(name, cluster_template.as_str()) {
-                Ok(parsed) => parsed,
-                Err(e) => {
-                    let msg = format!("Can not create cluster: {e:?}");
-                    return Err(AinariError::InvalidInput(msg));
-                }
-            };
+        let mut parsed_cluster: ClusterMeta = match parse_cluster_template(name, cluster_template) {
+            Ok(parsed) => parsed,
+            Err(e) => {
+                let msg = format!("Can not create cluster: {e:?}");
+                return Err(AinariError::InvalidInput(msg));
+            }
+        };
 
         // get and init finish-counter
         let finish_counter_mutex = Arc::new(Mutex::new(FinishCounter::default()));
@@ -743,7 +742,7 @@ mod tests {
         root_handler.clusters.clear();
 
         {
-            let ret = root_handler.init_new_cluster(&cluster_uuid, &name, template);
+            let ret = root_handler.init_new_cluster(&cluster_uuid, &name, &template);
             assert!(ret.is_ok());
             assert_eq!(root_handler.clusters.len(), 1);
             assert!(root_handler.clusters.contains_key(&cluster_uuid));
@@ -789,7 +788,7 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
@@ -950,7 +949,7 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, template);
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();

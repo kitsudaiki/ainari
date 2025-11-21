@@ -22,6 +22,8 @@ mod core;
 mod database;
 mod onsen_functions;
 
+use ainari_common::functions::clear_directory;
+
 use log::LevelFilter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,12 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // create directories if they not exist
-    let checkpoint_dir = config::CONFIG.storage.checkpoint_location.clone();
-    fs::create_dir_all(checkpoint_dir)?;
-    let dataset_dir = config::CONFIG.storage.dataset_location.clone();
-    fs::create_dir_all(dataset_dir)?;
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
-    fs::create_dir_all(tempfile_dir)?;
+    fs::create_dir_all(&tempfile_dir)?;
+    let _ = clear_directory(&tempfile_dir);
 
     database::init_database()?;
 

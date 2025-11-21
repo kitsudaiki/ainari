@@ -49,6 +49,7 @@ pub fn init_task_queue() -> TaskQueue {
 
 #[cfg(test)]
 mod tests {
+    use ainari_common::secret::Secret;
     use std::sync::{Arc, Mutex};
     use uuid::Uuid;
 
@@ -62,14 +63,17 @@ mod tests {
         let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
+        let secret = Secret::from("asdf");
 
         let info1 = CheckpointSaveInfo {
             onsen_address: "127.0.0.1".to_string(),
             file_path: "asdf".to_string(),
+            secret: secret.clone(),
         };
         let info2 = CheckpointSaveInfo {
             onsen_address: "127.0.0.1".to_string(),
             file_path: "asdf".to_string(),
+            secret: secret.clone(),
         };
 
         let task1 = Task {

@@ -19,10 +19,10 @@ use uuid::Uuid;
 
 use crate::database::proxy_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "proxy",
@@ -37,35 +37,21 @@ pub async fn get_proxy(
     proxy_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ProxyResp>, ErrorResponse> {
-    let proxy_data = match proxy_table::get_proxy(&proxy_uuid, &context) {
-        Ok(proxy_data) => proxy_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Proxy with UUID '{proxy_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
 
-    let cluster_uuid = match Uuid::parse_str(&proxy_data.cluster_uuid) {
-        Ok(cluster_uuid) => cluster_uuid,
-        Err(e) => {
-            log::error!("Failed to convert cluster-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let cluster_uuid = convert_uuid(&proxy_data.cluster_uuid)?;
 
     let resp = ProxyResp {
         uuid: *proxy_uuid,
         port: proxy_data.port as u16,
-        target_address: proxy_data.target_address.clone(),
+        target_address: proxy_data.target_address,
         cluster_uuid,
-        created_by: proxy_data.created_by.clone(),
-        created_at: proxy_data.created_at.clone(),
-        updated_by: proxy_data.updated_by.clone(),
-        updated_at: proxy_data.updated_at.clone(),
+        created_by: proxy_data.created_by,
+        created_at: proxy_data.created_at,
+        updated_by: proxy_data.updated_by,
+        updated_at: proxy_data.updated_at,
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }

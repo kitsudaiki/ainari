@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use ainari_common::config::MikoEndpoint;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -20,6 +19,7 @@ use crate::errors::ErrorResponse;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::onsen_file_transfer;
+use ainari_common::enums;
 use ainari_common::error::AinariError;
 
 /// Creates a directory at the specified path.
@@ -185,24 +185,67 @@ pub fn convert_uuid(uuid: &String) -> Result<Uuid, ErrorResponse> {
     Ok(uuid)
 }
 
-pub async fn get_endpoints(
-    miko_endpoint: &MikoEndpoint,
-    insecure_connection: bool,
-) -> Result<ainari_common::config::Endpoints, ErrorResponse> {
-    let endpoints =
-        match ainari_clients::endpoints::get_endpoints(miko_endpoint, insecure_connection).await {
-            Ok(body) => body,
-            Err(AinariError::Unauthorized(msg)) => {
-                return Err(ErrorResponse::Unauthorized(msg));
-            }
-            Err(AinariError::InvalidInput(msg)) => {
-                return Err(ErrorResponse::BadRequest(msg));
-            }
-            Err(AinariError::Error(msg)) => {
-                log::error!("{msg}");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
+pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
+    match e {
+        AinariError::Unauthorized(msg) => ErrorResponse::Unauthorized(msg),
+        AinariError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
+        AinariError::Error(msg) => {
+            log::error!("{msg}");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        }
+    }
+}
 
-    Ok(endpoints)
+pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError) -> ErrorResponse {
+    match err {
+        enums::DbError::InternalError => {
+            log::error!("Error while deleting {obj_type} with ID '{id}' from DB");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        }
+        enums::DbError::NotFound => {
+            ErrorResponse::NotFound(format!("{obj_type} with ID '{id}' not found."))
+        }
+    }
+}
+
+pub fn map_db_uuid_get_delete_error(
+    obj_type: &str,
+    uuid: &Uuid,
+    err: enums::DbError,
+) -> ErrorResponse {
+    match err {
+        enums::DbError::InternalError => {
+            log::error!("Error while deleting {obj_type} with UUID '{uuid}' from DB");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        }
+        enums::DbError::NotFound => {
+            ErrorResponse::NotFound(format!("{obj_type} with UUID '{uuid}' not found."))
+        }
+    }
+}
+
+pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
+    log::error!("Failed to list {obj_type} with error: '{e}'");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
+pub fn check_if_id_exist_in_db<T>(
+    obj_type: &str,
+    id: &str,
+    ret: Result<T, enums::DbError>,
+) -> Result<(), ErrorResponse> {
+    match ret {
+        Ok(_) => {
+            let msg = format!("{obj_type} with ID '{id}' already exist.");
+            return Err(ErrorResponse::Conflict(msg));
+        }
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+        Err(enums::DbError::NotFound) => {
+            // it is desired, that the object not already exist, so this error will be ignored
+        }
+    };
+
+    Ok(())
 }

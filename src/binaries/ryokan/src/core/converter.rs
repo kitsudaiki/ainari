@@ -104,6 +104,7 @@ pub fn load_mnist_images(
         onsen_address: "".to_string(),
         remote_file_path: "".to_string(),
         local_file_path: target_filepath.to_owned(),
+        local_encrypted_file_path: target_filepath.to_owned(),
     };
     let mut dataset_handle = init_new_data_set_file(
         &link,
@@ -168,6 +169,7 @@ pub fn load_csv_file(
         onsen_address: "".to_string(),
         remote_file_path: "".to_string(),
         local_file_path: target_filepath.to_owned(),
+        local_encrypted_file_path: target_filepath.to_owned(),
     };
     let mut dataset_handle = init_new_data_set_file(
         &link,

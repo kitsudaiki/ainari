@@ -18,11 +18,10 @@ use apistos::api_operation;
 
 use crate::database::quota_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::quota_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "quota",
@@ -38,19 +37,12 @@ pub async fn set_quota_admin(
     body: Json<QuotaSetReq>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
-    // get current quota from database
-    let mut current_quota = match quota_table::get_quota(&quota_id, &context) {
-        Ok(quota) => quota,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Quota with UUID '{quota_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    // get current quota of user from database
+    let mut current_quota = quota_table::get_quota(&quota_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
 
     // update values to set
     if body.max_cluster != 0 {
@@ -70,7 +62,7 @@ pub async fn set_quota_admin(
     }
 
     // update values in database
-    match quota_table::set_quota(
+    quota_table::set_quota(
         &quota_id,
         current_quota.max_cluster,
         current_quota.max_dataset,
@@ -78,41 +70,25 @@ pub async fn set_quota_admin(
         current_quota.max_secret,
         current_quota.max_taskqueue,
         &context,
-    ) {
-        Ok(()) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Quota with UUID '{quota_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
+    )
+    .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
+
+    // get new quota of user from database
+    let quota = quota_table::get_quota(&quota_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
+
+    let resp = QuotaResp {
+        user_id: quota.id,
+        max_cluster: quota.max_cluster,
+        max_dataset: quota.max_dataset,
+        max_checkpoint: quota.max_checkpoint,
+        max_secret: quota.max_secret,
+        max_taskqueue: quota.max_taskqueue,
+        created_by: quota.created_by,
+        created_at: quota.created_at,
+        updated_by: quota.updated_by,
+        updated_at: quota.updated_at,
     };
 
-    // get updated quota from database to get addtional information
-    match quota_table::get_quota(&quota_id, &context) {
-        Ok(quota) => {
-            let resp = QuotaResp {
-                user_id: quota.id.clone(),
-                max_cluster: quota.max_cluster,
-                max_dataset: quota.max_dataset,
-                max_checkpoint: quota.max_checkpoint,
-                max_secret: quota.max_secret,
-                max_taskqueue: quota.max_taskqueue,
-                created_by: quota.created_by.clone(),
-                created_at: quota.created_at.clone(),
-                updated_by: quota.updated_by.clone(),
-                updated_at: quota.updated_at.clone(),
-            };
-
-            return Ok(Json(resp));
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Quota with UUID '{quota_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    Ok(Json(resp))
 }

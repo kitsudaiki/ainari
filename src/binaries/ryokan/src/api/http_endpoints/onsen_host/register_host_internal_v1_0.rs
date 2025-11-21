@@ -21,6 +21,7 @@ use validator::Validate;
 use crate::config;
 use crate::database::host_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -38,15 +39,8 @@ pub async fn register_host_internal(
     context: UserContext,
 ) -> Result<CreatedJson<HostResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
-
-    let host_uuid = Uuid::new_v4();
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     // check registration key
     let conf_registration_key = &config::CONFIG.onsen.registation_key;
@@ -57,36 +51,27 @@ pub async fn register_host_internal(
     }
 
     // add new host to database
-    match host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context) {
-        Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add host with UUID '{host_uuid}' to database.");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let host_uuid = Uuid::new_v4();
+    host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context).map_err(
+        |e| {
+            log::error!("Failed to add host with UUID '{host_uuid}' to database with error: {e}.");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        },
+    )?;
 
     // get new created host from database to get addtional information
-    let host_data: host_table::HostEntry = match host_table::get_host(&host_uuid, &context) {
-        Ok(host_data) => host_data,
-        Err(_) => {
-            let msg = format!(
-                "Failed to get host with ID '{host_uuid}' from database, even the host should exist."
-            );
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let host_data = host_table::get_host(&host_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e))?;
 
     let resp = HostResp {
         uuid: host_uuid,
-        name: host_data.name.clone(),
-        host_address: host_data.address.clone(),
-        created_by: host_data.created_by.clone(),
-        created_at: host_data.created_at.clone(),
-        updated_by: host_data.updated_by.clone(),
-        updated_at: host_data.updated_at.clone(),
+        name: host_data.name,
+        host_address: host_data.address,
+        created_by: host_data.created_by,
+        created_at: host_data.created_at,
+        updated_by: host_data.updated_by,
+        updated_at: host_data.updated_at,
     };
 
-    return Ok(CreatedJson(resp));
+    Ok(CreatedJson(resp))
 }

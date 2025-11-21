@@ -18,10 +18,9 @@ use apistos::api_operation;
 
 use crate::database::project_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "project",
@@ -36,19 +35,12 @@ pub async fn delete_project_admin(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
 
     // delete project from database
-    match project_table::delete_project(&project_id, &context) {
-        Ok(_) => {
-            return Ok(NoContent);
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Project with ID '{project_id}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    project_table::delete_project(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
+
+    Ok(NoContent)
 }

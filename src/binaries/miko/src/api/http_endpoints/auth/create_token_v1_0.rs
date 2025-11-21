@@ -33,24 +33,13 @@ use ainari_common::functions::sha256_hash;
     error_code = 500
 )]
 pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResponse> {
-    let parsed = match parse_oauth2_body(body.as_str()) {
-        Ok(parsed) => parsed,
-        Err(err) => {
-            let msg = format!("Failed to parse body: {err}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    let parsed = parse_oauth2_body(body.as_str())
+        .map_err(|e| ErrorResponse::BadRequest(format!("Failed to parse body: {e}")))?;
 
     // validate incoming json
-    match parsed.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
-
-    let token_expire_time = config::CONFIG.auth.token_expire_time;
+    parsed
+        .validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     // get and check token-format
     if parsed.token_format != "jwt" {
@@ -70,15 +59,8 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     }
 
     // get user from database
-
-    let user: user_table::UserEntry = match user_table::get_auth_user(&parsed.client_id) {
-        Ok(val) => val,
-        Err(_) => {
-            return Err(ErrorResponse::Unauthorized(
-                "Invalid user-id or passphrase".to_string(),
-            ));
-        }
-    };
+    let user = user_table::get_auth_user(&parsed.client_id)
+        .map_err(|_| ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()))?;
 
     // check passphrase
     let salted_passphrase = format!("{}{}", &parsed.client_secret, user.salt);
@@ -90,21 +72,16 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     }
 
     // create token based for the user
-    let token = match token_handling::create_token(&user.id, &"".to_string(), user.is_admin, false)
-    {
-        Ok(token) => token,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let token = token_handling::create_token(&user.id, &"".to_string(), user.is_admin, false)
+        .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 
     let response = UserTokenResp {
         access_token: token,
         token_type: "bearer".to_string(),
-        expires: token_expire_time,
+        expires: config::CONFIG.auth.token_expire_time,
     };
 
-    return Ok(Json(response));
+    Ok(Json(response))
 }
 
 fn parse_oauth2_body(body: &str) -> Result<OAuth2Request, serde_urlencoded::de::Error> {

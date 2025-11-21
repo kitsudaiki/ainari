@@ -19,11 +19,10 @@ use uuid::Uuid;
 
 use crate::database::host_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "host",
@@ -40,26 +39,18 @@ pub async fn get_host_admin(
 ) -> Result<Json<HostResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
-    let host_data = match host_table::get_host(&host_uuid, &context) {
-        Ok(host_data) => host_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Host with UUID '{host_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let host_data = host_table::get_host(&host_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e))?;
 
     let resp = HostResp {
         uuid: *host_uuid,
-        name: host_data.name.clone(),
-        host_address: host_data.address.clone(),
-        created_by: host_data.created_by.clone(),
-        created_at: host_data.created_at.clone(),
-        updated_by: host_data.updated_by.clone(),
-        updated_at: host_data.updated_at.clone(),
+        name: host_data.name,
+        host_address: host_data.address,
+        created_by: host_data.created_by,
+        created_at: host_data.created_at,
+        updated_by: host_data.updated_by,
+        updated_at: host_data.updated_at,
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }

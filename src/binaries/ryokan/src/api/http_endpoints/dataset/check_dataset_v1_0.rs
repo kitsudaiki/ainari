@@ -18,17 +18,26 @@ use ainari_common::error::AinariError;
 use apistos::api_operation;
 use bytemuck::cast_slice_mut;
 use std::cmp::Ordering;
+use std::fs;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
+use crate::database::dataset_table;
+
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::dataset_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::onsen_file_transfer::*;
+use ainari_clients::secret::get_secret_payload;
+use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle};
+use ainari_dataset::file_encryption::decrypt_file;
 
 #[api_operation(
     tag = "dataset",
@@ -45,55 +54,66 @@ pub async fn check_dataset(
     context: UserContext,
 ) -> Result<Json<DatasetCheckResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let dataset_uuid = dataset_uuid;
     let reference_uuid = body.reference_uuid;
     let dataset_column = body.dataset_column.clone();
     let reference_column = body.reference_column.clone();
 
-    let (mut dataset_file_handle, dataset_col_get, mut row_count) =
-        get_dataset_column(&dataset_uuid, &dataset_column, &context).await?;
-    let (mut reference_file_handle, ref_col_get, ref_row_count) =
-        get_dataset_column(&reference_uuid, &reference_column, &context).await?;
+    // create directory, where all temp-files of this operation are stored
+    let compare_dir = format!(
+        "{}/cmp_{}_{}",
+        config::CONFIG.storage.tempfile_location,
+        dataset_uuid,
+        reference_uuid
+    );
+    create_directory(&compare_dir).await?;
 
-    if row_count > ref_row_count {
-        row_count = ref_row_count;
-    }
+    let result = {
+        // get data to compare
+        let (mut dataset_file_handle, dataset_col_get, mut row_count) =
+            get_dataset_column(&dataset_uuid, &dataset_column, &compare_dir, &context).await?;
+        let (mut reference_file_handle, ref_col_get, ref_row_count) =
+            get_dataset_column(&reference_uuid, &reference_column, &compare_dir, &context).await?;
 
-    let mut accuracy = 0f32;
+        if row_count > ref_row_count {
+            row_count = ref_row_count;
+        }
 
-    for i in 0..row_count {
-        match check_row(
-            &mut dataset_file_handle,
-            &dataset_col_get,
-            &mut reference_file_handle,
-            &ref_col_get,
-            i,
-        ) {
-            Ok(correct) => {
-                if correct {
-                    accuracy += 1f32;
-                }
-            }
-            Err(e) => {
+        let mut accuracy = 0f32;
+
+        for i in 0..row_count {
+            let correct = check_row(
+                &mut dataset_file_handle,
+                &dataset_col_get,
+                &mut reference_file_handle,
+                &ref_col_get,
+                i,
+            )
+            .map_err(|e| {
                 log::error!("{e}");
-                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-            }
-        };
-    }
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
 
-    let resp = DatasetCheckResp {
-        accuracy: accuracy / row_count as f32,
+            if correct {
+                accuracy += 1f32;
+            }
+        }
+
+        let resp = DatasetCheckResp {
+            accuracy: accuracy / row_count as f32,
+        };
+
+        Ok(resp)
     };
 
-    return Ok(Json(resp));
+    // delete temp-directory first before handling error-returns
+    super::remove_all(&compare_dir);
+    let resp = result?;
+
+    Ok(Json(resp))
 }
 
 fn check_row(
@@ -155,36 +175,43 @@ fn get_highest_pos_in_row(
 async fn get_dataset_column(
     dataset_uuid: &Uuid,
     column_name: &String,
+    compare_dir: &String,
     context: &UserContext,
 ) -> Result<(DataSetFileReadHandle, Column, u64), ErrorResponse> {
-    let dataset_resp = super::get_dataset_internal(dataset_uuid, context)?;
+    let dataset_resp = dataset_table::get_dataset(dataset_uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_error("dataset", dataset_uuid, e))?;
 
-    // TODO: change path
-    let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
-    match download_file(
+    let secret_uuid = convert_uuid(&dataset_resp.secret_uuid)?;
+    let secret = get_secret(&secret_uuid, context).await?;
+
+    // create temporary file-paths
+    let local_file_path = format!("{compare_dir}/{dataset_uuid}");
+    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
+
+    download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
-        &local_file_path,
+        &local_encrypted_file_path,
     )
     .await
-    {
-        Ok(()) => {}
-        Err(e) => {
-            log::error!("Failed to download dataset-file from onsen: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    .map_err(|e| {
+        log::error!("Failed to download dataset-file from onsen: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
-    let file_handle = match read_data_set_file(&local_file_path) {
-        Ok(file_handle) => file_handle,
-        Err(e) => {
-            log::error!(
-                "Failed to read dataset-file '{}' with error: {e}",
-                dataset_resp.file_path
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
+
+    let _ = fs::remove_file(&local_encrypted_file_path);
+
+    let file_handle = read_data_set_file(&local_file_path).map_err(|e| {
+        log::error!(
+            "Failed to read dataset-file '{}' with error: {e}",
+            dataset_resp.file_path
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // get column-information
     let dataset_col_get = match file_handle.header.columns.get(column_name) {
@@ -200,4 +227,22 @@ async fn get_dataset_column(
     let row_count = file_handle.get_number_of_rows();
 
     Ok((file_handle, dataset_col_get, row_count))
+}
+
+async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
+
+    let secret_payload = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        secret_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
+    Ok(Secret::from(secret_payload.secret_payload))
 }

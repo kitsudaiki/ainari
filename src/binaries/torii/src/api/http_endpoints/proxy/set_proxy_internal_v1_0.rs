@@ -21,10 +21,10 @@ use validator::Validate;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "proxy",
@@ -39,73 +39,45 @@ pub async fn register_proxy_internal(
     context: UserContext,
 ) -> Result<CreatedJson<ProxyResp>, ErrorResponse> {
     // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let proxy_uuid = Uuid::new_v4();
 
     // add new proxy to database
-    match proxy_table::add_new_proxy(
+    proxy_table::add_new_proxy(
         &proxy_uuid,
         body.port,
         &body.target_address,
         &body.cluster_uuid,
         &context,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add proxy with UUID '{proxy_uuid}' to database.");
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    )
+    .map_err(|e| {
+        log::error!("Failed to add proxy with UUID '{proxy_uuid}' to database with error: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // create new proxy and add it to the handler
     let mut proxy_handler = PROXY_HANDLER.write().await;
-    match proxy_handler
+    proxy_handler
         .add_proxy(&proxy_uuid, body.port, &body.target_address)
         .await
-    {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+        .map_err(map_ainari_error_to_api_response)?;
 
     // get new created proxy from database to get addtional information
-    let proxy_data: proxy_table::ProxyEntry = match proxy_table::get_proxy(&proxy_uuid, &context) {
-        Ok(proxy_data) => proxy_data,
-        Err(_) => {
-            let msg = format!(
-                "Failed to get proxy with ID '{proxy_uuid}' from database, even the proxy should exist."
-            );
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
 
     let resp = ProxyResp {
         uuid: proxy_uuid,
         port: body.port,
-        target_address: proxy_data.target_address.clone(),
+        target_address: proxy_data.target_address,
         cluster_uuid: body.cluster_uuid,
-        created_by: proxy_data.created_by.clone(),
-        created_at: proxy_data.created_at.clone(),
-        updated_by: proxy_data.updated_by.clone(),
-        updated_at: proxy_data.updated_at.clone(),
+        created_by: proxy_data.created_by,
+        created_at: proxy_data.created_at,
+        updated_by: proxy_data.updated_by,
+        updated_at: proxy_data.updated_at,
     };
 
-    return Ok(CreatedJson(resp));
+    Ok(CreatedJson(resp))
 }

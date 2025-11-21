@@ -20,11 +20,10 @@ use validator::Validate;
 use crate::database::quota_table;
 use crate::database::user_table;
 
-use ainari_api::common_functions::check_admin_context;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "user",
@@ -39,73 +38,50 @@ pub async fn create_user_admin(
     body: Json<UserCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<UserResp>, ErrorResponse> {
+    // validate request
     check_admin_context(&context)?;
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    // validate incoming json
-    match body.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            let msg = format!("Invalid input: {e}");
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-    };
+    let user_id = &body.id;
 
-    let id = &body.id;
-
-    // check if user already exist within the database
-    match user_table::get_user(id, &context) {
-        Ok(_) => {
-            let msg = format!("User with ID '{id}' already exist.");
-            return Err(ErrorResponse::Conflict(msg));
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            // it is desired, that the user not already exist, so this error will be ignored
-        }
-    };
+    // check if user-id already exist
+    check_if_id_exist_in_db("user", user_id, user_table::get_user(user_id, &context))?;
 
     // add new quota for the user to datbase
-    match quota_table::add_new_quota(id, 10, 10, 10, 10, 10, &context) {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Failed to add quota for user with ID '{id}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    quota_table::add_new_quota(user_id, 10, 10, 10, 10, 10, &context).map_err(|e| {
+        log::error!("Failed to add quota for user with ID '{user_id}' to database.: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // add new user to datbase
-    match user_table::add_new_user(id, &body.name, &body.passphrase, body.is_admin, &context) {
-        Ok(_) => {}
-        Err(e) => {
-            // delete quota again, if adding of the user failed, to avoid inconsistent database
-            quota_table::hard_delete_quota(id, &context);
-            log::error!("Failed to add user with ID '{id}' to database.: {e}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    user_table::add_new_user(
+        user_id,
+        &body.name,
+        &body.passphrase,
+        body.is_admin,
+        &context,
+    )
+    .map_err(|e| {
+        // delete quota again, if adding of the user failed, to avoid inconsistent database
+        quota_table::hard_delete_quota(user_id, &context);
+        log::error!("Failed to add user with ID '{user_id}' to database.: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     // get new created user from database to get addtional information
-    match user_table::get_user(id, &context) {
-        Ok(user) => {
-            let resp = UserResp {
-                id: user.id.clone(),
-                name: user.name.clone(),
-                is_admin: body.is_admin,
-                created_by: user.created_by.clone(),
-                created_at: user.created_at.clone(),
-                updated_by: user.updated_by.clone(),
-                updated_at: user.updated_at.clone(),
-            };
+    let user = user_table::get_user(user_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
 
-            return Ok(CreatedJson(resp));
-        }
-        Err(_) => {
-            log::error!(
-                "Failed to get user with ID '{id}' from database, even the user should exist"
-            );
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
+    let resp = UserResp {
+        id: user.id,
+        name: user.name,
+        is_admin: body.is_admin,
+        created_by: user.created_by,
+        created_at: user.created_at,
+        updated_by: user.updated_by,
+        updated_at: user.updated_at,
     };
+
+    Ok(CreatedJson(resp))
 }

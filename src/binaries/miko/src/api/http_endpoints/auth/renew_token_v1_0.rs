@@ -32,17 +32,13 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn renew_token(
     context: UserContext,
 ) -> Result<CreatedJson<UserTokenResp>, ErrorResponse> {
-    let token = match token_handling::create_token(
+    let token = token_handling::create_token(
         &context.user_id,
         &context.project_id,
         context.is_admin,
         context.is_project_admin,
-    ) {
-        Ok(token) => token,
-        Err(_) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    )
+    .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 
     let response = UserTokenResp {
         access_token: token,
@@ -50,5 +46,5 @@ pub async fn renew_token(
         expires: 3600,
     };
 
-    return Ok(CreatedJson(response));
+    Ok(CreatedJson(response))
 }

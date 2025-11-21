@@ -35,7 +35,7 @@ pub async fn get_version(_: UserContext) -> Result<Json<VersionResp>, ErrorRespo
         timestamp: COMPILE_TIMESTAMP.clone(),
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }
 
 pub static GIT_VERSION: Lazy<String> = Lazy::new(|| {

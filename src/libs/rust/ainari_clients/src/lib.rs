@@ -21,7 +21,10 @@ pub mod host;
 pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;
+pub mod secret;
 
+use actix_web::dev::{Decompress, Payload};
+use awc::error::SendRequestError;
 use awc::http::StatusCode;
 use awc::{Client, Connector};
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
@@ -50,10 +53,7 @@ pub fn prepare_client(address: &str, insecure: bool) -> Client {
 }
 
 pub async fn handle_response<T>(
-    response: Result<
-        awc::ClientResponse<actix_web::dev::Decompress<actix_web::dev::Payload>>,
-        awc::error::SendRequestError,
-    >,
+    response: Result<awc::ClientResponse<Decompress<Payload>>, SendRequestError>,
     obj: &str,
     uuid: &str,
 ) -> Result<T, AinariError>
@@ -114,10 +114,7 @@ where
 }
 
 pub async fn handle_empty_response(
-    response: Result<
-        awc::ClientResponse<actix_web::dev::Decompress<actix_web::dev::Payload>>,
-        awc::error::SendRequestError,
-    >,
+    response: Result<awc::ClientResponse<Decompress<Payload>>, SendRequestError>,
     obj: &str,
     uuid: &str,
 ) -> Result<(), AinariError> {

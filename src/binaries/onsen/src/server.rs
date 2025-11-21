@@ -27,6 +27,8 @@ use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
+use crate::config;
+
 use ainari_common::constants::CHUNK_SIZE;
 use ainari_common::functions::is_safe_subpath;
 use ainari_dataset::dataset_io::read_data_set_file;
@@ -37,8 +39,6 @@ pub mod data {
 
 #[derive(Default)]
 pub struct OnsenServer;
-
-const STORAGE_ROOT: &str = "./uploads";
 
 #[tonic::async_trait]
 impl DataService for OnsenServer {
@@ -61,7 +61,7 @@ impl DataService for OnsenServer {
 
             // open file on first real chunk (or immediately after we collected metadata)
             if file.is_none() {
-                let mut target_path = PathBuf::from(STORAGE_ROOT);
+                let mut target_path = PathBuf::from(&config::CONFIG.storage.location);
                 let remote_file_path = Path::new(&chunk.remote_file_path);
                 if !is_safe_subpath(remote_file_path) {
                     return Err(Status::internal(format!(
@@ -127,7 +127,7 @@ impl DataService for OnsenServer {
         let req = request.into_inner();
 
         // Build path under STORAGE_ROOT and sanitize subpath
-        let mut target_path = PathBuf::from(STORAGE_ROOT);
+        let mut target_path = PathBuf::from(&config::CONFIG.storage.location);
         let remote_file_path = Path::new(&req.remote_file_path);
         if !is_safe_subpath(remote_file_path) {
             return Err(Status::internal(format!(
@@ -182,7 +182,7 @@ impl DataService for OnsenServer {
         let req = request.into_inner();
 
         // Build path under STORAGE_ROOT and sanitize subpath
-        let mut target_path = PathBuf::from(STORAGE_ROOT);
+        let mut target_path = PathBuf::from(&config::CONFIG.storage.location);
         let remote_file_path = Path::new(&req.remote_file_path);
         if !is_safe_subpath(remote_file_path) {
             return Err(Status::internal(format!(
@@ -214,7 +214,11 @@ impl DataService for OnsenServer {
     ) -> Result<Response<DatasetDimensionResponse>, Status> {
         let req = request.into_inner();
 
-        let target_path = format!("{}/{}", STORAGE_ROOT, req.remote_file_path);
+        let target_path = format!(
+            "{}/{}",
+            config::CONFIG.storage.location,
+            req.remote_file_path
+        );
         let file_handle = match read_data_set_file(&target_path) {
             Ok(file_handle) => file_handle,
             Err(_) => {
@@ -237,7 +241,7 @@ impl DataService for OnsenServer {
 }
 
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
-    tokio::fs::create_dir_all(STORAGE_ROOT).await?;
+    tokio::fs::create_dir_all(&config::CONFIG.storage.location).await?;
 
     let addr = "0.0.0.0:50051".parse()?;
     let svc = OnsenServer;

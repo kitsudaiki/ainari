@@ -16,9 +16,10 @@ use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::database::cluster_table;
 use crate::database::task_table;
 
-use ainari_api::common_functions::convert_uuid;
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -36,7 +37,8 @@ pub async fn list_task(
     context: UserContext,
 ) -> Result<Json<TaskListResp>, ErrorResponse> {
     // check if cluster exist
-    let _ = super::super::get_cluster_from_database(&cluster_uuid, &context)?;
+    cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     let tasks = match task_table::list_tasks(&cluster_uuid, &context) {
         Ok(tasks) => tasks,
@@ -55,7 +57,7 @@ pub async fn list_task(
 
         let obj = TaskBasicResp {
             uuid,
-            name: task.name.clone(),
+            name: task.name,
             task_type,
             state: task_state,
             total_number_of_epochs: task.total_number_of_epochs,

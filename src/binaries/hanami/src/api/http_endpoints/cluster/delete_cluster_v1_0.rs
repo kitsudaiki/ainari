@@ -21,13 +21,12 @@ use crate::config;
 use crate::database::host_table;
 use crate::database::meta_cluster_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::cluster as cluster_clients;
-use ainari_clients::endpoints::*;
+use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::proxy as proxy_clients;
-use ainari_common::enums;
-use ainari_common::error::AinariError;
 
 #[api_operation(
     tag = "cluster",
@@ -42,61 +41,21 @@ pub async fn delete_cluster(
     cluster_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let cluster_data = match meta_cluster_table::get_meta_cluster(&cluster_uuid, &context) {
-        Ok(cluster_data) => cluster_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let cluster_data = meta_cluster_table::get_meta_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster-meta", &cluster_uuid, e))?;
 
-    let sakura_uuid = match Uuid::parse_str(&cluster_data.sakura_host_uuid) {
-        Ok(uuid) => uuid,
-        Err(e) => {
-            log::error!("Failed to convert sakura-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let sakura_uuid = convert_uuid(&cluster_data.sakura_host_uuid)?;
+    let proxy_uuid = convert_uuid(&cluster_data.proxy_uuid)?;
 
-    let proxy_uuid = match Uuid::parse_str(&cluster_data.proxy_uuid) {
-        Ok(uuid) => uuid,
-        Err(e) => {
-            log::error!("Failed to convert proxy-uuid with error: '{e}'");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let host_data = host_table::get_host(&sakura_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
 
-    let host_data = match host_table::get_host(&sakura_uuid, &context) {
-        Ok(host_data) => host_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Sakura-host with UUID '{sakura_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
-
-    let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = match get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await {
-        Ok(body) => body,
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
 
     // send request to torii to delete the proxy, which is connected to the cluster
-    match proxy_clients::delete_proxy(
+    proxy_clients::delete_proxy(
         &endpoints.torii,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -104,22 +63,10 @@ pub async fn delete_cluster(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // send request to sakura to delete the cluster
-    match cluster_clients::delete_cluster(
+    cluster_clients::delete_cluster(
         &host_data.address,
         &context.token,
         &config::CONFIG.api.internal_api_key,
@@ -127,31 +74,11 @@ pub async fn delete_cluster(
         config::CONFIG.insecure_clients,
     )
     .await
-    {
-        Ok(()) => {}
-        Err(AinariError::Unauthorized(msg)) => {
-            return Err(ErrorResponse::Unauthorized(msg));
-        }
-        Err(AinariError::InvalidInput(msg)) => {
-            return Err(ErrorResponse::BadRequest(msg));
-        }
-        Err(AinariError::Error(msg)) => {
-            log::error!("{msg}");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    .map_err(map_ainari_error_to_api_response)?;
 
     // delete cluster from database of hanami
-    match meta_cluster_table::delete_meta_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    meta_cluster_table::delete_meta_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster-meta", &cluster_uuid, e))?;
 
     Ok(NoContent)
 }

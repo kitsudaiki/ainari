@@ -15,16 +15,15 @@
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::database::cluster_table;
 use crate::database::task_table;
 
+use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::enums;
 
 #[api_operation(
     tag = "task",
@@ -43,94 +42,51 @@ pub async fn abort_task(
     let (cluster_uuid, task_uuid) = uuids.into_inner();
 
     // check if cluster exist
-    match cluster_table::get_cluster(&cluster_uuid, &context) {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Cluster with UUID '{cluster_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    cluster_table::get_cluster(&cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
     // check current state of the task to avoid to abort finished and errored tasks
-    match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
-        Ok(task_data) => {
-            if task_data.task_state == TaskState::Aborted.to_string()
-                || task_data.task_state == TaskState::Error.to_string()
-                || task_data.task_state == TaskState::Finished.to_string()
-            {
-                let state_str = task_data.task_state.to_string();
-                let msg = format!(
-                    "Task with UUID '{task_uuid}' is in state '{state_str}' can not be aborted."
-                );
-                return Err(ErrorResponse::Conflict(msg));
-            }
-        }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Task with UUID '{task_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let old_task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
-    // set abort-state in database
-    match task_table::update_task_state(&task_uuid, &TaskState::Aborted) {
-        Ok(()) => {}
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Task with UUID '{task_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
+    if old_task_data.task_state == TaskState::Aborted.to_string()
+        || old_task_data.task_state == TaskState::Error.to_string()
+        || old_task_data.task_state == TaskState::Finished.to_string()
+    {
+        let state_str = old_task_data.task_state.to_string();
+        let msg =
+            format!("Task with UUID '{task_uuid}' is in state '{state_str}' can not be aborted.");
+        return Err(ErrorResponse::Conflict(msg));
     }
 
+    // set abort-state in database
+    task_table::update_task_state(&task_uuid, &TaskState::Aborted)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+
     // get task from database
-    let task_data = match task_table::get_task(&task_uuid, &cluster_uuid, &context) {
-        Ok(task_data) => task_data,
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-        Err(enums::DbError::NotFound) => {
-            let msg = format!("Task with UUID '{task_uuid}' not found.");
-            return Err(ErrorResponse::NotFound(msg));
-        }
-    };
+    let task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     // convert enums
-    let task_type = match TaskType::from_str(task_data.task_type.as_str()) {
-        Ok(task_type) => task_type,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
-    let task_state = match TaskState::from_str(task_data.task_state.as_str()) {
-        Ok(task_state) => task_state,
-        Err(()) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
+    let task_type = super::convert_task_type(&task_data.task_type)?;
+    let task_state = super::convert_task_state(&task_data.task_state)?;
 
     let resp = TaskResp {
         uuid: task_uuid,
-        name: task_data.name.clone(),
+        name: task_data.name,
         task_type,
         state: task_state,
         total_number_of_epochs: task_data.total_number_of_epochs,
         current_epoch: task_data.current_epoch,
         total_number_of_cycles: task_data.total_number_of_cycles,
         current_cycle: task_data.current_cycle,
-        queued_at: task_data.queued_at.clone(),
-        started_at: task_data.started_at.clone(),
-        finished_at: task_data.finished_at.clone(),
-        error_message: task_data.error_message.clone(),
-        created_by: task_data.created_by.clone(),
-        created_at: task_data.created_at.clone(),
+        queued_at: task_data.queued_at,
+        started_at: task_data.started_at,
+        finished_at: task_data.finished_at,
+        error_message: task_data.error_message,
+        created_by: task_data.created_by,
+        created_at: task_data.created_at,
     };
 
-    return Ok(Json(resp));
+    Ok(Json(resp))
 }
