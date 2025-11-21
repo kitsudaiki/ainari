@@ -27,8 +27,9 @@ use ainari_clients::onsen_file_transfer::*;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::{DataSetFileReadHandle, DataSetFileWriteHandle};
-use ainari_dataset::file_encryption::encrypt_file;
+use ainari_dataset::file_encryption::{decrypt_file, encrypt_file};
 
+use crate::config;
 use crate::core::blocks::block_trait::*;
 use crate::core::cluster_handler::*;
 use crate::database::task_table;
@@ -53,12 +54,14 @@ pub struct RequestInfo {
 pub struct CheckpointSaveInfo {
     pub onsen_address: String,
     pub file_path: String,
+    pub secret: Secret,
 }
 
 #[derive(Debug)]
 pub struct CheckpointRestoreInfo {
     pub onsen_address: String,
     pub file_path: String,
+    pub secret: Secret,
 }
 
 #[derive(Debug)]
@@ -558,7 +561,12 @@ fn handle_checkpoint_save_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
-    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
+    let local_temp_file_path = format!(
+        "{}/{}",
+        config::CONFIG.storage.tempfile_location,
+        cluster_uuid
+    );
+    let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
     let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
     match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
@@ -580,10 +588,16 @@ fn handle_checkpoint_save_task(
     // LocalSet allows spawn_local to work
     let local = LocalSet::new();
     let upload_resp = local.block_on(&rt, async {
+        encrypt_file(
+            &local_temp_file_path,
+            &local_encrypted_temp_file_path,
+            &task_info.secret,
+        )
+        .await?;
         upload_file(
             &task_info.onsen_address,
             &task_info.file_path,
-            &local_temp_file_path,
+            &local_encrypted_temp_file_path,
         )
         .await
     });
@@ -609,7 +623,12 @@ fn handle_checkpoint_restore_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
-    let local_temp_file_path = format!("/tmp/{cluster_uuid}");
+    let local_temp_file_path = format!(
+        "{}/{}",
+        config::CONFIG.storage.tempfile_location,
+        cluster_uuid
+    );
+    let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
     // Create a single-threaded runtime
     let rt = Builder::new_current_thread()
@@ -620,12 +639,20 @@ fn handle_checkpoint_restore_task(
     // LocalSet allows spawn_local to work
     let local = LocalSet::new();
     let download_resp = local.block_on(&rt, async {
-        download_file(
+        let resp = download_file(
             &task_info.onsen_address,
             &task_info.file_path,
-            &local_temp_file_path,
+            &local_encrypted_temp_file_path,
         )
-        .await
+        .await;
+        decrypt_file(
+            &local_encrypted_temp_file_path,
+            &local_temp_file_path,
+            &task_info.secret,
+        )
+        .await?;
+
+        resp
     });
 
     match download_resp {
@@ -633,6 +660,7 @@ fn handle_checkpoint_restore_task(
         Err(e) => {
             log::error!("Error in checkpoint-restore-task: {e}");
             let _ = fs::remove_file(&local_temp_file_path);
+            let _ = fs::remove_file(&local_encrypted_temp_file_path);
             let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
             let _ = task_table::update_task_progress(task_uuid, &1, &1);
             return;
@@ -643,7 +671,7 @@ fn handle_checkpoint_restore_task(
     match cluster_handler.restore_checkpoint(cluster_uuid, &local_temp_file_path) {
         Ok(()) => {}
         Err(_) => {
-            let _ = fs::remove_file(&local_temp_file_path);
+            let _ = fs::remove_file(&local_encrypted_temp_file_path);
             let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
             let _ = task_table::update_task_progress(task_uuid, &1, &1);
             return;
@@ -652,6 +680,7 @@ fn handle_checkpoint_restore_task(
 
     // delete temporary checkpoint-file
     let _ = fs::remove_file(&local_temp_file_path);
+    let _ = fs::remove_file(&local_encrypted_temp_file_path);
     let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
     let _ = task_table::update_task_progress(task_uuid, &1, &1);
 }

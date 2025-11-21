@@ -20,6 +20,9 @@ mod core;
 mod database;
 mod hanami_interaction;
 
+use ainari_common::functions::clear_directory;
+use std::fs;
+
 use log::LevelFilter;
 
 use core::cluster_handler::*;
@@ -31,6 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
     }
+
+    // create directories if they not exist
+    let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();
+    fs::create_dir_all(&tempfile_dir)?;
+    let _ = clear_directory(&tempfile_dir);
 
     // Initialize processing
     let worker_handler = worker_handler::WORKER_HANDLER

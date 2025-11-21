@@ -10,6 +10,9 @@ internal_ip = "0.0.0.0"
 internal_port = 10422
 internal_api_key = "asdf"
 
+[storage]
+location = "/tmp/onsen"
+
 [miko]
 address = "http://127.0.0.1:11417"
 

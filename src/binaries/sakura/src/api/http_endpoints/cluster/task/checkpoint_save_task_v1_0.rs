@@ -19,6 +19,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::check_task_queue_quota;
+use crate::api::http_endpoints::cluster::task::get_secret;
 use crate::config;
 use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
 use crate::database::cluster_table;
@@ -73,10 +74,13 @@ pub async fn checkpoint_save_task(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    let secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
+
     // prepare task-info
     let info = CheckpointSaveInfo {
         onsen_address: checkpoint_create_resp.onsen_address,
         file_path: checkpoint_create_resp.file_path,
+        secret,
     };
 
     // create new task

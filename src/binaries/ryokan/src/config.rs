@@ -45,8 +45,6 @@ pub struct OnsenConf {
 
 #[derive(Debug, Deserialize)]
 pub struct Storage {
-    pub dataset_location: String,
-    pub checkpoint_location: String,
     pub tempfile_location: String,
 }
 

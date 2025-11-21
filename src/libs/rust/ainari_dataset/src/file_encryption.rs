@@ -290,8 +290,10 @@ mod tests {
 
         // read original and decrypted, compare full contents
         let orig = read_all(&in_path);
+        let encrypted = read_all(&enc_path);
         let recovered = read_all(&dec_path);
         assert_eq!(orig.len(), recovered.len(), "length mismatch");
+        assert_ne!(orig, encrypted, "encrypted content does match original");
         assert_eq!(orig, recovered, "decrypted content does not match original");
 
         // test with invalid key 1

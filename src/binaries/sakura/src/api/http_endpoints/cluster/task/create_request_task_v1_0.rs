@@ -162,9 +162,12 @@ async fn init_output_dataset(
     total_output_size: u64,
     columns: HashMap<String, Column>,
 ) -> Result<(DataSetFileWriteHandle, Uuid), ErrorResponse> {
-    // TODO: make configurable
-    let result_path = format!("/tmp/task_result_{task_uuid}");
-    let result_path_encrypted = format!("/tmp/task_result_{task_uuid}_encrypted");
+    let result_path = format!(
+        "{}/task_result_{}",
+        config::CONFIG.storage.tempfile_location,
+        task_uuid
+    );
+    let result_path_encrypted = format!("{result_path}_encrypted");
     let description = task_uuid.to_string().clone();
 
     let dimension: (u64, u64) = (total_output_size, columns.len() as u64);

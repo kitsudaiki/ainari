@@ -30,6 +30,7 @@ pub struct Config {
     // groups
     pub processing: Processing,
     pub api: ainari_config::Api,
+    pub storage: Storage,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
     pub hanami: HanamiConf,
@@ -37,6 +38,11 @@ pub struct Config {
 
 fn default_insecure_clients() -> bool {
     false
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Storage {
+    pub tempfile_location: String,
 }
 
 #[derive(Debug, Deserialize)]

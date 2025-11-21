@@ -20,6 +20,7 @@ pub mod create_train_task_v1_0;
 pub mod get_task_v1_0;
 pub mod list_task_v1_0;
 
+use std::fs;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -221,10 +222,13 @@ async fn handle_input(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    // TODO: change path
     // TODO: delete files
-    let local_encrypted_file_path = format!("/tmp/{}_encrypted", dataset_resp.uuid);
-    let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
+    let local_file_path = format!(
+        "{}/{}",
+        config::CONFIG.storage.tempfile_location,
+        dataset_resp.uuid
+    );
+    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
     download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
@@ -232,6 +236,7 @@ async fn handle_input(
     )
     .await
     .map_err(|e| {
+        let _ = fs::remove_file(&local_encrypted_file_path);
         log::error!("Failed to download dataset-file from onsen: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
@@ -240,13 +245,22 @@ async fn handle_input(
     let secret = get_secret(&dataset_resp.secret_uuid, context).await?;
     decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| {
+            let _ = fs::remove_file(&local_encrypted_file_path);
+            let _ = fs::remove_file(&local_file_path);
+            map_ainari_error_to_api_response(e)
+        })?;
+
+    // delete encrypted file again
+    let _ = fs::remove_file(&local_encrypted_file_path);
 
     let mut file_handle = read_data_set_file(&local_file_path).map_err(|e| {
         log::error!(
             "Failed to read dataset-file '{}' with error: {e}",
             dataset_resp.file_path
         );
+        let _ = fs::remove_file(&local_encrypted_file_path);
+        let _ = fs::remove_file(&local_file_path);
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 

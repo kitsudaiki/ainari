@@ -19,6 +19,7 @@ mod ryokan_interaction;
 mod server;
 
 use log::LevelFilter;
+use std::fs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,6 +28,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !enable_debug_log {
         log::set_max_level(LevelFilter::Info);
     }
+
+    // create directories if they not exist
+    let location = config::CONFIG.storage.location.clone();
+    fs::create_dir_all(location)?;
 
     ryokan_interaction::register_host().await?;
 

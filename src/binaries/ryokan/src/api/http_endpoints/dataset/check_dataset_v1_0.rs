@@ -164,9 +164,12 @@ async fn get_dataset_column(
     let secret_uuid = convert_uuid(&dataset_resp.secret_uuid)?;
     let secret = get_secret(&secret_uuid, context).await?;
 
-    // TODO: change path
-    let local_file_path = format!("/tmp/{}", dataset_resp.uuid);
-    let local_encrypted_file_path = format!("/tmp/{}_encrypted", dataset_resp.uuid);
+    let local_file_path = format!(
+        "{}/{}",
+        config::CONFIG.storage.tempfile_location,
+        dataset_resp.uuid
+    );
+    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
 
     download_file(
         &dataset_resp.onsen_address,

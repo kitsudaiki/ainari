@@ -48,7 +48,7 @@ pub async fn init_dataset(
 
     super::check_dataset_quota(&context).await?;
 
-    let (secret_uuid, _) = super::generate_new_key(dataset_uuid, &context).await?;
+    let (secret_uuid, _) = super::super::generate_new_key(dataset_uuid, &context).await?;
 
     let selected_onsen = select_onsen(&context)?;
 

@@ -41,6 +41,7 @@ pub struct CheckpointInternalResp {
     pub name: String,
     pub onsen_address: String,
     pub file_path: String,
+    pub secret_uuid: Uuid,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,

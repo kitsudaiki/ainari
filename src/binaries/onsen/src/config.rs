@@ -27,6 +27,7 @@ pub struct Config {
     #[serde(default = "default_insecure_clients")]
     pub insecure_clients: bool,
     pub address: String,
+    pub storage: Storage,
     // groups
     pub api: ainari_config::Api,
     pub miko: ainari_config::MikoEndpoint,
@@ -40,6 +41,11 @@ fn default_insecure_clients() -> bool {
 #[derive(Debug, Deserialize)]
 pub struct RyokanConf {
     pub registation_key: Secret,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Storage {
+    pub location: String,
 }
 
 // Global singleton config

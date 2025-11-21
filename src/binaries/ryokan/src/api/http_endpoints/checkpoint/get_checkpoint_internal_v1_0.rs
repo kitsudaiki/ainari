@@ -40,11 +40,13 @@ pub async fn get_checkpoint_internal(
     let checkpoint = checkpoint_table::get_checkpoint(&checkpoint_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("checkpoint", &checkpoint_uuid, e))?;
 
+    let secret_uuid = convert_uuid(&checkpoint.secret_uuid)?;
     let resp = CheckpointInternalResp {
         uuid: *checkpoint_uuid,
         name: checkpoint.name,
         onsen_address: checkpoint.onsen_address,
         file_path: checkpoint.file_path,
+        secret_uuid,
         created_by: checkpoint.created_by,
         created_at: checkpoint.created_at,
         updated_by: checkpoint.updated_by,
