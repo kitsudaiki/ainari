@@ -18,6 +18,7 @@ use ainari_api_structs::secret_structs::*;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 
+use crate::handle_empty_response;
 use crate::handle_response;
 use crate::prepare_client;
 
@@ -66,4 +67,23 @@ pub async fn get_secret_payload(
     let resp: Result<SecretWithPayloadResp, AinariError> =
         handle_response(response, "secret", &secret_uuid.to_string()).await;
     resp
+}
+
+pub async fn delete_secret(
+    omamori_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    secret_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<(), AinariError> {
+    let address = omamori_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/secret/{secret_uuid}");
+
+    let response = client
+        .delete(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .send()
+        .await;
+
+    handle_empty_response(response, "secret", &secret_uuid.to_string()).await
 }

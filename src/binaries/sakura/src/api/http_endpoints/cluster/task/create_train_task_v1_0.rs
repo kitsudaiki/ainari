@@ -64,48 +64,78 @@ pub async fn create_train_task(
     cluster_table::get_cluster(&cluster_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
+    // create directory, where all temp-files of this operation are stored
+    let temp_dir = format!(
+        "{}/task_{}",
+        config::CONFIG.storage.tempfile_location,
+        task_uuid
+    );
+    create_directory(&temp_dir).await?;
+
     // prepare task-info
     let mut info = TrainInfo {
         inputs: HashMap::new(),
         outputs: HashMap::new(),
+        temp_dir: temp_dir.clone(),
     };
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // prepare inputs for task
-    for input in &body.inputs {
-        let file_handle =
-            super::handle_input(input, &endpoints.ryokan, &context, &mut number_of_cycles).await?;
-        info.inputs.insert(input.hexagon.clone(), file_handle);
-    }
+    {
+        // prepare inputs for task
+        for input in &body.inputs {
+            let file_handle = super::handle_input(
+                input,
+                &endpoints.ryokan,
+                &temp_dir,
+                &context,
+                &mut number_of_cycles,
+            )
+            .await?;
+            info.inputs.insert(input.hexagon.clone(), file_handle);
+        }
 
-    // prepare outputs for task
-    for output in &body.outputs {
-        let file_handle =
-            super::handle_input(output, &endpoints.ryokan, &context, &mut number_of_cycles).await?;
-        info.outputs.insert(output.hexagon.clone(), file_handle);
-    }
+        // prepare outputs for task
+        for output in &body.outputs {
+            let file_handle = super::handle_input(
+                output,
+                &endpoints.ryokan,
+                &temp_dir,
+                &context,
+                &mut number_of_cycles,
+            )
+            .await?;
+            info.outputs.insert(output.hexagon.clone(), file_handle);
+        }
 
-    // handle the time-lenght-value
-    if number_of_cycles < time_length {
-        let msg = format!(
-            "Time-length {time_length} is bigger than at least of of the seleced datasets."
-        );
-        return Err(ErrorResponse::BadRequest(msg));
-    }
-    number_of_cycles -= time_length - 1;
+        // handle the time-lenght-value
+        if number_of_cycles < time_length {
+            let msg = format!(
+                "Time-length {time_length} is bigger than at least of of the seleced datasets."
+            );
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        number_of_cycles -= time_length - 1;
 
-    // create new task
-    let task = Task {
-        uuid: task_uuid,
-        cluster_uuid: *cluster_uuid,
-        name: body.name.clone(),
-        info: TaskVariant::Training(info),
-        meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
-    };
-    super::add_task_to_cluster(task, &task_type, &context)?;
+        // create new task
+        let task = Task {
+            uuid: task_uuid,
+            cluster_uuid: *cluster_uuid,
+            name: body.name.clone(),
+            info: TaskVariant::Training(info),
+            meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
+        };
+        super::add_task_to_cluster(task, &task_type, &context)?;
+
+        Ok(())
+    }
+    .inspect_err(|e| {
+        log::error!("Creating a train-task failed with error: {e}");
+        // in case of an error, delete the temp-directory with all downlaoded files of this task again
+        super::remove_all(&temp_dir);
+    })?;
 
     // get new created task from database to get addtional information
     let task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)

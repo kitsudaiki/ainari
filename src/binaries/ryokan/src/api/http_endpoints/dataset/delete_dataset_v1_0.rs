@@ -17,11 +17,14 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::config;
 use crate::database::dataset_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::secret::delete_secret;
 
 #[api_operation(
     tag = "dataset",
@@ -38,10 +41,27 @@ pub async fn delete_dataset(
     let dataset_data = dataset_table::get_dataset(&dataset_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
 
-    delete_file_from_onsen(&dataset_data.onsen_address, &dataset_data.file_path).await?;
-
+    // delete dataset from database
     dataset_table::delete_dataset(&dataset_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
+
+    // delete dataset-payload from onsen
+    delete_file_from_onsen(&dataset_data.onsen_address, &dataset_data.file_path).await?;
+
+    // delete secret from omamori
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
+    let secret_uuid = convert_uuid(&dataset_data.secret_uuid)?;
+    delete_secret(
+        &endpoints.omamori,
+        &context.token,
+        &secret_uuid,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
 
     Ok(NoContent)
 }

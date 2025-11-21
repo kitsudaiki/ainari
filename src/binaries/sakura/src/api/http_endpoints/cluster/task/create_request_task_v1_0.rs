@@ -75,58 +75,83 @@ pub async fn create_request_task(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // prepare outputs for task
-    let mut total_output_size: u64 = 0;
-    for output in &body.results {
-        let (col, size) = super::handle_output(output, &cluster_uuid, total_output_size)?;
-        columns.insert(output.hexagon.clone(), col);
-        total_output_size += size;
+    // create directory, where all temp-files of this operation are stored
+    let temp_dir = format!(
+        "{}/task_{}",
+        config::CONFIG.storage.tempfile_location,
+        task_uuid
+    );
+    create_directory(&temp_dir).await?;
+
+    {
+        // prepare outputs for task
+        let mut total_output_size: u64 = 0;
+        for output in &body.results {
+            let (col, size) = super::handle_output(output, &cluster_uuid, total_output_size)?;
+            columns.insert(output.hexagon.clone(), col);
+            total_output_size += size;
+        }
+
+        // initialize datbase for output
+        let (result_file_handle, secret_uuid) = init_output_dataset(
+            &endpoints.ryokan,
+            &context.token,
+            &task_uuid,
+            &body.name,
+            total_output_size,
+            columns,
+            &temp_dir,
+        )
+        .await?;
+
+        let secret = get_secret(&secret_uuid, &context).await?;
+
+        // prepare task-info
+        let mut info = RequestInfo {
+            inputs: HashMap::new(),
+            results: result_file_handle,
+            output_secret: secret,
+            temp_dir: temp_dir.clone(),
+        };
+
+        // prepare inputs for task
+        for input in &body.inputs {
+            let file_handle = super::handle_input(
+                input,
+                &endpoints.ryokan,
+                &temp_dir,
+                &context,
+                &mut number_of_cycles,
+            )
+            .await?;
+            info.inputs.insert(input.hexagon.clone(), file_handle);
+        }
+
+        if number_of_cycles < time_length {
+            let msg = format!(
+                "Time-length {time_length} is bigger than at least of of the seleced datasets."
+            );
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+        number_of_cycles -= time_length - 1;
+
+        // create new task
+        let task = Task {
+            uuid: task_uuid,
+            cluster_uuid: *cluster_uuid,
+            name: body.name.clone(),
+            info: TaskVariant::Request(Box::new(info)),
+            meta: TaskMeta::new(number_of_cycles, 1, time_length),
+        };
+        super::add_task_to_cluster(task, &task_type, &context)?;
+
+        Ok(())
     }
-
-    // initialize datbase for output
-    let (result_file_handle, secret_uuid) = init_output_dataset(
-        &endpoints.ryokan,
-        &context.token,
-        &task_uuid,
-        &body.name,
-        total_output_size,
-        columns,
-    )
-    .await?;
-
-    let secret = get_secret(&secret_uuid, &context).await?;
-
-    // prepare task-info
-    let mut info = RequestInfo {
-        inputs: HashMap::new(),
-        results: result_file_handle,
-        output_secret: secret,
-    };
-
-    // prepare inputs for task
-    for input in &body.inputs {
-        let file_handle =
-            super::handle_input(input, &endpoints.ryokan, &context, &mut number_of_cycles).await?;
-        info.inputs.insert(input.hexagon.clone(), file_handle);
-    }
-
-    if number_of_cycles < time_length {
-        let msg = format!(
-            "Time-length {time_length} is bigger than at least of of the seleced datasets."
-        );
-        return Err(ErrorResponse::BadRequest(msg));
-    }
-    number_of_cycles -= time_length - 1;
-
-    // create new task
-    let task = Task {
-        uuid: task_uuid,
-        cluster_uuid: *cluster_uuid,
-        name: body.name.clone(),
-        info: TaskVariant::Request(Box::new(info)),
-        meta: TaskMeta::new(number_of_cycles, 1, time_length),
-    };
-    super::add_task_to_cluster(task, &task_type, &context)?;
+    .inspect_err(|e| {
+        log::error!("Creating a request-task failed with error: {e}");
+        // in case of an error, delete the temp-directory with all downlaoded files of this task again
+        super::remove_all(&temp_dir);
+    })?;
 
     // get new created task from database to get addtional information
     let task_data = task_table::get_task(&task_uuid, &cluster_uuid, &context)
@@ -161,12 +186,9 @@ async fn init_output_dataset(
     name: &str,
     total_output_size: u64,
     columns: HashMap<String, Column>,
+    temp_dir: &String,
 ) -> Result<(DataSetFileWriteHandle, Uuid), ErrorResponse> {
-    let result_path = format!(
-        "{}/task_result_{}",
-        config::CONFIG.storage.tempfile_location,
-        task_uuid
-    );
+    let result_path = format!("{}/task_result_{}", temp_dir, task_uuid);
     let result_path_encrypted = format!("{result_path}_encrypted");
     let description = task_uuid.to_string().clone();
 

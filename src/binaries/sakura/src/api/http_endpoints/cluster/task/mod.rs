@@ -208,6 +208,7 @@ async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret,
 async fn handle_input(
     input: &TaskDatasetLink,
     endpoint: &Endpoint,
+    temp_dir: &String,
     context: &UserContext,
     number_of_cycles: &mut u64,
 ) -> Result<DataSetFileReadHandle, ErrorResponse> {
@@ -222,13 +223,10 @@ async fn handle_input(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    // TODO: delete files
-    let local_file_path = format!(
-        "{}/{}",
-        config::CONFIG.storage.tempfile_location,
-        dataset_resp.uuid
-    );
+    // create temp-file-paths
+    let local_file_path = format!("{}/{}", temp_dir, dataset_resp.uuid);
     let local_encrypted_file_path = format!("{local_file_path}_encrypted");
+
     download_file(
         &dataset_resp.onsen_address,
         &dataset_resp.file_path,
@@ -271,4 +269,11 @@ async fn handle_input(
     file_handle.selected_column = input.dataset_column.clone();
 
     Ok(file_handle)
+}
+
+fn remove_all(target_dir_path: &String) {
+    // delete all temporary files
+    let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
+        log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
+    });
 }

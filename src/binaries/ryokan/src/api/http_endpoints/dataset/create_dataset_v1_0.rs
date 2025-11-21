@@ -68,33 +68,41 @@ pub async fn upload_binary(
 
     let selected_onsen = select_onsen(&context)?;
 
-    let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
+    // handle payload, create key encrypt data and upload them to the selected onsen
+    let result = {
+        let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
 
-    convert_uploaded_files(
-        &dataset_uuid,
-        &name,
-        &dataset_type,
-        &converted_result_path,
-        &temp_file_paths,
-    )
-    .await?;
+        convert_uploaded_files(
+            &dataset_uuid,
+            &name,
+            &dataset_type,
+            &converted_result_path,
+            &temp_file_paths,
+        )
+        .await?;
 
-    let (number_of_rows, number_of_columns) = get_dataset_dimension(&converted_result_path)?;
+        let (number_of_rows, number_of_columns) = get_dataset_dimension(&converted_result_path)?;
 
-    let (secret_uuid, secret) = super::super::generate_new_key(&dataset_uuid, &context).await?;
+        let (secret_uuid, secret) = super::super::generate_new_key(&dataset_uuid, &context).await?;
 
-    encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
-        .await
-        .map_err(map_ainari_error_to_api_response)?;
+        encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
+            .await
+            .map_err(map_ainari_error_to_api_response)?;
 
-    upload_file_to_onsen(
-        &selected_onsen.address,
-        &upload_file_path_str,
-        &encrypted_result_path,
-    )
-    .await?;
+        upload_file_to_onsen(
+            &selected_onsen.address,
+            &upload_file_path_str,
+            &encrypted_result_path,
+        )
+        .await?;
 
-    remove_all(&target_dir_path);
+        Ok((number_of_rows, number_of_columns, secret_uuid))
+    };
+
+    // remove temporary directory again
+    super::remove_all(&target_dir_path);
+
+    let (number_of_rows, number_of_columns, secret_uuid) = result?;
 
     let dimension = (number_of_rows as i64, number_of_columns as i64);
     dataset_table::add_new_dataset(
@@ -281,11 +289,4 @@ fn get_dataset_dimension(target_path: &String) -> Result<(u64, u64), ErrorRespon
     let number_of_columns = file_handle.header.columns.len() as u64;
 
     Ok((number_of_rows, number_of_columns))
-}
-
-fn remove_all(target_dir_path: &String) {
-    // delete all temporary files
-    let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
-        log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
-    });
 }

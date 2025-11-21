@@ -18,6 +18,7 @@ use ainari_common::error::AinariError;
 use apistos::api_operation;
 use bytemuck::cast_slice_mut;
 use std::cmp::Ordering;
+use std::fs;
 use std::io::SeekFrom;
 use std::io::{Read, Seek};
 use uuid::Uuid;
@@ -61,38 +62,56 @@ pub async fn check_dataset(
     let dataset_column = body.dataset_column.clone();
     let reference_column = body.reference_column.clone();
 
-    let (mut dataset_file_handle, dataset_col_get, mut row_count) =
-        get_dataset_column(&dataset_uuid, &dataset_column, &context).await?;
-    let (mut reference_file_handle, ref_col_get, ref_row_count) =
-        get_dataset_column(&reference_uuid, &reference_column, &context).await?;
+    // create directory, where all temp-files of this operation are stored
+    let compare_dir = format!(
+        "{}/cmp_{}_{}",
+        config::CONFIG.storage.tempfile_location,
+        dataset_uuid,
+        reference_uuid
+    );
+    create_directory(&compare_dir).await?;
 
-    if row_count > ref_row_count {
-        row_count = ref_row_count;
-    }
+    let result = {
+        // get data to compare
+        let (mut dataset_file_handle, dataset_col_get, mut row_count) =
+            get_dataset_column(&dataset_uuid, &dataset_column, &compare_dir, &context).await?;
+        let (mut reference_file_handle, ref_col_get, ref_row_count) =
+            get_dataset_column(&reference_uuid, &reference_column, &compare_dir, &context).await?;
 
-    let mut accuracy = 0f32;
-
-    for i in 0..row_count {
-        let correct = check_row(
-            &mut dataset_file_handle,
-            &dataset_col_get,
-            &mut reference_file_handle,
-            &ref_col_get,
-            i,
-        )
-        .map_err(|e| {
-            log::error!("{e}");
-            ErrorResponse::InternalError("Internal Error".to_string())
-        })?;
-
-        if correct {
-            accuracy += 1f32;
+        if row_count > ref_row_count {
+            row_count = ref_row_count;
         }
-    }
 
-    let resp = DatasetCheckResp {
-        accuracy: accuracy / row_count as f32,
+        let mut accuracy = 0f32;
+
+        for i in 0..row_count {
+            let correct = check_row(
+                &mut dataset_file_handle,
+                &dataset_col_get,
+                &mut reference_file_handle,
+                &ref_col_get,
+                i,
+            )
+            .map_err(|e| {
+                log::error!("{e}");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
+
+            if correct {
+                accuracy += 1f32;
+            }
+        }
+
+        let resp = DatasetCheckResp {
+            accuracy: accuracy / row_count as f32,
+        };
+
+        Ok(resp)
     };
+
+    // delete temp-directory first before handling error-returns
+    super::remove_all(&compare_dir);
+    let resp = result?;
 
     Ok(Json(resp))
 }
@@ -156,6 +175,7 @@ fn get_highest_pos_in_row(
 async fn get_dataset_column(
     dataset_uuid: &Uuid,
     column_name: &String,
+    compare_dir: &String,
     context: &UserContext,
 ) -> Result<(DataSetFileReadHandle, Column, u64), ErrorResponse> {
     let dataset_resp = dataset_table::get_dataset(dataset_uuid, context)
@@ -164,11 +184,8 @@ async fn get_dataset_column(
     let secret_uuid = convert_uuid(&dataset_resp.secret_uuid)?;
     let secret = get_secret(&secret_uuid, context).await?;
 
-    let local_file_path = format!(
-        "{}/{}",
-        config::CONFIG.storage.tempfile_location,
-        dataset_resp.uuid
-    );
+    // create temporary file-paths
+    let local_file_path = format!("{compare_dir}/{dataset_uuid}");
     let local_encrypted_file_path = format!("{local_file_path}_encrypted");
 
     download_file(
@@ -185,6 +202,8 @@ async fn get_dataset_column(
     decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
         .await
         .map_err(map_ainari_error_to_api_response)?;
+
+    let _ = fs::remove_file(&local_encrypted_file_path);
 
     let file_handle = read_data_set_file(&local_file_path).map_err(|e| {
         log::error!(

@@ -95,3 +95,10 @@ async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse>
 
     Ok(())
 }
+
+fn remove_all(target_dir_path: &String) {
+    // delete all temporary files
+    let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
+        log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
+    });
+}

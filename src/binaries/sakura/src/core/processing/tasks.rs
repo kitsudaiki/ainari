@@ -41,6 +41,7 @@ use super::super::processing::worker_queue::*;
 pub struct TrainInfo {
     pub inputs: HashMap<String, DataSetFileReadHandle>,
     pub outputs: HashMap<String, DataSetFileReadHandle>,
+    pub temp_dir: String,
 }
 
 #[derive(Debug)]
@@ -48,6 +49,7 @@ pub struct RequestInfo {
     pub inputs: HashMap<String, DataSetFileReadHandle>,
     pub results: DataSetFileWriteHandle,
     pub output_secret: Secret,
+    pub temp_dir: String,
 }
 
 #[derive(Debug)]
@@ -185,14 +187,13 @@ impl Task {
                 .await
             });
 
+            // delete temp-files
+            remove_dir_all(&task_info.temp_dir);
+
+            // handle result
             match upload_resp {
-                Ok(()) => {
-                    let _ = fs::remove_file(&task_info.results.link.local_file_path);
-                    let _ = fs::remove_file(&task_info.results.link.local_encrypted_file_path);
-                }
+                Ok(()) => {}
                 Err(_) => {
-                    let _ = fs::remove_file(&task_info.results.link.local_file_path);
-                    let _ = fs::remove_file(&task_info.results.link.local_encrypted_file_path);
                     let _ = task_table::update_task_state(&self.uuid, &TaskState::Error);
                     let _ = task_table::update_task_progress(
                         &self.uuid,
@@ -202,6 +203,11 @@ impl Task {
                     return;
                 }
             }
+        }
+
+        if let TaskVariant::Training(task_info) = &mut self.info {
+            // delete temp-files
+            remove_dir_all(&task_info.temp_dir);
         }
 
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
@@ -561,6 +567,7 @@ fn handle_checkpoint_save_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
+    // create file-paths for temporary files
     let local_temp_file_path = format!(
         "{}/{}",
         config::CONFIG.storage.tempfile_location,
@@ -568,53 +575,56 @@ fn handle_checkpoint_save_task(
     );
     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
-    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-    match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
-        Ok(()) => {}
-        Err(_) => {
-            let _ = fs::remove_file(&local_temp_file_path);
-            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-            let _ = task_table::update_task_progress(task_uuid, &1, &1);
-            return;
+    {
+        let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
+            Ok(()) => {}
+            Err(_) => {
+                let _ = fs::remove_file(&local_temp_file_path);
+                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+                let _ = task_table::update_task_progress(task_uuid, &1, &1);
+                return;
+            }
         }
-    }
 
-    // Create a single-threaded runtime
-    let rt = Builder::new_current_thread()
-        .enable_all() // I/O & timers
-        .build()
-        .expect("failed to build runtime");
+        // Create a single-threaded runtime
+        let rt = Builder::new_current_thread()
+            .enable_all() // I/O & timers
+            .build()
+            .expect("failed to build runtime");
 
-    // LocalSet allows spawn_local to work
-    let local = LocalSet::new();
-    let upload_resp = local.block_on(&rt, async {
-        encrypt_file(
-            &local_temp_file_path,
-            &local_encrypted_temp_file_path,
-            &task_info.secret,
-        )
-        .await?;
-        upload_file(
-            &task_info.onsen_address,
-            &task_info.file_path,
-            &local_encrypted_temp_file_path,
-        )
-        .await
-    });
+        // LocalSet allows spawn_local to work
+        let local = LocalSet::new();
+        let upload_resp = local.block_on(&rt, async {
+            encrypt_file(
+                &local_temp_file_path,
+                &local_encrypted_temp_file_path,
+                &task_info.secret,
+            )
+            .await?;
+            upload_file(
+                &task_info.onsen_address,
+                &task_info.file_path,
+                &local_encrypted_temp_file_path,
+            )
+            .await
+        });
 
-    match upload_resp {
-        Ok(()) => {}
-        Err(_) => {
-            let _ = fs::remove_file(&local_temp_file_path);
-            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-            let _ = task_table::update_task_progress(task_uuid, &1, &1);
-            return;
+        match upload_resp {
+            Ok(()) => {}
+            Err(_) => {
+                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+                let _ = task_table::update_task_progress(task_uuid, &1, &1);
+                return;
+            }
         }
+
+        let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
+        let _ = task_table::update_task_progress(task_uuid, &1, &1);
     }
 
     let _ = fs::remove_file(&local_temp_file_path);
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(task_uuid, &1, &1);
+    let _ = fs::remove_file(&local_encrypted_temp_file_path);
 }
 
 fn handle_checkpoint_restore_task(
@@ -623,6 +633,7 @@ fn handle_checkpoint_restore_task(
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
+    // create file-paths for temporary files
     let local_temp_file_path = format!(
         "{}/{}",
         config::CONFIG.storage.tempfile_location,
@@ -630,57 +641,66 @@ fn handle_checkpoint_restore_task(
     );
     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
-    // Create a single-threaded runtime
-    let rt = Builder::new_current_thread()
-        .enable_all() // I/O & timers
-        .build()
-        .expect("failed to build runtime");
+    {
+        // Create a single-threaded runtime
+        let rt = Builder::new_current_thread()
+            .enable_all() // I/O & timers
+            .build()
+            .expect("failed to build runtime");
 
-    // LocalSet allows spawn_local to work
-    let local = LocalSet::new();
-    let download_resp = local.block_on(&rt, async {
-        let resp = download_file(
-            &task_info.onsen_address,
-            &task_info.file_path,
-            &local_encrypted_temp_file_path,
-        )
-        .await;
-        decrypt_file(
-            &local_encrypted_temp_file_path,
-            &local_temp_file_path,
-            &task_info.secret,
-        )
-        .await?;
+        // LocalSet allows spawn_local to work
+        let local = LocalSet::new();
+        let download_resp = local.block_on(&rt, async {
+            let resp = download_file(
+                &task_info.onsen_address,
+                &task_info.file_path,
+                &local_encrypted_temp_file_path,
+            )
+            .await;
+            decrypt_file(
+                &local_encrypted_temp_file_path,
+                &local_temp_file_path,
+                &task_info.secret,
+            )
+            .await?;
 
-        resp
-    });
+            resp
+        });
 
-    match download_resp {
-        Ok(()) => {}
-        Err(e) => {
-            log::error!("Error in checkpoint-restore-task: {e}");
-            let _ = fs::remove_file(&local_temp_file_path);
-            let _ = fs::remove_file(&local_encrypted_temp_file_path);
-            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-            let _ = task_table::update_task_progress(task_uuid, &1, &1);
-            return;
+        match download_resp {
+            Ok(()) => {}
+            Err(e) => {
+                log::error!("Error in checkpoint-restore-task: {e}");
+                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+                let _ = task_table::update_task_progress(task_uuid, &1, &1);
+                return;
+            }
         }
+
+        // restore cluster from the downloaded and decrypted checkpoint-file
+        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        match cluster_handler.restore_checkpoint(cluster_uuid, &local_temp_file_path) {
+            Ok(()) => {}
+            Err(_) => {
+                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+                let _ = task_table::update_task_progress(task_uuid, &1, &1);
+                return;
+            }
+        }
+
+        // delete temporary checkpoint-file
+        let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
+        let _ = task_table::update_task_progress(task_uuid, &1, &1);
     }
 
-    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-    match cluster_handler.restore_checkpoint(cluster_uuid, &local_temp_file_path) {
-        Ok(()) => {}
-        Err(_) => {
-            let _ = fs::remove_file(&local_encrypted_temp_file_path);
-            let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-            let _ = task_table::update_task_progress(task_uuid, &1, &1);
-            return;
-        }
-    }
-
-    // delete temporary checkpoint-file
+    // cleanup temp-files
     let _ = fs::remove_file(&local_temp_file_path);
     let _ = fs::remove_file(&local_encrypted_temp_file_path);
-    let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-    let _ = task_table::update_task_progress(task_uuid, &1, &1);
+}
+
+fn remove_dir_all(target_dir_path: &String) {
+    // delete all temporary files
+    let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
+        log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
+    });
 }
