@@ -14,7 +14,7 @@ actix-web = "4"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs"] }
 actix-rt = "2.11"
-awc = { version = "3.8.0", features = ["openssl"] }
+awc = { version = "3.8.1", features = ["openssl"] }
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.6", features = ["extras"] }
