@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use rand::prelude::IndexedRandom;
+
 use crate::database::host_table;
 use crate::database::host_table::HostEntry;
 
@@ -35,8 +37,8 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     }
 
     // select first host
-    // TODO: also be able to select one of many hosts
-    let selected_host = if let Some(host) = hosts.first() {
+    let mut rng = rand::rng();
+    let selected_host = if let Some(host) = hosts.choose(&mut rng) {
         host.clone()
     } else {
         log::error!("No hosts with list-position 0 doesn't exist.");
