@@ -39,6 +39,11 @@ pub struct ProxyResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct FreePortResp {
+    pub port: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ProxyBasicResp {
     pub uuid: Uuid,
     pub port: u16,

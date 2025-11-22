@@ -15,3 +15,7 @@ internal_api_key = "asdf"
 [miko]
 address = "http://127.0.0.1:11417"
 
+[ports]
+min_port = 10042
+max_port = 10043
+

@@ -20,6 +20,8 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 
+use ainari_api::common_functions::*;
+use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
@@ -143,6 +145,40 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
             Err(enums::DbError::InternalError)
         }
     }
+}
+
+pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse> {
+    let proxys = list_all_proxys_sorted().map_err(|e| map_db_list_error("proxys", e))?;
+
+    let mut prev_port = min_port;
+
+    // iterate over the port-sorted list to find a free port
+    for proxy in proxys {
+        if proxy.port as u16 > prev_port {
+            return Ok(prev_port);
+        }
+
+        prev_port = proxy.port as u16 + 1;
+    }
+
+    if prev_port < max_port {
+        return Ok(prev_port);
+    }
+
+    Err(ErrorResponse::Conflict(
+        "Maximum number of proxies reached.".to_string(),
+    ))
+}
+
+fn list_all_proxys_sorted() -> QueryResult<Vec<ProxyEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::proxys::dsl::*;
+
+    let query = proxys
+        .filter(status.eq("ACTIVE"))
+        .into_boxed()
+        .order(port.asc());
+    query.select(ProxyEntry::as_select()).load(&mut *conn)
 }
 
 pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
@@ -514,6 +550,87 @@ mod tests {
         if delete_proxy(&proxy_uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
+
+        hard_delete_proxy(&proxy_uuid1);
+        hard_delete_proxy(&proxy_uuid2);
+        hard_delete_proxy(&proxy_uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_free_proxy() {
+        let _ = init_proxy_table();
+        let proxy_uuid1 = Uuid::new_v4();
+        let proxy_uuid2 = Uuid::new_v4();
+        let proxy_uuid3 = Uuid::new_v4();
+        let target_address1: String = "127.0.0.1:443".to_string();
+        let cluster_uuid1 = Uuid::new_v4();
+
+        let proxy1 = ProxyEntry {
+            uuid: proxy_uuid1.to_string(),
+            port: 42,
+            target_address: target_address1.clone(),
+            cluster_uuid: cluster_uuid1.to_string(),
+            owner_id: "test-user-42".to_string(),
+            project_id: "test_permissions_1".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let proxy2 = ProxyEntry {
+            uuid: proxy_uuid2.to_string(),
+            port: 43,
+            target_address: target_address1.clone(),
+            cluster_uuid: cluster_uuid1.to_string(),
+            owner_id: "test-user-43".to_string(),
+            project_id: "test_permissions_1".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        let proxy3 = ProxyEntry {
+            uuid: proxy_uuid3.to_string(),
+            port: 44,
+            target_address: target_address1.clone(),
+            cluster_uuid: cluster_uuid1.to_string(),
+            owner_id: "test-user-44".to_string(),
+            project_id: "test_permissions_2".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: "2025-03-31".to_string(),
+            created_by: "admin".to_string(),
+            updated_at: "2025-03-31".to_string(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        hard_delete_proxy(&proxy_uuid1);
+        hard_delete_proxy(&proxy_uuid2);
+        hard_delete_proxy(&proxy_uuid3);
+
+        assert_eq!(get_free_proxy(42, 45).unwrap(), 42);
+
+        add_proxy(&proxy1).unwrap();
+
+        assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
+
+        add_proxy(&proxy3).unwrap();
+
+        assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
+
+        add_proxy(&proxy2).unwrap();
+
+        assert!(get_free_proxy(42, 45).is_err());
 
         hard_delete_proxy(&proxy_uuid1);
         hard_delete_proxy(&proxy_uuid2);
