@@ -20,4 +20,8 @@ data:
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
 
+    [ports]
+    min_port = {{ .Values.torii.portRange.start }}
+    max_port = {{ .Values.torii.portRange.end }}
+
 kind: ConfigMap
