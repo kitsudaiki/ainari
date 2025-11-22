@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Torii-API-Documentation",
+    "title": "Omamori-API-Documentation",
     "contact": {
       "email": "tobias.anker@kitsunemimi.moe"
     },
@@ -50,19 +50,19 @@
         ]
       }
     },
-    "/v1alpha/proxy/internal": {
+    "/v1alpha/secret/generate": {
       "post": {
         "tags": [
-          "proxy"
+          "secret"
         ],
-        "summary": "Register new proxy",
-        "description": "Register new proxy.",
-        "operationId": "post_v1alpha-proxy-internal-b7896230c4a213302caa08228a4f5760",
+        "summary": "Create new secret",
+        "description": "Create new secret based on a secret-template.",
+        "operationId": "post_v1alpha-secret-generate-d5fd8cc5b9169423d82e6b3d45b161fd",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProxyCreateReq"
+                "$ref": "#/components/schemas/SecretGenerateReq"
               }
             }
           },
@@ -74,35 +74,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "ProxyResp",
+                  "title": "SecretResp",
                   "type": "object",
                   "required": [
-                    "cluster_uuid",
                     "created_at",
                     "created_by",
-                    "port",
-                    "target_address",
+                    "name",
                     "updated_at",
                     "updated_by",
                     "uuid"
                   ],
                   "properties": {
-                    "cluster_uuid": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
                     "created_at": {
                       "type": "string"
                     },
                     "created_by": {
                       "type": "string"
                     },
-                    "port": {
-                      "type": "integer",
-                      "format": "uint16",
-                      "minimum": 0.0
-                    },
-                    "target_address": {
+                    "name": {
                       "type": "string"
                     },
                     "updated_at": {
@@ -138,21 +127,96 @@
         ]
       }
     },
-    "/v1alpha/proxy": {
+    "/v1alpha/secret": {
+      "post": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Create new secret",
+        "description": "Create new secret based on a secret-template.",
+        "operationId": "post_v1alpha-secret-1568a5049dce8b6ae7f3d4b683195242",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "SecretResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
       "get": {
         "tags": [
-          "proxy"
+          "secret"
         ],
-        "summary": "List proxy",
-        "description": "List basic information of all proxy from the database.",
-        "operationId": "get_v1alpha-proxy-9a1e417526c62d6c55723ea2bd1d992c",
+        "summary": "List secret",
+        "description": "List basic information of all secret from the database.",
+        "operationId": "get_v1alpha-secret-1568a5049dce8b6ae7f3d4b683195242",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProxyListResp"
+                  "$ref": "#/components/schemas/SecretListResp"
                 }
               }
             }
@@ -172,17 +236,17 @@
         ]
       }
     },
-    "/v1alpha/proxy/{proxy_uuid}": {
+    "/v1alpha/secret/{secret_uuid}": {
       "get": {
         "tags": [
-          "proxy"
+          "secret"
         ],
-        "summary": "Get proxy",
-        "description": "Get information of a proxy from the database.",
-        "operationId": "get_v1alpha-proxy-ef7d4f0735ca5c212f1336edfe16d38b",
+        "summary": "Get secret",
+        "description": "Get information of a secret from the database.",
+        "operationId": "get_v1alpha-secret-37dbc88fc255a20d6a72592a4da1bb7b",
         "parameters": [
           {
-            "name": "proxy_uuid",
+            "name": "secret_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -198,7 +262,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProxyResp"
+                  "$ref": "#/components/schemas/SecretResp"
                 }
               }
             }
@@ -222,19 +286,17 @@
             "user_context": []
           }
         ]
-      }
-    },
-    "/v1alpha/proxy/{proxy_uuid}/internal": {
+      },
       "delete": {
         "tags": [
-          "proxy"
+          "secret"
         ],
-        "summary": "Delete proxy",
-        "description": "Delete a proxy from the database.",
-        "operationId": "delete_v1alpha-proxy-edc6950e4f9e34f2682f80d1728b7bc3",
+        "summary": "Delete secret",
+        "description": "Delete a secret from the database and core.",
+        "operationId": "delete_v1alpha-secret-37dbc88fc255a20d6a72592a4da1bb7b",
         "parameters": [
           {
-            "name": "proxy_uuid",
+            "name": "secret_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -268,29 +330,73 @@
           }
         ]
       }
+    },
+    "/v1alpha/secret/{secret_uuid}/payload": {
+      "get": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Get secret with payload",
+        "description": "Get information of a secret from the database with the payload.",
+        "operationId": "get_v1alpha-secret-0956937bf78d53668a9bab8b1e15a369",
+        "parameters": [
+          {
+            "name": "secret_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretWithPayloadResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
-      "ProxyBasicResp": {
+      "Secret": {
+        "type": "string"
+      },
+      "SecretBasicResp": {
         "type": "object",
         "required": [
-          "cluster_uuid",
-          "port",
-          "target_address",
+          "name",
           "uuid"
         ],
         "properties": {
-          "cluster_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
-          },
-          "target_address": {
+          "name": {
             "type": "string"
           },
           "uuid": {
@@ -299,70 +405,80 @@
           }
         }
       },
-      "ProxyCreateReq": {
-        "title": "ProxyCreateReq",
+      "SecretCreateReq": {
+        "title": "SecretCreateReq",
         "type": "object",
         "required": [
-          "cluster_uuid",
-          "target_address"
+          "name",
+          "secret_payload"
         ],
         "properties": {
-          "cluster_uuid": {
+          "name": {
             "type": "string",
-            "format": "uuid"
+            "maxLength": 127,
+            "minLength": 4
           },
-          "target_address": {
+          "secret_payload": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 4096,
+            "minLength": 8,
+            "maxItems": 4096,
+            "minItems": 8
+          }
+        }
+      },
+      "SecretGenerateReq": {
+        "title": "SecretGenerateReq",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
             "type": "string",
             "maxLength": 127,
             "minLength": 4
           }
         }
       },
-      "ProxyListResp": {
-        "title": "ProxyListResp",
+      "SecretListResp": {
+        "title": "SecretListResp",
         "type": "object",
         "required": [
-          "proxys"
+          "secrets"
         ],
         "properties": {
-          "proxys": {
+          "secrets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProxyBasicResp"
+              "$ref": "#/components/schemas/SecretBasicResp"
             }
           }
         }
       },
-      "ProxyResp": {
-        "title": "ProxyResp",
+      "SecretResp": {
+        "title": "SecretResp",
         "type": "object",
         "required": [
-          "cluster_uuid",
           "created_at",
           "created_by",
-          "port",
-          "target_address",
+          "name",
           "updated_at",
           "updated_by",
           "uuid"
         ],
         "properties": {
-          "cluster_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
           "created_at": {
             "type": "string"
           },
           "created_by": {
             "type": "string"
           },
-          "port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
-          },
-          "target_address": {
+          "name": {
             "type": "string"
           },
           "updated_at": {
@@ -374,6 +490,18 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "SecretWithPayloadResp": {
+        "title": "SecretWithPayloadResp",
+        "type": "object",
+        "required": [
+          "secret_payload"
+        ],
+        "properties": {
+          "secret_payload": {
+            "type": "string"
           }
         }
       },

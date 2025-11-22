@@ -1,17 +1,1268 @@
 {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Miko-API-Documentation",
     "contact": {
-        "email": "tobias.anker@kitsunemimi.moe",
-        "name": "Tobias Anker"
-    },
-    "info": {
-        "title": "API documentation",
-        "version": "unreleased"
+      "email": "tobias.anker@kitsunemimi.moe"
     },
     "license": {
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "openapi": "3.0.0",
-    "paths": {
+    "version": "0.9.0"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/token": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Renew Token",
+        "description": "Renew Token",
+        "operationId": "put_v1alpha-token-9a10c8d81d89f0a9b620df4ba68563fe",
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "UserTokenResp",
+                  "type": "object",
+                  "required": [
+                    "access_token",
+                    "expires",
+                    "token_type"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "token_type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Token",
+        "description": "Create Token for given user credentials",
+        "operationId": "post_v1alpha-token-9a10c8d81d89f0a9b620df4ba68563fe",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserTokenResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false
+      },
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Validate Token",
+        "description": "Validate Token",
+        "operationId": "get_v1alpha-token-9a10c8d81d89f0a9b620df4ba68563fe",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserTokenValidateResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/endpoints": {
+      "get": {
+        "tags": [
+          "endpoints"
+        ],
+        "summary": "Get ednpoints",
+        "description": "Get addresses and ports of all endpoints.",
+        "operationId": "get_v1alpha-endpoints-c79025cc3dd1192b874831358d9753b2",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpontsResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/admin": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Create new project",
+        "description": "Create new project. This can only be done by an admin.",
+        "operationId": "post_v1alpha-project-admin-7c595436ab1246dc7bfbe033472d53a2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ProjectResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "id",
+                    "name",
+                    "updated_at",
+                    "updated_by"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List project",
+        "description": "List basic information of all project from the database. This can only be done by an admin.",
+        "operationId": "get_v1alpha-project-admin-7c595436ab1246dc7bfbe033472d53a2",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/admin": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get project",
+        "description": "Get information of a project from the database. This can only be done by an admin.",
+        "operationId": "get_v1alpha-project-0c63f1316c2d730c11b2014c12f34146",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Delete project",
+        "description": "Delete a project from the database. This can only be done by an admin.",
+        "operationId": "delete_v1alpha-project-0c63f1316c2d730c11b2014c12f34146",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/user/admin": {
+      "post": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Create new user",
+        "description": "Create new user. This can only be done by an admin.",
+        "operationId": "post_v1alpha-user-admin-feb36ef9c8c7afbdca6925ff9b0fe48d",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "UserResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "id",
+                    "is_admin",
+                    "name",
+                    "updated_at",
+                    "updated_by"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "is_admin": {
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "List user",
+        "description": "List basic information of all user from the database. This can only be done by an admin.",
+        "operationId": "get_v1alpha-user-admin-feb36ef9c8c7afbdca6925ff9b0fe48d",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/user/{user_id}/admin": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Get user",
+        "description": "Get information of a user from the database. This can only be done by an admin.",
+        "operationId": "get_v1alpha-user-7fa715194ba5d2f44ad10c53fc11b69c",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Delete user",
+        "description": "Delete a user from the database. This can only be done by an admin.",
+        "operationId": "delete_v1alpha-user-7fa715194ba5d2f44ad10c53fc11b69c",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/quota": {
+      "get": {
+        "tags": [
+          "quota"
+        ],
+        "summary": "Get quota",
+        "description": "Get information of user-quota from the database.",
+        "operationId": "get_v1alpha-quota-add07e6fb41b3c5674ae5b6a160e1d23",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/quota/admin": {
+      "get": {
+        "tags": [
+          "quota"
+        ],
+        "summary": "List quota",
+        "description": "List basic information of all quota from the database. This can only be done by an admin.",
+        "operationId": "get_v1alpha-quota-admin-734601c7df55c601fbfd3a6b304fef5c",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/quota/{user_id}/admin": {
+      "get": {
+        "tags": [
+          "quota"
+        ],
+        "summary": "Get quota",
+        "description": "Get information of the quota of a specific user from the database.",
+        "operationId": "get_v1alpha-quota-d2c93c6089547df73ea7a1c057a0aa98",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "quota"
+        ],
+        "summary": "Get quota",
+        "description": "Get information of a quota from the database.",
+        "operationId": "put_v1alpha-quota-d2c93c6089547df73ea7a1c057a0aa98",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaSetReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
+  },
+  "components": {
+    "schemas": {
+      "EndpointField": {
+        "type": "object",
+        "required": [
+          "internal_address",
+          "public_address"
+        ],
+        "properties": {
+          "internal_address": {
+            "type": "string"
+          },
+          "public_address": {
+            "type": "string"
+          }
+        }
+      },
+      "EndpontsResp": {
+        "title": "EndpontsResp",
+        "type": "object",
+        "required": [
+          "hanami",
+          "omamori",
+          "ryokan",
+          "torii"
+        ],
+        "properties": {
+          "hanami": {
+            "$ref": "#/components/schemas/EndpointField"
+          },
+          "omamori": {
+            "$ref": "#/components/schemas/EndpointField"
+          },
+          "ryokan": {
+            "$ref": "#/components/schemas/EndpointField"
+          },
+          "torii": {
+            "$ref": "#/components/schemas/EndpointField"
+          }
+        }
+      },
+      "ProjectBasicResp": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectCreateReq": {
+        "title": "ProjectCreateReq",
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "ProjectListResp": {
+        "title": "ProjectListResp",
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectBasicResp"
+            }
+          }
+        }
+      },
+      "ProjectResp": {
+        "title": "ProjectResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "id",
+          "name",
+          "updated_at",
+          "updated_by"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        }
+      },
+      "QuotaBasicResp": {
+        "type": "object",
+        "required": [
+          "max_checkpoint",
+          "max_cluster",
+          "max_dataset",
+          "max_secret",
+          "max_taskqueue",
+          "user_id"
+        ],
+        "properties": {
+          "max_checkpoint": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_cluster": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_dataset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_secret": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_taskqueue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "QuotaListResp": {
+        "title": "QuotaListResp",
+        "type": "object",
+        "required": [
+          "quotas"
+        ],
+        "properties": {
+          "quotas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuotaBasicResp"
+            }
+          }
+        }
+      },
+      "QuotaResp": {
+        "title": "QuotaResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "max_checkpoint",
+          "max_cluster",
+          "max_dataset",
+          "max_secret",
+          "max_taskqueue",
+          "updated_at",
+          "updated_by",
+          "user_id"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "max_checkpoint": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_cluster": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_dataset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_secret": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_taskqueue": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "QuotaSetReq": {
+        "title": "QuotaSetReq",
+        "type": "object",
+        "required": [
+          "max_checkpoint",
+          "max_cluster",
+          "max_dataset",
+          "max_secret",
+          "max_taskqueue"
+        ],
+        "properties": {
+          "max_checkpoint": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_cluster": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_dataset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_secret": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_taskqueue": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Secret": {
+        "type": "string"
+      },
+      "UserBasicResp": {
+        "type": "object",
+        "required": [
+          "id",
+          "is_admin",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "UserContext": {
+        "type": "object",
+        "required": [
+          "is_admin",
+          "is_project_admin",
+          "project_id",
+          "user_id"
+        ],
+        "properties": {
+          "is_admin": {
+            "type": "boolean"
+          },
+          "is_project_admin": {
+            "type": "boolean"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "token": {
+            "default": "",
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "UserCreateReq": {
+        "title": "UserCreateReq",
+        "type": "object",
+        "required": [
+          "id",
+          "is_admin",
+          "name",
+          "passphrase"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "passphrase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 4096,
+            "minLength": 8,
+            "maxItems": 4096,
+            "minItems": 8
+          }
+        }
+      },
+      "UserListResp": {
+        "title": "UserListResp",
+        "type": "object",
+        "required": [
+          "users"
+        ],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserBasicResp"
+            }
+          }
+        }
+      },
+      "UserResp": {
+        "title": "UserResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "id",
+          "is_admin",
+          "name",
+          "updated_at",
+          "updated_by"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        }
+      },
+      "UserTokenResp": {
+        "title": "UserTokenResp",
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires",
+          "token_type"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "token_type": {
+            "type": "string"
+          }
+        }
+      },
+      "UserTokenValidateResp": {
+        "title": "UserTokenValidateResp",
+        "type": "object",
+        "required": [
+          "context"
+        ],
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/UserContext"
+          }
+        }
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
 }
