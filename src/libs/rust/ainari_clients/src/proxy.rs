@@ -28,7 +28,6 @@ pub async fn create_proxy(
     internal_api_key: &Secret,
     cluster_uuid: &Uuid,
     target_address: &str,
-    proxy_port: u16,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
@@ -36,7 +35,6 @@ pub async fn create_proxy(
     let url = format!("{address}/v1alpha/proxy/internal");
 
     let body = ProxyCreateReq {
-        port: proxy_port,
         target_address: target_address.to_owned(),
         cluster_uuid: *cluster_uuid,
     };

@@ -29,10 +29,17 @@ pub struct Config {
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
+    pub ports: Ports,
 }
 
 fn default_insecure_clients() -> bool {
     false
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Ports {
+    pub min_port: u16,
+    pub max_port: u16,
 }
 
 // Global singleton config

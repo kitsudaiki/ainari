@@ -1,0 +1,1557 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sakura-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "0.9.0"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/internal": {
+      "post": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Create new cluster",
+        "description": "Create new cluster based on a cluster-template.",
+        "operationId": "post_v1alpha-cluster-internal-1dc22aa239d2e1e07ec8272b19877003",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ClusterResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "template",
+                    "torii_port",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "template": {
+                      "type": "string"
+                    },
+                    "torii_port": {
+                      "type": "integer",
+                      "format": "uint16",
+                      "minimum": 0.0
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "List cluster",
+        "description": "List basic information of all cluster from the database.",
+        "operationId": "get_v1alpha-cluster-internal-1dc22aa239d2e1e07ec8272b19877003",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/internal": {
+      "get": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get cluster",
+        "description": "Get information of a cluster from the database.",
+        "operationId": "get_v1alpha-cluster-ebe6fb35a8bead62f86d4c4b78849ee1",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Delete cluster",
+        "description": "Delete a cluster from the database and core.",
+        "operationId": "delete_v1alpha-cluster-ebe6fb35a8bead62f86d4c4b78849ee1",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/request": {
+      "put": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get cluster",
+        "description": "Get information of a cluster from the database.",
+        "operationId": "put_v1alpha-cluster-bee8a0f74999b742665f88da8b6c1519",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterRequestReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterRequestResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/train": {
+      "put": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get cluster",
+        "description": "Get information of a cluster from the database.",
+        "operationId": "put_v1alpha-cluster-0647baa071d0659a117e58b7eb60a30a",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterTrainReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/train": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new train-task",
+        "description": "Create new train-task for a cluster",
+        "operationId": "post_v1alpha-cluster-291a834677f5fbe12fc5de3a935b5987",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateTrainReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "current_cycle",
+                    "current_epoch",
+                    "name",
+                    "state",
+                    "task_type",
+                    "total_number_of_cycles",
+                    "total_number_of_epochs",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "current_cycle": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "current_epoch": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "error_message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "total_number_of_cycles": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_number_of_epochs": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/request": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new request-task",
+        "description": "Create new request-task for a cluster",
+        "operationId": "post_v1alpha-cluster-8349f318e50ac5cd18879bfacedeb6e3",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateRequestReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "current_cycle",
+                    "current_epoch",
+                    "name",
+                    "state",
+                    "task_type",
+                    "total_number_of_cycles",
+                    "total_number_of_epochs",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "current_cycle": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "current_epoch": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "error_message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "total_number_of_cycles": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_number_of_epochs": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/checkpoint_save": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new checkpoint-task",
+        "description": "Create new checkpoint-task for a cluster",
+        "operationId": "post_v1alpha-cluster-3c9863fc539814b2438b058c6e9257f4",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCheckpointSaveReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "current_cycle",
+                    "current_epoch",
+                    "name",
+                    "state",
+                    "task_type",
+                    "total_number_of_cycles",
+                    "total_number_of_epochs",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "current_cycle": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "current_epoch": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "error_message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "total_number_of_cycles": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_number_of_epochs": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/checkpoint_restore": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new checkpoint-task",
+        "description": "Create new checkpoint-task for a cluster",
+        "operationId": "post_v1alpha-cluster-d80a751c9c07071b0d8d497088dc902a",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCheckpointRestoreReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "current_cycle",
+                    "current_epoch",
+                    "name",
+                    "state",
+                    "task_type",
+                    "total_number_of_cycles",
+                    "total_number_of_epochs",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "current_cycle": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "current_epoch": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "error_message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "total_number_of_cycles": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "total_number_of_epochs": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}": {
+      "get": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Get task",
+        "description": "Get information of a task of a cluster from the database.",
+        "operationId": "get_v1alpha-cluster-6489438f20cd8bc1a89630a1c584349f",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "task_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort": {
+      "put": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Get task",
+        "description": "Get information of a task of a cluster from the database.",
+        "operationId": "put_v1alpha-cluster-5b1ff03c3259d53cb700499c1994d3a9",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "task_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}/task": {
+      "get": {
+        "tags": [
+          "task"
+        ],
+        "summary": "List tasks",
+        "description": "List all tasks of a cluster",
+        "operationId": "get_v1alpha-cluster-f7d485092cdc4865d2eeeaaa0fbf43ca",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskListResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClusterBasicResp": {
+        "type": "object",
+        "required": [
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ClusterCreateReq": {
+        "title": "ClusterCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "template"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "template": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      },
+      "ClusterListResp": {
+        "title": "ClusterListResp",
+        "type": "object",
+        "required": [
+          "clusters"
+        ],
+        "properties": {
+          "clusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterBasicResp"
+            }
+          }
+        }
+      },
+      "ClusterRequestReq": {
+        "title": "ClusterRequestReq",
+        "type": "object",
+        "required": [
+          "inputs",
+          "outputs"
+        ],
+        "properties": {
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "ClusterRequestResp": {
+        "title": "ClusterRequestResp",
+        "type": "object",
+        "required": [
+          "outputs"
+        ],
+        "properties": {
+          "outputs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          }
+        }
+      },
+      "ClusterResp": {
+        "title": "ClusterResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "name",
+          "template",
+          "torii_port",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "torii_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ClusterTrainReq": {
+        "title": "ClusterTrainReq",
+        "type": "object",
+        "required": [
+          "inputs",
+          "outputs"
+        ],
+        "properties": {
+          "inputs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          },
+          "outputs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          }
+        }
+      },
+      "TaskBasicResp": {
+        "type": "object",
+        "required": [
+          "current_epoch",
+          "name",
+          "state",
+          "task_type",
+          "total_number_of_epochs",
+          "uuid"
+        ],
+        "properties": {
+          "current_epoch": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TaskState"
+          },
+          "task_type": {
+            "$ref": "#/components/schemas/TaskType"
+          },
+          "total_number_of_epochs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TaskCheckpointRestoreReq": {
+        "title": "TaskCheckpointRestoreReq",
+        "type": "object",
+        "required": [
+          "checkpoint_uuid",
+          "name"
+        ],
+        "properties": {
+          "checkpoint_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "TaskCheckpointSaveReq": {
+        "title": "TaskCheckpointSaveReq",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "TaskCreateRequestReq": {
+        "title": "TaskCreateRequestReq",
+        "type": "object",
+        "required": [
+          "inputs",
+          "name",
+          "results"
+        ],
+        "properties": {
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskDatasetLink"
+            },
+            "minItems": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskDatasetResultLink"
+            },
+            "minItems": 1
+          },
+          "time_length": {
+            "type": "integer",
+            "format": "uint64",
+            "maximum": 100000000.0,
+            "minimum": 1.0,
+            "nullable": true
+          }
+        }
+      },
+      "TaskCreateTrainReq": {
+        "title": "TaskCreateTrainReq",
+        "type": "object",
+        "required": [
+          "inputs",
+          "name",
+          "number_of_epochs",
+          "outputs"
+        ],
+        "properties": {
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskDatasetLink"
+            },
+            "minItems": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "number_of_epochs": {
+            "type": "integer",
+            "format": "uint64",
+            "maximum": 1000000.0,
+            "minimum": 1.0
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskDatasetLink"
+            },
+            "minItems": 1
+          },
+          "time_length": {
+            "type": "integer",
+            "format": "uint64",
+            "maximum": 100000000.0,
+            "minimum": 1.0,
+            "nullable": true
+          }
+        }
+      },
+      "TaskDatasetLink": {
+        "type": "object",
+        "required": [
+          "dataset_column",
+          "dataset_uuid",
+          "hexagon"
+        ],
+        "properties": {
+          "dataset_column": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "dataset_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hexagon": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "TaskDatasetResultLink": {
+        "type": "object",
+        "required": [
+          "hexagon"
+        ],
+        "properties": {
+          "hexagon": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "TaskListResp": {
+        "title": "TaskListResp",
+        "type": "object",
+        "required": [
+          "tasks"
+        ],
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskBasicResp"
+            }
+          }
+        }
+      },
+      "TaskResp": {
+        "title": "TaskResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "current_cycle",
+          "current_epoch",
+          "name",
+          "state",
+          "task_type",
+          "total_number_of_cycles",
+          "total_number_of_epochs",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "current_cycle": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current_epoch": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "queued_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/TaskState"
+          },
+          "task_type": {
+            "$ref": "#/components/schemas/TaskType"
+          },
+          "total_number_of_cycles": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_number_of_epochs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TaskState": {
+        "type": "string",
+        "enum": [
+          "Created",
+          "Queued",
+          "Active",
+          "Aborted",
+          "Finished",
+          "Error"
+        ]
+      },
+      "TaskType": {
+        "type": "string",
+        "enum": [
+          "Train",
+          "Request",
+          "CheckpointSave",
+          "CheckpointRestore"
+        ]
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}

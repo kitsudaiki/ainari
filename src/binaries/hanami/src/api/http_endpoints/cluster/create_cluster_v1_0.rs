@@ -95,7 +95,6 @@ pub async fn create_cluster(
         &config::CONFIG.api.internal_api_key,
         &cluster_resp.uuid,
         &selected_host.address,
-        10042,
         config::CONFIG.insecure_clients,
     )
     .await

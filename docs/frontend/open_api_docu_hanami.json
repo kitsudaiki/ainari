@@ -1,17 +1,713 @@
 {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hanami-API-Documentation",
     "contact": {
-        "email": "tobias.anker@kitsunemimi.moe",
-        "name": "Tobias Anker"
-    },
-    "info": {
-        "title": "API documentation",
-        "version": "unreleased"
+      "email": "tobias.anker@kitsunemimi.moe"
     },
     "license": {
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "openapi": "3.0.0",
-    "paths": {
+    "version": "0.9.0"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster": {
+      "post": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Create new cluster",
+        "description": "Create new cluster based on a cluster-template.",
+        "operationId": "post_v1alpha-cluster-911d1facb42926ecaaf200e22e35f339",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ClusterResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "template",
+                    "torii_port",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "template": {
+                      "type": "string"
+                    },
+                    "torii_port": {
+                      "type": "integer",
+                      "format": "uint16",
+                      "minimum": 0.0
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "List cluster",
+        "description": "List basic information of all cluster from the database.",
+        "operationId": "get_v1alpha-cluster-911d1facb42926ecaaf200e22e35f339",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/{cluster_uuid}": {
+      "get": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get cluster",
+        "description": "Get information of a cluster from the database.",
+        "operationId": "get_v1alpha-cluster-66d1a58fab9d340847cd539f25b9ff00",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Delete cluster",
+        "description": "Delete a cluster from the database and core.",
+        "operationId": "delete_v1alpha-cluster-66d1a58fab9d340847cd539f25b9ff00",
+        "parameters": [
+          {
+            "name": "cluster_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/internal": {
+      "post": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Register new host",
+        "description": "Register new host.",
+        "operationId": "post_v1alpha-host-internal-62027aebc96d0c46798d689d9d5c30aa",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "HostResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "host_address",
+                    "name",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "host_address": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/admin": {
+      "get": {
+        "tags": [
+          "host"
+        ],
+        "summary": "List host",
+        "description": "List basic information of all host from the database.",
+        "operationId": "get_v1alpha-host-admin-166c09562c8c2f6e544f05937de0f78b",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/{host_uuid}/admin": {
+      "get": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Get host",
+        "description": "Get information of a host from the database.",
+        "operationId": "get_v1alpha-host-07e46470783297151810a434b07fb2e6",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Delete host",
+        "description": "Delete a host from the database.",
+        "operationId": "delete_v1alpha-host-07e46470783297151810a434b07fb2e6",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
+  },
+  "components": {
+    "schemas": {
+      "ClusterBasicResp": {
+        "type": "object",
+        "required": [
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ClusterCreateReq": {
+        "title": "ClusterCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "template"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "template": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      },
+      "ClusterListResp": {
+        "title": "ClusterListResp",
+        "type": "object",
+        "required": [
+          "clusters"
+        ],
+        "properties": {
+          "clusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterBasicResp"
+            }
+          }
+        }
+      },
+      "ClusterResp": {
+        "title": "ClusterResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "name",
+          "template",
+          "torii_port",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "torii_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HostBasicResp": {
+        "type": "object",
+        "required": [
+          "host_address",
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "host_address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HostCreateReq": {
+        "title": "HostCreateReq",
+        "type": "object",
+        "required": [
+          "host_address",
+          "name",
+          "registration_key"
+        ],
+        "properties": {
+          "host_address": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "registration_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 127,
+            "minLength": 4,
+            "maxItems": 127,
+            "minItems": 4
+          }
+        }
+      },
+      "HostListResp": {
+        "title": "HostListResp",
+        "type": "object",
+        "required": [
+          "hosts"
+        ],
+        "properties": {
+          "hosts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostBasicResp"
+            }
+          }
+        }
+      },
+      "HostResp": {
+        "title": "HostResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "host_address",
+          "name",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "host_address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Secret": {
+        "type": "string"
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
 }

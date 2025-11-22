@@ -16,6 +16,22 @@
 
 <swagger-ui src="open_api_docu_sakura.json"/>
 
+## Hanami
+
+<swagger-ui src="open_api_docu_hanami.json"/>
+
 ## Miko
 
 <swagger-ui src="open_api_docu_miko.json"/>
+
+## Ryokan
+
+<swagger-ui src="open_api_docu_ryokan.json"/>
+
+## Torii
+
+<swagger-ui src="open_api_docu_torii.json"/>
+
+## Omamori
+
+<swagger-ui src="open_api_docu_omamori.json"/>

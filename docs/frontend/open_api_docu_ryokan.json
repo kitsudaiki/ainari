@@ -1,17 +1,1466 @@
 {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ryokan-API-Documentation",
     "contact": {
-        "email": "tobias.anker@kitsunemimi.moe",
-        "name": "Tobias Anker"
-    },
-    "info": {
-        "title": "API documentation",
-        "version": "unreleased"
+      "email": "tobias.anker@kitsunemimi.moe"
     },
     "license": {
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "openapi": "3.0.0",
-    "paths": {
+    "version": "0.9.0"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/internal": {
+      "post": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Initialize new dataset",
+        "description": "Initialize  new dataset. This can only be done by an admin.",
+        "operationId": "post_v1alpha-dataset-internal-95bd8558ad9b5e17ae67edf0f37bb77a",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetInitReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "DatasetInternalResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "file_path",
+                    "name",
+                    "number_of_columns",
+                    "number_of_rows",
+                    "onsen_address",
+                    "secret_uuid",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "file_path": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "number_of_columns": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "number_of_rows": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "onsen_address": {
+                      "type": "string"
+                    },
+                    "secret_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/{dataset_uuid}": {
+      "get": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Get dataset",
+        "description": "Get information of a dataset from the database.",
+        "operationId": "get_v1alpha-dataset-365e7b9d40502ffd67b304e0986da59b",
+        "parameters": [
+          {
+            "name": "dataset_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Delete dataset",
+        "description": "Delete a dataset from the database and files from the storage.",
+        "operationId": "delete_v1alpha-dataset-365e7b9d40502ffd67b304e0986da59b",
+        "parameters": [
+          {
+            "name": "dataset_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/{dataset_uuid}/check": {
+      "put": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Check dataset",
+        "description": "Check two datasets against each other to get the accurary compared to the reference.",
+        "operationId": "put_v1alpha-dataset-b5b82fcf43690fb98bd891a9e039dcd7",
+        "parameters": [
+          {
+            "name": "dataset_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetCheckReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetCheckResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/{dataset_uuid}/internal": {
+      "get": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Get dataset (internal)",
+        "description": "Get information of a dataset from the database with additional information.",
+        "operationId": "get_v1alpha-dataset-8e72d206647a4055221600af7cf84d79",
+        "parameters": [
+          {
+            "name": "dataset_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetInternalResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset": {
+      "get": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "List dataset",
+        "description": "List basic information of all dataset from the database.",
+        "operationId": "get_v1alpha-dataset-065729ff7a40517e2e83fffbfc655447",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/{type}/{name}": {
+      "post": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Create new dataset",
+        "description": "Create new dataset by uploading files.",
+        "operationId": "post_v1alpha-dataset-daa48dbc77d99102c2b4d80b238d9e17",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {}
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "DatasetResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "number_of_columns",
+                    "number_of_rows",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "number_of_columns": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "number_of_rows": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/checkpoint/internal": {
+      "post": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "Initialize new checkpoint",
+        "description": "Initialize  new checkpoint. This can only be done by an admin.",
+        "operationId": "post_v1alpha-checkpoint-internal-c882eb055c264e0d659b318f2f9d362c",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckpointCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "CheckpointInternalResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "file_path",
+                    "name",
+                    "onsen_address",
+                    "secret_uuid",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "file_path": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "onsen_address": {
+                      "type": "string"
+                    },
+                    "secret_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/checkpoint": {
+      "get": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "List checkpoint",
+        "description": "List basic information of all checkpoint from the database.",
+        "operationId": "get_v1alpha-checkpoint-96baf67b168ddc312d2babaf6af41c4e",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/checkpoint/{checkpoint_uuid}": {
+      "get": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "Get checkpoint",
+        "description": "Get information of a checkpoint from the database.",
+        "operationId": "get_v1alpha-checkpoint-aef63a000b21bc2b26258e8c2e84e808",
+        "parameters": [
+          {
+            "name": "checkpoint_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "Delete checkpoint",
+        "description": "Delete a checkpoint from the database and core.",
+        "operationId": "delete_v1alpha-checkpoint-aef63a000b21bc2b26258e8c2e84e808",
+        "parameters": [
+          {
+            "name": "checkpoint_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/checkpoint/{checkpoint_uuid}/internal": {
+      "get": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "Get checkpoint (internal)",
+        "description": "Get information of a checkpoint from the database with additional information.",
+        "operationId": "get_v1alpha-checkpoint-4f573e254370ff880de99016e0432ddc",
+        "parameters": [
+          {
+            "name": "checkpoint_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointInternalResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/internal": {
+      "post": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Register new host",
+        "description": "Register new host.",
+        "operationId": "post_v1alpha-host-internal-62027aebc96d0c46798d689d9d5c30aa",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "HostResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "host_address",
+                    "name",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "host_address": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/admin": {
+      "get": {
+        "tags": [
+          "host"
+        ],
+        "summary": "List host",
+        "description": "List basic information of all host from the database.",
+        "operationId": "get_v1alpha-host-admin-166c09562c8c2f6e544f05937de0f78b",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/{host_uuid}/admin": {
+      "get": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Get host",
+        "description": "Get information of a host from the database.",
+        "operationId": "get_v1alpha-host-07e46470783297151810a434b07fb2e6",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Delete host",
+        "description": "Delete a host from the database.",
+        "operationId": "delete_v1alpha-host-07e46470783297151810a434b07fb2e6",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
+  },
+  "components": {
+    "schemas": {
+      "CheckpointBasicResp": {
+        "type": "object",
+        "required": [
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CheckpointCreateReq": {
+        "title": "CheckpointCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CheckpointInternalResp": {
+        "title": "CheckpointInternalResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "file_path",
+          "name",
+          "onsen_address",
+          "secret_uuid",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "onsen_address": {
+            "type": "string"
+          },
+          "secret_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CheckpointListResp": {
+        "title": "CheckpointListResp",
+        "type": "object",
+        "required": [
+          "checkpoints"
+        ],
+        "properties": {
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckpointBasicResp"
+            }
+          }
+        }
+      },
+      "CheckpointResp": {
+        "title": "CheckpointResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "name",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DatasetBasicResp": {
+        "type": "object",
+        "required": [
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DatasetCheckReq": {
+        "title": "DatasetCheckReq",
+        "type": "object",
+        "required": [
+          "dataset_column",
+          "reference_column",
+          "reference_uuid"
+        ],
+        "properties": {
+          "dataset_column": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "reference_column": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "reference_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DatasetCheckResp": {
+        "title": "DatasetCheckResp",
+        "type": "object",
+        "required": [
+          "accuracy"
+        ],
+        "properties": {
+          "accuracy": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "DatasetInitReq": {
+        "title": "DatasetInitReq",
+        "type": "object",
+        "required": [
+          "dataset_type",
+          "name",
+          "number_of_columns",
+          "number_of_rows",
+          "uuid"
+        ],
+        "properties": {
+          "dataset_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "number_of_columns": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "number_of_rows": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DatasetInternalResp": {
+        "title": "DatasetInternalResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "file_path",
+          "name",
+          "number_of_columns",
+          "number_of_rows",
+          "onsen_address",
+          "secret_uuid",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_columns": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "number_of_rows": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "onsen_address": {
+            "type": "string"
+          },
+          "secret_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DatasetListResp": {
+        "title": "DatasetListResp",
+        "type": "object",
+        "required": [
+          "datasets"
+        ],
+        "properties": {
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatasetBasicResp"
+            }
+          }
+        }
+      },
+      "DatasetResp": {
+        "title": "DatasetResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "name",
+          "number_of_columns",
+          "number_of_rows",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_columns": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "number_of_rows": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HostBasicResp": {
+        "type": "object",
+        "required": [
+          "host_address",
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "host_address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HostCreateReq": {
+        "title": "HostCreateReq",
+        "type": "object",
+        "required": [
+          "host_address",
+          "name",
+          "registration_key"
+        ],
+        "properties": {
+          "host_address": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "registration_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 127,
+            "minLength": 4,
+            "maxItems": 127,
+            "minItems": 4
+          }
+        }
+      },
+      "HostListResp": {
+        "title": "HostListResp",
+        "type": "object",
+        "required": [
+          "hosts"
+        ],
+        "properties": {
+          "hosts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostBasicResp"
+            }
+          }
+        }
+      },
+      "HostResp": {
+        "title": "HostResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "host_address",
+          "name",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "host_address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Secret": {
+        "type": "string"
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
 }
