@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
@@ -44,10 +45,13 @@ pub async fn register_proxy_internal(
 
     let proxy_uuid = Uuid::new_v4();
 
+    let free_port =
+        proxy_table::get_free_proxy(config::CONFIG.ports.min_port, config::CONFIG.ports.max_port)?;
+
     // add new proxy to database
     proxy_table::add_new_proxy(
         &proxy_uuid,
-        body.port,
+        free_port,
         &body.target_address,
         &body.cluster_uuid,
         &context,
@@ -60,7 +64,7 @@ pub async fn register_proxy_internal(
     // create new proxy and add it to the handler
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler
-        .add_proxy(&proxy_uuid, body.port, &body.target_address)
+        .add_proxy(&proxy_uuid, free_port, &body.target_address)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -70,7 +74,7 @@ pub async fn register_proxy_internal(
 
     let resp = ProxyResp {
         uuid: proxy_uuid,
-        port: body.port,
+        port: proxy_data.port as u16,
         target_address: proxy_data.target_address,
         cluster_uuid: body.cluster_uuid,
         created_by: proxy_data.created_by,

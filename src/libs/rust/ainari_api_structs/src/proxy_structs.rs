@@ -20,7 +20,6 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ProxyCreateReq {
-    pub port: u16,
     #[validate(length(min = 4, max = 127))]
     pub target_address: String,
     pub cluster_uuid: Uuid,
@@ -36,11 +35,6 @@ pub struct ProxyResp {
     pub created_by: String,
     pub updated_at: String,
     pub updated_by: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct FreePortResp {
-    pub port: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

@@ -28,7 +28,6 @@ pub async fn create_proxy(
     internal_api_key: &Secret,
     cluster_uuid: &Uuid,
     target_address: &str,
-    proxy_port: u16,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
@@ -36,7 +35,6 @@ pub async fn create_proxy(
     let url = format!("{address}/v1alpha/proxy/internal");
 
     let body = ProxyCreateReq {
-        port: proxy_port,
         target_address: target_address.to_owned(),
         cluster_uuid: *cluster_uuid,
     };
@@ -113,25 +111,4 @@ pub async fn delete_proxy(
         .await;
 
     handle_empty_response(response, "proxy", &proxy_uuid.to_string()).await
-}
-
-pub async fn get_free_proxy_port(
-    torii_endpoint: &ainari_config::Endpoint,
-    token: &String,
-    internal_api_key: &Secret,
-    insecure_client: bool,
-) -> Result<FreePortResp, AinariError> {
-    let address = torii_endpoint.internal_address.clone();
-    let client = prepare_client(&address, insecure_client);
-    let url = format!("{address}/v1alpha/proxy/get_free");
-
-    let response = client
-        .get(url)
-        .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .send()
-        .await;
-
-    let resp: Result<FreePortResp, AinariError> = handle_response(response, "proxy", "").await;
-    resp
 }

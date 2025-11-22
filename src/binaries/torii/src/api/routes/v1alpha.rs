@@ -29,10 +29,6 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/internal")
                         .route(post().to(set_proxy_internal_v1_0::register_proxy_internal)),
                 )
-                .service(
-                    resource("/get_free")
-                        .route(get().to(get_free_proxy_port_v1_0::get_free_proxy_port)),
-                )
                 .service(resource("").route(get().to(list_proxy_v1_0::list_proxy)))
                 .service(resource("/{proxy_uuid}").route(get().to(get_proxy_v1_0::get_proxy)))
                 .service(
