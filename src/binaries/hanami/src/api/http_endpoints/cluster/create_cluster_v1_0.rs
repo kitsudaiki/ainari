@@ -29,6 +29,7 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::cluster as cluster_clients;
 use ainari_clients::endpoints::*;
 use ainari_clients::proxy as proxy_clients;
+use ainari_clients::proxy::get_free_proxy_port;
 use ainari_clients::quota::get_quota;
 
 #[api_operation(
@@ -88,6 +89,15 @@ pub async fn create_cluster(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
+    let free_port = get_free_proxy_port(
+        &endpoints.torii,
+        &context.token,
+        &config::CONFIG.api.internal_api_key,
+        config::CONFIG.insecure_clients,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
+
     // send request to torii to create a proxy
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
@@ -95,7 +105,7 @@ pub async fn create_cluster(
         &config::CONFIG.api.internal_api_key,
         &cluster_resp.uuid,
         &selected_host.address,
-        10042,
+        free_port.port,
         config::CONFIG.insecure_clients,
     )
     .await

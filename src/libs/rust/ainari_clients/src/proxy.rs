@@ -114,3 +114,24 @@ pub async fn delete_proxy(
 
     handle_empty_response(response, "proxy", &proxy_uuid.to_string()).await
 }
+
+pub async fn get_free_proxy_port(
+    torii_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    insecure_client: bool,
+) -> Result<FreePortResp, AinariError> {
+    let address = torii_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy/get_free");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    let resp: Result<FreePortResp, AinariError> = handle_response(response, "proxy", "").await;
+    resp
+}
