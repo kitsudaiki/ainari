@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
+use rand::prelude::IndexedRandom;
 use validator::Validate;
 
 use crate::config;
@@ -61,8 +62,8 @@ pub async fn create_cluster(
     }
 
     // select first host
-    // TODO: also be able to select one of many hosts
-    let selected_host = if let Some(host) = hosts.first() {
+    let mut rng = rand::rng();
+    let selected_host = if let Some(host) = hosts.choose(&mut rng) {
         host
     } else {
         log::error!("No hosts with list-position 0 doesn't exist.");
