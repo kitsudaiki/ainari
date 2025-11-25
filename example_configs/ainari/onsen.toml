@@ -3,6 +3,9 @@ log_path = "/var/log"
 insecure_clients = true
 address = "http://127.0.0.1:50051"
 
+[miko]
+address = "http://127.0.0.1:11417"
+
 [api]
 public_ip = "0.0.0.0"
 public_port = 11422
@@ -12,9 +15,6 @@ internal_api_key = "asdf"
 
 [storage]
 location = "/tmp/onsen"
-
-[miko]
-address = "http://127.0.0.1:11417"
 
 [ryokan]
 registation_key = "test-registration-key"

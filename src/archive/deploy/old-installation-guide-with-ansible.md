@@ -2,35 +2,36 @@
 
 ### Requirements
 
--   Only Ansible itself is required to be installed
+- Only Ansible itself is required to be installed
 
--   Other dependencies like docker will be installed by the ansible playbooks, so it is required
-    that playbooks can be executed with sudo permissions
+- Other dependencies like docker will be installed by the ansible playbooks, so it is required that
+    playbooks can be executed with sudo permissions
 
 ### Environment Variables
 
 Basic parameter have to be set by environemt-variables:
 
--   `ADMIN_USER_ID`
+- `ADMIN_USER_ID`
 
-    -   Identifier for the new user. It is used for login and internal references to the user.
-    -   String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9@]*` with between `4` and `256`
+    - Identifier for the new user. It is used for login and internal references to the user.
+    - String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9@]*` with between `4` and `256`
         characters length
 
--   `ADMIN_USER_NAME`
+- `ADMIN_USER_NAME`
 
-    -   Better readable name for the user, which doesn't have to be unique in the system.
-    -   String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9 ]*` with between `4` and `256`
+    - Better readable name for the user, which doesn't have to be unique in the system.
+    - String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9 ]*` with between `4` and `256`
         characters length
 
--   `ADMIN_PASSPHRASE`
+- `ADMIN_PASSPHRASE`
 
-    -   Passphrase for the initial user
-    -   String, with between `8` and `4096` characters length
+    - Passphrase for the initial user
+    - String, with between `8` and `4096` characters length
 
--   `TOKEN_KEY`
-    -   Key for the JWT-Tokens
-    -   String
+- `TOKEN_KEY`
+
+    - Key for the JWT-Tokens
+    - String
 
 !!! example
 

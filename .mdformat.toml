@@ -1,0 +1,6 @@
+wrap = 100
+number = false         # do not renumber ordered lists
+end_of_line = "lf"
+validate = true
+# exclude = ["docs/vendor/**"]   # (requires Python 3.13+ for exclude patterns)
+

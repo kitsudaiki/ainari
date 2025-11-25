@@ -13,44 +13,67 @@ theme:
     scheme: default  # or "slate" for dark
   features:
     - navigation.tabs
-    - navigation.sections
+    # - navigation.sections
     - navigation.expand
     - navigation.prune
     - navigation.top
+    - navigation.path
     - content.code.annotate
     - content.tabs.link
 
 nav:
   - Home:
     - index.md
+    - home/overview.md
     - home/license.md
     - home/CHANGELOG.md
     - home/ROADMAP.md
-  - Frontend:
-    - frontend/example_workflow.md
-    - frontend/rest_api_documentation.md
-    - frontend/cli_sdk_docu.md
-    - frontend/cluster_templates/cluster_template.md
-    - frontend/dashboard/dashboard.md
-  - Backend:
-    - backend/installation.md
-    - backend/config.md
-    - backend/db.md
-  - Inner workings:
-    - inner_workings/core/core.md
-    - inner_workings/measurements/measurements.md
-    # - inner_workings/input_processing/input_processing.md
-    - inner_workings/monitoring/monitoring.md
-    - inner_workings/storage.md
-    - inner_workings/user_and_projects.md
-  - Development:
-    - repo/repo_structure.md
-    - repo/build_guide.md
-    - repo/development.md
-    - repo/dependencies.md
-    - repo/git_workflow.md
-    - repo/glossar.md
-
+  - User-Docu:
+    - CLI and SDK:
+      - user/cli_sdk/cli_sdk_docu.md
+      - user/cli_sdk/example_workflow.md
+    - Dashboard:
+      - user/dashboard/dashboard.md
+    - Rest-API:
+      - user/rest_api/rest_api_docu_sakura.md
+      - user/rest_api/rest_api_docu_hanami.md
+      - user/rest_api/rest_api_docu_miko.md
+      - user/rest_api/rest_api_docu_ryokan.md
+      - user/rest_api/rest_api_docu_torii.md
+      - user/rest_api/rest_api_docu_omamori.md
+  - Deployer/Admin-Docu:
+    - Installation:
+      - deployer/installation/kubernetes_installation.md
+    - Configuration:
+      - deployer/config/sakura_config.md
+      - deployer/config/hanami_config.md
+      - deployer/config/miko_config.md
+      - deployer/config/ryokan_config.md
+      - deployer/config/torii_config.md
+      - deployer/config/omamori_config.md
+      - deployer/config/onsen_config.md
+    - Database:
+      - deployer/database/sakura_db.md
+      - deployer/database/hanami_db.md
+      - deployer/database/miko_db.md
+      - deployer/database/ryokan_db.md
+      - deployer/database/torii_db.md
+      - deployer/database/omamori_db.md
+  - Development-Docu:
+    - Inner workings:
+      - developer/inner_workings/core/core.md
+      - developer/inner_workings/measurements/measurements.md
+      - developer/inner_workings/monitoring/monitoring.md
+      - developer/inner_workings/storage.md
+      - developer/inner_workings/user_and_projects.md
+    - Repo:
+      - developer/repo/repo_structure.md
+      - developer/repo/build_guide.md
+      - developer/repo/development.md
+      - developer/repo/dependencies.md
+      - developer/repo/git_workflow.md
+      - developer/repo/glossar.md
+  
 plugins:
     - swagger-ui-tag
     - search
@@ -92,8 +115,12 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_css:
   - stylesheets/extra.css

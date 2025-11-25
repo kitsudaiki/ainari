@@ -2,12 +2,6 @@ debug = true
 log_path = "/var/log"
 insecure_clients = true
 
-[database]
-file_path = "/etc/ainari/ryokan_db"
-
-[storage]
-tempfile_location = "/tmp/ryokan"
-
 [api]
 public_ip = "0.0.0.0"
 public_port = 11416
@@ -15,8 +9,14 @@ internal_ip = "0.0.0.0"
 internal_port = 10416
 internal_api_key = "asdf"
 
+[database]
+file_path = "/etc/ainari/ryokan_db"
+
 [miko]
 address = "http://127.0.0.1:11417"
+
+[storage]
+tempfile_location = "/tmp/ryokan"
 
 [onsen]
 registation_key = "test-registration-key"
