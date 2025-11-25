@@ -71,7 +71,7 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
         name VARCHAR(256),
         onsen_address VARCHAR(256),
         file_path TEXT,
-        secret_uuid VARCHAR(32),
+        secret_uuid VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),

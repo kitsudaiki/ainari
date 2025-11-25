@@ -69,7 +69,7 @@ pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
         uuid VARCHAR(40) PRIMARY KEY,
         port INTEGER,
         target_address VARCHAR(256),
-        cluster_uuid VARCHAR(256),
+        cluster_uuid VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(10),
