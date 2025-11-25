@@ -75,7 +75,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         name VARCHAR(256),
         onsen_address VARCHAR(256),
         file_path TEXT,
-        secret_uuid VARCHAR(32),
+        secret_uuid VARCHAR(40),
         number_of_rows BIGINT,
         number_of_columns BIGINT,
         owner_id VARCHAR(256),

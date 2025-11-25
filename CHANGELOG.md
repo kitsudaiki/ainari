@@ -11,7 +11,7 @@
 - split "hanami" into a new "hanami", "sakura" and "torii"
 - added new component named "Miko", where the endpoints for tokens, users and projects moved to.
 - Sakura now uses the Miko to check provided token over a new client-connection
-- improved version-output 
+- improved version-output
 
 #### Config-Breaking
 
@@ -29,16 +29,20 @@
 
 ### Changed
 
-- use context-object, which includes token, public-addresses and insecure-flag in one object, to make the sdk-functions smaller and cleaner
-- keys are internally handled as new object, to prevent them from being printed on the console by accident
+- use context-object, which includes token, public-addresses and insecure-flag in one object, to
+    make the sdk-functions smaller and cleaner
+- keys are internally handled as new object, to prevent them from being printed on the console by
+    accident
 - Dockerfiles:
-    - split into multiple-files, where each build only its own binary and not all, to reduce the build-time in the CI
+    - split into multiple-files, where each build only its own binary and not all, to reduce the
+        build-time in the CI
     - base-images are pinned by a hash now
     - switch from ubuntu to debian-slim as base image to reduce the size
 
 ### Fixed
 
-- fixed miscalculation in the potential-overflow between sections, to fix massive accuracy problems in bigger tests
+- fixed miscalculation in the potential-overflow between sections, to fix massive accuracy problems
+    in bigger tests
 
 ## v0.9.0
 
@@ -58,32 +62,36 @@
 - central cluster-handler was added
 - added rust fmt check to CI-pipeline
 - added rust clippy check to CI-pipeline
-- added version-endpoint to request the version of the server (updated python and go sdk and cli for the new endpoint)
-- added config-flag to limit the number of used cpu-codes (default is 0, which means all threads are used)
+- added version-endpoint to request the version of the server (updated python and go sdk and cli for
+    the new endpoint)
+- added config-flag to limit the number of used cpu-codes (default is 0, which means all threads are
+    used)
 
 ### Changed
 
 - refactored core into Rust-code
 - block can trigger other blocks more indepentantly
 - also some new concepts in the core as response to the behavior of Rust
-- removed and forbid unsafe 
+- removed and forbid unsafe
 - replace unwrap-functions outside of tests
 
 ### Fixed
 
-- fixed randomly failing dataset-upload by adding a file-sync to ensure the data are written on disc before converting
+- fixed randomly failing dataset-upload by adding a file-sync to ensure the data are written on disc
+    before converting
 - fixed commit-linter in CI, which was misconfigured
 
 ### Removed
 
-- removed the `use_of_free_memory`-config (for now), because memory for the network is not pre-allocated anymore
-
+- removed the `use_of_free_memory`-config (for now), because memory for the network is not
+    pre-allocated anymore
 
 ## v0.8.0
 
 **Release-Date**: 2025-06-10
 
 Translated big parts of the program from C++ into Rust:
+
 - REST-API endpoints
 - Database-connection
 - Config-file
@@ -99,7 +107,8 @@ Translated big parts of the program from C++ into Rust:
 - datasets are now uploaded over the REST-API instead of websockets
 - OAuth-styling of token-requests for a more standardized styling and behaviour
 - upload files of datasets via API-endpoint instead of websocket
-- removed direct- and task-mode separation, because it is not necessary anymore the with the new architecture
+- removed direct- and task-mode separation, because it is not necessary anymore the with the new
+    architecture
 - removed websocket-connections in general
 - Allow the definition of multiple epochs in one single train-task
 - Inputs of the CLI were in general updated by removing and changing a bunch of flags
@@ -136,7 +145,6 @@ Translated big parts of the program from C++ into Rust:
 
 - Direct-requests against the cluster can now be done in parallel to active tasks
 
-
 ## v0.7.0
 
 **Release-Date**: 2025-03-19
@@ -147,14 +155,16 @@ Translated big parts of the program from C++ into Rust:
 
 - removed the Binary input option again
 - functions of the python-sdk now returning a dict instead of a json-formated string
-- added `created_by`, `updated_at`, `updated_by` and `deleted_by` to all endpoints, where the database was updated
+- added `created_by`, `updated_at`, `updated_by` and `deleted_by` to all endpoints, where the
+    database was updated
 
 #### Checkpoint-breaking
 
 - updated core-structure for a cleaner communication between different hexagons
 - merge connection-, neuron- and synapse-block into one block object
 - updated section-processing for better input-handling especially for binary input data
-- replaced the old split-process for sections to avoid loosing half of the trained section in the process
+- replaced the old split-process for sections to avoid loosing half of the trained section in the
+    process
 - dynamically link sections to connections in order to make memory usage more efficient
 - net input can now also handle negative values as input
 
@@ -165,7 +175,8 @@ Translated big parts of the program from C++ into Rust:
 #### Database-Breaking
 
 - Added `task_uuid` to datasets
-- Datasets, which are created as result form request-task, have now a random uuid instead of the uuid of the initial request-task
+- Datasets, which are created as result form request-task, have now a random uuid instead of the
+    uuid of the initial request-task
 - replaced the old `creator_id` for users and projects
 - added `created_by`, `updated_at`, `updated_by` and `deleted_by` to all relevant database-tables
 
@@ -184,13 +195,14 @@ Translated big parts of the program from C++ into Rust:
 
 - wrong return-code in one error-case of the create-train-task endpoint was fixed
 - fixed offset in the output of the timeseries training from datasets
-- download of dataset with a too big number of requested rows and offset was fixed to handle this cases correctly
+- download of dataset with a too big number of requested rows and offset was fixed to handle this
+    cases correctly
 - cluster where a hexagon has multiple possible next was not correct in path-finding
 
 ### Removed
 
-- removed the remaining code of the old broken reduction-process, which doesn't really makes a difference with the current core
-
+- removed the remaining code of the old broken reduction-process, which doesn't really makes a
+    difference with the current core
 
 ## v0.6.0
 
@@ -200,14 +212,17 @@ Translated big parts of the program from C++ into Rust:
 
 #### API-Breaking
 
-- the input definition for the tasks was changes to removed the naming restriction between dataset-column and hexagon-name
-- the external REST-API endpoint to validate a token was removed and replaced by an internal function, which is used instead for all incoming api-requests
+- the input definition for the tasks was changes to removed the naming restriction between
+    dataset-column and hexagon-name
+- the external REST-API endpoint to validate a token was removed and replaced by an internal
+    function, which is used instead for all incoming api-requests
 - changed password to passphrase, which is now required to be base64 encoded
 
 #### Checkpoint-breaking
 
 - added axons to be able to connect hexagons of the entire cluster with each other
-- the synapse-block-links were moved into its own vector for cleaner separation and better sizes of the objects within the memory
+- the synapse-block-links were moved into its own vector for cleaner separation and better sizes of
+    the objects within the memory
 
 #### Template-Breaking
 
@@ -216,25 +231,33 @@ Translated big parts of the program from C++ into Rust:
 
 #### Database-Breaking
 
-- the base64-representation of the passphrases is now used for the pw-hash inside the database, which makes all old hashes in the database invalid
+- the base64-representation of the passphrases is now used for the pw-hash inside the database,
+    which makes all old hashes in the database invalid
 
 ### Added
 
 - added new workaround to be able to handle binary input-data
-- added new output-modi to provide more output-options to combine multiple outputs bitwise into a bigger value
+- added new output-modi to provide more output-options to combine multiple outputs bitwise into a
+    bigger value
 - added metrics for number of blocks and number of sections to cluster get output
 
 ### Changed
 
 - renamed repo from `Sakura` to `Ainari`
-- tls-termination in kubernetes setup was moved from the ingress into a container within the same pod like the sakura-process
-- number of input- and output-neurons now scales with the given data, so defining them hard inside of the cluster-template is not longer necessary
-- moved converting user-context from the endpoints to a central position to avoid unnecessary redundant code
-- moved cluster io-functions internally into the processing and backpropagarion files for the cpu-code
+- tls-termination in kubernetes setup was moved from the ingress into a container within the same
+    pod like the sakura-process
+- number of input- and output-neurons now scales with the given data, so defining them hard inside
+    of the cluster-template is not longer necessary
+- moved converting user-context from the endpoints to a central position to avoid unnecessary
+    redundant code
+- moved cluster io-functions internally into the processing and backpropagarion files for the
+    cpu-code
 - item-buffer was internally changed to be more compatible for further attempts of GPU-support
 - made internal processing more generic, to have the same worker-workflow for all coming backends
-- use debug builds with ASan-check for tests of the CI (unit-, functional-, memory-leak-, sdk-api- and cli-api-tests)
-- default-values for initial admin-credentials and token-key were removed from the helm-chart and are now marked as required
+- use debug builds with ASan-check for tests of the CI (unit-, functional-, memory-leak-, sdk-api-
+    and cli-api-tests)
+- default-values for initial admin-credentials and token-key were removed from the helm-chart and
+    are now marked as required
 - synapse-tolerance was changed to static values
 
 ### Fixed
@@ -246,13 +269,14 @@ Translated big parts of the program from C++ into Rust:
 - fixed memory-corruption in cluster-resize, because a pointer was used after free
 - fixed missing drawio-images in documentation when generating in CI
 - fixed random crash, which can appear while creating checkpoints
-- when making a request over direct-io but the output is empty, there was no response and the connection got stuck, which was fixed
-- when using direct-io right from the beginning to train a cluster, the cluster remained empty, which was fixed
+- when making a request over direct-io but the output is empty, there was no response and the
+    connection got stuck, which was fixed
+- when using direct-io right from the beginning to train a cluster, the cluster remained empty,
+    which was fixed
 
 ### Removed
 
 - the ansible-playbook was moved ot the archive and removed from the documentation and CI
-
 
 ## v0.5.0
 
@@ -263,22 +287,30 @@ Translated big parts of the program from C++ into Rust:
 #### API-breaking
 
 - tasks were updated to a more generic way
-- request-results were removed from the databases and api, because results are now also stored as data-sets again
-- renamed REST-API endpoints after removing the dashboard, because there is no separation between dashboard and commands anymore
+- request-results were removed from the databases and api, because results are now also stored as
+    data-sets again
+- renamed REST-API endpoints after removing the dashboard, because there is no separation between
+    dashboard and commands anymore
 - added version-numbers to the REST-API endpoints
 
 #### Checkpoint-Breaking
 
-- number of neurons per brick now grows dynamically and doesn't have to be defined in the cluster-templates anymore
-- changed output-bricks to modifiy the size of the output-brick independently from the number of output-neurons
+- number of neurons per brick now grows dynamically and doesn't have to be defined in the
+    cluster-templates anymore
+- changed output-bricks to modifiy the size of the output-brick independently from the number of
+    output-neurons
 - updated buffer in clusters to remove the old byte-arrays
-- new implementation for the checkpoints for the new data-structure of the clusters and for more and better error-handling
-- header of checkpoint-files was changed from 512 byte to 4096 byte to have more space for additional configs
+- new implementation for the checkpoints for the new data-structure of the clusters and for more and
+    better error-handling
+- header of checkpoint-files was changed from 512 byte to 4096 byte to have more space for
+    additional configs
 
 #### Dataset-Breaking
 
-- new implementation for the datasets for a more generic handling of data and read-function to allow get specific sections from the data-set file
-- header of dataset--files was changed from 512 byte to 4096 byte to have more space for additional configs
+- new implementation for the datasets for a more generic handling of data and read-function to allow
+    get specific sections from the data-set file
+- header of dataset--files was changed from 512 byte to 4096 byte to have more space for additional
+    configs
 
 #### Template-Breaking
 
@@ -288,7 +320,8 @@ Translated big parts of the program from C++ into Rust:
 #### Database-Breaking
 
 - database-tables now have a `created_at`-timestamp for the entry
-- entries of the database-tables are now deleted anymore, but instead are only marked as deleted with a `deleted_at`-timestamp
+- entries of the database-tables are now deleted anymore, but instead are only marked as deleted
+    with a `deleted_at`-timestamp
 
 ### Added
 
@@ -297,7 +330,8 @@ Translated big parts of the program from C++ into Rust:
 - added function to download content of datasets
 - added flag to the CLI to get every output as json-string
 - added flag to the CLI to disable the TLS-check, when necessary
-- database-tables now have proper functions to add and get structs from/to the database instead of only json-objects, which makes the code more explizit
+- database-tables now have proper functions to add and get structs from/to the database instead of
+    only json-objects, which makes the code more explizit
 - added new approach for time-series for input-data of csv-files
 - added unit-tests for:
     - clusters
@@ -317,14 +351,16 @@ Translated big parts of the program from C++ into Rust:
     - added sdk-api-test with different Python versions
     - added integration-tests with different Kubernetes versions
     - added CodeQL-check as additional workflow
-    - added OpenSSF-checks as additional workflow 
+    - added OpenSSF-checks as additional workflow
 - added dependabot-bot to repository
 
 ### Changed
 
-- datasets are now streamed internally and not fully loaded into the memory anymore, when creating a task, which is a massive reductions in the memory-consumption
+- datasets are now streamed internally and not fully loaded into the memory anymore, when creating a
+    task, which is a massive reductions in the memory-consumption
 - the registration of new endpoints within the code were updated by removing old leftovers
-- the registration of new database-columns within the code were updated to look like the style of config-registrations and so on
+- the registration of new database-columns within the code were updated to look like the style of
+    config-registrations and so on
 - internal handling of tasks was updated for cleaner code
 - endpoint to list projects of a user, were moved within the code
 - renamed src-subdirectory `Sakura` to `sakura` to be more consistent to the rest
@@ -345,11 +381,14 @@ Translated big parts of the program from C++ into Rust:
 
 ### Removed
 
-- the `common`-directory in Sakura was removed and most of the functions were moved to the `ainari_common`-lib
-- disabled CUDA-kernel, because at the moment it doesn't brings a performance increasement, but only slows down the development (will be added in the future again, after finding a better use-case for the GPU)
-- disabled dashboard and moved it to the archive subdirectory (will be added in the future again, after a complete refactoring of the code)
+- the `common`-directory in Sakura was removed and most of the functions were moved to the
+    `ainari_common`-lib
+- disabled CUDA-kernel, because at the moment it doesn't brings a performance increasement, but only
+    slows down the development (will be added in the future again, after finding a better use-case
+    for the GPU)
+- disabled dashboard and moved it to the archive subdirectory (will be added in the future again,
+    after a complete refactoring of the code)
 - removed old OpenCL-kernel
-
 
 ## v0.4.1
 
@@ -369,7 +408,8 @@ Translated big parts of the program from C++ into Rust:
 ### Changed
 
 - reduce cpu usage in idle state by blocking inactive threads
-- use [earthly](https://github.com/earthly/earthly) as new build-script and replace old pre-build docker-images in CI
+- use [earthly](https://github.com/earthly/earthly) as new build-script and replace old pre-build
+    docker-images in CI
 - use random instead of static salt-value for password-hashes
 - websocket-connections in SDK use now async-functions
 
@@ -377,8 +417,6 @@ Translated big parts of the program from C++ into Rust:
 
 - fixed linting-errors in python- and ansbile-scripts
 - fixes to run code in virtual machines, where reading system information had broke the setup
-
-
 
 ## v0.4.0
 
@@ -388,9 +426,14 @@ Translated big parts of the program from C++ into Rust:
 
 #### Checkpoint-Breaking
 
-- Complete restructure of the core to improve the performance of the CUDA-kernel by enabling more capabilities for parallel processing.
-- Synapse-blocks are not limited to a single cluster-scoped buffer, but instead are stored in a global buffer, which is shared by multiple cluster.
-- The number of used synapse-blocks is now independed from the number of neuron-blocks of a brick. They scale now better over time. This way the number of neurons in the clsuter-template are only a maximum value. This way it is easier to too high values in the cluster-template are no pain-point anymore.
+- Complete restructure of the core to improve the performance of the CUDA-kernel by enabling more
+    capabilities for parallel processing.
+- Synapse-blocks are not limited to a single cluster-scoped buffer, but instead are stored in a
+    global buffer, which is shared by multiple cluster.
+- The number of used synapse-blocks is now independed from the number of neuron-blocks of a brick.
+    They scale now better over time. This way the number of neurons in the clsuter-template are only
+    a maximum value. This way it is easier to too high values in the cluster-template are no
+    pain-point anymore.
 
 #### API-Breaking
 
@@ -404,23 +447,24 @@ Translated big parts of the program from C++ into Rust:
 - re-added the spiking neural network-feature for future testing-purpose
 - re-added a connection-distance of more the one for future testing-purpose
 - python version of the SDK
-- basic cli-client in go 
+- basic cli-client in go
 - new entry in config to define a location for temporary files while uploading
-- new cleanup-loop for tempfiles, which deleted incative temporary files after a certain amount of time, to remove file of a broken upload-process
+- new cleanup-loop for tempfiles, which deleted incative temporary files after a certain amount of
+    time, to remove file of a broken upload-process
 - the reduction-process was re-added to limit the amount of used memory while learning.
 
 ### Changed
 
-- physical host is now separated into logical hosts (a cpu and a gpu are handled as 2 different logical hosts)
-- replaced old api-test-tool by a new python-script, which use and test the new python version of the SDK
+- physical host is now separated into logical hosts (a cpu and a gpu are handled as 2 different
+    logical hosts)
+- replaced old api-test-tool by a new python-script, which use and test the new python version of
+    the SDK
 - moved from `qmake` to `cmake` as build-tool for the c++ code
 
 ### Removed
 
 - removed GET-requests from audit-log
 - removed c++ version of the SDK
-
-
 
 ## v0.3.3
 
@@ -431,8 +475,6 @@ Translated big parts of the program from C++ into Rust:
 - fixed broken login to dashboard
 - fixed broken internal error-log and the error-log API-endpoint
 
-
-
 ## v0.3.2
 
 **Release-Date**: 2023-11-10
@@ -441,7 +483,7 @@ Translated big parts of the program from C++ into Rust:
 
 - basic Ansible-playbook was added in order to deploy the project without kubernetes
 - in kubernetes-setup:
-    - now use cert-manager to generate certificates 
+    - now use cert-manager to generate certificates
     - ingress was added for ssl-termination of https-connections
     - persistent volume was added to persist data like database within the kuberntes-setup
     - node label was added to define the node, where sakura should be deployed by kubernetes
@@ -449,7 +491,8 @@ Translated big parts of the program from C++ into Rust:
 - `clang-format` check and basic `cppcheck` were added to the ci-pipeline
 - first contribution-guide and code-styling guide was added
 - example-configs for testing purpose and guide to setup local test-environment
-- at start there is now a check if the directories for the checkpoints and dataset, defined by the config, even exist
+- at start there is now a check if the directories for the checkpoints and dataset, defined by the
+    config, even exist
 
 ### Fixed
 
@@ -462,13 +505,13 @@ Translated big parts of the program from C++ into Rust:
 
 - moved old readme files into the normal documentation
 - use clang++ instead of g++ as compiler
-- non-critical API-errors, like for example a 404 (not found) when searching for an unknown id, doesn't produce an internal error-output anymore 
+- non-critical API-errors, like for example a 404 (not found) when searching for an unknown id,
+    doesn't produce an internal error-output anymore
 
 ### Removed
 
-- ssl-termination was removed from backend-API, because it will be done by another service in front of the API, like nginx
-
-
+- ssl-termination was removed from backend-API, because it will be done by another service in front
+    of the API, like nginx
 
 ## v0.3.1
 
@@ -488,9 +531,7 @@ Translated big parts of the program from C++ into Rust:
 
 - Removed unused and deprecated checkpoint create and finalize endpoints
 
-
-
-## v0.3.0 
+## v0.3.0
 
 **Release-Date**: 2023-09-05
 
@@ -498,8 +539,13 @@ Translated big parts of the program from C++ into Rust:
 
 #### All breaking
 
-- Move the entire project from a micro-service architecture to a more monolithic architecture with only one executable but still multiple libraries, to reduce unnecessary complexity and increase performance and reliability of the program. Also it makes the developing process easier and faster, with is necessary in regard of my limited time-resources.
-- Removed entire segment-layer between the clusters and bricks from core structure. This layer was originally intended for the separation of multiple threads, but now there is another strategy planed 
+- Move the entire project from a micro-service architecture to a more monolithic architecture with
+    only one executable but still multiple libraries, to reduce unnecessary complexity and increase
+    performance and reliability of the program. Also it makes the developing process easier and
+    faster, with is necessary in regard of my limited time-resources.
+- Removed entire segment-layer between the clusters and bricks from core structure. This layer was
+    originally intended for the separation of multiple threads, but now there is another strategy
+    planed
 
 #### API-Breaking
 
@@ -516,22 +562,28 @@ Translated big parts of the program from C++ into Rust:
 
 ### Added
 
-- documentation of config-entries and database-schemas can now also be generated as marddown-documents
+- documentation of config-entries and database-schemas can now also be generated as
+    marddown-documents
 - error-codes are now also written into the REST-API documentation
 - new config-entry to enable the extremely experimental CUDA-processing
-- more then one thread is now created for the core-processing, to be able to process multiple clusters in parallel
+- more then one thread is now created for the core-processing, to be able to process multiple
+    clusters in parallel
 - the CUDA-version now also works with Checkpoints (create and read)
 
 ### Changed
 
 - Rename repository/project from `Sakura-AI` to `Sakura`
-- Renamed libraries to `ainari_...` and namespaces of the libraries to `Sakura`, because the originally naming and structure was from the time, when they were separate repositores and desired also for other projects. The new naming makes the names shorter and easier.
+- Renamed libraries to `ainari_...` and namespaces of the libraries to `Sakura`, because the
+    originally naming and structure was from the time, when they were separate repositores and
+    desired also for other projects. The new naming makes the names shorter and easier.
 - replace custom jwt lib by `jwt-cpp` (https://github.com/Thalhammer/jwt-cpp)
-- REST-API documentation is now generated as OpenAPI-specification and added to the documentation via swagger-ui
+- REST-API documentation is now generated as OpenAPI-specification and added to the documentation
+    via swagger-ui
 - merged networking-libraries in context of the renaming
 - config-handler was internally restructured for the new generator of the config-documentation
 - registration of fields in API-endpoints was updated for cleaner code
-- Button in dashboard for the geneartion of the Documentation was removed and is now done by a new CLI flag.
+- Button in dashboard for the geneartion of the Documentation was removed and is now done by a new
+    CLI flag.
 - merged entire code into one single docker-image
 - better segmentation of the synapses
 
@@ -539,17 +591,17 @@ Translated big parts of the program from C++ into Rust:
 
 - solved all compiler-warnings (disabled libraries not included)
 - fixed stupid memory leaks in API and task-handling
-- fixed handling in database-requests to separate correctly between an internal-error and a not-found to give the correct HTTP response to the user
-- after a restart of the backend, all clusters are not removed from database at the start to avoid broken clusters, because cluster are in-memory and don't survive a restart
+- fixed handling in database-requests to separate correctly between an internal-error and a
+    not-found to give the correct HTTP response to the user
+- after a restart of the backend, all clusters are not removed from database at the start to avoid
+    broken clusters, because cluster are in-memory and don't survive a restart
 - positioning of header-texts in dashboard was fixed
 
 ### Removed
 
 - Removed OpenCL-kernel for the moment. The CUDA-variant is enough for testing and easier to update.
 
-
-
-## v0.2.0 
+## v0.2.0
 
 **Release-Date**: 2023-03-15
 
@@ -560,15 +612,18 @@ Translated big parts of the program from C++ into Rust:
 - use now custom syntax for cluster- and segment-templates instead of json
 - use protobuf-messages to send payload of files
 - merge endpoints to create train- and request-tasks for csv- and mnist-files into one endpoint
-- creating a task doesn't require the explicit selecting of the data-set type. This is now read from the data-set metadata
+- creating a task doesn't require the explicit selecting of the data-set type. This is now read from
+    the data-set metadata
 
 #### Checkpoint-Breaking
 
-- changed internal data-structure of the core in order to make GPU-support possible without race-conditions
+- changed internal data-structure of the core in order to make GPU-support possible without
+    race-conditions
 
 ### Changed
 
-- **merged all repositories (source-code, documentation, build, deploy) into this main-repository here**
+- **merged all repositories (source-code, documentation, build, deploy) into this main-repository
+    here**
 - made token-key and registry in helm-chart configurable
 - made token expire-time configurable in Misaki
 - core-internal renamings of structs and functions
@@ -576,9 +631,10 @@ Translated big parts of the program from C++ into Rust:
 - use nested namespaces in sakura- and sakura-layer
 - changed a huge amount of map-iterators to c++17 style
 
-### Added 
+### Added
 
-- Added experimental GPU-support with CUDA and OpenCL (per default hard in source-code disbabled at the moment)
+- Added experimental GPU-support with CUDA and OpenCL (per default hard in source-code disbabled at
+    the moment)
 - internal tokens requestable form Misaki
 - API-endpoints and database-table to request logs with page-selector
 - print audit-logs in dashboard
@@ -593,9 +649,7 @@ Translated big parts of the program from C++ into Rust:
 ### Removed
 
 - Removed additional namespaces of the libraries in the common-layer
-- Disabled reduction-process of the neural-networkds for the moment. 
-
-
+- Disabled reduction-process of the neural-networkds for the moment.
 
 ## v0.1.0
 
@@ -622,44 +676,43 @@ Translated big parts of the program from C++ into Rust:
     - Build-scripts to build docker-images for all components
     - basic Helm-chart to deploy all components on a kubernetes
 
-
 ### Repositories
 
-Repository-Name | Version-Tag | Download-Path
---- | --- | ---
-Sakura-AI-Documentation | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-Documentation.git
-Sakura-AI-Dockerbuilder | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-Dockerbuilder.git
-Sakura-AI-Dashboard | v0.2.0 | https://github.com/kitsudaiki/Sakura-AI-Dashboard.git
-Sakura-AI-Dashboard-Dependencies | v0.1.0 | https://github.com/kitsudaiki/anamiAI-Dashboard-Dependencies.git
-Sakura-AI-K8s | v0.1.0 | https://github.com/kitsudaiki/Sakura-AI-K8s.git
-libSakuraAiSdk | v0.4.0 | https://github.com/kitsudaiki/libSakuraAiSdk.git
-KyoukoMind | v0.9.1 | https://github.com/kitsudaiki/KyoukoMind.git
-MisakiGuard | v0.3.0 | https://github.com/kitsudaiki/MisakiGuard.git
-ShioriArchive | v0.4.0 | https://github.com/kitsudaiki/ShioriArchive.git
-AzukiHeart | v0.3.1 | https://github.com/kitsudaiki/AzukiHeart.git
-ToriiGateway | v0.7.0 | https://github.com/kitsudaiki/ToriiGateway.git
-TsugumiTester | v0.4.0 | https://github.com/kitsudaiki/TsugumiTester.git
-libAzukiHeart | v0.3.0 | https://github.com/kitsudaiki/libAzukiHeart.git
-libMisakiGuard | v0.2.0 | https://github.com/kitsudaiki/libMisakiGuard.git
-ibShioriArchive | v0.3.0 | https://github.com/kitsudaiki/ibShioriArchive.git
-libKitsunemimiSakuraMessages | v0.1.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraMessages.git
-libKitsunemimiSakuraNetwork | v0.5.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git
-libKitsunemimiSakuraPolicies | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraPolicies.git
-libKitsunemimiSakuraEndpoints | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraEndpoints.git
-libKitsunemimiSakuraDatabase | v0.4.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git
-libKitsunemimiSakuraCommon | v0.3.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraCommon.git
-libKitsunemimiSakuraNetwork | v0.9.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git
-libKitsunemimiSakuraLang | v0.13.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraLang.git
-libKitsunemimiSakuraDatabase | v0.6.1 |  https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git
-libKitsunemimiSakuraHardware | v0.2.0 |  https://github.com/kitsudaiki/libKitsunemimiSakuraHardware.git
-libKitsunemimiArgs | v0.5.0 |  https://github.com/kitsudaiki/libKitsunemimiArgs.git
-libKitsunemimiConfig | v0.5.0 |  https://github.com/kitsudaiki/libKitsunemimiConfig.git
-libKitsunemimiCrypto | v0.3.0 |  https://github.com/kitsudaiki/libKitsunemimiCrypto.git
-libKitsunemimiCpu | v0.4.1 |  https://github.com/kitsudaiki/libKitsunemimiCpu.git
-libKitsunemimiJwt | v0.5.1 |  https://github.com/kitsudaiki/libKitsunemimiJwt.git
-libKitsunemimiSqlite | v0.4.0 |  https://github.com/kitsudaiki/libKitsunemimiSqlite.git
-libKitsunemimiJson | v0.12.0 |  https://github.com/kitsudaiki/libKitsunemimiJson.git
-libKitsunemimiJinja2 | v0.10.0 |  https://github.com/kitsudaiki/libKitsunemimiJinja2.git
-libKitsunemimiIni | v0.6.0 |  https://github.com/kitsudaiki/libKitsunemimiIni.git
-libKitsunemimiNetwork | v0.9.0 |  https://github.com/kitsudaiki/libKitsunemimiNetwork.git
-libKitsunemimiCommon | v0.27.1 |  https://github.com/kitsudaiki/libKitsunemimiCommon.git
+| Repository-Name                  | Version-Tag | Download-Path                                                    |
+| -------------------------------- | ----------- | ---------------------------------------------------------------- |
+| Sakura-AI-Documentation          | v0.1.0      | https://github.com/kitsudaiki/Sakura-AI-Documentation.git        |
+| Sakura-AI-Dockerbuilder          | v0.1.0      | https://github.com/kitsudaiki/Sakura-AI-Dockerbuilder.git        |
+| Sakura-AI-Dashboard              | v0.2.0      | https://github.com/kitsudaiki/Sakura-AI-Dashboard.git            |
+| Sakura-AI-Dashboard-Dependencies | v0.1.0      | https://github.com/kitsudaiki/anamiAI-Dashboard-Dependencies.git |
+| Sakura-AI-K8s                    | v0.1.0      | https://github.com/kitsudaiki/Sakura-AI-K8s.git                  |
+| libSakuraAiSdk                   | v0.4.0      | https://github.com/kitsudaiki/libSakuraAiSdk.git                 |
+| KyoukoMind                       | v0.9.1      | https://github.com/kitsudaiki/KyoukoMind.git                     |
+| MisakiGuard                      | v0.3.0      | https://github.com/kitsudaiki/MisakiGuard.git                    |
+| ShioriArchive                    | v0.4.0      | https://github.com/kitsudaiki/ShioriArchive.git                  |
+| AzukiHeart                       | v0.3.1      | https://github.com/kitsudaiki/AzukiHeart.git                     |
+| ToriiGateway                     | v0.7.0      | https://github.com/kitsudaiki/ToriiGateway.git                   |
+| TsugumiTester                    | v0.4.0      | https://github.com/kitsudaiki/TsugumiTester.git                  |
+| libAzukiHeart                    | v0.3.0      | https://github.com/kitsudaiki/libAzukiHeart.git                  |
+| libMisakiGuard                   | v0.2.0      | https://github.com/kitsudaiki/libMisakiGuard.git                 |
+| ibShioriArchive                  | v0.3.0      | https://github.com/kitsudaiki/ibShioriArchive.git                |
+| libKitsunemimiSakuraMessages     | v0.1.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraMessages.git   |
+| libKitsunemimiSakuraNetwork      | v0.5.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git    |
+| libKitsunemimiSakuraPolicies     | v0.2.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraPolicies.git   |
+| libKitsunemimiSakuraEndpoints    | v0.2.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraEndpoints.git  |
+| libKitsunemimiSakuraDatabase     | v0.4.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git   |
+| libKitsunemimiSakuraCommon       | v0.3.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraCommon.git     |
+| libKitsunemimiSakuraNetwork      | v0.9.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraNetwork.git    |
+| libKitsunemimiSakuraLang         | v0.13.0     | https://github.com/kitsudaiki/libKitsunemimiSakuraLang.git       |
+| libKitsunemimiSakuraDatabase     | v0.6.1      | https://github.com/kitsudaiki/libKitsunemimiSakuraDatabase.git   |
+| libKitsunemimiSakuraHardware     | v0.2.0      | https://github.com/kitsudaiki/libKitsunemimiSakuraHardware.git   |
+| libKitsunemimiArgs               | v0.5.0      | https://github.com/kitsudaiki/libKitsunemimiArgs.git             |
+| libKitsunemimiConfig             | v0.5.0      | https://github.com/kitsudaiki/libKitsunemimiConfig.git           |
+| libKitsunemimiCrypto             | v0.3.0      | https://github.com/kitsudaiki/libKitsunemimiCrypto.git           |
+| libKitsunemimiCpu                | v0.4.1      | https://github.com/kitsudaiki/libKitsunemimiCpu.git              |
+| libKitsunemimiJwt                | v0.5.1      | https://github.com/kitsudaiki/libKitsunemimiJwt.git              |
+| libKitsunemimiSqlite             | v0.4.0      | https://github.com/kitsudaiki/libKitsunemimiSqlite.git           |
+| libKitsunemimiJson               | v0.12.0     | https://github.com/kitsudaiki/libKitsunemimiJson.git             |
+| libKitsunemimiJinja2             | v0.10.0     | https://github.com/kitsudaiki/libKitsunemimiJinja2.git           |
+| libKitsunemimiIni                | v0.6.0      | https://github.com/kitsudaiki/libKitsunemimiIni.git              |
+| libKitsunemimiNetwork            | v0.9.0      | https://github.com/kitsudaiki/libKitsunemimiNetwork.git          |
+| libKitsunemimiCommon             | v0.27.1     | https://github.com/kitsudaiki/libKitsunemimiCommon.git           |

@@ -143,6 +143,8 @@ generate-docs:
     COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
+    RUN rm -rf docs/example_configs
+    COPY example_configs docs/
 
     # the `xvfb-run -a` comes from the following trouble-shooting for a headless execution in github actions:
     # https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage

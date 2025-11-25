@@ -1,19 +1,19 @@
 debug = true
 log_path = "/var/log"
 
-[database]
-file_path = "/etc/ainari/miko_db"
-
-[auth]
-token_key_path = "/etc/ainari/token_key"
-token_expire_time = 3600
-
 [api]
 public_ip = "0.0.0.0"
 public_port = 11417
 internal_ip = "0.0.0.0"
 internal_port = 10417
 internal_api_key = "asdf"
+
+[database]
+file_path = "/etc/ainari/miko_db"
+
+[auth]
+token_key_path = "/etc/ainari/token_key"
+token_expire_time = 3600
 
 [endpoints.hanami]
 public_address = "http://127.0.0.1:11418"
