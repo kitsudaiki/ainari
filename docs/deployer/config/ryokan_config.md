@@ -2,70 +2,47 @@
 
 ## Options
 
-### without group
+### Root Configuration
 
-#### `debug`
+| Parameter          | Type    | Default      | Description                                                                                        |
+| ------------------ | ------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| `debug`            | boolean | `true`       | Enables debug mode for detailed logging and troubleshooting.                                       |
+| `log_path`         | string  | `"/var/log"` | Path to the directory where log files will be stored.                                              |
+| `insecure_clients` | boolean | `true`       | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 
-- *Description*: Enable or disable the debug-logging
-- *Type*: bool
+### `api` Configuration
 
-### `storage`
+| Parameter          | Type    | Default     | Description                               |
+| ------------------ | ------- | ----------- | ----------------------------------------- |
+| `public_ip`        | string  | `"0.0.0.0"` | IP address for public API access.         |
+| `public_port`      | integer | `11416`     | Port for public API access.               |
+| `internal_ip`      | string  | `"0.0.0.0"` | IP address for internal API access.       |
+| `internal_port`    | integer | `10416`     | Port for internal API access.             |
+| `internal_api_key` | string  | `"asdf"`    | API key required for internal API access. |
 
-#### `dataset_location`
+### `database` Configuration
 
-- *Description*: Location on the server, where uploaded datasets should be stored.
-- *Type*: string
+| Parameter   | Type   | Default                   | Description                |
+| ----------- | ------ | ------------------------- | -------------------------- |
+| `file_path` | string | `"/etc/ainari/ryokan_db"` | Path to the database file. |
 
-#### `checkpoint_location`
+### `miko` Configuration
 
-- *Description*: Location on the server, where checkpoint-files should be stored.
-- *Type*: string
+| Parameter | Type   | Default                    | Description                  |
+| --------- | ------ | -------------------------- | ---------------------------- |
+| `address` | string | `"http://127.0.0.1:11417"` | Address of the Miko service. |
 
-#### `tempfile_location`
+### `storage` Configuration
 
-- *Description*: Location on the server, where temporary-files should be stored, for example while
-    uploading a new dataset.
-- *Type*: string
+| Parameter           | Type   | Default         | Description                                     |
+| ------------------- | ------ | --------------- | ----------------------------------------------- |
+| `tempfile_location` | string | `"/tmp/ryokan"` | Directory where temporary files will be stored. |
 
-### `api`
+### `onsen` Configuration
 
-#### `ip`
-
-- *Description*: IP of the intereface, where the server should listen on.
-- *Type*: string
-
-#### `port`
-
-- *Description*: Port-number, where the server should listen on.
-- *Type*: integer
-- *Default*: 11416
-
-### `database`
-
-#### `file_path`
-
-- *Description*: File-path, where the sqlite should store its data.
-- *Type*: string
-
-### `miko`
-
-#### `address`
-
-- *Description*: Address of the server
-- *Type*: string
-
-#### `port`
-
-- *Description*: Port-number where the server is listening.
-- *Type*: integer
-- *Default*: 11417
-
-#### `insecure`
-
-- *Description*: In case of a self-signed certificate this has to be set to true, to ignore failing
-    checks of the tls-certificate.
-- *Type*: bool
-- *Default*: false
+| Parameter         | Type   | Default                   | Description                         |
+| ----------------- | ------ | ------------------------- | ----------------------------------- |
+| `registation_key` | string | `"test-registration-key"` | Registration key for Onsen service. |
 
 ## Example
 
