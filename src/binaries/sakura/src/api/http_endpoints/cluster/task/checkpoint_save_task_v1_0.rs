@@ -59,7 +59,7 @@ pub async fn checkpoint_save_task(
     cluster_table::get_cluster(&cluster_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -69,7 +69,7 @@ pub async fn checkpoint_save_task(
         &config::CONFIG.api.internal_api_key,
         &task_uuid,
         &body.name,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

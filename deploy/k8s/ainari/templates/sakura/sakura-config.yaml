@@ -5,7 +5,7 @@ data:
   sakura.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
     address = "https://sakura-tls-service.default.svc.cluster.local:8443"
 
     [processing]

@@ -42,7 +42,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         miko_endpoint,
         &context.token,
         &context.user_id,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

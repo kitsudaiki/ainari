@@ -24,7 +24,7 @@ pub struct Config {
     // general values
     pub debug: bool,
     #[serde(default = "default_insecure_clients")]
-    pub insecure_clients: bool,
+    pub skip_tls_verification: bool,
     // groups
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,

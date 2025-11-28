@@ -52,7 +52,7 @@ pub async fn get_cluster(
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -62,7 +62,7 @@ pub async fn get_cluster(
         &endpoints.torii,
         &context.token,
         &proxy_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
@@ -73,7 +73,7 @@ pub async fn get_cluster(
         &context.token,
         &config::CONFIG.api.internal_api_key,
         &cluster_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

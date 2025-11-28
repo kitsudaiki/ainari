@@ -35,7 +35,7 @@ pub fn register_host() -> Result<(), AinariError> {
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = local.block_on(&rt, async {
-        get_endpoints(miko_endpoint, config::CONFIG.insecure_clients).await
+        get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification).await
     })?;
 
     let host_name = if let Some(host_name) = System::host_name() {
@@ -53,7 +53,7 @@ pub fn register_host() -> Result<(), AinariError> {
             &host_name,
             &config::CONFIG.address,
             &config::CONFIG.hanami.registation_key,
-            config::CONFIG.insecure_clients,
+            config::CONFIG.skip_tls_verification,
         )
         .await
     })?;

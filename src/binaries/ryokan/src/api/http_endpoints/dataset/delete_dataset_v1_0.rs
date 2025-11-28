@@ -50,7 +50,7 @@ pub async fn delete_dataset(
 
     // delete secret from omamori
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
     let secret_uuid = convert_uuid(&dataset_data.secret_uuid)?;
@@ -58,7 +58,7 @@ pub async fn delete_dataset(
         &endpoints.omamori,
         &context.token,
         &secret_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

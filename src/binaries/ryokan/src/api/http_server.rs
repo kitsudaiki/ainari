@@ -44,7 +44,7 @@ pub async fn run_server() -> Result<(), impl Error> {
     let api_validation_config = ApiValidationConfig::new(
         &config::CONFIG.miko,
         &config::CONFIG.api,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     );
 
     // init server with openapi-docu-generator

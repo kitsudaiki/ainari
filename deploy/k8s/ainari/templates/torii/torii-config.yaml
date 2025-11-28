@@ -5,7 +5,7 @@ data:
   torii.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
 
     [api]
     public_ip = "0.0.0.0"

@@ -5,7 +5,7 @@ data:
   ryokan.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
 
     [storage]
     tempfile_location = "/tmp/ryokan"
