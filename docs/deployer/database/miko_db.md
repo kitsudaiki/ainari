@@ -7,7 +7,7 @@
 | id         | VARCHAR(256) | x          |
 | name       | VARCHAR(256) |            |
 | projects   | TEXT         |            |
-| is_admin   | BOOLEAN      |            |
+| is_admin   | VARCHAR(8)   |            |
 | pw_hash    | VARCHAR(64)  |            |
 | salt       | VARCHAR(64)  |            |
 | status     | VARCHAR(10)  |            |

@@ -76,7 +76,7 @@ pub fn add_new_project(
     project_name: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
             Box::new("Permission denied.".to_string()),
@@ -120,7 +120,7 @@ pub fn get_project(
     project_id: &String,
     context: &UserContext,
 ) -> Result<ProjectEntry, enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -141,7 +141,7 @@ pub fn get_project(
 }
 
 pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<ProjectEntry>> = Ok(vec![]);
         return dummy;
     }
@@ -155,7 +155,7 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 }
 
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -195,8 +195,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let project = ProjectEntry {
@@ -238,8 +238,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id1.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let project1 = ProjectEntry {
@@ -289,8 +289,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let project = ProjectEntry {

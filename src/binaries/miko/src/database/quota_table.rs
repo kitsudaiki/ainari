@@ -91,8 +91,8 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
         token: "".to_string(),
         user_id: "AINARI_INIT".to_string(),
         project_id: "AINARI_INIT".to_string(),
-        is_admin: true,
-        is_project_admin: false,
+        is_admin: true.to_string(),
+        is_project_admin: false.to_string(),
     };
 
     let quotas = list_quotas(&fake_admin_context).unwrap();
@@ -124,7 +124,7 @@ pub fn add_new_quota(
     max_taskqueue: i32,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
             Box::new("Permission denied.".to_string()),
@@ -186,7 +186,7 @@ pub fn get_quota(user_id: &String, _: &UserContext) -> Result<QuotaEntry, enums:
 }
 
 pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<QuotaEntry>> = Ok(vec![]);
         return dummy;
     }
@@ -208,7 +208,7 @@ pub fn set_quota(
     new_max_taskqueue: i32,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -235,7 +235,7 @@ pub fn set_quota(
 }
 
 pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -255,7 +255,7 @@ pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums
 }
 
 pub fn hard_delete_quota(user_id: &String, context: &UserContext) {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return;
     }
 
@@ -285,8 +285,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let quota = QuotaEntry {
@@ -335,8 +335,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let quota = QuotaEntry {
@@ -407,8 +407,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id1.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let user1 = QuotaEntry {
@@ -466,8 +466,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let quota = QuotaEntry {

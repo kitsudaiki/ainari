@@ -29,7 +29,7 @@ def create_user(context: AccessContext,
         "id": user_id,
         "name": user_name,
         "passphrase": passphrase,
-        "is_admin": is_admin,
+        "is_admin": "true" if is_admin else "false",
     }
     return ainari_request.send_post_request(context,
                                             context.miko_address,

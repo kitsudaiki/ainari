@@ -138,9 +138,9 @@ pub fn get_checkpoint(
         )
         .into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -164,9 +164,9 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntr
 
     let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -180,9 +180,9 @@ pub fn count_checkpoints(context: &UserContext) -> QueryResult<i64> {
 
     let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -242,8 +242,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let checkpoint = CheckpointEntry {
@@ -295,8 +295,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let checkpoint1 = CheckpointEntry {
@@ -358,8 +358,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let checkpoint = CheckpointEntry {
@@ -404,8 +404,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let checkpoint1 = CheckpointEntry {
@@ -549,8 +549,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         let checkpoints = list_checkpoints(&context).unwrap();
         assert_eq!(checkpoints.len(), 1);
@@ -560,8 +560,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: true,
+            is_admin: false.to_string(),
+            is_project_admin: true.to_string(),
         };
         let checkpoints = list_checkpoints(&context).unwrap();
         assert_eq!(checkpoints.len(), 2);
@@ -571,8 +571,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
         let checkpoints = list_checkpoints(&context).unwrap();
         assert_eq!(checkpoints.len(), 3);
@@ -582,8 +582,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         match get_checkpoint(&uuid1, &context) {
             Ok(retrieved_checkpoint) => {
@@ -599,8 +599,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         if get_checkpoint(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -611,8 +611,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         if delete_checkpoint(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

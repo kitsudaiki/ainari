@@ -59,7 +59,7 @@ pub async fn create_user_admin(
         user_id,
         &body.name,
         &body.passphrase,
-        body.is_admin,
+        &body.is_admin,
         &context,
     )
     .map_err(|e| {
@@ -76,7 +76,7 @@ pub async fn create_user_admin(
     let resp = UserResp {
         id: user.id,
         name: user.name,
-        is_admin: body.is_admin,
+        is_admin: user.is_admin,
         created_by: user.created_by,
         created_at: user.created_at,
         updated_by: user.updated_by,

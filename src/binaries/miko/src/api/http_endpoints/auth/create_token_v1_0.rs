@@ -72,8 +72,13 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     }
 
     // create token based for the user
-    let token = token_handling::create_token(&user.id, &"".to_string(), user.is_admin, false)
-        .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
+    let token = token_handling::create_token(
+        &user.id,
+        &"".to_string(),
+        &user.is_admin,
+        &false.to_string(),
+    )
+    .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 
     let response = UserTokenResp {
         access_token: token,
