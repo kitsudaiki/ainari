@@ -80,7 +80,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         number_of_columns BIGINT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),

@@ -125,7 +125,7 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
         pw_hash VARCHAR(64),
         salt VARCHAR(64),
         projects TEXT,
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),

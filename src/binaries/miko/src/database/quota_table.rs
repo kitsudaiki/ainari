@@ -71,7 +71,7 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         max_checkpoint INTEGER,
         max_secret INTEGER,
         max_taskqueue INTEGER,
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),
