@@ -58,7 +58,7 @@ pub async fn delete_cluster(
     proxy_clients::delete_proxy(
         &endpoints.torii,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &proxy_uuid,
         config::CONFIG.skip_tls_verification,
     )
@@ -69,7 +69,7 @@ pub async fn delete_cluster(
     cluster_clients::delete_cluster(
         &host_data.address,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &cluster_uuid,
         config::CONFIG.skip_tls_verification,
     )

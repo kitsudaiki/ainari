@@ -71,7 +71,7 @@ pub async fn get_cluster(
     let mut cluster_resp = cluster_clients::get_cluster(
         &host_data.address,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &cluster_uuid,
         config::CONFIG.skip_tls_verification,
     )

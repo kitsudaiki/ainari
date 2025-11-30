@@ -41,7 +41,7 @@ pub async fn register_host() -> Result<(), AinariError> {
 
             register_onsen_host(
                 &endpoints.ryokan,
-                &config::CONFIG.api.internal_api_key,
+                &config::INTERNAL_API_KEY,
                 &host_name,
                 &config::CONFIG.address,
                 &config::CONFIG.ryokan.registation_key,

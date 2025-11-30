@@ -40,6 +40,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,h2=info",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -54,6 +55,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug,h2=info",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -69,6 +71,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -83,6 +86,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -102,6 +106,7 @@
                 "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -120,6 +125,7 @@
                 "AINARI_ADMIN_NAME": "asdf",
                 "AINARI_ADMIN_PASSPHRASE": "asdfasdf",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -135,6 +141,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -149,6 +156,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -164,6 +172,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -178,6 +187,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -193,6 +203,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -207,6 +218,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -222,6 +234,7 @@
             "env": {
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,h2=info",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {
@@ -236,6 +249,7 @@
             "sourceLanguages": ["rust"],
             "env": {
                 "RUST_LOG": "debug,h2=info",
+                "INTERNAL_API_KEY": "test-internal-api-key",
             },
         },
         {

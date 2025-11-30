@@ -74,7 +74,7 @@ pub async fn create_cluster(
     let mut cluster_resp = cluster_clients::create_cluster(
         &selected_host.address,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &body.name,
         &body.template,
         config::CONFIG.skip_tls_verification,
@@ -92,7 +92,7 @@ pub async fn create_cluster(
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &cluster_resp.uuid,
         &selected_host.address,
         config::CONFIG.skip_tls_verification,

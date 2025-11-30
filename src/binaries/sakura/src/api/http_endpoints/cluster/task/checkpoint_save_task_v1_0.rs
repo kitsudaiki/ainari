@@ -66,7 +66,7 @@ pub async fn checkpoint_save_task(
     let checkpoint_create_resp = init_checkpoint(
         &endpoints.ryokan,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &task_uuid,
         &body.name,
         config::CONFIG.skip_tls_verification,

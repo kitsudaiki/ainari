@@ -49,7 +49,7 @@ pub fn register_host() -> Result<(), AinariError> {
     local.block_on(&rt, async {
         register_sakura_host(
             &endpoints.hanami,
-            &config::CONFIG.api.internal_api_key,
+            &config::INTERNAL_API_KEY,
             &host_name,
             &config::CONFIG.address,
             &config::CONFIG.hanami.registation_key,

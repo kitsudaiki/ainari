@@ -196,7 +196,7 @@ async fn init_output_dataset(
     let dataset_create_resp = init_dataset_in_ryokan(
         ryokan_endpoint,
         token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         task_uuid,
         name,
         dimension,

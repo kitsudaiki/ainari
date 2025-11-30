@@ -66,7 +66,7 @@ pub async fn checkpoint_restore_task(
     let checkpoint_resp = get_checkpoint(
         &endpoints.ryokan,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &body.checkpoint_uuid,
         config::CONFIG.skip_tls_verification,
     )

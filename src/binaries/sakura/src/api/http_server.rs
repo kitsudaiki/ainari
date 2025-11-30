@@ -44,6 +44,7 @@ pub async fn run_server() -> Result<(), impl Error> {
     let api_validation_config = ApiValidationConfig::new(
         &config::CONFIG.miko,
         &config::CONFIG.api,
+        &config::INTERNAL_API_KEY,
         config::CONFIG.skip_tls_verification,
     );
 

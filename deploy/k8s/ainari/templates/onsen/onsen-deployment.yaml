@@ -39,6 +39,11 @@ spec:
         env:
         - name: RUST_LOG
           value: "debug,h2=info"
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
         ports:
         - containerPort: 50051
           name: grpc

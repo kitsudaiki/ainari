@@ -14,8 +14,6 @@
 
 use serde::Deserialize;
 
-use crate::secret::Secret;
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct MikoEndpoint {
     pub address: String,
@@ -41,7 +39,6 @@ pub struct Api {
     pub public_port: u16,
     pub internal_ip: String,
     pub internal_port: u16,
-    pub internal_api_key: Secret,
 }
 
 #[derive(Debug, Deserialize)]

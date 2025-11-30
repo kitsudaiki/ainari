@@ -216,7 +216,7 @@ async fn handle_input(
     let dataset_resp = get_dataset(
         endpoint,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &input.dataset_uuid,
         config::CONFIG.skip_tls_verification,
     )

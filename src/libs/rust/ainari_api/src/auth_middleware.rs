@@ -33,16 +33,16 @@ pub struct ApiValidationConfig {
     pub miko_address: String,
     pub internal_ip: String,
     pub internal_api_key: Secret,
-    pub insecure_connection: bool,
+    pub skip_tls_verification: bool,
 }
 
 impl ApiValidationConfig {
-    pub fn new(conn: &MikoEndpoint, api: &Api, insecure_connection: bool) -> Self {
+    pub fn new(conn: &MikoEndpoint, api: &Api, internal_api_key: &Secret, skip_tls_verification: bool) -> Self {
         ApiValidationConfig {
             miko_address: conn.address.clone(),
             internal_ip: api.internal_ip.clone(),
-            internal_api_key: api.internal_api_key.clone(),
-            insecure_connection,
+            internal_api_key: internal_api_key.clone(),
+            skip_tls_verification,
         }
     }
 }
@@ -187,7 +187,7 @@ async fn check_auth_header(
     let response = check_token(
         miko_address,
         token.to_string(),
-        api_validation_config.insecure_connection,
+        api_validation_config.skip_tls_verification,
     )
     .await;
 

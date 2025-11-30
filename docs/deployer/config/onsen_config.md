@@ -11,16 +11,6 @@
 | `skip_tls_verification` | boolean | `true`                     | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 | `address`               | string  | `"http://127.0.0.1:50051"` | Address of the onsen-host itself, where it can be reached from the ryokan and sakura.              |
 
-### `api` Configuration
-
-| Parameter          | Type    | Default     | Description                               |
-| ------------------ | ------- | ----------- | ----------------------------------------- |
-| `public_ip`        | string  | `"0.0.0.0"` | IP address for public API access.         |
-| `public_port`      | integer | `11422`     | Port for public API access.               |
-| `internal_ip`      | string  | `"0.0.0.0"` | IP address for internal API access.       |
-| `internal_port`    | integer | `10422`     | Port for internal API access.             |
-| `internal_api_key` | string  | `"asdf"`    | API key required for internal API access. |
-
 ### `miko` Configuration
 
 | Parameter | Type   | Default                    | Description                  |

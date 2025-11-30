@@ -8,7 +8,6 @@ public_ip = "0.0.0.0"
 public_port = 11420
 internal_ip = "0.0.0.0"
 internal_port = 10420
-internal_api_key = "asdf"
 
 [database]
 file_path = "/etc/ainari/sakura_db"

@@ -46,7 +46,7 @@ pub async fn run_server() -> Result<(), impl Error> {
     // create api-validation-config
     let miko_dummy_config = ainari_config::MikoEndpoint::default();
     let api_validation_config =
-        ApiValidationConfig::new(&miko_dummy_config, &config::CONFIG.api, false);
+        ApiValidationConfig::new(&miko_dummy_config, &config::CONFIG.api, &config::INTERNAL_API_KEY, false);
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {

@@ -42,7 +42,7 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         let cluster_list_resp = cluster_clients::list_cluster(
             &host.address,
             &context.token,
-            &config::CONFIG.api.internal_api_key,
+            &config::INTERNAL_API_KEY,
             config::CONFIG.skip_tls_verification,
         )
         .await
