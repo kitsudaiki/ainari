@@ -14,9 +14,9 @@
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
+use std::env;
 use std::fs;
 use std::process;
-use std::env;
 
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
@@ -72,13 +72,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 });
 
-pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| {
-    match env::var("INTERNAL_API_KEY") {
-        Ok(value) => Secret::from(value),
-        Err(_) => {
-            log::error!("env-variable 'INTERNAL_API_KEY' was not set.)");
-            process::exit(1);
-        }
+pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNAL_API_KEY") {
+    Ok(value) => Secret::from(value),
+    Err(_) => {
+        log::error!("env-variable 'INTERNAL_API_KEY' was not set.)");
+        process::exit(1);
     }
 });
-

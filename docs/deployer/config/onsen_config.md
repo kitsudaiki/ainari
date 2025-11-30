@@ -23,12 +23,6 @@
 | ---------- | ------ | -------------- | ------------------------------------- |
 | `location` | string | `"/tmp/onsen"` | Directory where files will be stored. |
 
-### `ryokan` Configuration
-
-| Parameter         | Type   | Default                   | Description                          |
-| ----------------- | ------ | ------------------------- | ------------------------------------ |
-| `registation_key` | string | `"test-registration-key"` | Registration key for Ryokan service. |
-
 ## Example
 
 !!! info

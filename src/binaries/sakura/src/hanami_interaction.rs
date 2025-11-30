@@ -52,7 +52,7 @@ pub fn register_host() -> Result<(), AinariError> {
             &config::INTERNAL_API_KEY,
             &host_name,
             &config::CONFIG.address,
-            &config::CONFIG.hanami.registation_key,
+            &config::SAKURA_REGISTRATION_KEY,
             config::CONFIG.skip_tls_verification,
         )
         .await

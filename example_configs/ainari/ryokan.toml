@@ -16,6 +16,3 @@ address = "http://127.0.0.1:11417"
 
 [storage]
 tempfile_location = "/tmp/ryokan"
-
-[onsen]
-registation_key = "test-registration-key"

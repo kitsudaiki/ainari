@@ -44,7 +44,7 @@ pub async fn register_host() -> Result<(), AinariError> {
                 &config::INTERNAL_API_KEY,
                 &host_name,
                 &config::CONFIG.address,
-                &config::CONFIG.ryokan.registation_key,
+                &config::ONSEN_REGISTRATION_KEY,
                 config::CONFIG.skip_tls_verification,
             )
             .await?;

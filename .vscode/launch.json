@@ -41,6 +41,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,h2=info",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "SAKURA_REGISTRATION_KEY": "sakura-key",
             },
         },
         {
@@ -56,6 +57,7 @@
             "env": {
                 "RUST_LOG": "debug,h2=info",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "SAKURA_REGISTRATION_KEY": "sakura-key",
             },
         },
         {
@@ -72,6 +74,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "SAKURA_REGISTRATION_KEY": "sakura-key",
             },
         },
         {
@@ -87,6 +90,7 @@
             "env": {
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "SAKURA_REGISTRATION_KEY": "sakura-key",
             },
         },
         {
@@ -142,6 +146,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "ONSEN_REGISTRATION_KEY": "onsen-key",
             },
         },
         {
@@ -157,6 +162,7 @@
             "env": {
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "ONSEN_REGISTRATION_KEY": "onsen-key",
             },
         },
         {
@@ -235,6 +241,7 @@
                 "RUST_BACKTRACE": "full",
                 "RUST_LOG": "debug,h2=info",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "ONSEN_REGISTRATION_KEY": "onsen-key",
             },
         },
         {
@@ -250,6 +257,7 @@
             "env": {
                 "RUST_LOG": "debug,h2=info",
                 "INTERNAL_API_KEY": "test-internal-api-key",
+                "ONSEN_REGISTRATION_KEY": "onsen-key",
             },
         },
         {

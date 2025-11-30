@@ -37,12 +37,6 @@
 | ------------------- | ------ | --------------- | ----------------------------------------------- |
 | `tempfile_location` | string | `"/tmp/ryokan"` | Directory where temporary files will be stored. |
 
-### `onsen` Configuration
-
-| Parameter         | Type   | Default                   | Description                         |
-| ----------------- | ------ | ------------------------- | ----------------------------------- |
-| `registation_key` | string | `"test-registration-key"` | Registration key for Onsen service. |
-
 ## Example
 
 !!! info

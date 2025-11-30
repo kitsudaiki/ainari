@@ -13,6 +13,3 @@ file_path = "/etc/ainari/hanami_db"
 
 [miko]
 address = "http://127.0.0.1:11417"
-
-[sakura]
-registation_key = "test-registration-key"

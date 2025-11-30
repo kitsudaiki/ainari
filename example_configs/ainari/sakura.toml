@@ -21,6 +21,3 @@ max_number_of_threads = 0
 
 [storage]
 tempfile_location = "/tmp/sakura"
-
-[hanami]
-registation_key = "test-registration-key"

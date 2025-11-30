@@ -31,12 +31,6 @@
 | --------- | ------ | -------------------------- | ---------------------------- |
 | `address` | string | `"http://127.0.0.1:11417"` | Address of the Miko service. |
 
-### `sakura` Configuration
-
-| Parameter         | Type   | Default                   | Description                          |
-| ----------------- | ------ | ------------------------- | ------------------------------------ |
-| `registation_key` | string | `"test-registration-key"` | Registration key for Sakura service. |
-
 ## Example
 
 !!! info

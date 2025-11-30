@@ -14,7 +14,4 @@ data:
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
     
-    [ryokan]
-    registation_key = "test-registration-key"
-
 kind: ConfigMap

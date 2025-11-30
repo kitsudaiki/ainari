@@ -45,7 +45,7 @@ pub async fn register_host_internal(
     let host_uuid = Uuid::new_v4();
 
     // check registration key
-    let conf_registration_key = &config::CONFIG.sakura.registation_key;
+    let conf_registration_key = &config::SAKURA_REGISTRATION_KEY.clone();
     if conf_registration_key != &body.registration_key {
         return Err(ErrorResponse::Unauthorized(
             "Invalid Registration-key".to_string(),

@@ -44,12 +44,6 @@
 | ------------------- | ------ | --------------- | ----------------------------------------------- |
 | `tempfile_location` | string | `"/tmp/sakura"` | Directory where temporary files will be stored. |
 
-### `hanami` Configuration
-
-| Parameter         | Type   | Default                   | Description                          |
-| ----------------- | ------ | ------------------------- | ------------------------------------ |
-| `registation_key` | string | `"test-registration-key"` | Registration key for Hanami service. |
-
 ## Example
 
 !!! info

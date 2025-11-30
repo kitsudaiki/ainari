@@ -37,7 +37,12 @@ pub struct ApiValidationConfig {
 }
 
 impl ApiValidationConfig {
-    pub fn new(conn: &MikoEndpoint, api: &Api, internal_api_key: &Secret, skip_tls_verification: bool) -> Self {
+    pub fn new(
+        conn: &MikoEndpoint,
+        api: &Api,
+        internal_api_key: &Secret,
+        skip_tls_verification: bool,
+    ) -> Self {
         ApiValidationConfig {
             miko_address: conn.address.clone(),
             internal_ip: api.internal_ip.clone(),

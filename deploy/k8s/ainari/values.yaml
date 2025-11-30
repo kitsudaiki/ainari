@@ -23,9 +23,6 @@ api:
   domain_omamori: local-omamori
   domain_onsen: local-onsen
 
-hanami:
-  registation_key: "test-registration-key"
-
 torii:
   service:
     type: LoadBalancer

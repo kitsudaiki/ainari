@@ -19,7 +19,4 @@ data:
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
 
-    [sakura]
-    registation_key = "{{ .Values.hanami.registation_key }}"
-
 kind: ConfigMap

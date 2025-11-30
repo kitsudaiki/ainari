@@ -44,6 +44,11 @@ spec:
             secretKeyRef:
               name: internal-api-key
               key: internal_api_key
+        - name: ONSEN_REGISTRATION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: onsen-registration-key
+              key: onsen_retistration_key
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/ryokan/

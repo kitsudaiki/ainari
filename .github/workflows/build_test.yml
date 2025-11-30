@@ -400,6 +400,7 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
+          export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
           chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
@@ -492,6 +493,7 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
+          export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
           chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
