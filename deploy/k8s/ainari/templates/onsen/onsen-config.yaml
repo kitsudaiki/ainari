@@ -5,23 +5,13 @@ data:
   onsen.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
     address = "http://10.10.0.1:50051"
 
     [storage]
     location = "/tmp/onsen"
     
-    [api]
-    public_ip = "127.0.0.1"
-    public_port = 11416
-    internal_ip = "127.0.0.1"
-    internal_port = 10416
-    internal_api_key = "{{ .Values.api.internal_api_key }}"
-    
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
     
-    [ryokan]
-    registation_key = "test-registration-key"
-
 kind: ConfigMap

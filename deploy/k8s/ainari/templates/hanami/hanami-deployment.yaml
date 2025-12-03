@@ -39,6 +39,16 @@ spec:
         env:
         - name: RUST_LOG
           value: "debug"
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
+        - name: SAKURA_REGISTRATION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sakura-registration-key
+              key: sakura_retistration_key
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/hanami/

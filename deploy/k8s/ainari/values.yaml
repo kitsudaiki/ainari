@@ -22,10 +22,6 @@ api:
   domain_hanami: local-hanami
   domain_omamori: local-omamori
   domain_onsen: local-onsen
-  internal_api_key: "dummy-key"
-
-hanami:
-  registation_key: "test-registration-key"
 
 torii:
   service:

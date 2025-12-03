@@ -27,14 +27,14 @@ pub struct UserCreateReq {
     pub name: String,
     #[validate(length(min = 8, max = 4096))]
     pub passphrase: Secret,
-    pub is_admin: bool,
+    pub is_admin: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserResp {
     pub id: String,
     pub name: String,
-    pub is_admin: bool,
+    pub is_admin: String,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -45,7 +45,7 @@ pub struct UserResp {
 pub struct UserBasicResp {
     pub id: String,
     pub name: String,
-    pub is_admin: bool,
+    pub is_admin: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

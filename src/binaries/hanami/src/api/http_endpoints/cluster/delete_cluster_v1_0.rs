@@ -50,7 +50,7 @@ pub async fn delete_cluster(
     let host_data = host_table::get_host(&sakura_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -58,9 +58,9 @@ pub async fn delete_cluster(
     proxy_clients::delete_proxy(
         &endpoints.torii,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &proxy_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
@@ -69,9 +69,9 @@ pub async fn delete_cluster(
     cluster_clients::delete_cluster(
         &host_data.address,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &cluster_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

@@ -42,8 +42,8 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         let cluster_list_resp = cluster_clients::list_cluster(
             &host.address,
             &context.token,
-            &config::CONFIG.api.internal_api_key,
-            config::CONFIG.insecure_clients,
+            &config::INTERNAL_API_KEY,
+            config::CONFIG.skip_tls_verification,
         )
         .await
         .map_err(map_ainari_error_to_api_response)?;

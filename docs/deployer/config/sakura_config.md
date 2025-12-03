@@ -2,82 +2,47 @@
 
 ## Options
 
-### without group
+### Root Configuration
 
-#### `debug`
+| Parameter               | Type    | Default                    | Description                                                                                        |
+| ----------------------- | ------- | -------------------------- | -------------------------------------------------------------------------------------------------- |
+| `debug`                 | boolean | `true`                     | Enables debug mode for detailed logging and troubleshooting.                                       |
+| `log_path`              | string  | `"/var/log"`               | Path to the directory where log files will be stored.                                              |
+| `skip_tls_verification` | boolean | `true`                     | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
+| `address`               | string  | `"http://127.0.0.1:11420"` | Address of the sakura-host itself, where it can be reached from hanami and torii.                  |
 
-- *Description*: Enable or disable the debug-logging
-- *Type*: bool
+### `api` Configuration
 
-### `processing`
+| Parameter          | Type    | Default     | Description                               |
+| ------------------ | ------- | ----------- | ----------------------------------------- |
+| `public_ip`        | string  | `"0.0.0.0"` | IP address for public API access.         |
+| `public_port`      | integer | `11420`     | Port for public API access.               |
+| `internal_ip`      | string  | `"0.0.0.0"` | IP address for internal API access.       |
+| `internal_port`    | integer | `10420`     | Port for internal API access.             |
 
-#### `max_number_of_threads`
+### `database` Configuration
 
-- *Description*: Maximum number of threads to use as worker-threads. If 0, then all available
-    threads are used.
-- *Type*: int
-- *Default*: 0
-- *Restriction*: Positive value
+| Parameter   | Type   | Default                   | Description                |
+| ----------- | ------ | ------------------------- | -------------------------- |
+| `file_path` | string | `"/etc/ainari/sakura_db"` | Path to the database file. |
 
-### `api`
+### `miko` Configuration
 
-#### `ip`
+| Parameter | Type   | Default                    | Description                  |
+| --------- | ------ | -------------------------- | ---------------------------- |
+| `address` | string | `"http://127.0.0.1:11417"` | Address of the Miko service. |
 
-- *Description*: IP of the intereface, where the server should listen on.
-- *Type*: string
+### `processing` Configuration
 
-#### `port`
+| Parameter               | Type    | Default | Description                                                                 |
+| ----------------------- | ------- | ------- | --------------------------------------------------------------------------- |
+| `max_number_of_threads` | integer | `0`     | Maximum number of threads for processing. A value of 0 means no limitation. |
 
-- *Description*: Port-number, where the server should listen on.
-- *Type*: integer
-- *Default*: 11418
+### `storage` Configuration
 
-### `database`
-
-#### `file_path`
-
-- *Description*: File-path, where the sqlite should store its data.
-- *Type*: string
-
-### `miko`
-
-#### `address`
-
-- *Description*: Address of the server
-- *Type*: string
-
-#### `port`
-
-- *Description*: Port-number where the server is listening.
-- *Type*: integer
-- *Default*: 11417
-
-#### `insecure`
-
-- *Description*: In case of a self-signed certificate this has to be set to true, to ignore failing
-    checks of the tls-certificate.
-- *Type*: bool
-- *Default*: false
-
-### `ryokan`
-
-#### `address`
-
-- *Description*: Address of the server
-- *Type*: string
-
-#### `port`
-
-- *Description*: Port-number where the server is listening.
-- *Type*: integer
-- *Default*: 11416
-
-#### `insecure`
-
-- *Description*: In case of a self-signed certificate this has to be set to true, to ignore failing
-    checks of the tls-certificate.
-- *Type*: bool
-- *Default*: false
+| Parameter           | Type   | Default         | Description                                     |
+| ------------------- | ------ | --------------- | ----------------------------------------------- |
+| `tempfile_location` | string | `"/tmp/sakura"` | Directory where temporary files will be stored. |
 
 ## Example
 

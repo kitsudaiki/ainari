@@ -114,7 +114,7 @@ as-a-Service architecture within a cloud native environment and multi-tenancy.
 
     <!-- Disabled this entry because it is not part of the current state of the implementation
     1. Capability to regulate the cpu-frequencey and measure power-consumption. (disabled currently)
-      See [Monitoring-docu](/inner_workings/monitoring/monitoring/#controlling-cpu-frequency) -->
+    See [Monitoring-docu](/inner_workings/monitoring/monitoring/#controlling-cpu-frequency) -->
 
 - **Network-input**
 

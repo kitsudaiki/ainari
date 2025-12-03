@@ -35,8 +35,8 @@ pub async fn renew_token(
     let token = token_handling::create_token(
         &context.user_id,
         &context.project_id,
-        context.is_admin,
-        context.is_project_admin,
+        &context.is_admin,
+        &context.is_project_admin,
     )
     .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 

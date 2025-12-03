@@ -33,7 +33,7 @@ table! {
         id -> Varchar,
         name -> Varchar,
         projects -> Text,
-        is_admin -> Bool,
+        is_admin -> Varchar,
         pw_hash -> Varchar,
         salt -> Varchar,
         status -> Varchar,
@@ -52,7 +52,7 @@ pub struct UserEntry {
     pub id: String,
     pub name: String,
     pub projects: String,
-    pub is_admin: bool,
+    pub is_admin: String,
     pub pw_hash: String,
     pub salt: String,
     pub status: String,
@@ -69,8 +69,8 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         token: "".to_string(),
         user_id: "AINARI_INIT".to_string(),
         project_id: "AINARI_INIT".to_string(),
-        is_admin: true,
-        is_project_admin: false,
+        is_admin: true.to_string(),
+        is_project_admin: false.to_string(),
     };
 
     let users = list_users(&fake_admin_context).unwrap();
@@ -108,7 +108,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         &admin_id,
         &admin_name,
         &admin_passphrase,
-        true,
+        &true.to_string(),
         &fake_admin_context,
     )?;
 
@@ -121,11 +121,11 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(256),
         name VARCHAR(256),
-        is_admin BOOLEAN,
+        is_admin VARCHAR(8),
         pw_hash VARCHAR(64),
         salt VARCHAR(64),
         projects TEXT,
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),
@@ -144,10 +144,10 @@ pub fn add_new_user(
     user_id: &String,
     user_name: &str,
     passphrase: &Secret,
-    is_admin: bool,
+    is_admin: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
             Box::new("Permission denied.".to_string()),
@@ -178,7 +178,7 @@ pub fn add_new_user(
         id: user_id.clone(),
         name: user_name.to_owned(),
         projects: "[]".to_string(),
-        is_admin,
+        is_admin: is_admin.to_string(),
         pw_hash,
         salt,
         status: "ACTIVE".to_string(),
@@ -218,7 +218,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
 }
 
 pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -239,7 +239,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
 }
 
 pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<UserEntry>> = Ok(vec![]);
         return dummy;
     }
@@ -253,7 +253,7 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 }
 
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
 
@@ -293,15 +293,15 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
-            is_admin: true,
+            is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),
@@ -344,15 +344,15 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id1.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let user1 = UserEntry {
             id: owner_id1.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
-            is_admin: true,
+            is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),
@@ -368,7 +368,7 @@ mod tests {
             id: owner_id2.clone(),
             name: "Bob".to_string(),
             projects: "ProjectB".to_string(),
-            is_admin: false,
+            is_admin: false.to_string(),
             pw_hash: "hash456".to_string(),
             salt: "salt456".to_string(),
             status: "DELETED".to_string(),
@@ -403,15 +403,15 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
             projects: "ProjectA".to_string(),
-            is_admin: true,
+            is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),

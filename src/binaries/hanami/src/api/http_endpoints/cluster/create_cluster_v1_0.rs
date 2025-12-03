@@ -74,17 +74,17 @@ pub async fn create_cluster(
     let mut cluster_resp = cluster_clients::create_cluster(
         &selected_host.address,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &body.name,
         &body.template,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -92,10 +92,10 @@ pub async fn create_cluster(
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &cluster_resp.uuid,
         &selected_host.address,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
@@ -138,7 +138,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         miko_endpoint,
         &context.token,
         &context.user_id,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

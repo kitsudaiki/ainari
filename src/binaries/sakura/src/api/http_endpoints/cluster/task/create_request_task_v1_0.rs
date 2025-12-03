@@ -71,7 +71,7 @@ pub async fn create_request_task(
     cluster_table::get_cluster(&cluster_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -196,11 +196,11 @@ async fn init_output_dataset(
     let dataset_create_resp = init_dataset_in_ryokan(
         ryokan_endpoint,
         token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         task_uuid,
         name,
         dimension,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

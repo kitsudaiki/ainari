@@ -79,7 +79,7 @@ pub async fn create_train_task(
         temp_dir: temp_dir.clone(),
     };
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 

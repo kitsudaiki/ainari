@@ -80,7 +80,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         number_of_columns BIGINT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),
@@ -144,9 +144,9 @@ pub fn get_dataset(
         .filter(uuid.eq(dataset_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -170,9 +170,9 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
 
     let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -186,9 +186,9 @@ pub fn count_datasets(context: &UserContext) -> QueryResult<i64> {
 
     let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
 
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if !context.is_project_admin {
+        if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -247,8 +247,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let dataset = DatasetEntry {
@@ -310,8 +310,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let dataset1 = DatasetEntry {
@@ -379,8 +379,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let dataset = DatasetEntry {
@@ -429,8 +429,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let dataset1 = DatasetEntry {
@@ -588,8 +588,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         let datasets = list_datasets(&context).unwrap();
         assert_eq!(datasets.len(), 1);
@@ -599,8 +599,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: true,
+            is_admin: false.to_string(),
+            is_project_admin: true.to_string(),
         };
         let datasets = list_datasets(&context).unwrap();
         assert_eq!(datasets.len(), 2);
@@ -610,8 +610,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
         let datasets = list_datasets(&context).unwrap();
         assert_eq!(datasets.len(), 3);
@@ -621,8 +621,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         match get_dataset(&uuid1, &context) {
             Ok(retrieved_dataset) => {
@@ -638,8 +638,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         if get_dataset(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -650,8 +650,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         if delete_dataset(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

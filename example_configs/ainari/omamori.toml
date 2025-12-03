@@ -1,13 +1,12 @@
 debug = true
 log_path = "/var/log"
-insecure_clients = true
+skip_tls_verification = true
 
 [api]
 public_ip = "0.0.0.0"
 public_port = 11421
 internal_ip = "0.0.0.0"
 internal_port = 10421
-internal_api_key = "asdf"
 
 [miko]
 address = "http://127.0.0.1:11417"

@@ -29,8 +29,8 @@ use ainari_common::secret::Secret;
 pub struct Claims {
     pub user_id: String,
     pub project_id: String,
-    pub is_admin: bool,
-    pub is_project_admin: bool,
+    pub is_admin: String,
+    pub is_project_admin: String,
     //pub aud: String,         // Optional. Audience
     pub exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
     pub iat: usize, // Optional. Issued at (as UTC timestamp)
@@ -59,8 +59,8 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
 pub fn create_token(
     user_id: &String,
     project_id: &String,
-    is_admin: bool,
-    is_project_admin: bool,
+    is_admin: &str,
+    is_project_admin: &str,
 ) -> Result<String, ()> {
     let token_expire_time = config::CONFIG.auth.token_expire_time;
 
@@ -75,8 +75,8 @@ pub fn create_token(
     let claims = Claims {
         user_id: user_id.clone(),
         project_id: project_id.clone(),
-        is_admin,
-        is_project_admin,
+        is_admin: is_admin.to_string(),
+        is_project_admin: is_project_admin.to_string(),
         exp: expiration as usize,
         iat: current as usize,
         iss: "miko".to_string(),

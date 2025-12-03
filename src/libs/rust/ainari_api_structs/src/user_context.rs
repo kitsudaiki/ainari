@@ -30,8 +30,8 @@ pub struct UserContext {
     pub token: String,
     pub user_id: String,
     pub project_id: String,
-    pub is_admin: bool,
-    pub is_project_admin: bool,
+    pub is_admin: String,
+    pub is_project_admin: String,
 }
 
 fn default_token() -> String {
@@ -79,8 +79,8 @@ impl FromRequest for UserContext {
                     token: "".to_string(),
                     user_id: "".to_string(),
                     project_id: "".to_string(),
-                    is_admin: false,
-                    is_project_admin: false,
+                    is_admin: false.to_string(),
+                    is_project_admin: false.to_string(),
                 }))
             }
         }

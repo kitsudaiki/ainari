@@ -43,7 +43,7 @@ pub async fn register_host_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     // check registration key
-    let conf_registration_key = &config::CONFIG.onsen.registation_key;
+    let conf_registration_key = &config::ONSEN_REGISTRATION_KEY.clone();
     if conf_registration_key != &body.registration_key {
         return Err(ErrorResponse::Unauthorized(
             "Invalid Registration-key".to_string(),

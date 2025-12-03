@@ -114,7 +114,10 @@ test-hanami:
     RUN apt-get update && \
         apt-get install -y protobuf-compiler libsqlite3-dev libssl-dev
     # only one test-thread to avoid conflicts between tests, which access the same singleton
-    RUN cargo test -- --test-threads=1
+    RUN export INTERNAL_API_KEY=test-internal-api-key && \
+        export SAKURA_REGISTRATION_KEY=sakura-key && \
+        export ONSEN_REGISTRATION_KEY=sakura-key && \
+        cargo test -- --test-threads=1
 
 
 generate-docs:

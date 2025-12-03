@@ -7,10 +7,10 @@
 | id         | VARCHAR(256) | x          |
 | name       | VARCHAR(256) |            |
 | projects   | TEXT         |            |
-| is_admin   | BOOLEAN      |            |
+| is_admin   | VARCHAR(8)   |            |
 | pw_hash    | VARCHAR(64)  |            |
 | salt       | VARCHAR(64)  |            |
-| status     | VARCHAR(10)  |            |
+| status     | VARCHAR(8)   |            |
 | created_at | VARCHAR(64)  |            |
 | created_by | VARCHAR(256) |            |
 | updated_at | VARCHAR(64)  |            |
@@ -24,7 +24,7 @@
 | ---------- | ------------ | ---------- |
 | id         | VARCHAR(256) | x          |
 | name       | VARCHAR(256) |            |
-| status     | VARCHAR(10)  |            |
+| status     | VARCHAR(8)   |            |
 | created_at | VARCHAR(64)  |            |
 | created_by | VARCHAR(256) |            |
 | updated_at | VARCHAR(64)  |            |
@@ -42,7 +42,7 @@
 | max_checkpoint | INTEGER      |            |
 | max_secret     | INTEGER      |            |
 | max_taskqueue  | INTEGER      |            |
-| status         | VARCHAR(10)  |            |
+| status         | VARCHAR(8)   |            |
 | created_at     | VARCHAR(64)  |            |
 | created_by     | VARCHAR(256) |            |
 | updated_at     | VARCHAR(64)  |            |

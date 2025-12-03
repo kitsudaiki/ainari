@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sakura-registration-key
+type: Opaque
+data:
+  sakura_retistration_key: bXktc3VwZXItc2VjcmV0LWFwaS1rZXk= 

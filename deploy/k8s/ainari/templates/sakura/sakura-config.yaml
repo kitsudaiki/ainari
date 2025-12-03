@@ -5,7 +5,7 @@ data:
   sakura.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
     address = "https://sakura-tls-service.default.svc.cluster.local:8443"
 
     [processing]
@@ -19,15 +19,11 @@ data:
     public_port = 11420
     internal_ip = "127.0.0.1"
     internal_port = 10420
-    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/sakura/sakura_db"
     
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
-
-    [hanami]
-    registation_key = "{{ .Values.hanami.registation_key }}"
 
 kind: ConfigMap

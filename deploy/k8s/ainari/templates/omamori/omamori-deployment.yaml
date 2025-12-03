@@ -39,6 +39,11 @@ spec:
         env:
         - name: RUST_LOG
           value: "debug"
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/omamori/

@@ -5,14 +5,13 @@ data:
   torii.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
 
     [api]
     public_ip = "0.0.0.0"
     public_port = 11419
     internal_ip = "0.0.0.0"
     internal_port = 10419
-    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/torii/torii_db"

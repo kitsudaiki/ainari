@@ -61,7 +61,7 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         address VARCHAR(256),
-        status VARCHAR(10),
+        status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
         updated_at VARCHAR(64),
@@ -197,8 +197,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let host = HostEntry {
@@ -248,8 +248,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let host1 = HostEntry {
@@ -301,8 +301,8 @@ mod tests {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
 
         let host = HostEntry {
@@ -386,8 +386,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: true,
-            is_project_admin: false,
+            is_admin: true.to_string(),
+            is_project_admin: false.to_string(),
         };
         let hosts = list_hosts(&context).unwrap();
         assert_eq!(hosts.len(), 3);
@@ -397,8 +397,8 @@ mod tests {
             token: "".to_string(),
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            is_admin: false,
-            is_project_admin: false,
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
         };
         match get_host(&uuid1, &context) {
             Ok(retrieved_host) => {

@@ -146,7 +146,7 @@ pub async fn delete_file_from_onsen(
 /// - When the provided context does not have admin privileges
 ///
 pub fn check_admin_context(context: &UserContext) -> Result<(), ErrorResponse> {
-    if !context.is_admin {
+    if context.is_admin != true.to_string() {
         return Err(ErrorResponse::Unauthorized(
             "Only Admins are allowed to use this endpoint".to_string(),
         ));

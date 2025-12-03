@@ -28,11 +28,15 @@ import (
 func CreateUser(context AccessContext, userId, userName, passphrase string, is_admin bool) (map[string]interface{}, error) {
 	// "passphrase": b64.StdEncoding.EncodeToString([]byte(passphrase)),
 	path := "v1alpha/user/admin"
+	is_admin_str := "false"
+	if is_admin {
+		is_admin_str = "true"
+	}
 	jsonBody := map[string]interface{}{
 		"id":         userId,
 		"name":       userName,
 		"passphrase": passphrase,
-		"is_admin":   is_admin,
+		"is_admin":   is_admin_str,
 	}
 	return SendPost(context, context.MikoAddress, path, jsonBody)
 }

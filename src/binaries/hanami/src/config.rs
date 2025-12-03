@@ -14,6 +14,7 @@
 
 use once_cell::sync::Lazy;
 use serde::Deserialize;
+use std::env;
 use std::fs;
 use std::process;
 
@@ -25,21 +26,15 @@ pub struct Config {
     // general values
     pub debug: bool,
     #[serde(default = "default_insecure_clients")]
-    pub insecure_clients: bool,
+    pub skip_tls_verification: bool,
     // groups
     pub api: ainari_config::Api,
     pub database: ainari_config::Database,
     pub miko: ainari_config::MikoEndpoint,
-    pub sakura: SakuraConf,
 }
 
 fn default_insecure_clients() -> bool {
     false
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SakuraConf {
-    pub registation_key: Secret,
 }
 
 // Global singleton config
@@ -69,3 +64,20 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         }
     }
 });
+
+pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNAL_API_KEY") {
+    Ok(value) => Secret::from(value),
+    Err(_) => {
+        log::error!("env-variable 'INTERNAL_API_KEY' was not set.)");
+        process::exit(1);
+    }
+});
+
+pub static SAKURA_REGISTRATION_KEY: Lazy<Secret> =
+    Lazy::new(|| match env::var("SAKURA_REGISTRATION_KEY") {
+        Ok(value) => Secret::from(value),
+        Err(_) => {
+            log::error!("env-variable 'SAKURA_REGISTRATION_KEY' was not set.)");
+            process::exit(1);
+        }
+    });

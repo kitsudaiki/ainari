@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: onsen-registration-key
+type: Opaque
+data:
+  onsen_retistration_key: bXktc3VwZXItc2VjcmV0LWFwaS1rZXk= 

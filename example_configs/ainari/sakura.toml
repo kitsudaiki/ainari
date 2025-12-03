@@ -1,6 +1,6 @@
 debug = true
 log_path = "/var/log"
-insecure_clients = true
+skip_tls_verification = true
 address = "http://127.0.0.1:11420"
 
 [api]
@@ -8,7 +8,6 @@ public_ip = "0.0.0.0"
 public_port = 11420
 internal_ip = "0.0.0.0"
 internal_port = 10420
-internal_api_key = "asdf"
 
 [database]
 file_path = "/etc/ainari/sakura_db"
@@ -22,6 +21,3 @@ max_number_of_threads = 0
 
 [storage]
 tempfile_location = "/tmp/sakura"
-
-[hanami]
-registation_key = "test-registration-key"

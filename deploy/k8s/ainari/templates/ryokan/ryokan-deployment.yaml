@@ -39,6 +39,16 @@ spec:
         env:
         - name: RUST_LOG
           value: "debug,h2=info"
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
+        - name: ONSEN_REGISTRATION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: onsen-registration-key
+              key: onsen_retistration_key
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/ryokan/

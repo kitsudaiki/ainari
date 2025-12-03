@@ -79,7 +79,7 @@ async fn check_task_queue_quota(
         miko_endpoint,
         &context.token,
         &context.user_id,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
@@ -189,7 +189,7 @@ fn handle_output(
 
 async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
     let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.insecure_clients)
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -197,7 +197,7 @@ async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret,
         &endpoints.omamori,
         &context.token,
         secret_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
@@ -216,9 +216,9 @@ async fn handle_input(
     let dataset_resp = get_dataset(
         endpoint,
         &context.token,
-        &config::CONFIG.api.internal_api_key,
+        &config::INTERNAL_API_KEY,
         &input.dataset_uuid,
-        config::CONFIG.insecure_clients,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;

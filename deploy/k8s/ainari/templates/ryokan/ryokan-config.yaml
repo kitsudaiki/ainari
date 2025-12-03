@@ -5,7 +5,7 @@ data:
   ryokan.toml: |+
     debug = true
     log_path = ""
-    insecure_clients = true
+    skip_tls_verification = true
 
     [storage]
     tempfile_location = "/tmp/ryokan"
@@ -15,15 +15,11 @@ data:
     public_port = 11416
     internal_ip = "127.0.0.1"
     internal_port = 10416
-    internal_api_key = "{{ .Values.api.internal_api_key }}"
 
     [database]
     file_path = "/etc/ainari/ryokan/ryokan_db"
     
     [miko]
     address = "https://miko-tls-service.default.svc.cluster.local:8443"
-
-    [onsen]
-    registation_key = "test-registration-key"
 
 kind: ConfigMap

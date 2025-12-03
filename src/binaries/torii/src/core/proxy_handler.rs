@@ -90,8 +90,8 @@ impl ProxyHandler {
             token: "".to_string(),
             user_id: "dummy".to_string(),
             project_id: "dummy".to_string(),
-            is_admin: true,
-            is_project_admin: true,
+            is_admin: true.to_string(),
+            is_project_admin: true.to_string(),
         };
         let proxys = match proxy_table::list_proxys(&dummy_context) {
             Ok(proxys) => proxys,

@@ -9,7 +9,7 @@
 | proxy_uuid       | VARCHAR(40)  |            |
 | owner_id         | VARCHAR(256) |            |
 | project_id       | VARCHAR(256) |            |
-| status           | VARCHAR(10)  |            |
+| status           | VARCHAR(8)   |            |
 | created_at       | VARCHAR(64)  |            |
 | created_by       | VARCHAR(256) |            |
 | updated_at       | VARCHAR(64)  |            |
@@ -24,7 +24,7 @@
 | uuid       | VARCHAR(40)  | x          |
 | name       | VARCHAR(256) |            |
 | address    | VARCHAR(256) |            |
-| status     | VARCHAR(10)  |            |
+| status     | VARCHAR(8)   |            |
 | created_at | VARCHAR(64)  |            |
 | created_by | VARCHAR(256) |            |
 | updated_at | VARCHAR(64)  |            |
