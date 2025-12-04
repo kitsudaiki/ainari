@@ -612,6 +612,7 @@ jobs:
         name: run Sakura in background
         run: |
           cd ${GITHUB_REPOSITORY#*/}
+          export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
           chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
           chmod +x /tmp/Ainari_debug_build_result/ainari/miko
           chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
@@ -684,25 +685,25 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build"
     needs: [ sdk_api_tests, cli_api_tests ]
-    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami", platform: "linux/amd64", regitry: "kitsudaiki/hanami" }
-          - { component: "hanami", platform: "linux/arm64", regitry: "kitsudaiki/hanami" }
-          - { component: "miko", platform: "linux/amd64", regitry: "kitsudaiki/miko" }
-          - { component: "miko", platform: "linux/arm64", regitry: "kitsudaiki/miko" }
-          - { component: "ryokan", platform: "linux/amd64", regitry: "kitsudaiki/ryokan" }
-          - { component: "ryokan", platform: "linux/arm64", regitry: "kitsudaiki/ryokan" }
-          - { component: "sakura", platform: "linux/amd64", regitry: "kitsudaiki/sakura" }
-          - { component: "sakura", platform: "linux/arm64", regitry: "kitsudaiki/sakura" }
-          - { component: "torii", platform: "linux/amd64", regitry: "kitsudaiki/torii" }
-          - { component: "torii", platform: "linux/arm64", regitry: "kitsudaiki/torii" }
-          - { component: "omamori", platform: "linux/amd64", regitry: "kitsudaiki/omamori" }
-          - { component: "omamori", platform: "linux/arm64", regitry: "kitsudaiki/omamori" }
-          - { component: "onsen", platform: "linux/amd64", regitry: "kitsudaiki/onsen" }
-          - { component: "onsen", platform: "linux/arm64", regitry: "kitsudaiki/onsen" }
+          - { component: "hanami",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"  }
+          - { component: "hanami",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"  }
+          - { component: "miko",    platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"    }
+          - { component: "miko",    platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"    }
+          - { component: "ryokan",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"  }
+          - { component: "ryokan",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"  }
+          - { component: "sakura",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"  }
+          - { component: "sakura",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"  }
+          - { component: "torii",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"   }
+          - { component: "torii",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"   }
+          - { component: "omamori", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori" }
+          - { component: "omamori", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori" }
+          - { component: "onsen",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"   }
+          - { component: "onsen",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"   }
+    runs-on: ${{ matrix.builds.runner }}
     steps:
       -
         name: Prepare
