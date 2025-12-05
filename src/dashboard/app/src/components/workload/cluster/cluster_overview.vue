@@ -85,8 +85,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
 
+import context from "../../../auth_context";
 import ClusterCreateModal from "./cluster_create_modal.vue";
 import ClusterDeleteModal from "./cluster_delete_modal.vue";
 
@@ -94,7 +95,6 @@ const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const passwordError = ref("");
 const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
@@ -110,9 +110,13 @@ function switchToTasks(cluster_uuid: string) {
 
 async function fetchClusters() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get("/v1alpha/cluster", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        const response = await hanami_api.get("/v1alpha/cluster", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         clusters.value = response.data.clusters;
     } catch (err) {

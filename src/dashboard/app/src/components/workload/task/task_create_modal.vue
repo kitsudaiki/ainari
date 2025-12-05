@@ -109,7 +109,10 @@
                         <br />
                         <h5>Select checkpoint:</h5>
                         <br />
-                        <select v-model="selectedCheckpointUuid" class="select-dropdown">
+                        <select
+                            v-model="selectedCheckpointUuid"
+                            class="select-dropdown"
+                        >
                             <option
                                 v-for="item in checkpoints"
                                 :key="item.uuid"
@@ -124,7 +127,10 @@
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept(cluster_uuid)">
+                    <button
+                        class="icon-button"
+                        @click="handleAccept(cluster_uuid)"
+                    >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -174,7 +180,7 @@ async function handleAccept(cluster_uuid: string) {
                 time_length: 1,
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         // console.log("Upload success!", response.data);
@@ -283,7 +289,6 @@ async function fetchCheckpoints() {
 }
 
 onMounted(fetchCheckpoints);
-
 </script>
 
 <style scoped>

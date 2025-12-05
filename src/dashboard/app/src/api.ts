@@ -15,7 +15,7 @@
 import axios from "axios";
 
 const miko_api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL_TORII,
+    baseURL: import.meta.env.VITE_API_URL_MIKO,
 });
 
 const sakura_api = axios.create({

@@ -74,7 +74,9 @@
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -114,14 +116,18 @@ async function handleAccept() {
         formData.append("file2", file2.value);
 
         try {
-            const token = localStorage.getItem("jwtToken");
-            const response = await api.sakura_api.post(
+            const authContext = context.getAuthContext();
+            const ryokan_api = axios.create({
+                baseURL: authContext.ryokan_address,
+            })
+            
+            const response = await ryokan_api.post(
                 `/v1alpha/dataset/mnist/${form.datasetName}`,
                 formData,
                 {
                     headers: {
                         "Content-Type": "multipart/form-data",
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${authContext.token}`,
                     },
                 },
             );
@@ -138,14 +144,18 @@ async function handleAccept() {
         formData.append("file1", file1.value);
 
         try {
-            const token = localStorage.getItem("jwtToken");
-            const response = await api.sakura_api.post(
+            const authContext = context.getAuthContext();
+            const ryokan_api = axios.create({
+                baseURL: authContext.ryokan_address,
+            })
+            
+            const response = ryokan_api.post(
                 `/v1alpha/dataset/csv/${form.datasetName}`,
                 formData,
                 {
                     headers: {
                         "Content-Type": "multipart/form-data",
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${authContext.token}`,
                     },
                 },
             );

@@ -90,7 +90,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 import UserCreateModal from "./user_create_modal.vue";
 import UserDeleteModal from "./user_delete_modal.vue";
@@ -107,9 +109,13 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchUsers() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.miko_api.get("/v1alpha/user", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        const response = await miko_api.get("/v1alpha/user/admin", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         users.value = response.data.users;
     } catch (err) {

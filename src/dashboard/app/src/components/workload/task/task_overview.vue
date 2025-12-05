@@ -20,7 +20,9 @@
             <div class="card-label">Task</div>
             <div class="card-content">
                 <!-- Add button -->
-                <button class="add-button" @click="openAddModal(props.id)">+</button>
+                <button class="add-button" @click="openAddModal(props.id)">
+                    +
+                </button>
 
                 <table class="overview-table" v-if="tasks.length > 0">
                     <thead>
@@ -116,7 +118,7 @@ async function fetchTasks() {
         const response = await api.sakura_api.get(
             `/v1alpha/cluster/${props.id}/task`,
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         tasks.value = response.data.tasks;

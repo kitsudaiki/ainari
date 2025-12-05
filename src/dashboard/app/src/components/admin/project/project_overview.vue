@@ -78,8 +78,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
 
+import context from "../../../auth_context";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
 
@@ -92,9 +93,13 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchProjects() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.miko_api.get("/v1alpha/project", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        const response = await miko_api.get("/v1alpha/project/admin", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         projects.value = response.data.projects;
     } catch (err) {

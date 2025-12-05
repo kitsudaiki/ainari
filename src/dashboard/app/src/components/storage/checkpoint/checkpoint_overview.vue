@@ -75,7 +75,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 import CheckpointDeleteModal from "./checkpoint_delete_modal.vue";
 
@@ -89,9 +91,13 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchCheckpoints() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get("/v1alpha/checkpoint", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const ryokan_api = axios.create({
+            baseURL: authContext.ryokan_address,
+        });
+
+        const response = await ryokan_api.get("/v1alpha/checkpoint", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         checkpoints.value = response.data.checkpoints;
     } catch (err) {
