@@ -63,7 +63,7 @@ async function handleAccept(dataset_uuid: string) {
         const authContext = context.getAuthContext();
         const ryokan_api = axios.create({
             baseURL: authContext.ryokan_address,
-        })
+        });
 
         await ryokan_api.delete(`/v1alpha/dataset/${dataset_uuid}`, {
             headers: { Authorization: `Bearer ${authContext.token}` },

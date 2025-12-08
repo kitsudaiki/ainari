@@ -41,7 +41,7 @@ limitations under the License.
     background-color: var(--color-tile);
 
     padding: 1rem;
-    height: 4.5rem;
+    /* min-height: 4.5rem; */
 
     display: flex;
     flex-direction: column;

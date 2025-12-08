@@ -21,10 +21,60 @@ limitations under the License.
 }
 
 .error-msg {
-    margin-top: 0.8rem;
-    color: red;
-    font-size: 0.9rem;
-    text-align: center;
+    background-color: #ffc8c8; /* soft red box */
+    color: #000; /* black text */
+    border: 1px solid #ff4d4d; /* stronger border to match */
+    padding: 0.5rem 0.75rem; /* comfy spacing */
+    border-radius: 4px; /* cute rounded corners~ */
+    margin-top: 0.5rem; /* some space above */
+    width: 100%; /* full width inside the bottom bar */
+    text-align: center; /* centered text, optional */
+    box-sizing: border-box;
+}
+
+.error-popup {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+
+    background-color: #ffdddd;
+    color: #000;
+    border: 1px solid #ff4d4d;
+    padding: 0.75rem 1rem 0.75rem 1rem;
+
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    z-index: 9999;
+
+    opacity: 0;
+    animation: popin 0.2s forwards;
+
+    position: fixed;
+    max-width: 300px;
+}
+
+/* little ✕ button in the corner */
+.error-close-btn {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    font-size: 1rem;
+    font-weight: bold;
+
+    color: #333;
+}
+
+.error-close-btn:hover {
+    color: #000;
+}
+
+@keyframes popin {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .overview {

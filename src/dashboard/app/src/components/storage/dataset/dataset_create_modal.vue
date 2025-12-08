@@ -119,8 +119,8 @@ async function handleAccept() {
             const authContext = context.getAuthContext();
             const ryokan_api = axios.create({
                 baseURL: authContext.ryokan_address,
-            })
-            
+            });
+
             const response = await ryokan_api.post(
                 `/v1alpha/dataset/mnist/${form.datasetName}`,
                 formData,
@@ -147,8 +147,8 @@ async function handleAccept() {
             const authContext = context.getAuthContext();
             const ryokan_api = axios.create({
                 baseURL: authContext.ryokan_address,
-            })
-            
+            });
+
             const response = ryokan_api.post(
                 `/v1alpha/dataset/csv/${form.datasetName}`,
                 formData,

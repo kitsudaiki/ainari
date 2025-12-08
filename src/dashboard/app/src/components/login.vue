@@ -54,6 +54,11 @@
             </div>
         </div>
     </div>
+ 
+    <!--<div v-if="error" class="error-popup">
+        <button class="error-close-btn" @click="error = ''">✕</button>
+        {{ error }}
+    </div> -->
 </template>
 
 <script setup lang="ts">
