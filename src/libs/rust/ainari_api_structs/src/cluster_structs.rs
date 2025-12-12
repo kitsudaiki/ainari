@@ -31,6 +31,8 @@ pub struct ClusterCreateReq {
 pub struct ClusterResp {
     pub uuid: Uuid,
     pub name: String,
+    pub inputs: Vec<String>,
+    pub outputs: Vec<String>,
     pub template: String,
     pub torii_port: u16,
     pub created_at: String,

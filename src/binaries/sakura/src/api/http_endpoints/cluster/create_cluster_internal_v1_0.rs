@@ -21,6 +21,7 @@ use validator::Validate;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
+use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
@@ -44,17 +45,41 @@ pub async fn create_cluster_internal(
 
     let cluster_uuid = Uuid::new_v4();
 
+    // parse cluster-template
+    let mut parsed_cluster = match parse_cluster_template(&body.name, &body.template) {
+        Ok(parsed) => {
+            parsed
+        },
+        Err(e) => {
+            let msg = format!("Failed to parse cluster-template: {e:?}");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+    };
+    parsed_cluster.uuid = cluster_uuid;
+
     // parse cluster-template and create cluster from it
     let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     cluster_handler
-        .init_new_cluster(&cluster_uuid, &body.name, &body.template)
+        .init_new_cluster(&cluster_uuid, &parsed_cluster)
         .map_err(map_ainari_error_to_api_response)?;
 
+    // filter input-names
+    let mut inputs: Vec<String> = Vec::new();
+    for input in parsed_cluster.inputs {
+        inputs.push(input.name);
+    }
+        
+    // filter output-names
+    let mut outputs: Vec<String> = Vec::new();
+    for output in parsed_cluster.outputs {
+        outputs.push(output.name);
+    }
+
     // add new cluster to database
-    match cluster_table::add_new_cluster(&cluster_uuid, &body.name, &body.template, &context) {
+    match cluster_table::add_new_cluster(&cluster_uuid, &body.name, &body.template, &inputs, &outputs, &context) {
         Ok(_) => {}
-        Err(_) => {
-            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database.");
+        Err(e) => {
+            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database with error: {e}");
             log::error!("{msg}");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
@@ -67,6 +92,8 @@ pub async fn create_cluster_internal(
     let resp = ClusterResp {
         uuid: cluster_uuid,
         name: cluster_data.name,
+        inputs: inputs,
+        outputs: outputs,
         template: cluster_data.template,
         torii_port: 0,
         created_by: cluster_data.created_by,

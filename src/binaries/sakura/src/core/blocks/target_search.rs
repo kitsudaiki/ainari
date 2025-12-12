@@ -211,6 +211,7 @@ mod tests {
 
     use ainari_cluster_parser::cluster_meta_structs::Settings;
     use ainari_common::enums::*;
+    use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 
     use super::*;
 
@@ -241,7 +242,9 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
+        let mut parsed_cluster = parse_cluster_template(&cluster_name, &template).unwrap();
+        parsed_cluster.uuid = cluster_uuid;
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &parsed_cluster);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
