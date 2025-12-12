@@ -21,11 +21,11 @@ use validator::Validate;
 use crate::core::cluster_handler::CLUSTER_HANDLER;
 use crate::database::cluster_table;
 
-use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 
 #[api_operation(
     tag = "cluster",
@@ -47,9 +47,7 @@ pub async fn create_cluster_internal(
 
     // parse cluster-template
     let mut parsed_cluster = match parse_cluster_template(&body.name, &body.template) {
-        Ok(parsed) => {
-            parsed
-        },
+        Ok(parsed) => parsed,
         Err(e) => {
             let msg = format!("Failed to parse cluster-template: {e:?}");
             return Err(ErrorResponse::BadRequest(msg));
@@ -68,7 +66,7 @@ pub async fn create_cluster_internal(
     for input in parsed_cluster.inputs {
         inputs.push(input.name);
     }
-        
+
     // filter output-names
     let mut outputs: Vec<String> = Vec::new();
     for output in parsed_cluster.outputs {
@@ -76,10 +74,19 @@ pub async fn create_cluster_internal(
     }
 
     // add new cluster to database
-    match cluster_table::add_new_cluster(&cluster_uuid, &body.name, &body.template, &inputs, &outputs, &context) {
+    match cluster_table::add_new_cluster(
+        &cluster_uuid,
+        &body.name,
+        &body.template,
+        &inputs,
+        &outputs,
+        &context,
+    ) {
         Ok(_) => {}
         Err(e) => {
-            let msg = format!("Failed to add cluster with UUID '{cluster_uuid}' to database with error: {e}");
+            let msg = format!(
+                "Failed to add cluster with UUID '{cluster_uuid}' to database with error: {e}"
+            );
             log::error!("{msg}");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
@@ -92,8 +99,8 @@ pub async fn create_cluster_internal(
     let resp = ClusterResp {
         uuid: cluster_uuid,
         name: cluster_data.name,
-        inputs: inputs,
-        outputs: outputs,
+        inputs,
+        outputs,
         template: cluster_data.template,
         torii_port: 0,
         created_by: cluster_data.created_by,

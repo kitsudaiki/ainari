@@ -192,7 +192,13 @@ async fn init_output_dataset(
     let result_path_encrypted = format!("{result_path}_encrypted");
     let description = task_uuid.to_string().clone();
 
-    let dimension: (u64, u64) = (total_output_size, columns.len() as u64);
+    // filter colume-names
+    let mut column_names: Vec<String> = Vec::new();
+    for col in &columns {
+        column_names.push(col.0.clone());
+    }
+
+    let dimension: (u64, Vec<String>) = (total_output_size, column_names);
     let dataset_create_resp = init_dataset_in_ryokan(
         ryokan_endpoint,
         token,

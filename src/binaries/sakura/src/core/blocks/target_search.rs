@@ -210,8 +210,8 @@ mod tests {
     use crate::core::processing::output_buffer::*;
 
     use ainari_cluster_parser::cluster_meta_structs::Settings;
-    use ainari_common::enums::*;
     use ainari_cluster_parser::cluster_parser::parse_cluster_template;
+    use ainari_common::enums::*;
 
     use super::*;
 

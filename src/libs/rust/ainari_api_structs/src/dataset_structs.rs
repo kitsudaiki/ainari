@@ -25,7 +25,7 @@ pub struct DatasetInitReq {
     pub name: String,
     pub dataset_type: String,
     pub number_of_rows: u64,
-    pub number_of_columns: u64,
+    pub column_names: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -35,7 +35,7 @@ pub struct DatasetInternalResp {
     pub onsen_address: String,
     pub file_path: String,
     pub number_of_rows: u64,
-    pub number_of_columns: u64,
+    pub column_names: Vec<String>,
     pub secret_uuid: Uuid,
     pub created_at: String,
     pub created_by: String,
@@ -48,7 +48,7 @@ pub struct DatasetResp {
     pub uuid: Uuid,
     pub name: String,
     pub number_of_rows: u64,
-    pub number_of_columns: u64,
+    pub column_names: Vec<String>,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,

@@ -16,6 +16,7 @@ use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -34,6 +35,7 @@ table! {
         secret_uuid -> Varchar,
         number_of_rows -> BigInt,
         number_of_columns -> BigInt,
+        column_names -> Text,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -56,6 +58,7 @@ pub struct DatasetEntry {
     pub secret_uuid: String,
     pub number_of_rows: i64,
     pub number_of_columns: i64,
+    pub column_names: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -78,6 +81,7 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
         secret_uuid VARCHAR(40),
         number_of_rows BIGINT,
         number_of_columns BIGINT,
+        column_names TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -99,9 +103,19 @@ pub fn add_new_dataset(
     onsen_address: &str,
     file_path: &str,
     secret_uuid: &Uuid,
-    dimension: (i64, i64),
+    dimension: &(i64, Vec<String>),
     context: &UserContext,
 ) -> QueryResult<usize> {
+    let column_names_str = match serde_json::to_string(&dimension.1) {
+        Ok(column_names_str) => column_names_str,
+        Err(e) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::SerializationFailure,
+                Box::new(format!("Failed to serialize column_names with error: {e}")),
+            ));
+        }
+    };
+
     let dataset = DatasetEntry {
         uuid: dataset_uuid.to_string().clone(),
         name: dataset_name.to_owned(),
@@ -109,7 +123,8 @@ pub fn add_new_dataset(
         file_path: file_path.to_owned(),
         secret_uuid: secret_uuid.to_string().clone(),
         number_of_rows: dimension.0,
-        number_of_columns: dimension.1,
+        number_of_columns: dimension.1.len() as i64,
+        column_names: column_names_str,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -250,6 +265,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let column_names = "[\"input\", \"output\"]".to_string();
 
         let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
@@ -259,6 +275,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -313,6 +330,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let column_names = "[\"input\", \"output\"]".to_string();
 
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
@@ -322,6 +340,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -341,6 +360,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -382,6 +402,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let column_names = "[\"input\", \"output\"]".to_string();
 
         let dataset = DatasetEntry {
             uuid: uuid1.to_string(),
@@ -391,6 +412,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -432,6 +454,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let column_names = "[\"input\", \"output\"]".to_string();
 
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
@@ -441,6 +464,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -460,6 +484,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -479,6 +504,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -517,6 +543,7 @@ mod tests {
         let secret_uuid = Uuid::new_v4();
         let number_of_rows = 42;
         let number_of_columns = 43;
+        let column_names = "[\"input\", \"output\"]".to_string();
 
         let dataset1 = DatasetEntry {
             uuid: uuid1.to_string(),
@@ -526,6 +553,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -545,6 +573,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -564,6 +593,7 @@ mod tests {
             secret_uuid: secret_uuid.to_string(),
             number_of_rows,
             number_of_columns,
+            column_names: column_names.clone(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

@@ -28,7 +28,7 @@ pub async fn init_dataset_in_ryokan(
     internal_api_key: &Secret,
     dataset_uuid: &Uuid,
     name: &str,
-    dimension: (u64, u64),
+    dimension: (u64, Vec<String>),
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
@@ -40,7 +40,7 @@ pub async fn init_dataset_in_ryokan(
         name: name.to_owned(),
         dataset_type: "csv".to_string(),
         number_of_rows: dimension.0,
-        number_of_columns: dimension.1,
+        column_names: dimension.1,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 

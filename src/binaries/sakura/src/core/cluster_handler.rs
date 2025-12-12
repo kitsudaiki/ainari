@@ -104,7 +104,7 @@ impl ClusterDataHandler {
         )));
 
         // add cluster to the cluster-handler
-        self.register_cluster(&parsed_cluster, Some(interface))?;
+        self.register_cluster(parsed_cluster, Some(interface))?;
 
         // initialize input-blocks
         for input_meta in parsed_cluster.inputs.iter() {
@@ -700,9 +700,9 @@ impl ClusterDataHandler {
 #[cfg(test)]
 mod tests {
     use ainari_cluster_parser::cluster_meta_structs::Settings;
+    use ainari_cluster_parser::cluster_parser::parse_cluster_template;
     use ainari_common::enums::*;
     use serial_test::serial;
-    use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 
     use super::*;
 

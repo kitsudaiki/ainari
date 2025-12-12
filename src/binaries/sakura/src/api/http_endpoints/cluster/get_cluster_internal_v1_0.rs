@@ -53,8 +53,8 @@ pub async fn get_cluster_internal(
     let resp = ClusterResp {
         uuid: *cluster_uuid,
         name: cluster_data.name,
-        inputs: inputs,
-        outputs: outputs,
+        inputs,
+        outputs,
         template: cluster_data.template,
         torii_port: 0,
         created_by: cluster_data.created_by,

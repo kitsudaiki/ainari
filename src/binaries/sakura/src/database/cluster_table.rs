@@ -15,8 +15,8 @@
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use uuid::Uuid;
 use diesel::result::DatabaseErrorKind;
+use uuid::Uuid;
 
 use crate::database::db_handle;
 
@@ -103,7 +103,7 @@ pub fn add_new_cluster(
             ));
         }
     };
-    let outputs_str = match serde_json::to_string(&outputs){
+    let outputs_str = match serde_json::to_string(&outputs) {
         Ok(outputs_str) => outputs_str,
         Err(e) => {
             return Err(diesel::result::Error::DatabaseError(

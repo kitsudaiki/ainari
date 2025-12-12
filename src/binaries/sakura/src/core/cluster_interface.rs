@@ -237,8 +237,8 @@ fn run_iteration(
 
 #[cfg(test)]
 mod tests {
-    use serial_test::serial;
     use ainari_cluster_parser::cluster_parser::parse_cluster_template;
+    use serial_test::serial;
 
     use crate::core::processing::worker_handler::*;
 
