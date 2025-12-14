@@ -48,7 +48,7 @@ import axios from "axios";
 import context from "../../../auth_context";
 
 interface Props {
-    cluster: { id: number; name: string } | null;
+    cluster: { uuid: number; name: string } | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();

@@ -99,7 +99,7 @@ const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 const emit = defineEmits<{
-    (e: "change-view", view: string, id: string): void;
+    (e: "change-view", view: string, cluster_uuid: string): void;
 }>();
 
 function switchToTasks(cluster_uuid: string) {

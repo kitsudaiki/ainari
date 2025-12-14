@@ -142,4 +142,9 @@ label {
     width: 100%;
     text-align: left;
     font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+select {
+    margin-bottom: 0.5rem;
 }

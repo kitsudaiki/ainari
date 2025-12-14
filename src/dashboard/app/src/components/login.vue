@@ -54,7 +54,7 @@
             </div>
         </div>
     </div>
- 
+
     <!--<div v-if="error" class="error-popup">
         <button class="error-close-btn" @click="error = ''">✕</button>
         {{ error }}
@@ -83,7 +83,6 @@ const emit = defineEmits<{
  */
 async function login() {
     try {
-        // Reset any previous error messages
         error.value = "";
 
         // Prepare URL-encoded form data for the authentication request
@@ -106,8 +105,6 @@ async function login() {
         // This helps with troubleshooting authentication issues
         // console.log("Login response:", login_resp);
 
-        // Extract the access token from the response
-        // This token will be used for authenticated API requests
         const token = login_resp.data.access_token;
 
         // Store the authentication token in the global context
@@ -118,12 +115,7 @@ async function login() {
         // This allows the parent to handle post-login actions
         emit("login-success", token, user_id.value);
     } catch (err: any) {
-        // Handle any errors that occur during the login process
-        // This provides user-friendly feedback when authentication fails
         error.value = "Login failed. Please try again.";
-
-        // In a production environment, you might want to log more detailed error information
-        // for debugging purposes, but keep sensitive information out of user-facing messages
         console.error("Login error:", err);
     }
 }
