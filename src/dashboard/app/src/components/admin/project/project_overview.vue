@@ -15,48 +15,44 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Project</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">Project</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="projects.length > 0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="project in projects" :key="project.id">
-                            <td>{{ project.id }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="projects.length > 0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="project in projects" :key="project.id">
+                        <td>{{ project.id }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(project.id)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(project.id)"
+                                    v-if="openDropdown === project.id"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === project.id"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button
-                                            @click="openDeleteModal(project)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openDeleteModal(project)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No projects found</p>
-            </div>
+            <p v-else>No projects found</p>
         </div>
 
         <ProjectCreateModal

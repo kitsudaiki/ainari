@@ -15,53 +15,51 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">User</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">User</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="users.length > 0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Is Admin</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="user in users" :key="user.id">
-                            <td>{{ user.id }}</td>
-                            <td>{{ user.name }}</td>
-                            <td>{{ user.is_admin }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="users.length > 0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Is Admin</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="user in users" :key="user.id">
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.is_admin }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(user.id)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(user.id)"
+                                    v-if="openDropdown === user.id"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === user.id"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button @click="openInfoModal(user)">
-                                            Info
-                                        </button>
-                                        <button @click="openDeleteModal(user)">
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openInfoModal(user)">
+                                        Info
+                                    </button>
+                                    <button @click="openDeleteModal(user)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No users found</p>
-            </div>
+            <p v-else>No users found</p>
         </div>
 
         <UserCreateModal

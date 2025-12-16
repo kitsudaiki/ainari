@@ -82,6 +82,7 @@ import "./styles/dropdown.css";
 import "./styles/button.css";
 import "./styles/table.css";
 import "./styles/tab.css";
+import "./styles/devider.css";
 import "./styles/primevue_overrides.css";
 
 // Reactive reference to track the current active view/component
@@ -180,7 +181,7 @@ function handleLogout() {
 
 .content {
     flex: 1;
-    padding: 1rem;
+    margin: 1rem;
     overflow-y: auto;
 }
 </style>

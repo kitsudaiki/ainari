@@ -23,19 +23,23 @@ limitations under the License.
     max-height: calc(
         100vh - 2rem
     ); /* 2rem padding from top/bottom of viewport */
-    display: flex;
-    flex-direction: column;
+
+    margin: 0.5rem; /* space around the whole overview */
+    margin-top: 1.5rem;
+    margin-bottom: 2.5rem;
 }
 
 .card-label {
     position: absolute;
-    top: -0.9rem;
+    top: -1rem;
     left: 1rem;
     background-color: var(--color-text);
     color: invert(var(--color-text));
     font-size: 1rem;
     padding: 0.3rem 3rem;
+    /* font-weight: bold; */
     box-shadow: var(--box-shadow-header);
+    font-family: var(--text-font-family);
 }
 
 .card-content {
@@ -43,4 +47,10 @@ limitations under the License.
     margin-top: 1rem;
     margin-bottom: 1rem;
     position: relative;
+}
+
+.gauge-chart-card {
+    width: 18rem;
+    margin-right: 1rem;
+    margin-left: 1rem;
 }

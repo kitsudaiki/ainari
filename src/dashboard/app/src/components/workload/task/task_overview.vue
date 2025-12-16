@@ -15,68 +15,66 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Task</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal(props.id)">
-                    +
-                </button>
+    <div class="card">
+        <div class="card-label">Task</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal(props.id)">
+                +
+            </button>
 
-                <table class="overview-table" v-if="tasks.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>State</th>
-                            <th>Progress</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="task in tasks" :key="task.uuid">
-                            <td>{{ task.uuid }}</td>
-                            <td>{{ task.name }}</td>
-                            <td>{{ task.task_type }}</td>
-                            <td>{{ task.state }}</td>
-                            <td>
-                                <ProgressBar
-                                    :value="
-                                        parseFloat(
-                                            (
-                                                (task.current_epoch /
-                                                    task.total_number_of_epochs) *
-                                                100
-                                            ).toFixed(1),
-                                        )
-                                    "
-                                ></ProgressBar>
-                            </td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="tasks.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>State</th>
+                        <th>Progress</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="task in tasks" :key="task.uuid">
+                        <td>{{ task.uuid }}</td>
+                        <td>{{ task.name }}</td>
+                        <td>{{ task.task_type }}</td>
+                        <td>{{ task.state }}</td>
+                        <td>
+                            <ProgressBar
+                                :value="
+                                    parseFloat(
+                                        (
+                                            (task.current_epoch /
+                                                task.total_number_of_epochs) *
+                                            100
+                                        ).toFixed(1),
+                                    )
+                                "
+                            ></ProgressBar>
+                        </td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(task.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(task.uuid)"
+                                    v-if="openDropdown === task.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === task.uuid"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button @click="openDeleteModal(task)">
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openDeleteModal(task)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No tasks found</p>
-            </div>
+            <p v-else>No tasks found</p>
         </div>
 
         <TaskCreateModal

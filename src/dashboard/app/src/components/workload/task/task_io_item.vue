@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
@@ -103,6 +103,7 @@ async function fetchDataset() {
         await fetchDatasetColumns();
     }
 }
+
 onMounted(fetchDataset);
 </script>
 

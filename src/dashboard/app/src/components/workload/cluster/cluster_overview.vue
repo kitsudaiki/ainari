@@ -15,55 +15,51 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Cluster</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">Cluster</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="clusters.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="cluster in clusters" :key="cluster.uuid">
-                            <td>{{ cluster.uuid }}</td>
-                            <td>{{ cluster.name }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="clusters.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="cluster in clusters" :key="cluster.uuid">
+                        <td>{{ cluster.uuid }}</td>
+                        <td>{{ cluster.name }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(cluster.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(cluster.uuid)"
+                                    v-if="openDropdown === cluster.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === cluster.uuid"
-                                        class="table-dropdown-menu"
+                                    <button
+                                        @click="switchToTasks(cluster.uuid)"
                                     >
-                                        <button
-                                            @click="switchToTasks(cluster.uuid)"
-                                        >
-                                            Show tasks
-                                        </button>
-                                        <button
-                                            @click="openDeleteModal(cluster)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                        Show tasks
+                                    </button>
+                                    <button @click="openDeleteModal(cluster)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No clusters found</p>
-            </div>
+            <p v-else>No clusters found</p>
         </div>
 
         <ClusterCreateModal

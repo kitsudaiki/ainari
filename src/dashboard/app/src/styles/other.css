@@ -83,12 +83,6 @@ limitations under the License.
     }
 }
 
-.overview {
-    margin: 0.5rem; /* space around the whole overview */
-    box-shadow: var(--box-shadow);
-    background: var(--color-tile);
-}
-
 .checkbox-label {
     margin-top: 1rem;
     color: var(--color-text);

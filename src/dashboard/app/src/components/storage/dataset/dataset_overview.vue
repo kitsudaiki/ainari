@@ -15,50 +15,46 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Dataset</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">Dataset</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="datasets.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="dataset in datasets" :key="dataset.uuid">
-                            <td>{{ dataset.uuid }}</td>
-                            <td>{{ dataset.name }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="datasets.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="dataset in datasets" :key="dataset.uuid">
+                        <td>{{ dataset.uuid }}</td>
+                        <td>{{ dataset.name }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(dataset.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(dataset.uuid)"
+                                    v-if="openDropdown === dataset.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === dataset.uuid"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button
-                                            @click="openDeleteModal(dataset)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openDeleteModal(dataset)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No datasets found</p>
-            </div>
+            <p v-else>No datasets found</p>
         </div>
 
         <DatasetCreateModal

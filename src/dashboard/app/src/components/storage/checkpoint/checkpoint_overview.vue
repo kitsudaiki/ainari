@@ -15,52 +15,48 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Checkpoint</div>
-            <div class="card-content">
-                <table class="overview-table" v-if="checkpoints.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="checkpoint in checkpoints"
-                            :key="checkpoint.uuid"
-                        >
-                            <td>{{ checkpoint.uuid }}</td>
-                            <td>{{ checkpoint.name }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+    <div class="card">
+        <div class="card-label">Checkpoint</div>
+        <div class="card-content">
+            <table class="overview-table" v-if="checkpoints.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="checkpoint in checkpoints"
+                        :key="checkpoint.uuid"
+                    >
+                        <td>{{ checkpoint.uuid }}</td>
+                        <td>{{ checkpoint.name }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(checkpoint.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="
-                                        toggleDropdown(checkpoint.uuid)
-                                    "
+                                    v-if="openDropdown === checkpoint.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === checkpoint.uuid"
-                                        class="table-dropdown-menu"
+                                    <button
+                                        @click="openDeleteModal(checkpoint)"
                                     >
-                                        <button
-                                            @click="openDeleteModal(checkpoint)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No checkpoints found</p>
-            </div>
+            <p v-else>No checkpoints found</p>
         </div>
 
         <CheckpointDeleteModal

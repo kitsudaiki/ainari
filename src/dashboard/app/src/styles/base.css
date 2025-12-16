@@ -26,7 +26,7 @@ limitations under the License.
     --color-highlight: #ffc7f2;
     /*--color-highlight: #616eff;*/
 
-    --text-font-family: Verdana, sans-serif, Arial, Helvetica;
+    --text-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     --text-font-size: 1rem;
 
     --box-shadow: 0 0.5rem 0.5rem var(--color-shadow);
