@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod delete_checkpoint_v1_0;
+pub mod get_checkpoint_count_v1_0;
 pub mod get_checkpoint_internal_v1_0;
 pub mod get_checkpoint_v1_0;
 pub mod init_checkpoint_internal_v1_0;

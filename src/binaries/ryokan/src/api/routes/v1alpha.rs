@@ -32,6 +32,9 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(init_dataset_internal_v1_0::init_dataset)),
                 )
                 .service(
+                    resource("/count").route(get().to(get_dataset_count_v1_0::get_dataset_count)),
+                )
+                .service(
                     resource("/{dataset_uuid}")
                         .route(get().to(get_dataset_v1_0::get_dataset))
                         .route(delete().to(delete_dataset_v1_0::delete_dataset)),
@@ -54,6 +57,10 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/internal")
                         .route(post().to(init_checkpoint_internal_v1_0::init_checkpoint)),
+                )
+                .service(
+                    resource("/count")
+                        .route(get().to(get_checkpoint_count_v1_0::get_checkpoint_count)),
                 )
                 .service(resource("").route(get().to(list_checkpoint_v1_0::list_checkpoint)))
                 .service(
