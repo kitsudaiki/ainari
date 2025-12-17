@@ -16,7 +16,16 @@
 
 <template>
     <div class="app">
-        <div class="background"></div>
+        <div class="background">
+            <img
+                src="./assets/background_pattern.svg"
+                class="logo-icon top-left"
+            />
+            <img
+                src="./assets/background_pattern2.svg"
+                class="logo-icon bottom-right"
+            />
+        </div>
         <!-- blur overlay -->
         <div class="overlay"></div>
 
@@ -162,6 +171,10 @@ function handleLogout() {
     position: fixed;
     inset: 0;
     z-index: -2;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh; /* THIS is the important part */
 }
 
 .overlay {
@@ -183,5 +196,26 @@ function handleLogout() {
     flex: 1;
     margin: 1rem;
     overflow-y: auto;
+}
+
+.logo-icon {
+    height: auto;
+    filter: invert(1);
+    position: absolute;
+    opacity: 0.025;
+}
+
+.top-left {
+    width: 50vw;
+
+    top: 0;
+    left: 0;
+}
+
+.bottom-right {
+    width: 28vw;
+
+    bottom: 0;
+    right: 0;
 }
 </style>

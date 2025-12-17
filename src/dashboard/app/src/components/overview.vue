@@ -70,7 +70,6 @@ async function fetchQuotas() {
         maxDataset.value = response.data.max_dataset;
         maxCheckpoint.value = response.data.max_checkpoint;
         maxSecret.value = response.data.max_secret;
-
     } catch (err) {
         console.error("Failed to load quotas", err);
     }
@@ -88,7 +87,6 @@ async function fetchUsedCluster() {
         });
         console.log("response: ", response);
         usedCluster.value = response.data.number_of_items;
-
     } catch (err) {
         console.error("Failed to load number of clusters", err);
     }
@@ -107,12 +105,14 @@ async function fetchUsedDatasetsAndCheckpoints() {
         console.log("response: ", respDataset);
         usedDataset.value = respDataset.data.number_of_items;
 
-        const respCheckpoint = await ryokan_api.get("/v1alpha/checkpoint/count", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
+        const respCheckpoint = await ryokan_api.get(
+            "/v1alpha/checkpoint/count",
+            {
+                headers: { Authorization: `Bearer ${authContext.token}` },
+            },
+        );
         console.log("response: ", respCheckpoint);
         usedCheckpoint.value = respCheckpoint.data.number_of_items;
-
     } catch (err) {
         console.error("Failed to load number of datasets and checkpoints", err);
     }
@@ -130,7 +130,6 @@ async function fetchUsedSecrets() {
         });
         console.log("response: ", response);
         usedSecret.value = response.data.number_of_items;
-
     } catch (err) {
         console.error("Failed to load number of secrets", err);
     }
@@ -140,7 +139,6 @@ onMounted(fetchQuotas);
 onMounted(fetchUsedCluster);
 onMounted(fetchUsedDatasetsAndCheckpoints);
 onMounted(fetchUsedSecrets);
-
 </script>
 
 <style scoped>
