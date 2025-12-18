@@ -697,20 +697,22 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"  }
-          - { component: "hanami",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"  }
-          - { component: "miko",    platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"    }
-          - { component: "miko",    platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"    }
-          - { component: "ryokan",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"  }
-          - { component: "ryokan",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"  }
-          - { component: "sakura",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"  }
-          - { component: "sakura",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"  }
-          - { component: "torii",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"   }
-          - { component: "torii",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"   }
-          - { component: "omamori", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori" }
-          - { component: "omamori", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori" }
-          - { component: "onsen",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"   }
-          - { component: "onsen",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"   }
+          - { component: "hanami",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"             }
+          - { component: "hanami",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"             }
+          - { component: "miko",        platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"               }
+          - { component: "miko",        platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"               }
+          - { component: "ryokan",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"             }
+          - { component: "ryokan",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"             }
+          - { component: "sakura",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"             }
+          - { component: "sakura",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"             }
+          - { component: "torii",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"              }
+          - { component: "torii",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"              }
+          - { component: "omamori",     platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori"            }
+          - { component: "omamori",     platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori"            }
+          - { component: "onsen",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"              }
+          - { component: "onsen",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"              }
+          - { component: "dashboard",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_dashboard"   }
+          - { component: "dashboard",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_dashboard"   }
     runs-on: ${{ matrix.builds.runner }}
     steps:
       -
@@ -788,13 +790,14 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami", regitry: "kitsudaiki/hanami" }
-          - { component: "miko", regitry: "kitsudaiki/miko" }
-          - { component: "ryokan", regitry: "kitsudaiki/ryokan" }
-          - { component: "sakura", regitry: "kitsudaiki/sakura" }
-          - { component: "torii", regitry: "kitsudaiki/torii" }
-          - { component: "omamori", regitry: "kitsudaiki/omamori" }
-          - { component: "onsen", regitry: "kitsudaiki/onsen" }
+          - { component: "hanami",    regitry: "kitsudaiki/hanami"           }
+          - { component: "miko",      regitry: "kitsudaiki/miko"             }
+          - { component: "ryokan",    regitry: "kitsudaiki/ryokan"           }
+          - { component: "sakura",    regitry: "kitsudaiki/sakura"           }
+          - { component: "torii",     regitry: "kitsudaiki/torii"            }
+          - { component: "omamori",   regitry: "kitsudaiki/omamori"          }
+          - { component: "onsen",     regitry: "kitsudaiki/onsen"            }
+          - { component: "dashboard", regitry: "kitsudaiki/ainari_dashboard" }
     steps:
       -
         name: Set branch name as environment variable
@@ -993,6 +996,7 @@ jobs:
           kubectl label nodes --all torii-node=true
           kubectl label nodes --all omamori-node=true
           kubectl label nodes --all onsen-node=true
+          kubectl label nodes --all dashboard-node=true
       -
         name: Install hanami
         run: |

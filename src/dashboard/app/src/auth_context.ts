@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import axios from "axios";
+
 import api from "./api";
+import { getConfig } from "./config";
 
 /**
  * Interface representing the authentication context
@@ -35,14 +38,19 @@ interface AuthContext {
  * @param token - The authentication token to be stored
  */
 async function createAuthContext(token: string) {
+    const { apiUrl } = getConfig();
+    const miko_api = axios.create({
+        baseURL: apiUrl,
+    });
+
     // Fetch the service endpoints from the API
-    const endpoint_resp = await api.miko_api.get("/v1alpha/endpoints");
+    const endpoint_resp = await miko_api.get("/v1alpha/endpoints");
 
     // Initialize the auth context with the provided token
     // and environment variables or fetched service addresses
     const authContext: AuthContext = {
         token: token,
-        miko_address: import.meta.env.VITE_API_URL_MIKO, // Get Miko address from environment
+        miko_address: apiUrl, // Get Miko address from environment
         hanami_address: endpoint_resp.data.hanami.public_address,
         ryokan_address: endpoint_resp.data.ryokan.public_address,
         torii_address: endpoint_resp.data.torii.public_address,

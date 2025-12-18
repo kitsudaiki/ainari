@@ -63,8 +63,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import api from "../api";
+import axios from "axios";
+
 import context from "../auth_context";
+import { getConfig } from "../config";
 
 // Reactive references to store user input and error messages
 const user_id = ref("");
@@ -93,9 +95,16 @@ async function login() {
         params.append("client_id", user_id.value); // Client identifier from user input
         params.append("client_secret", password.value); // Client secret from user input
 
+        // Loac miko-address from the config-file for the initial connection
+        // The addresses of all the other components will be requested from Miko
+        const { apiUrl } = getConfig();
+        const miko_api = axios.create({
+            baseURL: apiUrl,
+        });
+
         // Send the authentication request to the API endpoint
         // The endpoint expects form-encoded data with specific headers
-        const login_resp = await api.miko_api.post("/v1alpha/token", params, {
+        const login_resp = await miko_api.post("/v1alpha/token", params, {
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded", // Required header for form data
             },

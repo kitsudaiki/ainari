@@ -7,4 +7,5 @@ services:
     volumes:
       - ./app:/app
       - /app/node_modules
+      - /etc/ainari/dashboard_config.json:/app/public/config.json
 # docker compose up --build

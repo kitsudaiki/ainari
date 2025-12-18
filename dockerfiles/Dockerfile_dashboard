@@ -3,6 +3,10 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
+# Accept build-time variable
+ARG VITE_MIKO_API_URL
+ENV VITE_MIKO_API_URL=$VITE_MIKO_API_URL
+
 # Install dependencies
 COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json* ./
 RUN npm install
