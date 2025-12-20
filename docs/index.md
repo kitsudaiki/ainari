@@ -185,11 +185,6 @@ Ainari is split into a micro-service architecture. See here for
 There are some features, which existed in the past, were disabled temporary and will be
 added/enabled again in the near future:
 
-1. Dashboard
-
-    As a PoC a first dashboard was created, without any framework. At the moment it is in process of
-    refactoring and re-implementation in Vue.js and Typescript.
-
 1. Regulation of CPU-speed
 
     Also in older version there also was the function available to regulate the speed of the CPU
