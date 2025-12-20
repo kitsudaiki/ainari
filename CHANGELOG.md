@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## v0.10.0
 
 (Changes since v0.9.0)
 
@@ -12,10 +12,24 @@
 - added new component named "Miko", where the endpoints for tokens, users and projects moved to.
 - Sakura now uses the Miko to check provided token over a new client-connection
 - improved version-output
+- admin-flag is not a string instead of a boolean
 
 #### Config-Breaking
 
 - Because of the new component, Sakura requires a new client-connection in its config
+
+#### Database-Breaking
+
+- The size of the status-field in most of the tables was changed
+- fixed size of uuid-fields in database
+
+#### Dataset-Breaking
+
+- datasets are now always AES-256 encrypted with a key generated and stored in omamori
+
+#### Checkpoint-Breaking
+
+- checkpoints are now always AES-256 encrypted with a key generated and stored in omamori
 
 ### Added
 
@@ -26,6 +40,10 @@
 - new component "Omamori" with a very simple AES-crypto backend to store and download secrets
 - use shared storage in kubernetes-setup to share files between Ryokan and Sakura
 - the new Miko-component provides the addresses of all components
+- new basic dashboard written in Vue.js and Typescript
+- added Dashboard to the kubernetes-setup
+- endpoints to get the number of used cluster, datasets, checkpoints and secrets
+- in the kuberentes-setup internal used keys were moved into kubernetes-secrets
 
 ### Changed
 
@@ -38,11 +56,17 @@
         build-time in the CI
     - base-images are pinned by a hash now
     - switch from ubuntu to debian-slim as base image to reduce the size
+- arm64 images are now build by a nativ arm-runner instead of cross-compiling
+- renamed the "insecure_clients"-flag to "skip_tls_verification" on client-side
+- restructured the documenation to have user, developer and deployer section
+- use "map_err" in the rust-code to reduce the code-base and make the code more readable
 
 ### Fixed
 
 - fixed miscalculation in the potential-overflow between sections, to fix massive accuracy problems
     in bigger tests
+- fixed cleanup of temporary resources
+
 
 ## v0.9.0
 
