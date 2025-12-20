@@ -62,7 +62,7 @@ pub async fn run_server() -> Result<(), impl Error> {
                     url: Some("http://www.apache.org/licenses/LICENSE-2.0.html".to_string()),
                     ..Default::default()
                 }),
-                version: "0.9.0".to_string(),
+                version: "0.10.0".to_string(),
                 ..Default::default()
             },
             external_docs: Some(ExternalDocumentation {
