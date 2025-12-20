@@ -79,7 +79,9 @@
                   "required": [
                     "created_at",
                     "created_by",
+                    "inputs",
                     "name",
+                    "outputs",
                     "template",
                     "torii_port",
                     "updated_at",
@@ -93,8 +95,20 @@
                     "created_by": {
                       "type": "string"
                     },
+                    "inputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "name": {
                       "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "template": {
                       "type": "string"
@@ -1165,7 +1179,9 @@
         "required": [
           "created_at",
           "created_by",
+          "inputs",
           "name",
+          "outputs",
           "template",
           "torii_port",
           "updated_at",
@@ -1179,8 +1195,20 @@
           "created_by": {
             "type": "string"
           },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "name": {
             "type": "string"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "template": {
             "type": "string"

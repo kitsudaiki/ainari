@@ -77,11 +77,11 @@
                   "title": "DatasetInternalResp",
                   "type": "object",
                   "required": [
+                    "column_names",
                     "created_at",
                     "created_by",
                     "file_path",
                     "name",
-                    "number_of_columns",
                     "number_of_rows",
                     "onsen_address",
                     "secret_uuid",
@@ -90,6 +90,12 @@
                     "uuid"
                   ],
                   "properties": {
+                    "column_names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "created_at": {
                       "type": "string"
                     },
@@ -101,11 +107,6 @@
                     },
                     "name": {
                       "type": "string"
-                    },
-                    "number_of_columns": {
-                      "type": "integer",
-                      "format": "uint64",
-                      "minimum": 0.0
                     },
                     "number_of_rows": {
                       "type": "integer",
@@ -142,6 +143,46 @@
           },
           "409": {
             "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/dataset/count": {
+      "get": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Get number of dataset of the user",
+        "description": "Get number of dataset of the user from the database.",
+        "operationId": "get_v1alpha-dataset-count-13e09ae439ec646ec85f6a273728d462",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Count"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -438,16 +479,22 @@
                   "title": "DatasetResp",
                   "type": "object",
                   "required": [
+                    "column_names",
                     "created_at",
                     "created_by",
                     "name",
-                    "number_of_columns",
                     "number_of_rows",
                     "updated_at",
                     "updated_by",
                     "uuid"
                   ],
                   "properties": {
+                    "column_names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "created_at": {
                       "type": "string"
                     },
@@ -456,11 +503,6 @@
                     },
                     "name": {
                       "type": "string"
-                    },
-                    "number_of_columns": {
-                      "type": "integer",
-                      "format": "uint64",
-                      "minimum": 0.0
                     },
                     "number_of_rows": {
                       "type": "integer",
@@ -580,6 +622,46 @@
           },
           "409": {
             "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/checkpoint/count": {
+      "get": {
+        "tags": [
+          "checkpoint"
+        ],
+        "summary": "Get number of checkpoint of the user",
+        "description": "Get number of checkpoint of the user from the database.",
+        "operationId": "get_v1alpha-checkpoint-count-8edb9ce3cd3d4d8783a6a968b352f4e3",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Count"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -1116,6 +1198,20 @@
           }
         }
       },
+      "Count": {
+        "title": "Count",
+        "type": "object",
+        "required": [
+          "number_of_items"
+        ],
+        "properties": {
+          "number_of_items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
       "DatasetBasicResp": {
         "type": "object",
         "required": [
@@ -1174,13 +1270,19 @@
         "title": "DatasetInitReq",
         "type": "object",
         "required": [
+          "column_names",
           "dataset_type",
           "name",
-          "number_of_columns",
           "number_of_rows",
           "uuid"
         ],
         "properties": {
+          "column_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "dataset_type": {
             "type": "string"
           },
@@ -1188,11 +1290,6 @@
             "type": "string",
             "maxLength": 127,
             "minLength": 4
-          },
-          "number_of_columns": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
           },
           "number_of_rows": {
             "type": "integer",
@@ -1209,11 +1306,11 @@
         "title": "DatasetInternalResp",
         "type": "object",
         "required": [
+          "column_names",
           "created_at",
           "created_by",
           "file_path",
           "name",
-          "number_of_columns",
           "number_of_rows",
           "onsen_address",
           "secret_uuid",
@@ -1222,6 +1319,12 @@
           "uuid"
         ],
         "properties": {
+          "column_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "created_at": {
             "type": "string"
           },
@@ -1233,11 +1336,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "number_of_columns": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
           },
           "number_of_rows": {
             "type": "integer",
@@ -1282,16 +1380,22 @@
         "title": "DatasetResp",
         "type": "object",
         "required": [
+          "column_names",
           "created_at",
           "created_by",
           "name",
-          "number_of_columns",
           "number_of_rows",
           "updated_at",
           "updated_by",
           "uuid"
         ],
         "properties": {
+          "column_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "created_at": {
             "type": "string"
           },
@@ -1300,11 +1404,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "number_of_columns": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
           },
           "number_of_rows": {
             "type": "integer",
