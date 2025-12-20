@@ -231,9 +231,11 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
+        name: Install dependencies for SDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler gcc ssh curl pkg-config libssl-dev libsqlite3-dev
+          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
         name: Checkout repository
         run: |
@@ -245,22 +247,28 @@ jobs:
           git submodule init
           git submodule update --recursive
       -
-        name: Compile hanami
+        name: Compile ainari
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-ainari/tmp/ainari ./builds/
+          cargo build
       -
         name: Copy files
         run: |
-          mkdir /tmp/Ainari_debug_build_result
+          mkdir -p /tmp/ainari_debug_build_result/ainari/
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/ainari /tmp/Ainari_debug_build_result/
+          cp ./target/debug/sakura /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/miko /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/ryokan /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/hanami /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/torii /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/omamori /tmp/ainari_debug_build_result/ainari/
+          cp ./target/debug/onsen /tmp/ainari_debug_build_result/ainari/
       -
         name: Create artifact
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
         with:
-          name: Ainari_debug_build_result
-          path: /tmp/Ainari_debug_build_result
+          name: ainari_debug_build_result
+          path: /tmp/ainari_debug_build_result
           retention-days: 1
 
 
@@ -332,7 +340,7 @@ jobs:
         name: Compile code
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly +test-hanami
+          earthly +test-ainari
 
 
 
@@ -374,8 +382,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Ainari_debug_build_result
-          path: /tmp/Ainari_debug_build_result
+          name: ainari_debug_build_result
+          path: /tmp/ainari_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -401,25 +409,25 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
-          chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
-          chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
-          chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
-          chmod +x /tmp/Ainari_debug_build_result/ainari/torii
-          chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
-          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
+          chmod +x /tmp/ainari_debug_build_result/ainari/hanami
+          chmod +x /tmp/ainari_debug_build_result/ainari/miko
+          chmod +x /tmp/ainari_debug_build_result/ainari/ryokan
+          chmod +x /tmp/ainari_debug_build_result/ainari/sakura
+          chmod +x /tmp/ainari_debug_build_result/ainari/torii
+          chmod +x /tmp/ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Ainari_debug_build_result/ainari/hanami &
-          /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/ryokan &
-          /tmp/Ainari_debug_build_result/ainari/torii &
-          /tmp/Ainari_debug_build_result/ainari/omamori &
+          /tmp/ainari_debug_build_result/ainari/hanami &
+          /tmp/ainari_debug_build_result/ainari/miko &
+          /tmp/ainari_debug_build_result/ainari/ryokan &
+          /tmp/ainari_debug_build_result/ainari/torii &
+          /tmp/ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
-          /tmp/Ainari_debug_build_result/ainari/sakura &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
+          /tmp/ainari_debug_build_result/ainari/sakura &
+          /tmp/ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -464,8 +472,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Ainari_debug_build_result
-          path: /tmp/Ainari_debug_build_result
+          name: ainari_debug_build_result
+          path: /tmp/ainari_debug_build_result
       -
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
@@ -494,25 +502,25 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
-          chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
-          chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
-          chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
-          chmod +x /tmp/Ainari_debug_build_result/ainari/torii
-          chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
-          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
+          chmod +x /tmp/ainari_debug_build_result/ainari/hanami
+          chmod +x /tmp/ainari_debug_build_result/ainari/miko
+          chmod +x /tmp/ainari_debug_build_result/ainari/ryokan
+          chmod +x /tmp/ainari_debug_build_result/ainari/sakura
+          chmod +x /tmp/ainari_debug_build_result/ainari/torii
+          chmod +x /tmp/ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Ainari_debug_build_result/ainari/hanami &
-          /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/ryokan &
-          /tmp/Ainari_debug_build_result/ainari/torii &
-          /tmp/Ainari_debug_build_result/ainari/omamori &
+          /tmp/ainari_debug_build_result/ainari/hanami &
+          /tmp/ainari_debug_build_result/ainari/miko &
+          /tmp/ainari_debug_build_result/ainari/ryokan &
+          /tmp/ainari_debug_build_result/ainari/torii &
+          /tmp/ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
-          /tmp/Ainari_debug_build_result/ainari/sakura &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
+          /tmp/ainari_debug_build_result/ainari/sakura &
+          /tmp/ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -586,8 +594,8 @@ jobs:
         name: Get artifact
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
-          name: Ainari_debug_build_result
-          path: /tmp/Ainari_debug_build_result
+          name: ainari_debug_build_result
+          path: /tmp/ainari_debug_build_result
       -
         name: Install dependencies for SDK
         run: |
@@ -613,25 +621,25 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
-          chmod +x /tmp/Ainari_debug_build_result/ainari/hanami
-          chmod +x /tmp/Ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/Ainari_debug_build_result/ainari/ryokan
-          chmod +x /tmp/Ainari_debug_build_result/ainari/sakura
-          chmod +x /tmp/Ainari_debug_build_result/ainari/torii
-          chmod +x /tmp/Ainari_debug_build_result/ainari/omamori
-          chmod +x /tmp/Ainari_debug_build_result/ainari/onsen
+          chmod +x /tmp/ainari_debug_build_result/ainari/hanami
+          chmod +x /tmp/ainari_debug_build_result/ainari/miko
+          chmod +x /tmp/ainari_debug_build_result/ainari/ryokan
+          chmod +x /tmp/ainari_debug_build_result/ainari/sakura
+          chmod +x /tmp/ainari_debug_build_result/ainari/torii
+          chmod +x /tmp/ainari_debug_build_result/ainari/omamori
+          chmod +x /tmp/ainari_debug_build_result/ainari/onsen
           mkdir -p builds/binaries
           sudo cp -r ./example_configs/ainari /etc/ainari
           sudo chmod 777 -R /etc/ainari
-          /tmp/Ainari_debug_build_result/ainari/hanami &
-          /tmp/Ainari_debug_build_result/ainari/miko &
-          /tmp/Ainari_debug_build_result/ainari/ryokan &
-          /tmp/Ainari_debug_build_result/ainari/torii &
-          /tmp/Ainari_debug_build_result/ainari/omamori &
+          /tmp/ainari_debug_build_result/ainari/hanami &
+          /tmp/ainari_debug_build_result/ainari/miko &
+          /tmp/ainari_debug_build_result/ainari/ryokan &
+          /tmp/ainari_debug_build_result/ainari/torii &
+          /tmp/ainari_debug_build_result/ainari/omamori &
           # sleep to make sure, that hanami is started before sakura starts
           sleep 10
-          /tmp/Ainari_debug_build_result/ainari/sakura &
-          /tmp/Ainari_debug_build_result/ainari/onsen &
+          /tmp/ainari_debug_build_result/ainari/sakura &
+          /tmp/ainari_debug_build_result/ainari/onsen &
           # BINARY_PID=$!
           # trap "kill $BINARY_PID" EXIT
       -
@@ -689,20 +697,22 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"  }
-          - { component: "hanami",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"  }
-          - { component: "miko",    platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"    }
-          - { component: "miko",    platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"    }
-          - { component: "ryokan",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"  }
-          - { component: "ryokan",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"  }
-          - { component: "sakura",  platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"  }
-          - { component: "sakura",  platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"  }
-          - { component: "torii",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"   }
-          - { component: "torii",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"   }
-          - { component: "omamori", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori" }
-          - { component: "omamori", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori" }
-          - { component: "onsen",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"   }
-          - { component: "onsen",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"   }
+          - { component: "hanami",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"             }
+          - { component: "hanami",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"             }
+          - { component: "miko",        platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"               }
+          - { component: "miko",        platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"               }
+          - { component: "ryokan",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"             }
+          - { component: "ryokan",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"             }
+          - { component: "sakura",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"             }
+          - { component: "sakura",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"             }
+          - { component: "torii",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"              }
+          - { component: "torii",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"              }
+          - { component: "omamori",     platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori"            }
+          - { component: "omamori",     platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori"            }
+          - { component: "onsen",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"              }
+          - { component: "onsen",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"              }
+          - { component: "dashboard",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_dashboard"   }
+          - { component: "dashboard",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_dashboard"   }
     runs-on: ${{ matrix.builds.runner }}
     steps:
       -
@@ -780,13 +790,14 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami", regitry: "kitsudaiki/hanami" }
-          - { component: "miko", regitry: "kitsudaiki/miko" }
-          - { component: "ryokan", regitry: "kitsudaiki/ryokan" }
-          - { component: "sakura", regitry: "kitsudaiki/sakura" }
-          - { component: "torii", regitry: "kitsudaiki/torii" }
-          - { component: "omamori", regitry: "kitsudaiki/omamori" }
-          - { component: "onsen", regitry: "kitsudaiki/onsen" }
+          - { component: "hanami",    regitry: "kitsudaiki/hanami"           }
+          - { component: "miko",      regitry: "kitsudaiki/miko"             }
+          - { component: "ryokan",    regitry: "kitsudaiki/ryokan"           }
+          - { component: "sakura",    regitry: "kitsudaiki/sakura"           }
+          - { component: "torii",     regitry: "kitsudaiki/torii"            }
+          - { component: "omamori",   regitry: "kitsudaiki/omamori"          }
+          - { component: "onsen",     regitry: "kitsudaiki/onsen"            }
+          - { component: "dashboard", regitry: "kitsudaiki/ainari_dashboard" }
     steps:
       -
         name: Set branch name as environment variable
@@ -985,6 +996,7 @@ jobs:
           kubectl label nodes --all torii-node=true
           kubectl label nodes --all omamori-node=true
           kubectl label nodes --all onsen-node=true
+          kubectl label nodes --all dashboard-node=true
       -
         name: Install hanami
         run: |

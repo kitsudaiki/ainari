@@ -12,17 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import axios from "axios";
-
-const miko_api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL_TORII,
-});
-
-const sakura_api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL_SAKURA,
-});
-
-export default {
-    miko_api,
-    sakura_api,
+export type AppConfig = {
+    apiUrl: string;
 };
+
+let config: AppConfig | null = null;
+
+export async function loadConfig() {
+    console.log("Loading config.json...");
+    const res = await fetch("/config.json", { cache: "no-store" });
+    console.log("Fetch result:", res);
+
+    if (!res.ok) {
+        throw new Error("Failed to load config.json");
+    }
+
+    config = await res.json();
+    console.log("Config loaded:", config);
+}
+
+export function getConfig(): AppConfig {
+    if (config === null) {
+        throw new Error("Config not loaded yet");
+    }
+    return config;
+}

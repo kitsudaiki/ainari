@@ -52,14 +52,14 @@ pub async fn init_dataset(
 
     let selected_onsen = select_onsen(&context)?;
 
-    let dimension = (body.number_of_rows as i64, body.number_of_columns as i64);
+    let dimension = (body.number_of_rows as i64, body.column_names.clone());
     dataset_table::add_new_dataset(
         dataset_uuid,
         name,
         &selected_onsen.address,
         &file_path_str,
         &secret_uuid,
-        dimension,
+        &dimension,
         &context,
     )
     .map_err(|e| {
@@ -77,7 +77,7 @@ pub async fn init_dataset(
         onsen_address: dataset_data.onsen_address,
         file_path: dataset_data.file_path,
         number_of_rows: dataset_data.number_of_rows as u64,
-        number_of_columns: dataset_data.number_of_columns as u64,
+        column_names: body.column_names.clone(),
         secret_uuid,
         created_by: dataset_data.created_by,
         created_at: dataset_data.created_at,

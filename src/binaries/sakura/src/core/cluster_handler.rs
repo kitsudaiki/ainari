@@ -21,7 +21,6 @@ use std::sync::{Arc, Mutex, RwLock};
 use uuid::Uuid;
 
 use ainari_cluster_parser::cluster_meta_structs::*;
-use ainari_cluster_parser::cluster_parser::parse_cluster_template;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 
@@ -94,18 +93,8 @@ impl ClusterDataHandler {
     pub fn init_new_cluster(
         &mut self,
         cluster_uuid: &Uuid,
-        name: &str,
-        cluster_template: &str,
+        parsed_cluster: &ClusterMeta,
     ) -> Result<(), AinariError> {
-        // parse cluster-template
-        let mut parsed_cluster: ClusterMeta = match parse_cluster_template(name, cluster_template) {
-            Ok(parsed) => parsed,
-            Err(e) => {
-                let msg = format!("Can not create cluster: {e:?}");
-                return Err(AinariError::InvalidInput(msg));
-            }
-        };
-
         // get and init finish-counter
         let finish_counter_mutex = Arc::new(Mutex::new(FinishCounter::default()));
         let mut finish_counter = finish_counter_mutex.lock().expect("mutex poisoned");
@@ -115,8 +104,7 @@ impl ClusterDataHandler {
         )));
 
         // add cluster to the cluster-handler
-        parsed_cluster.uuid = *cluster_uuid;
-        self.register_cluster(&parsed_cluster, Some(interface))?;
+        self.register_cluster(parsed_cluster, Some(interface))?;
 
         // initialize input-blocks
         for input_meta in parsed_cluster.inputs.iter() {
@@ -712,6 +700,7 @@ impl ClusterDataHandler {
 #[cfg(test)]
 mod tests {
     use ainari_cluster_parser::cluster_meta_structs::Settings;
+    use ainari_cluster_parser::cluster_parser::parse_cluster_template;
     use ainari_common::enums::*;
     use serial_test::serial;
 
@@ -742,7 +731,9 @@ mod tests {
         root_handler.clusters.clear();
 
         {
-            let ret = root_handler.init_new_cluster(&cluster_uuid, &name, &template);
+            let mut parsed_cluster = parse_cluster_template(&name, &template).unwrap();
+            parsed_cluster.uuid = cluster_uuid;
+            let ret = root_handler.init_new_cluster(&cluster_uuid, &parsed_cluster);
             assert!(ret.is_ok());
             assert_eq!(root_handler.clusters.len(), 1);
             assert!(root_handler.clusters.contains_key(&cluster_uuid));
@@ -788,7 +779,9 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
+        let mut parsed_cluster = parse_cluster_template(&cluster_name, &template).unwrap();
+        parsed_cluster.uuid = cluster_uuid;
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &parsed_cluster);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
@@ -949,7 +942,9 @@ mod tests {
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         root_handler.clusters.clear();
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &cluster_name, &template);
+        let mut parsed_cluster = parse_cluster_template(&cluster_name, &template).unwrap();
+        parsed_cluster.uuid = cluster_uuid;
+        let _ = root_handler.init_new_cluster(&cluster_uuid, &parsed_cluster);
 
         {
             let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();

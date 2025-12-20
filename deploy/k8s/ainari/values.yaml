@@ -22,6 +22,7 @@ api:
   domain_hanami: local-hanami
   domain_omamori: local-omamori
   domain_onsen: local-onsen
+  domain_dashboard: local-ainari
 
 torii:
   service:

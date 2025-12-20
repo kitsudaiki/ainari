@@ -81,7 +81,7 @@ pub async fn upload_binary(
         )
         .await?;
 
-        let (number_of_rows, number_of_columns) = get_dataset_dimension(&converted_result_path)?;
+        let (number_of_rows, column_names) = get_dataset_dimension(&converted_result_path)?;
 
         let (secret_uuid, secret) = super::super::generate_new_key(&dataset_uuid, &context).await?;
 
@@ -96,22 +96,22 @@ pub async fn upload_binary(
         )
         .await?;
 
-        Ok((number_of_rows, number_of_columns, secret_uuid))
+        Ok((number_of_rows, column_names, secret_uuid))
     };
 
     // remove temporary directory again
     super::remove_all(&target_dir_path);
 
-    let (number_of_rows, number_of_columns, secret_uuid) = result?;
+    let (number_of_rows, column_names, secret_uuid) = result?;
 
-    let dimension = (number_of_rows as i64, number_of_columns as i64);
+    let dimension = (number_of_rows as i64, column_names.clone());
     dataset_table::add_new_dataset(
         &dataset_uuid,
         &name,
         &selected_onsen.address,
         &upload_file_path_str,
         &secret_uuid,
-        dimension,
+        &dimension,
         &context,
     )
     .map_err(|e| {
@@ -126,7 +126,7 @@ pub async fn upload_binary(
         uuid: dataset_uuid,
         name: dataset_data.name,
         number_of_rows: dataset_data.number_of_rows as u64,
-        number_of_columns: dataset_data.number_of_columns as u64,
+        column_names,
         created_by: dataset_data.created_by,
         created_at: dataset_data.created_at,
         updated_by: dataset_data.updated_by,
@@ -279,14 +279,18 @@ async fn convert_uploaded_files(
     Ok(())
 }
 
-fn get_dataset_dimension(target_path: &String) -> Result<(u64, u64), ErrorResponse> {
+fn get_dataset_dimension(target_path: &String) -> Result<(u64, Vec<String>), ErrorResponse> {
     let file_handle = read_data_set_file(target_path).map_err(|e| {
         log::error!("Failed to read dataset dimensions from file '{target_path}' with error: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     let number_of_rows = file_handle.get_number_of_rows();
-    let number_of_columns = file_handle.header.columns.len() as u64;
 
-    Ok((number_of_rows, number_of_columns))
+    let mut column_names: Vec<String> = Vec::new();
+    for col in file_handle.header.columns {
+        column_names.push(col.0);
+    }
+
+    Ok((number_of_rows, column_names))
 }

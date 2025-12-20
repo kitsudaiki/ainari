@@ -1,0 +1,10 @@
+apiVersion: v1
+metadata:
+  name: dashboard-config
+data:
+  config.json: |+
+    {
+        "apiUrl": "https://{{ .Values.api.domain_miko }}"
+    }
+
+kind: ConfigMap

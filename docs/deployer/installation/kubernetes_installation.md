@@ -91,8 +91,8 @@ For the installation on a kubernetes `helm` is used.
 
     ```
     sudo apt-get install wireguard-tools
-    python3 -m venv venv
-    source venv/bin/activate
+    python3 -m venv .venv
+    source .venv/bin/activate
     pip3 install jinja2
     ```
 
@@ -115,6 +115,7 @@ For the installation on a kubernetes `helm` is used.
     kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME omamori-node=true
     kubectl label nodes NODE_NAME onsen-node=true
+    kubectl label nodes NODE_NAME ainari-dashboard-node=true
     ```
 
     !!! info

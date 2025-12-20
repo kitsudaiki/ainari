@@ -40,11 +40,18 @@ pub async fn get_dataset(
     let dataset_data = dataset_table::get_dataset(&dataset_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
 
+    // deserialize name-lists
+    let column_names: Vec<String> =
+        serde_json::from_str(&dataset_data.column_names).map_err(|e| {
+            log::error!("Failed to deserialize column_names: '{e}'");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
+
     let resp = DatasetResp {
         uuid: *dataset_uuid,
         name: dataset_data.name,
         number_of_rows: dataset_data.number_of_rows as u64,
-        number_of_columns: dataset_data.number_of_columns as u64,
+        column_names,
         created_by: dataset_data.created_by,
         created_at: dataset_data.created_at,
         updated_by: dataset_data.updated_by,

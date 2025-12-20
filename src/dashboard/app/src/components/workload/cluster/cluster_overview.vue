@@ -15,55 +15,51 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Cluster</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">Cluster</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="clusters.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="cluster in clusters" :key="cluster.uuid">
-                            <td>{{ cluster.uuid }}</td>
-                            <td>{{ cluster.name }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="clusters.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="cluster in clusters" :key="cluster.uuid">
+                        <td>{{ cluster.uuid }}</td>
+                        <td>{{ cluster.name }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(cluster.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(cluster.uuid)"
+                                    v-if="openDropdown === cluster.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === cluster.uuid"
-                                        class="table-dropdown-menu"
+                                    <button
+                                        @click="switchToTasks(cluster.uuid)"
                                     >
-                                        <button
-                                            @click="switchToTasks(cluster.uuid)"
-                                        >
-                                            Show tasks
-                                        </button>
-                                        <button
-                                            @click="openDeleteModal(cluster)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                        Show tasks
+                                    </button>
+                                    <button @click="openDeleteModal(cluster)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No clusters found</p>
-            </div>
+            <p v-else>No clusters found</p>
         </div>
 
         <ClusterCreateModal
@@ -85,8 +81,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
 
+import context from "../../../auth_context";
 import ClusterCreateModal from "./cluster_create_modal.vue";
 import ClusterDeleteModal from "./cluster_delete_modal.vue";
 
@@ -94,12 +91,11 @@ const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const passwordError = ref("");
 const clusterToDelete = ref<{ uuid: string; clusterName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 const emit = defineEmits<{
-    (e: "change-view", view: string, id: string): void;
+    (e: "change-view", view: string, cluster_uuid: string): void;
 }>();
 
 function switchToTasks(cluster_uuid: string) {
@@ -110,9 +106,13 @@ function switchToTasks(cluster_uuid: string) {
 
 async function fetchClusters() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get("/v1alpha/cluster", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        const response = await hanami_api.get("/v1alpha/cluster", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         clusters.value = response.data.clusters;
     } catch (err) {

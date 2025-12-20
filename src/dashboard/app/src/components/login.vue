@@ -54,40 +54,78 @@
             </div>
         </div>
     </div>
+
+    <!--<div v-if="error" class="error-popup">
+        <button class="error-close-btn" @click="error = ''">✕</button>
+        {{ error }}
+    </div> -->
 </template>
+
 <script setup lang="ts">
 import { ref } from "vue";
-import api from "../api";
+import axios from "axios";
 
+import context from "../auth_context";
+import { getConfig } from "../config";
+
+// Reactive references to store user input and error messages
 const user_id = ref("");
 const password = ref("");
 const error = ref("");
 
-const emit = defineEmits<{ (e: "login-success", token: string): void }>();
+// Define custom events that this component can emit
+// This emits a "login-success" event when login is successful, passing the token and user ID
+const emit = defineEmits<{
+    (e: "login-success", token: string, userId: string): void;
+}>();
 
+/**
+ * Attempts to authenticate the user with the provided credentials
+ * and establish an authenticated session.
+ */
 async function login() {
     try {
         error.value = "";
 
-        // prepare URL-encoded form data
+        // Prepare URL-encoded form data for the authentication request
+        // This is the standard format expected by OAuth 2.0 token endpoints
         const params = new URLSearchParams();
-        params.append("grant_type", "client_credentials");
-        params.append("token_format", "jwt");
-        params.append("client_id", user_id.value);
-        params.append("client_secret", password.value);
+        params.append("grant_type", "client_credentials"); // Specifies the OAuth 2.0 flow
+        params.append("token_format", "jwt"); // Requests a JSON Web Token
+        params.append("client_id", user_id.value); // Client identifier from user input
+        params.append("client_secret", password.value); // Client secret from user input
 
-        const response = await api.miko_api.post("/v1alpha/token", params, {
+        // Loac miko-address from the config-file for the initial connection
+        // The addresses of all the other components will be requested from Miko
+        const { apiUrl } = getConfig();
+        const miko_api = axios.create({
+            baseURL: apiUrl,
+        });
+
+        // Send the authentication request to the API endpoint
+        // The endpoint expects form-encoded data with specific headers
+        const login_resp = await miko_api.post("/v1alpha/token", params, {
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Type": "application/x-www-form-urlencoded", // Required header for form data
             },
         });
-        // debug-output
-        // console.log("Login response:", response);
 
-        const token = response.data.access_token;
+        // Log the response for debugging purposes
+        // This helps with troubleshooting authentication issues
+        // console.log("Login response:", login_resp);
+
+        const token = login_resp.data.access_token;
+
+        // Store the authentication token in the global context
+        // This makes the token available to other components in the application
+        await context.createAuthContext(token);
+
+        // Emit a success event to notify parent components
+        // This allows the parent to handle post-login actions
         emit("login-success", token, user_id.value);
     } catch (err: any) {
         error.value = "Login failed. Please try again.";
+        console.error("Login error:", err);
     }
 }
 </script>

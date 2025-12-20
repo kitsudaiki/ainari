@@ -43,10 +43,12 @@
 </template>
 
 <script lang="ts" setup>
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
-    cluster: { id: number; name: string } | null;
+    cluster: { uuid: number; name: string } | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -58,9 +60,13 @@ const emit = defineEmits<{
 async function handleAccept(cluster_uuid: string) {
     if (!cluster_uuid) return;
     try {
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.delete(`/v1alpha/cluster/${cluster_uuid}`, {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        await hanami_api.delete(`/v1alpha/cluster/${cluster_uuid}`, {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
     } catch (err) {
         console.error("Failed to delete cluster", err);

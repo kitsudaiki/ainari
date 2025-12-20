@@ -15,7 +15,7 @@
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use std::error::Error;
+use diesel::result::DatabaseErrorKind;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -28,6 +28,8 @@ table! {
     clusters (uuid) {
         uuid -> Varchar,
         name -> Varchar,
+        inputs -> Text,
+        outputs -> Text,
         template -> Text,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -46,6 +48,8 @@ table! {
 pub struct ClusterEntry {
     pub uuid: String,
     pub name: String,
+    pub inputs: String,
+    pub outputs: String,
     pub template: String,
     pub owner_id: String,
     pub project_id: String,
@@ -58,12 +62,14 @@ pub struct ClusterEntry {
     pub deleted_by: Option<String>,
 }
 
-pub fn init_cluster_table() -> Result<(), Box<dyn Error>> {
+pub fn init_cluster_table() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS clusters (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
+        inputs TEXT,
+        outputs TEXT,
         template TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
@@ -84,11 +90,34 @@ pub fn add_new_cluster(
     cluster_uuid: &Uuid,
     cluster_name: &str,
     cluster_template: &str,
+    inputs: &Vec<String>,
+    outputs: &Vec<String>,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    let inputs_str = match serde_json::to_string(&inputs) {
+        Ok(inputs_str) => inputs_str,
+        Err(e) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::SerializationFailure,
+                Box::new(format!("Failed to serialize inputs with error: {e}")),
+            ));
+        }
+    };
+    let outputs_str = match serde_json::to_string(&outputs) {
+        Ok(outputs_str) => outputs_str,
+        Err(e) => {
+            return Err(diesel::result::Error::DatabaseError(
+                DatabaseErrorKind::SerializationFailure,
+                Box::new(format!("Failed to serialize outputs with error: {e}")),
+            ));
+        }
+    };
+
     let cluster = ClusterEntry {
         uuid: cluster_uuid.to_string().clone(),
         name: cluster_name.to_owned(),
+        inputs: inputs_str,
+        outputs: outputs_str,
         template: cluster_template.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -228,10 +257,14 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let inputs = "[\"input\"]".to_string();
+        let outputs = "[\"output\"]".to_string();
 
         let cluster = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -251,6 +284,8 @@ mod tests {
             Ok(retrieved_cluster) => {
                 assert_eq!(retrieved_cluster.uuid, cluster.uuid);
                 assert_eq!(retrieved_cluster.name, cluster.name);
+                assert_eq!(retrieved_cluster.inputs, inputs);
+                assert_eq!(retrieved_cluster.outputs, outputs);
                 assert_eq!(retrieved_cluster.template, cluster.template);
                 assert_eq!(retrieved_cluster.owner_id, cluster.owner_id);
                 assert_eq!(retrieved_cluster.project_id, cluster.project_id);
@@ -284,10 +319,14 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let inputs = "[\"input\"]".to_string();
+        let outputs = "[\"output\"]".to_string();
 
         let cluster1 = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -303,6 +342,8 @@ mod tests {
         let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -341,10 +382,14 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
+        let inputs = "[\"input\"]".to_string();
+        let outputs = "[\"output\"]".to_string();
 
         let cluster = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -372,10 +417,14 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let inputs = "[\"input\"]".to_string();
+        let outputs = "[\"output\"]".to_string();
 
         let cluster1 = ClusterEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -391,6 +440,8 @@ mod tests {
         let cluster2 = ClusterEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -406,6 +457,8 @@ mod tests {
         let cluster3 = ClusterEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
             template: "asdf".to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),

@@ -35,6 +35,9 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(list_secret_v1_0::list_secret)),
                 )
                 .service(
+                    resource("/count").route(get().to(get_secret_count_v1_0::get_secret_count)),
+                )
+                .service(
                     resource("/{secret_uuid}")
                         .route(get().to(get_secret_v1_0::get_secret))
                         .route(delete().to(delete_secret_v1_0::delete_secret)),

@@ -71,7 +71,9 @@
 
 <script lang="ts" setup>
 import { reactive, computed } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -100,17 +102,21 @@ async function handleAccept() {
         return;
     }
     try {
-        const token = localStorage.getItem("jwtToken");
-        await api.miko_api.post(
-            "/v1alpha/user",
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        await miko_api.post(
+            "/v1alpha/user/admin",
             {
                 id: form.userId,
                 name: form.userName,
                 passphrase: form.password,
-                is_admin: form.isAdmin,
+                is_admin: form.isAdmin.toString(),
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
     } catch (err) {

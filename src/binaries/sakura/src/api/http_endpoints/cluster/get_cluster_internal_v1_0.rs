@@ -40,9 +40,21 @@ pub async fn get_cluster_internal(
     let cluster_data = cluster_table::get_cluster(&cluster_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("cluster", &cluster_uuid, e))?;
 
+    // deserialize name-lists
+    let inputs: Vec<String> = serde_json::from_str(&cluster_data.inputs).map_err(|e| {
+        log::error!("Failed to deserialize inputs: '{e}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+    let outputs: Vec<String> = serde_json::from_str(&cluster_data.outputs).map_err(|e| {
+        log::error!("Failed to deserialize outputs: '{e}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+
     let resp = ClusterResp {
         uuid: *cluster_uuid,
         name: cluster_data.name,
+        inputs,
+        outputs,
         template: cluster_data.template,
         torii_port: 0,
         created_by: cluster_data.created_by,

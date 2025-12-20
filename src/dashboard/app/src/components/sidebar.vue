@@ -211,7 +211,7 @@ watch(
 <style scoped>
 aside {
     height: 100vh;
-    width: 220px;
+    width: 13rem;
     margin-top: 1.5rem;
     box-shadow: var(--box-shadow-sidebar);
     background: var(--color-tile);

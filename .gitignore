@@ -8,6 +8,8 @@ docs_env
 ainari_env
 target
 .vite
+venv
+.venv
 
 testing/go_cli_api/ainarictl
 testing/ansible_deploy/.vagrant/

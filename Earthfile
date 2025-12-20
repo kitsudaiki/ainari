@@ -92,23 +92,7 @@ compile-cli:
         /usr/local/go/bin/go build .
     SAVE ARTIFACT ./src/cli/ainarictl/ainarictl /tmp/ainarictl
 
-compile-ainari:
-    FROM +prepare-build-dependencies
-    RUN apt-get update && \
-        apt-get install -y protobuf-compiler  libsqlite3-dev
-    RUN cargo build
-    RUN mkdir /tmp/ainari/
-    RUN cp ./target/debug/sakura /tmp/ainari/
-    RUN cp ./target/debug/miko /tmp/ainari/
-    RUN cp ./target/debug/ryokan /tmp/ainari/
-    RUN cp ./target/debug/hanami /tmp/ainari/
-    RUN cp ./target/debug/torii /tmp/ainari/
-    RUN cp ./target/debug/omamori /tmp/ainari/
-    RUN cp ./target/debug/onsen /tmp/ainari/
-    SAVE ARTIFACT /tmp/ainari /tmp/ainari
-    SAVE ARTIFACT /tmp/ainari AS LOCAL ainari
-
-test-hanami:
+test-ainari:
     FROM +prepare-build-dependencies
     COPY example_configs/ainari /etc/ainari
     RUN apt-get update && \

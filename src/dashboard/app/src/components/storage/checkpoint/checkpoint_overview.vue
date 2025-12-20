@@ -15,52 +15,48 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Checkpoint</div>
-            <div class="card-content">
-                <table class="overview-table" v-if="checkpoints.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="checkpoint in checkpoints"
-                            :key="checkpoint.uuid"
-                        >
-                            <td>{{ checkpoint.uuid }}</td>
-                            <td>{{ checkpoint.name }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+    <div class="card">
+        <div class="card-label">Checkpoint</div>
+        <div class="card-content">
+            <table class="overview-table" v-if="checkpoints.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="checkpoint in checkpoints"
+                        :key="checkpoint.uuid"
+                    >
+                        <td>{{ checkpoint.uuid }}</td>
+                        <td>{{ checkpoint.name }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(checkpoint.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="
-                                        toggleDropdown(checkpoint.uuid)
-                                    "
+                                    v-if="openDropdown === checkpoint.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === checkpoint.uuid"
-                                        class="table-dropdown-menu"
+                                    <button
+                                        @click="openDeleteModal(checkpoint)"
                                     >
-                                        <button
-                                            @click="openDeleteModal(checkpoint)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No checkpoints found</p>
-            </div>
+            <p v-else>No checkpoints found</p>
         </div>
 
         <CheckpointDeleteModal
@@ -75,7 +71,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 import CheckpointDeleteModal from "./checkpoint_delete_modal.vue";
 
@@ -89,9 +87,13 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchCheckpoints() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get("/v1alpha/checkpoint", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const ryokan_api = axios.create({
+            baseURL: authContext.ryokan_address,
+        });
+
+        const response = await ryokan_api.get("/v1alpha/checkpoint", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         checkpoints.value = response.data.checkpoints;
     } catch (err) {
