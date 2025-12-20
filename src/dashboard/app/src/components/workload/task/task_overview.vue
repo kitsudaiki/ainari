@@ -15,71 +15,72 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Task</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal(props.id)">+</button>
+    <div class="card">
+        <div class="card-label">Task</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal(props.id)">
+                +
+            </button>
 
-                <table class="overview-table" v-if="tasks.length > 0">
-                    <thead>
-                        <tr>
-                            <th>UUID</th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>State</th>
-                            <th>Progress</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="task in tasks" :key="task.uuid">
-                            <td>{{ task.uuid }}</td>
-                            <td>{{ task.name }}</td>
-                            <td>{{ task.task_type }}</td>
-                            <td>{{ task.state }}</td>
-                            <td>
-                                <ProgressBar
-                                    :value="
-                                        parseFloat(
-                                            (
-                                                (task.current_epoch /
-                                                    task.total_number_of_epochs) *
-                                                100
-                                            ).toFixed(1),
-                                        )
-                                    "
-                                ></ProgressBar>
-                            </td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="tasks.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>State</th>
+                        <th>Progress</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="task in tasks" :key="task.uuid">
+                        <td>{{ task.uuid }}</td>
+                        <td>{{ task.name }}</td>
+                        <td>{{ task.task_type }}</td>
+                        <td>{{ task.state }}</td>
+                        <td>
+                            <ProgressBar
+                                :value="
+                                    parseFloat(
+                                        (
+                                            (task.current_epoch /
+                                                task.total_number_of_epochs) *
+                                            100
+                                        ).toFixed(1),
+                                    )
+                                "
+                            ></ProgressBar>
+                        </td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(task.uuid)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(task.uuid)"
+                                    v-if="openDropdown === task.uuid"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === task.uuid"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button @click="openDeleteModal(task)">
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openDeleteModal(task)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No tasks found</p>
-            </div>
+            <p v-else>No tasks found</p>
         </div>
 
         <TaskCreateModal
             v-if="showAddModal"
             :cluster_uuid="props.id"
+            :torii_port="torii_port"
             :icons="icons"
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
@@ -89,10 +90,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
 import "primevue/resources/themes/saga-blue/theme.css";
-
 import ProgressBar from "primevue/progressbar";
+import axios from "axios";
+
+import context from "../../../auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
 
 const props = defineProps<{
@@ -102,24 +104,41 @@ const props = defineProps<{
 const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const passwordError = ref("");
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
+var torii_port = 0;
 
 // const logArrayElements = (element, index /*, array */) => {
 //   console.log(`a[${index}] = ${element.total_number_of_epochs}`);
 // };
 
 async function fetchTasks() {
-    console.log("task-uuid: ", props.id);
+    console.log("cluster-uuid: ", props.id);
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get(
-            `/v1alpha/cluster/${props.id}/task`,
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        // get torii-port of the cluster
+        const cluster_response = await hanami_api.get(
+            `/v1alpha/cluster/${props.id}`,
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
-        tasks.value = response.data.tasks;
+        torii_port = cluster_response.data.torii_port;
+
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
+        });
+
+        const task_response = await sakura_api.get(
+            `/v1alpha/cluster/${props.id}/task`,
+            {
+                headers: { Authorization: `Bearer ${authContext.token}` },
+            },
+        );
+        tasks.value = task_response.data.tasks;
         // tasks.value.forEach(logArrayElements);
     } catch (err) {
         console.error("Failed to load tasks", err);

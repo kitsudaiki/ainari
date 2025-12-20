@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  labels:
+    app: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: ainari-dashboard-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dashboard
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: dashboard
+        image: {{ .Values.docker.registry }}/ainari_dashboard:{{ .Values.docker.tag }}
+        imagePullPolicy: Always
+        env:
+        - name: RUST_LOG
+          value: "debug"
+        volumeMounts:
+        - name: dashboard-config
+          mountPath: /usr/share/nginx/html/config.json
+          subPath: config.json
+          readOnly: true
+
+
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: dashboard-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: dashboard-selfsigned-secret
+        - name: dashboard-nginx-config
+          configMap:
+            name: dashboard-nginx-config
+        - name: dashboard-config
+          configMap:
+            name: dashboard-config

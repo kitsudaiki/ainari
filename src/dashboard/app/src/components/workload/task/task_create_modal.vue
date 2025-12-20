@@ -62,22 +62,28 @@
                         <label>
                             <div>
                                 <label>Input-Mapping:</label>
-                                <textarea
-                                    id="mapping_definition"
-                                    v-model="form.inputMapping"
-                                    type="text"
-                                    required
-                                ></textarea>
+                                <div class="scroll-container">
+                                    <TaskIoItem
+                                        v-for="itemName in form.cluster_inputs"
+                                        :key="itemName"
+                                        ref="inputItems"
+                                        :itemName="itemName"
+                                        :datasets="form.datasets"
+                                    />
+                                </div>
                             </div>
                             <label> </label>
                             <div>
                                 <label>Output-Mapping:</label>
-                                <textarea
-                                    id="mapping_definition"
-                                    v-model="form.outputMapping"
-                                    type="text"
-                                    required
-                                ></textarea>
+                                <div class="scroll-container">
+                                    <TaskIoItem
+                                        v-for="itemName in form.cluster_outputs"
+                                        :key="itemName"
+                                        ref="outputItems"
+                                        :itemName="itemName"
+                                        :datasets="form.datasets"
+                                    />
+                                </div>
                             </div>
                         </label>
                     </div>
@@ -85,22 +91,27 @@
                         <label>
                             <div>
                                 <label>Input-Mapping:</label>
-                                <textarea
-                                    id="mapping_definition"
-                                    v-model="form.inputMapping"
-                                    type="text"
-                                    required
-                                ></textarea>
+                                <div class="scroll-container">
+                                    <TaskIoItem
+                                        v-for="itemName in form.cluster_inputs"
+                                        :key="itemName"
+                                        ref="inputItems"
+                                        :itemName="itemName"
+                                        :datasets="form.datasets"
+                                    />
+                                </div>
                             </div>
                             <label> </label>
                             <div>
                                 <label>Output-Mapping:</label>
-                                <textarea
-                                    id="mapping_definition"
-                                    v-model="form.outputMapping"
-                                    type="text"
-                                    required
-                                ></textarea>
+                                <div class="scroll-container">
+                                    <TaskResultItem
+                                        v-for="itemName in form.cluster_outputs"
+                                        :key="itemName"
+                                        ref="resultItems"
+                                        :itemName="itemName"
+                                    />
+                                </div>
                             </div>
                         </label>
                     </div>
@@ -109,7 +120,10 @@
                         <br />
                         <h5>Select checkpoint:</h5>
                         <br />
-                        <select v-model="selectedCheckpointUuid" class="select-dropdown">
+                        <select
+                            v-model="selectedCheckpointUuid"
+                            class="select-dropdown"
+                        >
                             <option
                                 v-for="item in checkpoints"
                                 :key="item.uuid"
@@ -124,7 +138,10 @@
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept(cluster_uuid)">
+                    <button
+                        class="icon-button"
+                        @click="handleAccept(cluster_uuid, torii_port)"
+                    >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -138,13 +155,23 @@
 
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import TaskIoItem from "./task_io_item.vue";
+import TaskResultItem from "./task_result_item.vue";
+import context from "../../../auth_context";
 
 interface Props {
     cluster_uuid: string;
+    torii_port: number;
     icons: { acceptIcon: string; cancelIcon: string };
 }
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const inputItems = ref<any[]>([]);
+const outputItems = ref<any[]>([]);
+const resultItems = ref<any[]>([]);
+
 const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
@@ -154,49 +181,70 @@ const form = reactive({
     inputMapping: "",
     outputMapping: "",
     taskName: "",
+    cluster_inputs: [],
+    cluster_outputs: [],
+    datasets: [],
 });
 
-async function handleAccept(cluster_uuid: string) {
+async function handleAccept(cluster_uuid: string, torii_port: number) {
     if (selectedTab.value === "Train") {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
 
-        const inputs = JSON.parse(form.inputMapping);
-        const outputs = JSON.parse(form.outputMapping);
+        const authContext = context.getAuthContext();
+        const inputs = inputItems.value.map((item) => item.getData());
+        const outputs = outputItems.value.map((item) => item.getData());
 
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.post(
-            `/v1alpha/cluster/${cluster_uuid}/task/train`,
-            {
-                name: form.taskName,
-                number_of_epochs: 1,
-                inputs: inputs,
-                outputs: outputs,
-                time_length: 1,
-            },
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-        );
-        // console.log("Upload success!", response.data);
+        // console.log("+inputs", inputs);
+        // console.log("outputs: ", outputs);
+
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
+        });
+
+        try {
+            const response = await sakura_api.post(
+                `/v1alpha/cluster/${cluster_uuid}/task/train`,
+                {
+                    name: form.taskName,
+                    number_of_epochs: 1,
+                    inputs: inputs,
+                    outputs: outputs,
+                    time_length: 1,
+                },
+                {
+                    headers: { Authorization: `Bearer ${authContext.token}` },
+                },
+            );
+            console.log("Upload success!", response.data);
+        } catch (err) {
+            console.error("Failed to load dataset-columns", err);
+        }
     }
 
     if (selectedTab.value === "Request") {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
+        const authContext = context.getAuthContext();
 
-        const inputs = JSON.parse(form.inputMapping);
-        const outputs = JSON.parse(form.outputMapping);
+        const inputs = inputItems.value.map((item) => item.getData());
+        const results = resultItems.value.map((item) => item.getData());
 
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.post(
+        // console.log("+inputs", inputs);
+        // console.log("results: ", results);
+
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
+        });
+
+        await sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/request`,
             {
                 name: form.taskName,
                 inputs: inputs,
-                outputs: outputs,
+                outputs: results,
                 time_length: 1,
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         // console.log("Upload success!", response.data);
@@ -205,14 +253,19 @@ async function handleAccept(cluster_uuid: string) {
     if (selectedTab.value === "Checkpoint save") {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
 
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.post(
+        const authContext = context.getAuthContext();
+
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
+        });
+
+        await sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_save`,
             {
                 name: form.taskName,
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         // console.log("Upload success!", response.data);
@@ -220,16 +273,20 @@ async function handleAccept(cluster_uuid: string) {
 
     if (selectedTab.value === "Checkpoint restore") {
         console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
+        const authContext = context.getAuthContext();
 
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.post(
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
+        });
+
+        await sakura_api.post(
             `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_restore`,
             {
                 name: form.taskName,
                 checkpoint_uuid: selectedCheckpointUuid.value,
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         // console.log("Upload success!", response.data);
@@ -267,9 +324,14 @@ const selectedCheckpointUuid = ref<string>("");
 
 async function fetchCheckpoints() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.sakura_api.get("/v1alpha/checkpoint", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+
+        const ryokan_api = axios.create({
+            baseURL: authContext.ryokan_address,
+        });
+
+        const response = await ryokan_api.get("/v1alpha/checkpoint", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         console.log(response);
         checkpoints.value = response.data.checkpoints;
@@ -282,11 +344,61 @@ async function fetchCheckpoints() {
     }
 }
 
-onMounted(fetchCheckpoints);
+async function fetchClusterIo() {
+    try {
+        const authContext = context.getAuthContext();
 
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        const resp = await hanami_api.get(
+            `/v1alpha/cluster/${props.cluster_uuid}`,
+            {
+                headers: { Authorization: `Bearer ${authContext.token}` },
+            },
+        );
+
+        form.cluster_inputs = resp.data.inputs;
+        form.cluster_outputs = resp.data.outputs;
+        console.log("Loaded inputs: ", form.cluster_inputs);
+        console.log("Loaded outputs: ", form.cluster_outputs);
+    } catch (err) {
+        console.error("Failed to load cluster input- and output-names", err);
+    }
+}
+
+async function fetchDatasets() {
+    try {
+        const authContext = context.getAuthContext();
+
+        const ryokan_api = axios.create({
+            baseURL: authContext.ryokan_address,
+        });
+
+        const resp = await ryokan_api.get(`/v1alpha/dataset`, {
+            headers: { Authorization: `Bearer ${authContext.token}` },
+        });
+
+        form.datasets = resp.data.datasets;
+        console.log("Loaded datasets: ", form.datasets);
+    } catch (err) {
+        console.error("Failed to load datasets", err);
+    }
+}
+
+onMounted(fetchClusterIo);
+onMounted(fetchDatasets);
+onMounted(fetchCheckpoints);
 </script>
 
 <style scoped>
+.scroll-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+}
+
 .task-create-modal {
     height: 45rem;
     width: 40rem;

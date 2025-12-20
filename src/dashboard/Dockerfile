@@ -3,6 +3,9 @@ FROM node:24-bookworm
 # set workdir
 WORKDIR /app
 
+# Accept build-time variable
+ENV VITE_MIKO_API_URL=http://localhost:11417
+
 # install deps first (better caching)
 COPY app/package.json app/package-lock.json* ./
 RUN npm install

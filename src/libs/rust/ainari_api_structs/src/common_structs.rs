@@ -22,3 +22,8 @@ pub struct VersionResp {
     pub commit_hash: String,
     pub timestamp: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct Count {
+    pub number_of_items: u64,
+}

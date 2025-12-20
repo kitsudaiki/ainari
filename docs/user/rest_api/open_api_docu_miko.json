@@ -455,7 +455,7 @@
                       "type": "string"
                     },
                     "is_admin": {
-                      "type": "boolean"
+                      "type": "string"
                     },
                     "name": {
                       "type": "string"
@@ -1077,7 +1077,7 @@
             "type": "string"
           },
           "is_admin": {
-            "type": "boolean"
+            "type": "string"
           },
           "name": {
             "type": "string"
@@ -1094,10 +1094,10 @@
         ],
         "properties": {
           "is_admin": {
-            "type": "boolean"
+            "type": "string"
           },
           "is_project_admin": {
-            "type": "boolean"
+            "type": "string"
           },
           "project_id": {
             "type": "string"
@@ -1127,7 +1127,7 @@
             "minLength": 4
           },
           "is_admin": {
-            "type": "boolean"
+            "type": "string"
           },
           "name": {
             "type": "string",
@@ -1185,7 +1185,7 @@
             "type": "string"
           },
           "is_admin": {
-            "type": "boolean"
+            "type": "string"
           },
           "name": {
             "type": "string"

@@ -16,12 +16,21 @@
 
 <template>
     <div class="app">
-        <div class="background"></div>
+        <div class="background">
+            <img
+                src="./assets/background_pattern.svg"
+                class="logo-icon top-left"
+            />
+            <img
+                src="./assets/background_pattern2.svg"
+                class="logo-icon bottom-right"
+            />
+        </div>
         <!-- blur overlay -->
         <div class="overlay"></div>
 
         <!-- Login popup -->
-        <Login v-if="!token" @login-success="handleLoginSuccess" />
+        <Login v-if="!isLoggedIn" @login-success="handleLoginSuccess" />
 
         <!-- Dashboard -->
         <template v-else>
@@ -55,7 +64,10 @@
 </template>
 
 <script setup lang="ts">
+// Import necessary Vue composition API functions
 import { ref, provide } from "vue";
+
+// Import all the Vue components used in the application
 import Sidebar from "./components/sidebar.vue";
 import Topbar from "./components/topbar.vue";
 import Login from "./components/login.vue";
@@ -67,6 +79,10 @@ import StorageDataset from "./components/storage/dataset/dataset_overview.vue";
 import WorkloadCluster from "./components/workload/cluster/cluster_overview.vue";
 import WorkloadTask from "./components/workload/task/task_overview.vue";
 
+// Import the authentication context module
+// import context from "./auth_context";
+
+// Import all CSS styles for the application
 import "./styles/base.css";
 import "./styles/other.css";
 import "./styles/card.css";
@@ -75,13 +91,18 @@ import "./styles/dropdown.css";
 import "./styles/button.css";
 import "./styles/table.css";
 import "./styles/tab.css";
+import "./styles/devider.css";
 import "./styles/primevue_overrides.css";
 
+// Reactive reference to track the current active view/component
+// Defaults to "Overview" when the application loads
 const currentView = ref("Overview");
 const currentId = ref<string | null>(null);
+const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
+const username = ref<string | null>(localStorage.getItem("username"));
 
-const token = ref<string | null>(localStorage.getItem("jwtToken"));
-const username = ref<string | null>(localStorage.getItem("username")); // store username
+// Object containing all the available view components
+// These will be dynamically rendered based on the currentView value
 const components = {
     Overview,
     AdminUser,
@@ -91,22 +112,43 @@ const components = {
     WorkloadCluster,
     WorkloadTask,
 };
+
+// URLs for the accept and cancel icons used throughout the application
+// These are imported as module URLs and converted to absolute URLs
 const acceptIcon = new URL("./assets/accept.svg", import.meta.url).href;
 const cancelIcon = new URL("./assets/close.svg", import.meta.url).href;
 
+// Provide the icons to all child components via Vue's provide/inject system
+// This makes the icons available throughout the component tree without prop drilling
 provide("icons", { acceptIcon, cancelIcon });
 
+/**
+ * Handles successful login by updating the application state
+ * @param newToken - The new authentication token received from the login process
+ * @param user - The username of the logged-in user
+ */
 function handleLoginSuccess(newToken: string, user: string) {
-    localStorage.setItem("jwtToken", newToken);
+    // Store the username in localStorage for persistence across page reloads
     localStorage.setItem("username", user);
-    token.value = newToken;
-    username.value = user;
+
+    // Update the login state to true to disable the login-modal
+    isLoggedIn.value = true;
+
+    // Log the current auth context (for debugging purposes)
+    // console.log("test: ", context.getAuthContext().value.token);
 }
 
+/**
+ * Handles user logout by clearing the authentication state
+ * This removes all user-related data from localStorage and updates the reactive state
+ */
 function handleLogout() {
-    localStorage.removeItem("jwtToken");
+    // Remove the authentication token and username from localStorage
+    localStorage.removeItem("ainari_authContext");
     localStorage.removeItem("username");
-    token.value = null;
+
+    // Update the reactive state to reflect the logged-out status
+    isLoggedIn.value = false;
     username.value = null;
 }
 </script>
@@ -129,6 +171,10 @@ function handleLogout() {
     position: fixed;
     inset: 0;
     z-index: -2;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh; /* THIS is the important part */
 }
 
 .overlay {
@@ -148,7 +194,28 @@ function handleLogout() {
 
 .content {
     flex: 1;
-    padding: 1rem;
+    margin: 1rem;
     overflow-y: auto;
+}
+
+.logo-icon {
+    height: auto;
+    filter: invert(1);
+    position: absolute;
+    opacity: 0.025;
+}
+
+.top-left {
+    width: 50vw;
+
+    top: 0;
+    left: 0;
+}
+
+.bottom-right {
+    width: 28vw;
+
+    bottom: 0;
+    right: 0;
 }
 </style>

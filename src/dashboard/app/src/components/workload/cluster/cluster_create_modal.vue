@@ -54,7 +54,9 @@
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -72,15 +74,19 @@ const form = reactive({
 
 async function handleAccept() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.post(
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        await hanami_api.post(
             "/v1alpha/cluster",
             {
                 name: form.clusterName,
                 template: form.clusterTemplate,
             },
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
         // console.log("Upload success!", response.data);

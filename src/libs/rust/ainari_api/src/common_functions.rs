@@ -229,6 +229,11 @@ pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorRespo
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
+pub fn map_db_count_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
+    log::error!("Failed to count {obj_type} with error: '{e}'");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
 pub fn check_if_id_exist_in_db<T>(
     obj_type: &str,
     id: &str,

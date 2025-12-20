@@ -15,6 +15,7 @@
 pub mod check_dataset_v1_0;
 pub mod create_dataset_v1_0;
 pub mod delete_dataset_v1_0;
+pub mod get_dataset_count_v1_0;
 pub mod get_dataset_internal_v1_0;
 pub mod get_dataset_v1_0;
 pub mod init_dataset_internal_v1_0;

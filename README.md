@@ -161,13 +161,13 @@ Ainari is split into a micro-service architecture. See here for
 
 - [SDK and CLI documentation](https://docs.ainari.cloud/user/cli_sdk/cli_sdk_docu/)
 
-- [Automatic generated OpenAPI documentation](https://docs.ainari.cloud/frontend/rest_api_documentation/)
+- [Automatic generated OpenAPI documentation](https://docs.ainari.cloud/user/rest_api/rest_api_docu_sakura/)
 
 ## Development
 
 - [How to build](https://docs.ainari.cloud/developer/repo/build_guide/)
 
-- [Development-Guide](https://docs.ainari.cloud/repo/development/)
+- [Development-Guide](https://docs.ainari.cloud/developer/repo/development/)
 
 - [Dependency-Overview](https://docs.ainari.cloud/developer/repo/dependencies/)
 
@@ -185,11 +185,6 @@ on `develop`-branch and for each tag.
 
 There are some features, which existed in the past, were disabled temporary and will be
 added/enabled again in the near future:
-
-1. Dashboard
-
-    As a PoC a first dashboard was created, without any framework. At the moment it is in process of
-    refactoring and re-implementation in Vue.js and Typescript.
 
 1. Regulation of CPU-speed
 

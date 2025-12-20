@@ -15,48 +15,44 @@
 -->
 
 <template>
-    <div class="overview">
-        <div class="card">
-            <div class="card-label">Project</div>
-            <div class="card-content">
-                <!-- Add button -->
-                <button class="add-button" @click="openAddModal">+</button>
+    <div class="card">
+        <div class="card-label">Project</div>
+        <div class="card-content">
+            <!-- Add button -->
+            <button class="add-button" @click="openAddModal">+</button>
 
-                <table class="overview-table" v-if="projects.length > 0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="project in projects" :key="project.id">
-                            <td>{{ project.id }}</td>
-                            <td>
-                                <!-- Dropdown menu -->
+            <table class="overview-table" v-if="projects.length > 0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="project in projects" :key="project.id">
+                        <td>{{ project.id }}</td>
+                        <td>
+                            <!-- Dropdown menu -->
+                            <div
+                                class="table-dropdown"
+                                @click.stop="toggleDropdown(project.id)"
+                            >
+                                ⋮
                                 <div
-                                    class="table-dropdown"
-                                    @click.stop="toggleDropdown(project.id)"
+                                    v-if="openDropdown === project.id"
+                                    class="table-dropdown-menu"
                                 >
-                                    ⋮
-                                    <div
-                                        v-if="openDropdown === project.id"
-                                        class="table-dropdown-menu"
-                                    >
-                                        <button
-                                            @click="openDeleteModal(project)"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
+                                    <button @click="openDeleteModal(project)">
+                                        Delete
+                                    </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <p v-else>No projects found</p>
-            </div>
+            <p v-else>No projects found</p>
         </div>
 
         <ProjectCreateModal
@@ -78,8 +74,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import api from "../../../api";
+import axios from "axios";
 
+import context from "../../../auth_context";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
 
@@ -92,9 +89,13 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchProjects() {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.miko_api.get("/v1alpha/project", {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        const response = await miko_api.get("/v1alpha/project/admin", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         projects.value = response.data.projects;
     } catch (err) {

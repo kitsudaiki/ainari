@@ -81,7 +81,9 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 import common from "../../../common";
 
 const user_info = ref<{}[]>([]);
@@ -98,9 +100,13 @@ const emit = defineEmits<{
 
 async function fetchUserInfo(userId: string) {
     try {
-        const token = localStorage.getItem("jwtToken");
-        const response = await api.miko_api.get(`/v1alpha/user/${userId}`, {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        const response = await miko_api.get(`/v1alpha/user/${userId}/admin`, {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
         user_info.value = response.data;
         user_info.value.created_at = common.formatDateTime(

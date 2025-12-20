@@ -32,6 +32,9 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(list_cluster_v1_0::list_cluster)),
                 )
                 .service(
+                    resource("/count").route(get().to(get_cluster_count_v1_0::get_cluster_count)),
+                )
+                .service(
                     resource("/{cluster_uuid}")
                         .route(get().to(get_cluster_v1_0::get_cluster))
                         .route(delete().to(delete_cluster_v1_0::delete_cluster)),

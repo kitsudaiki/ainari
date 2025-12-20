@@ -158,12 +158,8 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 
     let mut query = secrets.filter(status.eq("ACTIVE")).into_boxed();
 
-    if context.is_admin != true.to_string() {
-        query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
-    }
+    query = query.filter(project_id.eq(context.project_id.clone()));
+    query = query.filter(owner_id.eq(context.user_id.clone()));
 
     query.select(count_star()).first::<i64>(&mut *conn)
 }

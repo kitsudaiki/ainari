@@ -3,12 +3,16 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
+# Accept build-time variable
+ARG VITE_MIKO_API_URL
+ENV VITE_MIKO_API_URL=$VITE_MIKO_API_URL
+
 # Install dependencies
-COPY app/package.json app/package-lock.json* ./
+COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json* ./
 RUN npm install
 
 # Copy app source
-COPY app .
+COPY ./src/dashboard/app .
 
 # Build the Vue app for production
 RUN npm run build

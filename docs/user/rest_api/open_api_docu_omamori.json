@@ -236,6 +236,46 @@
         ]
       }
     },
+    "/v1alpha/secret/count": {
+      "get": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Get number of secret of the user",
+        "description": "Get number of secret of the user from the database.",
+        "operationId": "get_v1alpha-secret-count-53bbdb53ba7d9ae2d38c2b2fd6763867",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Count"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/secret/{secret_uuid}": {
       "get": {
         "tags": [
@@ -386,6 +426,20 @@
   },
   "components": {
     "schemas": {
+      "Count": {
+        "title": "Count",
+        "type": "object",
+        "required": [
+          "number_of_items"
+        ],
+        "properties": {
+          "number_of_items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
       "Secret": {
         "type": "string"
       },

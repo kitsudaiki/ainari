@@ -40,7 +40,9 @@
 </template>
 
 <script lang="ts" setup>
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
     user: { id: number; name: string } | null;
@@ -55,9 +57,13 @@ const emit = defineEmits<{
 async function handleAccept(user_id: string) {
     if (!user_id) return;
     try {
-        const token = localStorage.getItem("jwtToken");
-        await api.miko_api.delete(`/v1alpha/user/${user_id}`, {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const miko_api = axios.create({
+            baseURL: authContext.miko_address,
+        });
+
+        await miko_api.delete(`/v1alpha/user/${user_id}/admin`, {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
     } catch (err) {
         console.error("Failed to delete user", err);

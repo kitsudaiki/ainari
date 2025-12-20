@@ -43,7 +43,9 @@
 </template>
 
 <script lang="ts" setup>
-import api from "../../../api";
+import axios from "axios";
+
+import context from "../../../auth_context";
 
 interface Props {
     checkpoint: { uuid: string; name: string } | null;
@@ -58,9 +60,13 @@ const emit = defineEmits<{
 async function handleAccept(checkpoint_uuid: string) {
     if (!checkpoint_uuid) return;
     try {
-        const token = localStorage.getItem("jwtToken");
-        await api.sakura_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
-            headers: { Authorization: `Bearer ${token}` },
+        const authContext = context.getAuthContext();
+        const ryokan_api = axios.create({
+            baseURL: authContext.ryokan_address,
+        });
+
+        await ryokan_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
+            headers: { Authorization: `Bearer ${authContext.token}` },
         });
     } catch (err) {
         console.error("Failed to delete checkpoint", err);

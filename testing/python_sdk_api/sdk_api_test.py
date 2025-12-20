@@ -156,7 +156,7 @@ def test_dataset():
     dataset.list_datasets(context)
     mnist_dataset = dataset.get_dataset(context, mnist_dataset_uuid)
     assert mnist_dataset["number_of_rows"] == 60000
-    assert mnist_dataset["number_of_columns"] == 2
+    assert len(mnist_dataset["column_names"]) == 2
 
     result = dataset.upload_csv_files(
         context, "csv_test", "./csv_test.csv")
@@ -164,7 +164,7 @@ def test_dataset():
 
     csv_dataset = dataset.get_dataset(context, csv_dataset_uuid)
     assert csv_dataset["number_of_rows"] == 3
-    assert csv_dataset["number_of_columns"] == 3
+    assert len(csv_dataset["column_names"]) == 3
 
     try:
         dataset.get_dataset(context, " 569003fd-bf24-410b-8678-28f141877ac9")

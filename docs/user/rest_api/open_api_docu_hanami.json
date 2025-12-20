@@ -79,7 +79,9 @@
                   "required": [
                     "created_at",
                     "created_by",
+                    "inputs",
                     "name",
+                    "outputs",
                     "template",
                     "torii_port",
                     "updated_at",
@@ -93,8 +95,20 @@
                     "created_by": {
                       "type": "string"
                     },
+                    "inputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "name": {
                       "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "template": {
                       "type": "string"
@@ -156,6 +170,46 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/cluster/count": {
+      "get": {
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get number of cluster of the user",
+        "description": "Get number of cluster of the user from the database.",
+        "operationId": "get_v1alpha-cluster-count-40054432ec62266ceb2af7a3eb83d883",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Count"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -533,7 +587,9 @@
         "required": [
           "created_at",
           "created_by",
+          "inputs",
           "name",
+          "outputs",
           "template",
           "torii_port",
           "updated_at",
@@ -547,8 +603,20 @@
           "created_by": {
             "type": "string"
           },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "name": {
             "type": "string"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "template": {
             "type": "string"
@@ -567,6 +635,20 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "Count": {
+        "title": "Count",
+        "type": "object",
+        "required": [
+          "number_of_items"
+        ],
+        "properties": {
+          "number_of_items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
           }
         }
       },
