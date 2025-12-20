@@ -1542,7 +1542,7 @@ dependencies = [
 
 [[package]]
 name = "hanami"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2057,7 +2057,7 @@ checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
 name = "miko"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2194,7 +2194,7 @@ dependencies = [
 
 [[package]]
 name = "omamori"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2243,7 +2243,7 @@ checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
 name = "onsen"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2903,7 +2903,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "ryokan"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2948,7 +2948,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
 name = "sakura"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3605,7 +3605,7 @@ dependencies = [
 
 [[package]]
 name = "torii"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
