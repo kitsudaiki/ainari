@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM kitsudaiki/ainari_base:latest AS builder
-
-# ---------------------------------------------------
-
 FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install -y openssl libsqlite3-0 && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
-
-# torii
-COPY --from=builder /app/torii /usr/bin/torii
-CMD [ "torii" ]
+RUN set -e && \
+        apt-get update && \
+        apt-get install --no-install-recommends -y  \
+                           protobuf-compiler \
+                           gcc \
+                           curl \
+                           pkg-config \
+                           libssl-dev \
+                           libsqlite3-dev \
+                           ca-certificates
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y

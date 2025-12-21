@@ -35,7 +35,7 @@ spec:
       containers:
       - name: onsen
         image: {{ .Values.docker.registry }}/onsen:{{ .Values.docker.tag }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug,h2=info"

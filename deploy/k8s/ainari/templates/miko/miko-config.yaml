@@ -20,19 +20,19 @@ data:
     file_path = "/etc/ainari/miko/miko_db"
 
     [endpoints.hanami]
-    public_address = "https://local-hanami:443"
+    public_address = "https://{{ .Values.api.domain_hanami }}:443"
     internal_address = "https://hanami-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.ryokan]
-    public_address = "https://local-ryokan:443"
+    public_address = "https://{{ .Values.api.domain_ryokan }}:443"
     internal_address = "https://ryokan-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.torii]
-    public_address = "https://local-torii:443"
+    public_address = "https://{{ .Values.api.domain_torii }}:443"
     internal_address = "https://torii-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.omamori]
-    public_address = "https://local-omamori:443"
+    public_address = "https://{{ .Values.api.domain_omamori }}:443"
     internal_address = "https://omamori-tls-service.default.svc.cluster.local:8443"
 
 kind: ConfigMap

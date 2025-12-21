@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM kitsudaiki/ainari_base:latest AS builder
+FROM kitsudaiki/ainari_build_base:0.1.0@sha256:13539b10d230e68d952276a39b8e930f0b1f7f6544c518ec6dc422cab64389a0
 
-# ---------------------------------------------------
+WORKDIR /app
 
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706
+COPY src src
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && \
-    apt-get install -y openssl libsqlite3-0 && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
-
-# torii
-COPY --from=builder /app/torii /usr/bin/torii
-CMD [ "torii" ]
+RUN ~/.cargo/bin/cargo build --release
+RUN cp target/release/hanami /app/
+RUN cp target/release/miko /app/
+RUN cp target/release/omamori /app/
+RUN cp target/release/onsen /app/
+RUN cp target/release/ryokan /app/
+RUN cp target/release/sakura /app/
+RUN cp target/release/torii /app/

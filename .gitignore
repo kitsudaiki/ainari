@@ -10,7 +10,9 @@ target
 .vite
 venv
 .venv
+.vagrant
 
+temporary_files
 testing/go_cli_api/ainarictl
 testing/ansible_deploy/.vagrant/
 
@@ -24,6 +26,7 @@ src/sdk/python/ainari_sdk/ainari_messages
 gitIdentityChange.sh
 proto3_pb2.py
 CMakeLists.txt.user*
+ainari_docker_files.tar
 
 *.proto3.pb.go
 *.qmake2cmake
@@ -38,3 +41,4 @@ CMakeLists.txt.user*
 *.whl
 *.orig
 *.egg-info
+

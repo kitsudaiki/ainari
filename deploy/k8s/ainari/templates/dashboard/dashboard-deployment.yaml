@@ -35,7 +35,7 @@ spec:
       containers:
       - name: dashboard
         image: {{ .Values.docker.registry }}/ainari_dashboard:{{ .Values.docker.tag }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug"
