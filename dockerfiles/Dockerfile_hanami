@@ -12,7 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM kitsudaiki/ainari_base:latest AS builder
+FROM kitsudaiki/ainari_build_base:0.1.0@sha256:24467cc617f19791b20719d1c826dd8f2db34aac55ed54dbb6263e6c64d29c74 AS builder
+
+WORKDIR /app
+
+COPY src src
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+
+RUN ~/.cargo/bin/cargo build --release
+RUN cp target/release/hanami /app/
+RUN cp target/release/miko /app/
+RUN cp target/release/omamori /app/
+RUN cp target/release/onsen /app/
+RUN cp target/release/ryokan /app/
+RUN cp target/release/sakura /app/
+RUN cp target/release/torii /app/
 
 # ---------------------------------------------------
 
