@@ -1,22 +1,33 @@
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS builder
+# Copyright 2022 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-ARG DEBIAN_FRONTEND=noninteractive
+FROM kitsudaiki/ainari_build_base:0.1.0@sha256:24467cc617f19791b20719d1c826dd8f2db34aac55ed54dbb6263e6c64d29c74 AS builder
 
 WORKDIR /app
 
-RUN apt-get update && \
-        apt-get install -y protobuf-compiler \
-                           gcc \
-                           curl \
-                           pkg-config \
-                           libssl-dev \
-                           libsqlite3-dev && \
-     curl https://sh.rustup.rs -sSf | sh -s -- -y
+COPY src src
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
 
-COPY . .
-
-RUN ~/.cargo/bin/cargo build --release -p miko
+RUN ~/.cargo/bin/cargo build --release
+RUN cp target/release/hanami /app/
 RUN cp target/release/miko /app/
+RUN cp target/release/omamori /app/
+RUN cp target/release/onsen /app/
+RUN cp target/release/ryokan /app/
+RUN cp target/release/sakura /app/
+RUN cp target/release/torii /app/
 
 # ---------------------------------------------------
 

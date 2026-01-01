@@ -69,6 +69,7 @@ nav:
     - Repo:
       - developer/repo/repo_structure.md
       - developer/repo/build_guide.md
+      - developer/repo/local_testing.md
       - developer/repo/development.md
       - developer/repo/dependencies.md
       - developer/repo/git_workflow.md

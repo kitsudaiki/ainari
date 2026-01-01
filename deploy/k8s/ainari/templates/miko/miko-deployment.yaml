@@ -17,7 +17,7 @@ spec:
       containers:
       - name: miko
         image: {{ .Values.docker.registry }}/miko:{{ .Values.docker.tag }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.docker.pull_policy }}
         env:
         - name: AINARI_ADMIN_ID
           value: {{ required "user.id is required!" .Values.user.id }}

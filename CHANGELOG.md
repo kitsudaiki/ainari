@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Vagrantfile with ansible playbook to deploy multiple virtual machines with a kubernestes with fully deployed ainari-setup and sdk-api-test
+- image pull-policy can now be changed by the helm-values
+
+### Changed
+
+- changed the image-build process for the new vagrant-test-setup
+
 ## v0.10.0
 
 (Changes since v0.9.0)

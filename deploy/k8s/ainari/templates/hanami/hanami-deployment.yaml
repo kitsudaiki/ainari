@@ -35,7 +35,7 @@ spec:
       containers:
       - name: hanami
         image: {{ .Values.docker.registry }}/hanami:{{ .Values.docker.tag }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug"

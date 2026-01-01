@@ -13,6 +13,7 @@ token:
 docker:
   tag: "develop"
   registry: "kitsudaiki"
+  pull_policy: "Always"
 
 api:
   domain_sakura: local-sakura
