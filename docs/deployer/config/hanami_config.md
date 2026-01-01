@@ -12,12 +12,12 @@
 
 ### `api` Configuration
 
-| Parameter          | Type    | Default     | Description                               |
-| ------------------ | ------- | ----------- | ----------------------------------------- |
-| `public_ip`        | string  | `"0.0.0.0"` | IP address for public API access.         |
-| `public_port`      | integer | `11418`     | Port for public API access.               |
-| `internal_ip`      | string  | `"0.0.0.0"` | IP address for internal API access.       |
-| `internal_port`    | integer | `10418`     | Port for internal API access.             |
+| Parameter       | Type    | Default     | Description                         |
+| --------------- | ------- | ----------- | ----------------------------------- |
+| `public_ip`     | string  | `"0.0.0.0"` | IP address for public API access.   |
+| `public_port`   | integer | `11418`     | Port for public API access.         |
+| `internal_ip`   | string  | `"0.0.0.0"` | IP address for internal API access. |
+| `internal_port` | integer | `10418`     | Port for internal API access.       |
 
 ### `database` Configuration
 
