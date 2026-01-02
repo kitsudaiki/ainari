@@ -1,3 +1,17 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 apiVersion: v1
 metadata:
   name: miko-config
@@ -8,7 +22,7 @@ data:
 
     [auth]
     token_key_path = "/etc/ainari/token_key"
-    token_expire_time = {{ .Values.token.expire_time }}
+    token_expire_time = {{ .Values.miko.token.expire_time }}
 
     [api]
     public_ip = "127.0.0.1"
@@ -20,19 +34,19 @@ data:
     file_path = "/etc/ainari/miko/miko_db"
 
     [endpoints.hanami]
-    public_address = "https://{{ .Values.api.domain_hanami }}:443"
+    public_address = "https://{{ .Values.hanami.api.domain }}:443"
     internal_address = "https://hanami-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.ryokan]
-    public_address = "https://{{ .Values.api.domain_ryokan }}:443"
+    public_address = "https://{{ .Values.ryokan.api.domain }}:443"
     internal_address = "https://ryokan-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.torii]
-    public_address = "https://{{ .Values.api.domain_torii }}:443"
+    public_address = "https://{{ .Values.torii.api.domain }}:443"
     internal_address = "https://torii-tls-service.default.svc.cluster.local:8443"
 
     [endpoints.omamori]
-    public_address = "https://{{ .Values.api.domain_omamori }}:443"
+    public_address = "https://{{ .Values.omamori.api.domain }}:443"
     internal_address = "https://omamori-tls-service.default.svc.cluster.local:8443"
 
 kind: ConfigMap

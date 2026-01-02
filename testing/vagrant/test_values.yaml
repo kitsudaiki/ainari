@@ -1,21 +1,90 @@
-docker:
-  tag: "local_test"
-  pull_policy: "Never"
 
-user:
-  id: "asdf"
-  name: "asdf"
-  passphrase: "asdfasdf"
+miko:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/miko"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-miko
+  user:
+    id: "asdf"
+    name: "asdf"
+    passphrase: "asdfasdf"
 
-token:
-  data: "this-is-a-test"
+  token:
+    data: "this-is-a-test"
 
-api:
-  domain_sakura: local-vagrant-sakura
-  domain_miko: local-vagrant-miko
-  domain_ryokan: local-vagrant-ryokan
-  domain_torii: local-vagrant-torii
-  domain_hanami: local-vagrant-hanami
-  domain_omamori: local-vagrant-omamori
-  domain_onsen: local-vagrant-onsen
-  domain_dashboard: local-vagrant-ainari
+
+hanami:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/hanami"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-hanami
+
+
+sakura:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/sakura"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-sakura
+  processing:
+    max_number_of_threads: 0
+
+
+ryokan:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/ryokan"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-ryokan
+
+
+omamori:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/omamori"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-omamori
+
+
+onsen:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/onsen"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-onsen
+
+
+torii:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/torii"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-torii
+
+
+dashboard:
+  replica_count: 1
+  docker:
+    tag: "local_test"
+    repository: "kitsudaiki/ainari_dashboard"
+    pull_policy: "Never"
+  api:
+    domain: local-vagrant-ainari
+
+

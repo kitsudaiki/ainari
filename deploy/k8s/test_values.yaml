@@ -1,11 +1,11 @@
-docker:
-  tag: "develop"
 
-user:
-  id: "asdf"
-  name: "asdf"
-  passphrase: "asdfasdf"
 
-token:
-  data: "this-is-a-test"
+miko:
+  user:
+    id: "asdf"
+    name: "asdf"
+    passphrase: "asdfasdf"
+
+  token:
+    data: "this-is-a-test"
 
