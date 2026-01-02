@@ -13,27 +13,27 @@
 # limitations under the License.
 
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: onsen
+  name: sakura
   labels:
-    app: onsen
+    app: sakura
 spec:
-  replicas: 1
+  replicas: {{ .Values.sakura.replica_count }}
   selector:
     matchLabels:
-      app: onsen
+      app: sakura
   template:
     metadata:
       labels:
-        app: onsen
+        app: sakura
     spec:
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: onsen-node
+              - key: sakura-node
                 operator: In
                 values:
                 - "true"
@@ -44,12 +44,12 @@ spec:
               - key: app
                 operator: In
                 values:
-                - onsen
+                - sakura
             topologyKey: kubernetes.io/hostname
       containers:
-      - name: onsen
-        image: {{ .Values.onsen.docker.repository }}:{{ .Values.onsen.docker.tag }}
-        imagePullPolicy: {{ .Values.onsen.docker.pull_policy }}
+      - name: sakura
+        image: {{ .Values.sakura.docker.repository }}:{{ .Values.sakura.docker.tag }}
+        imagePullPolicy: {{ .Values.sakura.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug,h2=info"
@@ -58,20 +58,17 @@ spec:
             secretKeyRef:
               name: internal-api-key
               key: internal_api_key
-        - name: ONSEN_REGISTRATION_KEY
+        - name: SAKURA_REGISTRATION_KEY
           valueFrom:
             secretKeyRef:
-              name: onsen-registration-key
-              key: onsen_retistration_key
-        ports:
-        - containerPort: 50051
-          name: grpc
+              name: sakura-registration-key
+              key: sakura_retistration_key
         volumeMounts:
         - name: data-volume
-          mountPath: /etc/ainari/onsen/
-        - name: onsen-config
-          mountPath: /etc/ainari/onsen.toml
-          subPath: onsen.toml
+          mountPath: /etc/ainari/sakura/
+        - name: sakura-config
+          mountPath: /etc/ainari/sakura.toml
+          subPath: sakura.toml
           readOnly: true
         - name: wg-secret
           mountPath: /etc/wireguard
@@ -82,13 +79,40 @@ spec:
               - NET_ADMIN
               - SYS_MODULE
 
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: sakura-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
       volumes:
-        - name: onsen-config
+        - name: sakura-config
           configMap:
-            name: onsen-config
-        - name: data-volume
-          persistentVolumeClaim:
-            claimName: onsen-pvc
+            name: sakura-config
+        - name: tls-certs
+          secret:
+            secretName: sakura-selfsigned-secret
+        - name: sakura-nginx-config
+          configMap:
+            name: sakura-nginx-config
         - name: wg-secret
           secret:
-            secretName: wg-onsen-secret
+            secretName: wg-sakura-secret
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data-volume
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: {{ .Values.sakura.storage.storage_class }}
+      resources:
+        requests:
+          storage: 100Mi
