@@ -200,6 +200,10 @@
       command: helm repo update
       changed_when: false
 
+    - name: Create ainari namespace
+      ansible.builtin.shell: |
+        kubectl create namespace ainari || yes
+
     - name: Ensure cert-manager namespace exists
       ansible.builtin.shell: |
         kubectl get namespace cert-manager || kubectl create namespace cert-manager
@@ -239,7 +243,7 @@
         virtualenv: "{{ ansible_env.HOME }}/.venv"
 
     - name: Create wireguard-certs
-      ansible.builtin.shell: python3 wg_gen.py
+      ansible.builtin.shell: python3 wg_gen.py --namespace ainari
       args:
         chdir: "/opt/app/deploy/k8s"
 
@@ -268,7 +272,7 @@
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     - name: Install ainari
-      ansible.builtin.shell: helm install ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
+      ansible.builtin.shell: helm install --namespace ainari --create-namespace ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
       args:
         chdir: "/opt/app/deploy/k8s"
       environment:
@@ -276,7 +280,7 @@
       when: helm_status.rc != 0
 
     - name: Upgrade ainari
-      ansible.builtin.shell: helm upgrade ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
+      ansible.builtin.shell: helm upgrade --namespace ainari ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
       args:
         chdir: "/opt/app/deploy/k8s"
       environment:

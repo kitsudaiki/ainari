@@ -11,10 +11,11 @@ Requirements:
   - pip install jinja2
 
 Usage:
-  python wg_k8s_gen.py
-  (edit the CONFIG section below for endpoints, clients, namespace, etc.)
+  python wg_k8s_gen.py --namespace $NAMESPACE
+  (edit the CONFIG section below for endpoints, clients, etc.)
 """
 
+import argparse
 import subprocess
 import sys
 from jinja2 import Template
@@ -23,7 +24,7 @@ from jinja2 import Template
 # CONFIG (edit as needed)
 # ----------------------------
 NAMESPACE = "default"
-SERVER_ENDPOINT = "wg-onsen.default.svc.cluster.local:51820"  # used in client Peer Endpoint
+SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"  # used in client Peer Endpoint
 NETWORK = "10.10.0."
 NETWORK_MASK = "/24"
 
@@ -121,6 +122,13 @@ def k8s_create_secret_from_string(secret_name: str, key_name: str, content: str,
 # Main flow
 # ----------------------------
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--namespace', dest='namespace', type=str)
+    args = parser.parse_args()
+
+    NAMESPACE = args.namespace
+    SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"
+
     # 1) Generate server keypair
     print("Generating server keypair...")
     server_priv, server_pub = gen_keypair()

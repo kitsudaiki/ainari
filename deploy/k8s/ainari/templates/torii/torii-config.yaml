@@ -31,7 +31,7 @@ data:
     file_path = "/etc/ainari/torii/torii_db"
     
     [miko]
-    address = "https://miko-tls-service.default.svc.cluster.local:8443"
+    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
 
     [ports]
     min_port = {{ .Values.torii.port_range.start }}

@@ -31,6 +31,6 @@ data:
     file_path = "/etc/ainari/hanami/hanami_db"
     
     [miko]
-    address = "https://miko-tls-service.default.svc.cluster.local:8443"
+    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
 
 kind: ConfigMap
