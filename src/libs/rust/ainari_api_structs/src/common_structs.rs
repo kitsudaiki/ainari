@@ -24,6 +24,11 @@ pub struct VersionResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ReadyResp {
+    pub api: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct Count {
     pub number_of_items: u64,
 }
