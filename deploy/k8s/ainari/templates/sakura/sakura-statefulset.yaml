@@ -96,6 +96,27 @@ spec:
             add:
               - NET_ADMIN
               - SYS_MODULE
+        readinessProbe:
+          exec:
+            command:
+            - curl
+            - --fail
+            - localhost:11420/v1alpha/is_ready
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          exec:
+            command:
+            - curl
+            - --fail
+            - localhost:11420/v1alpha/is_ready
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 2
+          failureThreshold: 3
 
       - name: tls-termination
         image: nginx:latest
