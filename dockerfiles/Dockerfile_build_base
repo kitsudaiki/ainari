@@ -21,6 +21,7 @@ RUN set -e && \
         apt-get install --no-install-recommends -y  \
                            protobuf-compiler \
                            gcc \
+                           git \
                            curl \
                            pkg-config \
                            libssl-dev \

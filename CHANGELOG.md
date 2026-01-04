@@ -6,10 +6,18 @@
 
 - Vagrantfile with ansible playbook to deploy multiple virtual machines with a kubernestes with fully deployed ainari-setup and sdk-api-test
 - image pull-policy can now be changed by the helm-values
+- support other namespaces thand "default"
+- support for multiple sakura instances
 
 ### Changed
 
 - changed the image-build process for the new vagrant-test-setup
+- sakura and onsen are now statefulsets within the kubernetes setup
+
+### Fixed
+
+- fixed broken version-output of the pre-build docker images
+
 
 ## v0.10.0
 

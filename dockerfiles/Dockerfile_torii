@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM kitsudaiki/ainari_build_base:0.1.0@sha256:24467cc617f19791b20719d1c826dd8f2db34aac55ed54dbb6263e6c64d29c74 AS builder
+FROM kitsudaiki/ainari_build_base:0.2.0@sha256:b11c3a334aae2ef1dd456917239ed82617d3473147035573c42ab72eb0c5eb15 AS builder
 
 WORKDIR /app
 
 COPY src src
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
+
+# also copy the git-directory, which is necessary for the version-information
+COPY .git .git
 
 RUN ~/.cargo/bin/cargo build --release
 RUN cp target/release/hanami /app/

@@ -1,11 +1,25 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: onsen
   labels:
     app: onsen
 spec:
-  replicas: 1
+  replicas: {{ .Values.onsen.replica_count }}
   selector:
     matchLabels:
       app: onsen
@@ -34,8 +48,8 @@ spec:
             topologyKey: kubernetes.io/hostname
       containers:
       - name: onsen
-        image: {{ .Values.docker.registry }}/onsen:{{ .Values.docker.tag }}
-        imagePullPolicy: {{ .Values.docker.pull_policy }}
+        image: {{ .Values.onsen.docker.repository }}:{{ .Values.onsen.docker.tag }}
+        imagePullPolicy: {{ .Values.onsen.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug,h2=info"

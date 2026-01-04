@@ -1,3 +1,17 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,7 +19,7 @@ metadata:
   labels:
     app: miko
 spec:
-  replicas: 1
+  replicas: {{ .Values.miko.replica_count }}
   selector:
     matchLabels:
       app: miko
@@ -16,15 +30,15 @@ spec:
     spec:
       containers:
       - name: miko
-        image: {{ .Values.docker.registry }}/miko:{{ .Values.docker.tag }}
-        imagePullPolicy: {{ .Values.docker.pull_policy }}
+        image: {{ .Values.miko.docker.repository }}:{{ .Values.miko.docker.tag }}
+        imagePullPolicy: {{ .Values.miko.docker.pull_policy }}
         env:
         - name: AINARI_ADMIN_ID
-          value: {{ required "user.id is required!" .Values.user.id }}
+          value: {{ required "user.id is required!" .Values.miko.user.id }}
         - name: AINARI_ADMIN_NAME
-          value: {{ required "user.name is required!" .Values.user.name }}
+          value: {{ required "user.name is required!" .Values.miko.user.name }}
         - name: AINARI_ADMIN_PASSPHRASE
-          value: {{ required "user.passphrase is required!" .Values.user.passphrase }}
+          value: {{ required "user.passphrase is required!" .Values.miko.user.passphrase }}
         - name: RUST_LOG
           value: "debug"
         - name: INTERNAL_API_KEY

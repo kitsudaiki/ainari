@@ -1,3 +1,17 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 apiVersion: v1
 metadata:
   name: dashboard-nginx-config
@@ -15,14 +29,14 @@ data:
         {
             listen 8080;
             server_tokens off;
-            server_name {{ .Values.api.domain_dashboard }};
+            server_name {{ .Values.dashboard.api.domain }};
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name {{ .Values.api.domain_dashboard }};
+            server_name {{ .Values.dashboard.api.domain }};
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -74,7 +88,7 @@ data:
 
                 proxy_pass http://127.0.0.1:80/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:80 https://{{ .Values.api.domain_dashboard }};
+                proxy_redirect http://127.0.0.1:80 https://{{ .Values.dashboard.api.domain }};
             }
         }
     }
