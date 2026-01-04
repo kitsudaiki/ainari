@@ -12,5 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod get_version_v1_0;
-pub mod is_ready_v1_0;
+use actix_web::web::Json;
+use apistos::api_operation;
+
+use crate::errors::ErrorResponse;
+use ainari_api_structs::common_structs::ReadyResp;
+use ainari_api_structs::user_context::UserContext;
+
+#[api_operation(
+    tag = "version",
+    summary = "Get ready status",
+    description = r###"Get status of the service endpoint."###,
+    error_code = 400,
+    error_code = 401,
+    error_code = 500
+)]
+pub async fn get_ready_status(_: UserContext) -> Result<Json<ReadyResp>, ErrorResponse> {
+    let resp = ReadyResp { api: true };
+
+    Ok(Json(resp))
+}

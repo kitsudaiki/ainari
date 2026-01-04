@@ -65,6 +65,8 @@ pub async fn authorization_middleware(
 
     log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
 
+    // request of ready-status can be done without token
+    skip_token_check |= uri == "/v1alpha/is_ready" && *req.method() == Method::GET;
     // request of openapi-specs can be done without token
     skip_token_check |= uri == "/openapi.json";
     // sakura-hosts can call a registration without token, becuase it is triggered by themself

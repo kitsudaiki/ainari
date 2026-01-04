@@ -24,6 +24,10 @@ pub fn v1alpha_routes() -> Scope {
             scope("/version").service(resource("").route(get().to(get_version_v1_0::get_version))),
         )
         .service(
+            scope("/is_ready")
+                .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
+        )
+        .service(
             scope("/proxy")
                 .service(
                     resource("/internal")
