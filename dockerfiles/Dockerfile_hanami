@@ -39,7 +39,7 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y openssl libsqlite3-0 && \
+    apt-get install -y curl openssl libsqlite3-0 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
