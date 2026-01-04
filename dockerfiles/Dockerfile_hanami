@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM kitsudaiki/ainari_build_base:0.2.0@sha256:b11c3a334aae2ef1dd456917239ed82617d3473147035573c42ab72eb0c5eb15 AS builder
+FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174de145301194e78ef505553111ac46107 AS builder
 
 WORKDIR /app
 
