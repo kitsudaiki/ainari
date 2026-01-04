@@ -27,7 +27,7 @@ hanami:
 
 
 sakura:
-  replica_count: 1
+  replica_count: 2
   docker:
     tag: "local_test"
     repository: "kitsudaiki/sakura"

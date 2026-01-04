@@ -202,7 +202,7 @@
 
     - name: Create ainari namespace
       ansible.builtin.shell: |
-        kubectl create namespace ainari || yes
+        kubectl create namespace ainari || true
 
     - name: Ensure cert-manager namespace exists
       ansible.builtin.shell: |
@@ -264,7 +264,7 @@
 
     - name: Check if Helm release of ainari exists
       ansible.builtin.command:
-        cmd: helm status ainari
+        cmd: helm status -n ainari ainari
       register: helm_status
       failed_when: false
       changed_when: false

@@ -17,8 +17,9 @@ kind: Service
 metadata:
   name: sakura-tls-service
   labels:
-    run: sakura
+    app: sakura
 spec:
+  clusterIP: None
   selector:
     app: sakura
   ports:
@@ -26,4 +27,3 @@ spec:
       protocol: TCP
       port: 8443
       targetPort: 8443
-  type: ClusterIP

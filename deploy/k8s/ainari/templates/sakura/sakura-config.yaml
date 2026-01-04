@@ -12,18 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- $root := . }}
+{{- $replicas := int .Values.sakura.replica_count }}
+{{- range $i := until $replicas }}
 apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: sakura-config
+  name: sakura-config-{{ $i }}
 data:
   sakura.toml: |+
     debug = true
     log_path = ""
     skip_tls_verification = true
-    address = "https://sakura-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    address = "https://sakura-{{ $i }}.sakura-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
 
     [processing]
-    max_number_of_threads = {{ .Values.sakura.processing.max_number_of_threads }}
+    max_number_of_threads = {{ $root.Values.sakura.processing.max_number_of_threads }}
 
     [storage]
     tempfile_location = "/tmp/sakura"
@@ -38,6 +42,6 @@ data:
     file_path = "/etc/ainari/sakura/sakura_db"
     
     [miko]
-    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
-
-kind: ConfigMap
+    address = "https://miko-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
+---  {{/* This separator is mandatory inside the loop. otherwise only one instance is created */}}
+{{- end }}

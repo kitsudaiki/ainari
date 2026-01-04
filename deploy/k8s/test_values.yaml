@@ -9,3 +9,7 @@ miko:
   token:
     data: "this-is-a-test"
 
+
+# sakura:
+#   replica_count: 3
+

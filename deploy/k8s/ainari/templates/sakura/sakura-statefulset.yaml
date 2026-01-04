@@ -19,6 +19,7 @@ metadata:
   labels:
     app: sakura
 spec:
+  serviceName: sakura-tls-service
   replicas: {{ .Values.sakura.replica_count }}
   selector:
     matchLabels:
@@ -46,6 +47,24 @@ spec:
                 values:
                 - sakura
             topologyKey: kubernetes.io/hostname
+
+      initContainers:
+      - name: copy-config
+        image: busybox
+        command:
+          - sh
+          - -c
+          - |
+            ORDINAL=${HOSTNAME##*-}
+            mkdir -p /etc/ainari
+            ls /configs
+            cp /configs/sakura-config-${ORDINAL}/sakura.toml /etc/ainari/sakura.toml
+        volumeMounts:
+        - name: sakura-configs
+          mountPath: /configs
+        - name: sakura-config
+          mountPath: /etc/ainari
+
       containers:
       - name: sakura
         image: {{ .Values.sakura.docker.repository }}:{{ .Values.sakura.docker.tag }}
@@ -63,13 +82,12 @@ spec:
             secretKeyRef:
               name: sakura-registration-key
               key: sakura_retistration_key
+
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/sakura/
         - name: sakura-config
-          mountPath: /etc/ainari/sakura.toml
-          subPath: sakura.toml
-          readOnly: true
+          mountPath: /etc/ainari
         - name: wg-secret
           mountPath: /etc/wireguard
           readOnly: true
@@ -81,6 +99,8 @@ spec:
 
       - name: tls-termination
         image: nginx:latest
+        ports:
+        - containerPort: 8443
         volumeMounts:
         - name: tls-certs
           mountPath: /etc/nginx/certs
@@ -93,9 +113,18 @@ spec:
             cpu: "500m"
 
       volumes:
+        - name: sakura-configs
+          projected:
+            sources:
+            {{- range $i := until (.Values.sakura.replica_count | int) }}
+            - configMap:
+                name: sakura-config-{{ $i }}
+                items:
+                - key: sakura.toml
+                  path: sakura-config-{{ $i }}/sakura.toml
+            {{- end }}
         - name: sakura-config
-          configMap:
-            name: sakura-config
+          emptyDir: {}
         - name: tls-certs
           secret:
             secretName: sakura-selfsigned-secret
