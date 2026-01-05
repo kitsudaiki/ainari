@@ -21,34 +21,17 @@ import sys
 from jinja2 import Template
 
 # ----------------------------
-# CONFIG (edit as needed)
+# CONFIG (base defaults)
 # ----------------------------
-NAMESPACE = "default"
-SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"  # used in client Peer Endpoint
-NETWORK = "10.10.0."
+BASE_NETWORK = "10.10."
 NETWORK_MASK = "/24"
 
-# server definition
-server = {
-    "name": "wg-server",
-    "listen_port": 51820,
-    "address": NETWORK + "1" + NETWORK_MASK,
-    "dns": None,
-    "secret_name": "wg-onsen-secret",  # k8s secret name to create
-}
+SERVER_LISTEN_PORT = 51820
 
-# clients list -- add or remove entries to change clients
-clients = [
-    {"name": "ryokan", "ip_last_octet": 2, "allowed_ips": "10.10.0.0/24", "secret_name": "wg-ryokan-secret"},
-    {"name": "sakura", "ip_last_octet": 3, "allowed_ips": "10.10.0.0/24", "secret_name": "wg-sakura-secret"},
-]
-
-# Jinja2 templates for configs
 SERVER_TEMPLATE = """[Interface]
 PrivateKey = {{ server.priv }}
 Address = {{ server.address }}
 ListenPort = {{ server.listen_port }}
-{% if server.dns %}DNS = {{ server.dns }}{% endif %}
 
 {% for peer in peers -%}
 [Peer]
@@ -60,7 +43,6 @@ AllowedIPs = {{ peer.allowed_ips }}
 CLIENT_TEMPLATE = """[Interface]
 PrivateKey = {{ client.priv }}
 Address = {{ client.address }}
-{% if client.dns %}DNS = {{ client.dns }}{% endif %}
 
 [Peer]
 PublicKey = {{ server.pub }}
@@ -70,115 +52,120 @@ PersistentKeepalive = 25
 """
 
 # ----------------------------
-# Helpers
+# Helpers (UNCHANGED 💕)
 # ----------------------------
 def run_cmd(cmd, input_bytes=None, check=True):
-    """Run shell command (string) optionally with stdin bytes; return CompletedProcess."""
     try:
-        completed = subprocess.run(
+        return subprocess.run(
             cmd,
             input=input_bytes,
             shell=True,
             capture_output=True,
             check=check
         )
-        return completed
-    except subprocess.CalledProcessError as e:
-        # debug-output
-        # print(f"Command failed: {cmd}\nReturn code: {e.returncode}\nStdout: {e.stdout.decode()}\nStderr: {e.stderr.decode()}", file=sys.stderr)
+    except subprocess.CalledProcessError:
         raise
 
 def gen_keypair():
-    """Generate a private key with wg genkey and corresponding public key with wg pubkey."""
-    # generate private key
     proc = run_cmd("wg genkey")
     priv = proc.stdout.decode().strip()
-    # compute public key
     proc2 = run_cmd(f"echo '{priv}' | wg pubkey")
     pub = proc2.stdout.decode().strip()
     return priv, pub
 
-def k8s_create_secret_from_string(secret_name: str, key_name: str, content: str, namespace: str = "default"):
-    """
-    Create or update a Kubernetes secret with the given content (string) as a file entry.
-    Uses: kubectl create secret generic <secret_name> --from-file=<key_name>=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
-    """
+def k8s_create_secret_from_string(secret_name, key_name, content, namespace="default"):
     cmd = (
         f"kubectl create secret generic {secret_name} "
         f"--from-file={key_name}=/dev/stdin "
         f"--namespace {namespace} "
         f"--dry-run=client -o yaml | kubectl apply -f -"
     )
-    # pass content bytes to stdin of the shell pipeline; kubectl will read /dev/stdin
-    # print(f"Creating/updating secret '{secret_name}' in namespace '{namespace}'...")
-    result = run_cmd(cmd, input_bytes=content.encode())
-    stdout = result.stdout.decode().strip()
-    if stdout:
-        print(stdout)
-    else:
-        print("kubectl command completed for secret (no output).")
+    run_cmd(cmd, input_bytes=content.encode())
 
 # ----------------------------
-# Main flow
+# Main
 # ----------------------------
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--namespace', dest='namespace', type=str)
+    parser.add_argument("--namespace", required=True)
+    parser.add_argument("--servers", type=int, required=True)
+    parser.add_argument("--sakura-clients", type=int, required=True)
+    parser.add_argument("--ryokan-clients", type=int, required=True)
     args = parser.parse_args()
 
-    NAMESPACE = args.namespace
-    SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"
+    namespace = args.namespace
 
-    # 1) Generate server keypair
-    print("Generating server keypair...")
-    server_priv, server_pub = gen_keypair()
-    server_data = {
-        "name": server["name"],
-        "priv": server_priv,
-        "pub": server_pub,
-        "listen_port": server["listen_port"],
-        "address": server["address"],
-        "dns": server["dns"],
-        "endpoint": SERVER_ENDPOINT,
-    }
+    for s in range(1, args.servers + 1):
+        print(f"\n🌸 Generating server {s}...")
+        net = f"{BASE_NETWORK}{s}"
+        server_ip = f"{net}.1{NETWORK_MASK}"
 
-    # 2) Generate client keypairs
-    client_objs = []
-    peers_for_server = []
-    for c in clients:
-        print(f"Generating keys for client '{c['name']}'...")
-        priv, pub = gen_keypair()
-        addr = f"{NETWORK}{c['ip_last_octet']}/32"
-        client_obj = {
-            "name": c["name"],
-            "priv": priv,
-            "pub": pub,
-            "address": addr,
-            "dns": server["dns"],
-            "allowed_ips": c["allowed_ips"],
-            "secret_name": c.get("secret_name", f"wg-{c['name']}-secret"),
+        server_priv, server_pub = gen_keypair()
+
+        server_data = {
+            "priv": server_priv,
+            "pub": server_pub,
+            "address": server_ip,
+            "listen_port": SERVER_LISTEN_PORT,
+            "endpoint": f"wg-onsen-{s}.{namespace}.svc.cluster.local:{SERVER_LISTEN_PORT}",
         }
-        client_objs.append(client_obj)
-        # server peer entry (server side) should contain the client's public key + allowed IP (client WG address)
-        peers_for_server.append({"pub": pub, "allowed_ips": addr})
 
-    # 3) Render server config and store as k8s secret
-    server_cfg = Template(SERVER_TEMPLATE).render(server=server_data, peers=peers_for_server)
-    # optionally include server public key in secret metadata? For simplicity we store only the .conf as 'wg0.conf'
-    k8s_create_secret_from_string(server["secret_name"], "wg0.conf", server_cfg, namespace=NAMESPACE)
+        peers_for_server = []
+        client_index = 2
 
-    # 4) Render each client config and store as k8s secret
-    for c in client_objs:
-        client_cfg = Template(CLIENT_TEMPLATE).render(client=c, server={"pub": server_pub, "endpoint": SERVER_ENDPOINT})
-        secret_name = c["secret_name"]
-        k8s_create_secret_from_string(secret_name, "wg0.conf", client_cfg, namespace=NAMESPACE)
+        clients = []
 
-    # 5) Summary
-    print("\nDone. Summary:")
-    print(" - Server secret created.")
-    for c in client_objs:
-        print(" - Client secret created.")
+        for i in range(args.sakura_clients):
+            name = f"sakura-{s}-{i}"
+            priv, pub = gen_keypair()
+            addr = f"{net}.{client_index}/32"
+            client_index += 1
+
+            clients.append((name, priv, pub, addr))
+            peers_for_server.append({"pub": pub, "allowed_ips": addr})
+
+        for i in range(args.ryokan_clients):
+            name = f"ryokan-{s}-{i}"
+            priv, pub = gen_keypair()
+            addr = f"{net}.{client_index}/32"
+            client_index += 1
+
+            clients.append((name, priv, pub, addr))
+            peers_for_server.append({"pub": pub, "allowed_ips": addr})
+
+        server_cfg = Template(SERVER_TEMPLATE).render(
+            server=server_data,
+            peers=peers_for_server
+        )
+
+        k8s_create_secret_from_string(
+            f"wg-server-{s}-secret",
+            "wg0.conf",
+            server_cfg,
+            namespace
+        )
+
+        for name, priv, pub, addr in clients:
+            client_cfg = Template(CLIENT_TEMPLATE).render(
+                client={
+                    "priv": priv,
+                    "address": addr,
+                    "allowed_ips": f"{net}.0/24",
+                },
+                server={
+                    "pub": server_pub,
+                    "endpoint": server_data["endpoint"],
+                }
+            )
+
+            k8s_create_secret_from_string(
+                f"wg-{name}-secret",
+                "wg0.conf",
+                client_cfg,
+                namespace
+            )
+
+    print("\n✨ All WireGuard configs generated successfully, Onii-chan~ 💕")
 
 if __name__ == "__main__":
     main()
-    

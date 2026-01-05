@@ -129,7 +129,7 @@ spec:
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         resources:
-          limits:
+          re:
             memory: "128Mi"
             cpu: "500m"
 
