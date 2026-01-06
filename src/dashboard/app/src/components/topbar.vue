@@ -40,7 +40,6 @@ const props = defineProps<{ username: string | null }>();
 const avatarLetter = computed(() => {
     return props.username ? props.username.charAt(0).toUpperCase() : "";
 });
-
 // toggle dropdown on avatar click
 function toggleDropdown() {
     open.value = !open.value;
@@ -95,7 +94,6 @@ function stringToHslColor(str: string): string {
     min-height: 150;
 
     font-size: 1.2rem;
-    font-weight: bold;
 
     display: flex;
     align-items: center;

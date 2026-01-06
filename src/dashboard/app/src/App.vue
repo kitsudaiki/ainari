@@ -130,6 +130,7 @@ provide("icons", { acceptIcon, cancelIcon });
 function handleLoginSuccess(newToken: string, user: string) {
     // Store the username in localStorage for persistence across page reloads
     localStorage.setItem("username", user);
+    username.value = user;
 
     // Update the login state to true to disable the login-modal
     isLoggedIn.value = true;
