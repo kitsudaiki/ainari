@@ -37,6 +37,7 @@
             <Topbar :username="username" @logout="handleLogout" />
             <div class="main">
                 <Sidebar
+                    :isAdmin="isAdmin"
                     @change-view="
                         ({ view, id }) => {
                             currentView = view;
@@ -65,7 +66,7 @@
 
 <script setup lang="ts">
 // Import necessary Vue composition API functions
-import { ref, provide } from "vue";
+import { ref, provide, computed, reactive } from "vue";
 
 // Import all the Vue components used in the application
 import Sidebar from "./components/sidebar.vue";
@@ -78,6 +79,7 @@ import StorageCheckpoint from "./components/storage/checkpoint/checkpoint_overvi
 import StorageDataset from "./components/storage/dataset/dataset_overview.vue";
 import WorkloadCluster from "./components/workload/cluster/cluster_overview.vue";
 import WorkloadTask from "./components/workload/task/task_overview.vue";
+import context from "./auth_context";
 
 // Import the authentication context module
 // import context from "./auth_context";
@@ -100,6 +102,7 @@ const currentView = ref("Overview");
 const currentId = ref<string | null>(null);
 const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
 const username = ref<string | null>(localStorage.getItem("username"));
+const isAdmin = ref<boolean>(context.getAuthContext().is_admin === "true");
 
 // Object containing all the available view components
 // These will be dynamically rendered based on the currentView value
@@ -126,17 +129,15 @@ provide("icons", { acceptIcon, cancelIcon });
  * Handles successful login by updating the application state
  * @param newToken - The new authentication token received from the login process
  * @param user - The username of the logged-in user
+ * @param is_admin - True, if the user is an admin
  */
-function handleLoginSuccess(newToken: string, user: string) {
+function handleLoginSuccess(newToken: string, user: string, is_admin: string) {
     // Store the username in localStorage for persistence across page reloads
     localStorage.setItem("username", user);
-    username.value = user;
-
-    // Update the login state to true to disable the login-modal
     isLoggedIn.value = true;
-
-    // Log the current auth context (for debugging purposes)
-    // console.log("test: ", context.getAuthContext().value.token);
+    username.value = user;
+    isAdmin.value = is_admin === "true";
+    // Update the login state to true to disable the login-modal
 }
 
 /**

@@ -17,7 +17,7 @@
 <template>
     <aside>
         <nav class="sidebar" role="navigation" aria-label="Main sidebar">
-            <div v-for="menu in menus" :key="menu.name">
+            <div v-for="menu in visibleMenus" :key="menu.name">
                 <template v-if="menu.items && menu.items.length">
                     <div class="sidebar_drop">
                         <button
@@ -69,15 +69,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, nextTick, onMounted } from "vue";
+import { ref, reactive, watch, nextTick, onMounted, computed } from "vue";
 
 type MenuItem = { view: string; label: string };
 type Menu = { name: string; label: string; items?: MenuItem[] };
 
-const props = defineProps<{ activeView?: string }>();
+interface Props {
+    activeView?: string;
+    isAdmin?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    activeView: "overview",
+    isAdmin: false,
+});
+
 const emit = defineEmits<{
     (e: "change-view", view: string, id: string): void;
 }>();
+
+const visibleMenus = computed(() =>
+    menus.value.filter(
+        (menu) => menu.name !== "Admin" || props.isAdmin === true,
+    ),
+);
 
 // <-- Edit this to add/remove items or dropdowns -->
 const menus = ref<Menu[]>([
@@ -204,6 +219,20 @@ watch(
     () => props.activeView,
     (v) => {
         if (v) activeLocal.value = v;
+    },
+);
+
+watch(
+    () => {
+        props.isAdmin;
+    },
+    (isAdmin) => {
+        // Remove Admin dropdown if isAdmin is false
+        if (!isAdmin) {
+            openDropdowns["Admin"] = false;
+            dropdownHeights["Admin"] = "0px";
+        }
+        updateHeights();
     },
 );
 </script>

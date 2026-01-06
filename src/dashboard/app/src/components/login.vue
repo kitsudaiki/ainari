@@ -119,10 +119,11 @@ async function login() {
         // Store the authentication token in the global context
         // This makes the token available to other components in the application
         await context.createAuthContext(token);
+        const is_admin = context.getIsAdminFromJwt(token);
 
         // Emit a success event to notify parent components
         // This allows the parent to handle post-login actions
-        emit("login-success", token, user_id.value);
+        emit("login-success", token, user_id.value, is_admin);
     } catch (err: any) {
         error.value = "Login failed. Please try again.";
         console.error("Login error:", err);
