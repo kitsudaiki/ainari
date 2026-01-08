@@ -29,7 +29,6 @@
                         <th>UUID</th>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>State</th>
                         <th>Progress</th>
                         <th>Actions</th>
                     </tr>
@@ -39,7 +38,6 @@
                         <td>{{ task.uuid }}</td>
                         <td>{{ task.name }}</td>
                         <td>{{ task.task_type }}</td>
-                        <td>{{ task.state }}</td>
                         <td>
                             <ProgressBar
                                 :task_uuid="task.uuid"
@@ -188,15 +186,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.overview-table td:nth-child(3) {
-    width: 10rem;
-}
-
-.overview-table td:nth-child(4) {
-    width: 10rem;
-}
-
 .overview-table td:nth-child(2) {
     width: 15rem;
+}
+.overview-table td:nth-child(3) {
+    width: 10rem;
 }
 </style>

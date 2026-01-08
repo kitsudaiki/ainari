@@ -90,7 +90,7 @@ export default defineComponent({
                 progress.value = Math.ceil(state);
 
                 if (progress.value >= 100 && intervalId) {
-                    // if progress is finished, than stop the update 
+                    // if progress is finished, than stop the update
                     // to avoid unnecessary requests to the backend
                     clearInterval(intervalId);
                 }
