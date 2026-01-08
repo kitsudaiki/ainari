@@ -42,16 +42,9 @@
                         <td>{{ task.state }}</td>
                         <td>
                             <ProgressBar
-                                :value="
-                                    parseFloat(
-                                        (
-                                            (task.current_epoch /
-                                                task.total_number_of_epochs) *
-                                            100
-                                        ).toFixed(1),
-                                    )
-                                "
-                            ></ProgressBar>
+                                :task_uuid="task.uuid"
+                                :cluster_uuid="props.id"
+                            />
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -91,11 +84,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import "primevue/resources/themes/saga-blue/theme.css";
-import ProgressBar from "primevue/progressbar";
 import axios from "axios";
 
 import context from "../../../auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
+import ProgressBar from "./progress_bar.vue";
 
 const props = defineProps<{
     id: string | null;
