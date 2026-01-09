@@ -80,7 +80,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    activeView: "overview",
+    activeView: "Overview",
     isAdmin: false,
 });
 
