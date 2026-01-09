@@ -21,14 +21,14 @@ limitations under the License.
 }
 
 .error-msg {
-    background-color: #ffc8c8; /* soft red box */
-    color: #000; /* black text */
-    border: 1px solid #ff4d4d; /* stronger border to match */
-    padding: 0.5rem 0.75rem; /* comfy spacing */
-    border-radius: 4px; /* cute rounded corners~ */
-    margin-top: 0.5rem; /* some space above */
-    width: 100%; /* full width inside the bottom bar */
-    text-align: center; /* centered text, optional */
+    background-color: #ffc8c8;
+    color: #000;
+    border: 1px solid #ff4d4d;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    width: 100%;
+    text-align: center;
     box-sizing: border-box;
 }
 

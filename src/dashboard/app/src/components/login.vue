@@ -29,36 +29,36 @@
                         v-model="user_id"
                         type="text"
                         id="login_id_field"
-                        name="id"
                         placeholder="User-ID"
-                        required
+                        :class="{ invalid: userIdError }"
                     />
+                    <p v-if="userIdError" class="error-msg">
+                        User-ID must be at least 4 characters
+                    </p>
                 </div>
+
                 <br /><br />
+
                 <div>
                     <input
                         v-model="password"
                         type="password"
                         id="login_pw_field"
-                        name="password"
                         placeholder="Password"
-                        required
+                        :class="{ invalid: passwordError }"
                     />
+                    <p v-if="passwordError" class="error-msg">
+                        Password must be at least 8 characters
+                    </p>
                 </div>
             </div>
 
             <!-- Modal bottombar -->
             <div class="modal-bottombar">
                 <button @click="login">Login</button>
-                <p v-if="error" class="error-msg">{{ error }}</p>
             </div>
         </div>
     </div>
-
-    <!--<div v-if="error" class="error-popup">
-        <button class="error-close-btn" @click="error = ''">✕</button>
-        {{ error }}
-    </div> -->
 </template>
 
 <script setup lang="ts">
@@ -73,6 +73,9 @@ const user_id = ref("");
 const password = ref("");
 const error = ref("");
 
+const userIdError = ref(false);
+const passwordError = ref(false);
+
 // Define custom events that this component can emit
 // This emits a "login-success" event when login is successful, passing the token and user ID
 const emit = defineEmits<{
@@ -85,6 +88,12 @@ const emit = defineEmits<{
  */
 async function login() {
     try {
+        userIdError.value = user_id.value.length < 4;
+        passwordError.value = password.value.length < 8;
+
+        if (userIdError.value || passwordError.value) {
+            return; // stop login
+        }
         error.value = "";
 
         // Prepare URL-encoded form data for the authentication request
@@ -139,10 +148,14 @@ async function login() {
     background: rgba(0, 0, 0, 1);
     display: flex;
     justify-content: center;
+    align-items: center;
 }
 
 .login-modal {
-    height: 18rem;
-    width: 20rem;
+    width: 22rem;
+    margin-bottom: 5rem;
+}
+.invalid {
+    border: 2px solid #ff4d4f;
 }
 </style>

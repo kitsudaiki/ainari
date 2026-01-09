@@ -24,9 +24,10 @@ limitations under the License.
     text-align: center;
     font-size: 1.5rem;
 
-    height: 5rem;
-    padding: 1rem 1rem;
+    height: 4rem;
+    padding: 1rem;
 }
+
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -34,6 +35,10 @@ limitations under the License.
 
     gap: 1rem;
     padding: 1.5rem;
+
+    height: auto;
+    min-height: auto;
+    overflow: visible;
 }
 
 .modal-bottombar {
