@@ -62,11 +62,18 @@
             </div>
         </template>
     </div>
+
+    <div v-if="tokenExpireError" class="error-popup">
+        <button class="error-close-btn" @click="tokenExpireError = ''">
+            ✕
+        </button>
+        {{ tokenExpireError }}
+    </div>
 </template>
 
 <script setup lang="ts">
 // Import necessary Vue composition API functions
-import { ref, provide, computed, reactive } from "vue";
+import { ref, provide, onMounted, onUnmounted } from "vue";
 
 // Import all the Vue components used in the application
 import Sidebar from "./components/sidebar.vue";
@@ -103,6 +110,8 @@ const currentId = ref<string | null>(null);
 const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
 const username = ref<string | null>(localStorage.getItem("username"));
 const isAdmin = ref<boolean>(context.getAuthContext().is_admin === "true");
+const tokenExpireError = ref<string>("");
+var expiryInterval: number | undefined;
 
 // Object containing all the available view components
 // These will be dynamically rendered based on the currentView value
@@ -131,12 +140,23 @@ provide("icons", { acceptIcon, cancelIcon });
  * @param user - The username of the logged-in user
  * @param is_admin - True, if the user is an admin
  */
-function handleLoginSuccess(newToken: string, user: string, is_admin: string) {
+function handleLoginSuccess(
+    newToken: string,
+    user: string,
+    is_admin: string,
+    expire_timestamp: number,
+) {
     // Store the username in localStorage for persistence across page reloads
     localStorage.setItem("username", user);
     isLoggedIn.value = true;
     username.value = user;
     isAdmin.value = is_admin === "true";
+    tokenExpireError.value = "";
+
+    // Start watcher to check if the token is expired. To avoid conflicts
+    // the logout will be done 30 seonds before the token really expire.
+    startTokenExpiryWatcher(expire_timestamp - 30, handleLogout);
+
     // Update the login state to true to disable the login-modal
 }
 
@@ -153,6 +173,49 @@ function handleLogout() {
     isLoggedIn.value = false;
     username.value = null;
 }
+
+function startTokenExpiryWatcher(
+    expireTimeUnix: number,
+    handleLogout: () => void,
+) {
+    // Clear any previous watcher (important!)
+    if (expiryInterval) {
+        clearInterval(expiryInterval);
+    }
+
+    expiryInterval = window.setInterval(() => {
+        const nowUnix = Math.floor(Date.now() / 1000);
+
+        // Handle expired token
+        if (nowUnix >= expireTimeUnix) {
+            tokenExpireError.value = "Token expired. Please login again.";
+            clearInterval(expiryInterval);
+            expiryInterval = undefined;
+            handleLogout();
+        }
+    }, 2000); // check token every 2 seconds
+}
+
+onMounted(() => {
+    if (isLoggedIn) {
+        const expire_timestamp = context.getAuthContext().expire_timestamp;
+
+        // In case there is no timestamp, something is wrong and you definitelly
+        // has to login again.
+        if (expire_timestamp === null) {
+            handleLogout();
+            return;
+        }
+
+        startTokenExpiryWatcher(expire_timestamp, handleLogout);
+    }
+});
+
+onUnmounted(() => {
+    if (expiryInterval) {
+        clearInterval(expiryInterval);
+    }
+});
 </script>
 
 <style scoped>

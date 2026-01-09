@@ -22,6 +22,7 @@ import { getConfig } from "./config";
  */
 interface AuthContext {
     token: string | null; // Current authentication token
+    expire_timestamp: number | null; // unix-timestamp, when the token expire
     is_admin: string | null; // true, if the user is admin
     miko_address: string | null; // Address for the Miko service
     hanami_address: string | null; // Address for the Hanami service
@@ -49,6 +50,24 @@ function getIsAdminFromJwt(token: string): string | null {
     }
 }
 
+function getExpireTimesamp(token: string): number | null {
+    try {
+        // JWT format: header.payload.signature
+        const payloadBase64 = token.split(".")[1];
+        if (!payloadBase64) return 0;
+
+        // Base64URL → Base64
+        const payloadJson = atob(
+            payloadBase64.replace(/-/g, "+").replace(/_/g, "/"),
+        );
+
+        const payload = JSON.parse(payloadJson);
+        return payload.exp ?? 0;
+    } catch {
+        return 0;
+    }
+}
+
 /**
  * Sets the authentication context in localStorage
  * This function fetches service endpoints and stores them along with the auth token
@@ -62,6 +81,7 @@ async function createAuthContext(token: string) {
     });
 
     const is_admin = getIsAdminFromJwt(token);
+    const expire_timestamp = getExpireTimesamp(token);
 
     // Fetch the service endpoints from the API
     const endpoint_resp = await miko_api.get("/v1alpha/endpoints");
@@ -70,6 +90,7 @@ async function createAuthContext(token: string) {
     // and environment variables or fetched service addresses
     const authContext: AuthContext = {
         token: token,
+        expire_timestamp: expire_timestamp,
         is_admin: is_admin,
         miko_address: apiUrl, // Get Miko address from environment
         hanami_address: endpoint_resp.data.hanami.public_address,
@@ -102,6 +123,7 @@ function getAuthContext(): AuthContext {
     // Initialize with default null values and merge with stored values if they exist
     const authContext: AuthContext = {
         token: null,
+        expire_timestamp: null,
         is_admin: null,
         miko_address: null,
         hanami_address: null,
@@ -122,4 +144,5 @@ export default {
     createAuthContext,
     getAuthContext,
     getIsAdminFromJwt,
+    getExpireTimesamp,
 };

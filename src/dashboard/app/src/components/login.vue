@@ -120,10 +120,11 @@ async function login() {
         // This makes the token available to other components in the application
         await context.createAuthContext(token);
         const is_admin = context.getIsAdminFromJwt(token);
+        const expire_timestamp = context.getExpireTimesamp(token);
 
         // Emit a success event to notify parent components
         // This allows the parent to handle post-login actions
-        emit("login-success", token, user_id.value, is_admin);
+        emit("login-success", token, user_id.value, is_admin, expire_timestamp);
     } catch (err: any) {
         error.value = "Login failed. Please try again.";
         console.error("Login error:", err);
