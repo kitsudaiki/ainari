@@ -219,10 +219,10 @@ onMounted(() => {
     }
     updateHeights();
 
-    // emit the first entry if nothing was passed in
-    if (!props.activeView && firstEntry) {
-        emit("change-view", firstEntry);
-    }
+    // load the overview-page after a login, even when the logout appeared on another page
+    const view: string = "Overview";
+    const id: string = "";
+    emit("change-view", { view, id });
 });
 
 // Watch for changes to the active view and update dropdown states accordingly
