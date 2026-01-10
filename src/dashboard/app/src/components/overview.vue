@@ -16,6 +16,30 @@
 
 <template>
     <div class="divider">
+        <span>RESOURCE-OVERVIEW</span>
+    </div>
+    <div class="card">
+        <div class="card-label">Cluster</div>
+        <div class="card-content">
+            <table class="overview-table" v-if="clusters.length > 0">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="cluster in clusters" :key="cluster.uuid">
+                        <td>{{ cluster.uuid }}</td>
+                        <td>{{ cluster.name }}</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="divider">
         <span>RESOURCE-USAGE</span>
     </div>
     <div class="usage_overview">
@@ -43,8 +67,9 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 
 import context from "../auth_context";
-
 import GaugeChart from "./gauge_chart.vue";
+
+const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 
 const usedCluster = ref(0);
 const maxCluster = ref(1);
@@ -54,6 +79,22 @@ const usedCheckpoint = ref(0);
 const maxCheckpoint = ref(1);
 const usedSecret = ref(0);
 const maxSecret = ref(1);
+
+async function fetchClusters() {
+    try {
+        const authContext = context.getAuthContext();
+        const hanami_api = axios.create({
+            baseURL: authContext.hanami_address,
+        });
+
+        const response = await hanami_api.get("/v1alpha/cluster", {
+            headers: { Authorization: `Bearer ${authContext.token}` },
+        });
+        clusters.value = response.data.clusters;
+    } catch (err) {
+        console.error("Failed to load clusters", err);
+    }
+}
 
 async function fetchQuotas() {
     try {
@@ -135,6 +176,7 @@ async function fetchUsedSecrets() {
     }
 }
 
+onMounted(fetchClusters);
 onMounted(fetchQuotas);
 onMounted(fetchUsedCluster);
 onMounted(fetchUsedDatasetsAndCheckpoints);
