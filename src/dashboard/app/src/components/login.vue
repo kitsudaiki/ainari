@@ -68,44 +68,56 @@ import axios from "axios";
 import context from "../auth_context";
 import { getConfig } from "../config";
 
-// Reactive references to store user input and error messages
+// Define custom events that this component can emit
+const emit = defineEmits<{
+    (
+        e: "login-success",
+        token: string,
+        userId: string,
+        isAdmin: boolean,
+        expireTimestamp: number,
+    ): void;
+}>();
+
+// Reactive references to store user input and validation states
 const user_id = ref("");
 const password = ref("");
 const error = ref("");
 const userIdError = ref(false);
 const passwordError = ref(false);
 
-// Define custom events that this component can emit
-// This emits a "login-success" event when login is successful, passing the token and user ID
-const emit = defineEmits<{
-    (e: "login-success", token: string, userId: string): void;
-}>();
+/**
+ * Validates the user input before attempting login
+ * @returns boolean - true if validation passes, false otherwise
+ */
+function validateInput(): boolean {
+    userIdError.value = user_id.value.length < 4;
+    passwordError.value = password.value.length < 8;
+    return !(userIdError.value || passwordError.value);
+}
 
 /**
  * Attempts to authenticate the user with the provided credentials
  * and establish an authenticated session.
  */
 async function login() {
-    userIdError.value = user_id.value.length < 4;
-    passwordError.value = password.value.length < 8;
-
-    if (userIdError.value || passwordError.value) {
-        return;
-    }
-
     try {
+        // Reset error state
         error.value = "";
 
-        // Prepare URL-encoded form data for the authentication request
-        // This is the standard format expected by OAuth 2.0 token endpoints
-        const params = new URLSearchParams();
-        params.append("grant_type", "client_credentials"); // Specifies the OAuth 2.0 flow
-        params.append("token_format", "jwt"); // Requests a JSON Web Token
-        params.append("client_id", user_id.value); // Client identifier from user input
-        params.append("client_secret", password.value); // Client secret from user input
+        // Validate input before proceeding
+        if (!validateInput()) {
+            return;
+        }
 
-        // Loac miko-address from the config-file for the initial connection
-        // The addresses of all the other components will be requested from Miko
+        // Prepare authentication request parameters
+        const params = new URLSearchParams();
+        params.append("grant_type", "client_credentials");
+        params.append("token_format", "jwt");
+        params.append("client_id", user_id.value);
+        params.append("client_secret", password.value);
+
+        // Configure axios instance with base URL of Miko from the config
         const { apiUrl } = getConfig();
         const miko_api = axios.create({
             baseURL: apiUrl,
@@ -115,14 +127,11 @@ async function login() {
         // The endpoint expects form-encoded data with specific headers
         const login_resp = await miko_api.post("/v1alpha/token", params, {
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded", // Required header for form data
+                "Content-Type": "application/x-www-form-urlencoded",
             },
         });
 
-        // Log the response for debugging purposes
-        // This helps with troubleshooting authentication issues
-        // console.log("Login response:", login_resp);
-
+        // Extract token from response
         const token = login_resp.data.access_token;
 
         // Store the authentication token in the global context
@@ -131,12 +140,11 @@ async function login() {
         const is_admin = context.getIsAdminFromJwt(token);
         const expire_timestamp = context.getExpireTimesamp(token);
 
-        // Emit a success event to notify parent components
-        // This allows the parent to handle post-login actions
+        // Notify parent components of successful login
         emit("login-success", token, user_id.value, is_admin, expire_timestamp);
     } catch (err: any) {
+        // Handle authentication errors
         error.value = "Login failed. Please try again.";
-        console.error("Login error:", err);
     }
 }
 </script>

@@ -16,24 +16,41 @@ export type AppConfig = {
     apiUrl: string;
 };
 
+// Private configuration storage
 let config: AppConfig | null = null;
 
-export async function loadConfig() {
-    console.log("Loading config.json...");
-    const res = await fetch("/config.json", { cache: "no-store" });
-    console.log("Fetch result:", res);
-
-    if (!res.ok) {
-        throw new Error("Failed to load config.json");
+/**
+ * Loads the application configuration from config.json
+ *
+ * @throws {Error} If the configuration file cannot be loaded
+ */
+export async function loadConfig(): Promise<void> {
+    try {
+        const response = await fetch("/config.json", { cache: "no-store" });
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load configuration: ${response.statusText}`,
+            );
+        }
+        config = await response.json();
+    } catch (error) {
+        console.error("Error loading configuration:", error);
+        throw error; // Re-throw to allow caller to handle
     }
-
-    config = await res.json();
-    console.log("Config loaded:", config);
 }
 
+/**
+ * Retrieves the current application configuration
+ *
+ * @returns {AppConfig} The loaded configuration
+ *
+ * @throws {Error} If the configuration hasn't been loaded yet
+ */
 export function getConfig(): AppConfig {
     if (config === null) {
-        throw new Error("Config not loaded yet");
+        throw new Error(
+            "Configuration not loaded. Please call loadConfig() first.",
+        );
     }
     return config;
 }

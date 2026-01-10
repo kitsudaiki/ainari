@@ -14,25 +14,36 @@
 
 import axios, { AxiosError } from "axios";
 
+/**
+ * Handles and formats Axios errors into user-friendly messages
+ *
+ * @param err - The AxiosError to handle
+ * @param baseMessage - Base error message to use as attachment for the messages or as replacement when no specific message is available
+ *
+ * @returns Formatted error message string
+ */
 export function handleAxiosError(
-    err: unknown,
+    err: AxiosError,
     baseMessage = "An unexpected error occurred",
 ): string {
-    if (axios.isAxiosError(err)) {
-        if (err.response) {
-            return (
-                baseMessage +
-                `: API error ${err.response.status}: ` +
-                (err.response.data?.message ?? baseMessage)
-            );
-        }
-
-        if (err.request) {
-            return baseMessage + ": API did not respond";
-        }
-
-        return baseMessage + ": " + err.message;
+    // Check if the error is an AxiosError
+    if (!axios.isAxiosError(err)) {
+        return baseMessage;
     }
 
-    return baseMessage;
+    // Handle response errors (when the request was made and the server responded)
+    if (err.response) {
+        const status = err.response.status;
+        const message = err.response.data?.message ?? baseMessage;
+
+        return `${baseMessage}: API error ${status}: ${message}`;
+    }
+
+    // Handle request errors (when the request was made but no response was received)
+    if (err.request) {
+        return `${baseMessage}: API did not respond`;
+    }
+
+    // Handle other errors (when the request was not made)
+    return `${baseMessage}: ${err.message}`;
 }

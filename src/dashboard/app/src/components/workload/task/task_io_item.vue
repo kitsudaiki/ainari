@@ -36,6 +36,10 @@
             </option>
         </select>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -43,6 +47,7 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     itemName: string;
@@ -55,6 +60,7 @@ const datasets = ref<{ uuid: string; datasetName: string }[]>([]);
 
 const selectedColumn = ref<string>("");
 const datasetColumns = ref<{ columnName: string }[]>([]);
+const errorPopupMsg = ref<string>("");
 
 function getData() {
     return {
@@ -87,12 +93,14 @@ async function fetchDatasetColumns() {
             selectedColumn.value = datasetColumns.value[0]; // default to first item
         }
     } catch (err) {
-        console.error("Failed to load dataset-columns", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to load dataset-columns",
+        );
     }
 }
 
 async function onDatasetSelected() {
-    // console.log("Selected:", selectedDatasetUuid.value);
     await fetchDatasetColumns();
 }
 

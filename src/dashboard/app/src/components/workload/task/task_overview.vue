@@ -104,10 +104,6 @@ const openDropdown = ref<string | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 var torii_port = 0;
 
-// const logArrayElements = (element, index /*, array */) => {
-//   console.log(`a[${index}] = ${element.total_number_of_epochs}`);
-// };
-
 async function fetchTasks() {
     try {
         const authContext = context.getAuthContext();
