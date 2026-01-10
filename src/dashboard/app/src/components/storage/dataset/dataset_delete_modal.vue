@@ -47,6 +47,7 @@
 </template>
 
 <script lang="ts" setup>
+import { ref } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
@@ -88,7 +89,6 @@ function cancel() {
 
 <style scoped>
 .dataset-delete-modal {
-    height: 16rem;
-    width: 20rem;
+    width: 30rem;
 }
 </style>

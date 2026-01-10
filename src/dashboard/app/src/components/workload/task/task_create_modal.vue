@@ -21,12 +21,18 @@
                 <span>Create task</span>
             </div>
             <div class="modal-content">
-                <input
-                    v-model="form.taskName"
-                    type="text"
-                    placeholder="Task-Name"
-                    required
-                />
+                <div>
+                    <input
+                        v-model="form.taskName"
+                        type="text"
+                        placeholder="Task-Name"
+                        :class="{ invalid_input: taskNameError }"
+                    />
+                    <p v-if="taskNameError" class="error-msg">
+                        Task-Name must be at least 4 characters
+                    </p>
+                </div>
+                <br />
                 <div class="tab">
                     <button
                         class="tablinks"
@@ -177,6 +183,7 @@ const inputItems = ref<any[]>([]);
 const outputItems = ref<any[]>([]);
 const resultItems = ref<any[]>([]);
 const errorPopupMsg = ref<string>("");
+const taskNameError = ref(false);
 
 const emit = defineEmits<{
     (e: "accept"): void;
@@ -193,6 +200,12 @@ const form = reactive({
 });
 
 async function handleAccept(cluster_uuid: string, torii_port: number) {
+    taskNameError.value = form.taskName.length < 4;
+
+    if (taskNameError.value) {
+        return;
+    }
+
     try {
         if (selectedTab.value === "Train") {
             console.log(
@@ -434,5 +447,10 @@ onMounted(fetchCheckpoints);
 .task-tabcontent {
     margin-top: 0.5rem;
     height: 24rem;
+}
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

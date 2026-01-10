@@ -21,18 +21,29 @@
                 <span>Create project</span>
             </div>
             <div class="modal-content">
-                <input
-                    v-model="form.projectId"
-                    type="text"
-                    placeholder="Project-ID"
-                    required
-                />
-                <input
-                    v-model="form.projectName"
-                    type="text"
-                    placeholder="Project-Name"
-                    required
-                />
+                <div>
+                    <input
+                        v-model="form.projectId"
+                        type="text"
+                        placeholder="Project-ID"
+                        :class="{ invalid_input: projectIdError }"
+                    />
+                    <p v-if="projectIdError" class="error-msg">
+                        Project-ID must be at least 4 characters
+                    </p>
+                </div>
+                <br />
+                <div>
+                    <input
+                        v-model="form.projectName"
+                        type="text"
+                        placeholder="Project-Name"
+                        :class="{ invalid_input: projectNameError }"
+                    />
+                    <p v-if="projectNameError" class="error-msg">
+                        Project-Name must be at least 4 characters
+                    </p>
+                </div>
             </div>
 
             <div class="modal-bottombar">
@@ -70,6 +81,8 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
+const projectIdError = ref(false);
+const projectNameError = ref(false);
 
 const form = reactive({
     projectId: "",
@@ -77,6 +90,13 @@ const form = reactive({
 });
 
 async function handleAccept() {
+    projectIdError.value = form.userId.length < 4;
+    projectNameError.value = form.userName.length < 4;
+
+    if (projectIdError.value || projectNameError.value) {
+        return;
+    }
+
     try {
         const authContext = context.getAuthContext();
         const miko_api = axios.create({
@@ -107,7 +127,11 @@ function cancel() {
 
 <style scoped>
 .project-create-modal {
-    height: 18rem;
-    width: 20rem;
+    width: 30rem;
+}
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

@@ -17,47 +17,60 @@
 <template>
     <div class="modal-overlay" @click.self="cancel">
         <div class="modal dataset-create-modal">
+            <!-- Modal topbar -->
             <div class="modal-topbar">
                 <span>Create dataset</span>
             </div>
+
+            <!-- Modal content -->
             <div class="modal-content">
-                <input
-                    v-model="form.datasetName"
-                    type="text"
-                    placeholder="Dataset-Name"
-                    required
-                />
-                <div class="tab">
-                    <button
-                        class="tablinks"
-                        :class="{ active: isSelected('csv') }"
-                        @click="selectTab('csv')"
-                    >
-                        CSV
-                    </button>
-                    <button
-                        class="tablinks"
-                        :class="{ active: isSelected('mnist') }"
-                        @click="selectTab('mnist')"
-                    >
-                        MNIST
-                    </button>
+                <div>
+                    <input
+                        v-model="form.datasetName"
+                        type="text"
+                        placeholder="Dataset-Name"
+                        :class="{ invalid_input: datasetNameError }"
+                    />
+                    <p v-if="datasetNameError" class="error-msg">
+                        Dataset-Name must be at least 4 characters
+                    </p>
                 </div>
-                <div class="dataset-tabcontent">
-                    <div v-show="selectedTab === 'csv'">
-                        <label>
-                            <input type="file" @change="onFile2Change" />
-                        </label>
+                <div>
+                    <div class="tab">
+                        <button
+                            class="tablinks"
+                            :class="{ active: isSelected('csv') }"
+                            @click="selectTab('csv')"
+                        >
+                            CSV
+                        </button>
+                        <button
+                            class="tablinks"
+                            :class="{ active: isSelected('mnist') }"
+                            @click="selectTab('mnist')"
+                        >
+                            MNIST
+                        </button>
                     </div>
-                    <div v-show="selectedTab === 'mnist'">
-                        <label>
-                            <input type="file" @change="onFile1Change" />
-                            <input type="file" @change="onFile2Change" />
-                        </label>
+                    <div class="dataset-tabcontent">
+                        <div v-show="selectedTab === 'csv'">
+                            <br />
+                            <label>
+                                <input type="file" @change="onFile2Change" />
+                            </label>
+                        </div>
+                        <div v-show="selectedTab === 'mnist'">
+                            <br />
+                            <label>
+                                <input type="file" @change="onFile1Change" />
+                                <input type="file" @change="onFile2Change" />
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Modal bottombar -->
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button class="icon-button" @click="handleAccept">
@@ -92,6 +105,7 @@ const emit = defineEmits<{
     (e: "cancel"): void;
 }>();
 const errorPopupMsg = ref<string>("");
+const datasetNameError = ref(false);
 
 const form = reactive({
     datasetName: "",
@@ -114,6 +128,11 @@ const onFile2Change = (event: Event) => {
 };
 
 async function handleAccept() {
+    datasetNameError.value = form.datasetName.length < 8;
+
+    if (datasetNameError.value) {
+        return;
+    }
     if (selectedTab.value === "mnist") {
         if (!file1.value || !file2.value) return;
 
@@ -198,12 +217,15 @@ function isSelected(tab: "csv" | "mnist") {
 
 <style scoped>
 .dataset-create-modal {
-    height: 26rem;
     width: 30rem;
 }
 
 .dataset-tabcontent {
     margin-top: 0.5rem;
     height: 7rem;
+}
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

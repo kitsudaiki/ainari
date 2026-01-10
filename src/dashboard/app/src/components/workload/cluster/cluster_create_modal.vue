@@ -21,20 +21,29 @@
                 <span>Create cluster</span>
             </div>
             <div class="modal-content">
-                <input
-                    v-model="form.clusterName"
-                    type="text"
-                    placeholder="Cluster-Name"
-                    required
-                />
+                <div>
+                    <input
+                        v-model="form.clusterName"
+                        type="text"
+                        placeholder="Cluster-Name"
+                        :class="{ invalid_input: clusterNameError }"
+                    />
+                    <p v-if="clusterNameError" class="error-msg">
+                        Cluster-Name must be at least 4 characters
+                    </p>
+                </div>
+                <br />
                 <div>
                     <label>Cluster template:</label>
                     <textarea
                         id="template_input"
                         v-model="form.clusterTemplate"
                         type="text"
-                        required
+                        :class="{ invalid_input: clusterTemplateError }"
                     ></textarea>
+                    <p v-if="clusterTemplateError" class="error-msg">
+                        Cluster-Template is not allowed to left empty
+                    </p>
                 </div>
             </div>
 
@@ -73,6 +82,8 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
+const clusterNameError = ref(false);
+const clusterTemplateError = ref(false);
 
 const form = reactive({
     clusterTemplate: "",
@@ -80,6 +91,13 @@ const form = reactive({
 });
 
 async function handleAccept() {
+    clusterNameError.value = form.clusterName.length < 4;
+    clusterTemplateError.value = form.clusterTemplate.length === 0;
+
+    if (clusterNameError.value || clusterTemplateError.value) {
+        return;
+    }
+
     try {
         const authContext = context.getAuthContext();
         const hanami_api = axios.create({
@@ -110,11 +128,15 @@ function cancel() {
 
 <style scoped>
 .cluster-create-modal {
-    height: 35rem;
-    width: 30rem;
+    min-width: 30rem;
 }
 
 #template_input {
     height: 18rem;
+}
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

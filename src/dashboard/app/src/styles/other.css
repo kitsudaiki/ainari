@@ -52,6 +52,10 @@ limitations under the License.
     max-width: 300px;
 }
 
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
+}
+
 /* little ✕ button in the corner */
 .error-close-btn {
     position: absolute;

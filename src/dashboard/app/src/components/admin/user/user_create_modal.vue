@@ -17,44 +17,72 @@
 <template>
     <div class="modal-overlay" @click.self="cancel">
         <div class="modal user-create-modal">
+            <!-- Modal topbar -->
             <div class="modal-topbar">
                 <span>Create user</span>
             </div>
-            <div class="modal-content">
-                <input
-                    v-model="form.userId"
-                    type="text"
-                    placeholder="User-ID"
-                    required
-                />
-                <input
-                    v-model="form.userName"
-                    type="text"
-                    placeholder="User-Name"
-                    required
-                />
-                <input
-                    v-model="form.password"
-                    type="password"
-                    placeholder="Password"
-                    required
-                />
-                <input
-                    v-model="form.confirmPassword"
-                    type="password"
-                    placeholder="Confirm password"
-                    required
-                />
-                <label class="checkbox-label">
-                    <input type="checkbox" v-model="form.isAdmin" />
-                    Is Admin
-                </label>
 
-                <p v-if="passwordError" class="error-msg">
-                    {{ passwordError }}
-                </p>
+            <!-- Modal content -->
+            <div class="modal-content">
+                <div>
+                    <div>
+                        <input
+                            v-model="form.userId"
+                            type="text"
+                            placeholder="User-ID"
+                            :class="{ invalid_input: userIdError }"
+                        />
+                        <p v-if="userIdError" class="error-msg">
+                            User-ID must be at least 4 characters
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <input
+                            v-model="form.userName"
+                            type="text"
+                            placeholder="User-Name"
+                            :class="{ invalid_input: userNameError }"
+                        />
+                        <p v-if="userNameError" class="error-msg">
+                            User-Name must be at least 4 characters
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <input
+                            v-model="form.password"
+                            type="password"
+                            placeholder="Password"
+                            :class="{ invalid_input: passwordError }"
+                        />
+                        <p v-if="passwordError" class="error-msg">
+                            Password must be at least 8 characters
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <input
+                            v-model="form.confirmPassword"
+                            type="password"
+                            placeholder="Confirm password"
+                            :class="{ invalid_input: passwordConfirmError }"
+                        />
+                        <p v-if="passwordConfirmError" class="error-msg">
+                            Password did not match
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <label class="checkbox-label">
+                            <input type="checkbox" v-model="form.isAdmin" />
+                            Is Admin
+                        </label>
+                    </div>
+                </div>
             </div>
 
+            <!-- Modal bottombar -->
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button class="icon-button" @click="handleAccept">
@@ -74,7 +102,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, computed } from "vue";
+import { ref, reactive, computed } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
@@ -98,15 +126,23 @@ const form = reactive({
 });
 
 const errorPopupMsg = ref<string>("");
-
-const passwordError = computed(() =>
-    form.password !== form.confirmPassword ? "Passwords do not match" : "",
+const userIdError = ref(false);
+const userNameError = ref(false);
+const passwordError = ref(false);
+const passwordConfirmError = computed(() =>
+    form.password !== form.confirmPassword ? true : false,
 );
-import { handleAxiosError } from "@/handleAxiosError";
 
 async function handleAccept() {
+    userIdError.value = form.userId.length < 4;
+    userNameError.value = form.userName.length < 4;
+    passwordError.value = form.password.length < 8;
+
+    if (userIdError.value || passwordError.value || passwordError.value) {
+        return;
+    }
     if (form.password !== form.confirmPassword) {
-        passwordError.value = "Passwords do not match!";
+        passwordConfirmError.value = true;
         return;
     }
     try {
@@ -141,7 +177,12 @@ function cancel() {
 
 <style scoped>
 .user-create-modal {
-    height: 28rem;
-    width: 20rem;
+    width: 30em;
+    margin-bottom: 5rem;
+}
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

@@ -30,7 +30,7 @@
                         type="text"
                         id="login_id_field"
                         placeholder="User-ID"
-                        :class="{ invalid: userIdError }"
+                        :class="{ invalid_input: userIdError }"
                     />
                     <p v-if="userIdError" class="error-msg">
                         User-ID must be at least 4 characters
@@ -45,7 +45,7 @@
                         type="password"
                         id="login_pw_field"
                         placeholder="Password"
-                        :class="{ invalid: passwordError }"
+                        :class="{ invalid_input: passwordError }"
                     />
                     <p v-if="passwordError" class="error-msg">
                         Password must be at least 8 characters
@@ -72,7 +72,6 @@ import { getConfig } from "../config";
 const user_id = ref("");
 const password = ref("");
 const error = ref("");
-
 const userIdError = ref(false);
 const passwordError = ref(false);
 
@@ -87,13 +86,14 @@ const emit = defineEmits<{
  * and establish an authenticated session.
  */
 async function login() {
-    try {
-        userIdError.value = user_id.value.length < 4;
-        passwordError.value = password.value.length < 8;
+    userIdError.value = user_id.value.length < 4;
+    passwordError.value = password.value.length < 8;
 
-        if (userIdError.value || passwordError.value) {
-            return; // stop login
-        }
+    if (userIdError.value || passwordError.value) {
+        return;
+    }
+
+    try {
         error.value = "";
 
         // Prepare URL-encoded form data for the authentication request
@@ -155,7 +155,9 @@ async function login() {
     width: 22rem;
     margin-bottom: 5rem;
 }
-.invalid {
-    border: 2px solid #ff4d4f;
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>
