@@ -83,9 +83,9 @@
 import { ref, onMounted, reactive } from "vue";
 import axios from "axios";
 
-import context from "../auth_context";
-import GaugeChart from "./gauge_chart.vue";
-import { handleAxiosError } from "../handleAxiosError";
+import { getAuthContext } from "@/auth_context";
+import GaugeChart from "@/components/gauge_chart.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
 // Cluster management
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
@@ -115,7 +115,7 @@ const quotaMetrics = reactive({
 
 // API client creation helper
 function createApiClient(baseURL: string | null) {
-    const authContext = context.getAuthContext();
+    const authContext = getAuthContext();
     return axios.create({
         baseURL,
         headers: { Authorization: `Bearer ${authContext.token}` },
@@ -128,7 +128,7 @@ function createApiClient(baseURL: string | null) {
 async function fetchClusters() {
     try {
         const hanamiApi = createApiClient(
-            context.getAuthContext().hanami_address,
+            getAuthContext().hanami_address,
         );
         const response = await hanamiApi.get("/v1alpha/cluster");
         clusters.value = response.data.clusters;
@@ -142,7 +142,7 @@ async function fetchClusters() {
  */
 async function fetchQuotas() {
     try {
-        const mikoApi = createApiClient(context.getAuthContext().miko_address);
+        const mikoApi = createApiClient(getAuthContext().miko_address);
         const response = await mikoApi.get("/v1alpha/quota");
 
         quotaMetrics.clusters.max = response.data.max_cluster;
@@ -160,7 +160,7 @@ async function fetchQuotas() {
 async function fetchUsedCluster() {
     try {
         const hanamiApi = createApiClient(
-            context.getAuthContext().hanami_address,
+            getAuthContext().hanami_address,
         );
         const response = await hanamiApi.get("/v1alpha/cluster/count");
         quotaMetrics.clusters.used = response.data.number_of_items;
@@ -178,7 +178,7 @@ async function fetchUsedCluster() {
 async function fetchUsedDatasetsAndCheckpoints() {
     try {
         const ryokanApi = createApiClient(
-            context.getAuthContext().ryokan_address,
+            getAuthContext().ryokan_address,
         );
 
         // Fetch dataset number
@@ -202,7 +202,7 @@ async function fetchUsedDatasetsAndCheckpoints() {
 async function fetchUsedSecrets() {
     try {
         const omamoriApi = createApiClient(
-            context.getAuthContext().omamori_address,
+            getAuthContext().omamori_address,
         );
         const response = await omamoriApi.get("/v1alpha/secret/count");
         quotaMetrics.secrets.used = response.data.number_of_items;

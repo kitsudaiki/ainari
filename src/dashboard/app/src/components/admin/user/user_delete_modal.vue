@@ -47,7 +47,7 @@
 import { ref } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -64,7 +64,7 @@ const errorPopupMsg = ref<string>("");
 async function handleAccept(user_id: string) {
     if (!user_id) return;
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const miko_api = axios.create({
             baseURL: authContext.miko_address,
         });

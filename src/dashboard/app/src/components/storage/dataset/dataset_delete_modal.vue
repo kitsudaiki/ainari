@@ -50,7 +50,7 @@
 import { ref } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -67,7 +67,7 @@ const errorPopupMsg = ref<string>("");
 async function handleAccept(dataset_uuid: string) {
     if (!dataset_uuid) return;
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const ryokan_api = axios.create({
             baseURL: authContext.ryokan_address,
         });

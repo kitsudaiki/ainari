@@ -87,7 +87,7 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import ClusterCreateModal from "./cluster_create_modal.vue";
 import ClusterDeleteModal from "./cluster_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
@@ -112,7 +112,7 @@ function switchToTasks(cluster_uuid: string) {
 
 async function fetchClusters() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const hanami_api = axios.create({
             baseURL: authContext.hanami_address,
         });

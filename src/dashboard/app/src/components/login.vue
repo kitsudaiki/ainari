@@ -65,8 +65,8 @@
 import { ref } from "vue";
 import axios from "axios";
 
-import context from "../auth_context";
-import { getConfig } from "../config";
+import { createAuthContext, getIsAdminFromJwt, getExpireTimesamp } from "@/auth_context";
+import { getConfig } from "@/config";
 
 // Define custom events that this component can emit
 const emit = defineEmits<{
@@ -136,9 +136,9 @@ async function login() {
 
         // Store the authentication token in the global context
         // This makes the token available to other components in the application
-        await context.createAuthContext(token);
-        const is_admin = context.getIsAdminFromJwt(token);
-        const expire_timestamp = context.getExpireTimesamp(token);
+        await createAuthContext(token);
+        const is_admin = getIsAdminFromJwt(token);
+        const expire_timestamp = getExpireTimesamp(token);
 
         // Notify parent components of successful login
         emit("login-success", token, user_id.value, is_admin, expire_timestamp);

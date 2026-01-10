@@ -87,8 +87,8 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
-import common from "../../../common";
+import { getAuthContext } from "@/auth_context";
+import common from "@/common";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const user_info = ref<{}[]>([]);
@@ -106,7 +106,7 @@ const emit = defineEmits<{
 
 async function fetchUserInfo(userId: string) {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const miko_api = axios.create({
             baseURL: authContext.miko_address,
         });

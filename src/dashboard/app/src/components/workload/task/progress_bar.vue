@@ -24,7 +24,7 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted } from "vue";
 import axios, { AxiosInstance } from "axios";
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 
 export default defineComponent({
     name: "ProgressBar",
@@ -48,7 +48,7 @@ export default defineComponent({
         let authContext: any;
 
         const initApis = async () => {
-            authContext = context.getAuthContext();
+            authContext = getAuthContext();
 
             hanami_api = axios.create({
                 baseURL: authContext.hanami_address,

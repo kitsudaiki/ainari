@@ -169,7 +169,7 @@ import axios from "axios";
 
 import TaskIoItem from "./task_io_item.vue";
 import TaskResultItem from "./task_result_item.vue";
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 /**
@@ -225,7 +225,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
         // Handle different task types based on selected tab
         if (selectedTab.value === "Train") {
             // Train task creation
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const inputs = inputItems.value.map((item) => item.getData());
             const outputs = outputItems.value.map((item) => item.getData());
             const sakura_api = axios.create({
@@ -251,7 +251,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
 
         if (selectedTab.value === "Request") {
             // Request task creation
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const inputs = inputItems.value.map((item) => item.getData());
             const results = resultItems.value.map((item) => item.getData());
             const sakura_api = axios.create({
@@ -274,7 +274,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
 
         if (selectedTab.value === "Checkpoint save") {
             // Checkpoint save task creation
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const sakura_api = axios.create({
                 baseURL: `${authContext.torii_base_address}:${torii_port}`,
             });
@@ -292,7 +292,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
 
         if (selectedTab.value === "Checkpoint restore") {
             // Checkpoint restore task creation
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const sakura_api = axios.create({
                 baseURL: `${authContext.torii_base_address}:${torii_port}`,
             });
@@ -374,7 +374,7 @@ const selectedCheckpointUuid = ref<string>("");
  */
 async function fetchCheckpoints() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
 
         const ryokan_api = axios.create({
             baseURL: authContext.ryokan_address,
@@ -400,7 +400,7 @@ async function fetchCheckpoints() {
  */
 async function fetchClusterIo() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
 
         const hanami_api = axios.create({
             baseURL: authContext.hanami_address,
@@ -428,7 +428,7 @@ async function fetchClusterIo() {
  */
 async function fetchDatasets() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
 
         const ryokan_api = axios.create({
             baseURL: authContext.ryokan_address,

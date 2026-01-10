@@ -29,7 +29,7 @@ import { getConfig } from "./config";
  * @property {string | null} torii_base_address - Base address for the Torii service (without port)
  * @property {string | null} omamori_address - Address for the Omamori service
  */
-interface AuthContext {
+export interface AuthContext {
     token: string | null;
     expire_timestamp: number | null;
     is_admin: string | null;
@@ -53,7 +53,7 @@ interface AuthContext {
  * The JWT is split into its components, and the payload is base64 decoded and parsed.
  * If any step fails, it returns "false" as a fallback.
  */
-function getIsAdminFromJwt(token: string): string | null {
+export function getIsAdminFromJwt(token: string): string | null {
     try {
         // JWT format: header.payload.signature
         const payloadBase64 = token.split(".")[1];
@@ -83,7 +83,7 @@ function getIsAdminFromJwt(token: string): string | null {
  * from the payload. The expiration time is typically in seconds since Unix epoch.
  * If any step fails, it returns 0 as a fallback.
  */
-function getExpireTimesamp(token: string): number | null {
+export function getExpireTimesamp(token: string): number | null {
     try {
         // JWT format: header.payload.signature
         const payloadBase64 = token.split(".")[1];
@@ -113,7 +113,7 @@ function getExpireTimesamp(token: string): number | null {
  * all this information in the browser's localStorage under the key "ainari_authContext".
  * The torii_base_address is derived from the torii_address by removing the port number.
  */
-async function createAuthContext(token: string) {
+export async function createAuthContext(token: string) {
     const { apiUrl } = getConfig();
     const miko_api = axios.create({
         baseURL: apiUrl,
@@ -170,7 +170,7 @@ async function createAuthContext(token: string) {
  * If no data is found, it returns an AuthContext object with all properties set to null.
  * If data is found, it parses the JSON and merges it with a default AuthContext object.
  */
-function getAuthContext(): AuthContext {
+export function getAuthContext(): AuthContext {
     const stored = localStorage.getItem("ainari_authContext");
 
     // Initialize with default null values and merge with stored values if they exist
@@ -189,13 +189,3 @@ function getAuthContext(): AuthContext {
 
     return authContext;
 }
-
-/**
- * Authentication module providing functions to set and get auth context
- */
-export default {
-    createAuthContext,
-    getAuthContext,
-    getIsAdminFromJwt,
-    getExpireTimesamp,
-};

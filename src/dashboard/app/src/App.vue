@@ -76,32 +76,29 @@
 import { ref, provide, onMounted, onUnmounted } from "vue";
 
 // Import all the Vue components used in the application
-import Sidebar from "./components/sidebar.vue";
-import Topbar from "./components/topbar.vue";
-import Login from "./components/login.vue";
-import Overview from "./components/overview.vue";
-import AdminUser from "./components/admin/user/user_overview.vue";
-import AdminProject from "./components/admin/project/project_overview.vue";
-import StorageCheckpoint from "./components/storage/checkpoint/checkpoint_overview.vue";
-import StorageDataset from "./components/storage/dataset/dataset_overview.vue";
-import WorkloadCluster from "./components/workload/cluster/cluster_overview.vue";
-import WorkloadTask from "./components/workload/task/task_overview.vue";
-import context from "./auth_context";
-
-// Import the authentication context module
-// import context from "./auth_context";
+import Sidebar from "@/components/sidebar.vue";
+import Topbar from "@/components/topbar.vue";
+import Login from "@/components/login.vue";
+import Overview from "@/components/overview.vue";
+import AdminUser from "@/components/admin/user/user_overview.vue";
+import AdminProject from "@/components/admin/project/project_overview.vue";
+import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
+import StorageDataset from "@/components/storage/dataset/dataset_overview.vue";
+import WorkloadCluster from "@/components/workload/cluster/cluster_overview.vue";
+import WorkloadTask from "@/components/workload/task/task_overview.vue";
+import { getAuthContext } from "@/auth_context";
 
 // Import all CSS styles for the application
-import "./styles/base.css";
-import "./styles/other.css";
-import "./styles/card.css";
-import "./styles/modal.css";
-import "./styles/dropdown.css";
-import "./styles/button.css";
-import "./styles/table.css";
-import "./styles/tab.css";
-import "./styles/devider.css";
-import "./styles/primevue_overrides.css";
+import "@/styles/base.css";
+import "@/styles/other.css";
+import "@/styles/card.css";
+import "@/styles/modal.css";
+import "@/styles/dropdown.css";
+import "@/styles/button.css";
+import "@/styles/table.css";
+import "@/styles/tab.css";
+import "@/styles/devider.css";
+import "@/styles/primevue_overrides.css";
 
 // Reactive reference to track the current active view/component
 // Defaults to "Overview" when the application loads
@@ -109,7 +106,7 @@ const currentView = ref("Overview");
 const currentId = ref<string | null>(null);
 const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
 const username = ref<string | null>(localStorage.getItem("username"));
-const isAdmin = ref<boolean>(context.getAuthContext().is_admin === "true");
+const isAdmin = ref<boolean>(getAuthContext().is_admin === "true");
 const tokenExpireError = ref<string>("");
 var expiryInterval: number | undefined;
 
@@ -198,7 +195,7 @@ function startTokenExpiryWatcher(
 
 onMounted(() => {
     if (isLoggedIn) {
-        const expire_timestamp = context.getAuthContext().expire_timestamp;
+        const expire_timestamp = getAuthContext().expire_timestamp;
 
         // In case there is no timestamp, something is wrong and you definitelly
         // has to login again.

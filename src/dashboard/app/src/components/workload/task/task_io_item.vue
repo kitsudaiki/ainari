@@ -46,7 +46,7 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -75,7 +75,7 @@ defineExpose({
 
 async function fetchDatasetColumns() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
 
         const ryokan_api = axios.create({
             baseURL: authContext.ryokan_address,

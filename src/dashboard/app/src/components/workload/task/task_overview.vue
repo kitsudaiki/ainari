@@ -88,7 +88,7 @@ import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import "primevue/resources/themes/saga-blue/theme.css";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
 import ProgressBar from "./progress_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
@@ -106,7 +106,7 @@ var torii_port = 0;
 
 async function fetchTasks() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const hanami_api = axios.create({
             baseURL: authContext.hanami_address,
         });
