@@ -60,6 +60,11 @@
             <GaugeChart :value="usedSecret" :max="maxSecret" />
         </div>
     </div>
+
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -68,8 +73,10 @@ import axios from "axios";
 
 import context from "../auth_context";
 import GaugeChart from "./gauge_chart.vue";
+import { handleAxiosError } from "../handleAxiosError";
 
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
+const errorPopupMsg = ref<string>("");
 
 const usedCluster = ref(0);
 const maxCluster = ref(1);
@@ -92,7 +99,7 @@ async function fetchClusters() {
         });
         clusters.value = response.data.clusters;
     } catch (err) {
-        console.error("Failed to load clusters", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load clusters");
     }
 }
 
@@ -112,7 +119,7 @@ async function fetchQuotas() {
         maxCheckpoint.value = response.data.max_checkpoint;
         maxSecret.value = response.data.max_secret;
     } catch (err) {
-        console.error("Failed to load quotas", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load quotas");
     }
 }
 
@@ -129,7 +136,10 @@ async function fetchUsedCluster() {
         console.log("response: ", response);
         usedCluster.value = response.data.number_of_items;
     } catch (err) {
-        console.error("Failed to load number of clusters", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "ailed to load number of clusters",
+        );
     }
 }
 
@@ -155,7 +165,10 @@ async function fetchUsedDatasetsAndCheckpoints() {
         console.log("response: ", respCheckpoint);
         usedCheckpoint.value = respCheckpoint.data.number_of_items;
     } catch (err) {
-        console.error("Failed to load number of datasets and checkpoints", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "ailed to load number of datasets and checkpoints",
+        );
     }
 }
 
@@ -172,7 +185,10 @@ async function fetchUsedSecrets() {
         console.log("response: ", response);
         usedSecret.value = response.data.number_of_items;
     } catch (err) {
-        console.error("Failed to load number of secrets", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "ailed to load number of secrets",
+        );
     }
 }
 
