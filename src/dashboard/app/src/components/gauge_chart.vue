@@ -114,6 +114,7 @@ const progressOffset = computed(() => {
 
 .gauge-progress {
     stroke: var(--color-highlight);
+    transition: stroke-dashoffset 1s ease-in-out; /* fill-animation of 1 second lenght*/
 }
 
 .gauge-label {

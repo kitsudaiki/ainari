@@ -84,18 +84,24 @@
             @cancel="cancelInfoModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 
 import UserCreateModal from "./user_create_modal.vue";
 import UserDeleteModal from "./user_delete_modal.vue";
 import UserInfoModal from "./user_info_modal.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
+const errorPopupMsg = ref<string>("");
 const users = ref<{ id: string; userName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
@@ -107,7 +113,7 @@ const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchUsers() {
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const miko_api = axios.create({
             baseURL: authContext.miko_address,
         });
@@ -117,7 +123,7 @@ async function fetchUsers() {
         });
         users.value = response.data.users;
     } catch (err) {
-        console.error("Failed to load users", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load users");
     }
 }
 

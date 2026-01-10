@@ -29,7 +29,6 @@
                         <th>UUID</th>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>State</th>
                         <th>Progress</th>
                         <th>Actions</th>
                     </tr>
@@ -39,19 +38,11 @@
                         <td>{{ task.uuid }}</td>
                         <td>{{ task.name }}</td>
                         <td>{{ task.task_type }}</td>
-                        <td>{{ task.state }}</td>
                         <td>
                             <ProgressBar
-                                :value="
-                                    parseFloat(
-                                        (
-                                            (task.current_epoch /
-                                                task.total_number_of_epochs) *
-                                            100
-                                        ).toFixed(1),
-                                    )
-                                "
-                            ></ProgressBar>
+                                :task_uuid="task.uuid"
+                                :cluster_uuid="props.id"
+                            />
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -86,35 +77,36 @@
             @cancel="cancelAddModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import "primevue/resources/themes/saga-blue/theme.css";
-import ProgressBar from "primevue/progressbar";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
+import ProgressBar from "./progress_bar.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
 const props = defineProps<{
     id: string | null;
 }>();
 
+const errorPopupMsg = ref<string>("");
 const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 var torii_port = 0;
 
-// const logArrayElements = (element, index /*, array */) => {
-//   console.log(`a[${index}] = ${element.total_number_of_epochs}`);
-// };
-
 async function fetchTasks() {
-    console.log("cluster-uuid: ", props.id);
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const hanami_api = axios.create({
             baseURL: authContext.hanami_address,
         });
@@ -139,9 +131,8 @@ async function fetchTasks() {
             },
         );
         tasks.value = task_response.data.tasks;
-        // tasks.value.forEach(logArrayElements);
     } catch (err) {
-        console.error("Failed to load tasks", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load tasks");
     }
 }
 
@@ -195,15 +186,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.overview-table td:nth-child(3) {
-    width: 10rem;
-}
-
-.overview-table td:nth-child(4) {
-    width: 10rem;
-}
-
 .overview-table td:nth-child(2) {
     width: 15rem;
+}
+.overview-table td:nth-child(3) {
+    width: 10rem;
 }
 </style>

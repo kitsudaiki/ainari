@@ -40,12 +40,18 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
+import { ref } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     project: { id: number; name: string } | null;
@@ -56,11 +62,12 @@ const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
+const errorPopupMsg = ref<string>("");
 
 async function handleAccept(project_id: string) {
     if (!project_id) return;
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const miko_api = axios.create({
             baseURL: authContext.miko_address,
         });
@@ -68,11 +75,11 @@ async function handleAccept(project_id: string) {
         await miko_api.delete(`/v1alpha/project/${project_id}/admin`, {
             headers: { Authorization: `Bearer ${authContext.token}` },
         });
-    } catch (err) {
-        console.error("Failed to delete project", err);
-    }
 
-    emit("accept");
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to delete project");
+    }
 }
 
 function cancel() {
@@ -82,7 +89,6 @@ function cancel() {
 
 <style scoped>
 .project-delete-modal {
-    height: 16rem;
-    width: 20rem;
+    width: 30rem;
 }
 </style>

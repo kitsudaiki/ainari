@@ -17,47 +17,60 @@
 <template>
     <div class="modal-overlay" @click.self="cancel">
         <div class="modal dataset-create-modal">
+            <!-- Modal topbar -->
             <div class="modal-topbar">
                 <span>Create dataset</span>
             </div>
+
+            <!-- Modal content -->
             <div class="modal-content">
-                <input
-                    v-model="form.datasetName"
-                    type="text"
-                    placeholder="Dataset-Name"
-                    required
-                />
-                <div class="tab">
-                    <button
-                        class="tablinks"
-                        :class="{ active: isSelected('csv') }"
-                        @click="selectTab('csv')"
-                    >
-                        CSV
-                    </button>
-                    <button
-                        class="tablinks"
-                        :class="{ active: isSelected('mnist') }"
-                        @click="selectTab('mnist')"
-                    >
-                        MNIST
-                    </button>
+                <div>
+                    <input
+                        v-model="form.datasetName"
+                        type="text"
+                        placeholder="Dataset-Name"
+                        :class="{ invalid_input: datasetNameError }"
+                    />
+                    <p v-if="datasetNameError" class="error-msg">
+                        Dataset-Name must be at least 4 characters
+                    </p>
                 </div>
-                <div class="dataset-tabcontent">
-                    <div v-show="selectedTab === 'csv'">
-                        <label>
-                            <input type="file" @change="onFile2Change" />
-                        </label>
+                <div>
+                    <div class="tab">
+                        <button
+                            class="tablinks"
+                            :class="{ active: isSelected('csv') }"
+                            @click="selectTab('csv')"
+                        >
+                            CSV
+                        </button>
+                        <button
+                            class="tablinks"
+                            :class="{ active: isSelected('mnist') }"
+                            @click="selectTab('mnist')"
+                        >
+                            MNIST
+                        </button>
                     </div>
-                    <div v-show="selectedTab === 'mnist'">
-                        <label>
-                            <input type="file" @change="onFile1Change" />
-                            <input type="file" @change="onFile2Change" />
-                        </label>
+                    <div class="dataset-tabcontent">
+                        <div v-show="selectedTab === 'csv'">
+                            <br />
+                            <label>
+                                <input type="file" @change="onFile2Change" />
+                            </label>
+                        </div>
+                        <div v-show="selectedTab === 'mnist'">
+                            <br />
+                            <label>
+                                <input type="file" @change="onFile1Change" />
+                                <input type="file" @change="onFile2Change" />
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Modal bottombar -->
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button class="icon-button" @click="handleAccept">
@@ -70,13 +83,18 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -86,6 +104,8 @@ const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
+const errorPopupMsg = ref<string>("");
+const datasetNameError = ref(false);
 
 const form = reactive({
     datasetName: "",
@@ -108,6 +128,11 @@ const onFile2Change = (event: Event) => {
 };
 
 async function handleAccept() {
+    datasetNameError.value = form.datasetName.length < 8;
+
+    if (datasetNameError.value) {
+        return;
+    }
     if (selectedTab.value === "mnist") {
         if (!file1.value || !file2.value) return;
 
@@ -116,7 +141,7 @@ async function handleAccept() {
         formData.append("file2", file2.value);
 
         try {
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const ryokan_api = axios.create({
                 baseURL: authContext.ryokan_address,
             });
@@ -131,9 +156,11 @@ async function handleAccept() {
                     },
                 },
             );
-            // console.log("Upload success!", response.data);
         } catch (err) {
-            console.error("Upload MNIST-file failed!", err);
+            errorPopupMsg.value = handleAxiosError(
+                err,
+                "Failed to upload MNIST-file",
+            );
         }
     }
 
@@ -144,7 +171,7 @@ async function handleAccept() {
         formData.append("file1", file1.value);
 
         try {
-            const authContext = context.getAuthContext();
+            const authContext = getAuthContext();
             const ryokan_api = axios.create({
                 baseURL: authContext.ryokan_address,
             });
@@ -159,14 +186,15 @@ async function handleAccept() {
                     },
                 },
             );
-            // console.log("Upload success!", response.data);
+
+            emit("accept");
         } catch (err) {
-            console.error("Upload CSV-file failed!", err);
+            errorPopupMsg.value = handleAxiosError(
+                err,
+                "Failed to upload CSV-file",
+            );
         }
     }
-
-    console.log("Submitting form:", form);
-    emit("accept");
 }
 
 function cancel() {
@@ -189,12 +217,15 @@ function isSelected(tab: "csv" | "mnist") {
 
 <style scoped>
 .dataset-create-modal {
-    height: 26rem;
     width: 30rem;
 }
 
 .dataset-tabcontent {
     margin-top: 0.5rem;
     height: 7rem;
+}
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

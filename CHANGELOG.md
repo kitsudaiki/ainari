@@ -8,11 +8,23 @@
 - image pull-policy can now be changed by the helm-values
 - support other namespaces thand "default"
 - support for multiple sakura instances
+- dashboard:
+    - added error-popups
+    - validation of input-fields and error-message for invalid inputs
+    - added cluster-list without actions to overview-page
+    - automatic logout in case the token is expired
 
 ### Changed
 
 - changed the image-build process for the new vagrant-test-setup
 - sakura and onsen are now statefulsets within the kubernetes setup
+- dashboard
+    - updated imports
+    - messages when api-requests failed
+    - new progress-bar for task-progress with live update of the current task progress
+    - hide admin-section in case that the user is not an admin
+    - user-logo in the right upper corner now is always white with the starting letter of the user-id
+    - gauge-charts of the overview-page now has animation
 
 ### Fixed
 

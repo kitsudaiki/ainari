@@ -21,18 +21,29 @@
                 <span>Create project</span>
             </div>
             <div class="modal-content">
-                <input
-                    v-model="form.projectId"
-                    type="text"
-                    placeholder="Project-ID"
-                    required
-                />
-                <input
-                    v-model="form.projectName"
-                    type="text"
-                    placeholder="Project-Name"
-                    required
-                />
+                <div>
+                    <input
+                        v-model="form.projectId"
+                        type="text"
+                        placeholder="Project-ID"
+                        :class="{ invalid_input: projectIdError }"
+                    />
+                    <p v-if="projectIdError" class="error-msg">
+                        Project-ID must be at least 4 characters
+                    </p>
+                </div>
+                <br />
+                <div>
+                    <input
+                        v-model="form.projectName"
+                        type="text"
+                        placeholder="Project-Name"
+                        :class="{ invalid_input: projectNameError }"
+                    />
+                    <p v-if="projectNameError" class="error-msg">
+                        Project-Name must be at least 4 characters
+                    </p>
+                </div>
             </div>
 
             <div class="modal-bottombar">
@@ -47,13 +58,18 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
 import { reactive } from "vue";
 import axios from "axios";
 
-import context from "../../../auth_context";
+import { getAuthContext } from "@/auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -64,14 +80,25 @@ const emit = defineEmits<{
     (e: "cancel"): void;
 }>();
 
+const errorPopupMsg = ref<string>("");
+const projectIdError = ref(false);
+const projectNameError = ref(false);
+
 const form = reactive({
     projectId: "",
     projectName: "",
 });
 
 async function handleAccept() {
+    projectIdError.value = form.userId.length < 4;
+    projectNameError.value = form.userName.length < 4;
+
+    if (projectIdError.value || projectNameError.value) {
+        return;
+    }
+
     try {
-        const authContext = context.getAuthContext();
+        const authContext = getAuthContext();
         const miko_api = axios.create({
             baseURL: authContext.miko_address,
         });
@@ -86,12 +113,11 @@ async function handleAccept() {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
-    } catch (err) {
-        console.error("Failed to create project", err);
-    }
 
-    console.log("Submitting form:", form);
-    emit("accept");
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to create project");
+    }
 }
 
 function cancel() {
@@ -101,7 +127,11 @@ function cancel() {
 
 <style scoped>
 .project-create-modal {
-    height: 18rem;
-    width: 20rem;
+    width: 30rem;
+}
+
+/* is not found when I put this in one of the css files. Don't know why... */
+.invalid_input {
+    border-bottom: 2px solid #ff4d4f;
 }
 </style>

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import { createApp } from "vue";
-import App from "./App.vue";
-import { loadConfig } from "./config";
+import App from "@/App.vue";
+import { loadConfig } from "@/config";
 
 async function bootstrap() {
     await loadConfig();

@@ -17,7 +17,7 @@
 <template>
     <aside>
         <nav class="sidebar" role="navigation" aria-label="Main sidebar">
-            <div v-for="menu in menus" :key="menu.name">
+            <div v-for="menu in visibleMenus" :key="menu.name">
                 <template v-if="menu.items && menu.items.length">
                     <div class="sidebar_drop">
                         <button
@@ -69,17 +69,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, nextTick, onMounted } from "vue";
+import { ref, reactive, watch, nextTick, onMounted, computed } from "vue";
 
 type MenuItem = { view: string; label: string };
 type Menu = { name: string; label: string; items?: MenuItem[] };
 
-const props = defineProps<{ activeView?: string }>();
+interface Props {
+    activeView?: string;
+    isAdmin?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    activeView: "Overview",
+    isAdmin: false,
+});
+
 const emit = defineEmits<{
     (e: "change-view", view: string, id: string): void;
 }>();
 
-// <-- Edit this to add/remove items or dropdowns -->
+const visibleMenus = computed(() =>
+    menus.value.filter(
+        (menu) => menu.name !== "Admin" || props.isAdmin === true,
+    ),
+);
+
+// Definitions of all items and subitems of the sidebar
 const menus = ref<Menu[]>([
     { name: "Overview", label: "Overview" },
     {
@@ -107,20 +122,39 @@ const menus = ref<Menu[]>([
 
 // pick first entry if no activeView is provided
 const firstEntry = menus.value[0]?.name ?? "";
+// Initialize active view with either the prop value or the first menu entry
 const activeLocal = ref(props.activeView ?? firstEntry);
+// Track which dropdowns are currently open
 const openDropdowns = reactive<Record<string, boolean>>({});
+// Store references to dropdown DOM elements
 const dropdownRefs = ref<Record<string, HTMLElement | null>>({});
+// Store calculated heights for dropdowns
 const dropdownHeights = reactive<Record<string, string>>({});
 
+/**
+ * Check if a specific dropdown is currently open
+ * @param name - The name of the dropdown to check
+ * @returns boolean indicating whether the dropdown is open
+ */
 function isOpen(name: string) {
     return !!openDropdowns[name];
 }
 
+/**
+ * Toggle the open state of a specific dropdown
+ * @param name - The name of the dropdown to toggle
+ */
 function toggleDropdown(name: string) {
     openDropdowns[name] = !openDropdowns[name];
     updateHeights();
 }
 
+/**
+ * Handle view selection and update dropdown states accordingly
+ * @param view - The view to select
+ * @param options - Optional configuration object
+ * @param options.closeDropdowns - Whether to close all dropdowns after selection
+ */
 function select(view: string, options: { closeDropdowns?: boolean } = {}) {
     activeLocal.value = view;
     const id: string = "";
@@ -145,12 +179,21 @@ function select(view: string, options: { closeDropdowns?: boolean } = {}) {
     updateHeights();
 }
 
+/**
+ * Register a dropdown reference for later height calculations
+ * @param name - The name of the dropdown
+ * @param el - The DOM element reference of the dropdown
+ */
 function registerDropdownRef(name: string, el: HTMLElement | null) {
     dropdownRefs.value[name] = el;
     if (!(name in openDropdowns)) openDropdowns[name] = false;
     nextTick(updateHeights);
 }
 
+/**
+ * Update the heights of all dropdowns based on their open state
+ * This is called after any state change that might affect dropdown visibility
+ */
 function updateHeights() {
     nextTick(() => {
         for (const name of Object.keys(dropdownRefs.value)) {
@@ -166,8 +209,9 @@ function updateHeights() {
     });
 }
 
+// Initialize component state when mounted
 onMounted(() => {
-    // initialize dropdown open state based on activeLocal
+    // Set initial dropdown open states based on the active view
     for (const menu of menus.value) {
         openDropdowns[menu.name] = !!(
             menu.items && menu.items.some((i) => i.view === activeLocal.value)
@@ -175,18 +219,13 @@ onMounted(() => {
     }
     updateHeights();
 
-    // emit the first entry if nothing was passed in
-    if (!props.activeView && firstEntry) {
-        emit("change-view", firstEntry);
-    }
-});
-
-onMounted(() => {
+    // load the overview-page after a login, even when the logout appeared on another page
     const view: string = "Overview";
     const id: string = "";
     emit("change-view", { view, id });
 });
 
+// Watch for changes to the active view and update dropdown states accordingly
 watch(activeLocal, () => {
     for (const menu of menus.value) {
         if (
@@ -199,11 +238,26 @@ watch(activeLocal, () => {
     updateHeights();
 });
 
-// keep in sync with prop updates
+// Keep the local active view in sync with the prop value
 watch(
     () => props.activeView,
     (v) => {
         if (v) activeLocal.value = v;
+    },
+);
+
+// Watch for changes to admin status and update the Admin dropdown visibility
+watch(
+    () => {
+        props.isAdmin;
+    },
+    (isAdmin) => {
+        // Remove Admin dropdown if isAdmin is false
+        if (!isAdmin) {
+            openDropdowns["Admin"] = false;
+            dropdownHeights["Admin"] = "0px";
+        }
+        updateHeights();
     },
 );
 </script>

@@ -20,7 +20,9 @@
         <h1></h1>
 
         <div class="profile-menu" @click.stop="toggleDropdown">
-            <div class="avatar" :style="{ backgroundColor: avatarColor }"></div>
+            <div class="avatar">
+                {{ avatarLetter }}
+            </div>
             <div class="topbar-dropdown" v-if="open">
                 <button @click="logout">Logout</button>
             </div>
@@ -35,11 +37,9 @@ const emit = defineEmits<{ (e: "logout"): void }>();
 const open = ref(false);
 const props = defineProps<{ username: string | null }>();
 
-const avatarColor = computed(() => {
-    if (!props.username) return "#777"; // fallback color
-    return stringToHslColor(props.username);
+const avatarLetter = computed(() => {
+    return props.username ? props.username.charAt(0).toUpperCase() : "";
 });
-
 // toggle dropdown on avatar click
 function toggleDropdown() {
     open.value = !open.value;
@@ -60,12 +60,7 @@ function handleClickOutside(event: MouseEvent) {
     }
 }
 
-// generate random avatar color
 onMounted(() => {
-    const hue = Math.floor(Math.random() * 360);
-    const lightness = 70 + Math.floor(Math.random() * 10);
-    avatarColor.value = `hsl(${hue}, 60%, ${lightness}%)`;
-
     document.addEventListener("click", handleClickOutside);
 });
 
@@ -99,7 +94,6 @@ function stringToHslColor(str: string): string {
     min-height: 150;
 
     font-size: 1.2rem;
-    font-weight: bold;
 
     display: flex;
     align-items: center;
@@ -119,7 +113,16 @@ function stringToHslColor(str: string): string {
     width: 36px;
     height: 36px;
     /* border-radius: 50%; */
-    border: 2px solid white;
+    /* border: 2px solid white; */
+    background-color: var(--color-text);
+    color: var(--color-tile);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 24px;
+    user-select: none;
 }
 
 .topbar-dropdown {

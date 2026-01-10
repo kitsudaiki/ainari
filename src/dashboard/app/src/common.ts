@@ -17,7 +17,9 @@
  * Handles various date string formats by cleaning them first to ensure JavaScript Date compatibility.
  *
  * @param input - The date string to format. Expected formats include ISO 8601 and other common date formats.
+ *
  * @returns A formatted date string in YYYY-MM-DD HH:MM:SS format.
+ *
  * @throws Error if no date string is provided or if the input string cannot be parsed as a valid date.
  */
 function formatDateTime(input?: string): string {

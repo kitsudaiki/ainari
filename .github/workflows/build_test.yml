@@ -1000,7 +1000,7 @@ jobs:
       -
         name: Install hanami
         run: |
-          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set user.id=asdf --set user.name="test user" --set user.passphrase="asdfasdf" --set token.data="this is a test-token" --set api.domain=local-hanami  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
+          helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set miko.user.id=asdf --set miko.user.name="test user" --set miko.user.passphrase="asdfasdf" --set miko.token.data="this is a test-token"  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
       -
         name: Sleep for 120 seconds
         uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
