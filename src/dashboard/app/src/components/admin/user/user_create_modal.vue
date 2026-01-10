@@ -67,6 +67,10 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -74,6 +78,7 @@ import { reactive, computed } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -92,9 +97,12 @@ const form = reactive({
     isAdmin: false,
 });
 
+const errorPopupMsg = ref<string>("");
+
 const passwordError = computed(() =>
     form.password !== form.confirmPassword ? "Passwords do not match" : "",
 );
+import { handleAxiosError } from "@/handleAxiosError";
 
 async function handleAccept() {
     if (form.password !== form.confirmPassword) {
@@ -119,12 +127,11 @@ async function handleAccept() {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
-    } catch (err) {
-        console.error("Failed to create user", err);
-    }
 
-    console.log("Submitting form:", form);
-    emit("accept");
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to create user");
+    }
 }
 
 function cancel() {

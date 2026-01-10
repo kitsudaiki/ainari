@@ -67,6 +67,10 @@
             @cancel="cancelDeleteModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -76,7 +80,9 @@ import axios from "axios";
 import context from "../../../auth_context";
 
 import CheckpointDeleteModal from "./checkpoint_delete_modal.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
+const errorPopupMsg = ref<string>("");
 const checkpoints = ref<{ uuid: string; checkpointName: string }[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
@@ -97,7 +103,10 @@ async function fetchCheckpoints() {
         });
         checkpoints.value = response.data.checkpoints;
     } catch (err) {
-        console.error("Failed to load checkpoints", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to load checkpoints",
+        );
     }
 }
 

@@ -72,6 +72,10 @@
             @cancel="cancelDeleteModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -81,15 +85,15 @@ import axios from "axios";
 import context from "../../../auth_context";
 import DatasetCreateModal from "./dataset_create_modal.vue";
 import DatasetDeleteModal from "./dataset_delete_modal.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
+const errorPopupMsg = ref<string>("");
 const datasets = ref<{ uuid: string; datasetName: string; email: string }[]>(
     [],
 );
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-
-const passwordError = ref("");
 const datasetToDelete = ref<{ uuid: string; datasetName: string } | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
@@ -105,7 +109,7 @@ async function fetchDatasets() {
         });
         datasets.value = response.data.datasets;
     } catch (err) {
-        console.error("Failed to load datasets", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load datasets");
     }
 }
 

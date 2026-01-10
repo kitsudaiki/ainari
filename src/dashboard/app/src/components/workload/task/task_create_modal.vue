@@ -151,6 +151,10 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -160,6 +164,7 @@ import axios from "axios";
 import TaskIoItem from "./task_io_item.vue";
 import TaskResultItem from "./task_result_item.vue";
 import context from "../../../auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     cluster_uuid: string;
@@ -171,6 +176,7 @@ const props = defineProps<Props>();
 const inputItems = ref<any[]>([]);
 const outputItems = ref<any[]>([]);
 const resultItems = ref<any[]>([]);
+const errorPopupMsg = ref<string>("");
 
 const emit = defineEmits<{
     (e: "accept"): void;
@@ -187,113 +193,130 @@ const form = reactive({
 });
 
 async function handleAccept(cluster_uuid: string, torii_port: number) {
-    if (selectedTab.value === "Train") {
-        console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
+    try {
+        if (selectedTab.value === "Train") {
+            console.log(
+                "selected checkpoint-uuid: ",
+                selectedCheckpointUuid.value,
+            );
 
-        const authContext = context.getAuthContext();
-        const inputs = inputItems.value.map((item) => item.getData());
-        const outputs = outputItems.value.map((item) => item.getData());
+            const authContext = context.getAuthContext();
+            const inputs = inputItems.value.map((item) => item.getData());
+            const outputs = outputItems.value.map((item) => item.getData());
 
-        // console.log("+inputs", inputs);
-        // console.log("outputs: ", outputs);
+            // console.log("+inputs", inputs);
+            // console.log("outputs: ", outputs);
 
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
+            const sakura_api = axios.create({
+                baseURL: `${authContext.torii_base_address}:${torii_port}`,
+            });
 
-        try {
-            const response = await sakura_api.post(
-                `/v1alpha/cluster/${cluster_uuid}/task/train`,
+            try {
+                const response = await sakura_api.post(
+                    `/v1alpha/cluster/${cluster_uuid}/task/train`,
+                    {
+                        name: form.taskName,
+                        number_of_epochs: 1,
+                        inputs: inputs,
+                        outputs: outputs,
+                        time_length: 1,
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${authContext.token}`,
+                        },
+                    },
+                );
+                console.log("Upload success!", response.data);
+            } catch (err) {
+                console.error("Failed to load dataset-columns", err);
+            }
+        }
+
+        if (selectedTab.value === "Request") {
+            console.log(
+                "selected checkpoint-uuid: ",
+                selectedCheckpointUuid.value,
+            );
+            const authContext = context.getAuthContext();
+
+            const inputs = inputItems.value.map((item) => item.getData());
+            const results = resultItems.value.map((item) => item.getData());
+
+            // console.log("+inputs", inputs);
+            // console.log("results: ", results);
+
+            const sakura_api = axios.create({
+                baseURL: `${authContext.torii_base_address}:${torii_port}`,
+            });
+
+            await sakura_api.post(
+                `/v1alpha/cluster/${cluster_uuid}/task/request`,
                 {
                     name: form.taskName,
-                    number_of_epochs: 1,
                     inputs: inputs,
-                    outputs: outputs,
+                    outputs: results,
                     time_length: 1,
                 },
                 {
                     headers: { Authorization: `Bearer ${authContext.token}` },
                 },
             );
-            console.log("Upload success!", response.data);
-        } catch (err) {
-            console.error("Failed to load dataset-columns", err);
+            // console.log("Upload success!", response.data);
         }
+
+        if (selectedTab.value === "Checkpoint save") {
+            console.log(
+                "selected checkpoint-uuid: ",
+                selectedCheckpointUuid.value,
+            );
+
+            const authContext = context.getAuthContext();
+
+            const sakura_api = axios.create({
+                baseURL: `${authContext.torii_base_address}:${torii_port}`,
+            });
+
+            await sakura_api.post(
+                `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_save`,
+                {
+                    name: form.taskName,
+                },
+                {
+                    headers: { Authorization: `Bearer ${authContext.token}` },
+                },
+            );
+            // console.log("Upload success!", response.data);
+        }
+
+        if (selectedTab.value === "Checkpoint restore") {
+            console.log(
+                "selected checkpoint-uuid: ",
+                selectedCheckpointUuid.value,
+            );
+            const authContext = context.getAuthContext();
+
+            const sakura_api = axios.create({
+                baseURL: `${authContext.torii_base_address}:${torii_port}`,
+            });
+
+            await sakura_api.post(
+                `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_restore`,
+                {
+                    name: form.taskName,
+                    checkpoint_uuid: selectedCheckpointUuid.value,
+                },
+                {
+                    headers: { Authorization: `Bearer ${authContext.token}` },
+                },
+            );
+            // console.log("Upload success!", response.data);
+        }
+
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to create task");
     }
-
-    if (selectedTab.value === "Request") {
-        console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
-        const authContext = context.getAuthContext();
-
-        const inputs = inputItems.value.map((item) => item.getData());
-        const results = resultItems.value.map((item) => item.getData());
-
-        // console.log("+inputs", inputs);
-        // console.log("results: ", results);
-
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
-
-        await sakura_api.post(
-            `/v1alpha/cluster/${cluster_uuid}/task/request`,
-            {
-                name: form.taskName,
-                inputs: inputs,
-                outputs: results,
-                time_length: 1,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-        // console.log("Upload success!", response.data);
-    }
-
-    if (selectedTab.value === "Checkpoint save") {
-        console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
-
-        const authContext = context.getAuthContext();
-
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
-
-        await sakura_api.post(
-            `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_save`,
-            {
-                name: form.taskName,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-        // console.log("Upload success!", response.data);
-    }
-
-    if (selectedTab.value === "Checkpoint restore") {
-        console.log("selected checkpoint-uuid: ", selectedCheckpointUuid.value);
-        const authContext = context.getAuthContext();
-
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
-
-        await sakura_api.post(
-            `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_restore`,
-            {
-                name: form.taskName,
-                checkpoint_uuid: selectedCheckpointUuid.value,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-        // console.log("Upload success!", response.data);
-    }
-
-    console.log("Submitting form:", form);
-    emit("accept");
 }
 
 function cancel() {

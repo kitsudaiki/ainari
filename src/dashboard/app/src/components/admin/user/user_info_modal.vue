@@ -77,6 +77,10 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -85,8 +89,10 @@ import axios from "axios";
 
 import context from "../../../auth_context";
 import common from "../../../common";
+import { handleAxiosError } from "@/handleAxiosError";
 
 const user_info = ref<{}[]>([]);
+const errorPopupMsg = ref<string>("");
 
 interface Props {
     user: { id: number; name: string } | null;
@@ -116,7 +122,7 @@ async function fetchUserInfo(userId: string) {
             user_info.value.updated_at,
         );
     } catch (err) {
-        console.error("Failed to load user-info", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load user-info");
     }
 }
 

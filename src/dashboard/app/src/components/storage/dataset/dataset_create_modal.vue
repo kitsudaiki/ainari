@@ -70,6 +70,10 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
@@ -77,6 +81,7 @@ import { ref, reactive } from "vue";
 import axios from "axios";
 
 import context from "../../../auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -86,6 +91,7 @@ const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
+const errorPopupMsg = ref<string>("");
 
 const form = reactive({
     datasetName: "",
@@ -131,9 +137,11 @@ async function handleAccept() {
                     },
                 },
             );
-            // console.log("Upload success!", response.data);
         } catch (err) {
-            console.error("Upload MNIST-file failed!", err);
+            errorPopupMsg.value = handleAxiosError(
+                err,
+                "Failed to upload MNIST-file",
+            );
         }
     }
 
@@ -159,14 +167,15 @@ async function handleAccept() {
                     },
                 },
             );
-            // console.log("Upload success!", response.data);
+
+            emit("accept");
         } catch (err) {
-            console.error("Upload CSV-file failed!", err);
+            errorPopupMsg.value = handleAxiosError(
+                err,
+                "Failed to upload CSV-file",
+            );
         }
     }
-
-    console.log("Submitting form:", form);
-    emit("accept");
 }
 
 function cancel() {

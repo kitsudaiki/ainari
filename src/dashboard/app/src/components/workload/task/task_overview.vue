@@ -77,6 +77,10 @@
             @cancel="cancelAddModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -87,11 +91,13 @@ import axios from "axios";
 import context from "../../../auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
 import ProgressBar from "./progress_bar.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
 const props = defineProps<{
     id: string | null;
 }>();
 
+const errorPopupMsg = ref<string>("");
 const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
 const openDropdown = ref<string | null>(null);
@@ -103,7 +109,6 @@ var torii_port = 0;
 // };
 
 async function fetchTasks() {
-    console.log("cluster-uuid: ", props.id);
     try {
         const authContext = context.getAuthContext();
         const hanami_api = axios.create({
@@ -130,9 +135,8 @@ async function fetchTasks() {
             },
         );
         tasks.value = task_response.data.tasks;
-        // tasks.value.forEach(logArrayElements);
     } catch (err) {
-        console.error("Failed to load tasks", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load tasks");
     }
 }
 

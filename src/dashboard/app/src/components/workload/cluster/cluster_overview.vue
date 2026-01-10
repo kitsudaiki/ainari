@@ -77,6 +77,10 @@
             @cancel="cancelDeleteModal"
         />
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -86,7 +90,9 @@ import axios from "axios";
 import context from "../../../auth_context";
 import ClusterCreateModal from "./cluster_create_modal.vue";
 import ClusterDeleteModal from "./cluster_delete_modal.vue";
+import { handleAxiosError } from "@/handleAxiosError";
 
+const errorPopupMsg = ref<string>("");
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
@@ -116,7 +122,7 @@ async function fetchClusters() {
         });
         clusters.value = response.data.clusters;
     } catch (err) {
-        console.error("Failed to load clusters", err);
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load clusters");
     }
 }
 

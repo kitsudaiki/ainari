@@ -40,12 +40,17 @@
             </div>
         </div>
     </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
 </template>
 
 <script lang="ts" setup>
 import axios from "axios";
 
 import context from "../../../auth_context";
+import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     checkpoint: { uuid: string; name: string } | null;
@@ -56,6 +61,7 @@ const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
+const errorPopupMsg = ref<string>("");
 
 async function handleAccept(checkpoint_uuid: string) {
     if (!checkpoint_uuid) return;
@@ -68,11 +74,13 @@ async function handleAccept(checkpoint_uuid: string) {
         await ryokan_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
             headers: { Authorization: `Bearer ${authContext.token}` },
         });
+        emit("accept");
     } catch (err) {
-        console.error("Failed to delete checkpoint", err);
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to delete checkpoint",
+        );
     }
-
-    emit("accept");
 }
 
 function cancel() {
