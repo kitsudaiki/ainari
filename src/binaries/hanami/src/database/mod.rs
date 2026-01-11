@@ -16,10 +16,6 @@ pub mod db_handle;
 pub mod host_table;
 pub mod meta_cluster_table;
 
-use std::io;
-
-use ainari_common::enums;
-
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize host-table
     match host_table::init_host_table() {
@@ -38,23 +34,6 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e);
         }
     };
-
-    // clear all host from the database. This is necessary, because after a restart,
-    // all host are broken and so the database doesn't match the real world.
-    // To "fix" this issue, all host have to be removed from the database as well.
-    match host_table::delete_all_host() {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            let msg = "Error while deleting all host from DB".to_string();
-            log::error!("{msg}");
-            let error = io::Error::other(msg);
-            return Err(Box::new(error));
-        }
-        Err(enums::DbError::NotFound) => {
-            let error = io::Error::other("".to_string());
-            return Err(Box::new(error));
-        }
-    }
 
     Ok(())
 }

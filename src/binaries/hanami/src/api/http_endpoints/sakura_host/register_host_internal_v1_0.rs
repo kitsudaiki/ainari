@@ -20,6 +20,7 @@ use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
+use crate::database::meta_cluster_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -42,7 +43,7 @@ pub async fn register_host_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let host_uuid = Uuid::new_v4();
+    let mut host_uuid = Uuid::new_v4();
 
     // check registration key
     let conf_registration_key = &config::SAKURA_REGISTRATION_KEY.clone();
@@ -52,13 +53,29 @@ pub async fn register_host_internal(
         ));
     }
 
-    // add new host to database
-    host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context).map_err(
-        |e| {
-            log::error!("Failed to add host with UUID '{host_uuid}' to database with error: {e}.");
-            ErrorResponse::InternalError("Internal Error".to_string())
-        },
-    )?;
+    match host_table::get_host_by_address(&body.host_address, &context) {
+        Ok(host_data) => {
+            host_uuid = convert_uuid(&host_data.uuid)?;
+        }
+        Err(_) => {
+            // add new host to database if address not already exist
+            host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context)
+                .map_err(|e| {
+                    log::error!(
+                        "Failed to add host with UUID '{host_uuid}' to database with error: {e}."
+                    );
+                    ErrorResponse::InternalError("Internal Error".to_string())
+                })?;
+        }
+    };
+
+    // delete all cluster in the meta-table too, which are marked by the new host as deleted
+    for uuid in &body.deleted_uuids.list {
+        // if the deletion failed, it is most likely because the uuid is already deleted in hanami
+        // because of this, we ignore the response from the database at the moment
+        // TODO: handle response to filter the case that the uuid is already deleted
+        let _ = meta_cluster_table::force_delete_meta_cluster(uuid);
+    }
 
     // get new created host from database to get addtional information
     let host_data = host_table::get_host(&host_uuid, &context)

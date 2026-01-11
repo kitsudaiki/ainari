@@ -1027,8 +1027,6 @@ jobs:
           echo "$ingress_ip_ryokan  local-ryokan" | sudo tee -a /etc/hosts
           ingress_ip_torii=$(kubectl get ingress torii-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_torii  local-torii" | sudo tee -a /etc/hosts
-          ingress_ip_sakura=$(kubectl get ingress sakura-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "$ingress_ip_sakura  local-sakura" | sudo tee -a /etc/hosts
           ingress_ip_omamori=$(kubectl get ingress omamori-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "$ingress_ip_omamori  local-omamori" | sudo tee -a /etc/hosts
           cat /etc/hosts

@@ -25,6 +25,7 @@ pub async fn register_sakura_host(
     internal_api_key: &Secret,
     name: &str,
     sakura_address: &str,
+    deleted_uuids: UuidList,
     registration_key: &Secret,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
@@ -35,6 +36,7 @@ pub async fn register_sakura_host(
     let body = HostCreateReq {
         name: name.to_owned(),
         host_address: sakura_address.to_owned(),
+        deleted_uuids,
         registration_key: Secret::from(registration_key.reveal()),
     };
     let json_str = serde_json::to_string(&body).unwrap();
@@ -54,17 +56,19 @@ pub async fn register_onsen_host(
     ryokan_endpoint: &ainari_config::Endpoint,
     internal_api_key: &Secret,
     name: &str,
-    sakura_address: &str,
+    onsen_address: &str,
     registration_key: &Secret,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/host/internal");
+    let empty_default_uuid_list = UuidList::default();
 
     let body = HostCreateReq {
         name: name.to_owned(),
-        host_address: sakura_address.to_owned(),
+        host_address: onsen_address.to_owned(),
+        deleted_uuids: empty_default_uuid_list,
         registration_key: Secret::from(registration_key.reveal()),
     };
     let json_str = serde_json::to_string(&body).unwrap();
