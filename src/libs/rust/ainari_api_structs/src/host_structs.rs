@@ -26,8 +26,14 @@ pub struct HostCreateReq {
     pub name: String,
     #[validate(length(min = 4, max = 127))]
     pub host_address: String,
+    pub deleted_uuids: UuidList,
     #[validate(length(min = 4, max = 127))]
     pub registration_key: Secret,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Default)]
+pub struct UuidList {
+    pub list: Vec<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

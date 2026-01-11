@@ -29,6 +29,8 @@
 ### Fixed
 
 - fixed broken version-output of the pre-build docker images
+- restart of hanami and sakura instance in regard of the cluster was now fixed to avoid broken cluster and hosts after restart
+- restarts of the same sakura-host doesn't result in duplications in hanami anymore
 
 
 ## v0.10.0

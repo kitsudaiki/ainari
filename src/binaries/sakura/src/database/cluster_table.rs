@@ -172,6 +172,15 @@ pub fn get_cluster(
     }
 }
 
+pub fn list_deleted_clusters() -> QueryResult<Vec<ClusterEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::clusters::dsl::*;
+
+    let query = clusters.filter(status.eq("DELETED")).into_boxed();
+
+    query.select(ClusterEntry::as_select()).load(&mut *conn)
+}
+
 pub fn list_clusters(context: &UserContext) -> QueryResult<Vec<ClusterEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::clusters::dsl::*;

@@ -17,7 +17,10 @@ use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
 use crate::config;
+use crate::database::cluster_table;
 
+use ainari_api::common_functions::convert_uuid;
+use ainari_api_structs::host_structs::UuidList;
 use ainari_clients::endpoints::*;
 use ainari_clients::host::register_sakura_host;
 use ainari_common::error::AinariError;
@@ -46,12 +49,34 @@ pub fn register_host() -> Result<(), AinariError> {
 
     log::debug!("read host-name: {host_name}");
 
+    let deleted_clusters = match cluster_table::list_deleted_clusters() {
+        Ok(clusters) => clusters,
+        Err(e) => {
+            log::error!("Failed to get list of clusters form database: '{e}'");
+            return Err(AinariError::Error("Internal Error".to_string()));
+        }
+    };
+
+    let mut resp = UuidList { list: Vec::new() };
+
+    for cluster in deleted_clusters {
+        let uuid = match convert_uuid(&cluster.uuid) {
+            Ok(uuid) => uuid,
+            Err(e) => {
+                log::error!("Failed to convert UUID: '{e}'");
+                return Err(AinariError::Error("Internal Error".to_string()));
+            }
+        };
+        resp.list.push(uuid);
+    }
+
     local.block_on(&rt, async {
         register_sakura_host(
             &endpoints.hanami,
             &config::INTERNAL_API_KEY,
             &host_name,
             &config::CONFIG.address,
+            resp,
             &config::SAKURA_REGISTRATION_KEY,
             config::CONFIG.skip_tls_verification,
         )

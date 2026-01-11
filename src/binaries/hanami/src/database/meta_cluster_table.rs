@@ -176,6 +176,26 @@ pub fn count_meta_clusters(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+pub fn force_delete_meta_cluster(meta_cluster_uuid: &Uuid) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_clusters::dsl::*;
+    match diesel::update(meta_clusters.filter(uuid.eq(meta_cluster_uuid.to_string())))
+        .set((
+            status.eq("DELETED"),
+            deleted_at.eq(Utc::now().to_rfc3339()),
+            deleted_by.eq("HOST_INIT"),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 pub fn delete_meta_cluster(
     meta_cluster_uuid: &Uuid,
     context: &UserContext,

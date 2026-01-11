@@ -102,6 +102,30 @@ pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
     diesel::insert_into(hosts).values(host).execute(&mut *conn)
 }
 
+pub fn get_host_by_address(
+    host_address: &String,
+    _: &UserContext,
+) -> Result<HostEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let query = hosts
+        .filter(name.eq(host_address.to_string()).and(status.eq("ACTIVE")))
+        .into_boxed();
+
+    match query
+        .select(HostEntry::as_select())
+        .first::<HostEntry>(&mut *conn)
+    {
+        Ok(host) => Ok(host),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
@@ -154,6 +178,7 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
+#[allow(dead_code)]
 pub fn delete_all_host() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
