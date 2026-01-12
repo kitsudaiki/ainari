@@ -13,6 +13,7 @@
     - validation of input-fields and error-message for invalid inputs
     - added cluster-list without actions to overview-page
     - automatic logout in case the token is expired
+    - quota-management was added to the admin-section of the dashboard
 
 ### Changed
 

@@ -127,9 +127,7 @@ function createApiClient(baseURL: string | null) {
  */
 async function fetchClusters() {
     try {
-        const hanamiApi = createApiClient(
-            getAuthContext().hanami_address,
-        );
+        const hanamiApi = createApiClient(getAuthContext().hanami_address);
         const response = await hanamiApi.get("/v1alpha/cluster");
         clusters.value = response.data.clusters;
     } catch (err) {
@@ -159,9 +157,7 @@ async function fetchQuotas() {
  */
 async function fetchUsedCluster() {
     try {
-        const hanamiApi = createApiClient(
-            getAuthContext().hanami_address,
-        );
+        const hanamiApi = createApiClient(getAuthContext().hanami_address);
         const response = await hanamiApi.get("/v1alpha/cluster/count");
         quotaMetrics.clusters.used = response.data.number_of_items;
     } catch (err) {
@@ -177,9 +173,7 @@ async function fetchUsedCluster() {
  */
 async function fetchUsedDatasetsAndCheckpoints() {
     try {
-        const ryokanApi = createApiClient(
-            getAuthContext().ryokan_address,
-        );
+        const ryokanApi = createApiClient(getAuthContext().ryokan_address);
 
         // Fetch dataset number
         const respDataset = await ryokanApi.get("/v1alpha/dataset/count");
@@ -201,9 +195,7 @@ async function fetchUsedDatasetsAndCheckpoints() {
  */
 async function fetchUsedSecrets() {
     try {
-        const omamoriApi = createApiClient(
-            getAuthContext().omamori_address,
-        );
+        const omamoriApi = createApiClient(getAuthContext().omamori_address);
         const response = await omamoriApi.get("/v1alpha/secret/count");
         quotaMetrics.secrets.used = response.data.number_of_items;
     } catch (err) {

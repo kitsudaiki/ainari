@@ -65,7 +65,11 @@
 import { ref } from "vue";
 import axios from "axios";
 
-import { createAuthContext, getIsAdminFromJwt, getExpireTimesamp } from "@/auth_context";
+import {
+    createAuthContext,
+    getIsAdminFromJwt,
+    getExpireTimesamp,
+} from "@/auth_context";
 import { getConfig } from "@/config";
 
 // Define custom events that this component can emit
