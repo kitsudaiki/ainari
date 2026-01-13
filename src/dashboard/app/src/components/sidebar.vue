@@ -116,6 +116,7 @@ const menus = ref<Menu[]>([
         items: [
             { view: "AdminUser", label: "User" },
             { view: "AdminProject", label: "Project" },
+            { view: "AdminQuota", label: "Quota" },
         ],
     },
 ]);

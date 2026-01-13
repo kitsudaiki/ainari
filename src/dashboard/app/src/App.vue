@@ -82,6 +82,7 @@ import Login from "@/components/login.vue";
 import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
+import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
 import StorageDataset from "@/components/storage/dataset/dataset_overview.vue";
 import WorkloadCluster from "@/components/workload/cluster/cluster_overview.vue";
@@ -116,6 +117,7 @@ const components = {
     Overview,
     AdminUser,
     AdminProject,
+    AdminQuota,
     StorageCheckpoint,
     StorageDataset,
     WorkloadCluster,

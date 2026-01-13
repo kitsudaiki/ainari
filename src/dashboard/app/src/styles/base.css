@@ -95,6 +95,29 @@ input[type="text"] {
     border-bottom: 1px solid var(--color-text-light);
     padding: 8px;
     width: 100%;
+    font-size: var(--text-font-size);
+}
+
+input[type="number"] {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-text-light);
+    padding: 8px;
+    width: 100%;
+    font-size: var(--text-font-size);
+
+    /* Remove default number input styling */
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Remove arrows in Chrome, Edge, Safari */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 input[type="checkbox"] {
