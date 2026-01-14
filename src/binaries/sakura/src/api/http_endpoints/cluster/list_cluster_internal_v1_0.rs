@@ -49,6 +49,7 @@ pub async fn list_cluster_internal(
         let obj = ClusterBasicResp {
             uuid,
             name: cluster.name,
+            proxy_port: 0,
         };
 
         resp.clusters.push(obj);

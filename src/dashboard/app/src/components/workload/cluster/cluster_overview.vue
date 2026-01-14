@@ -26,6 +26,7 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
+                        <th>Adress</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -33,6 +34,7 @@
                     <tr v-for="cluster in clusters" :key="cluster.uuid">
                         <td>{{ cluster.uuid }}</td>
                         <td>{{ cluster.name }}</td>
+                        <td>{{torii_base_address}}:{{ cluster.proxy_port }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
@@ -94,6 +96,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
+const torii_base_address = ref<string>("");
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
@@ -113,6 +116,8 @@ function switchToTasks(cluster_uuid: string) {
 async function fetchClusters() {
     try {
         const authContext = getAuthContext();
+        torii_base_address.value = authContext.torii_base_address;
+
         const hanami_api = axios.create({
             baseURL: authContext.hanami_address,
         });
@@ -193,3 +198,11 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+/* Columns 2 through n-1 share remaining space equally */
+th:not(:first-child):not(:last-child),
+td:not(:first-child):not(:last-child) {
+    width: 30%;
+}
+</style>

@@ -110,6 +110,7 @@ pub async fn create_cluster(
     let cluster_uuid = cluster_resp.uuid;
     meta_cluster_table::add_new_meta_cluster(
         &cluster_uuid,
+        &body.name,
         &sakura_uuid,
         &proxy_resp.uuid,
         &context,

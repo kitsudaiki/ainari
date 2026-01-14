@@ -28,6 +28,7 @@ use ainari_common::enums;
 table! {
     meta_clusters (uuid) {
         uuid -> Varchar,
+        name -> Varchar,
         sakura_host_uuid -> Varchar,
         proxy_uuid -> Varchar,
         owner_id -> Varchar,
@@ -46,6 +47,7 @@ table! {
 #[diesel(table_name = meta_clusters)]
 pub struct MetaClusterEntry {
     pub uuid: String,
+    pub name: String,
     pub sakura_host_uuid: String,
     pub proxy_uuid: String,
     pub owner_id: String,
@@ -64,6 +66,7 @@ pub fn init_meta_cluster_table() -> Result<(), Box<dyn Error>> {
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS meta_clusters (
         uuid VARCHAR(40) PRIMARY KEY,
+        name VARCHAR(256),
         sakura_host_uuid VARCHAR(40),
         proxy_uuid VARCHAR(40),
         owner_id VARCHAR(256),
@@ -83,12 +86,14 @@ pub fn init_meta_cluster_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_meta_cluster(
     meta_cluster_uuid: &Uuid,
+    cluster_name: &str,
     sakura_host_uuid: &Uuid,
     proxy_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let meta_cluster = MetaClusterEntry {
         uuid: meta_cluster_uuid.to_string().clone(),
+        name: cluster_name.to_string().clone(),
         sakura_host_uuid: sakura_host_uuid.to_string().clone(),
         proxy_uuid: proxy_uuid.to_string().clone(),
         owner_id: context.user_id.clone(),
@@ -259,6 +264,7 @@ mod tests {
     fn test_add_get_meta_cluster() {
         let _ = init_meta_cluster_table();
         let uuid1 = Uuid::new_v4();
+        let name = "test-cluster".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -274,6 +280,7 @@ mod tests {
 
         let meta_cluster = MetaClusterEntry {
             uuid: uuid1.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -320,6 +327,7 @@ mod tests {
         let _ = init_meta_cluster_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
+        let name = "test-cluster".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -335,6 +343,7 @@ mod tests {
 
         let meta_cluster1 = MetaClusterEntry {
             uuid: uuid1.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -350,6 +359,7 @@ mod tests {
 
         let meta_cluster2 = MetaClusterEntry {
             uuid: uuid2.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -379,6 +389,7 @@ mod tests {
     fn test_delete_meta_cluster() {
         let _ = init_meta_cluster_table();
         let uuid1 = Uuid::new_v4();
+        let name = "test-cluster".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -394,6 +405,7 @@ mod tests {
 
         let meta_cluster = MetaClusterEntry {
             uuid: uuid1.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -422,6 +434,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let name = "test-cluster".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -437,6 +450,7 @@ mod tests {
 
         let meta_cluster1 = MetaClusterEntry {
             uuid: uuid1.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -452,6 +466,7 @@ mod tests {
 
         let meta_cluster2 = MetaClusterEntry {
             uuid: uuid2.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -467,6 +482,7 @@ mod tests {
 
         let meta_cluster3 = MetaClusterEntry {
             uuid: uuid3.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: owner_id.clone(),
@@ -503,11 +519,13 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let name = "test-cluster".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
         let meta_cluster1 = MetaClusterEntry {
             uuid: uuid1.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-42".to_string(),
@@ -523,6 +541,7 @@ mod tests {
 
         let meta_cluster2 = MetaClusterEntry {
             uuid: uuid2.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-43".to_string(),
@@ -538,6 +557,7 @@ mod tests {
 
         let meta_cluster3 = MetaClusterEntry {
             uuid: uuid3.to_string(),
+            name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
             proxy_uuid: proxy_uuid1.to_string(),
             owner_id: "test-user-44".to_string(),

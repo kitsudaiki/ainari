@@ -45,6 +45,7 @@ pub struct ClusterResp {
 pub struct ClusterBasicResp {
     pub uuid: Uuid,
     pub name: String,
+    pub proxy_port: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

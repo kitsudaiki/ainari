@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### BREAKING-CHANGES
+
+#### Database-Breaking
+
+- in the meta-cluster table of hanami the name of the cluster is now also stored
+
 ### Added
 
 - Vagrantfile with ansible playbook to deploy multiple virtual machines with a kubernestes with fully deployed ainari-setup and sdk-api-test
