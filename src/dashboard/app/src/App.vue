@@ -17,10 +17,10 @@
 <template>
     <div class="app">
         <div class="background">
-            <img
+            <!-- <img
                 src="./assets/background_pattern.svg"
                 class="logo-icon top-left"
-            />
+            /> -->
             <img
                 src="./assets/background_pattern2.svg"
                 class="logo-icon bottom-right"

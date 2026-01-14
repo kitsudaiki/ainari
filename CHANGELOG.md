@@ -32,6 +32,7 @@
     - hide admin-section in case that the user is not an admin
     - user-logo in the right upper corner now is always white with the starting letter of the user-id
     - gauge-charts of the overview-page now has animation
+    - disabled the hexagon background pattern in the left upper corner again
 
 ### Fixed
 
