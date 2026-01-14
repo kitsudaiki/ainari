@@ -128,7 +128,7 @@ const onFile2Change = (event: Event) => {
 };
 
 async function handleAccept() {
-    datasetNameError.value = form.datasetName.length < 8;
+    datasetNameError.value = form.datasetName.length < 4;
 
     if (datasetNameError.value) {
         return;
@@ -156,6 +156,8 @@ async function handleAccept() {
                     },
                 },
             );
+
+            emit("accept");
         } catch (err) {
             errorPopupMsg.value = handleAxiosError(
                 err,

@@ -20,6 +20,8 @@
     - added cluster-list without actions to overview-page
     - automatic logout in case the token is expired
     - quota-management was added to the admin-section of the dashboard
+    - dataset list in the dashboard now prints the number of rows and columns
+    - cluster list in the dashboard now prints the cluster adress
 
 ### Changed
 

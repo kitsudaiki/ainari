@@ -22,8 +22,8 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::cluster_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::proxy as proxy_clients;
 use ainari_clients::endpoints::*;
+use ainari_clients::proxy as proxy_clients;
 
 #[api_operation(
     tag = "cluster",
@@ -34,7 +34,8 @@ use ainari_clients::endpoints::*;
 )]
 pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>, ErrorResponse> {
     // get clusters from db
-    let clusters = meta_cluster_table::list_meta_clusters(&context).map_err(|e| map_db_list_error("hosts", e))?;
+    let clusters = meta_cluster_table::list_meta_clusters(&context)
+        .map_err(|e| map_db_list_error("hosts", e))?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
@@ -43,7 +44,9 @@ pub async fn list_cluster(context: UserContext) -> Result<Json<ClusterListResp>,
         .map_err(map_ainari_error_to_api_response)?;
 
     // prepare response
-    let mut resp = ClusterListResp { clusters: Vec::new() };
+    let mut resp = ClusterListResp {
+        clusters: Vec::new(),
+    };
 
     // fill reponse
     for cluster in clusters {
