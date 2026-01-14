@@ -42,6 +42,8 @@ pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>,
         let obj = DatasetBasicResp {
             uuid,
             name: dataset.name.clone(),
+            number_of_rows: dataset.number_of_rows as u64,
+            number_of_columns: dataset.number_of_columns as u64,
         };
 
         resp.datasets.push(obj);

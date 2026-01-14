@@ -143,9 +143,9 @@ export async function createAuthContext(token: string) {
     // This is useful for constructing URLs without specifying a port
     if (authContext.torii_address) {
         const toriiParts = authContext.torii_address.split(":");
-        if (toriiParts.length > 1) {
+        if (toriiParts.length > 2) {
             // Remove the port and any path/query parameters
-            authContext.torii_base_address = toriiParts[0];
+            authContext.torii_base_address = toriiParts[0] + ":" + toriiParts[1];
         } else {
             // If there's no port, use the full address as the base
             authContext.torii_base_address = authContext.torii_address;

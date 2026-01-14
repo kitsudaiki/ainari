@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### BREAKING-CHANGES
+
+#### Database-Breaking
+
+- in the meta-cluster table of hanami the name of the cluster is now also stored
+
 ### Added
 
 - Vagrantfile with ansible playbook to deploy multiple virtual machines with a kubernestes with fully deployed ainari-setup and sdk-api-test
@@ -14,6 +20,8 @@
     - added cluster-list without actions to overview-page
     - automatic logout in case the token is expired
     - quota-management was added to the admin-section of the dashboard
+    - dataset list in the dashboard now prints the number of rows and columns
+    - cluster list in the dashboard now prints the cluster adress
 
 ### Changed
 
@@ -26,6 +34,7 @@
     - hide admin-section in case that the user is not an admin
     - user-logo in the right upper corner now is always white with the starting letter of the user-id
     - gauge-charts of the overview-page now has animation
+    - disabled the hexagon background pattern in the left upper corner again
 
 ### Fixed
 

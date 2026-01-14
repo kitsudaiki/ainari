@@ -26,6 +26,7 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
+                        <th>Adress</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -33,6 +34,7 @@
                     <tr v-for="cluster in clusters" :key="cluster.uuid">
                         <td>{{ cluster.uuid }}</td>
                         <td>{{ cluster.name }}</td>
+                        <td>{{torii_base_address}}:{{ cluster.proxy_port }}</td>
                         <td></td>
                     </tr>
                 </tbody>
@@ -89,6 +91,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 
 // Cluster management
 const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
+const torii_base_address = ref<string>("");
 
 // Error handling
 const errorPopupMsg = ref<string>("");
@@ -116,6 +119,8 @@ const quotaMetrics = reactive({
 // API client creation helper
 function createApiClient(baseURL: string | null) {
     const authContext = getAuthContext();
+    torii_base_address.value = authContext.torii_base_address;
+
     return axios.create({
         baseURL,
         headers: { Authorization: `Bearer ${authContext.token}` },
@@ -220,5 +225,10 @@ onMounted(() => {
 .usage_overview {
     display: flex;
     flex-wrap: wrap;
+}
+/* Columns 2 through n-1 share remaining space equally */
+th:not(:first-child):not(:last-child),
+td:not(:first-child):not(:last-child) {
+    width: 30%;
 }
 </style>

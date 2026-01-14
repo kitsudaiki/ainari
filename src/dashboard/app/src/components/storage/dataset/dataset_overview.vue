@@ -26,6 +26,8 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
+                        <th>Number of Rows</th>
+                        <th>Number of Columns</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -33,6 +35,8 @@
                     <tr v-for="dataset in datasets" :key="dataset.uuid">
                         <td>{{ dataset.uuid }}</td>
                         <td>{{ dataset.name }}</td>
+                        <td>{{ dataset.number_of_rows }}</td>
+                        <td>{{ dataset.number_of_columns }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
@@ -181,3 +185,11 @@ onBeforeUnmount(() => {
 
 //=============================================================================
 </script>
+
+<style scoped>
+/* Columns 2 through n-1 share remaining space equally */
+th:not(:first-child):not(:last-child),
+td:not(:first-child):not(:last-child) {
+    width: 20%;
+}
+</style>
