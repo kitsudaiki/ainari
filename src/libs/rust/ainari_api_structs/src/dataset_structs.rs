@@ -59,6 +59,8 @@ pub struct DatasetResp {
 pub struct DatasetBasicResp {
     pub uuid: Uuid,
     pub name: String,
+    pub number_of_rows: u64,
+    pub number_of_columns: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
