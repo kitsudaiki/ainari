@@ -22,7 +22,7 @@
                 <thead>
                     <tr>
                         <th>User-ID</th>
-                        <th>Max Clusters</th>
+                        <th>Max Models</th>
                         <th>Max Datasets</th>
                         <th>Max Checkpoints</th>
                         <th>Max Secrets</th>
@@ -33,7 +33,7 @@
                 <tbody>
                     <tr v-for="quota in quotas" :key="quota.user_id">
                         <td>{{ quota.user_id }}</td>
-                        <td>{{ quota.max_cluster }}</td>
+                        <td>{{ quota.max_model }}</td>
                         <td>{{ quota.max_dataset }}</td>
                         <td>{{ quota.max_checkpoint }}</td>
                         <td>{{ quota.max_secret }}</td>
@@ -90,7 +90,7 @@ const showUpdateModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const quotaToUpdate = ref<{
     user_id: string;
-    max_cluster: number;
+    max_model: number;
     max_dataset: number;
     max_checkpoint: number;
     max_secret: number;
@@ -139,7 +139,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 function openUpdateModal(quota: {
     user_id: string;
-    max_cluster: number;
+    max_model: number;
     max_dataset: number;
     max_checkpoint: number;
     max_secret: number;

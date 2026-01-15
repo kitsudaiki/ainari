@@ -20,7 +20,7 @@ use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
-use crate::database::meta_cluster_table;
+use crate::database::meta_model_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -69,12 +69,12 @@ pub async fn register_host_internal(
         }
     };
 
-    // delete all cluster in the meta-table too, which are marked by the new host as deleted
+    // delete all model in the meta-table too, which are marked by the new host as deleted
     for uuid in &body.deleted_uuids.list {
         // if the deletion failed, it is most likely because the uuid is already deleted in hanami
         // because of this, we ignore the response from the database at the moment
         // TODO: handle response to filter the case that the uuid is already deleted
-        let _ = meta_cluster_table::force_delete_meta_cluster(uuid);
+        let _ = meta_model_table::force_delete_meta_model(uuid);
     }
 
     // get new created host from database to get addtional information

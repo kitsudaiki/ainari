@@ -51,7 +51,7 @@ impl AxonData {
 pub struct AxonSection {
     pub data: AxonData,
 
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 
     pub source_hexagon_uuid: Uuid,
     pub target_hexagon_uuid: Uuid,
@@ -74,7 +74,7 @@ impl Clone for AxonSection {
         Self {
             data: self.data,
 
-            cluster_uuid: self.cluster_uuid,
+            model_uuid: self.model_uuid,
 
             source_hexagon_uuid: self.source_hexagon_uuid,
             target_hexagon_uuid: self.target_hexagon_uuid,
@@ -96,7 +96,7 @@ impl AxonSection {
     pub fn default() -> Self {
         AxonSection {
             data: AxonData::default(),
-            cluster_uuid: Uuid::nil(),
+            model_uuid: Uuid::nil(),
             source_hexagon_uuid: Uuid::nil(),
             target_hexagon_uuid: Uuid::nil(),
             source_block_uuid: Uuid::nil(),
@@ -113,7 +113,7 @@ impl AxonSection {
 impl PartialEq for AxonSection {
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data
-            && self.cluster_uuid == other.cluster_uuid
+            && self.model_uuid == other.model_uuid
             && self.source_hexagon_uuid == other.source_hexagon_uuid
             && self.target_hexagon_uuid == other.target_hexagon_uuid
             && self.source_block_uuid == other.source_block_uuid
@@ -134,7 +134,7 @@ mod tests {
     fn test_serialize_deserialize() {
         let mut original = AxonSection {
             data: AxonData::default(),
-            cluster_uuid: Uuid::new_v4(),
+            model_uuid: Uuid::new_v4(),
             source_hexagon_uuid: Uuid::new_v4(),
             target_hexagon_uuid: Uuid::new_v4(),
             source_block_uuid: Uuid::new_v4(),

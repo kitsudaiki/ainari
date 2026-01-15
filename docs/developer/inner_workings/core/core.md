@@ -17,20 +17,20 @@ Reference implementation of the core functions, which are describe by this chapt
     I'm not really creative with names. If you have some better naming ideas for the components here,
     then please open an issue and let me know your suggestion.
 
-A artificial neural network in this project is called `cluster`, which consist of multiple
+A artificial neural network in this project is called `model`, which consist of multiple
 `hexagons`:
 
-![Cluster](cluster.drawio)
+![Model](model.drawio)
 
 There are different types of hexagons: input, output and internal (hidden). At the beginning, after
-creating a new cluster, there are no neurons (nodes) or connections between the neurons defined.
-Everything is created at runtime while training the cluster. While this happens, the hexagons are
+creating a new model, there are no neurons (nodes) or connections between the neurons defined.
+Everything is created at runtime while training the model. While this happens, the hexagons are
 working like a plant trellis for the connections. The hexagon-structure was introduced as based for
 the experimental [layer-less](/inner_workings/core/core/#no-strict-layer-structure) structure.
 
 !!! info
 
-    Theoretically there are multiple input- and output-hexagons possible within a cluster at any
+    Theoretically there are multiple input- and output-hexagons possible within a model at any
     location, but this wasn't practically tested so far.
 
 There are two types of training:
@@ -105,15 +105,15 @@ In total the ratio between neuron-blocks, synapse-blocks and connection-blocks i
     The hard-coded numbers 128 and 512 were selected because of the tests on the CPU because of the
     block-sized in CUDA. Maybe they will be changed in the future again.
 
-The following shows a minimal example for a cluster with these 3 object-types:
+The following shows a minimal example for a model with these 3 object-types:
 
 ![Workflow](information_processing2.drawio)
 
 The gray boxes on the left is the input-buffer and on the right side is the output-buffer. The other
 boxes are the same synapse-, neuron- and connection-blocks like in the previous graphics. Each
-hexagon of the cluster contains a list of neuron-blocks and connection-blocks and links to the
+hexagon of the model contains a list of neuron-blocks and connection-blocks and links to the
 synapse-blocks, which are stored in a global buffer. The synapse-blocks are the bigges objects. So
-storing them within a global buffer allows it, that all clusters of all users on the host are
+storing them within a global buffer allows it, that all models of all users on the host are
 sharing the memory equaly, to optimize the memory consumption. This global buffer is also
 pre-allocated memory for more performance. The blocks are generated over time within the hexagon
 like written in the [growing-process](/inner_workings/core/core/#growing-process). Each connection
@@ -243,7 +243,7 @@ target-hexagon. In case the synapse-blocks of the target-hexagon are in total al
 certain level, a new neuron-, connection- and synapse-block is created for the hexagon.
 
 Inputs and outputs can be simply resized based on the given input. Adding them in later iterations,
-the new inputs and outputs doesn't automatically break the already trained data of the cluster,
+the new inputs and outputs doesn't automatically break the already trained data of the model,
 because they have no connections when they are added, only when they are used while training.
 
 ### Output
@@ -261,7 +261,7 @@ classical sigmoid function:
 ![Workflow](output_segment_graph.jpg)
 
 The special point here is, that these are also not connected to the neurons of the output-hexagons
-from the birth of the cluster. They connect at runtime randomly to neurons, which have a potential
+from the birth of the model. They connect at runtime randomly to neurons, which have a potential
 greater than 0. So neurons in the output-hexagon, which never have a potential greater than 0 are
 also never used by any output. Beside this there is only a limited number of connections per output
 possible. So an output-value is never connected to all neurons of the related output-hexagon.
@@ -280,7 +280,7 @@ where they can be taken by the worker-threads in order to process them. Because 
 different amounts of active synapses, the processing-time per block will differ. So by using a
 central queue instead of assigning them right from the beginning, there is an automatic
 load-balancing. A thread, which has finished his current block, takes the next one from the queue,
-until all blocks of the current hexagon are processed. All blocks of all clusters of all users are
+until all blocks of the current hexagon are processed. All blocks of all models of all users are
 using the same queue and worker-threads to optimize the load-balancing even more.
 
 To make this parallel processing possible, it is necessary that connections are always linked to
@@ -289,12 +289,12 @@ neurons within another hexagon, to avoid race-conditions.
 ## Additional features
 
 There are some even more experimental optional features, which can be enabled. They can be defined
-in the [cluster-templates](/frontend/cluster_templates/cluster_template/). There are also a few
+in the [model-templates](/frontend/model_templates/model_template/). There are also a few
 [measurement-examples](/inner_workings/measurements/measurements).
 
 ### No strict layer structure
 
-The base of a new neural network is defined by a cluster-template. In these templates the structure
+The base of a new neural network is defined by a model-template. In these templates the structure
 of the network in planed in hexagons, indeed of layer. When a node tries to create a new synapse,
 the location of the target-node depends on the location of the source-node within these hexagons.
 The target is random and the probability depends on the distance to the source. This way it is

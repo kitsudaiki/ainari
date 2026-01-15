@@ -4,9 +4,14 @@
 
 ### BREAKING-CHANGES
 
+#### API-Breaking
+
+- renamed cluster to model
+
 #### Database-Breaking
 
 - in the meta-cluster table of hanami the name of the cluster is now also stored
+- renamed cluster to model
 
 ### Added
 

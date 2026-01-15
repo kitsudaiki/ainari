@@ -18,11 +18,11 @@ use serde_big_array::BigArray;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-use ainari_cluster_parser::cluster_meta_structs::Settings;
 use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 use ainari_common::functions::*;
+use ainari_model_parser::model_meta_structs::Settings;
 
 use crate::core::processing::finish_counter::FinishCounter;
 
@@ -123,10 +123,10 @@ impl Neuron {
 pub struct CoreBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 
     pub block_io: BlockIoBuffer,
-    cluster_settings: Settings,
+    model_settings: Settings,
 
     // HINT (kitsudaiki): this has to be a Vec instead of a static array to avoid a stack-overflow, because the object is too big
     pub synapse_sections: Vec<SynapseSection>,
@@ -139,14 +139,14 @@ pub struct CoreBlock {
 }
 
 impl CoreBlock {
-    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, cluster_settings: &Settings) -> Self {
+    pub fn new(hexagon_uuid: &Uuid, model_uuid: &Uuid, model_settings: &Settings) -> Self {
         let mut block = CoreBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: *hexagon_uuid,
-            cluster_uuid: *cluster_uuid,
+            model_uuid: *model_uuid,
 
             block_io: BlockIoBuffer::default(),
-            cluster_settings: cluster_settings.clone(),
+            model_settings: model_settings.clone(),
 
             synapse_sections: Vec::new(),
             neurons: std::array::from_fn(|_| Neuron::default()),
@@ -210,14 +210,14 @@ impl CoreBlock {
             for axon in buffer.data.axons.iter_mut() {
                 neuron = &mut self.neurons[counter];
 
-                axon.potential /= self.cluster_settings.neuron_cooldown;
+                axon.potential /= self.model_settings.neuron_cooldown;
                 neuron.refractory_time >>= 1;
 
                 if neuron.refractory_time == 0 {
                     // // experimental stuff
                     // axon.potential = neuron.input.signum() * (neuron.input.abs().log2() + 1.0f32);
                     axon.potential = neuron.input;
-                    neuron.refractory_time = self.cluster_settings.refractory_time;
+                    neuron.refractory_time = self.model_settings.refractory_time;
                 }
 
                 neuron.input = 0.0f32;
@@ -561,7 +561,7 @@ impl Block for CoreBlock {
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
-            &self.cluster_uuid,
+            &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
         )?;
@@ -573,7 +573,7 @@ impl Block for CoreBlock {
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
-            &self.cluster_uuid,
+            &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
         )?;
@@ -617,8 +617,8 @@ impl Block for CoreBlock {
     fn get_hexagon_uud(&self) -> Uuid {
         self.hexagon_uuid
     }
-    fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid
+    fn get_model_uud(&self) -> Uuid {
+        self.model_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
@@ -629,8 +629,8 @@ impl Block for CoreBlock {
         ObjectType::CoreBlock
     }
 
-    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = *new_cluster_uuid;
+    fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
+        self.model_uuid = *new_model_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {

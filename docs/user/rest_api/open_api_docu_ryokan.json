@@ -50,6 +50,43 @@
         ]
       }
     },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/dataset/internal": {
       "post": {
         "tags": [
@@ -1216,11 +1253,23 @@
         "type": "object",
         "required": [
           "name",
+          "number_of_columns",
+          "number_of_rows",
           "uuid"
         ],
         "properties": {
           "name": {
             "type": "string"
+          },
+          "number_of_columns": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "number_of_rows": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
           },
           "uuid": {
             "type": "string",
@@ -1446,11 +1495,15 @@
         "title": "HostCreateReq",
         "type": "object",
         "required": [
+          "deleted_uuids",
           "host_address",
           "name",
           "registration_key"
         ],
         "properties": {
+          "deleted_uuids": {
+            "$ref": "#/components/schemas/UuidList"
+          },
           "host_address": {
             "type": "string",
             "maxLength": 127,
@@ -1526,8 +1579,35 @@
           }
         }
       },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
       "Secret": {
         "type": "string"
+      },
+      "UuidList": {
+        "type": "object",
+        "required": [
+          "list"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
       },
       "VersionResp": {
         "title": "VersionResp",

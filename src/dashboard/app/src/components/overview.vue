@@ -19,9 +19,9 @@
         <span>RESOURCE-OVERVIEW</span>
     </div>
     <div class="card">
-        <div class="card-label">Cluster</div>
+        <div class="card-label">Models</div>
         <div class="card-content">
-            <table class="overview-table" v-if="clusters.length > 0">
+            <table class="overview-table" v-if="models.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
@@ -31,10 +31,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="cluster in clusters" :key="cluster.uuid">
-                        <td>{{ cluster.uuid }}</td>
-                        <td>{{ cluster.name }}</td>
-                        <td>{{torii_base_address}}:{{ cluster.proxy_port }}</td>
+                    <tr v-for="model in models" :key="model.uuid">
+                        <td>{{ model.uuid }}</td>
+                        <td>{{ model.name }}</td>
+                        <td>{{torii_base_address}}:{{ model.proxy_port }}</td>
                         <td></td>
                     </tr>
                 </tbody>
@@ -46,10 +46,10 @@
     </div>
     <div class="usage_overview">
         <div class="card gauge-chart-card">
-            <div class="card-label">Cluster</div>
+            <div class="card-label">Models</div>
             <GaugeChart
-                :value="quotaMetrics.clusters.used"
-                :max="quotaMetrics.clusters.max"
+                :value="quotaMetrics.models.used"
+                :max="quotaMetrics.models.max"
             />
         </div>
         <div class="card gauge-chart-card">
@@ -89,8 +89,8 @@ import { getAuthContext } from "@/auth_context";
 import GaugeChart from "@/components/gauge_chart.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
-// Cluster management
-const clusters = ref<{ uuid: string; clusterName: string }[]>([]);
+// Model management
+const models = ref<{ uuid: string; modelName: string }[]>([]);
 const torii_base_address = ref<string>("");
 
 // Error handling
@@ -98,7 +98,7 @@ const errorPopupMsg = ref<string>("");
 
 // Quota tracking
 const quotaMetrics = reactive({
-    clusters: {
+    models: {
         used: ref(0),
         max: ref(1),
     },
@@ -128,15 +128,15 @@ function createApiClient(baseURL: string | null) {
 }
 
 /**
- * Fetches the list of clusters of the user from Hanami API
+ * Fetches the list of models of the user from Hanami API
  */
-async function fetchClusters() {
+async function fetchModels() {
     try {
         const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/cluster");
-        clusters.value = response.data.clusters;
+        const response = await hanamiApi.get("/v1alpha/model");
+        models.value = response.data.models;
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load clusters");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load models");
     }
 }
 
@@ -148,7 +148,7 @@ async function fetchQuotas() {
         const mikoApi = createApiClient(getAuthContext().miko_address);
         const response = await mikoApi.get("/v1alpha/quota");
 
-        quotaMetrics.clusters.max = response.data.max_cluster;
+        quotaMetrics.models.max = response.data.max_model;
         quotaMetrics.datasets.max = response.data.max_dataset;
         quotaMetrics.checkpoints.max = response.data.max_checkpoint;
         quotaMetrics.secrets.max = response.data.max_secret;
@@ -158,17 +158,17 @@ async function fetchQuotas() {
 }
 
 /**
- * Fetches the number of used clusters from Hanami API
+ * Fetches the number of used models from Hanami API
  */
-async function fetchUsedCluster() {
+async function fetchUsedModel() {
     try {
         const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/cluster/count");
-        quotaMetrics.clusters.used = response.data.number_of_items;
+        const response = await hanamiApi.get("/v1alpha/model/count");
+        quotaMetrics.models.used = response.data.number_of_items;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load number of clusters",
+            "Failed to load number of models",
         );
     }
 }
@@ -213,9 +213,9 @@ async function fetchUsedSecrets() {
 
 // Initialize all data fetching on component mount
 onMounted(() => {
-    fetchClusters();
+    fetchModels();
     fetchQuotas();
-    fetchUsedCluster();
+    fetchUsedModel();
     fetchUsedDatasetsAndCheckpoints();
     fetchUsedSecrets();
 });

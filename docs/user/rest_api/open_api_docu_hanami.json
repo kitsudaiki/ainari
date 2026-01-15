@@ -50,19 +50,56 @@
         ]
       }
     },
-    "/v1alpha/cluster": {
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/model": {
       "post": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Create new cluster",
-        "description": "Create new cluster based on a cluster-template.",
-        "operationId": "post_v1alpha-cluster-911d1facb42926ecaaf200e22e35f339",
+        "summary": "Create new model",
+        "description": "Create new model based on a model-template.",
+        "operationId": "post_v1alpha-model-d6834d23668b0943b119758597b23710",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ClusterCreateReq"
+                "$ref": "#/components/schemas/ModelCreateReq"
               }
             }
           },
@@ -74,7 +111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "ClusterResp",
+                  "title": "ModelResp",
                   "type": "object",
                   "required": [
                     "created_at",
@@ -152,18 +189,18 @@
       },
       "get": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "List cluster",
-        "description": "List basic information of all cluster from the database.",
-        "operationId": "get_v1alpha-cluster-911d1facb42926ecaaf200e22e35f339",
+        "summary": "List model",
+        "description": "List basic information of all model from the database.",
+        "operationId": "get_v1alpha-model-d6834d23668b0943b119758597b23710",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterListResp"
+                  "$ref": "#/components/schemas/ModelListResp"
                 }
               }
             }
@@ -183,14 +220,14 @@
         ]
       }
     },
-    "/v1alpha/cluster/count": {
+    "/v1alpha/model/count": {
       "get": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Get number of cluster of the user",
-        "description": "Get number of cluster of the user from the database.",
-        "operationId": "get_v1alpha-cluster-count-40054432ec62266ceb2af7a3eb83d883",
+        "summary": "Get number of model of the user",
+        "description": "Get number of model of the user from the database.",
+        "operationId": "get_v1alpha-model-count-08c01446446446eb87efe0bfdc8495f1",
         "responses": {
           "200": {
             "description": "",
@@ -223,17 +260,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}": {
+    "/v1alpha/model/{model_uuid}": {
       "get": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Get cluster",
-        "description": "Get information of a cluster from the database.",
-        "operationId": "get_v1alpha-cluster-66d1a58fab9d340847cd539f25b9ff00",
+        "summary": "Get model",
+        "description": "Get information of a model from the database.",
+        "operationId": "get_v1alpha-model-259c3173bf01fa263064729538fec4c3",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -249,7 +286,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterResp"
+                  "$ref": "#/components/schemas/ModelResp"
                 }
               }
             }
@@ -276,14 +313,14 @@
       },
       "delete": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Delete cluster",
-        "description": "Delete a cluster from the database and core.",
-        "operationId": "delete_v1alpha-cluster-66d1a58fab9d340847cd539f25b9ff00",
+        "summary": "Delete model",
+        "description": "Delete a model from the database and core.",
+        "operationId": "delete_v1alpha-model-259c3173bf01fa263064729538fec4c3",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -531,113 +568,6 @@
   },
   "components": {
     "schemas": {
-      "ClusterBasicResp": {
-        "type": "object",
-        "required": [
-          "name",
-          "uuid"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "ClusterCreateReq": {
-        "title": "ClusterCreateReq",
-        "type": "object",
-        "required": [
-          "name",
-          "template"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          },
-          "template": {
-            "type": "string",
-            "minLength": 10
-          }
-        }
-      },
-      "ClusterListResp": {
-        "title": "ClusterListResp",
-        "type": "object",
-        "required": [
-          "clusters"
-        ],
-        "properties": {
-          "clusters": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ClusterBasicResp"
-            }
-          }
-        }
-      },
-      "ClusterResp": {
-        "title": "ClusterResp",
-        "type": "object",
-        "required": [
-          "created_at",
-          "created_by",
-          "inputs",
-          "name",
-          "outputs",
-          "template",
-          "torii_port",
-          "updated_at",
-          "updated_by",
-          "uuid"
-        ],
-        "properties": {
-          "created_at": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "inputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "name": {
-            "type": "string"
-          },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "template": {
-            "type": "string"
-          },
-          "torii_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
-          },
-          "updated_at": {
-            "type": "string"
-          },
-          "updated_by": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
       "Count": {
         "title": "Count",
         "type": "object",
@@ -676,11 +606,15 @@
         "title": "HostCreateReq",
         "type": "object",
         "required": [
+          "deleted_uuids",
           "host_address",
           "name",
           "registration_key"
         ],
         "properties": {
+          "deleted_uuids": {
+            "$ref": "#/components/schemas/UuidList"
+          },
           "host_address": {
             "type": "string",
             "maxLength": 127,
@@ -756,8 +690,148 @@
           }
         }
       },
+      "ModelBasicResp": {
+        "type": "object",
+        "required": [
+          "name",
+          "proxy_port",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "proxy_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ModelCreateReq": {
+        "title": "ModelCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "template"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "template": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      },
+      "ModelListResp": {
+        "title": "ModelListResp",
+        "type": "object",
+        "required": [
+          "models"
+        ],
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelBasicResp"
+            }
+          }
+        }
+      },
+      "ModelResp": {
+        "title": "ModelResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "inputs",
+          "name",
+          "outputs",
+          "template",
+          "torii_port",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "template": {
+            "type": "string"
+          },
+          "torii_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
       "Secret": {
         "type": "string"
+      },
+      "UuidList": {
+        "type": "object",
+        "required": [
+          "list"
+        ],
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
       },
       "VersionResp": {
         "title": "VersionResp",

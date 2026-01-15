@@ -47,9 +47,9 @@ pub trait Block: Send + Sync + Debug {
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool;
     fn get_uuid(&self) -> Uuid;
     fn get_hexagon_uud(&self) -> Uuid;
-    fn get_cluster_uud(&self) -> Uuid;
+    fn get_model_uud(&self) -> Uuid;
     #[allow(dead_code)]
-    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid);
+    fn set_model_uuid(&mut self, new_model_uuid: &Uuid);
     #[allow(dead_code)]
     fn get_type(&self) -> ObjectType;
     #[allow(dead_code)]

@@ -56,17 +56,17 @@ placed in the Onsen.
 ### Sakura
 
 Sakura is the core of the project and contains the handling and processing of the artificial neural
-networks (cluster). Checkpoints created from cluster are encrypted with an auto-generated key from
+networks (model). Checkpoints created from model are encrypted with an auto-generated key from
 Omamori, before placing the data in the Onsen.
 
 !!! info
 
-    Migration of cluster between Sakura-hosts is currently not possible. Will come later.
+    Migration of model between Sakura-hosts is currently not possible. Will come later.
 
 ### Hanami
 
-Hanami manage the Sakura-hosts. Whenever a new cluster is requested by the user, this request goes
-against Hanami, which selects the Sakura-host of the new cluster and configures the Torii for the
+Hanami manage the Sakura-hosts. Whenever a new model is requested by the user, this request goes
+against Hanami, which selects the Sakura-host of the new model and configures the Torii for the
 new connection. Also list and delete networks is done by Hanami.
 
 !!! info
@@ -77,12 +77,12 @@ new connection. Also list and delete networks is done by Hanami.
 ### Torii
 
 Torii is the gateway-component. It is basically only a layer-3-proxy, which is configured by Hanami
-for each cluster. Torii creates a port for each cluster and the user can directly interact with the
-cluster of the hosted Sakura-host over this port. Torii doesn't terminate the HTTPS-connection
-between the user and the Sakura-host with the cluster, which basically provides an end-to-end
-encrypted connection for all user interactions with the cluster. Torii doesn't have a benefit at the
+for each model. Torii creates a port for each model and the user can directly interact with the
+model of the hosted Sakura-host over this port. Torii doesn't terminate the HTTPS-connection
+between the user and the Sakura-host with the model, which basically provides an end-to-end
+encrypted connection for all user interactions with the model. Torii doesn't have a benefit at the
 moment, but was already added to the setup as early as possible to avoid later problems, when
-cluster-migration was implemented in Sakura and a proxy is needed to not break user-connections.
+model-migration was implemented in Sakura and a proxy is needed to not break user-connections.
 
 !!! info
 

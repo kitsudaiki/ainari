@@ -113,8 +113,8 @@ directly with the neural network via the python-version of the SDK. See for furt
         +--------------------------------------+------------+------------+----------+------------+---------------------+
         ```
 
-- Prepare [cluster-template](/frontend/cluster_templates/cluster_template/) by writing the following
-    example into a local file names `cluster_template`
+- Prepare [model-template](/frontend/model_templates/model_template/) by writing the following
+    example into a local file names `model_template`
 
     ```
     version: 1
@@ -137,22 +137,22 @@ directly with the neural network via the python-version of the SDK. See for furt
 
     !!! info
 
-        It is planned with version v0.6.0 to make these cluster-templates optional, so they are not
+        It is planned with version v0.6.0 to make these model-templates optional, so they are not
         required for such small examples anymore.
 
-- Create cluster from the template
+- Create model from the template
 
     ```bash
-    ./ainarictl cluster create --insecure -t ./cluster_template test_cluster
+    ./ainarictl model create --insecure -t ./model_template test_model
     ```
 
     !!! example
 
         ```
-        ./ainarictl cluster create --insecure -t ./cluster_template test_cluster
+        ./ainarictl model create --insecure -t ./model_template test_model
         +------------+--------------------------------------+
         | UUID       | c495c0dd-2b4e-4a95-b533-fb9eb19c4ce4 |
-        | NAME       | test_cluster                         |
+        | NAME       | test_model                         |
         | VISIBILITY | private                              |
         | OWNER ID   | asdf                                 |
         | PROJECT ID | admin                                |
@@ -160,7 +160,7 @@ directly with the neural network via the python-version of the SDK. See for furt
         +------------+--------------------------------------+
         ```
 
-- create task to train the cluster
+- create task to train the model
 
     ```bash
     ./ainarictl task create train --insecure \
@@ -217,10 +217,10 @@ directly with the neural network via the python-version of the SDK. See for furt
 
     !!! info
 
-        With the python-SDK it is also possible to interact directly with the cluster. See
+        With the python-SDK it is also possible to interact directly with the model. See
         [direct-IO](/frontend/cli_sdk_docu/#direct-io)
 
-- create task to test the cluster
+- create task to test the model
 
     ```bash
     ./ainarictl task create request --insecure \

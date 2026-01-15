@@ -53,7 +53,7 @@ pub async fn register_proxy_internal(
         &proxy_uuid,
         free_port,
         &body.target_address,
-        &body.cluster_uuid,
+        &body.model_uuid,
         &context,
     )
     .map_err(|e| {
@@ -76,7 +76,7 @@ pub async fn register_proxy_internal(
         uuid: proxy_uuid,
         port: proxy_data.port as u16,
         target_address: proxy_data.target_address,
-        cluster_uuid: body.cluster_uuid,
+        model_uuid: body.model_uuid,
         created_by: proxy_data.created_by,
         created_at: proxy_data.created_at,
         updated_by: proxy_data.updated_by,

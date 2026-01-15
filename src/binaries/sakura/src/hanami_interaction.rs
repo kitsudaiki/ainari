@@ -17,7 +17,7 @@ use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
 use crate::config;
-use crate::database::cluster_table;
+use crate::database::model_table;
 
 use ainari_api::common_functions::convert_uuid;
 use ainari_api_structs::host_structs::UuidList;
@@ -49,18 +49,18 @@ pub fn register_host() -> Result<(), AinariError> {
 
     log::debug!("read host-name: {host_name}");
 
-    let deleted_clusters = match cluster_table::list_deleted_clusters() {
-        Ok(clusters) => clusters,
+    let deleted_models = match model_table::list_deleted_models() {
+        Ok(models) => models,
         Err(e) => {
-            log::error!("Failed to get list of clusters form database: '{e}'");
+            log::error!("Failed to get list of models form database: '{e}'");
             return Err(AinariError::Error("Internal Error".to_string()));
         }
     };
 
     let mut resp = UuidList { list: Vec::new() };
 
-    for cluster in deleted_clusters {
-        let uuid = match convert_uuid(&cluster.uuid) {
+    for model in deleted_models {
+        let uuid = match convert_uuid(&model.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert UUID: '{e}'");

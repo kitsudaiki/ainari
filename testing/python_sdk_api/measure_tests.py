@@ -17,7 +17,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from ainari_sdk import ainari_token
-from ainari_sdk import cluster
+from ainari_sdk import model
 from ainari_sdk import dataset
 from ainari_sdk import task
 import configparser
@@ -61,7 +61,7 @@ test_user_pw = config["connection"]["test_passphrase"]
 train_inputs_file = "./train.csv"
 request_inputs_file = "./test.csv"
 
-cluster_template = \
+model_template = \
     "version: 1 " \
     "settings: " \
     "    neuron_cooldown: 1000000000.0; " \
@@ -78,7 +78,7 @@ cluster_template = \
     "outputs: " \
     "    test_output: 3,2,2;"
 
-cluster_name = "test_cluster"
+model_name = "test_model"
 generic_task_name = "test_task"
 template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
@@ -88,7 +88,7 @@ token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
 
 # initial cleanup for the case of leftovers from previous run
 dataset.delete_all_datasets(token, address, False)
-cluster.delete_all_cluster(token, address, False)
+model.delete_all_model(token, address, False)
 
 # update dataset
 train_dataset_uuid = dataset.upload_csv_files(
@@ -96,7 +96,7 @@ train_dataset_uuid = dataset.upload_csv_files(
 request_dataset_uuid = dataset.upload_csv_files(
     token, address, request_dataset_name, request_inputs_file, False)["uuid"]
 
-# define relations between data and cluster
+# define relations between data and model
 train_inputs = [
     {
         "dataset_uuid": train_dataset_uuid,
@@ -128,25 +128,25 @@ request_outputs = [
 ]
 
 replicas = 5
-cluster_uuids = [""] * 10
+model_uuids = [""] * 10
 task_uuids = [""] * 10
 flattened_list = [0.0] * 1750
 
-# create all cluster
+# create all model
 for x in range(replicas):
-    cluster_uuids[x] = cluster.create_cluster(
-        token, address, cluster_name + str(x), cluster_template, False)["uuid"]
+    model_uuids[x] = model.create_model(
+        token, address, model_name + str(x), model_template, False)["uuid"]
 
 # train
 for x in range(replicas):
     print("train replica: ", x)
     print('\n')
     task_uuids[x] = task.create_train_task(
-        token, address, generic_task_name, cluster_uuids[x], train_inputs, train_outputs, 200, 20, False)["uuid"]
+        token, address, generic_task_name, model_uuids[x], train_inputs, train_outputs, 200, 20, False)["uuid"]
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(token, address, task_uuids[x], cluster_uuids[x], False)
+        result = task.get_task(token, address, task_uuids[x], model_uuids[x], False)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -180,13 +180,13 @@ for x in range(replicas):
             inputs = dict()
             inputs["test_input"] = values
 
-            output_values = cluster.request(token, address, cluster_uuids[x], inputs, output_names, False)
+            output_values = model.request(token, address, model_uuids[x], inputs, output_names, False)
             out_val = json.dumps(output_values["outputs"]["test_output"][0], indent=4)
             flattened_list[index] += float(out_val)
 
 # delete everything again
 for x in range(replicas):
-    cluster.delete_cluster(token, address, cluster_uuids[x], False)
+    model.delete_model(token, address, model_uuids[x], False)
 dataset.delete_dataset(token, address, train_dataset_uuid, False)
 
 # update result

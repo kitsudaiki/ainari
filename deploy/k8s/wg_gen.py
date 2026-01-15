@@ -7,7 +7,7 @@ each config as a Kubernetes Secret using simple kubectl commands.
 
 Requirements:
   - wg (wg genkey, wg pubkey)
-  - kubectl configured to the desired cluster/context
+  - kubectl configured to the desired model/context
   - pip install jinja2
 
 Usage:

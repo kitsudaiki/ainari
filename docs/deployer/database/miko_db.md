@@ -37,7 +37,7 @@
 | field          | type         | is primary |
 | -------------- | ------------ | ---------- |
 | id             | VARCHAR(256) | x          |
-| max_cluster    | INTEGER      |            |
+| max_model    | INTEGER      |            |
 | max_dataset    | INTEGER      |            |
 | max_checkpoint | INTEGER      |            |
 | max_secret     | INTEGER      |            |

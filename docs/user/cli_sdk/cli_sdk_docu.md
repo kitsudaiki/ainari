@@ -1097,30 +1097,30 @@ the upload. For now there is only an endpoint to request a slice of a dataset.
 
     ```
 
-## Cluster
+## Model
 
-Cluster containing the neural network.
+Model containing the neural network.
 
-### Create Cluster
+### Create Model
 
-To initialize a new cluster, a cluster-templated is used, which describes the basic structure of the
+To initialize a new model, a model-templated is used, which describes the basic structure of the
 network (see documentation of the
-[cluster-templates](https://docs.ainari.cloud/api/cluster_template/))
+[model-templates](https://docs.ainari.cloud/api/model_template/))
 
 === "CLI"
 
     ```bash
-    ainarictl cluster create -t <PATH_TO_TEMPLATE> <NAME>
+    ainarictl model create -t <PATH_TO_TEMPLATE> <NAME>
     ```
 
     example:
 
     ```bash
-    ainarictl cluster create -t ./cluster_template cli_test_cluster
+    ainarictl model create -t ./model_template cli_test_model
 
     +------------+--------------------------------------+
     | UUID       | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
-    | NAME       | cli_test_cluster                     |
+    | NAME       | cli_test_model                     |
     | VISIBILITY | private                              |
     | OWNER ID   | asdf                                 |
     | PROJECT ID | admin                                |
@@ -1131,11 +1131,11 @@ network (see documentation of the
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
-    cluster_name = "test_cluster"
-    cluster_template = \
+    model_name = "test_model"
+    model_template = \
         "version: 1\n" \
         "settings:\n" \
         "    neuron_cooldown: 10000000.0\n" \
@@ -1155,12 +1155,12 @@ network (see documentation of the
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.create_cluster(context, cluster_name, cluster_template)
+    result = model.create_model(context, model_name, model_template)
 
     # example-content of result:
     #
     # {
-    #     "name": "test_cluster",
+    #     "name": "test_model",
     #     "owner_id": "asdf",
     #     "project_id": "admin",
     #     "uuid": "d94f2b53-f404-4215-9a33-63c4a03e3202",
@@ -1168,29 +1168,29 @@ network (see documentation of the
     # }
     ```
 
-### Get Cluster
+### Get Model
 
-Get information of a specific cluster.
+Get information of a specific model.
 
 !!! info It is basically the same output like coming from the create command and contains only the
 
-data stored in the database. Information about the cluster itself, like number of neurons, amount of
+data stored in the database. Information about the model itself, like number of neurons, amount of
 used memory and so on are still missing in this output currently.
 
 === "CLI"
 
     ```bash
-    ainarictl cluster get <CLUSTER_UUID>
+    ainarictl model get <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    ainarictl cluster get 12959485-51a7-45bc-84dd-aad1c9bfd510
+    ainarictl model get 12959485-51a7-45bc-84dd-aad1c9bfd510
 
     +--------------------+--------------------------------------+
     | UUID               | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
-    | NAME               | cli_test_cluster                     |
+    | NAME               | cli_test_model                     |
     | VISIBILITY         | private                              |
     | OWNER ID           | asdf                                 |
     | NUMBER OF BLOCKS   | 3                                    |
@@ -1203,20 +1203,20 @@ used memory and so on are still missing in this output currently.
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
+    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.get_cluster(context, cluster_uuid)
+    result = model.get_model(context, model_uuid)
 
     # example-content of result:
     #
     # {
-    #     "name": "test_cluster",
+    #     "name": "test_model",
     #     "owner_id": "asdf",
     #     "project_id": "admin",
     #     "number_of_blocks": 3,
@@ -1226,39 +1226,39 @@ used memory and so on are still missing in this output currently.
     # }
     ```
 
-### List Cluster
+### List Model
 
-List all visible cluster.
+List all visible model.
 
 === "CLI"
 
     ```bash
-    ainarictl cluster list
+    ainarictl model list
     ```
 
     example:
 
     ```bash
-    ainarictl cluster list
+    ainarictl model list
 
     +--------------------------------------+------------------+------------+----------+------------+---------------------+
     |                 UUID                 |       NAME       | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
     +--------------------------------------+------------------+------------+----------+------------+---------------------+
-    | 12959485-51a7-45bc-84dd-aad1c9bfd510 | cli_test_cluster | private    | asdf     | admin      | 2024-07-13 21:45:56 |
+    | 12959485-51a7-45bc-84dd-aad1c9bfd510 | cli_test_model | private    | asdf     | admin      | 2024-07-13 21:45:56 |
     +--------------------------------------+------------------+------------+----------+------------+---------------------+
     ```
 
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.list_clusters(token, address)
+    result = model.list_models(token, address)
 
     # example-content of result:
     #
@@ -1269,7 +1269,7 @@ List all visible cluster.
     #             "admin",
     #             "asdf",
     #             "private",
-    #             "test_cluster"
+    #             "test_model"
     #         ]
     #     ],
     #     "header": [
@@ -1282,41 +1282,41 @@ List all visible cluster.
     # }
     ```
 
-### Delete Cluster
+### Delete Model
 
-Delete a cluster from a backend.
+Delete a model from a backend.
 
 === "CLI"
 
     ```bash
-    ainarictl cluster delete <CLUSTER_UUID>
+    ainarictl model delete <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    ainarictl cluster delete 12959485-51a7-45bc-84dd-aad1c9bfd510
+    ainarictl model delete 12959485-51a7-45bc-84dd-aad1c9bfd510
 
-    successfully deleted cluster '12959485-51a7-45bc-84dd-aad1c9bfd510'
+    successfully deleted model '12959485-51a7-45bc-84dd-aad1c9bfd510'
     ```
 
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
+    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    cluster.delete_cluster(context, cluster_uuid)
+    model.delete_model(context, model_uuid)
     ```
 
-### Delete all Cluster
+### Delete all Model
 
-Delete all cluster.
+Delete all model.
 
 === "CLI"
 
@@ -1325,30 +1325,30 @@ Delete all cluster.
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    cluster.delete_all_cluster(token, address)
+    model.delete_all_model(token, address)
     ```
 
-### Create Checkpoint of Cluster
+### Create Checkpoint of Model
 
-Save the state of the cluster by creating a checkpoint, which is stored on the server.
+Save the state of the model by creating a checkpoint, which is stored on the server.
 
 === "CLI"
 
     ```bash
-    ainarictl cluster save -n <NAME> <CLUSTER_UUID>
+    ainarictl model save -n <NAME> <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    ainarictl cluster save -n cli_test_checkpoint d28d72f0-f95f-42bd-b14d-b7e12d3b9d82
+    ainarictl model save -n cli_test_checkpoint d28d72f0-f95f-42bd-b14d-b7e12d3b9d82
 
     +------------+--------------------------------------+
     | UUID       | d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 |
@@ -1359,7 +1359,7 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
     checkpoint_name = "test_checkpoint"
@@ -1367,7 +1367,7 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.save_cluster(context, checkpoint_name, cluster_uuid)
+    result = model.save_model(context, checkpoint_name, model_uuid)
 
     # example-content of result:
     #
@@ -1377,20 +1377,20 @@ Save the state of the cluster by creating a checkpoint, which is stored on the s
     # }
     ```
 
-### Restore Checkpoint of Cluster
+### Restore Checkpoint of Model
 
-Reset a cluster to the state, which is stored in a specific checkpoint.
+Reset a model to the state, which is stored in a specific checkpoint.
 
 === "CLI"
 
     ```bash
-    ainarictl cluster restore -c <CHECKPOINT_UUID> <CLUSTER_UUID>
+    ainarictl model restore -c <CHECKPOINT_UUID> <CLUSTER_UUID>
     ```
 
     example:
 
     ```bash
-    ainarictl cluster restore -c d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 cc6120c7-cc31-4f17-baee-c6c606f00512
+    ainarictl model restore -c d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 cc6120c7-cc31-4f17-baee-c6c606f00512
 
     +------------+--------------------------------------+
     | UUID       | 6e7a911e-5f81-4ffb-9de0-2b6717b1be52 |
@@ -1400,16 +1400,16 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
     checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
-    cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
+    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.restore_cluster(context, checkpoint_uuid, cluster_uuid)
+    result = model.restore_model(context, checkpoint_uuid, model_uuid)
 
     # example-content of result:
     #
@@ -1420,7 +1420,7 @@ Reset a cluster to the state, which is stored in a specific checkpoint.
 
 ### Switch Host
 
-Each CPU and GPU is handled as its logical host. Cluster and be moved between them. To list
+Each CPU and GPU is handled as its logical host. Model and be moved between them. To list
 avaialble hosts there is the
 [list-hosts endpoint](https://docs.ainari.cloud/api/sdk_library/#list-hosts).
 
@@ -1436,21 +1436,21 @@ avaialble hosts there is the
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import cluster
+    from ainari_sdk import model
 
     address = "http://127.0.0.1:11417"
     host_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
-    cluster_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
+    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = cluster.switch_host(context, cluster_uuid, host_uuid)
+    result = model.switch_host(context, model_uuid, host_uuid)
 
     # example-content of result:
     #
     # {
-    #     "name": "test_cluster",
+    #     "name": "test_model",
     #     "owner_id": "asdf",
     #     "project_id": "admin",
     #     "uuid": "d94f2b53-f404-4215-9a33-63c4a03e3202",
@@ -1460,12 +1460,12 @@ avaialble hosts there is the
 
 ## Task
 
-Tasks are asynchronous actions, which are placed within a queue of the cluster, which should be
+Tasks are asynchronous actions, which are placed within a queue of the model, which should be
 affected by the task. They are processed one after another.
 
 ### Create Train-Task
 
-Create a new task to train the cluster with the data of a dataset, which was uploaded before.
+Create a new task to train the model with the data of a dataset, which was uploaded before.
 
 === "CLI"
 
@@ -1504,7 +1504,7 @@ Create a new task to train the cluster with the data of a dataset, which was upl
 
     address = "http://127.0.0.1:11417"
     task_name = "test_task"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     inputs = [
         {
             "dataset_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
@@ -1533,18 +1533,18 @@ Create a new task to train the cluster with the data of a dataset, which was upl
     result = task.create_train_task(token,
                                     address,
                                     task_name,
-                                    cluster_uuid,
+                                    model_uuid,
                                     inputs,
                                     outputs)
     task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    task.wait_for_task_finished(context, task_uuid, cluster_uuid, 1.0)
+    task.wait_for_task_finished(context, task_uuid, model_uuid, 1.0)
     ```
 
 ### Create Request-Task
 
-Create a new task to request information from a trained cluster. As input the data of a dataset are
+Create a new task to request information from a trained model. As input the data of a dataset are
 used, which had to be uplaoded first.
 
 === "CLI"
@@ -1584,7 +1584,7 @@ used, which had to be uplaoded first.
 
     address = "http://127.0.0.1:11417"
     task_name = "test_task"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     inputs = [
         {
             "dataset_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
@@ -1612,13 +1612,13 @@ used, which had to be uplaoded first.
     result = task.create_request_task(token,
                                       address,
                                       task_name,
-                                      cluster_uuid,
+                                      model_uuid,
                                       inputs,
                                       results)
     task_uuid = result["uuid"]
 
     # optional you can wait until the task is finished
-    task.wait_for_task_finished(context, task_uuid, cluster_uuid, 1.0)
+    task.wait_for_task_finished(context, task_uuid, model_uuid, 1.0)
     ```
 
 ### Get Task
@@ -1651,13 +1651,13 @@ used, which had to be uplaoded first.
     from ainari_sdk import task
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = task.get_task(context, task_uuid, cluster_uuid)
+    result = task.get_task(context, task_uuid, model_uuid)
 
     # example-content of result:
     #
@@ -1672,7 +1672,7 @@ used, which had to be uplaoded first.
 
 ### List Task
 
-List all tasks for a cluster, together with their progress.
+List all tasks for a model, together with their progress.
 
 === "CLI"
 
@@ -1699,12 +1699,12 @@ List all tasks for a cluster, together with their progress.
     from ainari_sdk import task
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    result = task.list_tasks(context, cluster_uuid)
+    result = task.list_tasks(context, model_uuid)
 
     # example-content of result:
     #
@@ -1732,7 +1732,7 @@ List all tasks for a cluster, together with their progress.
 
 ### Delete Task
 
-Delete a task from a cluster. In this task was a request and produced a request-result, this result
+Delete a task from a model. In this task was a request and produced a request-result, this result
 will not be deleted.
 
 === "CLI"
@@ -1755,18 +1755,18 @@ will not be deleted.
     from ainari_sdk import task
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    task.delete_task(context, task_uuid, cluster_uuid)
+    task.delete_task(context, task_uuid, model_uuid)
     ```
 
 ### Wait until Task is finished
 
-Delete a task from a cluster. In this task was a request and produced a request-result, this result
+Delete a task from a model. In this task was a request and produced a request-result, this result
 will not be deleted.
 
 === "CLI"
@@ -1779,25 +1779,25 @@ will not be deleted.
     from ainari_sdk import task
 
     address = "http://127.0.0.1:11417"
-    cluster_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
+    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
     task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
     time_interval = 0.1  # time-interval to check if finished, in seconds
 
     # request a token for a user, who has admin-permissions
     # see: https://docs.ainari.cloud/api/sdk_library/#request-token
 
-    task.wait_for_task_finished(context, task_uuid, cluster_uuid, time_interval)
+    task.wait_for_task_finished(context, task_uuid, model_uuid, time_interval)
     ```
 
 ## Checkpoint
 
-Checkpoints are a copy of the current state of a cluster. It can be used as backup to restore an
-older state a cluster.
+Checkpoints are a copy of the current state of a model. It can be used as backup to restore an
+older state a model.
 
 !!! info
 
-    It is possible to apply a checkpoint to any cluster, but at the moment it is not possible to
-    directly create a new cluster out of a checkpoint.
+    It is possible to apply a checkpoint to any model, but at the moment it is not possible to
+    directly create a new model out of a checkpoint.
 
 ### List Checkpoints
 

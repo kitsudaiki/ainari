@@ -22,7 +22,7 @@ use validator::Validate;
 pub struct ProxyCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub target_address: String,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -30,7 +30,7 @@ pub struct ProxyResp {
     pub uuid: Uuid,
     pub port: u16,
     pub target_address: String,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -42,7 +42,7 @@ pub struct ProxyBasicResp {
     pub uuid: Uuid,
     pub port: u16,
     pub target_address: String,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

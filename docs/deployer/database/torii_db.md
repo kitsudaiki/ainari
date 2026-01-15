@@ -7,7 +7,7 @@
 | uuid           | VARCHAR(40)  | x          |
 | port           | INTEGER      |            |
 | target_address | VARCHAR(256) |            |
-| cluster_uuid   | VARCHAR(40)  |            |
+| model_uuid   | VARCHAR(40)  |            |
 | owner_id       | VARCHAR(256) |            |
 | project_id     | VARCHAR(256) |            |
 | status         | VARCHAR(8)   |            |

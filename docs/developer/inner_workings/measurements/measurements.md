@@ -3,7 +3,7 @@
 !!! info
 
     The following tests were made with version 0.4.0 and not repeated with newer versions so far, even
-    the cluster-templates of the examples were updated here. So the results can differ in there current
+    the model-templates of the examples were updated here. So the results can differ in there current
     state. Test tests here will be repeated in the near future.
 
 These are some measurements, which were done with the program on version 0.4.0, to get a basic
@@ -27,9 +27,9 @@ Graphical the desired function to learn looks like this:
 
 This is a very constructed scenario, so it is may be not the optimal case for testing the features.
 
-#### Cluster-template
+#### Model-template
 
-To define the cluster the following cluster-template was used:
+To define the model the following model-template was used:
 
 ```
 version: 1
@@ -112,13 +112,13 @@ In this case, only the default-values of the settings-block were used.
 
 The left part for the trained inputs are showing nearly the exact output, like trained. The right
 side shows a really good interpolation for unknown (red) input-values. Even the `100`, which is
-above the trained maximum, doesn't break the result and the cluster handle the value, like the
+above the trained maximum, doesn't break the result and the model handle the value, like the
 maximum, which it has learned while training.
 
 #### With different settings
 
-Used were the [settings-options](/frontend/cluster_templates/cluster_template/#settings) within the
-cluster-template to modify the behavior of the cluster.
+Used were the [settings-options](/frontend/model_templates/model_template/#settings) within the
+model-template to modify the behavior of the model.
 
 - **Modified neuron-cooldown and refractory-time**
 

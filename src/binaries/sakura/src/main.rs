@@ -25,7 +25,7 @@ use std::fs;
 
 use log::LevelFilter;
 
-use core::cluster_handler::*;
+use core::model_handler::*;
 use core::processing::worker_handler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,8 +45,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .lock()
         .expect("mutex poisoned");
     drop(worker_handler);
-    let cluster_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-    drop(cluster_data_handler);
+    let model_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    drop(model_data_handler);
 
     database::init_database()?;
 

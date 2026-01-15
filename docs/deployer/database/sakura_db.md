@@ -1,6 +1,6 @@
 # Sakura
 
-## clusters
+## models
 
 | field      | type         | is primary |
 | ---------- | ------------ | ---------- |
@@ -23,7 +23,7 @@
 | ---------------------- | ------------ | ---------- |
 | uuid                   | VARCHAR(40)  | X          |
 | name                   | VARCHAR(256) |            |
-| cluster_uuid           | VARCHAR(40)  |            |
+| model_uuid           | VARCHAR(40)  |            |
 | task_type              | VARCHAR(32)  |            |
 | task_state             | VARCHAR(32)  |            |
 | total_number_of_epochs | INTEGER      |            |

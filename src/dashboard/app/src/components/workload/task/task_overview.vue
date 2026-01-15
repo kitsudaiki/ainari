@@ -41,7 +41,7 @@
                         <td>
                             <ProgressBar
                                 :task_uuid="task.uuid"
-                                :cluster_uuid="props.id"
+                                :model_uuid="props.id"
                             />
                         </td>
                         <td>
@@ -70,7 +70,7 @@
 
         <TaskCreateModal
             v-if="showAddModal"
-            :cluster_uuid="props.id"
+            :model_uuid="props.id"
             :torii_port="torii_port"
             :icons="icons"
             @accept="acceptAddModal"
@@ -111,21 +111,21 @@ async function fetchTasks() {
             baseURL: authContext.hanami_address,
         });
 
-        // get torii-port of the cluster
-        const cluster_response = await hanami_api.get(
-            `/v1alpha/cluster/${props.id}`,
+        // get torii-port of the model
+        const model_response = await hanami_api.get(
+            `/v1alpha/model/${props.id}`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
-        torii_port = cluster_response.data.torii_port;
+        torii_port = model_response.data.torii_port;
 
         const sakura_api = axios.create({
             baseURL: `${authContext.torii_base_address}:${torii_port}`,
         });
 
         const task_response = await sakura_api.get(
-            `/v1alpha/cluster/${props.id}/task`,
+            `/v1alpha/model/${props.id}/task`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
@@ -159,7 +159,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Add task modal
 //=============================================================================
-function openAddModal(cluster_uuid: string) {
+function openAddModal(model_uuid: string) {
     showAddModal.value = true;
 }
 function cancelAddModal() {

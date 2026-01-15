@@ -32,7 +32,7 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
 
     // check that there is at least one host
     if hosts.is_empty() {
-        log::error!("No hosts to schedule new cluster.");
+        log::error!("No hosts to schedule new model.");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 

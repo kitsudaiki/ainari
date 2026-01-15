@@ -31,7 +31,7 @@ pub struct OutputBuffer {
     pub uuid: Uuid,
     #[allow(dead_code)]
     pub hexagon_uuid: Uuid,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
     pub name: String,
 
     pub output_neurons: Vec<OutputNeuron>,
@@ -51,7 +51,7 @@ impl PartialEq for OutputBuffer {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
-            && self.cluster_uuid == other.cluster_uuid
+            && self.model_uuid == other.model_uuid
             && self.name == other.name
             && self.output_neurons == other.output_neurons
             && self.output_type == other.output_type
@@ -74,14 +74,14 @@ impl OutputBuffer {
     pub fn new(
         name: &str,
         hexagon_uuid: &Uuid,
-        cluster_uuid: &Uuid,
+        model_uuid: &Uuid,
         output_type: &OutputType,
         finish_counter_mutex: &Arc<Mutex<FinishCounter>>,
     ) -> Self {
         OutputBuffer {
             uuid: *hexagon_uuid,
             hexagon_uuid: *hexagon_uuid,
-            cluster_uuid: *cluster_uuid,
+            model_uuid: *model_uuid,
             name: name.to_owned(),
 
             output_neurons: Vec::new(),
@@ -328,11 +328,11 @@ mod tests {
     fn test_plain() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let hexagon_uuid = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
             "test",
             &hexagon_uuid,
-            &cluster_uuid,
+            &model_uuid,
             &OutputType::PlainOutput,
             &finish_counter,
         );
@@ -372,11 +372,11 @@ mod tests {
     fn test_bool() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let hexagon_uuid = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
             "test",
             &hexagon_uuid,
-            &cluster_uuid,
+            &model_uuid,
             &OutputType::BoolOutput,
             &finish_counter,
         );
@@ -416,11 +416,11 @@ mod tests {
     fn test_float() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let hexagon_uuid = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
             "test",
             &hexagon_uuid,
-            &cluster_uuid,
+            &model_uuid,
             &OutputType::FloatOutput,
             &finish_counter,
         );
@@ -457,11 +457,11 @@ mod tests {
     fn test_int() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
         let hexagon_uuid = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let mut output_buffer = OutputBuffer::new(
             "test",
             &hexagon_uuid,
-            &cluster_uuid,
+            &model_uuid,
             &OutputType::IntOutput,
             &finish_counter,
         );

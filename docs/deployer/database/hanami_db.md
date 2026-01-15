@@ -1,6 +1,6 @@
 # Hanami
 
-## meta_clusters
+## meta_models
 
 | field            | type         | is primary |
 | ---------------- | ------------ | ---------- |

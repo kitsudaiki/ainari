@@ -23,17 +23,17 @@
 
             <div class="modal-content">
                 <div class="field-row">
-                    <label for="maxCluster">Maximum Cluster: </label>
+                    <label for="maxModel">Maximum Model: </label>
                     <input
                         class="number-input"
-                        id="maxCluster"
-                        v-model.number="quota.max_cluster"
+                        id="maxModel"
+                        v-model.number="quota.max_model"
                         type="number"
                         :min="0"
-                        :class="{ invalid_input: quotaClusterError }"
+                        :class="{ invalid_input: quotaModelError }"
                     />
                 </div>
-                <p v-if="quotaClusterError" class="error-msg">
+                <p v-if="quotaModelError" class="error-msg">
                     Minimum quota must be a positive number
                 </p>
                 <br />
@@ -126,7 +126,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 interface Props {
     quota: {
         user_id: string;
-        max_cluster: number;
+        max_model: number;
         max_dataset: number;
         max_checkpoint: number;
         max_secret: number;
@@ -141,7 +141,7 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const quotaClusterError = ref(false);
+const quotaModelError = ref(false);
 const quotaDatasetError = ref(false);
 const quotaCheckpointError = ref(false);
 const quotaSecretError = ref(false);
@@ -149,20 +149,20 @@ const quotaTaskqueueError = ref(false);
 
 async function handleAccept(quota: {
     user_id: string;
-    max_cluster: number;
+    max_model: number;
     max_dataset: number;
     max_checkpoint: number;
     max_secret: number;
     max_taskqueue: number;
 }) {
-    quotaClusterError.value = quota.max_cluster < 0;
+    quotaModelError.value = quota.max_model < 0;
     quotaDatasetError.value = quota.max_dataset < 0;
     quotaCheckpointError.value = quota.max_checkpoint < 0;
     quotaSecretError.value = quota.max_secret < 0;
     quotaTaskqueueError.value = quota.max_taskqueue < 0;
 
     if (
-        quotaClusterError.value ||
+        quotaModelError.value ||
         quotaDatasetError.value ||
         quotaCheckpointError.value ||
         quotaSecretError.value ||
@@ -180,7 +180,7 @@ async function handleAccept(quota: {
         await miko_api.put(
             `/v1alpha/quota/${quota.user_id}/admin`,
             {
-                max_cluster: quota.max_cluster,
+                max_model: quota.max_model,
                 max_dataset: quota.max_dataset,
                 max_checkpoint: quota.max_checkpoint,
                 max_secret: quota.max_secret,
