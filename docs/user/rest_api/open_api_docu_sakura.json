@@ -50,19 +50,56 @@
         ]
       }
     },
-    "/v1alpha/cluster/internal": {
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/model/internal": {
       "post": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Create new cluster",
-        "description": "Create new cluster based on a cluster-template.",
-        "operationId": "post_v1alpha-cluster-internal-1dc22aa239d2e1e07ec8272b19877003",
+        "summary": "Create new model",
+        "description": "Create new model based on a model-template.",
+        "operationId": "post_v1alpha-model-internal-415b2328d133ba597e215fc77d54fb40",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ClusterCreateReq"
+                "$ref": "#/components/schemas/ModelCreateReq"
               }
             }
           },
@@ -74,7 +111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "ClusterResp",
+                  "title": "ModelResp",
                   "type": "object",
                   "required": [
                     "created_at",
@@ -152,18 +189,18 @@
       },
       "get": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "List cluster",
-        "description": "List basic information of all cluster from the database.",
-        "operationId": "get_v1alpha-cluster-internal-1dc22aa239d2e1e07ec8272b19877003",
+        "summary": "List model",
+        "description": "List basic information of all model from the database.",
+        "operationId": "get_v1alpha-model-internal-415b2328d133ba597e215fc77d54fb40",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterListResp"
+                  "$ref": "#/components/schemas/ModelListResp"
                 }
               }
             }
@@ -183,17 +220,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/internal": {
+    "/v1alpha/model/{model_uuid}/internal": {
       "get": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Get cluster",
-        "description": "Get information of a cluster from the database.",
-        "operationId": "get_v1alpha-cluster-ebe6fb35a8bead62f86d4c4b78849ee1",
+        "summary": "Get model",
+        "description": "Get information of a model from the database.",
+        "operationId": "get_v1alpha-model-7976f89eb74f9a8a076886f35498d123",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -209,7 +246,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterResp"
+                  "$ref": "#/components/schemas/ModelResp"
                 }
               }
             }
@@ -236,14 +273,14 @@
       },
       "delete": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Delete cluster",
-        "description": "Delete a cluster from the database and core.",
-        "operationId": "delete_v1alpha-cluster-ebe6fb35a8bead62f86d4c4b78849ee1",
+        "summary": "Delete model",
+        "description": "Delete a model from the database and core.",
+        "operationId": "delete_v1alpha-model-7976f89eb74f9a8a076886f35498d123",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -278,17 +315,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/request": {
+    "/v1alpha/model/{model_uuid}/request": {
       "put": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Get cluster",
-        "description": "Get information of a cluster from the database.",
-        "operationId": "put_v1alpha-cluster-bee8a0f74999b742665f88da8b6c1519",
+        "summary": "Get model",
+        "description": "Get information of a model from the database.",
+        "operationId": "put_v1alpha-model-2266c3d9202d112f7046d627c4dd477c",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -302,7 +339,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ClusterRequestReq"
+                "$ref": "#/components/schemas/ModelRequestReq"
               }
             }
           },
@@ -314,7 +351,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClusterRequestResp"
+                  "$ref": "#/components/schemas/ModelRequestResp"
                 }
               }
             }
@@ -340,17 +377,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/train": {
+    "/v1alpha/model/{model_uuid}/train": {
       "put": {
         "tags": [
-          "cluster"
+          "model"
         ],
-        "summary": "Get cluster",
-        "description": "Get information of a cluster from the database.",
-        "operationId": "put_v1alpha-cluster-0647baa071d0659a117e58b7eb60a30a",
+        "summary": "Get model",
+        "description": "Get information of a model from the database.",
+        "operationId": "put_v1alpha-model-d3833f2e77485f3454ae04b70eb73065",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -364,7 +401,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ClusterTrainReq"
+                "$ref": "#/components/schemas/ModelTrainReq"
               }
             }
           },
@@ -395,17 +432,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/train": {
+    "/v1alpha/model/{model_uuid}/task/train": {
       "post": {
         "tags": [
           "task"
         ],
         "summary": "Create new train-task",
-        "description": "Create new train-task for a cluster",
-        "operationId": "post_v1alpha-cluster-291a834677f5fbe12fc5de3a935b5987",
+        "description": "Create new train-task for a model",
+        "operationId": "post_v1alpha-model-e55c45c69c59b8b86ab58c96ab46e87b",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -520,17 +557,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/request": {
+    "/v1alpha/model/{model_uuid}/task/request": {
       "post": {
         "tags": [
           "task"
         ],
         "summary": "Create new request-task",
-        "description": "Create new request-task for a cluster",
-        "operationId": "post_v1alpha-cluster-8349f318e50ac5cd18879bfacedeb6e3",
+        "description": "Create new request-task for a model",
+        "operationId": "post_v1alpha-model-d4fa49c53fe91566907b66045f7221ad",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -645,17 +682,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/checkpoint_save": {
+    "/v1alpha/model/{model_uuid}/task/checkpoint_save": {
       "post": {
         "tags": [
           "task"
         ],
         "summary": "Create new checkpoint-task",
-        "description": "Create new checkpoint-task for a cluster",
-        "operationId": "post_v1alpha-cluster-3c9863fc539814b2438b058c6e9257f4",
+        "description": "Create new checkpoint-task for a model",
+        "operationId": "post_v1alpha-model-63fc9da5a6cdaf3f6960e0798fff93a1",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -773,17 +810,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/checkpoint_restore": {
+    "/v1alpha/model/{model_uuid}/task/checkpoint_restore": {
       "post": {
         "tags": [
           "task"
         ],
         "summary": "Create new checkpoint-task",
-        "description": "Create new checkpoint-task for a cluster",
-        "operationId": "post_v1alpha-cluster-d80a751c9c07071b0d8d497088dc902a",
+        "description": "Create new checkpoint-task for a model",
+        "operationId": "post_v1alpha-model-a6b6484c3d058460fa6a64a06b250e95",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -901,17 +938,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}": {
+    "/v1alpha/model/{model_uuid}/task/{task_uuid}": {
       "get": {
         "tags": [
           "task"
         ],
         "summary": "Get task",
-        "description": "Get information of a task of a cluster from the database.",
-        "operationId": "get_v1alpha-cluster-6489438f20cd8bc1a89630a1c584349f",
+        "description": "Get information of a task of a model from the database.",
+        "operationId": "get_v1alpha-model-f226d7d7c778872cff618507e6c9bedb",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -963,17 +1000,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task/{task_uuid}/abort": {
+    "/v1alpha/model/{model_uuid}/task/{task_uuid}/abort": {
       "put": {
         "tags": [
           "task"
         ],
         "summary": "Get task",
-        "description": "Get information of a task of a cluster from the database.",
-        "operationId": "put_v1alpha-cluster-5b1ff03c3259d53cb700499c1994d3a9",
+        "description": "Get information of a task of a model from the database.",
+        "operationId": "put_v1alpha-model-658f5ce5c1e2469dc6573966ca4e0563",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -1025,17 +1062,17 @@
         ]
       }
     },
-    "/v1alpha/cluster/{cluster_uuid}/task": {
+    "/v1alpha/model/{model_uuid}/task": {
       "get": {
         "tags": [
           "task"
         ],
         "summary": "List tasks",
-        "description": "List all tasks of a cluster",
-        "operationId": "get_v1alpha-cluster-f7d485092cdc4865d2eeeaaa0fbf43ca",
+        "description": "List all tasks of a model",
+        "operationId": "get_v1alpha-model-1d54ca07dbf5412ba5489e4828afb79e",
         "parameters": [
           {
-            "name": "cluster_uuid",
+            "name": "model_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -1077,15 +1114,21 @@
   },
   "components": {
     "schemas": {
-      "ClusterBasicResp": {
+      "ModelBasicResp": {
         "type": "object",
         "required": [
           "name",
+          "proxy_port",
           "uuid"
         ],
         "properties": {
           "name": {
             "type": "string"
+          },
+          "proxy_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
           },
           "uuid": {
             "type": "string",
@@ -1093,8 +1136,8 @@
           }
         }
       },
-      "ClusterCreateReq": {
-        "title": "ClusterCreateReq",
+      "ModelCreateReq": {
+        "title": "ModelCreateReq",
         "type": "object",
         "required": [
           "name",
@@ -1112,23 +1155,23 @@
           }
         }
       },
-      "ClusterListResp": {
-        "title": "ClusterListResp",
+      "ModelListResp": {
+        "title": "ModelListResp",
         "type": "object",
         "required": [
-          "clusters"
+          "models"
         ],
         "properties": {
-          "clusters": {
+          "models": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ClusterBasicResp"
+              "$ref": "#/components/schemas/ModelBasicResp"
             }
           }
         }
       },
-      "ClusterRequestReq": {
-        "title": "ClusterRequestReq",
+      "ModelRequestReq": {
+        "title": "ModelRequestReq",
         "type": "object",
         "required": [
           "inputs",
@@ -1154,8 +1197,8 @@
           }
         }
       },
-      "ClusterRequestResp": {
-        "title": "ClusterRequestResp",
+      "ModelRequestResp": {
+        "title": "ModelRequestResp",
         "type": "object",
         "required": [
           "outputs"
@@ -1173,8 +1216,8 @@
           }
         }
       },
-      "ClusterResp": {
-        "title": "ClusterResp",
+      "ModelResp": {
+        "title": "ModelResp",
         "type": "object",
         "required": [
           "created_at",
@@ -1230,8 +1273,8 @@
           }
         }
       },
-      "ClusterTrainReq": {
-        "title": "ClusterTrainReq",
+      "ModelTrainReq": {
+        "title": "ModelTrainReq",
         "type": "object",
         "required": [
           "inputs",
@@ -1257,6 +1300,18 @@
                 "format": "float"
               }
             }
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
           }
         }
       },

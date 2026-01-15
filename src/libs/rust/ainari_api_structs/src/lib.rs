@@ -16,12 +16,12 @@
 
 pub mod auth_structs;
 pub mod checkpoint_structs;
-pub mod cluster_structs;
 pub mod common_structs;
 pub mod dataset_structs;
 pub mod endpoints_structs;
 pub mod file_structs;
 pub mod host_structs;
+pub mod model_structs;
 pub mod project_structs;
 pub mod proxy_structs;
 pub mod quota_structs;

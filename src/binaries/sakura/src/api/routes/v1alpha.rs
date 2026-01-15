@@ -16,8 +16,8 @@ use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::cluster::task::*;
-use crate::api::http_endpoints::cluster::*;
+use crate::api::http_endpoints::model::task::*;
+use crate::api::http_endpoints::model::*;
 
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
@@ -29,27 +29,26 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/cluster")
+            scope("/model")
                 .service(
                     resource("/internal")
-                        .route(post().to(create_cluster_internal_v1_0::create_cluster_internal))
-                        .route(get().to(list_cluster_internal_v1_0::list_cluster_internal)),
+                        .route(post().to(create_model_internal_v1_0::create_model_internal))
+                        .route(get().to(list_model_internal_v1_0::list_model_internal)),
                 )
                 .service(
-                    resource("/{cluster_uuid}/internal")
-                        .route(get().to(get_cluster_internal_v1_0::get_cluster_internal))
-                        .route(delete().to(delete_cluster_internal_v1_0::delete_cluster_internal)),
+                    resource("/{model_uuid}/internal")
+                        .route(get().to(get_model_internal_v1_0::get_model_internal))
+                        .route(delete().to(delete_model_internal_v1_0::delete_model_internal)),
                 )
                 .service(
-                    resource("/{cluster_uuid}/request")
-                        .route(put().to(request_cluster_v1_0::request_cluster)),
+                    resource("/{model_uuid}/request")
+                        .route(put().to(request_model_v1_0::request_model)),
                 )
                 .service(
-                    resource("/{cluster_uuid}/train")
-                        .route(put().to(train_cluster_v1_0::train_cluster)),
+                    resource("/{model_uuid}/train").route(put().to(train_model_v1_0::train_model)),
                 )
                 .service(
-                    scope("/{cluster_uuid}/task")
+                    scope("/{model_uuid}/task")
                         .service(
                             resource("/train")
                                 .route(post().to(create_train_task_v1_0::create_train_task)),

@@ -85,7 +85,7 @@ import AdminProject from "@/components/admin/project/project_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
 import StorageDataset from "@/components/storage/dataset/dataset_overview.vue";
-import WorkloadCluster from "@/components/workload/cluster/cluster_overview.vue";
+import WorkloadModel from "@/components/workload/model/model_overview.vue";
 import WorkloadTask from "@/components/workload/task/task_overview.vue";
 import { getAuthContext } from "@/auth_context";
 
@@ -120,7 +120,7 @@ const components = {
     AdminQuota,
     StorageCheckpoint,
     StorageDataset,
-    WorkloadCluster,
+    WorkloadModel,
     WorkloadTask,
 };
 

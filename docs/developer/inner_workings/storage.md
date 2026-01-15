@@ -9,8 +9,8 @@ The infrastructure and stores the following information:
     - metadata in database stored and binary-blob on disc
     - 2 Types: `MNIST-Data-Sets` and `Table-Data-Sets`
     - stored data in a custom format for better access to the payload
-- `Cluster-Checkpoints`
-    - coming from Kyouko in order to backup a trained cluster
+- `Model-Checkpoints`
+    - coming from Kyouko in order to backup a trained model
     - metadata in database stored and binary-blob on disc
 
 <!-- -   `Audit-Log`

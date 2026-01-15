@@ -8,7 +8,7 @@ members = [
     "src/binaries/omamori", 
     "src/binaries/onsen", 
     "src/libs/rust/ainari_common",
-    "src/libs/rust/ainari_cluster_parser",
+    "src/libs/rust/ainari_model_parser",
     "src/libs/rust/ainari_dataset", 
     "src/libs/rust/ainari_api", 
     "src/libs/rust/ainari_hardware", 

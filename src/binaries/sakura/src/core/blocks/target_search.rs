@@ -25,7 +25,7 @@ use crate::core::blocks::axons::AxonSection;
 use crate::core::blocks::block_trait::Block;
 use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
-use crate::core::cluster_handler::*;
+use crate::core::model_handler::*;
 
 #[derive(Default, Debug)]
 struct TargetInformation {
@@ -40,22 +40,22 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
     let target_information = get_target_hexagon(axon_section)?;
 
     let source_block;
-    let cluster_settings;
+    let model_settings;
     let selected_block_option;
 
     {
-        let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
         // get source-block
-        source_block = cluster_handler.get_block(
-            &axon_section.cluster_uuid,
+        source_block = model_handler.get_block(
+            &axon_section.model_uuid,
             &axon_section.source_hexagon_uuid,
             &axon_section.source_block_uuid,
         )?;
 
-        let cluster_link = cluster_handler.get_cluster(&axon_section.cluster_uuid)?;
-        cluster_settings = cluster_link.cluster_meta.settings.clone();
-        let binding = cluster_link.hexagon_data.read().expect("mutex poisoned");
+        let model_link = model_handler.get_model(&axon_section.model_uuid)?;
+        model_settings = model_link.model_meta.settings.clone();
+        let binding = model_link.hexagon_data.read().expect("mutex poisoned");
         let target_hexagon_link = if let Some(h) = binding.get(&target_information.hexagon_uuid) {
             h.lock().expect("mutex poisoned")
         } else {
@@ -88,14 +88,14 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
 
     // create new block
     if target_information.is_output {
-        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
             &target_information.hexagon_uuid,
-            &axon_section.cluster_uuid,
+            &axon_section.model_uuid,
             &target_information.output_hexagon_name,
         )));
-        cluster_handler.add_output_block(&output_block_mutex)?;
-        drop(cluster_handler);
+        model_handler.add_output_block(&output_block_mutex)?;
+        drop(model_handler);
         let mut output_block = output_block_mutex.lock().expect("mutex poisoned");
         if output_block.get_free_input(axon_section) {
             axon_section.target_block = Some(output_block_mutex.clone());
@@ -103,14 +103,14 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
             return Ok(());
         }
     } else {
-        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
             &target_information.hexagon_uuid,
-            &axon_section.cluster_uuid,
-            &cluster_settings,
+            &axon_section.model_uuid,
+            &model_settings,
         )));
-        cluster_handler.add_core_block(&core_block_mutex)?;
-        drop(cluster_handler);
+        model_handler.add_core_block(&core_block_mutex)?;
+        drop(model_handler);
         let mut core_block = core_block_mutex.lock().expect("mutex poisoned");
         if core_block.get_free_input(axon_section) {
             axon_section.target_block = Some(core_block_mutex.clone());
@@ -136,7 +136,7 @@ where
 
 fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     // pre-check
-    if axon_section.cluster_uuid == Uuid::nil()
+    if axon_section.model_uuid == Uuid::nil()
         || axon_section.source_block_uuid == Uuid::nil()
         || axon_section.source_hexagon_uuid == Uuid::nil()
         || axon_section.source_pos == UNINIT_STATE_8
@@ -149,13 +149,13 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
 }
 
 fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
-    let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     let mut target_information = TargetInformation::default();
-    let cluster_link = cluster_handler.get_cluster_mut(&axon_section.cluster_uuid)?;
+    let model_link = model_handler.get_model_mut(&axon_section.model_uuid)?;
 
     // get the uuid of the target-hexagon
-    if let Some(source_hexagon_meta) = cluster_link
-        .cluster_meta
+    if let Some(source_hexagon_meta) = model_link
+        .model_meta
         .hexagons
         .get(&axon_section.source_hexagon_uuid)
     {
@@ -164,14 +164,14 @@ fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformatio
             source_hexagon_meta.possible_hexagon_target_ids[random_pos];
     } else {
         let msg = format!(
-            "Hexagon with uuid '{}' not found in cluster-meta.",
+            "Hexagon with uuid '{}' not found in model-meta.",
             axon_section.source_hexagon_uuid
         );
         return Err(AinariError::InvalidInput(msg));
     };
 
-    if let Some(target_hexagon_meta) = cluster_link
-        .cluster_meta
+    if let Some(target_hexagon_meta) = model_link
+        .model_meta
         .hexagons
         .get(&target_information.hexagon_uuid)
     {
@@ -188,14 +188,14 @@ fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformatio
         }
     } else {
         let msg = format!(
-            "Hexagon with uuid '{}' not found in cluster-meta.",
+            "Hexagon with uuid '{}' not found in model-meta.",
             target_information.hexagon_uuid
         );
         return Err(AinariError::InvalidInput(msg));
     };
 
     // add hexagon if necessary
-    let mut hexagon_data = cluster_link.hexagon_data.write().expect("mutex poisoned");
+    let mut hexagon_data = model_link.hexagon_data.write().expect("mutex poisoned");
     hexagon_data
         .entry(target_information.hexagon_uuid)
         .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
@@ -209,19 +209,19 @@ mod tests {
     use crate::core::processing::finish_counter::FinishCounter;
     use crate::core::processing::output_buffer::*;
 
-    use ainari_cluster_parser::cluster_meta_structs::Settings;
-    use ainari_cluster_parser::cluster_parser::parse_cluster_template;
     use ainari_common::enums::*;
+    use ainari_model_parser::model_meta_structs::Settings;
+    use ainari_model_parser::model_parser::parse_model_template;
 
     use super::*;
 
     #[test]
     fn test_resize() {
         let finish_counter = Arc::new(Mutex::new(FinishCounter::default()));
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let hexagon_uuid0;
         let hexagon_uuid1;
-        let cluster_name = "test_cluster".to_string();
+        let model_name = "test_model".to_string();
         let input_name = "test_input".to_string();
         let output_name = "test_output".to_string();
         let template = "version: 1 
@@ -241,26 +241,19 @@ mod tests {
             .to_string();
 
         let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-        root_handler.clusters.clear();
-        let mut parsed_cluster = parse_cluster_template(&cluster_name, &template).unwrap();
-        parsed_cluster.uuid = cluster_uuid;
-        let _ = root_handler.init_new_cluster(&cluster_uuid, &parsed_cluster);
+        root_handler.models.clear();
+        let mut parsed_model = parse_model_template(&model_name, &template).unwrap();
+        parsed_model.uuid = model_uuid;
+        let _ = root_handler.init_new_model(&model_uuid, &parsed_model);
 
         {
-            let cluster = root_handler.clusters.get(&cluster_uuid).unwrap();
-            if cluster
-                .cluster_meta
-                .hexagons
-                .values()
-                .next()
-                .unwrap()
-                .is_input
-            {
-                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
-                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
+            let model = root_handler.models.get(&model_uuid).unwrap();
+            if model.model_meta.hexagons.values().next().unwrap().is_input {
+                hexagon_uuid0 = *model.model_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid1 = *model.model_meta.hexagons.keys().nth(1).unwrap();
             } else {
-                hexagon_uuid1 = *cluster.cluster_meta.hexagons.keys().next().unwrap();
-                hexagon_uuid0 = *cluster.cluster_meta.hexagons.keys().nth(1).unwrap();
+                hexagon_uuid1 = *model.model_meta.hexagons.keys().next().unwrap();
+                hexagon_uuid0 = *model.model_meta.hexagons.keys().nth(1).unwrap();
             }
         }
 
@@ -268,29 +261,29 @@ mod tests {
         let settings = Settings::default();
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
             &hexagon_uuid0,
-            &cluster_uuid,
+            &model_uuid,
             &settings,
         )));
         let input_block_mutex = Arc::new(Mutex::new(InputBlock::new(
             &input_name,
             &hexagon_uuid0,
-            &cluster_uuid,
+            &model_uuid,
             &finish_counter,
         )));
         let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
             &hexagon_uuid1,
-            &cluster_uuid,
+            &model_uuid,
             &output_name,
         )));
         let output_buffer_mutex = Arc::new(Mutex::new(OutputBuffer::new(
             &output_name,
             &hexagon_uuid1,
-            &cluster_uuid,
+            &model_uuid,
             &OutputType::PlainOutput,
             &finish_counter,
         )));
 
-        // add blocks to cluster
+        // add blocks to model
         let _ = root_handler.add_core_block(&core_block_mutex);
         let _ = root_handler.add_input_block(&input_block_mutex);
         let _ = root_handler.add_output_block(&output_block_mutex);
@@ -301,7 +294,7 @@ mod tests {
         let core_block = core_block_mutex.lock().expect("mutex poisoned");
         test_section.source_block_uuid = core_block.uuid;
         test_section.source_hexagon_uuid = core_block.hexagon_uuid;
-        test_section.cluster_uuid = core_block.cluster_uuid;
+        test_section.model_uuid = core_block.model_uuid;
         test_section.source_pos = 0;
 
         match connect_to_new_target(&mut test_section) {
@@ -314,7 +307,7 @@ mod tests {
 
         assert_eq!(test_section.source_block_uuid, core_block.uuid);
         assert_eq!(test_section.source_hexagon_uuid, core_block.hexagon_uuid);
-        assert_eq!(test_section.cluster_uuid, core_block.cluster_uuid);
+        assert_eq!(test_section.model_uuid, core_block.model_uuid);
         assert_eq!(test_section.source_pos, 0);
         assert_eq!(test_section.target_hexagon_uuid, hexagon_uuid1);
         assert!(test_section.source_block.is_some());

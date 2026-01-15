@@ -23,9 +23,9 @@ There are basically 3 types:
 
 1. `Core-Hexagons`
 
-### Cluster
+### Model
 
-`Cluster` are again a collection of multiple `Hexagons`
+`Model` are again a collection of multiple `Hexagons`
 
 ### Data-Set
 
@@ -50,11 +50,11 @@ Tasks an asynchronous operation of the network based on a given `Data-Set`. Ther
 
 ### Checkpoint
 
-`Checkpoints` are the serializied version of a `Cluster`. The Cluster will be converted into one
+`Checkpoints` are the serializied version of a `Model`. The Model will be converted into one
 single blob, written to disc and registered in the database.
 
-### Cluster-Template
+### Model-Template
 
-`Cluster-Templates` are a custom-formated string, which defines the structure of the `Cluster`.
+`Model-Templates` are a custom-formated string, which defines the structure of the `Model`.
 Basically it describes the sizes and order of the hexagons. See the docu of the
-[cluster-templates](/user/cluster_templates/cluster_template).
+[model-templates](/user/model_templates/model_template).

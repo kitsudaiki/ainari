@@ -33,7 +33,7 @@ use ainari_common::error::AinariError;
 pub struct InputBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 
     pub block_io: BlockIoBuffer,
 
@@ -50,7 +50,7 @@ impl PartialEq for InputBlock {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
-            && self.cluster_uuid == other.cluster_uuid
+            && self.model_uuid == other.model_uuid
             && self.block_io == other.block_io
             && self.name == other.name
             && self.input_links == other.input_links
@@ -67,13 +67,13 @@ impl InputBlock {
     pub fn new(
         name: &str,
         hexagon_uuid: &Uuid,
-        cluster_uuid: &Uuid,
+        model_uuid: &Uuid,
         finish_counter: &Arc<Mutex<FinishCounter>>,
     ) -> Self {
         let mut block = InputBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: *hexagon_uuid,
-            cluster_uuid: *cluster_uuid,
+            model_uuid: *model_uuid,
 
             name: name.to_owned(),
 
@@ -168,7 +168,7 @@ impl Block for InputBlock {
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
-            &self.cluster_uuid,
+            &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
         )?;
@@ -180,7 +180,7 @@ impl Block for InputBlock {
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
-            &self.cluster_uuid,
+            &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
         )?;
@@ -205,8 +205,8 @@ impl Block for InputBlock {
         self.hexagon_uuid
     }
 
-    fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid
+    fn get_model_uud(&self) -> Uuid {
+        self.model_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
@@ -217,8 +217,8 @@ impl Block for InputBlock {
         ObjectType::InputBlock
     }
 
-    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = *new_cluster_uuid;
+    fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
+        self.model_uuid = *new_model_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {
@@ -237,8 +237,8 @@ mod tests {
 
         let name = "test-input".to_string();
         let hexagon_uuid = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
-        let mut input_block = InputBlock::new(&name, &hexagon_uuid, &cluster_uuid, &finish_counter);
+        let model_uuid = Uuid::new_v4();
+        let mut input_block = InputBlock::new(&name, &hexagon_uuid, &model_uuid, &finish_counter);
 
         let input_values = vec![1.0, 2.0, -3.0, 4.0];
         input_block.apply_input(&input_values, input_values.len(), 2, 2, true);

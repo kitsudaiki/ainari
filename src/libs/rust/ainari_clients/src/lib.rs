@@ -14,10 +14,10 @@
 
 pub mod auth;
 pub mod checkpoint;
-pub mod cluster;
 pub mod dataset;
 pub mod endpoints;
 pub mod host;
+pub mod model;
 pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;

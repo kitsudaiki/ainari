@@ -29,7 +29,7 @@ table! {
     tasks (uuid) {
         uuid -> Varchar,
         name -> Varchar,
-        cluster_uuid -> Varchar,
+        model_uuid -> Varchar,
         task_type -> Varchar,
         task_state -> Varchar,
         total_number_of_epochs -> BigInt,
@@ -53,7 +53,7 @@ table! {
 pub struct TaskEntry {
     pub uuid: String,
     pub name: String,
-    pub cluster_uuid: String,
+    pub model_uuid: String,
     pub task_type: String,
     pub task_state: String,
     pub total_number_of_epochs: i64,
@@ -77,7 +77,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
-        cluster_uuid VARCHAR(40),
+        model_uuid VARCHAR(40),
         task_type VARCHAR(32),
         task_state VARCHAR(32),
         total_number_of_epochs INTEGER,
@@ -101,7 +101,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_task(
     task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     task_name: &str,
     task_type: &TaskType,
     total_number_of_epochs: &u64,
@@ -111,7 +111,7 @@ pub fn add_new_task(
     let task = TaskEntry {
         uuid: task_uuid.to_string().clone(),
         name: task_name.to_owned(),
-        cluster_uuid: cluster_uuid.to_string().clone(),
+        model_uuid: model_uuid.to_string().clone(),
         task_type: task_type.to_string(),
         task_state: TaskState::Created.to_string(),
         total_number_of_epochs: *total_number_of_epochs as i64,
@@ -141,18 +141,18 @@ fn add_task(task: &TaskEntry) -> QueryResult<usize> {
 
 pub fn get_task(
     task_uuid: &Uuid,
-    cluster_uuid_in: &Uuid,
+    model_uuid_in: &Uuid,
     context: &UserContext,
 ) -> Result<TaskEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     let mut query = tasks
-        // HINT (kitsudaiki): Had to rename the function-parameter cluster_uuid to cluster_uuid_in to have a different name,
+        // HINT (kitsudaiki): Had to rename the function-parameter model_uuid to model_uuid_in to have a different name,
         // because here in this filter, it results in conflicts in case both sides of the eq are named the same
         .filter(
             uuid.eq(task_uuid.to_string())
-                .and(cluster_uuid.eq(cluster_uuid_in.to_string())),
+                .and(model_uuid.eq(model_uuid_in.to_string())),
         )
         .into_boxed();
 
@@ -176,12 +176,12 @@ pub fn get_task(
     }
 }
 
-pub fn list_tasks(cluster_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
+pub fn list_tasks(model_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     let mut query = tasks
-        .filter(cluster_uuid.eq(cluster_uuid_in.to_string()))
+        .filter(model_uuid.eq(model_uuid_in.to_string()))
         .into_boxed();
 
     if context.is_admin != true.to_string() {
@@ -340,7 +340,7 @@ mod tests {
     fn test_add_get_task() {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -355,7 +355,7 @@ mod tests {
         let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -376,7 +376,7 @@ mod tests {
         hard_delete_task(&uuid1);
 
         add_task(&task).unwrap();
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.uuid, task.uuid);
             assert_eq!(retrieved_task.name, task.name);
             assert_eq!(retrieved_task.created_by, task.created_by);
@@ -391,7 +391,7 @@ mod tests {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -406,7 +406,7 @@ mod tests {
         let task1 = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -427,7 +427,7 @@ mod tests {
         let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -450,7 +450,7 @@ mod tests {
 
         add_task(&task1).unwrap();
         add_task(&task2).unwrap();
-        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
+        let tasks = list_tasks(&model_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 2);
         hard_delete_task(&uuid1);
         hard_delete_task(&uuid2);
@@ -463,12 +463,12 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let task1 = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -489,7 +489,7 @@ mod tests {
         let task2 = TaskEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -510,7 +510,7 @@ mod tests {
         let task3 = TaskEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -544,7 +544,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
+        let tasks = list_tasks(&model_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 1);
 
         // list-test project-admin
@@ -555,7 +555,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
+        let tasks = list_tasks(&model_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 2);
 
         // list-test admin
@@ -566,7 +566,7 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&cluster_uuid, &context).unwrap();
+        let tasks = list_tasks(&model_uuid, &context).unwrap();
         assert_eq!(tasks.len(), 3);
 
         // get-test normal user
@@ -577,7 +577,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        match get_task(&uuid1, &cluster_uuid, &context) {
+        match get_task(&uuid1, &model_uuid, &context) {
             Ok(retrieved_task) => {
                 assert_eq!(retrieved_task.uuid, uuid1.to_string());
             }
@@ -594,7 +594,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if get_task(&uuid3, &cluster_uuid, &context).is_ok() {
+        if get_task(&uuid3, &model_uuid, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -608,7 +608,7 @@ mod tests {
     fn test_update_task_state() {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -623,7 +623,7 @@ mod tests {
         let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -647,7 +647,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Created);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Created.to_string());
             assert_eq!(retrieved_task.queued_at, None);
             assert_eq!(retrieved_task.started_at, None);
@@ -657,7 +657,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Queued);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Queued.to_string());
             assert_ne!(retrieved_task.queued_at, None);
             assert_eq!(retrieved_task.started_at, None);
@@ -667,7 +667,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Active);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Active.to_string());
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
@@ -677,7 +677,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Aborted);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Aborted.to_string());
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
@@ -687,7 +687,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Finished);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Finished.to_string());
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
@@ -703,7 +703,7 @@ mod tests {
     fn test_update_task_progress() {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -718,7 +718,7 @@ mod tests {
         let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -742,7 +742,7 @@ mod tests {
 
         update_task_progress(&uuid1, &123, &42).unwrap();
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.current_cycle, 42);
             assert_eq!(retrieved_task.current_epoch, 123);
         };
@@ -756,7 +756,7 @@ mod tests {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let error_msg = "This is an error".to_string();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -771,7 +771,7 @@ mod tests {
         let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,
@@ -797,7 +797,7 @@ mod tests {
 
         let _ = set_error_state(&uuid1, &error_msg);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &cluster_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &model_uuid, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Error.to_string());
             assert_eq!(retrieved_task.error_message, Some(error_msg));
         };
@@ -810,7 +810,7 @@ mod tests {
     fn test_is_aborted() {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -818,7 +818,7 @@ mod tests {
         let task = TaskEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
-            cluster_uuid: cluster_uuid.to_string(),
+            model_uuid: model_uuid.to_string(),
             task_type: TaskType::Train.to_string(),
             task_state: TaskState::Created.to_string(),
             total_number_of_epochs: 42,

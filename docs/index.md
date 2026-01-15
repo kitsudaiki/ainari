@@ -45,7 +45,7 @@ as-a-Service architecture within a cloud native environment and multi-tenancy.
 
 - **No strict layer structure**
 
-    The base of a new neural network is defined by a cluster-template. In these templates the
+    The base of a new neural network is defined by a model-template. In these templates the
     structure of the network in planed in hexagons, indeed of layer. When a node tries to create a
     new synapse, the location of the target-node depends on the location of the source-node within
     these hexagons. The target is random and the probability depends on the distance to the source.
@@ -69,7 +69,7 @@ as-a-Service architecture within a cloud native environment and multi-tenancy.
 
     It is basically possible to define 3-dimensional networks. This was only added, because the human
     brain is also a 3D-object. This feature exist in the
-    [cluster-templates](/user/cluster_templates/cluster_template/), but was never tested until now.
+    [model-templates](/user/model_templates/model_template/), but was never tested until now.
     Maybe in bigger tests in the future this feature could become useful to better mix information
     with each other.
 

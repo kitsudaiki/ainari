@@ -50,6 +50,43 @@
         ]
       }
     },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/token": {
       "put": {
         "tags": [
@@ -929,8 +966,8 @@
         "type": "object",
         "required": [
           "max_checkpoint",
-          "max_cluster",
           "max_dataset",
+          "max_model",
           "max_secret",
           "max_taskqueue",
           "user_id"
@@ -940,11 +977,11 @@
             "type": "integer",
             "format": "int32"
           },
-          "max_cluster": {
+          "max_dataset": {
             "type": "integer",
             "format": "int32"
           },
-          "max_dataset": {
+          "max_model": {
             "type": "integer",
             "format": "int32"
           },
@@ -983,8 +1020,8 @@
           "created_at",
           "created_by",
           "max_checkpoint",
-          "max_cluster",
           "max_dataset",
+          "max_model",
           "max_secret",
           "max_taskqueue",
           "updated_at",
@@ -1002,11 +1039,11 @@
             "type": "integer",
             "format": "int32"
           },
-          "max_cluster": {
+          "max_dataset": {
             "type": "integer",
             "format": "int32"
           },
-          "max_dataset": {
+          "max_model": {
             "type": "integer",
             "format": "int32"
           },
@@ -1034,8 +1071,8 @@
         "type": "object",
         "required": [
           "max_checkpoint",
-          "max_cluster",
           "max_dataset",
+          "max_model",
           "max_secret",
           "max_taskqueue"
         ],
@@ -1044,11 +1081,11 @@
             "type": "integer",
             "format": "int32"
           },
-          "max_cluster": {
+          "max_dataset": {
             "type": "integer",
             "format": "int32"
           },
-          "max_dataset": {
+          "max_model": {
             "type": "integer",
             "format": "int32"
           },
@@ -1059,6 +1096,18 @@
           "max_taskqueue": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
           }
         }
       },

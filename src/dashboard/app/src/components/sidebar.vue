@@ -100,7 +100,7 @@ const menus = ref<Menu[]>([
     {
         name: "Workload",
         label: "Workload",
-        items: [{ view: "WorkloadCluster", label: "Cluster" }],
+        items: [{ view: "WorkloadModel", label: "Models" }],
     },
     {
         name: "Storage",

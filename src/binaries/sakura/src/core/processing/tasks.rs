@@ -31,7 +31,7 @@ use ainari_dataset::file_encryption::{decrypt_file, encrypt_file};
 
 use crate::config;
 use crate::core::blocks::block_trait::*;
-use crate::core::cluster_handler::*;
+use crate::core::model_handler::*;
 use crate::database::task_table;
 
 use super::super::processing::output_buffer::*;
@@ -108,7 +108,7 @@ impl TaskMeta {
 #[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
     #[allow(dead_code)]
     pub name: String,
 
@@ -126,8 +126,8 @@ impl Task {
         }
 
         {
-            let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-            let _ = cluster_handler.reset_outputs(&self.cluster_uuid);
+            let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            let _ = model_handler.reset_outputs(&self.model_uuid);
         }
 
         self.meta.prev_timestamp = Instant::now();
@@ -135,17 +135,17 @@ impl Task {
 
         match &mut self.info {
             TaskVariant::Training(task_info) => {
-                run_train_task_cycle(&self.uuid, &self.cluster_uuid, &mut self.meta, task_info);
+                run_train_task_cycle(&self.uuid, &self.model_uuid, &mut self.meta, task_info);
                 true
             }
             TaskVariant::Request(task_info) => {
-                run_request_task_cycle(&self.uuid, &self.cluster_uuid, &mut self.meta, task_info);
+                run_request_task_cycle(&self.uuid, &self.model_uuid, &mut self.meta, task_info);
                 true
             }
             TaskVariant::CheckpointSave(task_info) => {
                 handle_checkpoint_save_task(
                     &self.uuid,
-                    &self.cluster_uuid,
+                    &self.model_uuid,
                     &mut self.meta,
                     task_info,
                 );
@@ -154,7 +154,7 @@ impl Task {
             TaskVariant::CheckpointRestore(task_info) => {
                 handle_checkpoint_restore_task(
                     &self.uuid,
-                    &self.cluster_uuid,
+                    &self.model_uuid,
                     &mut self.meta,
                     task_info,
                 );
@@ -224,7 +224,7 @@ impl Task {
                 finish_train_cycle(&self.uuid, task_info);
             }
             TaskVariant::Request(task_info) => {
-                finish_request_cycle(&self.uuid, &self.cluster_uuid, task_info);
+                finish_request_cycle(&self.uuid, &self.model_uuid, task_info);
             }
             _ => {
                 return;
@@ -262,10 +262,10 @@ impl Task {
         // run next-cycle
         match &mut self.info {
             TaskVariant::Training(task_info) => {
-                run_train_task_cycle(&self.uuid, &self.cluster_uuid, &mut self.meta, task_info);
+                run_train_task_cycle(&self.uuid, &self.model_uuid, &mut self.meta, task_info);
             }
             TaskVariant::Request(task_info) => {
-                run_request_task_cycle(&self.uuid, &self.cluster_uuid, &mut self.meta, task_info);
+                run_request_task_cycle(&self.uuid, &self.model_uuid, &mut self.meta, task_info);
             }
             _ => {}
         }
@@ -278,9 +278,9 @@ impl Task {
 
 fn finish_train_cycle(_: &Uuid, _: &mut TrainInfo) {}
 
-fn finish_request_cycle(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut RequestInfo) {
+fn finish_request_cycle(task_uuid: &Uuid, model_uuid: &Uuid, task_info: &mut RequestInfo) {
     // get output-values form backend and write them into the dataset
-    match write_output_into_dataset(cluster_uuid, &mut task_info.results) {
+    match write_output_into_dataset(model_uuid, &mut task_info.results) {
         Ok(()) => {}
         Err(AinariError::Unauthorized(msg)) => {
             let _ = task_table::set_error_state(task_uuid, &msg);
@@ -298,7 +298,7 @@ fn finish_request_cycle(task_uuid: &Uuid, cluster_uuid: &Uuid, task_info: &mut R
 
 fn run_train_task_cycle(
     task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     meta: &mut TaskMeta,
     task_info: &mut TrainInfo,
 ) {
@@ -321,7 +321,7 @@ fn run_train_task_cycle(
     // push output-values form dataset into the backend
     for (hexagon_name, file_handle) in &mut task_info.outputs {
         match apply_dataset_to_expected(
-            cluster_uuid,
+            model_uuid,
             hexagon_name,
             file_handle,
             meta.number_of_finished_cycles,
@@ -348,7 +348,7 @@ fn run_train_task_cycle(
     // push input-values form dataset into the backend
     for (hexagon_name, file_handle) in &mut task_info.inputs {
         match apply_dataset_to_input(
-            cluster_uuid,
+            model_uuid,
             hexagon_name,
             file_handle,
             meta.number_of_finished_cycles,
@@ -377,7 +377,7 @@ fn run_train_task_cycle(
 
 fn run_request_task_cycle(
     task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     meta: &mut TaskMeta,
     task_info: &mut RequestInfo,
 ) {
@@ -400,7 +400,7 @@ fn run_request_task_cycle(
     // push input-values form dataset into the backend
     for (hexagon_name, file_handle) in &mut task_info.inputs {
         match apply_dataset_to_input(
-            cluster_uuid,
+            model_uuid,
             hexagon_name,
             file_handle,
             meta.number_of_finished_cycles,
@@ -428,7 +428,7 @@ fn run_request_task_cycle(
 }
 
 pub fn apply_plain_input(
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     hexagon_name: &String,
     input_ptr: &[f32],
     input_size: u64,
@@ -436,8 +436,8 @@ pub fn apply_plain_input(
     time_length: u64,
     task_type: &WorkerTaskType,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
+    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let input_block_mutex = model_handler.get_input_block(model_uuid, hexagon_name)?;
 
     let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
     let allow_creation = *task_type == WorkerTaskType::Train;
@@ -462,7 +462,7 @@ pub fn apply_plain_input(
 }
 
 fn apply_dataset_to_input(
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     hexagon_name: &String,
     file_handle: &mut DataSetFileReadHandle,
     cycle_count: u64,
@@ -471,9 +471,9 @@ fn apply_dataset_to_input(
     task_cycle_counter: u64,
 ) -> Result<(), AinariError> {
     // get input-block
-    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-    let input_block_mutex = cluster_handler.get_input_block(cluster_uuid, hexagon_name)?;
-    drop(cluster_handler);
+    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let input_block_mutex = model_handler.get_input_block(model_uuid, hexagon_name)?;
+    drop(model_handler);
 
     let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
 
@@ -507,13 +507,13 @@ fn apply_dataset_to_input(
 }
 
 pub fn apply_expected(
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     hexagon_name: &String,
     input_ptr: &[f32],
     input_size: u64,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-    let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
+    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let output_buffer_mutex = model_handler.get_output_buffer(model_uuid, hexagon_name)?;
 
     let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
     output_buffer.reset_output();
@@ -523,7 +523,7 @@ pub fn apply_expected(
 }
 
 fn apply_dataset_to_expected(
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     hexagon_name: &String,
     file_handle: &mut DataSetFileReadHandle,
     cycle_count: u64,
@@ -532,23 +532,23 @@ fn apply_dataset_to_expected(
     let (input_ptr, input_size) =
         file_handle.get_data_from_file(&(cycle_count + time_length - 1))?;
 
-    apply_expected(cluster_uuid, hexagon_name, input_ptr, input_size)?;
+    apply_expected(model_uuid, hexagon_name, input_ptr, input_size)?;
 
     Ok(())
 }
 
 fn write_output_into_dataset(
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     file_handle: &mut DataSetFileWriteHandle,
 ) -> Result<(), AinariError> {
-    let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
 
     // get column-description from the dataset
     for (hexagon_name, col_get) in &file_handle.header.columns {
         let size_output = (col_get.end - col_get.start) as usize;
         let mut output_read = vec![0.0f32; size_output];
 
-        let output_buffer_mutex = cluster_handler.get_output_buffer(cluster_uuid, hexagon_name)?;
+        let output_buffer_mutex = model_handler.get_output_buffer(model_uuid, hexagon_name)?;
 
         let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
         convert_output_to_buffer(&mut output_read, &mut output_buffer);
@@ -563,7 +563,7 @@ fn write_output_into_dataset(
 
 fn handle_checkpoint_save_task(
     task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CheckpointSaveInfo,
 ) {
@@ -571,13 +571,13 @@ fn handle_checkpoint_save_task(
     let local_temp_file_path = format!(
         "{}/{}",
         config::CONFIG.storage.tempfile_location,
-        cluster_uuid
+        model_uuid
     );
     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
     {
-        let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-        match cluster_handler.create_checkpoint(cluster_uuid, &local_temp_file_path) {
+        let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        match model_handler.create_checkpoint(model_uuid, &local_temp_file_path) {
             Ok(()) => {}
             Err(_) => {
                 let _ = fs::remove_file(&local_temp_file_path);
@@ -629,7 +629,7 @@ fn handle_checkpoint_save_task(
 
 fn handle_checkpoint_restore_task(
     task_uuid: &Uuid,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CheckpointRestoreInfo,
 ) {
@@ -637,7 +637,7 @@ fn handle_checkpoint_restore_task(
     let local_temp_file_path = format!(
         "{}/{}",
         config::CONFIG.storage.tempfile_location,
-        cluster_uuid
+        model_uuid
     );
     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
@@ -677,9 +677,9 @@ fn handle_checkpoint_restore_task(
             }
         }
 
-        // restore cluster from the downloaded and decrypted checkpoint-file
-        let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
-        match cluster_handler.restore_checkpoint(cluster_uuid, &local_temp_file_path) {
+        // restore model from the downloaded and decrypted checkpoint-file
+        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        match model_handler.restore_checkpoint(model_uuid, &local_temp_file_path) {
             Ok(()) => {}
             Err(_) => {
                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);

@@ -45,7 +45,7 @@ echo ""
 $EXECUTABLE user create -n "cli test user" -p "asdfasdf" cli_test_user
 $EXECUTABLE quota get cli_test_user
 $EXECUTABLE quota list
-$EXECUTABLE quota set --max_checkpoint 5 --max_cluster 6 --max_dataset 7 --max_secret 9 cli_test_user
+$EXECUTABLE quota set --max_checkpoint 5 --max_model 6 --max_dataset 7 --max_secret 9 cli_test_user
 $EXECUTABLE user delete cli_test_user
 
 # ########################
@@ -59,18 +59,18 @@ $EXECUTABLE dataset delete $DATASET_UUID
 
 # ########################
 echo ""
-echo "########################### cluster tests ##########################"
+echo "########################### model tests ##########################"
 echo ""
-CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
-$EXECUTABLE cluster get $CLUSTER_UUID
-$EXECUTABLE cluster list
-$EXECUTABLE cluster delete $CLUSTER_UUID
+CLUSTER_UUID=$($EXECUTABLE model create -j -t ./model_template cli_test_model | jq -r '.uuid')
+$EXECUTABLE model get $CLUSTER_UUID
+$EXECUTABLE model list
+$EXECUTABLE model delete $CLUSTER_UUID
 
 # ########################
 echo ""
 echo "########################### secret tests ###########################"
 echo ""
-SECRET_UUID=$($EXECUTABLE secret create -j -p 'this is a test-secret' cli_test_cluster | jq -r '.uuid')
+SECRET_UUID=$($EXECUTABLE secret create -j -p 'this is a test-secret' cli_test_model | jq -r '.uuid')
 $EXECUTABLE secret get $SECRET_UUID
 $EXECUTABLE secret get-payload $SECRET_UUID
 $EXECUTABLE secret list
@@ -87,8 +87,8 @@ echo "Train-Dataset-UUID: $train_DATASET_UUID"
 request_DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $REQUEST_INPUTS -l $REQUEST_LABELS cli_test_dataset_req | jq -r '.uuid')
 echo "Request-Dataset-UUID: $request_DATASET_UUID"
 
-CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
-echo "Cluster-UUID: $CLUSTER_UUID"
+CLUSTER_UUID=$($EXECUTABLE model create -j -t ./model_template cli_test_model | jq -r '.uuid')
+echo "Model-UUID: $CLUSTER_UUID"
 
 
 # train test
@@ -115,10 +115,10 @@ $EXECUTABLE task get $CLUSTER_UUID $task_uuid
 #echo "Checkpoint-UUID: $checkpoint_uuid"
 #$EXECUTABLE checkpoint list
 
-#$EXECUTABLE cluster delete $CLUSTER_UUID
-#CLUSTER_UUID=$($EXECUTABLE cluster create -j -t ./cluster_template cli_test_cluster | jq -r '.uuid')
-#echo "new Cluster-UUID: $CLUSTER_UUID"
-#$EXECUTABLE task create checkpoint_restore $CLUSTER_UUID restore_cluster
+#$EXECUTABLE model delete $CLUSTER_UUID
+#CLUSTER_UUID=$($EXECUTABLE model create -j -t ./model_template cli_test_model | jq -r '.uuid')
+#echo "new Model-UUID: $CLUSTER_UUID"
+#$EXECUTABLE task create checkpoint_restore $CLUSTER_UUID restore_model
 #sleep 2
 
 # request test
@@ -152,7 +152,7 @@ $EXECUTABLE dataset list
 
 # # clear all test-resources
 # $EXECUTABLE checkpoint delete $checkpoint_uuid
-$EXECUTABLE cluster delete $CLUSTER_UUID
+$EXECUTABLE model delete $CLUSTER_UUID
 $EXECUTABLE dataset delete $train_DATASET_UUID
 $EXECUTABLE dataset delete $request_DATASET_UUID
 $EXECUTABLE dataset delete $req_task_uuid

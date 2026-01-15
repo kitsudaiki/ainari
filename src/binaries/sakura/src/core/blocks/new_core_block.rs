@@ -88,7 +88,7 @@
 // pub struct NewCoreBlock {
 //     pub uuid: Uuid,
 //     pub hexagon_uuid: Uuid,
-//     pub cluster_uuid: Uuid,
+//     pub model_uuid: Uuid,
 
 //     // HINT (kitsudaiki): this has to be a Box instead of a static array to avoid a stack-overflow, because the object is too big
 //     pub synapses: Box<[Synapse]>,
@@ -103,7 +103,7 @@
 
 // impl NewCoreBlock {
 //     #[allow(dead_code)]
-//     pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid) -> Self {
+//     pub fn new(hexagon_uuid: &Uuid, model_uuid: &Uuid) -> Self {
 //         // internal visilization of the blocks:
 //         //
 //         // +---+ +---+ +---+
@@ -137,7 +137,7 @@
 //         let mut block = NewCoreBlock {
 //             uuid: Uuid::new_v4(),
 //             hexagon_uuid: *hexagon_uuid,
-//             cluster_uuid: *cluster_uuid,
+//             model_uuid: *model_uuid,
 
 //             block_io: BlockIoBuffer::default(),
 
@@ -303,7 +303,7 @@
 //         self.apply_output();
 //         connect_outputs(
 //             &mut self.block_io,
-//             &self.cluster_uuid,
+//             &self.model_uuid,
 //             &self.hexagon_uuid,
 //             &self.uuid,
 //         )?;
@@ -413,8 +413,8 @@
 //     fn get_hexagon_uud(&self) -> Uuid {
 //         self.hexagon_uuid
 //     }
-//     fn get_cluster_uud(&self) -> Uuid {
-//         self.cluster_uuid
+//     fn get_model_uud(&self) -> Uuid {
+//         self.model_uuid
 //     }
 
 //     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
@@ -425,8 +425,8 @@
 //         ObjectType::Unknown
 //     }
 
-//     fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-//         self.cluster_uuid = *new_cluster_uuid;
+//     fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
+//         self.model_uuid = *new_model_uuid;
 //     }
 
 //     fn serailize(&self) -> Vec<u8> {
@@ -444,9 +444,9 @@
 
 //     #[test]
 //     fn test_process() {
-//         let cluster_uuid = Uuid::new_v4();
+//         let model_uuid = Uuid::new_v4();
 //         let hexagon_uuid = Uuid::new_v4();
-//         let mut test_block = NewCoreBlock::new(&hexagon_uuid, &cluster_uuid);
+//         let mut test_block = NewCoreBlock::new(&hexagon_uuid, &model_uuid);
 //         test_block.buffer[1].source_axon = 42;
 //         let own: Arc<Mutex<dyn Block>> = Arc::new(Mutex::new(test_block.clone()));
 //         let cycle_number = 0;

@@ -16,7 +16,7 @@
 
 from ainari_sdk import login
 from ainari_sdk import checkpoint
-from ainari_sdk import cluster
+from ainari_sdk import model
 from ainari_sdk import dataset
 from ainari_sdk import host
 from ainari_sdk import proxy
@@ -54,7 +54,7 @@ train_labels = config["test_data"]["train_labels"]
 request_inputs = config["test_data"]["request_inputs"]
 request_labels = config["test_data"]["request_labels"]
 
-cluster_template = \
+model_template = \
     "version: 1 " \
     "settings: " \
     "    neuron_cooldown: 1000000000.0; " \
@@ -79,7 +79,7 @@ role = "tester"
 projet_id = "test_project"
 project_name = "Test Project"
 
-cluster_name = "test_cluster"
+model_name = "test_model"
 checkpoint_name = "test_checkpoint"
 generic_task_name = "test_task"
 template_name = "dynamic"
@@ -178,20 +178,20 @@ def test_dataset():
         pass
 
 
-def test_cluster():
-    print("test cluster")
+def test_model():
+    print("test model")
 
-    cluster_uuid = cluster.create_cluster(
-        context, cluster_name, cluster_template)["uuid"]
-    cluster.list_clusters(context)
-    cluster.get_cluster(context, cluster_uuid)
+    model_uuid = model.create_model(
+        context, model_name, model_template)["uuid"]
+    model.list_models(context)
+    model.get_model(context, model_uuid)
     try:
-        cluster.get_cluster(context, "569003fd-bf24-410b-8678-28f141877ac9")
+        model.get_model(context, "569003fd-bf24-410b-8678-28f141877ac9")
     except ainari_exceptions.NotFoundException:
         pass
-    cluster.delete_cluster(context, cluster_uuid)
+    model.delete_model(context, model_uuid)
     try:
-        cluster.delete_cluster(context, cluster_uuid)
+        model.delete_model(context, model_uuid)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -224,7 +224,7 @@ def test_quota():
 
     quota.list_quotas(context)
     user_quota = quota.get_quota(context, user_id)
-    assert user_quota["max_cluster"] == 10
+    assert user_quota["max_model"] == 10
     assert user_quota["max_dataset"] == 10
     assert user_quota["max_checkpoint"] == 10
     assert user_quota["max_secret"] == 10
@@ -238,7 +238,7 @@ def test_quota():
     # set and check quota
     user_quota = quota.set_quota(context, user_id, 11, 12, 13, 14, 0)
     user_quota = quota.get_quota(context, user_id)
-    assert user_quota["max_cluster"] == 11
+    assert user_quota["max_model"] == 11
     assert user_quota["max_dataset"] == 12
     assert user_quota["max_checkpoint"] == 13
     assert user_quota["max_secret"] == 14
@@ -247,23 +247,23 @@ def test_quota():
     user.delete_user(context, user_id)
 
 
-def _creat_and_resore_checkpoint(cluster_uuid, torii_port):
+def _creat_and_resore_checkpoint(model_uuid, torii_port):
     # save and reload checkpoint
     checkpoint_uuid = task.create_checkpoint_save_task(
-        context, torii_port, cluster_uuid, checkpoint_name)["uuid"]
+        context, torii_port, model_uuid, checkpoint_name)["uuid"]
     time.sleep(2)
     result = checkpoint.list_checkpoints(context)
     # print(json.dumps(result, indent=4))
 
-    cluster.delete_cluster(context, cluster_uuid)
+    model.delete_model(context, model_uuid)
     time.sleep(2)
-    new_cluster = cluster.create_cluster(
-        context, cluster_name, cluster_template)
-    cluster_uuid = new_cluster["uuid"]
-    torii_port = new_cluster["torii_port"]
+    new_model = model.create_model(
+        context, model_name, model_template)
+    model_uuid = new_model["uuid"]
+    torii_port = new_model["torii_port"]
 
     task.create_checkpoint_restore_task(
-        context, torii_port, cluster_uuid, "restore", checkpoint_uuid)
+        context, torii_port, model_uuid, "restore", checkpoint_uuid)
     time.sleep(2)
     checkpoint.delete_checkpoint(context, checkpoint_uuid)
     try:
@@ -271,10 +271,10 @@ def _creat_and_resore_checkpoint(cluster_uuid, torii_port):
     except ainari_exceptions.NotFoundException:
         pass
 
-    return cluster_uuid, torii_port
+    return model_uuid, torii_port
 
 
-def _train(cluster_uuid, torii_port, train_dataset_uuid):
+def _train(model_uuid, torii_port, train_dataset_uuid):
     inputs = [
         {
             "dataset_uuid": train_dataset_uuid,
@@ -292,12 +292,12 @@ def _train(cluster_uuid, torii_port, train_dataset_uuid):
     ]
 
     task_uuid = task.create_train_task(
-        context, torii_port, generic_task_name, cluster_uuid, inputs, outputs, 1, 1)["uuid"]
+        context, torii_port, generic_task_name, model_uuid, inputs, outputs, 1, 1)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
+        result = task.get_task(context, torii_port, task_uuid, model_uuid)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -311,15 +311,15 @@ def _train(cluster_uuid, torii_port, train_dataset_uuid):
                      suffix_cycle='Complete',
                      length=50)
 
-    result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
+    result = task.get_task(context, torii_port, task_uuid, model_uuid)
     # print(json.dumps(result, indent=4))
 
     print("\n")
-    result = cluster.get_cluster(context, cluster_uuid)
-    task.delete_task(context, torii_port, task_uuid, cluster_uuid)
+    result = model.get_model(context, model_uuid)
+    task.delete_task(context, torii_port, task_uuid, model_uuid)
 
 
-def _test(cluster_uuid, torii_port, request_dataset_uuid):
+def _test(model_uuid, torii_port, request_dataset_uuid):
     # run testing
     inputs = [
         {
@@ -336,12 +336,12 @@ def _test(cluster_uuid, torii_port, request_dataset_uuid):
     ]
 
     task_uuid = task.create_request_task(
-        context, torii_port, generic_task_name, cluster_uuid, inputs, results, 1)["uuid"]
+        context, torii_port, generic_task_name, model_uuid, inputs, results, 1)["uuid"]
 
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(context, torii_port, task_uuid, cluster_uuid)
+        result = task.get_task(context, torii_port, task_uuid, model_uuid)
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -356,9 +356,9 @@ def _test(cluster_uuid, torii_port, request_dataset_uuid):
                      length=50)
 
     print("\n")
-    result = task.list_tasks(context, torii_port, cluster_uuid)
+    result = task.list_tasks(context, torii_port, model_uuid)
     # print(json.dumps(result, indent=4))
-    task.delete_task(context, torii_port, task_uuid, cluster_uuid)
+    task.delete_task(context, torii_port, task_uuid, model_uuid)
     time.sleep(1)
 
     accuracy = dataset.check_dataset(
@@ -378,9 +378,9 @@ def test_workflow():
     print("test workflow")
 
     # init
-    cluster_resp = cluster.create_cluster(context, cluster_name, cluster_template)
-    cluster_uuid = cluster_resp["uuid"]
-    torii_port = cluster_resp["torii_port"]
+    model_resp = model.create_model(context, model_name, model_template)
+    model_uuid = model_resp["uuid"]
+    torii_port = model_resp["torii_port"]
 
     train_dataset_uuid = ""
     request_dataset_uuid = ""
@@ -404,18 +404,18 @@ def test_workflow():
 
     # hosts_json = hosts.list_hosts(context)["body"]
     # if len(hosts_json) > 1:
-    #     print("test move cluster to gpu")
+    #     print("test move model to gpu")
     #     target_host_uuid = hosts_json[1][0]
-    #     cluster.switch_host(context, cluster_uuid, target_host_uuid)
+    #     model.switch_host(context, model_uuid, target_host_uuid)
 
-    _train(cluster_uuid, torii_port, train_dataset_uuid)
+    _train(model_uuid, torii_port, train_dataset_uuid)
 
-    _test(cluster_uuid, torii_port, request_dataset_uuid)
-    _test(cluster_uuid, torii_port, request_dataset_uuid)
+    _test(model_uuid, torii_port, request_dataset_uuid)
+    _test(model_uuid, torii_port, request_dataset_uuid)
 
-    cluster_uuid, torii_port = _creat_and_resore_checkpoint(cluster_uuid, torii_port)
+    model_uuid, torii_port = _creat_and_resore_checkpoint(model_uuid, torii_port)
 
-    _test(cluster_uuid, torii_port, request_dataset_uuid)
+    _test(model_uuid, torii_port, request_dataset_uuid)
 
     inputs = dict()
     inputs["picture_hex"] = test_values.get_direct_io_test_intput()
@@ -423,10 +423,10 @@ def test_workflow():
     outputs["label_hex"] = test_values.get_direct_io_test_output()
 
     for i in range(0, 100):
-        cluster.train(context, torii_port, cluster_uuid, inputs, outputs)
+        model.train(context, torii_port, model_uuid, inputs, outputs)
 
     output_names = ["label_hex"]
-    output_values = cluster.request(context, torii_port, cluster_uuid, inputs, output_names)
+    output_values = model.request(context, torii_port, model_uuid, inputs, output_names)
     print("output: %s" % json.dumps(output_values, indent=4))
     assert list(output_values["outputs"]["label_hex"]).index(
         max(output_values["outputs"]["label_hex"])) == 5
@@ -434,7 +434,7 @@ def test_workflow():
     # cleanup
     dataset.delete_dataset(context, train_dataset_uuid)
     dataset.delete_dataset(context, request_dataset_uuid)
-    cluster.delete_cluster(context, cluster_uuid)
+    model.delete_model(context, model_uuid)
 
 
 context = login.request_context(miko_address, test_user_id, test_user_pw, False)
@@ -442,7 +442,7 @@ context.verify_connection = False
 print(context)
 dataset.delete_all_datasets(context)
 checkpoint.delete_all_checkpoints(context)
-cluster.delete_all_cluster(context)
+model.delete_all_model(context)
 project.delete_all_projects(context)
 user.delete_all_user(context)
 
@@ -458,7 +458,7 @@ print(f"torii-version: {version}")
 test_project()
 test_user()
 test_dataset()
-test_cluster()
+test_model()
 test_secret()
 test_quota()
 test_workflow()

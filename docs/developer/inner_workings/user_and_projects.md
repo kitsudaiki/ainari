@@ -33,6 +33,6 @@ Folling tasks:
     - role is bonded to a specific project
     - can only see the own resources within within the project, where the User-role is bonded to
 
-Each resource, which is created (for example a Cluster or Dataset), get the user- and project-id
+Each resource, which is created (for example a Model or Dataset), get the user- and project-id
 attached, who created the resource. Even users and projects get the id of the admin attached, who
 created the user or project

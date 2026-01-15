@@ -28,7 +28,7 @@ use ainari_common::enums;
 table! {
     quotas (id) {
         id -> Varchar,
-        max_cluster -> Integer,
+        max_model -> Integer,
         max_dataset -> Integer,
         max_checkpoint -> Integer,
         max_secret -> Integer,
@@ -47,7 +47,7 @@ table! {
 #[diesel(table_name = quotas)]
 pub struct QuotaEntry {
     pub id: String,
-    pub max_cluster: i32,
+    pub max_model: i32,
     pub max_dataset: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
@@ -66,7 +66,7 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS quotas (
         id VARCHAR(256),
-        max_cluster INTEGER,
+        max_model INTEGER,
         max_dataset INTEGER,
         max_checkpoint INTEGER,
         max_secret INTEGER,
@@ -117,7 +117,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 
 pub fn add_new_quota(
     user_id: &String,
-    max_cluster: i32,
+    max_model: i32,
     max_dataset: i32,
     max_checkpoint: i32,
     max_secret: i32,
@@ -142,7 +142,7 @@ pub fn add_new_quota(
 
     let quota = QuotaEntry {
         id: user_id.clone(),
-        max_cluster,
+        max_model,
         max_dataset,
         max_checkpoint,
         max_secret,
@@ -201,7 +201,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 
 pub fn set_quota(
     user_id: &String,
-    new_max_cluster: i32,
+    new_max_model: i32,
     new_max_dataset: i32,
     new_max_checkpoint: i32,
     new_max_secret: i32,
@@ -217,7 +217,7 @@ pub fn set_quota(
 
     match diesel::update(quotas.filter(id.eq(user_id.to_string())))
         .set((
-            max_cluster.eq(new_max_cluster),
+            max_model.eq(new_max_model),
             max_dataset.eq(new_max_dataset),
             max_checkpoint.eq(new_max_checkpoint),
             max_secret.eq(new_max_secret),
@@ -291,7 +291,7 @@ mod tests {
 
         let quota = QuotaEntry {
             id: owner_id.clone(),
-            max_cluster: 42,
+            max_model: 42,
             max_dataset: 43,
             max_checkpoint: 44,
             max_secret: 45,
@@ -310,7 +310,7 @@ mod tests {
         add_quota(&quota).unwrap();
         if let Ok(retrieved_quota) = get_quota(&owner_id, &context) {
             assert_eq!(retrieved_quota.id, quota.id);
-            assert_eq!(retrieved_quota.max_cluster, quota.max_cluster);
+            assert_eq!(retrieved_quota.max_model, quota.max_model);
             assert_eq!(retrieved_quota.max_dataset, quota.max_dataset);
             assert_eq!(retrieved_quota.max_checkpoint, quota.max_checkpoint);
             assert_eq!(retrieved_quota.max_secret, quota.max_secret);
@@ -341,7 +341,7 @@ mod tests {
 
         let quota = QuotaEntry {
             id: owner_id.clone(),
-            max_cluster: 42,
+            max_model: 42,
             max_dataset: 43,
             max_checkpoint: 44,
             max_secret: 45,
@@ -359,7 +359,7 @@ mod tests {
 
         add_quota(&quota).unwrap();
 
-        let new_max_cluster = 52;
+        let new_max_model = 52;
         let new_max_dataset = 53;
         let new_max_checkpoint = 54;
         let new_max_secret = 55;
@@ -369,7 +369,7 @@ mod tests {
         assert!(
             set_quota(
                 &owner_id,
-                new_max_cluster,
+                new_max_model,
                 new_max_dataset,
                 new_max_checkpoint,
                 new_max_secret,
@@ -381,7 +381,7 @@ mod tests {
 
         if let Ok(retrieved_quota) = get_quota(&owner_id, &context) {
             assert_eq!(retrieved_quota.id, quota.id);
-            assert_eq!(retrieved_quota.max_cluster, new_max_cluster);
+            assert_eq!(retrieved_quota.max_model, new_max_model);
             assert_eq!(retrieved_quota.max_dataset, new_max_dataset);
             assert_eq!(retrieved_quota.max_checkpoint, new_max_checkpoint);
             assert_eq!(retrieved_quota.max_secret, new_max_secret);
@@ -413,7 +413,7 @@ mod tests {
 
         let user1 = QuotaEntry {
             id: owner_id1.clone(),
-            max_cluster: 42,
+            max_model: 42,
             max_dataset: 43,
             max_checkpoint: 44,
             max_secret: 45,
@@ -429,7 +429,7 @@ mod tests {
 
         let user2 = QuotaEntry {
             id: owner_id2.clone(),
-            max_cluster: 42,
+            max_model: 42,
             max_dataset: 43,
             max_checkpoint: 44,
             max_secret: 45,
@@ -472,7 +472,7 @@ mod tests {
 
         let quota = QuotaEntry {
             id: owner_id.clone(),
-            max_cluster: 42,
+            max_model: 42,
             max_dataset: 43,
             max_checkpoint: 44,
             max_secret: 45,

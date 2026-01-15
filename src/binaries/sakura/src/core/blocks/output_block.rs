@@ -21,7 +21,7 @@ use ainari_common::constants::*;
 use ainari_common::enums::*;
 use ainari_common::error::AinariError;
 
-use crate::core::cluster_handler::*;
+use crate::core::model_handler::*;
 use crate::core::processing::finish_counter::FinishCounter;
 use crate::core::processing::output_buffer::*;
 
@@ -52,7 +52,7 @@ impl OutputNeuron {
 pub struct OutputBlock {
     pub uuid: Uuid,
     pub hexagon_uuid: Uuid,
-    pub cluster_uuid: Uuid,
+    pub model_uuid: Uuid,
 
     pub block_io: BlockIoBuffer,
 
@@ -70,7 +70,7 @@ impl PartialEq for OutputBlock {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
-            && self.cluster_uuid == other.cluster_uuid
+            && self.model_uuid == other.model_uuid
             && self.block_io == other.block_io
             && self.weights == other.weights
             && self.block_outputs == other.block_outputs
@@ -80,11 +80,11 @@ impl PartialEq for OutputBlock {
 }
 
 impl OutputBlock {
-    pub fn new(hexagon_uuid: &Uuid, cluster_uuid: &Uuid, output_buffer_name: &str) -> Self {
+    pub fn new(hexagon_uuid: &Uuid, model_uuid: &Uuid, output_buffer_name: &str) -> Self {
         let mut block = OutputBlock {
             uuid: Uuid::new_v4(),
             hexagon_uuid: *hexagon_uuid,
-            cluster_uuid: *cluster_uuid,
+            model_uuid: *model_uuid,
 
             block_io: BlockIoBuffer::default(),
 
@@ -108,7 +108,7 @@ impl OutputBlock {
         if self.output_buffer.is_none() {
             let root_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
             let output_buffer_mutex =
-                root_handler.get_output_buffer(&self.cluster_uuid, &self.output_buffer_name)?;
+                root_handler.get_output_buffer(&self.model_uuid, &self.output_buffer_name)?;
 
             self.output_buffer = Some(output_buffer_mutex.clone());
             let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
@@ -300,8 +300,8 @@ impl Block for OutputBlock {
     fn get_hexagon_uud(&self) -> Uuid {
         self.hexagon_uuid
     }
-    fn get_cluster_uud(&self) -> Uuid {
-        self.cluster_uuid
+    fn get_model_uud(&self) -> Uuid {
+        self.model_uuid
     }
 
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
@@ -312,8 +312,8 @@ impl Block for OutputBlock {
         ObjectType::OutputBlock
     }
 
-    fn set_cluster_uuid(&mut self, new_cluster_uuid: &Uuid) {
-        self.cluster_uuid = *new_cluster_uuid;
+    fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
+        self.model_uuid = *new_model_uuid;
     }
 
     fn serailize(&self) -> Vec<u8> {

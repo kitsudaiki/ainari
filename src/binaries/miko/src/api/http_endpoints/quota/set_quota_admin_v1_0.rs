@@ -45,8 +45,8 @@ pub async fn set_quota_admin(
         .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
 
     // update values to set
-    if body.max_cluster != 0 {
-        current_quota.max_cluster = body.max_cluster;
+    if body.max_model != 0 {
+        current_quota.max_model = body.max_model;
     }
     if body.max_dataset != 0 {
         current_quota.max_dataset = body.max_dataset;
@@ -64,7 +64,7 @@ pub async fn set_quota_admin(
     // update values in database
     quota_table::set_quota(
         &quota_id,
-        current_quota.max_cluster,
+        current_quota.max_model,
         current_quota.max_dataset,
         current_quota.max_checkpoint,
         current_quota.max_secret,
@@ -79,7 +79,7 @@ pub async fn set_quota_admin(
 
     let resp = QuotaResp {
         user_id: quota.id,
-        max_cluster: quota.max_cluster,
+        max_model: quota.max_model,
         max_dataset: quota.max_dataset,
         max_checkpoint: quota.max_checkpoint,
         max_secret: quota.max_secret,

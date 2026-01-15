@@ -45,7 +45,7 @@ pub async fn get_quota_admin(
 
     let resp = QuotaResp {
         user_id: quota.id,
-        max_cluster: quota.max_cluster,
+        max_model: quota.max_model,
         max_dataset: quota.max_dataset,
         max_checkpoint: quota.max_checkpoint,
         max_secret: quota.max_secret,

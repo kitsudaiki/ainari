@@ -13,6 +13,6 @@
 // limitations under the License.
 
 pub mod blocks;
-pub mod cluster_handler;
-pub mod cluster_interface;
+pub mod model_handler;
+pub mod model_interface;
 pub mod processing;

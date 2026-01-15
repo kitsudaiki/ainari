@@ -19,7 +19,7 @@ metadata:
   labels:
     app: sakura
 spec:
-  clusterIP: None
+  modelIP: None
   selector:
     app: sakura
   ports:

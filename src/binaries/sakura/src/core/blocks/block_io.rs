@@ -17,7 +17,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::core::blocks::target_search::*;
-use crate::core::cluster_handler::*;
+use crate::core::model_handler::*;
 use crate::core::processing::worker_queue::*;
 
 use ainari_common::constants::*;
@@ -38,33 +38,33 @@ pub struct BlockIoBuffer {
 
 pub fn connect_outputs(
     io_buffer: &mut BlockIoBuffer,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     source_hexagon_uuid: &Uuid,
     source_block_uuid: &Uuid,
 ) -> Result<(), AinariError> {
     // in case of training, get targets for all not-connected axon-sections
     for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
         if axon_section.target_pos == UNINIT_STATE_8 {
-            // let mut cluster_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+            // let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
 
             // set source-values for the axon-section
-            axon_section.cluster_uuid = *cluster_uuid;
+            axon_section.model_uuid = *model_uuid;
             axon_section.source_hexagon_uuid = *source_hexagon_uuid;
             axon_section.source_block_uuid = *source_block_uuid;
             axon_section.source_pos = i as u8;
 
-            // cluster_handler.get_target(axon_section);
+            // model_handler.get_target(axon_section);
             connect_to_new_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
-            let cluster_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
-            axon_section.cluster_uuid = *cluster_uuid;
-            axon_section.source_block = Some(cluster_handler.get_block(
-                cluster_uuid,
+            let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            axon_section.model_uuid = *model_uuid;
+            axon_section.source_block = Some(model_handler.get_block(
+                model_uuid,
                 &axon_section.source_hexagon_uuid,
                 &axon_section.source_block_uuid,
             )?);
-            axon_section.target_block = Some(cluster_handler.get_block(
-                cluster_uuid,
+            axon_section.target_block = Some(model_handler.get_block(
+                model_uuid,
                 &axon_section.target_hexagon_uuid,
                 &axon_section.target_block_uuid,
             )?);

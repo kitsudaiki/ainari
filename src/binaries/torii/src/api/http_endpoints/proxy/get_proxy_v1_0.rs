@@ -40,13 +40,13 @@ pub async fn get_proxy(
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
 
-    let cluster_uuid = convert_uuid(&proxy_data.cluster_uuid)?;
+    let model_uuid = convert_uuid(&proxy_data.model_uuid)?;
 
     let resp = ProxyResp {
         uuid: *proxy_uuid,
         port: proxy_data.port as u16,
         target_address: proxy_data.target_address,
-        cluster_uuid,
+        model_uuid,
         created_by: proxy_data.created_by,
         created_at: proxy_data.created_at,
         updated_by: proxy_data.updated_by,

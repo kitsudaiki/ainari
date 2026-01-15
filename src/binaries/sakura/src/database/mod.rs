@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster_table;
 pub mod db_handle;
+pub mod model_table;
 pub mod task_table;
 
 use std::io;
@@ -21,11 +21,11 @@ use std::io;
 use ainari_common::enums;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize cluster-table
-    match cluster_table::init_cluster_table() {
-        Ok(_) => log::info!("Initilaized cluster-database-table"),
+    // Initialize model-table
+    match model_table::init_model_table() {
+        Ok(_) => log::info!("Initilaized model-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize cluster-database-table: {e}");
+            log::error!("Failed to initialize model-database-table: {e}");
             return Err(e);
         }
     };
@@ -38,13 +38,13 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // clear all cluster from the database. This is necessary, because after a restart,
-    // all cluster are broken and so the database doesn't match the real world.
-    // To "fix" this issue, all cluster have to be removed from the database as well.
-    match cluster_table::delete_all_cluster() {
+    // clear all model from the database. This is necessary, because after a restart,
+    // all model are broken and so the database doesn't match the real world.
+    // To "fix" this issue, all model have to be removed from the database as well.
+    match model_table::delete_all_model() {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            let msg = "Error while deleting all cluster from DB".to_string();
+            let msg = "Error while deleting all model from DB".to_string();
             log::error!("{msg}");
             let error = io::Error::other(msg);
             return Err(Box::new(error));

@@ -70,7 +70,7 @@
                                 <label>Input-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.cluster_inputs"
+                                        v-for="itemName in form.model_inputs"
                                         :key="itemName"
                                         ref="inputItems"
                                         :itemName="itemName"
@@ -83,7 +83,7 @@
                                 <label>Output-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.cluster_outputs"
+                                        v-for="itemName in form.model_outputs"
                                         :key="itemName"
                                         ref="outputItems"
                                         :itemName="itemName"
@@ -99,7 +99,7 @@
                                 <label>Input-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.cluster_inputs"
+                                        v-for="itemName in form.model_inputs"
                                         :key="itemName"
                                         ref="inputItems"
                                         :itemName="itemName"
@@ -112,7 +112,7 @@
                                 <label>Output-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskResultItem
-                                        v-for="itemName in form.cluster_outputs"
+                                        v-for="itemName in form.model_outputs"
                                         :key="itemName"
                                         ref="resultItems"
                                         :itemName="itemName"
@@ -146,7 +146,7 @@
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(cluster_uuid, torii_port)"
+                        @click="handleAccept(model_uuid, torii_port)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -173,12 +173,12 @@ import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 /**
- * @property cluster_uuid - Unique identifier for the cluster
+ * @property model_uuid - Unique identifier for the model
  * @property torii_port - Port number for the Torii service
  * @property icons - Object containing icon paths for UI elements
  */
 interface Props {
-    cluster_uuid: string;
+    model_uuid: string;
     torii_port: number;
     icons: { acceptIcon: string; cancelIcon: string };
 }
@@ -202,18 +202,18 @@ const form = reactive({
     inputMapping: "",
     outputMapping: "",
     taskName: "",
-    cluster_inputs: [],
-    cluster_outputs: [],
+    model_inputs: [],
+    model_outputs: [],
     datasets: [],
 });
 
 /**
  * Handles the accept action for creating a new task
 
- * @param cluster_uuid - Cluster UUID
+ * @param model_uuid - Model UUID
  * @param torii_port - Torii service port
  */
-async function handleAccept(cluster_uuid: string, torii_port: number) {
+async function handleAccept(model_uuid: string, torii_port: number) {
     // Validate task name length
     taskNameError.value = form.taskName.length < 4;
 
@@ -233,7 +233,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
             });
 
             const response = await sakura_api.post(
-                `/v1alpha/cluster/${cluster_uuid}/task/train`,
+                `/v1alpha/model/${model_uuid}/task/train`,
                 {
                     name: form.taskName,
                     number_of_epochs: 1,
@@ -259,7 +259,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/cluster/${cluster_uuid}/task/request`,
+                `/v1alpha/model/${model_uuid}/task/request`,
                 {
                     name: form.taskName,
                     inputs: inputs,
@@ -280,7 +280,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_save`,
+                `/v1alpha/model/${model_uuid}/task/checkpoint_save`,
                 {
                     name: form.taskName,
                 },
@@ -298,7 +298,7 @@ async function handleAccept(cluster_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/cluster/${cluster_uuid}/task/checkpoint_restore`,
+                `/v1alpha/model/${model_uuid}/task/checkpoint_restore`,
                 {
                     name: form.taskName,
                     checkpoint_uuid: selectedCheckpointUuid.value,
@@ -396,9 +396,9 @@ async function fetchCheckpoints() {
 }
 
 /**
- * Fetches cluster input and output information from the Hanami service
+ * Fetches model input and output information from the Hanami service
  */
-async function fetchClusterIo() {
+async function fetchModelIo() {
     try {
         const authContext = getAuthContext();
 
@@ -407,18 +407,18 @@ async function fetchClusterIo() {
         });
 
         const resp = await hanami_api.get(
-            `/v1alpha/cluster/${props.cluster_uuid}`,
+            `/v1alpha/model/${props.model_uuid}`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
 
-        form.cluster_inputs = resp.data.inputs;
-        form.cluster_outputs = resp.data.outputs;
+        form.model_inputs = resp.data.inputs;
+        form.model_outputs = resp.data.outputs;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load cluster input- and output-names",
+            "Failed to load model input- and output-names",
         );
     }
 }
@@ -445,7 +445,7 @@ async function fetchDatasets() {
 }
 
 // Initialize component by fetching required data when mounted
-onMounted(fetchClusterIo);
+onMounted(fetchModelIo);
 onMounted(fetchDatasets);
 onMounted(fetchCheckpoints);
 </script>

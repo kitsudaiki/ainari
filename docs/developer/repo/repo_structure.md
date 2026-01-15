@@ -32,7 +32,7 @@ it easier for a new person to understand the code.
 │   │   │   ├── ainari_api
 │   │   │   ├── ainari_api_structs
 │   │   │   ├── ainari_clients
-│   │   │   ├── ainari_cluster_parser
+│   │   │   ├── ainari_model_parser
 │   │   │   ├── ainari_common
 │   │   │   ├── ainari_dataset
 │   │   │   └── ainari_hardware
@@ -97,9 +97,9 @@ it easier for a new person to understand the code.
 
                 Client-functions for communication between the binaries within the project.
 
-            - **ainari_cluster_parser**
+            - **ainari_model_parser**
 
-                Contains the parser for the cluster-templates.
+                Contains the parser for the model-templates.
 
             - **ainari_common**
 

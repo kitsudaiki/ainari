@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_add_and_get() {
-        let cluster_uuid = Uuid::new_v4();
+        let model_uuid = Uuid::new_v4();
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
         let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
@@ -78,14 +78,14 @@ mod tests {
 
         let task1 = Task {
             uuid: uuid1,
-            cluster_uuid,
+            model_uuid,
             name: "task1".to_string(),
             info: TaskVariant::CheckpointSave(info1),
             meta: TaskMeta::new(1, 1, 1),
         };
         let task2 = Task {
             uuid: uuid2,
-            cluster_uuid,
+            model_uuid,
             name: "task2".to_string(),
             info: TaskVariant::CheckpointSave(info2),
             meta: TaskMeta::new(1, 1, 1),

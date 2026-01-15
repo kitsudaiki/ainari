@@ -7,7 +7,7 @@ rust-version = "1.85.1"
 [dependencies]
 ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
 ainari_common = { path = "../../libs/rust/ainari_common" }
-ainari_cluster_parser = { path = "../../libs/rust/ainari_cluster_parser" }
+ainari_model_parser = { path = "../../libs/rust/ainari_model_parser" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 ainari_hardware = { path = "../../libs/rust/ainari_hardware" }

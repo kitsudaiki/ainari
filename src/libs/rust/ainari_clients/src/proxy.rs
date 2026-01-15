@@ -26,7 +26,7 @@ pub async fn create_proxy(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
-    cluster_uuid: &Uuid,
+    model_uuid: &Uuid,
     target_address: &str,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
@@ -36,7 +36,7 @@ pub async fn create_proxy(
 
     let body = ProxyCreateReq {
         target_address: target_address.to_owned(),
-        cluster_uuid: *cluster_uuid,
+        model_uuid: *model_uuid,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 

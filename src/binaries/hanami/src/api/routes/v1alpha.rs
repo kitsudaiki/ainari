@@ -16,7 +16,7 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::cluster::*;
+use crate::api::http_endpoints::model::*;
 use crate::api::http_endpoints::sakura_host::*;
 
 pub fn v1alpha_routes() -> Scope {
@@ -29,19 +29,17 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/cluster")
+            scope("/model")
                 .service(
                     resource("")
-                        .route(post().to(create_cluster_v1_0::create_cluster))
-                        .route(get().to(list_cluster_v1_0::list_cluster)),
+                        .route(post().to(create_model_v1_0::create_model))
+                        .route(get().to(list_model_v1_0::list_model)),
                 )
+                .service(resource("/count").route(get().to(get_model_count_v1_0::get_model_count)))
                 .service(
-                    resource("/count").route(get().to(get_cluster_count_v1_0::get_cluster_count)),
-                )
-                .service(
-                    resource("/{cluster_uuid}")
-                        .route(get().to(get_cluster_v1_0::get_cluster))
-                        .route(delete().to(delete_cluster_v1_0::delete_cluster)),
+                    resource("/{model_uuid}")
+                        .route(get().to(get_model_v1_0::get_model))
+                        .route(delete().to(delete_model_v1_0::delete_model)),
                 ),
         )
         .service(
