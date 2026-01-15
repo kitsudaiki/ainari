@@ -96,14 +96,14 @@ data:
         {
             listen 80;
             server_tokens off;
-            server_name miko-tls-service.{{ .Release.Namespace }}.svc.model.local";
+            server_name miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local";
             return 301 https://$host$request_uri;
         }
 
         server
         {
             server_tokens off;
-            server_name miko-tls-service.{{ .Release.Namespace }}.svc.model.local";
+            server_name miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local";
 
             listen 8443 ssl;
             listen [::]:8443 ssl;
@@ -155,7 +155,7 @@ data:
 
                 proxy_pass http://127.0.0.1:11417/;
                 proxy_read_timeout 180;
-                proxy_redirect http://127.0.0.1:11417 https://miko-tls-service.{{ .Release.Namespace }}.svc.model.local";
+                proxy_redirect http://127.0.0.1:11417 https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local";
             }
         }
     }

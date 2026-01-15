@@ -24,7 +24,7 @@ data:
     debug = true
     log_path = ""
     skip_tls_verification = true
-    address = "https://sakura-{{ $i }}.sakura-tls-service.{{ $root.Release.Namespace }}.svc.model.local:8443"
+    address = "https://sakura-{{ $i }}.sakura-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
 
     [processing]
     max_number_of_threads = {{ $root.Values.sakura.processing.max_number_of_threads }}
@@ -42,6 +42,6 @@ data:
     file_path = "/etc/ainari/sakura/sakura_db"
     
     [miko]
-    address = "https://miko-tls-service.{{ $root.Release.Namespace }}.svc.model.local:8443"
+    address = "https://miko-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
 ---  {{/* This separator is mandatory inside the loop. otherwise only one instance is created */}}
 {{- end }}

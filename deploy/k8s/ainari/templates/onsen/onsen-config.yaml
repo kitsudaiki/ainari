@@ -26,6 +26,6 @@ data:
     location = "/tmp/onsen"
     
     [miko]
-    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.model.local:8443"
+    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
     
 kind: ConfigMap

@@ -24,7 +24,7 @@ from jinja2 import Template
 # CONFIG (edit as needed)
 # ----------------------------
 NAMESPACE = "default"
-SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.model.local:51820"  # used in client Peer Endpoint
+SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"  # used in client Peer Endpoint
 NETWORK = "10.10.0."
 NETWORK_MASK = "/24"
 
@@ -127,7 +127,7 @@ def main():
     args = parser.parse_args()
 
     NAMESPACE = args.namespace
-    SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.model.local:51820"
+    SERVER_ENDPOINT = f"wg-onsen.{NAMESPACE}.svc.cluster.local:51820"
 
     # 1) Generate server keypair
     print("Generating server keypair...")
