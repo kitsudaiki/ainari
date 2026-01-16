@@ -6,6 +6,9 @@ import os
 version = os.getenv('PYTHON_PACKAGE_VERSION', '0.0.0')
 
 
+# NOTE (kitsudaiki): leftover of old implementation, but left disabled
+#                    here in the code for the case that protobuffer messages
+#                    on client-side will be added in the future again
 # class GenerateProtobufMessages(install):
 #     def run(self):
 #         # Run your custom command here

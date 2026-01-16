@@ -22,6 +22,22 @@ from .access_context import AccessContext
 
 
 def _handle_response(response) -> str:
+    """
+    Handles the HTTP response from a request.
+
+    Args:
+        response: The response object from the requests library.
+
+    Returns:
+        str: The content of the response as a string if successful.
+
+    Raises:
+        ainari_exceptions.BadRequestException: If the response status code is 400.
+        ainari_exceptions.UnauthorizedException: If the response status code is 401.
+        ainari_exceptions.NotFoundException: If the response status code is 404.
+        ainari_exceptions.ConflictException: If the response status code is 409.
+        ainari_exceptions.InternalServerErrorException: If the response status code is 500.
+    """
     if response.status_code >= 200 and response.status_code < 300:
         if len(response.content) == 0:
             return "{}"
@@ -43,6 +59,18 @@ def send_post_request(context: AccessContext,
                       address: str,
                       path: str,
                       body: dict) -> dict:
+    """
+    Sends a POST request to the specified address and path with the given body.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        body: The dictionary to be sent as the request body.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+    """
     body_str = json.dumps(body)
     url = f'{address}{path}'
     bearer_token = "Bearer " + context.token
@@ -56,6 +84,18 @@ def send_get_request(context: AccessContext,
                      address: str,
                      path: str,
                      values: str) -> dict:
+    """
+    Sends a GET request to the specified address and path with optional query parameters.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        values: The query parameters to append to the URL.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+    """
     if values:
         url = f'{address}{path}?{values}'
     else:
@@ -72,6 +112,20 @@ def send_get_request_without_context(token: str,
                                      path: str,
                                      values: str,
                                      verify: bool) -> dict:
+    """
+    Sends a GET request to the specified address and path with optional query parameters,
+    without using an AccessContext object.
+
+    Args:
+        token: The authentication token to use for the request.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        values: The query parameters to append to the URL.
+        verify: Whether to verify the SSL certificate.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+    """
     if values:
         url = f'{address}{path}?{values}'
     else:
@@ -87,6 +141,18 @@ def send_put_request(context: AccessContext,
                      address: str,
                      path: str,
                      body: dict) -> dict:
+    """
+    Sends a PUT request to the specified address and path with the given body.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        body: The dictionary to be sent as the request body.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+    """
     body_str = json.dumps(body)
     url = f'{address}{path}'
     bearer_token = "Bearer " + context.token
@@ -100,6 +166,15 @@ def send_delete_request(context: AccessContext,
                         address: str,
                         path: str,
                         values: str):
+    """
+    Sends a DELETE request to the specified address and path with optional query parameters.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        values: The query parameters to append to the URL.
+    """
     url = f'{address}{path}?{values}'
     bearer_token = "Bearer " + context.token
     headers = {'Authorization': bearer_token}
@@ -111,6 +186,21 @@ def upload_files(context: AccessContext,
                  address: str,
                  path: str,
                  file_paths):
+    """
+    Uploads multiple files to the specified address and path.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: Additional path parameter with type and name of the new dataset.
+        file_paths: A list of file paths to upload.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+
+    Raises:
+        requests.exceptions.RequestException: If there is an error during the upload.
+    """
     url = f'{address}{path}'
     bearer_token = "Bearer " + context.token
 

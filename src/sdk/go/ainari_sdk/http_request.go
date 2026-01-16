@@ -18,6 +18,8 @@
  *      limitations under the License.
  */
 
+// Package ainari_sdk provides utilities for interacting with the Ainari API.
+// It handles authentication, request sending, and file uploads to the Ainari service.
 package ainari_sdk
 
 import (
@@ -34,35 +36,49 @@ import (
 	"path/filepath"
 )
 
+// chunkSize defines the size of chunks for file uploads in bytes (1 MiB).
 const chunkSize = 1024 * 1024 // 1 MiB
 
+// RequestError represents an error that occurs during an HTTP request.
+// It contains the HTTP status code and the error message from the response.
 type RequestError struct {
 	StatusCode int
 	Err        string
 }
 
+// Error implements the error interface for RequestError.
 func (r *RequestError) Error() string {
 	return fmt.Sprintf("status %d: err %v", r.StatusCode, r.Err)
 }
 
+// SendPost sends a POST request to the specified path with the given JSON body.
+// It uses the provided AccessContext for authentication and TLS configuration.
 func SendPost(context AccessContext, address, path string, jsonBody map[string]interface{}) (map[string]interface{}, error) {
 	return sendGenericRequest(address, context.token, "POST", path, &jsonBody, context.skipTlsVerification)
 }
 
+// SendPut sends a PUT request to the specified path with the given JSON body.
+// It uses the provided AccessContext for authentication and TLS configuration.
 func SendPut(context AccessContext, address, path string, jsonBody map[string]interface{}) (map[string]interface{}, error) {
 	return sendGenericRequest(address, context.token, "PUT", path, &jsonBody, context.skipTlsVerification)
 }
 
+// SendGet sends a GET request to the specified path with the given variables.
+// It uses the provided AccessContext for authentication and TLS configuration.
 func SendGet(context AccessContext, address, path string, vars map[string]interface{}) (map[string]interface{}, error) {
 	completePath := path + prepareVars(vars)
 	return sendGenericRequest(address, context.token, "GET", completePath, nil, context.skipTlsVerification)
 }
 
+// SendDelete sends a DELETE request to the specified path with the given variables.
+// It uses the provided AccessContext for authentication and TLS configuration.
 func SendDelete(context AccessContext, address, path string, vars map[string]interface{}) (map[string]interface{}, error) {
 	completePath := path + prepareVars(vars)
 	return sendGenericRequest(address, context.token, "DELETE", completePath, nil, context.skipTlsVerification)
 }
 
+// prepareVars constructs a query string from the given map of variables.
+// It converts each value to a string and joins them with '&' characters.
 func prepareVars(vars map[string]interface{}) string {
 	if len(vars) > 0 {
 		var pairs []string
@@ -73,7 +89,6 @@ func prepareVars(vars map[string]interface{}) string {
 				str := fmt.Sprintf("%v", value)
 				pairs = append(pairs, fmt.Sprintf("%s=%s", key, str))
 			}
-
 		}
 		return fmt.Sprintf("?%s", strings.Join(pairs, "&"))
 	}
@@ -81,6 +96,8 @@ func prepareVars(vars map[string]interface{}) string {
 	return ""
 }
 
+// sendAuthRequest sends an authentication request to the specified path with the given body.
+// It handles TLS configuration and returns the response as a map.
 func sendAuthRequest(address, path string, body string, skipTlsVerification bool) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
 
@@ -92,8 +109,6 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 	// build uri
 	var reqBody = strings.NewReader(body)
 	completePath := fmt.Sprintf("%s/%s", address, path)
-	// fmt.Println("completePath: " + completePath)
-	// fmt.Println("request-body: " + jsonDataStr)
 	req, err := http.NewRequest("POST", completePath, reqBody)
 	if err != nil {
 		return outputMap, err
@@ -112,7 +127,6 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 		return outputMap, err
 	}
 	bodyString := string(bodyBytes)
-	// fmt.Printf("bodyString: " + bodyString + "\n")
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
@@ -120,7 +134,7 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 			Err:        bodyString,
 		}
 	}
-	
+
 	// parse result
 	err = json.Unmarshal([]byte(bodyString), &outputMap)
 	if err != nil {
@@ -130,6 +144,8 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 	return outputMap, nil
 }
 
+// sendGenericRequest sends a generic HTTP request to the specified path with the given body.
+// It handles authentication, TLS configuration, and returns the response as a map.
 func sendGenericRequest(address, token, requestType, path string, jsonBody *map[string]interface{}, skipTlsVerification bool) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
 	jsonDataStr := ""
@@ -140,7 +156,6 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 		}
 		jsonDataStr = string(jsonData)
 	}
-	// fmt.Println("request-body: "+ jsonDataStr + "\n")
 
 	// check if https or not
 	if strings.Contains(address, "https") {
@@ -150,8 +165,6 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	// build uri
 	var reqBody = strings.NewReader(jsonDataStr)
 	completePath := fmt.Sprintf("%s/%s", address, path)
-	// fmt.Println("completePath: " + completePath)
-	// fmt.Println("request-body: " + jsonDataStr)
 	req, err := http.NewRequest(requestType, completePath, reqBody)
 	if err != nil {
 		return outputMap, err
@@ -176,8 +189,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	}
 	bodyString := string(bodyBytes)
 
-	// fmt.Printf("response-body: " + bodyString + "\n")
-	// fmt.Printf("resp.StatusCode: %s", resp.StatusCode)
+	// handle error-response
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,
@@ -190,6 +202,9 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	return outputMap, nil
 }
 
+// UploadFiles uploads multiple files to the specified path.
+// It uses the provided AccessContext for authentication and TLS configuration.
+// Files are streamed in chunks of size defined by chunkSize.
 func UploadFiles(context AccessContext, path string, filePaths []string) (map[string]interface{}, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -235,8 +250,6 @@ func UploadFiles(context AccessContext, path string, filePaths []string) (map[st
 
 	// Create the request
 	completePath := fmt.Sprintf("%s/%s", context.RyokanAddress, path)
-	// fmt.Println("completePath: " + completePath)
-	// fmt.Println("request-body: " + jsonDataStr)
 	req, err := http.NewRequest("POST", completePath, body)
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to create request: %w", err)
@@ -261,7 +274,6 @@ func UploadFiles(context AccessContext, path string, filePaths []string) (map[st
 	}
 	bodyString := string(bodyBytes)
 
-	// fmt.Printf("response-body: " + bodyString + "\n")
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return outputMap, &RequestError{
 			StatusCode: resp.StatusCode,

@@ -16,8 +16,6 @@ from . import ainari_request
 from . import ainari_exceptions
 from .access_context import AccessContext
 
-# import base64
-
 
 def create_user(context: AccessContext,
                 user_id: str,
@@ -72,52 +70,3 @@ def delete_all_user(context: AccessContext):
             # when a user tries to delete himself, then an exception
             # is raised, which is catched here.
             pass
-
-
-def add_roject_to_user(context: AccessContext,
-                       user_id: str,
-                       project_id: str,
-                       role: str,
-                       is_project_admin: bool) -> dict:
-    path = "/v1alpha/user/project/admin"
-    json_body = {
-        "id": user_id,
-        "project_id": project_id,
-        "role": role,
-        "is_project_admin": is_project_admin,
-    }
-    return ainari_request.send_post_request(context,
-                                            context.miko_address,
-                                            path,
-                                            json_body)
-
-
-def remove_project_fromUser(context: AccessContext,
-                            user_id: str,
-                            project_id: str):
-    path = "/v1alpha/user/project/admin"
-    values = f'project_id={project_id}&id={user_id}'
-    ainari_request.send_delete_request(context,
-                                       context.miko_address,
-                                       path,
-                                       values)
-
-
-def list_projects_of_user(context: AccessContext) -> dict:
-    path = "/v1alpha/user/project/admin"
-    return ainari_request.send_get_request(context,
-                                           context.miko_address,
-                                           path,
-                                           "")
-
-
-def switch_project(context: AccessContext,
-                   project_id: str) -> dict:
-    path = "/v1alpha/user/project/admin"
-    json_body = {
-        "project_id": project_id,
-    }
-    return ainari_request.send_post_request(context,
-                                            context.miko_address,
-                                            path,
-                                            json_body)
