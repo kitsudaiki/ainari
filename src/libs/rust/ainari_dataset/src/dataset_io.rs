@@ -145,7 +145,7 @@ impl DataSetFileReadHandle {
             Some(col) => col,
             _ => {
                 let msg = format!("Column with name '{column}' not found in dataset.");
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         };
 
@@ -167,7 +167,7 @@ impl DataSetFileReadHandle {
         let max_rows = self.get_number_of_rows();
         if row >= &max_rows {
             let msg = format!("Row-number {row} is too big for the dataset.");
-            return Err(AinariError::Error(msg));
+            return Err(AinariError::InternalError(msg));
         }
         self.buffer_start_row = row - (row % ROWS_IN_READ_BUFFER);
         self.buffer_end_row = self.buffer_start_row + ROWS_IN_READ_BUFFER;
@@ -183,7 +183,7 @@ impl DataSetFileReadHandle {
             Ok(_) => {}
             Err(_) => {
                 let msg = ("Failed to read data from the dataset-file.").to_string();
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         }
         let _ = self.target_file.read_exact(byte_slice_input);
@@ -215,7 +215,7 @@ pub fn init_new_data_set_file(
         let msg = format!("Dataset file '{}' already exists.", link.local_file_path);
         // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
         // so here should be an internal error instand of an input-error
-        return Err(Box::new(AinariError::Error(msg)));
+        return Err(Box::new(AinariError::InternalError(msg)));
     }
 
     // initialize file
@@ -266,7 +266,7 @@ pub fn read_data_set_file(
         let msg = format!("Dataset file '{local_file_path}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user,
         // so here should be an internal error instand of an input-error
-        return Err(Box::new(AinariError::Error(msg)));
+        return Err(Box::new(AinariError::InternalError(msg)));
     }
 
     let file = fs::File::open(local_file_path)?;

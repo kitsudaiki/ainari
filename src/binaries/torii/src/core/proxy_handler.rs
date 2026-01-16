@@ -62,7 +62,7 @@ impl ProxyHandler {
                 let msg = format!(
                     "Failed to convert address '{addr_str}' into a SocketAddr with error: {e}"
                 );
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         };
         let new_proxy = Proxy::new(&public_addr, target_addr).await;
@@ -97,13 +97,15 @@ impl ProxyHandler {
             Ok(proxys) => proxys,
             Err(e) => {
                 let msg = format!("Failed to get list of proxys form database: '{e}'");
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         };
 
         for proxy in proxys {
             let uuid = Uuid::parse_str(&proxy.uuid).map_err(|e| {
-                AinariError::Error(format!("Failed to convert proxy-uuid with error: '{e}'"))
+                AinariError::InternalError(format!(
+                    "Failed to convert proxy-uuid with error: '{e}'"
+                ))
             })?;
 
             let port = proxy.port as u16;

@@ -232,7 +232,7 @@ fn run_iteration(
     }
 
     let msg = format!("Timeout while processing model with uuid {model_uuid}");
-    Err(AinariError::Error(msg))
+    Err(AinariError::InternalError(msg))
 }
 
 #[cfg(test)]

@@ -44,7 +44,9 @@ pub fn register_host() -> Result<(), AinariError> {
     let host_name = if let Some(host_name) = System::host_name() {
         host_name
     } else {
-        return Err(AinariError::Error("Failed to get host-name".to_string()));
+        return Err(AinariError::InternalError(
+            "Failed to get host-name".to_string(),
+        ));
     };
 
     log::debug!("read host-name: {host_name}");
@@ -53,7 +55,7 @@ pub fn register_host() -> Result<(), AinariError> {
         Ok(models) => models,
         Err(e) => {
             log::error!("Failed to get list of models form database: '{e}'");
-            return Err(AinariError::Error("Internal Error".to_string()));
+            return Err(AinariError::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -64,7 +66,7 @@ pub fn register_host() -> Result<(), AinariError> {
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert UUID: '{e}'");
-                return Err(AinariError::Error("Internal Error".to_string()));
+                return Err(AinariError::InternalError("Internal Error".to_string()));
             }
         };
         resp.list.push(uuid);

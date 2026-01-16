@@ -152,7 +152,7 @@ fn get_highest_pos_in_row(
         Err(e) => {
             let msg = format!("Failed to set file-seek to position {start_pos} with error: '{e}'");
             log::error!("{msg}");
-            return Err(AinariError::Error(msg));
+            return Err(AinariError::InternalError(msg));
         }
     }
     let _ = file_handle.target_file.read_exact(byte_slice_input);
@@ -168,7 +168,7 @@ fn get_highest_pos_in_row(
     } else {
         let msg = "Failed to get hightest index in output".to_string();
         log::error!("{msg}");
-        Err(AinariError::Error(msg))
+        Err(AinariError::InternalError(msg))
     }
 }
 

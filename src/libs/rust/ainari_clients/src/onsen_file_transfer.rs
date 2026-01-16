@@ -89,7 +89,7 @@ pub async fn download_file(
     let mut client = DataServiceClient::connect(onsen_address.to_owned())
         .await
         .map_err(|e| {
-            AinariError::Error(format!(
+            AinariError::InternalError(format!(
                 "Failed to open grpc-connection to onsen with error: {e}"
             ))
         })?;
@@ -102,7 +102,7 @@ pub async fn download_file(
         .download_file(Request::new(req))
         .await
         .map_err(|e| {
-            AinariError::Error(format!(
+            AinariError::InternalError(format!(
                 "Failed start file-download over grpc with error: {e}"
             ))
         })?
@@ -117,18 +117,18 @@ pub async fn download_file(
         .open(&local_file_path)
         .await
         .map_err(|e| {
-            AinariError::Error(format!("Failed to open local dest file with error: {e}"))
+            AinariError::InternalError(format!("Failed to open local dest file with error: {e}"))
         })?;
 
     while let Some(chunk_res) = stream.message().await.transpose() {
         let chunk = chunk_res.map_err(|e| {
-            AinariError::Error(format!(
+            AinariError::InternalError(format!(
                 "Failed to receive downloaded chunk with error: {e}"
             ))
         })?;
         if !chunk.chunk.is_empty() {
             fh.write_all(&chunk.chunk).await.map_err(|e| {
-                AinariError::Error(format!(
+                AinariError::InternalError(format!(
                     "Failed to write downloaded chunk into dest file with error: {e}"
                 ))
             })?;
@@ -138,9 +138,9 @@ pub async fn download_file(
         }
     }
 
-    fh.flush()
-        .await
-        .map_err(|e| AinariError::Error(format!("Failed to flush dest file with error: {e}")))?;
+    fh.flush().await.map_err(|e| {
+        AinariError::InternalError(format!("Failed to flush dest file with error: {e}"))
+    })?;
     log::debug!("Downloaded to {}", local_file_path);
 
     Ok(())

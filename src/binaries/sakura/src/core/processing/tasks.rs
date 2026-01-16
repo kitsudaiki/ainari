@@ -288,7 +288,7 @@ fn finish_request_cycle(task_uuid: &Uuid, model_uuid: &Uuid, task_info: &mut Req
         Err(AinariError::InvalidInput(msg)) => {
             let _ = task_table::set_error_state(task_uuid, &msg);
         }
-        Err(AinariError::Error(msg)) => {
+        Err(AinariError::InternalError(msg)) => {
             log::error!("Error while writing output into dataset: {msg}");
             let db_msg = "internal error".to_string();
             let _ = task_table::set_error_state(task_uuid, &db_msg);
@@ -336,7 +336,7 @@ fn run_train_task_cycle(
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
             }
-            Err(AinariError::Error(msg)) => {
+            Err(AinariError::InternalError(msg)) => {
                 log::error!("{msg}");
                 let db_msg = "internal error".to_string();
                 let _ = task_table::set_error_state(task_uuid, &db_msg);
@@ -365,7 +365,7 @@ fn run_train_task_cycle(
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
             }
-            Err(AinariError::Error(msg)) => {
+            Err(AinariError::InternalError(msg)) => {
                 log::error!("{msg}");
                 let db_msg = "internal error".to_string();
                 let _ = task_table::set_error_state(task_uuid, &db_msg);
@@ -417,7 +417,7 @@ fn run_request_task_cycle(
                 let _ = task_table::set_error_state(task_uuid, &msg);
                 return;
             }
-            Err(AinariError::Error(msg)) => {
+            Err(AinariError::InternalError(msg)) => {
                 log::error!("{msg}");
                 let db_msg = "internal error".to_string();
                 let _ = task_table::set_error_state(task_uuid, &db_msg);

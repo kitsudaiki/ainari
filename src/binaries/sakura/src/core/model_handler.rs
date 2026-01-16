@@ -467,7 +467,7 @@ impl ModelDataHandler {
             c
         } else {
             let msg = format!("Model with uuid '{model_uuid}' not found.");
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         };
 
         // check if file already exist
@@ -475,7 +475,7 @@ impl ModelDataHandler {
             let msg = format!("Checkpoint file '{local_temp_file_path}' already exists.");
             // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
             // so here should be an internal error instand of an input-error
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         }
 
         // initialize file
@@ -673,7 +673,7 @@ impl ModelDataHandler {
             c
         } else {
             let msg = format!("Model with uuid '{model_uuid}' not found after restore.");
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         };
 
         // connect new finish-counter to inputs

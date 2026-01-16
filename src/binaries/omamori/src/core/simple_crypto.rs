@@ -127,7 +127,7 @@ impl CryptoModule for SimpleCrypto {
         // add new secret to datbase
         simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
             |_| {
-                AinariError::Error(format!(
+                AinariError::InternalError(format!(
                     "Failed to add simple-crypto-secret with UUID '{secret_uuid}' to database."
                 ))
             },
@@ -140,7 +140,7 @@ impl CryptoModule for SimpleCrypto {
         let secret_data = match simple_crypto_table::get_secret(secret_uuid) {
             Ok(secret_data) => secret_data,
             Err(enums::DbError::InternalError) => {
-                return Err(AinariError::Error("".to_string()));
+                return Err(AinariError::InternalError("".to_string()));
             }
             Err(enums::DbError::NotFound) => {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
@@ -156,7 +156,7 @@ impl CryptoModule for SimpleCrypto {
         // delete secret from database
         match simple_crypto_table::delete_secret(secret_uuid) {
             Ok(_) => Ok(()),
-            Err(enums::DbError::InternalError) => Err(AinariError::Error("".to_string())),
+            Err(enums::DbError::InternalError) => Err(AinariError::InternalError("".to_string())),
             Err(enums::DbError::NotFound) => {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
                 Err(AinariError::InvalidInput(msg))

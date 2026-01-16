@@ -189,7 +189,7 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
     match e {
         AinariError::Unauthorized(msg) => ErrorResponse::Unauthorized(msg),
         AinariError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
-        AinariError::Error(msg) => {
+        AinariError::InternalError(msg) => {
             log::error!("{msg}");
             ErrorResponse::InternalError("Internal Error".to_string())
         }

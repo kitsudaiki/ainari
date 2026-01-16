@@ -123,7 +123,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         "Failed to connect block with uuid '{}' with a target.",
         axon_section.source_block_uuid
     );
-    Err(AinariError::Error(msg))
+    Err(AinariError::InternalError(msg))
 }
 
 fn random_value<K, V>(map: &HashMap<K, V>) -> Option<&V>
@@ -142,7 +142,7 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
         || axon_section.source_pos == UNINIT_STATE_8
     {
         let msg = "Got invalid Axon-setion.".to_string();
-        return Err(AinariError::Error(msg));
+        return Err(AinariError::InternalError(msg));
     }
 
     Ok(())

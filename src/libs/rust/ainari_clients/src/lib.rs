@@ -66,7 +66,7 @@ where
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
+                    return Err(AinariError::InternalError("".to_string()));
                 }
             };
 
@@ -81,12 +81,12 @@ where
                         Err(e) => {
                             if uuid.is_empty() {
                                 let msg = format!("Error while converting response of {obj} : {e}");
-                                return Err(AinariError::Error(msg));
+                                return Err(AinariError::InternalError(msg));
                             } else {
                                 let msg = format!(
                                     "Error while converting response of {obj} with uuid '{uuid}' : {e}"
                                 );
-                                return Err(AinariError::Error(msg));
+                                return Err(AinariError::InternalError(msg));
                             }
                         }
                     };
@@ -96,19 +96,19 @@ where
                 code => {
                     if uuid.is_empty() {
                         let msg = format!("Error while creating {obj}. Got response-code: {code}");
-                        Err(AinariError::Error(msg))
+                        Err(AinariError::InternalError(msg))
                     } else {
                         let msg = format!(
                             "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
                         );
-                        Err(AinariError::Error(msg))
+                        Err(AinariError::InternalError(msg))
                     }
                 }
             }
         }
         Err(e) => {
             let msg = format!("Error while getting {obj} with uuid '{uuid}' : {e}");
-            Err(AinariError::Error(msg))
+            Err(AinariError::InternalError(msg))
         }
     }
 }
@@ -124,7 +124,7 @@ pub async fn handle_empty_response(
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
+                    return Err(AinariError::InternalError("".to_string()));
                 }
             };
 
@@ -138,13 +138,13 @@ pub async fn handle_empty_response(
                     let msg = format!(
                         "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
                     );
-                    Err(AinariError::Error(msg))
+                    Err(AinariError::InternalError(msg))
                 }
             }
         }
         Err(e) => {
             let msg = format!("Error while getting {obj} with uuid '{uuid}' : {e}");
-            Err(AinariError::Error(msg))
+            Err(AinariError::InternalError(msg))
         }
     }
 }

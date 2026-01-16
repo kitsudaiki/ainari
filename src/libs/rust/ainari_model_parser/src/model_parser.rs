@@ -200,7 +200,7 @@ fn initialize_inputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
             obj.is_input = true;
             input_meta.hexagon_uuid = hexagon_uuid;
         } else {
-            return Err(AinariError::Error(format!(
+            return Err(AinariError::InternalError(format!(
                 "Can not find input-hexagon with ID {hexagon_uuid}, even it should exist."
             )));
         }
@@ -216,7 +216,7 @@ fn initialize_outputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
             obj.name = output_meta.name.clone();
             output_meta.hexagon_uuid = hexagon_uuid;
         } else {
-            return Err(AinariError::Error(format!(
+            return Err(AinariError::InternalError(format!(
                 "Can not find output-hexagon with ID {hexagon_uuid}, even it should exist."
             )));
         }
