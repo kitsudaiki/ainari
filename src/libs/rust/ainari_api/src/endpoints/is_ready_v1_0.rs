@@ -23,12 +23,12 @@ use ainari_api_structs::user_context::UserContext;
     tag = "version",
     summary = "Get ready status",
     description = r###"Get status of the service endpoint."###,
-    error_code = 400,
-    error_code = 401,
     error_code = 500
 )]
 pub async fn get_ready_status(_: UserContext) -> Result<Json<ReadyResp>, ErrorResponse> {
+    // Create a new ReadyResp instance indicating the API is ready
     let resp = ReadyResp { api: true };
 
+    // Return the response wrapped in Json
     Ok(Json(resp))
 }

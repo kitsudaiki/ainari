@@ -123,15 +123,38 @@ pub async fn create_model(
     Ok(CreatedJson(model_resp))
 }
 
+/// Asynchronously checks if the user's current number of meta_models is within their quota limit.
+///
+/// This function performs two main operations:
+/// 1. Counts the current number of meta_models for the given user
+/// 2. Retrieves the user's quota from the Miko endpoint and verifies if the quota is exceeded
+///
+/// # Arguments
+///
+/// * `context` - A reference to the UserContext containing authentication and user information
+///
+/// # Returns
+///
+/// * `Ok(())` - If the quota check passes (user is within their limit)
+/// * `Err(ErrorResponse)` - If there's an error during the check or if the quota is exceeded
+///
+/// # Errors
+///
+/// This function will return an error in the following cases:
+/// - Database error when counting meta_models
+/// - Network error when communicating with the Miko endpoint
+/// - If the user has exceeded their meta_model quota limit
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of meta_models of the user
+    // Get the current number of meta_models for the user from the database
+    // This count is used to compare against the user's quota limit
     let current_number_of_meta_models =
         meta_model_table::count_meta_models(context).map_err(|e| {
             log::error!("Failed to count meta_models in database.: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
-    // check the maximum number of meta_models defined in miko
+    // Retrieve the user's quota information from the Miko endpoint
+    // The miko_endpoint is configured in the application settings
     let miko_endpoint = &config::CONFIG.miko;
     let quota = get_quota(
         miko_endpoint,
@@ -142,13 +165,17 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    // Convert the quota's maximum model count to i64 for comparison
     let max_number_of_meta_models = quota.max_model as i64;
-    // check if quota is already exceeded
+
+    // Check if the user has already exceeded their quota
+    // If exceeded, return a Conflict error response
     if current_number_of_meta_models as i64 >= max_number_of_meta_models {
         return Err(ErrorResponse::Conflict(
             "Maximum number of meta_models exceeded.".to_string(),
         ));
     }
 
+    // If all checks pass, return Ok indicating the quota is not exceeded
     Ok(())
 }

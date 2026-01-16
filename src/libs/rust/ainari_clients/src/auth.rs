@@ -12,28 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::prepare_client;
+use ainari_common::error::AinariError;
 use awc::http::StatusCode;
 
-use ainari_common::error::AinariError;
-
-use crate::prepare_client;
-
+/// Asynchronously checks the validity of a token against a Miko server.
+///
+/// This function makes an HTTP GET request to the Miko server's token validation endpoint.
+/// The request includes the provided token in the Authorization header.
+///
+/// # Arguments
+///
+/// * `address` - The base URL of the Miko server.
+/// * `token` - The token to be validated.
+/// * `insecure_client` - A boolean indicating whether to use an insecure client (for testing purposes).
+///
+/// # Returns
+///
+/// * `Result<String, AinariError>` - On success, returns the response body as a String.
+///   On failure, returns an `AinariError` with appropriate error details.
 pub async fn check_token(
     address: String,
     token: String,
     insecure_client: bool,
 ) -> Result<String, AinariError> {
+    // Prepare the HTTP client with the given address and security settings
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/token");
 
+    // Send the GET request with the token in the Authorization header
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
+    // Handle the response from the server
     match response {
         Ok(mut resp) => {
+            // Check the HTTP status code of the response
             match resp.status() {
                 StatusCode::UNAUTHORIZED => {
                     log::debug!("Invalid token with 401-error");
@@ -54,6 +71,7 @@ pub async fn check_token(
                 }
             }
 
+            // Extract and process the response body
             let body_str = match resp.body().await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {

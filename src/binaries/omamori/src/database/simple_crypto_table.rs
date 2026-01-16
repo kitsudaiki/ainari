@@ -21,7 +21,8 @@ use crate::database::db_handle;
 
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the simple_crypto table
+// The table stores encrypted secrets with a UUID as the primary key
 table! {
     simple_crypto (secret_uuid) {
         secret_uuid -> Varchar,
@@ -29,13 +30,23 @@ table! {
     }
 }
 
+/// A struct representing an entry in the simple_crypto table
+///
+/// This struct is used for both inserting and querying data from the database.
+/// It contains the UUID of the secret and the encrypted secret value.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = simple_crypto)]
 pub struct SimpleCryptoEntry {
+    /// The UUID of the secret
     pub secret_uuid: String,
+    /// The encrypted secret value
     pub encrypted_secret: String,
 }
 
+/// Initializes the simple_crypto table in the database if it doesn't already exist
+///
+/// This function creates the table with the specified schema and returns Ok(()) on success.
+/// If an error occurs during table creation, it will be propagated to the caller.
 pub fn init_simple_crypto_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -48,6 +59,18 @@ pub fn init_simple_crypto_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new entry to the simple_crypto table with the provided UUID and encrypted secret
+///
+/// This is a convenience function that creates a SimpleCryptoEntry and calls add_secret.
+///
+/// # Arguments
+///
+/// * `uuid` - A reference to the UUID for the new secret
+/// * `encrypted_secret` - A reference to the encrypted secret value
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_simple_crypto_data(uuid: &Uuid, encrypted_secret: &str) -> QueryResult<usize> {
     let secret = SimpleCryptoEntry {
         secret_uuid: uuid.to_string().clone(),
@@ -57,6 +80,17 @@ pub fn add_new_simple_crypto_data(uuid: &Uuid, encrypted_secret: &str) -> QueryR
     add_secret(&secret)
 }
 
+/// Adds a secret entry to the simple_crypto table
+///
+/// This function takes a SimpleCryptoEntry and inserts it into the database.
+///
+/// # Arguments
+///
+/// * `secret` - A reference to the SimpleCryptoEntry to be inserted
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_secret(secret: &SimpleCryptoEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::simple_crypto::dsl::*;
@@ -65,6 +99,15 @@ pub fn add_secret(secret: &SimpleCryptoEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a secret from the simple_crypto table by its UUID
+///
+/// # Arguments
+///
+/// * `uuid` - A reference to the UUID of the secret to retrieve
+///
+/// # Returns
+///
+/// A Result containing the SimpleCryptoEntry if found, or a DbError if not found or if an error occurs
 pub fn get_secret(uuid: &Uuid) -> Result<SimpleCryptoEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::simple_crypto::dsl::*;
@@ -86,6 +129,13 @@ pub fn get_secret(uuid: &Uuid) -> Result<SimpleCryptoEntry, enums::DbError> {
     }
 }
 
+/// Lists all entries in the simple_crypto table
+///
+/// # Returns
+///
+/// A QueryResult containing a vector of all SimpleCryptoEntry objects in the table
+///
+/// Note: This function is marked as #[allow(dead_code)] as it might not be used in the current implementation.
 #[allow(dead_code)]
 pub fn list_simple_crypto() -> QueryResult<Vec<SimpleCryptoEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -93,6 +143,17 @@ pub fn list_simple_crypto() -> QueryResult<Vec<SimpleCryptoEntry>> {
     simple_crypto.load::<SimpleCryptoEntry>(&mut *conn)
 }
 
+/// Deletes a secret from the simple_crypto table by its UUID
+///
+/// First checks if the secret exists, then attempts to delete it.
+///
+/// # Arguments
+///
+/// * `uuid` - A reference to the UUID of the secret to delete
+///
+/// # Returns
+///
+/// A Result indicating success or failure. Returns DbError::NotFound if the secret doesn't exist.
 pub fn delete_secret(uuid: &Uuid) -> Result<(), enums::DbError> {
     get_secret(uuid)?;
 

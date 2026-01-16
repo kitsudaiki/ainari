@@ -37,6 +37,8 @@ use crate::database::task_table;
 use super::super::processing::output_buffer::*;
 use super::super::processing::worker_queue::*;
 
+/// Represents the information needed for a training task.
+/// Contains input and output dataset handles and a temporary directory path.
 #[derive(Debug)]
 pub struct TrainInfo {
     pub inputs: HashMap<String, DataSetFileReadHandle>,
@@ -44,6 +46,8 @@ pub struct TrainInfo {
     pub temp_dir: String,
 }
 
+/// Represents the information needed for a request task.
+/// Contains input dataset handles, a write handle for results, output secret, and a temporary directory path.
 #[derive(Debug)]
 pub struct RequestInfo {
     pub inputs: HashMap<String, DataSetFileReadHandle>,
@@ -52,6 +56,8 @@ pub struct RequestInfo {
     pub temp_dir: String,
 }
 
+/// Contains information for saving a checkpoint.
+/// Includes the Onsen address, file path, and encryption secret.
 #[derive(Debug)]
 pub struct CheckpointSaveInfo {
     pub onsen_address: String,
@@ -59,6 +65,8 @@ pub struct CheckpointSaveInfo {
     pub secret: Secret,
 }
 
+/// Contains information for restoring a checkpoint.
+/// Includes the Onsen address, file path, and decryption secret.
 #[derive(Debug)]
 pub struct CheckpointRestoreInfo {
     pub onsen_address: String,
@@ -66,29 +74,56 @@ pub struct CheckpointRestoreInfo {
     pub secret: Secret,
 }
 
+/// An enumeration of different task variants that a Task can have.
+/// Each variant contains different information relevant to that type of task.
 #[derive(Debug)]
 pub enum TaskVariant {
+    /// Training task variant containing training-specific information.
     Training(TrainInfo),
+    /// Request task variant containing request-specific information.
     Request(Box<RequestInfo>),
+    /// Checkpoint save task variant containing checkpoint save information.
     CheckpointSave(CheckpointSaveInfo),
+    /// Checkpoint restore task variant containing checkpoint restore information.
     CheckpointRestore(CheckpointRestoreInfo),
 }
 
+/// Metadata for tracking the progress and state of a task.
+/// Includes counters for cycles and epochs, timestamps, and completion status.
 #[derive(Debug)]
 pub struct TaskMeta {
+    /// Total number of cycles per epoch for this task.
     pub number_of_cycles: u64,
+    /// Total number of epochs for this task.
     pub number_of_epochs: u64,
+    /// Number of cycles completed so far.
     pub number_of_finished_cycles: u64,
+    /// Number of epochs completed so far.
     pub number_of_finished_epochs: u64,
+    /// Time length for the task in seconds.
     pub time_length: u64,
 
+    /// Counter for tracking task cycles across all epochs.
     pub task_cycle_counter: u64,
 
+    /// Flag indicating whether the task is finished.
     pub is_finished: bool,
+    /// Timestamp of the previous update to track progress updates.
     pub prev_timestamp: std::time::Instant,
 }
 
 impl TaskMeta {
+    /// Creates a new TaskMeta instance with the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `number_of_cycler_per_epoch` - Total number of cycles per epoch.
+    /// * `number_of_epochs` - Total number of epochs.
+    /// * `time_length` - Time length for the task in seconds.
+    ///
+    /// # Returns
+    ///
+    /// A new TaskMeta instance initialized with the given parameters.
     pub fn new(number_of_cycler_per_epoch: u64, number_of_epochs: u64, time_length: u64) -> Self {
         Self {
             number_of_cycles: number_of_cycler_per_epoch,
@@ -105,20 +140,32 @@ impl TaskMeta {
     }
 }
 
+/// Represents a task that can be executed by the system.
+/// Contains a unique identifier, model identifier, task information, and metadata.
 #[derive(Debug)]
 pub struct Task {
+    /// Unique identifier for the task.
     pub uuid: Uuid,
+    /// Identifier for the model associated with this task.
     pub model_uuid: Uuid,
+    /// Human-readable name for the task.
     #[allow(dead_code)]
     pub name: String,
 
+    /// Variant-specific information for this task.
     pub info: TaskVariant,
+    /// Metadata for tracking the progress and state of this task.
     pub meta: TaskMeta,
 }
 
 impl Task {
     // ==================================================================================================
 
+    /// Starts the execution of the task.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the task should continue execution, `false` if it should pause or stop.
     pub fn start_task(&mut self) -> bool {
         // check if task was aborted
         if task_table::is_aborted(&self.uuid) {
@@ -163,6 +210,9 @@ impl Task {
         }
     }
 
+    /// Finalizes the task, performing cleanup and updating the task state.
+    /// For request tasks, it encrypts and uploads the results.
+    /// For training tasks, it cleans up temporary files.
     pub fn finalize_task(&mut self) {
         if let TaskVariant::Request(task_info) = &mut self.info {
             let rt = Builder::new_current_thread()
@@ -218,6 +268,8 @@ impl Task {
         );
     }
 
+    /// Finishes the current cycle of the task and prepares for the next cycle.
+    /// Updates progress in the database and checks for task completion.
     pub fn finish_cycle(&mut self) {
         match &mut self.info {
             TaskVariant::Training(task_info) => {
@@ -271,13 +323,31 @@ impl Task {
         }
     }
 
+    /// Checks if the task has been completed.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the task is finished, `false` otherwise.
     pub fn is_task_finished(&self) -> bool {
         self.meta.is_finished
     }
 }
 
+/// Finalizes a training cycle. Currently an empty implementation.
+///
+/// # Arguments
+///
+/// * `_` - The UUID of the task.
+/// * `_` - Mutable reference to the training information.
 fn finish_train_cycle(_: &Uuid, _: &mut TrainInfo) {}
 
+/// Finalizes a request cycle by writing the output to the dataset.
+///
+/// # Arguments
+///
+/// * `task_uuid` - The UUID of the task.
+/// * `model_uuid` - The UUID of the model associated with the task.
+/// * `task_info` - Mutable reference to the request information.
 fn finish_request_cycle(task_uuid: &Uuid, model_uuid: &Uuid, task_info: &mut RequestInfo) {
     // get output-values form backend and write them into the dataset
     match write_output_into_dataset(model_uuid, &mut task_info.results) {
@@ -296,6 +366,17 @@ fn finish_request_cycle(task_uuid: &Uuid, model_uuid: &Uuid, task_info: &mut Req
     }
 }
 
+/// Executes a single training cycle for a task.
+///
+/// This function updates the task progress in the database, checks for task abortion,
+/// and applies input and output datasets to the model.
+///
+/// # Arguments
+///
+/// * `task_uuid` - Unique identifier for the task
+/// * `model_uuid` - Unique identifier for the model
+/// * `meta` - Mutable reference to task metadata containing progress information
+/// * `task_info` - Mutable reference to training information containing input/output datasets
 fn run_train_task_cycle(
     task_uuid: &Uuid,
     model_uuid: &Uuid,
@@ -375,6 +456,17 @@ fn run_train_task_cycle(
     }
 }
 
+/// Executes a single processing cycle for a request task.
+///
+/// This function updates the task progress in the database, checks for task abortion,
+/// and applies input datasets to the model.
+///
+/// # Arguments
+///
+/// * `task_uuid` - Unique identifier for the task
+/// * `model_uuid` - Unique identifier for the model
+/// * `meta` - Mutable reference to task metadata containing progress information
+/// * `task_info` - Mutable reference to request information containing input datasets
 fn run_request_task_cycle(
     task_uuid: &Uuid,
     model_uuid: &Uuid,
@@ -427,6 +519,24 @@ fn run_request_task_cycle(
     }
 }
 
+/// Applies plain input data to a model's input block.
+///
+/// This function takes raw input data and applies it to the specified input block of a model.
+/// It's primarily used for direct input application rather than dataset-based input.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `hexagon_name` - Name of the hexagon (input block) to apply data to
+/// * `input_ptr` - Pointer to the input data
+/// * `input_size` - Size of the input data
+/// * `pos_counter` - Position counter for the input data
+/// * `time_length` - Length of time for the input data
+/// * `task_type` - Type of worker task (Train or Process)
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Returns Ok(()) on success, or an AinariError on failure
 pub fn apply_plain_input(
     model_uuid: &Uuid,
     hexagon_name: &String,
@@ -461,6 +571,24 @@ pub fn apply_plain_input(
     Ok(())
 }
 
+/// Applies dataset input data to a model's input block.
+///
+/// This function reads input data from a dataset file and applies it to the specified input block
+/// of a model. It processes data for each time point in the specified time length.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `hexagon_name` - Name of the hexagon (input block) to apply data to
+/// * `file_handle` - Mutable reference to the dataset file handle
+/// * `cycle_count` - Current cycle count
+/// * `time_length` - Length of time for the input data
+/// * `task_type` - Type of worker task (Train or Process)
+/// * `task_cycle_counter` - Counter for the task cycle
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Returns Ok(()) on success, or an AinariError on failure
 fn apply_dataset_to_input(
     model_uuid: &Uuid,
     hexagon_name: &String,
@@ -506,6 +634,21 @@ fn apply_dataset_to_input(
     Ok(())
 }
 
+/// Applies expected output data to a model's output buffer.
+///
+/// This function takes raw output data and applies it to the specified output buffer of a model.
+/// It's primarily used for setting expected outputs for training purposes.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `hexagon_name` - Name of the hexagon (output buffer) to apply data to
+/// * `input_ptr` - Pointer to the output data
+/// * `input_size` - Size of the output data
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Returns Ok(()) on success, or an AinariError on failure
 pub fn apply_expected(
     model_uuid: &Uuid,
     hexagon_name: &String,
@@ -522,6 +665,22 @@ pub fn apply_expected(
     Ok(())
 }
 
+/// Applies dataset output data to a model's output buffer.
+///
+/// This function reads output data from a dataset file and applies it to the specified output buffer
+/// of a model. It gets the data for the last time point in the specified time length.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `hexagon_name` - Name of the hexagon (output buffer) to apply data to
+/// * `file_handle` - Mutable reference to the dataset file handle
+/// * `cycle_count` - Current cycle count
+/// * `time_length` - Length of time for the input data
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Returns Ok(()) on success, or an AinariError on failure
 fn apply_dataset_to_expected(
     model_uuid: &Uuid,
     hexagon_name: &String,
@@ -537,6 +696,19 @@ fn apply_dataset_to_expected(
     Ok(())
 }
 
+/// Writes model output data into a dataset file.
+///
+/// This function reads output data from the model's output buffers and writes it to the specified
+/// dataset file. It processes each hexagon's output data according to the dataset's column description.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `file_handle` - Mutable reference to the dataset file handle for writing
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Returns Ok(()) on success, or an AinariError on failure
 fn write_output_into_dataset(
     model_uuid: &Uuid,
     file_handle: &mut DataSetFileWriteHandle,
@@ -561,6 +733,17 @@ fn write_output_into_dataset(
     Ok(())
 }
 
+/// Handles the task of saving a model checkpoint.
+///
+/// This function creates a checkpoint of the model, encrypts it, and uploads it to the specified
+/// storage location. It manages temporary files and updates the task state in the database.
+///
+/// # Arguments
+///
+/// * `task_uuid` - Unique identifier for the task
+/// * `model_uuid` - Unique identifier for the model
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Mutable reference to checkpoint save information containing storage details
 fn handle_checkpoint_save_task(
     task_uuid: &Uuid,
     model_uuid: &Uuid,
@@ -627,6 +810,17 @@ fn handle_checkpoint_save_task(
     let _ = fs::remove_file(&local_encrypted_temp_file_path);
 }
 
+/// Handles the task of restoring a model from a checkpoint.
+///
+/// This function downloads an encrypted checkpoint file, decrypts it, and restores the model from
+/// the checkpoint. It manages temporary files and updates the task state in the database.
+///
+/// # Arguments
+///
+/// * `task_uuid` - Unique identifier for the task
+/// * `model_uuid` - Unique identifier for the model
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Mutable reference to checkpoint restore information containing storage details
 fn handle_checkpoint_restore_task(
     task_uuid: &Uuid,
     model_uuid: &Uuid,
@@ -698,6 +892,14 @@ fn handle_checkpoint_restore_task(
     let _ = fs::remove_file(&local_encrypted_temp_file_path);
 }
 
+/// Removes a directory and all its contents from the filesystem.
+///
+/// This function attempts to delete a directory and all files within it. If the operation fails,
+/// it logs an error message but does not propagate the error.
+///
+/// # Arguments
+///
+/// * `target_dir_path` - Path to the directory to be removed
 fn remove_dir_all(target_dir_path: &String) {
     // delete all temporary files
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {

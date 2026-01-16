@@ -22,25 +22,16 @@ use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
-/// Creates a directory at the specified path.
+/// Creates a directory and all necessary parent directories asynchronously.
 ///
 /// # Arguments
 ///
-/// * `path` - A string slice containing the path to the directory to be created
+/// * `path` - A string slice that holds the path to the directory to be created.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the directory was created successfully
-///
-/// * `Err(ErrorResponse::InternalError)` - If there was an error creating the directory
-///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Permission issues when trying to create directories
-/// - Invalid path specifications
-/// - Filesystem errors during directory creation
-///
+/// * `Ok(())` if the directory was created successfully.
+/// * `Err(ErrorResponse::InternalError)` if an error occurred during directory creation.
 pub async fn create_directory(path: &String) -> Result<(), ErrorResponse> {
     match fs::create_dir_all(&path).await {
         Ok(_) => (),
@@ -53,28 +44,18 @@ pub async fn create_directory(path: &String) -> Result<(), ErrorResponse> {
     Ok(())
 }
 
-/// Uploads a file to an Onsen storage service.
+/// Uploads a file to an Onsen file transfer service asynchronously.
 ///
 /// # Arguments
 ///
-/// * `onsen_address` - A string slice containing the address of the Onsen service
-/// * `remote_file_path` - A string slice containing the destination path on the Onsen service
-/// * `local_file_path` - A string slice containing the path to the local file to be uploaded
+/// * `onsen_address` - A string slice that holds the address of the Onsen service.
+/// * `remote_file_path` - A string slice that holds the destination path on the Onsen service.
+/// * `local_file_path` - A string slice that holds the path to the local file to be uploaded.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the file was uploaded successfully
-///
-/// * `Err(ErrorResponse::InternalError)` - If there was an error during the upload process
-///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Network errors when connecting to the Onsen service
-/// - Authentication failures with the Onsen service
-/// - Filesystem errors when accessing the local file
-/// - Invalid path specifications for either local or remote paths
-///
+/// * `Ok(())` if the file was uploaded successfully.
+/// * `Err(ErrorResponse::InternalError)` if an error occurred during the upload process.
 pub async fn upload_file_to_onsen(
     onsen_address: &str,
     remote_file_path: &str,
@@ -93,26 +74,17 @@ pub async fn upload_file_to_onsen(
     Ok(())
 }
 
-/// Deletes a file from an Onsen storage service.
+/// Deletes a file from an Onsen file transfer service asynchronously.
 ///
 /// # Arguments
 ///
-/// * `onsen_address` - A string slice containing the address of the Onsen service
-/// * `remote_file_path` - A string slice containing the path of the file to be deleted on the Onsen service
+/// * `onsen_address` - A string slice that holds the address of the Onsen service.
+/// * `remote_file_path` - A string slice that holds the path to the file on the Onsen service to be deleted.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the file was deleted successfully
-///
-/// * `Err(ErrorResponse::InternalError)` - If there was an error during the deletion process
-///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Network errors when connecting to the Onsen service
-/// - Authentication failures with the Onsen service
-/// - Invalid path specifications for the remote path
-///
+/// * `Ok(())` if the file was deleted successfully.
+/// * `Err(ErrorResponse::InternalError)` if an error occurred during the deletion process.
 pub async fn delete_file_from_onsen(
     onsen_address: &str,
     remote_file_path: &str,
@@ -128,23 +100,16 @@ pub async fn delete_file_from_onsen(
     Ok(())
 }
 
-/// Checks if the provided user context has admin privileges.
+/// Verifies if the provided user context has admin privileges.
 ///
 /// # Arguments
 ///
-/// * `context` - A reference to a `UserContext` containing the user's information
+/// * `context` - A reference to a UserContext object containing user information.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the user has admin privileges
-///
-/// * `Err(ErrorResponse::Unauthorized)` - If the user does not have admin privileges
-///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - When the provided context does not have admin privileges
-///
+/// * `Ok(())` if the user has admin privileges.
+/// * `Err(ErrorResponse::Unauthorized)` if the user does not have admin privileges.
 pub fn check_admin_context(context: &UserContext) -> Result<(), ErrorResponse> {
     if context.is_admin != true.to_string() {
         return Err(ErrorResponse::Unauthorized(
@@ -155,24 +120,16 @@ pub fn check_admin_context(context: &UserContext) -> Result<(), ErrorResponse> {
     Ok(())
 }
 
-/// Converts a string representation of a UUID into a proper UUID type.
+/// Converts a string representation of a UUID into a Uuid object.
 ///
 /// # Arguments
 ///
-/// * `uuid` - A string slice containing the UUID in string format
+/// * `uuid` - A string slice that holds the UUID in string format.
 ///
 /// # Returns
 ///
-/// * `Ok(Uuid)` - If the string was successfully converted to a UUID
-///
-/// * `Err(ErrorResponse::InternalError)` - If there was an error during the conversion process
-///
-/// # Errors
-///
-/// This function will return errors in the following scenarios:
-/// - Invalid UUID string format
-/// - Parsing errors when converting the string to UUID
-///
+/// * `Ok(Uuid)` if the conversion was successful.
+/// * `Err(ErrorResponse::InternalError)` if an error occurred during the conversion.
 pub fn convert_uuid(uuid: &String) -> Result<Uuid, ErrorResponse> {
     let uuid = match Uuid::parse_str(uuid) {
         Ok(uuid) => uuid,
@@ -185,6 +142,17 @@ pub fn convert_uuid(uuid: &String) -> Result<Uuid, ErrorResponse> {
     Ok(uuid)
 }
 
+/// Maps AinariError to the appropriate ErrorResponse type.
+///
+/// This function translates internal AinariError types into the appropriate API error responses.
+///
+/// # Arguments
+///
+/// * `e` - An AinariError object to be mapped to an ErrorResponse.
+///
+/// # Returns
+///
+/// An ErrorResponse object corresponding to the input AinariError.
 pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
     match e {
         AinariError::Unauthorized(msg) => ErrorResponse::Unauthorized(msg),
@@ -196,6 +164,17 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
     }
 }
 
+/// Maps database errors for get and delete operations using ID to appropriate ErrorResponse.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being accessed.
+/// * `id` - A string slice containing the ID of the object.
+/// * `err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// An ErrorResponse object corresponding to the database error.
 pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError) -> ErrorResponse {
     match err {
         enums::DbError::InternalError => {
@@ -208,6 +187,17 @@ pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError)
     }
 }
 
+/// Maps database errors for get and delete operations using UUID to appropriate ErrorResponse.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being accessed.
+/// * `uuid` - A reference to a Uuid object.
+/// * `err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// An ErrorResponse object corresponding to the database error.
 pub fn map_db_uuid_get_delete_error(
     obj_type: &str,
     uuid: &Uuid,
@@ -224,16 +214,49 @@ pub fn map_db_uuid_get_delete_error(
     }
 }
 
+/// Maps database errors for list operations to appropriate ErrorResponse.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being listed.
+/// * `e` - A diesel::result::Error object indicating the database error.
+///
+/// # Returns
+///
+/// An ErrorResponse object corresponding to the database error.
 pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
     log::error!("Failed to list {obj_type} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
+/// Maps database errors for count operations to appropriate ErrorResponse.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being counted.
+/// * `e` - A diesel::result::Error object indicating the database error.
+///
+/// # Returns
+///
+/// An ErrorResponse object corresponding to the database error.
 pub fn map_db_count_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
     log::error!("Failed to count {obj_type} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
+/// Checks if an object with the given ID already exists in the database.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being checked.
+/// * `id` - A string slice containing the ID of the object.
+/// * `ret` - A Result object containing either the object or a DbError.
+///
+/// # Returns
+///
+/// * `Ok(())` if the object does not exist in the database.
+/// * `Err(ErrorResponse::Conflict)` if the object already exists.
+/// * `Err(ErrorResponse::InternalError)` if an internal database error occurred.
 pub fn check_if_id_exist_in_db<T>(
     obj_type: &str,
     id: &str,

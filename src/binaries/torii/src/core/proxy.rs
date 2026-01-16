@@ -19,19 +19,38 @@ use std::net::SocketAddr;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 
+/// A TCP proxy that forwards connections from a public address to a target address.
+///
+/// This struct manages the proxy lifecycle, including starting and stopping the proxy server.
+/// It uses a watch channel for graceful shutdown signaling.
 pub struct Proxy {
+    /// Handle to the async task running the proxy server.
     #[allow(dead_code)]
     pub handle: Option<tokio::task::JoinHandle<()>>,
 
+    /// The public address that the proxy listens on.
     #[allow(dead_code)]
     pub public_addr: SocketAddr,
+
+    /// The target address that connections will be forwarded to.
     #[allow(dead_code)]
     pub sakura_addr: String,
 
+    /// Sender half of the watch channel for shutdown signaling.
     pub shutdown_tx: watch::Sender<()>,
 }
 
 impl Proxy {
+    /// Creates a new Proxy instance and starts listening on the specified address.
+    ///
+    /// # Arguments
+    ///
+    /// * `public_addr` - The local address to bind the proxy server to.
+    /// * `sakura_addr` - The target address to forward connections to.
+    ///
+    /// # Returns
+    ///
+    /// A new Proxy instance with the server running in the background.
     pub async fn new(public_addr: &SocketAddr, sakura_addr: &str) -> Self {
         let (shutdown_tx, shutdown_rx) = watch::channel(());
 
@@ -52,6 +71,9 @@ impl Proxy {
         }
     }
 
+    /// Stops the proxy server by sending a shutdown signal.
+    ///
+    /// This method is idempotent and can be called multiple times safely.
     pub fn stop(&mut self) {
         log::debug!("Stop proxy with listen-address '{}'", self.public_addr);
         let _ = self.shutdown_tx.send(());
@@ -59,17 +81,41 @@ impl Proxy {
 }
 
 impl Drop for Proxy {
+    /// Ensures the proxy is stopped when the Proxy instance is dropped.
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }
 }
 
+/// Removes the HTTP/HTTPS prefix from a URL if present.
+///
+/// # Arguments
+///
+/// * `url` - The URL to process.
+///
+/// # Returns
+///
+/// A string slice with the prefix removed if it existed, or the original URL otherwise.
 fn remove_http_prefix(url: &str) -> &str {
     url.strip_prefix("https://")
         .or_else(|| url.strip_prefix("http://"))
         .unwrap_or(url)
 }
 
+/// Runs the main listener loop for the proxy server.
+///
+/// This function binds to the specified address and accepts incoming connections,
+/// forwarding them to the target address.
+///
+/// # Arguments
+///
+/// * `listen_addr` - The local address to bind to.
+/// * `target_addr` - The target address to forward connections to.
+/// * `shutdown` - Receiver half of the watch channel for shutdown signaling.
+///
+/// # Returns
+///
+/// `Ok(())` if the listener is stopped gracefully, or an error if something went wrong.
 async fn run_listener(
     listen_addr: SocketAddr,
     target_addr: String,
@@ -108,6 +154,17 @@ async fn run_listener(
     }
 }
 
+/// Handles a single TCP connection by forwarding data bidirectionally between the client and target.
+///
+/// # Arguments
+///
+/// * `inbound` - The incoming TCP stream from the client.
+/// * `target_addr` - The target address to connect to.
+/// * `shutdown` - Receiver half of the watch channel for shutdown signaling.
+///
+/// # Returns
+///
+/// `Ok(())` if the connection is closed gracefully, or an error if something went wrong.
 async fn handle_one_connection(
     inbound: &mut TcpStream,
     target_addr: &str,

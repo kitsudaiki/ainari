@@ -28,17 +28,38 @@ use super::processing::task_queue::{TaskQueue, init_task_queue};
 use super::processing::tasks::{self, Task, TaskVariant};
 use super::processing::worker_queue::*;
 
+/// Represents an interface to interact with a neural network model.
+///
+/// This struct manages the execution of tasks on a model, including processing
+/// inputs and outputs, training, and monitoring task completion.
 pub struct ModelInterface {
+    /// Shared task queue containing tasks to be executed by the model
     pub queue: Arc<Mutex<TaskQueue>>,
+
+    /// Shared counter tracking task completion status
     pub finish_counter_mutex: Arc<Mutex<FinishCounter>>,
 
+    /// Thread handle for the model's worker thread
     pub handle: Option<JoinHandle<()>>,
+
+    /// Atomic flag indicating if the model is running
     pub running: Arc<AtomicBool>,
 
+    /// Unique identifier for the model
     pub model_uuid: Uuid,
 }
 
 impl ModelInterface {
+    /// Creates a new ModelInterface instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - Unique identifier for the model
+    /// * `finish_counter_mutex` - Shared counter for tracking task completion
+    ///
+    /// # Returns
+    ///
+    /// A new ModelInterface instance with a running worker thread
     pub fn new(model_uuid: &Uuid, finish_counter_mutex: &Arc<Mutex<FinishCounter>>) -> Self {
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = Arc::clone(&running);
@@ -51,7 +72,7 @@ impl ModelInterface {
         let handle = thread::spawn(move || {
             log::debug!("Started model-thread");
             while running_clone.load(Ordering::Relaxed) {
-                // get task fromt he task-queue and prcess the task, otherwise sleep until the next check
+                // get task from the task-queue and process the task, otherwise sleep until the next check
                 let mut queue_handle = queue_clone.lock().expect("mutex poisoned");
                 if let Some(task_mutex) = queue_handle.get() {
                     drop(queue_handle);
@@ -63,21 +84,25 @@ impl ModelInterface {
                         {
                             let mut finish_counter =
                                 finish_counter_clone.lock().expect("mutex poisoned");
+                            // Reset the finish counter differently for training vs processing tasks
                             if matches!(task.info, TaskVariant::Training(_)) {
+                                // For training tasks, we need to compare both input and output tasks
                                 let task_compare =
                                     finish_counter.input_compare + finish_counter.output_compare;
                                 finish_counter.reset(task_compare, 0);
                             } else {
+                                // For processing tasks, we only need to compare output tasks
                                 let task_compare = finish_counter.output_compare;
                                 finish_counter.reset(task_compare, 0);
                             }
                             finish_counter.task = Some(task_mutex.clone());
                         }
 
+                        // Start the task and determine if we need to wait for completion
                         wait_for_finish = task.start_task();
                     }
 
-                    // wait until task is finished
+                    // wait until task is finished if needed
                     if wait_for_finish {
                         for _ in 0..10000000 {
                             let mut task = task_mutex.lock().expect("mutex poisoned");
@@ -89,11 +114,13 @@ impl ModelInterface {
                             thread::sleep(std::time::Duration::from_millis(10));
                         }
                     } else {
+                        // If no waiting is needed, just finalize the task
                         let mut task = task_mutex.lock().expect("mutex poisoned");
                         task.finalize_task();
                     }
                 } else {
                     drop(queue_handle);
+                    // No tasks available, sleep for a second before checking again
                     thread::sleep(std::time::Duration::from_secs(1));
                 }
             }
@@ -109,6 +136,9 @@ impl ModelInterface {
         }
     }
 
+    /// Stops the model's worker thread.
+    ///
+    /// This method sets the running flag to false and joins the worker thread.
     pub fn stop(&mut self) {
         self.running.store(false, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
@@ -116,16 +146,36 @@ impl ModelInterface {
         }
     }
 
+    /// Adds a task to the model's task queue.
+    ///
+    /// # Arguments
+    ///
+    /// * `task` - The task to be added to the queue
     pub fn add_task(&mut self, task: Task) {
         let mut queue_handle = self.queue.lock().expect("mutex poisoned");
         queue_handle.add(task);
     }
 
+    /// Gets the number of open tasks in the queue.
+    ///
+    /// # Returns
+    ///
+    /// The number of tasks currently in the queue
     pub fn get_number_open_tasks(&mut self) -> usize {
         let queue_handle = self.queue.lock().expect("mutex poisoned");
         queue_handle.len()
     }
 
+    /// Processes inputs through the model and returns outputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - Map of input names to their corresponding data
+    /// * `outputs` - Map of output names to buffers that will be filled with results
+    ///
+    /// # Returns
+    ///
+    /// Result indicating success or failure of the operation
     pub fn request(
         &mut self,
         inputs: &HashMap<String, Vec<f32>>,
@@ -175,6 +225,16 @@ impl ModelInterface {
         Ok(())
     }
 
+    /// Trains the model using the provided inputs and expected outputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - Map of input names to their corresponding data
+    /// * `outputs` - Map of output names to their expected values
+    ///
+    /// # Returns
+    ///
+    /// Result indicating success or failure of the operation
     pub fn train(
         &mut self,
         inputs: &HashMap<String, Vec<f32>>,
@@ -213,11 +273,26 @@ impl ModelInterface {
 }
 
 impl Drop for ModelInterface {
+    /// Cleanup when the ModelInterface is dropped.
+    ///
+    /// Ensures the worker thread is stopped before the ModelInterface is destroyed.
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }
 }
 
+/// Executes a single iteration of model processing.
+///
+/// This function waits for all tasks to complete or times out after a certain number of iterations.
+///
+/// # Arguments
+///
+/// * `model_uuid` - Unique identifier for the model
+/// * `finish_counter_mutex` - Shared counter for tracking task completion
+///
+/// # Returns
+///
+/// Result indicating success or failure of the operation
 fn run_iteration(
     model_uuid: &Uuid,
     finish_counter_mutex: &Arc<Mutex<FinishCounter>>,

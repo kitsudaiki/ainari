@@ -24,7 +24,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for meta_models table
 table! {
     meta_models (uuid) {
         uuid -> Varchar,
@@ -43,6 +43,8 @@ table! {
     }
 }
 
+/// Represents an entry in the meta_models table.
+/// This struct contains all the fields required to create, query, and update meta model records.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = meta_models)]
 pub struct MetaModelEntry {
@@ -61,6 +63,10 @@ pub struct MetaModelEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the meta_models table in the database if it doesn't exist.
+///
+/// This function creates the table with the appropriate schema and constraints.
+/// It's typically called during application startup to ensure the required tables exist.
 pub fn init_meta_model_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -84,6 +90,20 @@ pub fn init_meta_model_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new meta model to the database.
+///
+/// This function creates a new MetaModelEntry with the provided parameters and inserts it into the database.
+/// The status is set to "ACTIVE" and timestamps are set to the current time.
+///
+/// # Arguments
+/// * `meta_model_uuid` - The unique identifier for the meta model
+/// * `model_name` - The name of the meta model
+/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this model
+/// * `proxy_uuid` - The UUID of the proxy associated with this model
+/// * `context` - The user context containing information about the user and project
+///
+/// # Returns
+/// A QueryResult indicating the number of rows affected
 pub fn add_new_meta_model(
     meta_model_uuid: &Uuid,
     model_name: &str,
@@ -110,6 +130,15 @@ pub fn add_new_meta_model(
     add_meta_model(&meta_model)
 }
 
+/// Adds a meta model to the database.
+///
+/// This is a helper function that performs the actual insertion of a MetaModelEntry into the database.
+///
+/// # Arguments
+/// * `meta_model` - The MetaModelEntry to be inserted
+///
+/// # Returns
+/// A QueryResult indicating the number of rows affected
 pub fn add_meta_model(meta_model: &MetaModelEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_models::dsl::*;
@@ -118,6 +147,17 @@ pub fn add_meta_model(meta_model: &MetaModelEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a meta model from the database.
+///
+/// This function queries the database for a meta model with the specified UUID and checks the user's permissions.
+/// Only active models are returned, and the query is filtered based on the user's role and project membership.
+///
+/// # Arguments
+/// * `meta_model_uuid` - The UUID of the meta model to retrieve
+/// * `context` - The user context containing information about the user and their permissions
+///
+/// # Returns
+/// A Result containing the MetaModelEntry if found, or a DbError if not found or an error occurs
 pub fn get_meta_model(
     meta_model_uuid: &Uuid,
     context: &UserContext,
@@ -132,6 +172,7 @@ pub fn get_meta_model(
         )
         .into_boxed();
 
+    // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -152,6 +193,16 @@ pub fn get_meta_model(
     }
 }
 
+/// Lists all meta models that the user has access to.
+///
+/// This function retrieves all active meta models and applies permission-based filtering.
+/// The results are filtered based on the user's role and project membership.
+///
+/// # Arguments
+/// * `context` - The user context containing information about the user and their permissions
+///
+/// # Returns
+/// A QueryResult containing a vector of MetaModelEntry objects
 #[allow(dead_code)]
 pub fn list_meta_models(context: &UserContext) -> QueryResult<Vec<MetaModelEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -159,6 +210,7 @@ pub fn list_meta_models(context: &UserContext) -> QueryResult<Vec<MetaModelEntry
 
     let mut query = meta_models.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -169,18 +221,39 @@ pub fn list_meta_models(context: &UserContext) -> QueryResult<Vec<MetaModelEntry
     query.select(MetaModelEntry::as_select()).load(&mut *conn)
 }
 
+/// Counts the number of meta models that the user has access to.
+///
+/// This function counts all active meta models and applies permission-based filtering.
+/// The count is filtered based on the user's role and project membership.
+///
+/// # Arguments
+/// * `context` - The user context containing information about the user and their permissions
+///
+/// # Returns
+/// A QueryResult containing the count of meta models as an i64
 pub fn count_meta_models(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_models::dsl::*;
 
     let mut query = meta_models.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply permission-based filtering
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
 
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Force deletes a meta model from the database.
+///
+/// This function marks a meta model as deleted without checking permissions.
+/// It's intended for system-level operations where permission checks are not required.
+///
+/// # Arguments
+/// * `meta_model_uuid` - The UUID of the meta model to delete
+///
+/// # Returns
+/// A Result indicating success or an error
 pub fn force_delete_meta_model(meta_model_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_models::dsl::*;
@@ -201,10 +274,22 @@ pub fn force_delete_meta_model(meta_model_uuid: &Uuid) -> Result<(), enums::DbEr
     }
 }
 
+/// Deletes a meta model from the database.
+///
+/// This function marks a meta model as deleted after verifying that the user has permission to delete it.
+/// It first checks if the model exists and if the user has the necessary permissions.
+///
+/// # Arguments
+/// * `meta_model_uuid` - The UUID of the meta model to delete
+/// * `context` - The user context containing information about the user and their permissions
+///
+/// # Returns
+/// A Result indicating success or an error
 pub fn delete_meta_model(
     meta_model_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // Verify the meta model exists and the user has permission to delete it
     get_meta_model(meta_model_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -226,6 +311,13 @@ pub fn delete_meta_model(
     }
 }
 
+/// Deletes all meta models from the database.
+///
+/// This function marks all active meta models as deleted without checking permissions.
+/// It's intended for system-level operations where permission checks are not required.
+///
+/// # Returns
+/// A Result indicating success or an error
 #[allow(dead_code)]
 pub fn delete_all_meta_model() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

@@ -27,13 +27,33 @@ use crate::core::blocks::core_block::*;
 use crate::core::blocks::output_block::*;
 use crate::core::model_handler::*;
 
+/// Struct containing information about a target hexagon for connection.
+///
+/// This includes the UUID of the hexagon, whether it's an output hexagon,
+/// and the name of the output hexagon if applicable.
 #[derive(Default, Debug)]
 struct TargetInformation {
+    /// Unique identifier for the target hexagon.
     hexagon_uuid: Uuid,
+    /// Flag indicating if the target hexagon is an output hexagon.
     is_output: bool,
+    /// Name of the output hexagon if this is an output hexagon.
     output_hexagon_name: String,
 }
 
+/// Connects an axon section to a new target block within the model.
+///
+/// This function performs several operations:
+/// 1. Validates the axon section
+/// 2. Determines the target hexagon
+/// 3. Attempts to connect to an existing block or creates a new one if needed
+///
+/// # Arguments
+/// * `axon_section` - Mutable reference to the axon section to be connected
+///
+/// # Returns
+/// * `Ok(())` if the connection is successful
+/// * `Err(AinariError)` if any step fails
 pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     check_axon_setion(axon_section)?;
 
@@ -66,6 +86,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
             return Err(AinariError::InvalidInput(msg));
         };
 
+        // Randomly select a block from the target hexagon's available blocks
         match random_value(&target_hexagon_link.blocks) {
             Some(value) => {
                 selected_block_option = Some(value.clone());
@@ -76,7 +97,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         }
     }
 
-    // check if the reandome selected block is available
+    // check if the randomly selected block is available
     if let Some(selected_block_mutex) = selected_block_option {
         let mut selected_block = selected_block_mutex.lock().expect("mutex poisoned");
         if selected_block.get_free_input(axon_section) {
@@ -86,7 +107,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         }
     }
 
-    // create new block
+    // create new block if no existing block is available
     if target_information.is_output {
         let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
         let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
@@ -126,6 +147,21 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
     Err(AinariError::InternalError(msg))
 }
 
+/// Selects a random value from a HashMap.
+///
+/// This is a helper function that uses the rand crate to select a random value
+/// from a HashMap. It's used to randomly select a block from a hexagon's blocks.
+///
+/// # Generic Parameters
+/// * `K` - The key type of the HashMap, must implement Hash and Eq
+/// * `V` - The value type of the HashMap
+///
+/// # Arguments
+/// * `map` - Reference to the HashMap from which to select a random value
+///
+/// # Returns
+/// * `Some(&V)` if the map is not empty, containing a random value
+/// * `None` if the map is empty
 fn random_value<K, V>(map: &HashMap<K, V>) -> Option<&V>
 where
     K: std::hash::Hash + Eq,
@@ -134,6 +170,17 @@ where
     map.values().choose(&mut rng)
 }
 
+/// Validates the axon section before attempting to connect it to a target.
+///
+/// Checks that all required fields in the axon section are properly initialized.
+/// Returns an error if any of the required fields are invalid.
+///
+/// # Arguments
+/// * `axon_section` - Mutable reference to the axon section to validate
+///
+/// # Returns
+/// * `Ok(())` if the axon section is valid
+/// * `Err(AinariError)` if the axon section contains invalid data
 fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> {
     // pre-check
     if axon_section.model_uuid == Uuid::nil()
@@ -148,6 +195,20 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
     Ok(())
 }
 
+/// Determines the target hexagon for an axon section connection.
+///
+/// This function:
+/// 1. Gets the model handler
+/// 2. Determines the target hexagon UUID based on the source hexagon's possible targets
+/// 3. Validates the target hexagon
+/// 4. Ensures the target hexagon exists in the model data
+///
+/// # Arguments
+/// * `axon_section` - Mutable reference to the axon section
+///
+/// # Returns
+/// * `Ok(TargetInformation)` containing information about the target hexagon
+/// * `Err(AinariError)` if any step fails
 fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
     let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
     let mut target_information = TargetInformation::default();

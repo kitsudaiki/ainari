@@ -29,6 +29,20 @@ use ainari_common::error::AinariError;
 
 // ==================================================================================================
 
+/// Represents an input block in the neural network model.
+/// This block is responsible for receiving and processing input data.
+///
+/// # Fields
+///
+/// * `uuid` - Unique identifier for the block.
+/// * `hexagon_uuid` - Identifier for the hexagon this block belongs to.
+/// * `model_uuid` - Identifier for the model this block belongs to.
+/// * `block_io` - Input/output buffer for the block.
+/// * `name` - Name of the block.
+/// * `input_links` - Vector of input links to other blocks.
+/// * `fill_position` - Current fill position in the output buffer.
+/// * `local_finish_counter` - Local counter for tracking completion status.
+/// * `finish_counter_mutex` - Shared counter for tracking completion status across threads.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct InputBlock {
     pub uuid: Uuid,
@@ -47,6 +61,16 @@ pub struct InputBlock {
 }
 
 impl PartialEq for InputBlock {
+    /// Compares two InputBlock instances for equality.
+    /// Two blocks are considered equal if all their fields match.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other InputBlock to compare with.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the blocks are equal, `false` otherwise.
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
@@ -59,11 +83,29 @@ impl PartialEq for InputBlock {
     }
 }
 
+/// Initializes a new FinishCounter with default values.
+/// This is used as the default value for the `finish_counter_mutex` field.
+///
+/// # Returns
+///
+/// A new Arc<Mutex<FinishCounter>> with default values.
 fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
     Arc::new(Mutex::new(FinishCounter::default()))
 }
 
 impl InputBlock {
+    /// Creates a new InputBlock instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the block.
+    /// * `hexagon_uuid` - Identifier for the hexagon this block belongs to.
+    /// * `model_uuid` - Identifier for the model this block belongs to.
+    /// * `finish_counter` - Shared counter for tracking completion status across threads.
+    ///
+    /// # Returns
+    ///
+    /// A new InputBlock instance.
     pub fn new(
         name: &str,
         hexagon_uuid: &Uuid,
@@ -94,6 +136,15 @@ impl InputBlock {
 
     // ==================================================================================================
 
+    /// Applies input data to the input block.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ptr` - Pointer to the input data.
+    /// * `input_size` - Size of the input data.
+    /// * `offset` - Offset to apply to the input data.
+    /// * `time_length` - Length of the time dimension of the input data.
+    /// * `allow_cration` - Whether to allow creation of new input links.
     pub fn apply_input(
         &mut self,
         input_ptr: &[f32],
@@ -145,6 +196,17 @@ impl InputBlock {
 }
 
 impl Block for InputBlock {
+    /// Performs training on the block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use).
+    /// * `_` - Unused parameter (reserved for future use).
+    /// * `_` - Unused parameter (reserved for future use).
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional FinishCounter or an AinariError.
     fn train(
         &mut self,
         _: usize,
@@ -155,16 +217,43 @@ impl Block for InputBlock {
         Ok(None)
     }
 
+    /// Processes the block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use).
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional FinishCounter or an AinariError.
     fn process(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.local_finish_counter = 0;
 
         Ok(None)
     }
 
+    /// Performs backpropagation on the block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use).
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional FinishCounter or an AinariError.
     fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         Ok(Some(self.finish_counter_mutex.clone()))
     }
 
+    /// Finalizes the training process.
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current cycle number.
+    ///
+    /// # Returns
+    ///
+    /// Result indicating success or failure.
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
@@ -177,6 +266,15 @@ impl Block for InputBlock {
         Ok(())
     }
 
+    /// Finalizes the processing.
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current cycle number.
+    ///
+    /// # Returns
+    ///
+    /// Result indicating success or failure.
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
@@ -189,38 +287,91 @@ impl Block for InputBlock {
         Ok(())
     }
 
+    /// Finalizes the backpropagation.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use).
+    ///
+    /// # Returns
+    ///
+    /// Result indicating whether the finalization was successful.
     fn finalize_backpropagate(&mut self, _: u64) -> Result<bool, AinariError> {
         Ok(true)
     }
 
+    /// Gets a free input axon section.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use).
+    ///
+    /// # Returns
+    ///
+    /// `true` if a free input was found, `false` otherwise.
     fn get_free_input(&mut self, _: &mut AxonSection) -> bool {
         false
     }
 
+    /// Gets the UUID of the block.
+    ///
+    /// # Returns
+    ///
+    /// The UUID of the block.
     fn get_uuid(&self) -> Uuid {
         self.uuid
     }
 
+    /// Gets the hexagon UUID of the block.
+    ///
+    /// # Returns
+    ///
+    /// The hexagon UUID of the block.
     fn get_hexagon_uud(&self) -> Uuid {
         self.hexagon_uuid
     }
 
+    /// Gets the model UUID of the block.
+    ///
+    /// # Returns
+    ///
+    /// The model UUID of the block.
     fn get_model_uud(&self) -> Uuid {
         self.model_uuid
     }
 
+    /// Gets the block I/O buffer.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the block I/O buffer.
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         &mut self.block_io
     }
 
+    /// Gets the type of the block.
+    ///
+    /// # Returns
+    ///
+    /// The type of the block.
     fn get_type(&self) -> ObjectType {
         ObjectType::InputBlock
     }
 
+    /// Sets the model UUID of the block.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_model_uuid` - The new model UUID.
     fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
         self.model_uuid = *new_model_uuid;
     }
 
+    /// Serializes the block to a byte vector.
+    ///
+    /// # Returns
+    ///
+    /// A byte vector containing the serialized block.
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
         bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")

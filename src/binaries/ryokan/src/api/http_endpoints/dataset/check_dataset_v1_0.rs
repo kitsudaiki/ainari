@@ -116,6 +116,22 @@ pub async fn check_dataset(
     Ok(Json(resp))
 }
 
+/// Checks if the specified row in the dataset matches the corresponding row in the reference dataset.
+///
+/// This function compares the highest position values in the specified row of both datasets.
+/// It returns `Ok(true)` if the values match, `Ok(false)` if they don't, or an error if something goes wrong.
+///
+/// # Arguments
+///
+/// * `dataset_file_handle` - Mutable reference to the dataset file handle
+/// * `dataset_column` - Reference to the column in the dataset to check
+/// * `reference_file_handle` - Mutable reference to the reference dataset file handle
+/// * `reference_columns` - Reference to the column in the reference dataset to check
+/// * `row` - The row number to check in both datasets
+///
+/// # Returns
+///
+/// * `Result<bool, AinariError>` - True if rows match, false if they don't, or an error
 fn check_row(
     dataset_file_handle: &mut DataSetFileReadHandle,
     dataset_column: &Column,
@@ -123,8 +139,8 @@ fn check_row(
     reference_columns: &Column,
     row: u64,
 ) -> Result<bool, AinariError> {
-    let dataset_row = get_highest_pos_in_row(dataset_file_handle, dataset_column, row)?;
-    let reference_row = get_highest_pos_in_row(reference_file_handle, reference_columns, row)?;
+    let dataset_row = get_highest_pos_row(dataset_file_handle, dataset_column, row)?;
+    let reference_row = get_highest_pos_row(reference_file_handle, reference_columns, row)?;
     // println!("row: {row}    dataset_row: {dataset_row}  reference_row: {reference_row}");
 
     if dataset_row != reference_row {
@@ -134,7 +150,21 @@ fn check_row(
     Ok(true)
 }
 
-fn get_highest_pos_in_row(
+/// Finds the highest position in a row where the value is finite.
+///
+/// This function reads the specified row from the file and finds the index of the highest finite value.
+/// If no finite value is found, it returns an error.
+///
+/// # Arguments
+///
+/// * `file_handle` - Mutable reference to the file handle
+/// * `col_get` - Reference to the column information
+/// * `row` - The row number to check
+///
+/// # Returns
+///
+/// * `Result<u64, AinariError>` - The index of the highest finite value, or an error
+fn get_highest_pos_row(
     file_handle: &mut DataSetFileReadHandle,
     col_get: &Column,
     row: u64,
@@ -172,6 +202,21 @@ fn get_highest_pos_in_row(
     }
 }
 
+/// Retrieves a dataset column for comparison purposes.
+///
+/// This function downloads the dataset file, decrypts it, and extracts the specified column information.
+/// It returns the file handle, column information, and row count for the specified dataset and column.
+///
+/// # Arguments
+///
+/// * `dataset_uuid` - UUID of the dataset to retrieve
+/// * `column_name` - Name of the column to extract
+/// * `compare_dir` - Directory to store downloaded files temporarily
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+///
+/// * `Result<(DataSetFileReadHandle, Column, u64), ErrorResponse>` - Tuple containing file handle, column info, and row count, or an error
 async fn get_dataset_column(
     dataset_uuid: &Uuid,
     column_name: &String,
@@ -229,6 +274,18 @@ async fn get_dataset_column(
     Ok((file_handle, dataset_col_get, row_count))
 }
 
+/// Retrieves a secret from the Miko service.
+///
+/// This function connects to the Miko service to retrieve the secret associated with the given UUID.
+///
+/// # Arguments
+///
+/// * `secret_uuid` - UUID of the secret to retrieve
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+///
+/// * `Result<Secret, ErrorResponse>` - The retrieved secret, or an error
 async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)

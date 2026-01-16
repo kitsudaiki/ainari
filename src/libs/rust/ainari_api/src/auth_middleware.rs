@@ -28,15 +28,35 @@ use ainari_common::error::AinariError;
 use ainari_common::functions::split_bearer_token;
 use ainari_common::secret::*;
 
+/// Configuration structure for API validation middleware
+///
+/// This struct contains all necessary configuration parameters for validating API requests,
+/// including Miko service address, internal IP, API key, and TLS verification settings.
 #[derive(Debug, Clone)]
 pub struct ApiValidationConfig {
+    /// Address of the Miko service for token validation
     pub miko_address: String,
+    /// Internal IP address used for request validation
     pub internal_ip: String,
+    /// Secret API key for internal requests
     pub internal_api_key: Secret,
+    /// Flag to skip TLS verification when communicating with Miko
     pub skip_tls_verification: bool,
 }
 
 impl ApiValidationConfig {
+    /// Creates a new ApiValidationConfig instance
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - MikoEndpoint configuration containing the address
+    /// * `api` - Api configuration containing the internal IP
+    /// * `internal_api_key` - Secret API key for internal requests
+    /// * `skip_tls_verification` - Flag to skip TLS verification
+    ///
+    /// # Returns
+    ///
+    /// Newly created ApiValidationConfig instance
     pub fn new(
         conn: &MikoEndpoint,
         api: &Api,
@@ -52,6 +72,19 @@ impl ApiValidationConfig {
     }
 }
 
+/// Middleware for authorizing incoming API requests
+///
+/// This middleware checks for valid authentication tokens and verifies internal requests.
+/// It handles various special cases where authentication might be skipped.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request
+/// * `next` - The next middleware or handler in the chain
+///
+/// # Returns
+///
+/// Either the service response or an error if authorization fails
 pub async fn authorization_middleware(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
@@ -69,7 +102,7 @@ pub async fn authorization_middleware(
     skip_token_check |= uri == "/v1alpha/is_ready" && *req.method() == Method::GET;
     // request of openapi-specs can be done without token
     skip_token_check |= uri == "/openapi.json";
-    // sakura-hosts can call a registration without token, becuase it is triggered by themself
+    // sakura-hosts can call a registration without token, because it is triggered by themself
     // without user-interaction, but this call is saved by the internal-key and registration-key,
     // which are provided by the sakura-hosts and validated in the endpoint
     skip_token_check |= uri == "/v1alpha/host/internal" && *req.method() == Method::POST;
@@ -101,6 +134,19 @@ pub async fn authorization_middleware(
     resp
 }
 
+/// Validates that an internal request is coming from a trusted source
+///
+/// This function checks the X-Internal-API-Key header against the configured internal API key.
+/// It's used to verify requests to internal endpoints.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request to validate
+/// * `api_validation_config` - Configuration containing the valid internal API key
+///
+/// # Returns
+///
+/// Ok(()) if the request is valid, or an error if authorization fails
 pub fn check_internal_request(
     req: &ServiceRequest,
     api_validation_config: &ApiValidationConfig,
@@ -155,6 +201,19 @@ pub fn check_internal_request(
     Ok(())
 }
 
+/// Validates the authentication token in the Authorization header
+///
+/// This function extracts the token from the Authorization header, sends it to Miko for validation,
+/// and handles the response. It's used to verify requests to non-internal endpoints.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request to validate
+/// * `api_validation_config` - Configuration containing Miko address and other settings
+///
+/// # Returns
+///
+/// Ok(()) if the token is valid, or an error if authorization fails
 async fn check_auth_header(
     req: &ServiceRequest,
     api_validation_config: &ApiValidationConfig,

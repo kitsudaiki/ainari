@@ -21,6 +21,18 @@ use ainari_clients::endpoints::*;
 use ainari_clients::host::register_onsen_host;
 use ainari_common::error::AinariError;
 
+/// Registers the current host with the Ainari Onsen service.
+///
+/// This function creates a local execution context and runs the host registration process.
+/// It fetches endpoints from the Miko service, retrieves the local host name, and registers
+/// the host with the Ryokan service using the provided configuration.
+///
+/// # Errors
+///
+/// Returns an `AinariError` if:
+/// - The endpoints cannot be fetched from Miko
+/// - The host name cannot be retrieved
+/// - The registration with Ryokan fails
 pub async fn register_host() -> Result<(), AinariError> {
     let local = LocalSet::new();
 
@@ -28,9 +40,12 @@ pub async fn register_host() -> Result<(), AinariError> {
         .run_until(async {
             // get endpoints from miko
             let miko_endpoint = &config::CONFIG.miko;
+            // Fetch service endpoints from the Miko service
+            // This includes addresses for various Ainari services
             let endpoints =
                 get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification).await?;
 
+            // Attempt to get the local host name
             let host_name = if let Some(host_name) = System::host_name() {
                 host_name
             } else {
@@ -41,6 +56,8 @@ pub async fn register_host() -> Result<(), AinariError> {
 
             log::debug!("read host-name: {host_name}");
 
+            // Register the current host with the Ryokan service
+            // This includes providing authentication information and host details
             register_onsen_host(
                 &endpoints.ryokan,
                 &config::INTERNAL_API_KEY,

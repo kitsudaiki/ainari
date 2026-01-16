@@ -21,30 +21,58 @@ use std::process;
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
 
+/// Configuration structure for the application
+///
+/// This struct holds all configuration parameters required by the application.
+/// It includes general settings, API configuration, database settings,
+/// Miko endpoint configuration, and port range definitions.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
+    /// Whether debug mode is enabled
     pub debug: bool,
+    /// Skip TLS certificate verification for all connections
+    ///
+    /// Defaults to `false` for security reasons.
     #[serde(default = "default_insecure_clients")]
     pub skip_tls_verification: bool,
     // groups
+    /// Configuration for API settings
     pub api: ainari_config::Api,
+    /// Configuration for database connections
     pub database: ainari_config::Database,
+    /// Configuration for Miko endpoint
     pub miko: ainari_config::MikoEndpoint,
+    /// Port range configuration
     pub ports: Ports,
 }
 
+/// Default value for skip_tls_verification
+///
+/// Returns `false` to enforce TLS verification by default for security reasons.
 fn default_insecure_clients() -> bool {
     false
 }
 
+/// Port range configuration
+///
+/// Defines the minimum and maximum ports that the application can use.
 #[derive(Debug, Deserialize)]
 pub struct Ports {
+    /// Minimum port number
     pub min_port: u16,
+    /// Maximum port number
     pub max_port: u16,
 }
 
-// Global singleton config
+/// Global singleton config instance
+///
+/// This is a lazy-initialized global configuration that reads from
+/// `/etc/ainari/torii.toml` file. The configuration is loaded only once
+/// when first accessed and cached for subsequent use.
+///
+/// # Panics
+/// This will panic if the configuration file cannot be read or parsed.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let file_path = "/etc/ainari/torii.toml";
     log::debug!("read config '{file_path}'");
@@ -52,6 +80,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     match fs::read_to_string(file_path) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
+            // Attempt to parse the TOML content into our Config struct
             match toml::from_str(&content) {
                 Ok(v) => {
                     log::info!("successfully loaded config '{file_path}'");
@@ -72,10 +101,18 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 });
 
+/// Global singleton for internal API key
+///
+/// This is a lazy-initialized global secret that reads from the
+/// `INTERNAL_API_KEY` environment variable. The key is loaded only once
+/// when first accessed and cached for subsequent use.
+///
+/// # Panics
+/// This will panic if the environment variable is not set.
 pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNAL_API_KEY") {
     Ok(value) => Secret::from(value),
     Err(_) => {
-        log::error!("env-variable 'INTERNAL_API_KEY' was not set.)");
+        log::error!("env-variable 'INTERNAL_API_KEY' was not set.");
         process::exit(1);
     }
 });

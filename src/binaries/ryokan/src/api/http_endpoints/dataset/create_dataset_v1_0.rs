@@ -136,6 +136,21 @@ pub async fn upload_binary(
     Ok(CreatedJson(resp))
 }
 
+/// Writes the contents of a multipart payload to temporary files.
+///
+/// This function processes each part of the multipart payload, extracts filenames,
+/// creates temporary files, and writes the contents to those files.
+///
+/// # Arguments
+///
+/// * `payload` - The multipart data to process
+/// * `target_dir_path` - The directory where temporary files will be created
+///
+/// # Returns
+///
+/// A `Result` with either:
+/// - `Vec<PathBuf>` containing paths to created temporary files on success
+/// - `ErrorResponse` on failure
 async fn write_payload_into_file(
     mut payload: Multipart,
     target_dir_path: &String,
@@ -219,6 +234,22 @@ async fn write_payload_into_file(
     Ok(temp_file_paths)
 }
 
+/// Converts uploaded files to the expected format based on dataset type.
+///
+/// Handles different dataset types (currently MNIST and CSV) and performs
+/// the appropriate conversion to a standard format for processing.
+///
+/// # Arguments
+///
+/// * `dataset_uuid` - Unique identifier for the dataset
+/// * `name` - Name of the dataset
+/// * `dataset_type` - Type of dataset ("mnist" or "csv")
+/// * `target_filepath` - Path to the output converted file
+/// * `temp_file_paths` - Paths to temporary files containing uploaded data
+///
+/// # Returns
+///
+/// A `Result` indicating success or failure
 async fn convert_uploaded_files(
     dataset_uuid: &Uuid,
     name: &str,
@@ -279,6 +310,18 @@ async fn convert_uploaded_files(
     Ok(())
 }
 
+/// Retrieves the dimensions of a dataset file.
+///
+/// Extracts the number of rows and column names from a dataset file.
+///
+/// # Arguments
+///
+/// * `target_path` - Path to the dataset file
+///
+/// # Returns
+///
+/// A `Result` containing a tuple of (number_of_rows, column_names) on success,
+/// or an `ErrorResponse` on failure
 fn get_dataset_dimension(target_path: &String) -> Result<(u64, Vec<String>), ErrorResponse> {
     let file_handle = read_data_set_file(target_path).map_err(|e| {
         log::error!("Failed to read dataset dimensions from file '{target_path}' with error: {e}");

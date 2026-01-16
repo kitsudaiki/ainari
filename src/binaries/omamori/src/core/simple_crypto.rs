@@ -31,17 +31,36 @@ use ainari_common::secret::Secret;
 const NONCE_SIZE: usize = 12; // 96 bits
 const KEY_SIZE: usize = 32; // 256 bits
 
+/// A simple cryptographic module that provides basic encryption and decryption functionality
+/// using AES-256-GCM algorithm.
 pub struct SimpleCrypto {
     #[allow(dead_code)]
     pub name: String,
 }
 
 impl SimpleCrypto {
+    /// Creates a new instance of SimpleCrypto.
+    ///
+    /// # Returns
+    /// A new SimpleCrypto instance with the name "simple_crypto".
     pub fn new() -> Self {
         SimpleCrypto {
             name: "simple_crypto".to_owned(),
         }
     }
+
+    /// Encrypts the given plaintext using AES-256-GCM algorithm.
+    ///
+    /// # Arguments
+    /// * `plaintext` - The secret to be encrypted
+    /// * `key_b64` - The encryption key in base64 format
+    ///
+    /// # Returns
+    /// Result containing the base64 encoded ciphertext (nonce + ciphertext concatenated)
+    /// or an AinariError if encryption fails.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If the key is invalid or encryption fails
     fn encrypt(&self, plaintext: &Secret, key_b64: &Secret) -> Result<String, AinariError> {
         let key_bytes = decode_base64_key(key_b64)?;
 
@@ -66,6 +85,17 @@ impl SimpleCrypto {
         Ok(STANDARD.encode(&combined))
     }
 
+    /// Decrypts the given ciphertext using AES-256-GCM algorithm.
+    ///
+    /// # Arguments
+    /// * `encrypted_secret_b64` - The base64 encoded ciphertext to decrypt
+    /// * `key_b64` - The decryption key in base64 format
+    ///
+    /// # Returns
+    /// Result containing the decrypted secret or an AinariError if decryption fails.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If the input is invalid or decryption fails
     fn decrypt(&self, encrypted_secret_b64: &str, key_b64: &Secret) -> Result<Secret, AinariError> {
         let key_bytes = decode_base64_key(key_b64)?;
         let key = GenericArray::from_slice(&key_bytes);
@@ -101,6 +131,17 @@ impl SimpleCrypto {
     }
 }
 
+/// Decodes a base64 encoded key and validates its length.
+///
+/// # Arguments
+/// * `key_b64` - The base64 encoded key
+///
+/// # Returns
+/// Result containing the decoded key bytes or an AinariError if decoding fails
+/// or the key length is invalid.
+///
+/// # Errors
+/// * AinariError::InvalidInput - If the key is invalid or has wrong length
 fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
     // decode base64 key
     let key_bytes = STANDARD.decode(key_b64.reveal().as_bytes()).map_err(|_| {
@@ -120,6 +161,18 @@ fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
 }
 
 impl CryptoModule for SimpleCrypto {
+    /// Stores a secret in the database after encrypting it.
+    ///
+    /// # Arguments
+    /// * `secret_uuid` - The UUID of the secret to store
+    /// * `plaintext` - The secret to store
+    ///
+    /// # Returns
+    /// Result indicating success or failure of the operation.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If encryption fails or secret UUID is not found
+    /// * AinariError::InternalError - If database operation fails
     fn store(&self, secret_uuid: &Uuid, plaintext: &Secret) -> Result<(), AinariError> {
         let key_b64 = &config::CONFIG.simple_crypto.key_b64;
         let encrypted_secret = self.encrypt(plaintext, key_b64)?;
@@ -136,6 +189,17 @@ impl CryptoModule for SimpleCrypto {
         Ok(())
     }
 
+    /// Retrieves a secret from the database and decrypts it.
+    ///
+    /// # Arguments
+    /// * `secret_uuid` - The UUID of the secret to retrieve
+    ///
+    /// # Returns
+    /// Result containing the decrypted secret or an AinariError if retrieval fails.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If decryption fails or secret UUID is not found
+    /// * AinariError::InternalError - If database operation fails
     fn retrieve(&self, secret_uuid: &Uuid) -> Result<Secret, AinariError> {
         let secret_data = match simple_crypto_table::get_secret(secret_uuid) {
             Ok(secret_data) => secret_data,
@@ -152,6 +216,17 @@ impl CryptoModule for SimpleCrypto {
         self.decrypt(&secret_data.encrypted_secret, key_b64)
     }
 
+    /// Deletes a secret from the database.
+    ///
+    /// # Arguments
+    /// * `secret_uuid` - The UUID of the secret to delete
+    ///
+    /// # Returns
+    /// Result indicating success or failure of the operation.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If secret UUID is not found
+    /// * AinariError::InternalError - If database operation fails
     fn delete(&self, secret_uuid: &Uuid) -> Result<(), AinariError> {
         // delete secret from database
         match simple_crypto_table::delete_secret(secret_uuid) {
@@ -164,6 +239,10 @@ impl CryptoModule for SimpleCrypto {
         }
     }
 
+    /// Gets the name of the cryptographic module.
+    ///
+    /// # Returns
+    /// The name of the module as a String.
     fn get_name(&self) -> String {
         self.name.clone()
     }

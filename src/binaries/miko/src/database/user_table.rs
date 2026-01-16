@@ -27,7 +27,7 @@ use ainari_common::enums;
 use ainari_common::functions::sha256_hash;
 use ainari_common::secret::Secret;
 
-// Define the schema
+// Define the schema for the users table in the database
 table! {
     users (id) {
         id -> Varchar,
@@ -46,6 +46,11 @@ table! {
     }
 }
 
+/// Represents a user entry in the database.
+///
+/// This struct is used for inserting, querying, and selecting user data from the database.
+/// It contains all the fields necessary for user management including authentication
+/// and audit information.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = users)]
 pub struct UserEntry {
@@ -64,6 +69,16 @@ pub struct UserEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the first admin user in the system.
+///
+/// This function checks if there are any existing users in the database.
+/// If no users are found, it creates a new admin user using environment variables
+/// for the admin credentials.
+///
+/// # Errors
+///
+/// Returns an error if any of the required environment variables are missing
+/// or if there's an issue creating the admin user.
 pub fn init_admin() -> Result<(), Box<dyn Error>> {
     let fake_admin_context = UserContext {
         token: "".to_string(),
@@ -115,6 +130,15 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Initializes the users table in the database.
+///
+/// This function creates the users table if it doesn't already exist
+/// and then initializes the first admin user.
+///
+/// # Errors
+///
+/// Returns an error if there's an issue creating the table or initializing
+/// the admin user.
 pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -140,6 +164,24 @@ pub fn init_user_table() -> Result<(), Box<dyn Error>> {
     init_admin()
 }
 
+/// Adds a new user to the system.
+///
+/// This function creates a new user with the provided credentials.
+/// It checks if the user already exists, generates a salt for the password,
+/// hashes the password, and stores the user information in the database.
+///
+/// # Arguments
+///
+/// * `user_id` - The unique identifier for the user
+/// * `user_name` - The display name for the user
+/// * `passphrase` - The user's password
+/// * `is_admin` - Indicates if the user has admin privileges
+/// * `context` - The user context containing authentication information
+///
+/// # Errors
+///
+/// Returns an error if the calling user doesn't have admin privileges,
+/// if the user already exists, or if there's an issue storing the user.
 pub fn add_new_user(
     user_id: &String,
     user_name: &str,
@@ -193,6 +235,17 @@ pub fn add_new_user(
     add_user(&user)
 }
 
+/// Inserts a user into the database.
+///
+/// This function takes a UserEntry and inserts it into the users table.
+///
+/// # Arguments
+///
+/// * `user` - The user to insert
+///
+/// # Returns
+///
+/// Returns the number of rows affected by the insert operation.
 pub fn add_user(user: &UserEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
@@ -200,6 +253,19 @@ pub fn add_user(user: &UserEntry) -> QueryResult<usize> {
     diesel::insert_into(users).values(user).execute(&mut *conn)
 }
 
+/// Retrieves an authenticated user from the database.
+///
+/// This function fetches a user by their ID, ensuring the user is active.
+/// Unlike get_user, this function doesn't check for admin privileges.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user to retrieve
+///
+/// # Returns
+///
+/// Returns the UserEntry if found, or an appropriate DbError if not found
+/// or if there's an internal error.
 pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
@@ -217,6 +283,20 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
     }
 }
 
+/// Retrieves a user from the database with admin privileges check.
+///
+/// This function fetches a user by their ID, ensuring the user is active.
+/// The caller must have admin privileges to retrieve user information.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user to retrieve
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns the UserEntry if found, or an appropriate DbError if not found
+/// or if there's an internal error.
 pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, enums::DbError> {
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
@@ -238,6 +318,19 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
     }
 }
 
+/// Lists all active users in the system.
+///
+/// This function retrieves all users with an "ACTIVE" status.
+/// Only users with admin privileges can list all users.
+///
+/// # Arguments
+///
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns a vector of UserEntry if successful, or an empty vector if
+/// the caller doesn't have admin privileges.
 pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
     if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<UserEntry>> = Ok(vec![]);
@@ -252,6 +345,20 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
         .load(&mut *conn)
 }
 
+/// Deletes a user from the system.
+///
+/// This function marks a user as "DELETED" in the database.
+/// Only users with admin privileges can delete other users.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user to delete
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns Ok(()) if the user was successfully deleted, or an appropriate
+/// DbError if the user wasn't found or if there was an internal error.
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);

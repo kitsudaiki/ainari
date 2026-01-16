@@ -37,14 +37,31 @@ pub mod data {
     tonic::include_proto!("data");
 }
 
+/// Server implementation for the DataService gRPC service.
 #[derive(Default)]
 pub struct OnsenServer;
 
+/// Implementation of the DataService trait for the OnsenServer.
 #[tonic::async_trait]
 impl DataService for OnsenServer {
+    /// Type alias for the stream used in file downloads.
     type DownloadFileStream =
         Pin<Box<dyn Stream<Item = Result<DataChunk, Status>> + Send + 'static>>;
 
+    /// Handles file upload requests.
+    ///
+    /// This method receives a stream of data chunks and writes them to a file.
+    /// The file path is constructed from the provided remote_file_path and the
+    /// configured storage location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a streaming DataChunk.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<DataResponse>, Status>` - The response containing the status message
+    ///   or an error status.
     async fn upload_file(
         &self,
         request: Request<tonic::Streaming<DataChunk>>,
@@ -120,6 +137,20 @@ impl DataService for OnsenServer {
         }))
     }
 
+    /// Handles file download requests.
+    ///
+    /// This method reads the file in chunks and streams them to the client.
+    /// The file path is constructed from the provided remote_file_path and the
+    /// configured storage location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a DownloadRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<Self::DownloadFileStream>, Status>` - The response containing the stream
+    ///   of data chunks or an error status.
     async fn download_file(
         &self,
         request: Request<DownloadRequest>,
@@ -175,6 +206,20 @@ impl DataService for OnsenServer {
         Ok(Response::new(boxed))
     }
 
+    /// Handles file deletion requests.
+    ///
+    /// This method deletes the file at the specified path.
+    /// The file path is constructed from the provided remote_file_path and the
+    /// configured storage location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a DeleteRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<DataResponse>, Status>` - The response containing the status message
+    ///   or an error status.
     async fn delete_file(
         &self,
         request: Request<DeleteRequest>,
@@ -208,6 +253,20 @@ impl DataService for OnsenServer {
         }))
     }
 
+    /// Handles requests for dataset dimensions.
+    ///
+    /// This method reads the dataset file and returns the number of rows and columns.
+    /// The file path is constructed from the provided remote_file_path and the
+    /// configured storage location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a DatasetDimensionRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<DatasetDimensionResponse>, Status>` - The response containing the dataset
+    ///   dimensions or an error status.
     async fn get_dataset_dimension(
         &self,
         request: Request<DatasetDimensionRequest>,
@@ -240,6 +299,14 @@ impl DataService for OnsenServer {
     }
 }
 
+/// Starts the gRPC server.
+///
+/// This function creates the necessary directories, sets up the server address,
+/// and starts the server with the OnsenServer implementation.
+///
+/// # Returns
+///
+/// * `Result<(), Box<dyn std::error::Error>>` - The result of the server operation.
 pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
     tokio::fs::create_dir_all(&config::CONFIG.storage.location).await?;
 
