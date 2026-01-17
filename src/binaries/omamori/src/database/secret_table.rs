@@ -24,7 +24,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the secrets table
 table! {
     secrets (uuid) {
         uuid -> Varchar,
@@ -41,6 +41,10 @@ table! {
     }
 }
 
+/// Represents a secret entry in the database
+///
+/// This struct maps to the `secrets` table in the database and contains all fields
+/// necessary to create, read, update, and delete secret records.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = secrets)]
 pub struct SecretEntry {
@@ -57,6 +61,10 @@ pub struct SecretEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the secrets table in the database if it doesn't already exist
+///
+/// This function creates the table with the appropriate schema and constraints.
+/// It's typically called during application startup to ensure the required tables exist.
 pub fn init_secret_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -78,6 +86,20 @@ pub fn init_secret_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new secret to the database with default values
+///
+/// This function creates a new SecretEntry with the provided UUID and name,
+/// using the current timestamp and user context for metadata fields.
+///
+/// # Arguments
+///
+/// * `secret_uuid` - The unique identifier for the new secret
+/// * `name` - The human-readable name for the secret
+/// * `context` - The user context containing information about the current user
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
     let secret = SecretEntry {
         uuid: secret_uuid.to_string().clone(),
@@ -96,6 +118,17 @@ pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> 
     add_secret(&secret)
 }
 
+/// Adds a secret to the database
+///
+/// This function inserts the provided SecretEntry into the database.
+///
+/// # Arguments
+///
+/// * `secret` - The SecretEntry to insert into the database
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_secret(secret: &SecretEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
@@ -104,6 +137,20 @@ pub fn add_secret(secret: &SecretEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a secret from the database
+///
+/// This function fetches a secret by its UUID, applying appropriate filters
+/// based on the user's permissions. Only active secrets are returned.
+///
+/// # Arguments
+///
+/// * `secret_uuid` - The UUID of the secret to retrieve
+/// * `context` - The user context containing information about the current user
+///
+/// # Returns
+///
+/// A Result containing the SecretEntry if found, or a DbError if not found
+/// or if an internal error occurs
 pub fn get_secret(
     secret_uuid: &Uuid,
     context: &UserContext,
@@ -135,6 +182,20 @@ pub fn get_secret(
     }
 }
 
+/// Lists all secrets that the user has access to
+///
+/// This function returns all active secrets that are visible to the user
+/// based on their permissions. Admins can see all secrets, project admins
+/// can see all secrets in their project, and regular users can only see
+/// their own secrets.
+///
+/// # Arguments
+///
+/// * `context` - The user context containing information about the current user
+///
+/// # Returns
+///
+/// A QueryResult containing a vector of SecretEntry objects
 #[allow(dead_code)]
 pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -152,6 +213,18 @@ pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
     query.select(SecretEntry::as_select()).load(&mut *conn)
 }
 
+/// Counts the number of secrets that the user owns
+///
+/// This function returns the count of active secrets owned by the current user
+/// within their project. Only accessible to non-admin users.
+///
+/// # Arguments
+///
+/// * `context` - The user context containing information about the current user
+///
+/// # Returns
+///
+/// A QueryResult containing the count of secrets as an i64
 pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
@@ -164,6 +237,20 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Deletes a secret from the database
+///
+/// This function marks a secret as deleted by updating its status and
+/// setting the deletion timestamp and user. The secret is not physically
+/// removed from the database.
+///
+/// # Arguments
+///
+/// * `secret_uuid` - The UUID of the secret to delete
+/// * `context` - The user context containing information about the current user
+///
+/// # Returns
+///
+/// A Result indicating success or failure
 pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     get_secret(secret_uuid, context)?;
 
@@ -186,6 +273,14 @@ pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), en
     }
 }
 
+/// Deletes all secrets in the database
+///
+/// This function marks all active secrets as deleted. This is typically
+/// used for cleanup during application startup or shutdown.
+///
+/// # Returns
+///
+/// A Result indicating success or failure
 #[allow(dead_code)]
 pub fn delete_all_secret() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

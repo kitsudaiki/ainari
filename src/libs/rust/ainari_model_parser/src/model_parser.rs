@@ -27,16 +27,32 @@ use ainari_common::error::AinariError;
 use ainari_common::functions::*;
 use ainari_common::objects::*;
 
+/// Parser for Ainari model templates using Pest parser combinator framework.
 #[derive(Parser)]
 #[grammar = "model_parser.pest"]
 pub struct ModelParser;
 
+/// Parses a model template from source text and returns a ModelMeta structure.
+///
+/// # Arguments
+///
+/// * `name` - The name of the model to be created
+/// * `source_text` - The source text containing the model template
+///
+/// # Returns
+///
+/// * `Result<ModelMeta, AinariError>` - The parsed model or an error if parsing fails
+///
+/// # Errors
+///
+/// Returns an AinariError if:
+/// * The template version is not supported
+/// * The input format is invalid
+/// * Any required fields are missing or malformed
 pub fn parse_model_template(name: &str, source_text: &str) -> Result<ModelMeta, AinariError> {
     let file_pair = ModelParser::parse(Rule::file, source_text)
         .map_err(|e| {
-            AinariError::InvalidInput(format!(
-                "Failed to parse parsed_model-template with error: {e}",
-            ))
+            AinariError::InvalidInput(format!("Failed to parse model-template with error: {e}",))
         })?
         .next()
         .unwrap();
@@ -158,6 +174,19 @@ pub fn parse_model_template(name: &str, source_text: &str) -> Result<ModelMeta, 
     Ok(parsed_model)
 }
 
+/// Parses a position string from a pest iterator pair into a Position struct.
+///
+/// # Arguments
+///
+/// * `pair` - A pest iterator pair containing the position coordinates
+///
+/// # Returns
+///
+/// A Position struct with x, y, and z coordinates parsed from the input string.
+///
+/// # Panics
+///
+/// This function will panic if the input cannot be parsed into coordinates.
 fn parse_position(pair: pest::iterators::Pair<Rule>) -> Position {
     let mut coords = pair
         .into_inner()
@@ -169,6 +198,21 @@ fn parse_position(pair: pest::iterators::Pair<Rule>) -> Position {
     }
 }
 
+/// Initializes the complete model by setting up all necessary connections and properties.
+///
+/// This function coordinates the initialization of all model components:
+/// * Hexagons and their connections
+/// * Axons
+/// * Inputs
+/// * Outputs
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta to be initialized
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if initialization succeeds, Err if any step fails
 fn init_model(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     initialize_hexagons(parsed_model)?;
     update_axons(parsed_model)?;
@@ -178,6 +222,20 @@ fn init_model(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     Ok(())
 }
 
+/// Searches for a hexagon at a specific position with a given type.
+///
+/// This function looks through all hexagons to find one at the specified position.
+/// It's used to validate positions of inputs, outputs, and axon connections.
+///
+/// # Arguments
+///
+/// * `hexagons_meta` - A reference to the HashMap of hexagon metadata
+/// * `position` - The position to search for
+/// * `type_name` - A string describing the type of element being positioned (for error messages)
+///
+/// # Returns
+///
+/// * `Result<Uuid, AinariError>` - The UUID of the found hexagon or an error if not found
 fn search_hexagon(
     hexagons_meta: &HashMap<Uuid, HexagonMeta>,
     position: &Position,
@@ -193,6 +251,20 @@ fn search_hexagon(
     Err(AinariError::InvalidInput(msg))
 }
 
+/// Initializes the input connections for the model.
+///
+/// This function:
+/// 1. Validates each input position
+/// 2. Marks the corresponding hexagon as an input
+/// 3. Sets the hexagon UUID in the input metadata
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being initialized
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if initialization succeeds, Err if any input is invalid
 fn initialize_inputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     for input_meta in parsed_model.inputs.iter_mut() {
         let hexagon_uuid = search_hexagon(&parsed_model.hexagons, &input_meta.position, "input")?;
@@ -200,7 +272,7 @@ fn initialize_inputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
             obj.is_input = true;
             input_meta.hexagon_uuid = hexagon_uuid;
         } else {
-            return Err(AinariError::Error(format!(
+            return Err(AinariError::InternalError(format!(
                 "Can not find input-hexagon with ID {hexagon_uuid}, even it should exist."
             )));
         }
@@ -208,6 +280,20 @@ fn initialize_inputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     Ok(())
 }
 
+/// Initializes the output connections for the model.
+///
+/// This function:
+/// 1. Validates each output position
+/// 2. Marks the corresponding hexagon as an output
+/// 3. Sets the hexagon UUID and name in the output metadata
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being initialized
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if initialization succeeds, Err if any output is invalid
 fn initialize_outputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     for output_meta in parsed_model.outputs.iter_mut() {
         let hexagon_uuid = search_hexagon(&parsed_model.hexagons, &output_meta.position, "output")?;
@@ -216,7 +302,7 @@ fn initialize_outputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
             obj.name = output_meta.name.clone();
             output_meta.hexagon_uuid = hexagon_uuid;
         } else {
-            return Err(AinariError::Error(format!(
+            return Err(AinariError::InternalError(format!(
                 "Can not find output-hexagon with ID {hexagon_uuid}, even it should exist."
             )));
         }
@@ -224,6 +310,20 @@ fn initialize_outputs(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     Ok(())
 }
 
+/// Initializes the hexagon structure of the model.
+///
+/// This function coordinates the following steps:
+/// 1. Updates axon connections
+/// 2. Connects all hexagons to their neighbors
+/// 3. Initializes the target hexagon list for each hexagon
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being initialized
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if initialization succeeds, Err if any step fails
 fn initialize_hexagons(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     update_axons(parsed_model)?;
     connect_all_hexagons(parsed_model)?;
@@ -232,6 +332,19 @@ fn initialize_hexagons(parsed_model: &mut ModelMeta) -> Result<(), AinariError> 
     Ok(())
 }
 
+/// Updates the axon connections for all hexagons.
+///
+/// This function:
+/// 1. Validates each axon connection
+/// 2. Sets the axon_target for each source hexagon
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being updated
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if all axons are valid, Err if any axon connection is invalid
 fn update_axons(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     for axon in parsed_model.axons.clone() {
         let from_id = search_hexagon(&parsed_model.hexagons, &axon.from, "axon with source")?;
@@ -245,6 +358,19 @@ fn update_axons(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     Ok(())
 }
 
+/// Connects a single hexagon to its neighbor in a specified direction.
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being updated
+/// * `hexagon_copy` - A reference to the complete set of hexagons
+/// * `source_id` - The UUID of the source hexagon
+/// * `source_pos` - The position of the source hexagon
+/// * `side` - The side number (0-11) representing the direction to check for neighbors
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if the connection is successful or no neighbor exists
 fn connect_hexagon(
     parsed_model: &mut ModelMeta,
     hexagon_copy: &HashMap<Uuid, HexagonMeta>,
@@ -270,6 +396,15 @@ fn connect_hexagon(
     Ok(())
 }
 
+/// Connects all hexagons to their neighboring hexagons in all 12 possible directions.
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being updated
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if all connections are successful
 fn connect_all_hexagons(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     let hexagon_copy = parsed_model.hexagons.clone();
     for (source_id, source_hexagon) in hexagon_copy.iter() {
@@ -282,6 +417,23 @@ fn connect_all_hexagons(parsed_model: &mut ModelMeta) -> Result<(), AinariError>
     Ok(())
 }
 
+/// Navigates through the hexagon grid to find a target hexagon.
+///
+/// This function implements a randomized pathfinding algorithm that:
+/// 1. Moves from the current hexagon to neighboring hexagons
+/// 2. Limits the path length based on the model's max_connection_distance
+/// 3. Has a 50% chance to stop at each step (except when at the source hexagon)
+///
+/// # Arguments
+///
+/// * `hexagons_static_copy` - A reference to the complete set of hexagons
+/// * `current_hexagon` - The current hexagon being examined
+/// * `source_id` - The UUID of the source hexagon
+/// * `max_path_length` - A mutable reference to the remaining path length
+///
+/// # Returns
+///
+/// * `Result<Uuid, AinariError>` - The UUID of the target hexagon or an error if navigation fails
 fn go_to_next_hexagon(
     hexagons_static_copy: &HashMap<Uuid, HexagonMeta>,
     current_hexagon: &HexagonMeta,
@@ -323,6 +475,20 @@ fn go_to_next_hexagon(
     }
 }
 
+/// Initializes the list of possible target hexagons for each hexagon in the model.
+///
+/// This function:
+/// 1. For each hexagon, finds possible target hexagons based on its axon_target
+/// 2. Considers the max_connection_distance setting
+/// 3. Gives hexagons with different axon_targets an advantage in selection
+///
+/// # Arguments
+///
+/// * `parsed_model` - A mutable reference to the ModelMeta being initialized
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if initialization succeeds, Err if any step fails
 fn initialize_target_hexagon_list(parsed_model: &mut ModelMeta) -> Result<(), AinariError> {
     let hexagons_static_copy = parsed_model.hexagons.clone();
     for (source_uuid, source_hexagon) in parsed_model.hexagons.iter_mut() {

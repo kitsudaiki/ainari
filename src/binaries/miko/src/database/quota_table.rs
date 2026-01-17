@@ -24,7 +24,9 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the quotas table
+// This table stores quota information for users including maximum limits
+// for various resources and their status.
 table! {
     quotas (id) {
         id -> Varchar,
@@ -43,6 +45,11 @@ table! {
     }
 }
 
+/// Represents a quota entry in the database.
+///
+/// This struct contains information about resource limits for a user
+/// including maximum allowed models, datasets, checkpoints, secrets, and task queues.
+/// It also tracks the status, creation, update, and deletion information.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = quotas)]
 pub struct QuotaEntry {
@@ -61,6 +68,14 @@ pub struct QuotaEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the quotas table in the database if it doesn't already exist.
+///
+/// This function creates the quotas table with the appropriate schema
+/// and then calls `init_admin_quota` to set up the initial admin quota.
+///
+/// # Returns
+/// - `Ok(())` if the table was created successfully or already exists
+/// - An error if the table creation fails
 pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -77,7 +92,7 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         updated_at VARCHAR(64),
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
+        deleted_by VARCHAR(64)
     );",
     )?;
     // release lock on the connection to avoid dead-lock
@@ -86,6 +101,15 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
     init_admin_quota()
 }
 
+/// Initializes the admin quota with default values.
+///
+/// This function checks if there are existing quotas in the database.
+/// If none are found, it creates a new admin quota with default values
+/// using the provided environment variable for the admin ID.
+///
+/// # Returns
+/// - `Ok(())` if the admin quota was initialized successfully or already exists
+/// - An error if the initialization fails or the environment variable is not found
 pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
     let fake_admin_context = UserContext {
         token: "".to_string(),
@@ -115,6 +139,23 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new quota entry to the database.
+///
+/// This function creates a new quota entry with the provided parameters.
+/// It checks if the user is an admin and if a quota already exists for the user ID.
+///
+/// # Arguments
+/// * `user_id` - The ID of the user to create the quota for
+/// * `max_model` - Maximum number of models allowed
+/// * `max_dataset` - Maximum number of datasets allowed
+/// * `max_checkpoint` - Maximum number of checkpoints allowed
+/// * `max_secret` - Maximum number of secrets allowed
+/// * `max_taskqueue` - Maximum number of task queues allowed
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// - `Ok(usize)` with the number of rows affected if successful
+/// - An error if the user is not an admin, if the quota already exists, or if the insertion fails
 pub fn add_new_quota(
     user_id: &String,
     max_model: i32,
@@ -131,7 +172,7 @@ pub fn add_new_quota(
         ));
     }
 
-    // check if quota alredy exist in the database
+    // check if quota already exists in the database
     // The same id is allowed multiple times in the table, but only one time active.
     if get_quota(user_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
@@ -159,6 +200,17 @@ pub fn add_new_quota(
     add_quota(&quota)
 }
 
+/// Adds a quota entry to the database.
+///
+/// This function inserts a quota entry into the database.
+/// It requires an active database connection.
+///
+/// # Arguments
+/// * `quota` - The quota entry to insert
+///
+/// # Returns
+/// - `Ok(usize)` with the number of rows affected if successful
+/// - An error if the insertion fails
 pub fn add_quota(quota: &QuotaEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
@@ -168,6 +220,19 @@ pub fn add_quota(quota: &QuotaEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a quota entry from the database for a specific user.
+///
+/// This function queries the database for an active quota entry
+/// associated with the provided user ID.
+///
+/// # Arguments
+/// * `user_id` - The ID of the user to retrieve the quota for
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// - `Ok(QuotaEntry)` if the quota is found
+/// - `enums::DbError::NotFound` if the quota is not found
+/// - `enums::DbError::InternalError` if an error occurs while querying the database
 pub fn get_quota(user_id: &String, _: &UserContext) -> Result<QuotaEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
@@ -185,6 +250,17 @@ pub fn get_quota(user_id: &String, _: &UserContext) -> Result<QuotaEntry, enums:
     }
 }
 
+/// Lists all active quota entries in the database.
+///
+/// This function retrieves all quota entries with an "ACTIVE" status.
+/// Only admin users can access this function.
+///
+/// # Arguments
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// - `Ok(Vec<QuotaEntry>)` with all active quota entries if successful
+/// - An error if the query fails
 pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
     if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<QuotaEntry>> = Ok(vec![]);
@@ -199,6 +275,24 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
         .load(&mut *conn)
 }
 
+/// Updates an existing quota entry in the database.
+///
+/// This function modifies the resource limits for an existing quota entry.
+/// Only admin users can access this function.
+///
+/// # Arguments
+/// * `user_id` - The ID of the user to update the quota for
+/// * `new_max_model` - New maximum number of models allowed
+/// * `new_max_dataset` - New maximum number of datasets allowed
+/// * `new_max_checkpoint` - New maximum number of checkpoints allowed
+/// * `new_max_secret` - New maximum number of secrets allowed
+/// * `new_max_taskqueue` - New maximum number of task queues allowed
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// - `Ok(())` if the quota was updated successfully
+/// - `enums::DbError::NotFound` if the quota is not found
+/// - `enums::DbError::InternalError` if an error occurs while updating the database
 pub fn set_quota(
     user_id: &String,
     new_max_model: i32,
@@ -234,6 +328,19 @@ pub fn set_quota(
     }
 }
 
+/// Marks a quota entry as deleted in the database.
+///
+/// This function updates the status of a quota entry to "DELETED".
+/// Only admin users can access this function.
+///
+/// # Arguments
+/// * `user_id` - The ID of the user to delete the quota for
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// - `Ok(())` if the quota was marked as deleted successfully
+/// - `enums::DbError::NotFound` if the quota is not found
+/// - `enums::DbError::InternalError` if an error occurs while updating the database
 pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
@@ -254,6 +361,14 @@ pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums
     }
 }
 
+/// Permanently deletes a quota entry from the database.
+///
+/// This function removes a quota entry from the database completely.
+/// Only admin users can access this function.
+///
+/// # Arguments
+/// * `user_id` - The ID of the user to permanently delete the quota for
+/// * `context` - The user context containing authentication information
 pub fn hard_delete_quota(user_id: &String, context: &UserContext) {
     if context.is_admin != true.to_string() {
         return;

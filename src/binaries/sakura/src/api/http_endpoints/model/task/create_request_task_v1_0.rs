@@ -179,6 +179,28 @@ pub async fn create_request_task(
     Ok(CreatedJson(resp))
 }
 
+/// Initializes an output dataset in Ryokan for storing task results.
+///
+/// This function creates a new dataset in Ryokan with the specified dimensions and columns,
+/// and prepares local file paths for storing the results. It returns a file handle for writing
+/// data to the dataset and a UUID for the secret used for encryption.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint of the Ryokan service
+/// * `token` - Authentication token for accessing Ryokan
+/// * `task_uuid` - Unique identifier for the task
+/// * `name` - Name for the dataset
+/// * `total_output_size` - Total size of the output data
+/// * `columns` - Map of column names to their definitions
+/// * `temp_dir` - Temporary directory path for storing files
+///
+/// # Returns
+///
+/// * `Ok((DataSetFileWriteHandle, Uuid))` - On success, returns a tuple containing:
+///   - A handle for writing to the dataset
+///   - The UUID of the secret used for encryption
+/// * `Err(ErrorResponse)` - On failure, returns an error response
 async fn init_output_dataset(
     ryokan_endpoint: &Endpoint,
     token: &String,
@@ -188,17 +210,23 @@ async fn init_output_dataset(
     columns: HashMap<String, Column>,
     temp_dir: &String,
 ) -> Result<(DataSetFileWriteHandle, Uuid), ErrorResponse> {
+    // Create paths for the result files (both plain and encrypted versions)
     let result_path = format!("{}/task_result_{}", temp_dir, task_uuid);
     let result_path_encrypted = format!("{result_path}_encrypted");
     let description = task_uuid.to_string().clone();
 
-    // filter colume-names
+    // Extract column names from the columns hashmap
+    // We need these for creating the dataset dimensions
     let mut column_names: Vec<String> = Vec::new();
     for col in &columns {
         column_names.push(col.0.clone());
     }
 
+    // Define the dataset dimensions (total size and column names)
     let dimension: (u64, Vec<String>) = (total_output_size, column_names);
+
+    // Initialize the dataset in Ryokan
+    // This creates the remote storage and returns metadata about it
     let dataset_create_resp = init_dataset_in_ryokan(
         ryokan_endpoint,
         token,
@@ -211,6 +239,7 @@ async fn init_output_dataset(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    // Create a link between the remote dataset and local files
     let link = DatasetLink {
         onsen_address: dataset_create_resp.onsen_address,
         remote_file_path: dataset_create_resp.file_path,
@@ -218,7 +247,8 @@ async fn init_output_dataset(
         local_encrypted_file_path: result_path_encrypted,
     };
 
-    // create new dataset for the resulting data
+    // Create a new dataset file for writing results
+    // This initializes the local file structure and prepares it for writing
     let result_file_handle = match init_new_data_set_file(
         &link,
         *task_uuid,
@@ -230,11 +260,15 @@ async fn init_output_dataset(
     ) {
         Ok(file_handle) => file_handle,
         Err(_) => {
+            // Return an internal error if dataset initialization fails
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
+    // Extract the secret UUID from the dataset creation response
+    // This is needed for encrypting the data before sending it to Ryokan
     let secret_uuid = dataset_create_resp.secret_uuid;
 
+    // Return the file handle and secret UUID for the caller to use
     Ok((result_file_handle, secret_uuid))
 }

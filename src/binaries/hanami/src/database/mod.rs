@@ -16,19 +16,28 @@ pub mod db_handle;
 pub mod host_table;
 pub mod meta_model_table;
 
+/// Initializes all database tables required for the application.
+///
+/// This function orchestrates the initialization of all database tables
+/// in the correct order. If any table fails to initialize, the entire
+/// operation fails and returns an error.
+///
+/// # Returns
+/// * `Ok(())` - All tables initialized successfully
+/// * `Err(Box<dyn std::error::Error>)` - One or more tables failed to initialize
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize host-table
     match host_table::init_host_table() {
-        Ok(_) => log::info!("Initilaized host-database-table"),
+        Ok(_) => log::info!("Initialized host-database-table"),
         Err(e) => {
             log::error!("Failed to initialize host-database-table: {e}");
             return Err(e);
         }
     };
 
-    // Initialize host-table
+    // Initialize meta model table
     match meta_model_table::init_meta_model_table() {
-        Ok(_) => log::info!("Initilaized model-database-table"),
+        Ok(_) => log::info!("Initialized model-database-table"),
         Err(e) => {
             log::error!("Failed to initialize model-database-table: {e}");
             return Err(e);

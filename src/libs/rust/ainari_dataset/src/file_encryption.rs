@@ -22,11 +22,31 @@ use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
-const NONCE_LEN: usize = 12; // recommended for GCM
-const TAG_LEN: usize = 16; // GCM tag length
-const CHUNK_SIZE: usize = 1024 * 1024; // 1 MiB
-const KEY_SIZE: usize = 32; // 256 bits
+/// Length of the nonce (initialization vector) used for encryption
+/// Recommended length for GCM mode is 12 bytes
+const NONCE_LEN: usize = 12;
+/// Length of the authentication tag used for GCM mode
+const TAG_LEN: usize = 16;
+/// Size of the chunk used for reading/writing files (1 MiB)
+const CHUNK_SIZE: usize = 1024 * 1024;
+/// Size of the encryption key in bytes (256 bits)
+const KEY_SIZE: usize = 32;
 
+/// Decodes a base64-encoded key into its binary representation
+///
+/// # Arguments
+///
+/// * `key_b64` - A secret containing the base64-encoded key
+///
+/// # Returns
+///
+/// * `Result<Vec<u8>, AinariError>` - The decoded key bytes or an error
+///
+/// # Errors
+///
+/// Returns `AinariError::InvalidInput` if:
+/// * The input is not a valid base64 string
+/// * The decoded key length is not equal to `KEY_SIZE`
 fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
     // decode base64 key
     let key_bytes = match STANDARD.decode(key_b64.reveal().as_bytes()) {
@@ -50,11 +70,31 @@ fn decode_base64_key(key_b64: &Secret) -> Result<Vec<u8>, AinariError> {
     Ok(key_bytes)
 }
 
+/// Encrypts a file using AES-256-GCM encryption
+///
+/// # Arguments
+///
+/// * `in_path` - Path to the input file to be encrypted
+/// * `out_path` - Path where the encrypted file will be saved
+/// * `key_b64` - A secret containing the base64-encoded encryption key
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Success or an error
+///
+/// # Errors
+///
+/// Returns `AinariError::InvalidInput` if:
+/// * The key is invalid
+/// * The input file is too short
+///
+/// Returns `AinariError::InternalError` for filesystem or encryption-related errors
 pub async fn encrypt_file(
     in_path: &String,
     out_path: &String,
     key_b64: &Secret,
 ) -> Result<(), AinariError> {
+    // Decode the base64 key and verify its length
     let key_bytes = decode_base64_key(key_b64)?;
     let key: &[u8] = &key_bytes;
 
@@ -64,36 +104,45 @@ pub async fn encrypt_file(
         ));
     }
 
-    // generate nonce
+    // Generate a random nonce (initialization vector) for encryption
     let mut nonce = [0u8; NONCE_LEN];
-    rand_bytes(&mut nonce)
-        .map_err(|e| AinariError::Error(format!("Error while generatign random nonce: {e}")))?;
-
-    let cipher = Cipher::aes_256_gcm();
-    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(&nonce))
-        .map_err(|e| AinariError::Error(format!("Error while creating crypter: {e}")))?;
-
-    // crypter.aad_update(b"optional AAD")?;
-
-    let infile = File::open(in_path)
-        .map_err(|e| AinariError::Error(format!("Error while open input-file: {e}")))?;
-    let mut reader = BufReader::new(infile);
-    let outfile = File::create(out_path)
-        .map_err(|e| AinariError::Error(format!("Error while creating output-file: {e}")))?;
-    let mut writer = BufWriter::new(outfile);
-
-    // write nonce first
-    writer.write_all(&nonce).map_err(|e| {
-        AinariError::Error(format!("Error while writing encrypted data to disk: {e}"))
+    rand_bytes(&mut nonce).map_err(|e| {
+        AinariError::InternalError(format!("Error while generating random nonce: {e}"))
     })?;
 
+    // Create the AES-256-GCM cipher with the provided key and nonce
+    let cipher = Cipher::aes_256_gcm();
+    let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(&nonce))
+        .map_err(|e| AinariError::InternalError(format!("Error while creating crypter: {e}")))?;
+
+    // Optional: Add Authentication Data (AAD) if needed
+    // crypter.aad_update(b"optional AAD")?;
+
+    // Open the input file for reading
+    let infile = File::open(in_path)
+        .map_err(|e| AinariError::InternalError(format!("Error while opening input file: {e}")))?;
+    let mut reader = BufReader::new(infile);
+
+    // Create the output file for writing the encrypted data
+    let outfile = File::create(out_path).map_err(|e| {
+        AinariError::InternalError(format!("Error while creating output file: {e}"))
+    })?;
+    let mut writer = BufWriter::new(outfile);
+
+    // Write the nonce to the output file first (needed for decryption)
+    writer.write_all(&nonce).map_err(|e| {
+        AinariError::InternalError(format!("Error while writing encrypted data to disk: {e}"))
+    })?;
+
+    // Buffers for reading/writing data in chunks
     let mut in_buf = vec![0u8; CHUNK_SIZE];
-    // OpenSSL may produce upto (in_len + block_size - 1) bytes; use chunk + cipher.block_size()
+    // OpenSSL may produce up to (in_len + block_size - 1) bytes; allocate extra space
     let mut out_buf = vec![0u8; CHUNK_SIZE + cipher.block_size()];
 
+    // Read the input file in chunks, encrypt each chunk, and write to the output file
     loop {
         let n = reader.read(&mut in_buf).map_err(|e| {
-            AinariError::Error(format!(
+            AinariError::InternalError(format!(
                 "Error while reading data for encryption from disk: {e}"
             ))
         })?;
@@ -102,40 +151,64 @@ pub async fn encrypt_file(
         }
         let count = crypter
             .update(&in_buf[..n], &mut out_buf)
-            .map_err(|e| AinariError::Error(format!("Error while encrypting data: {e}")))?;
+            .map_err(|e| AinariError::InternalError(format!("Error while encrypting data: {e}")))?;
         writer.write_all(&out_buf[..count]).map_err(|e| {
-            AinariError::Error(format!("Error while writing encrypted data to disk: {e}"))
+            AinariError::InternalError(format!("Error while writing encrypted data to disk: {e}"))
         })?;
     }
 
+    // Finalize the encryption and write any remaining bytes
     let count = crypter
         .finalize(&mut out_buf)
-        .map_err(|e| AinariError::Error(format!("Error while encrypting data: {e}")))?;
+        .map_err(|e| AinariError::InternalError(format!("Error while encrypting data: {e}")))?;
     if count > 0 {
         writer.write_all(&out_buf[..count]).map_err(|e| {
-            AinariError::Error(format!("Error while writing encrypted data to disk: {e}"))
+            AinariError::InternalError(format!("Error while writing encrypted data to disk: {e}"))
         })?;
     }
 
-    // get GCM tag and append it
+    // Get the GCM authentication tag and append it to the encrypted data
     let mut tag = vec![0u8; TAG_LEN];
     crypter
         .get_tag(&mut tag)
-        .map_err(|e| AinariError::Error(format!("Error while encrypting data: {e}")))?;
+        .map_err(|e| AinariError::InternalError(format!("Error while encrypting data: {e}")))?;
     writer.write_all(&tag).map_err(|e| {
-        AinariError::Error(format!("Error while writing encrypted data to disk: {e}"))
+        AinariError::InternalError(format!("Error while writing encrypted data to disk: {e}"))
     })?;
+
+    // Ensure all data is written to disk
     writer.flush().map_err(|e| {
-        AinariError::Error(format!("Error while flush encrypted data to disk: {e}"))
+        AinariError::InternalError(format!("Error while flushing encrypted data to disk: {e}"))
     })?;
     Ok(())
 }
 
+/// Decrypts a file encrypted with AES-256-GCM
+///
+/// # Arguments
+///
+/// * `in_path` - Path to the encrypted file
+/// * `out_path` - Path where the decrypted file will be saved
+/// * `key_b64` - A secret containing the base64-encoded decryption key
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Success or an error
+///
+/// # Errors
+///
+/// Returns `AinariError::InvalidInput` if:
+/// * The key is invalid
+/// * The input file is too short
+/// * The authentication tag is invalid (indicating tampering or wrong key)
+///
+/// Returns `AinariError::InternalError` for filesystem or decryption-related errors
 pub async fn decrypt_file(
     in_path: &String,
     out_path: &String,
     key_b64: &Secret,
 ) -> Result<(), AinariError> {
+    // Decode the base64 key and verify its length
     let key_bytes = decode_base64_key(key_b64)?;
     let key: &[u8] = &key_bytes;
 
@@ -145,65 +218,75 @@ pub async fn decrypt_file(
         ));
     }
 
-    let infile = File::open(in_path)
-        .map_err(|e| AinariError::Error(format!("Error while opening file for decryption: {e}")))?;
+    // Open the encrypted file for reading
+    let infile = File::open(in_path).map_err(|e| {
+        AinariError::InternalError(format!("Error while opening file for decryption: {e}"))
+    })?;
+
+    // Get the file size to determine the positions of the nonce and tag
     let metadata = std::fs::metadata(in_path).map_err(|e| {
-        AinariError::Error(format!(
-            "Error while reading file.metadata for decryption: {e}"
+        AinariError::InternalError(format!(
+            "Error while reading file metadata for decryption: {e}"
         ))
     })?;
     let total_len = metadata.len() as usize;
 
+    // Verify the file is long enough to contain nonce and tag
     if total_len < NONCE_LEN + TAG_LEN {
         return Err(AinariError::InvalidInput(
             "Input file too short".to_string(),
         ));
     }
 
+    // Read the nonce from the beginning of the file
     let mut reader = BufReader::new(infile);
     let mut nonce = [0u8; NONCE_LEN];
     reader.read_exact(&mut nonce).map_err(|e| {
-        AinariError::Error(format!("Error while reading encrypted data from disk: {e}"))
+        AinariError::InternalError(format!("Error while reading encrypted data from disk: {e}"))
     })?;
 
-    // compute ciphertext length
+    // Calculate the length of the ciphertext (total length minus nonce and tag)
     let ciphertext_len = total_len - NONCE_LEN - TAG_LEN;
 
-    // read authentication tag from end of file
-    let mut infile_for_tag = File::open(in_path)
-        .map_err(|e| AinariError::Error(format!("Error while opening file for decryption: {e}")))?;
+    // Read the authentication tag from the end of the file
+    let mut infile_for_tag = File::open(in_path).map_err(|e| {
+        AinariError::InternalError(format!("Error while opening file for decryption: {e}"))
+    })?;
     infile_for_tag
         .seek(SeekFrom::Start((total_len - TAG_LEN) as u64))
-        .map_err(|e| AinariError::Error(format!("Error while seek start of file: {e}")))?;
+        .map_err(|e| AinariError::InternalError(format!("Error while seeking in file: {e}")))?;
     let mut tag = [0u8; TAG_LEN];
     infile_for_tag.read_exact(&mut tag).map_err(|e| {
-        AinariError::Error(format!("Error while reading encrypted data from disk: {e}"))
+        AinariError::InternalError(format!("Error while reading encrypted data from disk: {e}"))
     })?;
 
+    // Create the AES-256-GCM cipher with the provided key and nonce
     let cipher = Cipher::aes_256_gcm();
     let mut crypter = Crypter::new(cipher, Mode::Decrypt, key, Some(&nonce))
-        .map_err(|e| AinariError::Error(format!("Error while decrypting data: {e}")))?;
+        .map_err(|e| AinariError::InternalError(format!("Error while decrypting data: {e}")))?;
     crypter
         .set_tag(&tag)
-        .map_err(|e| AinariError::Error(format!("Error while decrypting data: {e}")))?;
+        .map_err(|e| AinariError::InternalError(format!("Error while decrypting data: {e}")))?;
 
-    // Use temp file
+    // Create a temporary file for writing the decrypted data
     let tmp_path = format!("{out_path}tmp");
     let tmp_file = File::create(&tmp_path).map_err(|e| {
-        AinariError::Error(format!(
-            "Error while creating temp-file for decryption: {e}"
+        AinariError::InternalError(format!(
+            "Error while creating temp file for decryption: {e}"
         ))
     })?;
     let mut writer = BufWriter::new(tmp_file);
 
+    // Track remaining bytes to decrypt
     let mut remaining = ciphertext_len;
     let mut in_buf = vec![0u8; CHUNK_SIZE];
     let mut out_buf = vec![0u8; CHUNK_SIZE + cipher.block_size()];
 
+    // Read the ciphertext in chunks, decrypt each chunk, and write to the temporary file
     while remaining > 0 {
         let to_read = std::cmp::min(remaining, CHUNK_SIZE);
         let n = reader.read(&mut in_buf[..to_read]).map_err(|e| {
-            AinariError::Error(format!("Error while reading encrypted data from disk: {e}"))
+            AinariError::InternalError(format!("Error while reading encrypted data from disk: {e}"))
         })?;
         if n == 0 {
             break;
@@ -212,27 +295,29 @@ pub async fn decrypt_file(
 
         let count = crypter
             .update(&in_buf[..n], &mut out_buf)
-            .map_err(|_| AinariError::Error("Failed to decrypt file".to_string()))?;
+            .map_err(|_| AinariError::InternalError("Failed to decrypt file".to_string()))?;
         writer.write_all(&out_buf[..count]).map_err(|e| {
-            AinariError::Error(format!("Error while writing decrypted data to disk: {e}"))
+            AinariError::InternalError(format!("Error while writing decrypted data to disk: {e}"))
         })?;
     }
 
-    // verify tag here; if wrong, finalize will return Err
+    // Verify the authentication tag; if wrong, finalize will return an error
     if crypter.finalize(&mut out_buf).is_err() {
-        // remove temp file
+        // Remove the temporary file if decryption fails
         let _ = fs::remove_file(&tmp_path);
         return Err(AinariError::InvalidInput(
-            "invalid key or tampered file".to_string(),
+            "Invalid key or tampered file".to_string(),
         ));
     }
 
-    // tag valid, flush remaining bytes if any
+    // Flush any remaining bytes to disk
     writer.flush().map_err(|e| {
-        AinariError::Error(format!("Error while flush decrypted data to disk: {e}"))
+        AinariError::InternalError(format!("Error while flushing decrypted data to disk: {e}"))
     })?;
+
+    // Rename the temporary file to the final output path
     std::fs::rename(tmp_path, out_path).map_err(|e| {
-        AinariError::Error(format!("Error while writing decrypted data to disk: {e}"))
+        AinariError::InternalError(format!("Error while writing decrypted data to disk: {e}"))
     })?;
 
     Ok(())

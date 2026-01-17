@@ -16,6 +16,15 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
+/// Determines if the current system is using an AMD Ryzen CPU.
+///
+/// This function reads from `/proc/cpuinfo` to check for the presence of both
+/// "amd" and "ryzen" in the CPU information.
+///
+/// # Returns
+/// - `Ok(true)` if the system is using an AMD Ryzen CPU
+/// - `Ok(false)` if the system is not using an AMD Ryzen CPU
+/// - `Err` if there was an error reading the CPU information
 pub fn is_amd_ryzen() -> io::Result<bool> {
     let mut file = File::open("/proc/cpuinfo")?;
     let mut contents = String::new();
@@ -28,6 +37,14 @@ pub fn is_amd_ryzen() -> io::Result<bool> {
     Ok(is_amd_ryzen)
 }
 
+/// Checks if Hyper-Threading (SMT) is currently enabled on the system.
+///
+/// Reads from `/sys/devices/system/cpu/smt/active` to determine if SMT is enabled.
+///
+/// # Returns
+/// - `Ok(true)` if Hyper-Threading is enabled
+/// - `Ok(false)` if Hyper-Threading is disabled
+/// - `Err` if there was an error reading the SMT status
 pub fn is_hyperthreading_enabled() -> io::Result<bool> {
     let mut file = File::open("/sys/devices/system/cpu/smt/active")?;
     let mut contents = String::new();
@@ -35,6 +52,14 @@ pub fn is_hyperthreading_enabled() -> io::Result<bool> {
     Ok(contents.trim() == "1")
 }
 
+/// Checks if Hyper-Threading (SMT) is supported by the system.
+///
+/// Reads from `/sys/devices/system/cpu/smt/control` to determine if SMT is supported.
+///
+/// # Returns
+/// - `Ok(true)` if Hyper-Threading is supported
+/// - `Ok(false)` if Hyper-Threading is not supported
+/// - `Err` if there was an error reading the SMT support status
 pub fn is_hyperthreading_supported() -> io::Result<bool> {
     let mut file = File::open("/sys/devices/system/cpu/smt/control")?;
     let mut contents = String::new();
@@ -42,8 +67,19 @@ pub fn is_hyperthreading_supported() -> io::Result<bool> {
     Ok(contents.trim() != "notsupported")
 }
 
+/// Gets the current temperature of a CPU package.
+///
+/// For AMD Ryzen CPUs, this uses special handling through the `get_amd_ryzen_teperature` function.
+/// For other CPU types, it reads from the standard thermal zone files.
+///
+/// # Arguments
+/// * `pkg_file_id` - The ID of the package to get the temperature for
+///
+/// # Returns
+/// - `Ok(f64)` containing the temperature in Celsius
+/// - `Err` if there was an error reading the temperature
 pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
-    // ryzen cpus neeed speacial handling
+    // ryzen cpus need special handling
     match is_amd_ryzen() {
         Ok(is_ryzen) => {
             if is_ryzen {
@@ -55,7 +91,7 @@ pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
         }
     };
 
-    // get temparature for other cpu-types
+    // get temperature for other cpu-types
     let thermal_path = format!("/sys/class/thermal/thermal_zone{pkg_file_id}/temp");
     let file_path = Path::new(thermal_path.as_str());
     match fs::read_to_string(file_path) {
@@ -70,6 +106,13 @@ pub fn get_temperature(pkg_file_id: usize) -> io::Result<f64> {
     }
 }
 
+/// Gets the number of CPU packages (physical CPUs) in the system.
+///
+/// Reads from `/sys/devices/system/node/possible` and parses the range information.
+///
+/// # Returns
+/// - `Ok(usize)` containing the number of CPU packages
+/// - `Err` if there was an error reading the package information
 pub fn get_number_of_cpu_packages() -> io::Result<usize> {
     let path = "/sys/devices/system/node/possible".to_string();
     let file_path = Path::new(path.as_str());
@@ -79,6 +122,13 @@ pub fn get_number_of_cpu_packages() -> io::Result<usize> {
     }
 }
 
+/// Gets the number of CPU threads (logical CPUs) in the system.
+///
+/// Reads from `/sys/devices/system/cpu/present` and parses the range information.
+///
+/// # Returns
+/// - `Ok(usize)` containing the number of CPU threads
+/// - `Err` if there was an error reading the thread information
 pub fn get_number_of_cpu_threads() -> io::Result<usize> {
     let path = "/sys/devices/system/cpu/present".to_string();
     let file_path = Path::new(path.as_str());
@@ -88,6 +138,16 @@ pub fn get_number_of_cpu_threads() -> io::Result<usize> {
     }
 }
 
+/// Gets the sibling ID of a CPU thread when Hyper-Threading is enabled.
+///
+/// For systems without Hyper-Threading, this returns the thread ID itself.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the sibling for
+///
+/// # Returns
+/// - `Ok(usize)` containing the sibling thread ID
+/// - `Err` if there was an error reading the sibling information
 pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     // siblings exists only when hyperthreading is enabled
     match is_hyperthreading_enabled() {
@@ -140,26 +200,74 @@ pub fn get_cpu_sibling_id(thread_id: usize) -> io::Result<usize> {
     }
 }
 
+/// Gets the minimum speed (in kHz) that a CPU thread can currently operate at.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the minimum speed for
+///
+/// # Returns
+/// - `Ok(usize)` containing the minimum speed in kHz
+/// - `Err` if there was an error reading the speed information
 pub fn get_current_minimum_speed(thread_id: usize) -> io::Result<usize> {
     get_speed(thread_id, "scaling_min_freq")
 }
 
+/// Gets the maximum speed (in kHz) that a CPU thread can currently operate at.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the maximum speed for
+///
+/// # Returns
+/// - `Ok(usize)` containing the maximum speed in kHz
+/// - `Err` if there was an error reading the speed information
 pub fn get_current_maximum_speed(thread_id: usize) -> io::Result<usize> {
     get_speed(thread_id, "scaling_max_freq")
 }
 
+/// Gets the current speed (in kHz) of a CPU thread.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the current speed for
+///
+/// # Returns
+/// - `Ok(usize)` containing the current speed in kHz
+/// - `Err` if there was an error reading the speed information
 pub fn get_current_speed(thread_id: usize) -> io::Result<usize> {
     get_speed(thread_id, "scaling_cur_freq")
 }
 
+/// Gets the minimum speed (in kHz) that a CPU thread is capable of operating at.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the minimum speed for
+///
+/// # Returns
+/// - `Ok(usize)` containing the minimum speed in kHz
+/// - `Err` if there was an error reading the speed information
 pub fn get_minimum_speed(thread_id: usize) -> io::Result<usize> {
     get_speed(thread_id, "cpuinfo_min_freq")
 }
 
+/// Gets the maximum speed (in kHz) that a CPU thread is capable of operating at.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the maximum speed for
+///
+/// # Returns
+/// - `Ok(usize)` containing the maximum speed in kHz
+/// - `Err` if there was an error reading the speed information
 pub fn get_maximum_speed(thread_id: usize) -> io::Result<usize> {
     get_speed(thread_id, "cpuinfo_max_freq")
 }
 
+/// Gets the physical package ID of a CPU thread.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the package ID for
+///
+/// # Returns
+/// - `Ok(usize)` containing the physical package ID
+/// - `Err` if there was an error reading the package ID
 pub fn get_package_id(thread_id: usize) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/topology/physical_package_id");
     let file_path = Path::new(path.as_str());
@@ -175,6 +283,14 @@ pub fn get_package_id(thread_id: usize) -> io::Result<usize> {
     }
 }
 
+/// Gets the core ID of a CPU thread.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the core ID for
+///
+/// # Returns
+/// - `Ok(usize)` containing the core ID
+/// - `Err` if there was an error reading the core ID
 pub fn get_core_id(thread_id: usize) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/topology/core_id");
     let file_path = Path::new(path.as_str());
@@ -190,6 +306,15 @@ pub fn get_core_id(thread_id: usize) -> io::Result<usize> {
     }
 }
 
+/// Internal helper function to get various speed-related information for a CPU thread.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread to get the speed information for
+/// * `speed_type` - The type of speed information to retrieve (e.g., "scaling_min_freq")
+///
+/// # Returns
+/// - `Ok(usize)` containing the speed value in kHz
+/// - `Err` if there was an error reading the speed information
 fn get_speed(thread_id: usize, speed_type: &str) -> io::Result<usize> {
     let path = format!("/sys/devices/system/cpu/cpu{thread_id}/cpufreq/{speed_type}");
     let file_path = Path::new(path.as_str());
@@ -205,6 +330,13 @@ fn get_speed(thread_id: usize, speed_type: &str) -> io::Result<usize> {
     }
 }
 
+/// Gets all package temperature IDs available on the system.
+///
+/// This function scans the thermal zones to find all IDs that correspond to CPU package temperatures.
+///
+/// # Returns
+/// - `Ok(Vec<usize>)` containing the package temperature IDs
+/// - `Err(String)` if there was an error finding the temperature IDs
 pub fn get_pkg_temperature_ids() -> Result<Vec<usize>, String> {
     let mut ids: Vec<usize> = Vec::new();
     let mut counter = 0;
@@ -240,6 +372,13 @@ pub fn get_pkg_temperature_ids() -> Result<Vec<usize>, String> {
     }
 }
 
+/// Finds all k10temp hwmon directories in the system.
+///
+/// This is used for special handling of AMD Ryzen temperature readings.
+///
+/// # Returns
+/// - `Ok(Vec<PathBuf>)` containing the paths to k10temp hwmon directories
+/// - `Err` if there was an error reading the hwmon directories
 fn find_k10temp_hwmon() -> io::Result<Vec<PathBuf>> {
     let mut results = Vec::new();
     let hwmon_root = Path::new("/sys/class/hwmon");
@@ -259,6 +398,14 @@ fn find_k10temp_hwmon() -> io::Result<Vec<PathBuf>> {
     Ok(results)
 }
 
+/// Gets the temperature for AMD Ryzen CPUs using the k10temp interface.
+///
+/// # Arguments
+/// * `pkg_file_id` - The ID of the package to get the temperature for
+///
+/// # Returns
+/// - `Ok(f64)` containing the temperature in Celsius
+/// - `Err` if there was an error reading the temperature
 fn get_amd_ryzen_teperature(pkg_file_id: usize) -> io::Result<f64> {
     let k10temp = find_k10temp_hwmon().unwrap_or_default();
 
@@ -281,6 +428,13 @@ fn get_amd_ryzen_teperature(pkg_file_id: usize) -> io::Result<f64> {
     }
 }
 
+/// Parses range information from strings like "0-7" to get the count of items.
+///
+/// # Arguments
+/// * `input` - The range string to parse
+///
+/// # Returns
+/// - `usize` containing the count of items in the range
 fn get_range_info(input: &str) -> usize {
     if let Some(second_part) = input.split('-').nth(1) {
         if let Ok(value) = second_part.parse::<usize>() {

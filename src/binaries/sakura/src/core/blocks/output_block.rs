@@ -31,13 +31,18 @@ use super::block_trait::*;
 
 // ==================================================================================================
 
+/// Represents a neuron in the output layer of a neural network block.
+/// Contains both the computed output value and the expected value for training purposes.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct OutputNeuron {
+    /// The computed output value of this neuron
     pub output_value: f32,
+    /// The expected output value used for training
     pub expected_value: f32,
 }
 
 impl OutputNeuron {
+    /// Creates a new OutputNeuron with default values (0.0 for both fields)
     pub fn default() -> Self {
         OutputNeuron {
             output_value: 0.0f32,
@@ -48,25 +53,37 @@ impl OutputNeuron {
 
 // ==================================================================================================
 
+/// Represents an output block in the neural network that collects and processes outputs.
+/// This block connects to an output buffer to aggregate results from multiple blocks.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OutputBlock {
+    /// Unique identifier for this block
     pub uuid: Uuid,
+    /// UUID of the hexagon this block belongs to
     pub hexagon_uuid: Uuid,
+    /// UUID of the model this block belongs to
     pub model_uuid: Uuid,
 
+    /// Input/output buffer for this block
     pub block_io: BlockIoBuffer,
 
+    /// Weights used for calculating outputs
     pub weights: Vec<f32>,
+    /// Output values from this block
     pub block_outputs: Vec<OutputNeuron>,
 
+    /// Name of the output buffer this block connects to
     pub output_buffer_name: String,
+    /// Flag indicating if this block was already connected to its output buffer
     pub was_already_connected: bool,
 
+    /// Reference to the output buffer this block connects to
     #[serde(skip)]
     pub output_buffer: Option<Arc<Mutex<OutputBuffer>>>,
 }
 
 impl PartialEq for OutputBlock {
+    /// Compares two OutputBlocks for equality by comparing all their fields
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
@@ -80,6 +97,13 @@ impl PartialEq for OutputBlock {
 }
 
 impl OutputBlock {
+    /// Creates a new OutputBlock with default values
+    ///
+    /// # Arguments
+    ///
+    /// * `hexagon_uuid` - UUID of the hexagon this block belongs to
+    /// * `model_uuid` - UUID of the model this block belongs to
+    /// * `output_buffer_name` - Name of the output buffer this block should connect to
     pub fn new(hexagon_uuid: &Uuid, model_uuid: &Uuid, output_buffer_name: &str) -> Self {
         let mut block = OutputBlock {
             uuid: Uuid::new_v4(),
@@ -97,12 +121,19 @@ impl OutputBlock {
             output_buffer: None,
         };
 
+        // Initialize input buffer with a default axon section
         block.block_io.input_buffer.push(AxonSection::default());
         block.block_io.inputs_in_use = 0;
 
         block
     }
 
+    /// Connects this block to its output buffer if not already connected
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if connection was successful or already established
+    /// * `Err(AinariError)` if connection failed
     fn connect_output_buffer(&mut self) -> Result<(), AinariError> {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
@@ -123,6 +154,10 @@ impl OutputBlock {
         Ok(())
     }
 
+    /// Processes the input to produce output values
+    ///
+    /// Resets all output values, calculates the activation of each input axon,
+    /// and computes the weighted sum for each output neuron.
     fn process_block(&mut self) {
         // reset output-values
         for output_neuron in self.block_outputs.iter_mut() {
@@ -136,8 +171,10 @@ impl OutputBlock {
                 continue;
             }
 
+            // Apply sigmoid activation function
             axon.potential = 1.0f32 / (1.0f32 + (-axon.potential).exp());
             for (y, output_neuron) in self.block_outputs.iter_mut().enumerate() {
+                // Calculate weighted sum for each output neuron
                 output_neuron.output_value += self.weights[(y * BLOCK_DIM) + x] * axon.potential;
             }
         }
@@ -147,6 +184,19 @@ impl OutputBlock {
 // ==================================================================================================
 
 impl Block for OutputBlock {
+    /// Trains the block by adjusting its weights based on the error between expected and actual outputs
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use)
+    /// * `own` - Arc<Mutex<dyn Block>> reference to this block
+    /// * `cycle_number` - The current training cycle number
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Some(finish_counter))` if training is complete and a finish counter is needed
+    /// * `Ok(None)` if training is not yet complete
+    /// * `Err(AinariError)` if an error occurs during training
     fn train(
         &mut self,
         _: usize,
@@ -201,6 +251,17 @@ impl Block for OutputBlock {
         Ok(finish_counter_option)
     }
 
+    /// Processes the block without training, simply computing outputs
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current processing cycle number
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Some(finish_counter))` if processing is complete and a finish counter is needed
+    /// * `Ok(None)` if processing is not yet complete
+    /// * `Err(AinariError)` if an error occurs during processing
     fn process(
         &mut self,
         cycle_number: u64,
@@ -226,6 +287,16 @@ impl Block for OutputBlock {
         Ok(finish_counter_option)
     }
 
+    /// Performs backpropagation to adjust weights based on errors
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current backpropagation cycle number
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(None)` if backpropagation was successful
+    /// * `Err(AinariError)` if an error occurs during backpropagation
     fn backpropagate(
         &mut self,
         cycle_number: u64,
@@ -268,6 +339,16 @@ impl Block for OutputBlock {
         Ok(None)
     }
 
+    /// Attempts to allocate an input connection to this block
+    ///
+    /// # Arguments
+    ///
+    /// * `axon_section` - The axon section to connect
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the connection was successfully allocated
+    /// * `false` if no inputs are available
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
         if self.block_io.inputs_in_use == 0 {
             axon_section.target_block_uuid = self.uuid;
@@ -281,41 +362,108 @@ impl Block for OutputBlock {
         false
     }
 
+    /// Finalizes the training process for this block
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if finalization was successful
+    /// * `Err(AinariError)` if an error occurs during finalization
     fn finalize_train(&mut self, _: u64) -> Result<(), AinariError> {
         Ok(())
     }
 
+    /// Finalizes the processing of this block
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if finalization was successful
+    /// * `Err(AinariError)` if an error occurs during finalization
     fn finalize_process(&mut self, _: u64) -> Result<(), AinariError> {
         Ok(())
     }
 
+    /// Finalizes the backpropagation process for this block
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (reserved for future use)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` if finalization was successful
+    /// * `Ok(false)` if finalization was not needed
+    /// * `Err(AinariError)` if an error occurs during finalization
     fn finalize_backpropagate(&mut self, _: u64) -> Result<bool, AinariError> {
         Ok(true)
     }
 
+    /// Gets the UUID of this block
+    ///
+    /// # Returns
+    ///
+    /// The UUID of this block
     fn get_uuid(&self) -> Uuid {
         self.uuid
     }
 
+    /// Gets the UUID of the hexagon this block belongs to
+    ///
+    /// # Returns
+    ///
+    /// The UUID of the hexagon
     fn get_hexagon_uud(&self) -> Uuid {
         self.hexagon_uuid
     }
+
+    /// Gets the UUID of the model this block belongs to
+    ///
+    /// # Returns
+    ///
+    /// The UUID of the model
     fn get_model_uud(&self) -> Uuid {
         self.model_uuid
     }
 
+    /// Gets a mutable reference to the block's I/O buffer
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the BlockIoBuffer
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         &mut self.block_io
     }
 
+    /// Gets the type of this block
+    ///
+    /// # Returns
+    ///
+    /// The ObjectType of this block (always OutputBlock)
     fn get_type(&self) -> ObjectType {
         ObjectType::OutputBlock
     }
 
+    /// Sets the model UUID for this block
+    ///
+    /// # Arguments
+    ///
+    /// * `new_model_uuid` - The new model UUID
     fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
         self.model_uuid = *new_model_uuid;
     }
 
+    /// Serializes this block to a byte vector
+    ///
+    /// # Returns
+    ///
+    /// A byte vector containing the serialized block
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
         bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")

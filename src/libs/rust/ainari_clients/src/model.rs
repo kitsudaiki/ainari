@@ -21,6 +21,20 @@ use ainari_common::secret::Secret;
 use crate::prepare_client;
 use crate::{handle_empty_response, handle_response};
 
+/// Creates a new model in the Ainari system.
+///
+/// # Arguments
+///
+/// * `sakura_address` - The base URL of the Ainari Sakura service.
+/// * `token` - Authentication token for the API.
+/// * `internal_api_key` - Internal API key for authorization.
+/// * `name` - Name of the model to be created.
+/// * `template` - Template to be used for model creation.
+/// * `insecure_client` - Whether to use an insecure client (no TLS verification).
+///
+/// # Returns
+///
+/// A `Result` containing the created `ModelResp` on success, or an `AinariError` on failure.
 pub async fn create_model(
     sakura_address: &String,
     token: &String,
@@ -32,12 +46,14 @@ pub async fn create_model(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/model/internal");
 
+    // Create the request body with the provided name and template
     let body = ModelCreateReq {
         template: template.to_owned(),
         name: name.to_owned(),
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
+    // Send the POST request to create the model
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -46,10 +62,24 @@ pub async fn create_model(
         .send_body(json_str)
         .await;
 
+    // Handle the response and return the result
     let resp: Result<ModelResp, AinariError> = handle_response(response, "model", "").await;
     resp
 }
 
+/// Retrieves information about a specific model from the Ainari system.
+///
+/// # Arguments
+///
+/// * `sakura_address` - The base URL of the Ainari Sakura service.
+/// * `token` - Authentication token for the API.
+/// * `internal_api_key` - Internal API key for authorization.
+/// * `model_uuid` - UUID of the model to retrieve.
+/// * `insecure_client` - Whether to use an insecure client (no TLS verification).
+///
+/// # Returns
+///
+/// A `Result` containing the retrieved `ModelResp` on success, or an `AinariError` on failure.
 pub async fn get_model(
     sakura_address: &String,
     token: &String,
@@ -60,6 +90,7 @@ pub async fn get_model(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/model/{model_uuid}/internal");
 
+    // Send the GET request to retrieve the model information
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -67,11 +98,24 @@ pub async fn get_model(
         .send()
         .await;
 
+    // Handle the response and return the result
     let resp: Result<ModelResp, AinariError> =
         handle_response(response, "model", &model_uuid.to_string()).await;
     resp
 }
 
+/// Lists all models available in the Ainari system.
+///
+/// # Arguments
+///
+/// * `sakura_address` - The base URL of the Ainari Sakura service.
+/// * `token` - Authentication token for the API.
+/// * `internal_api_key` - Internal API key for authorization.
+/// * `insecure_client` - Whether to use an insecure client (no TLS verification).
+///
+/// # Returns
+///
+/// A `Result` containing the list of models as `ModelListResp` on success, or an `AinariError` on failure.
 pub async fn list_model(
     sakura_address: &String,
     token: &String,
@@ -81,6 +125,7 @@ pub async fn list_model(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/model/internal");
 
+    // Send the GET request to list all models
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -88,10 +133,24 @@ pub async fn list_model(
         .send()
         .await;
 
+    // Handle the response and return the result
     let resp: Result<ModelListResp, AinariError> = handle_response(response, "model", "").await;
     resp
 }
 
+/// Deletes a specific model from the Ainari system.
+///
+/// # Arguments
+///
+/// * `sakura_address` - The base URL of the Ainari Sakura service.
+/// * `token` - Authentication token for the API.
+/// * `internal_api_key` - Internal API key for authorization.
+/// * `model_uuid` - UUID of the model to delete.
+/// * `insecure_client` - Whether to use an insecure client (no TLS verification).
+///
+/// # Returns
+///
+/// A `Result` indicating success or failure. On success, returns `Ok(())`.
 pub async fn delete_model(
     sakura_address: &String,
     token: &String,
@@ -102,6 +161,7 @@ pub async fn delete_model(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/model/{model_uuid}/internal");
 
+    // Send the DELETE request to remove the model
     let response = client
         .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -109,5 +169,6 @@ pub async fn delete_model(
         .send()
         .await;
 
+    // Handle the empty response and return the result
     handle_empty_response(response, "model", &model_uuid.to_string()).await
 }

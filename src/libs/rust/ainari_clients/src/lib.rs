@@ -32,26 +32,57 @@ use std::time::Duration;
 
 use ainari_common::error::AinariError;
 
+/// Prepares an HTTP client with optional SSL configuration.
+///
+/// # Arguments
+///
+/// * `address` - The address to connect to, used to determine if SSL should be used.
+/// * `insecure` - If true, creates an insecure SSL connection that doesn't verify certificates.
+///
+/// # Returns
+///
+/// A configured `awc::Client` instance.
 pub fn prepare_client(address: &str, insecure: bool) -> Client {
+    // Determine if SSL should be used based on the address prefix
     let use_ssl = address.starts_with("https://");
+
     if use_ssl {
+        // Create SSL connector with appropriate security settings
         let mut ssl_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
+        // Configure insecure SSL if requested
         if insecure {
             ssl_builder.set_verify(SslVerifyMode::NONE);
             ssl_builder.set_verify_callback(SslVerifyMode::NONE, |_, _| true);
         }
 
+        // Create connector with SSL configuration and build the client
         let connector = Connector::new().openssl(ssl_builder.build());
         Client::builder()
             .connector(connector) // pass connector directly
             .timeout(Duration::from_secs(60))
             .finish()
     } else {
+        // Return a regular HTTP client for non-HTTPS connections
         Client::new()
     }
 }
 
+/// Handles an API response and attempts to deserialize it into the specified type.
+///
+/// # Arguments
+///
+/// * `response` - The response from the API call.
+/// * `obj` - A string describing the type of object being requested.
+/// * `uuid` - An optional UUID for the object being requested.
+///
+/// # Returns
+///
+/// A `Result` containing the deserialized object or an error.
+///
+/// # Type Parameters
+///
+/// * `T` - The type to deserialize the response into, must implement `serde::de::DeserializeOwned`.
 pub async fn handle_response<T>(
     response: Result<awc::ClientResponse<Decompress<Payload>>, SendRequestError>,
     obj: &str,
@@ -62,57 +93,78 @@ where
 {
     match response {
         Ok(mut resp) => {
+            // Extract the response body as a string
             let body_str = match resp.body().await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
+                    return Err(AinariError::InternalError("".to_string()));
                 }
             };
 
+            // Handle different HTTP status codes
             match resp.status() {
+                // Handle unauthorized/forbidden responses
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
+                // Handle bad request responses
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
+                // Handle successful responses
                 StatusCode::OK | StatusCode::CREATED => {
+                    // Attempt to deserialize the response body
                     let deserialized: T = match serde_json::from_str(&body_str) {
                         Ok(body) => body,
                         Err(e) => {
+                            // Create error message with or without UUID
                             if uuid.is_empty() {
                                 let msg = format!("Error while converting response of {obj} : {e}");
-                                return Err(AinariError::Error(msg));
+                                return Err(AinariError::InternalError(msg));
                             } else {
                                 let msg = format!(
                                     "Error while converting response of {obj} with uuid '{uuid}' : {e}"
                                 );
-                                return Err(AinariError::Error(msg));
+                                return Err(AinariError::InternalError(msg));
                             }
                         }
                     };
 
                     Ok(deserialized)
                 }
+                // Handle unexpected status codes
                 code => {
+                    // Create error message with or without UUID
                     if uuid.is_empty() {
                         let msg = format!("Error while creating {obj}. Got response-code: {code}");
-                        Err(AinariError::Error(msg))
+                        Err(AinariError::InternalError(msg))
                     } else {
                         let msg = format!(
                             "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
                         );
-                        Err(AinariError::Error(msg))
+                        Err(AinariError::InternalError(msg))
                     }
                 }
             }
         }
+        // Handle request errors
         Err(e) => {
             let msg = format!("Error while getting {obj} with uuid '{uuid}' : {e}");
-            Err(AinariError::Error(msg))
+            Err(AinariError::InternalError(msg))
         }
     }
 }
 
+/// Handles an API response that doesn't return a body.
+///
+/// # Arguments
+///
+/// * `response` - The response from the API call.
+/// * `obj` - A string describing the type of object being requested.
+/// * `uuid` - An optional UUID for the object being requested.
+///
+/// # Returns
+///
+/// A `Result` indicating success or an error.
 pub async fn handle_empty_response(
     response: Result<awc::ClientResponse<Decompress<Payload>>, SendRequestError>,
     obj: &str,
@@ -120,31 +172,38 @@ pub async fn handle_empty_response(
 ) -> Result<(), AinariError> {
     match response {
         Ok(mut resp) => {
+            // Extract the response body as a string
             let body_str = match resp.body().await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::Error("".to_string()));
+                    return Err(AinariError::InternalError("".to_string()));
                 }
             };
 
+            // Handle different HTTP status codes
             match resp.status() {
+                // Handle unauthorized/forbidden responses
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
+                // Handle bad request responses
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
+                // Handle successful responses with no content
                 StatusCode::NO_CONTENT => Ok(()),
+                // Handle unexpected status codes
                 code => {
                     let msg = format!(
                         "Error while getting {obj} with uuid '{uuid}'. Got response-code: {code}"
                     );
-                    Err(AinariError::Error(msg))
+                    Err(AinariError::InternalError(msg))
                 }
             }
         }
+        // Handle request errors
         Err(e) => {
             let msg = format!("Error while getting {obj} with uuid '{uuid}' : {e}");
-            Err(AinariError::Error(msg))
+            Err(AinariError::InternalError(msg))
         }
     }
 }

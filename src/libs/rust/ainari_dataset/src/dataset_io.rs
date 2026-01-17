@@ -27,33 +27,54 @@ use uuid::Uuid;
 use ainari_common::constants::*;
 use ainari_common::error::AinariError;
 
+/// Represents the type of data stored in a dataset.
+/// This enum defines the possible data types that can be stored in a dataset.
+/// The values are encoded as u8 for efficient storage and serialization.
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, Default)]
 pub enum DataSetType {
+    /// Undefined type, serves as a default value.
     #[default]
     UndefinedType = 0,
+    /// 8-bit unsigned integer type.
     Uint8Type = 1,
+    /// 32-bit floating point type.
     FloatType = 4,
 }
 
+/// Represents a link to a dataset file, containing paths for local and remote storage.
+/// This struct holds information about where a dataset file is stored and its encrypted version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DatasetLink {
+    /// Address of the Onsen node where the dataset is stored.
     pub onsen_address: String,
+    /// Path to the dataset file on the remote storage.
     pub remote_file_path: String,
+    /// Path to the dataset file on the local storage.
     pub local_file_path: String,
+    /// Path to the encrypted version of the dataset file on local storage.
     pub local_encrypted_file_path: String,
 }
 
+/// Represents a column in a dataset, defining its start and end positions.
+/// This struct is used to specify the boundaries of a column within the dataset file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct Column {
+    /// The starting position of the column in bytes.
     pub start: u64,
+    /// The ending position of the column in bytes.
     pub end: u64,
 }
 
+/// Base header for dataset files, containing basic identification information.
+/// This struct serves as the initial header in the dataset file format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct DataSetBaseHeader {
+    /// Identifier for the dataset type.
     pub type_identifier: String,
+    /// Major version of the dataset format.
     pub version: String,
+    /// Minor version of the dataset format.
     pub minor_version: String,
 }
 
@@ -64,6 +85,10 @@ impl Default for DataSetBaseHeader {
 }
 
 impl DataSetBaseHeader {
+    /// Creates a new DataSetBaseHeader with default values.
+    ///
+    /// # Returns
+    /// A new instance of DataSetBaseHeader with default values.
     pub fn new() -> Self {
         DataSetBaseHeader {
             type_identifier: "sakura".to_string(),
@@ -73,18 +98,40 @@ impl DataSetBaseHeader {
     }
 }
 
+/// Header for version 1.0 of the dataset format.
+/// This struct contains metadata about the dataset including its UUID, name, description,
+/// data type, size information, and column definitions.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub struct DataSetHeaderV1_0 {
+    /// Unique identifier for the dataset, stored as a string for serialization compatibility.
     pub uuid: String, // HINT (kitsudaiki): String instead of Uuid, because Uuid doesn't implement Encode and Decode
+    /// Name of the dataset.
     pub name: String,
+    /// Description of the dataset contents.
     pub description: String,
+    /// Type of data stored in the dataset.
     pub data_type: DataSetType,
+    /// Size of each data element in bytes.
     pub type_size: u8,
+    /// Size of each row in the dataset in elements.
     pub row_size: u64,
+    /// Mapping of column names to their positions in the dataset.
     pub columns: HashMap<String, Column>,
 }
 
 impl DataSetHeaderV1_0 {
+    /// Creates a new DataSetHeaderV1_0 with the provided parameters.
+    ///
+    /// # Arguments
+    /// * `uuid` - Unique identifier for the dataset.
+    /// * `name` - Name of the dataset.
+    /// * `description` - Description of the dataset contents.
+    /// * `dataset_type` - Type of data stored in the dataset.
+    /// * `row_size` - Size of each row in the dataset in elements.
+    /// * `columns` - Mapping of column names to their positions.
+    ///
+    /// # Returns
+    /// A new instance of DataSetHeaderV1_0 with the provided values.
     pub fn new(
         uuid: Uuid,
         name: &str,
@@ -105,27 +152,47 @@ impl DataSetHeaderV1_0 {
     }
 }
 
+/// Handle for writing to a dataset file.
+/// This struct provides access to write operations for a dataset file.
 #[derive(Debug)]
 pub struct DataSetFileWriteHandle {
+    /// Link to the dataset file locations.
     pub link: DatasetLink,
+    /// Header containing metadata about the dataset.
     pub header: DataSetHeaderV1_0,
+    /// Buffered writer for the dataset file.
     pub target_file: BufWriter<fs::File>,
+    /// Offset in bytes where the payload data begins.
     pub payload_offset: u64,
 }
 
+/// Handle for reading from a dataset file.
+/// This struct provides access to read operations for a dataset file.
 #[derive(Debug)]
 pub struct DataSetFileReadHandle {
+    /// Link to the dataset file locations.
     pub link: DatasetLink,
+    /// Header containing metadata about the dataset.
     pub header: DataSetHeaderV1_0,
+    /// Buffered reader for the dataset file.
     pub target_file: BufReader<fs::File>,
+    /// Offset in bytes where the payload data begins.
     pub payload_offset: u64,
+    /// Name of the currently selected column for reading.
     pub selected_column: String,
+    /// Buffer for storing read data.
     read_buffer: Vec<f32>,
+    /// Starting row index of the current buffer.
     buffer_start_row: u64,
+    /// Ending row index of the current buffer.
     buffer_end_row: u64,
 }
 
 impl DataSetFileReadHandle {
+    /// Calculates the total number of rows in the dataset.
+    ///
+    /// # Returns
+    /// The number of rows in the dataset, or 0 if an error occurs.
     pub fn get_number_of_rows(&self) -> u64 {
         match self.target_file.get_ref().metadata() {
             Ok(metadata) => {
@@ -139,17 +206,25 @@ impl DataSetFileReadHandle {
         }
     }
 
+    /// Retrieves data from the read buffer for a specific row and column.
+    ///
+    /// # Arguments
+    /// * `row` - The row index to retrieve data from.
+    ///
+    /// # Returns
+    /// A tuple containing a slice of f32 values and the size of the data,
+    /// or an error if the column is not found.
     fn get_data_from_buffer(&mut self, row: &u64) -> Result<(&[f32], u64), AinariError> {
         let column = &self.selected_column;
         let col_get = match self.header.columns.get(column) {
             Some(col) => col,
             _ => {
                 let msg = format!("Column with name '{column}' not found in dataset.");
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         };
 
-        // cget pointer to the requested position in the buffer
+        // Calculate pointer to the requested position in the buffer
         let row_col_size = col_get.end - col_get.start;
         let buffer_offset = ((row - self.buffer_start_row) * self.header.row_size) + col_get.start;
         let chunk: &[f32] =
@@ -158,16 +233,26 @@ impl DataSetFileReadHandle {
         Ok((chunk, row_col_size))
     }
 
+    /// Retrieves data from the file for a specific row and column.
+    /// If the data is not in the current buffer, it reads the appropriate block from the file.
+    ///
+    /// # Arguments
+    /// * `row` - The row index to retrieve data from.
+    ///
+    /// # Returns
+    /// A tuple containing a slice of f32 values and the size of the data,
+    /// or an error if the row is out of bounds or if reading fails.
     pub fn get_data_from_file(&mut self, row: &u64) -> Result<(&[f32], u64), AinariError> {
+        // Check if data is already in the buffer
         if row >= &self.buffer_start_row && row < &self.buffer_end_row {
             return self.get_data_from_buffer(row);
         }
 
-        // calculate new buffer-dimensions
+        // Calculate new buffer dimensions
         let max_rows = self.get_number_of_rows();
         if row >= &max_rows {
             let msg = format!("Row-number {row} is too big for the dataset.");
-            return Err(AinariError::Error(msg));
+            return Err(AinariError::InternalError(msg));
         }
         self.buffer_start_row = row - (row % ROWS_IN_READ_BUFFER);
         self.buffer_end_row = self.buffer_start_row + ROWS_IN_READ_BUFFER;
@@ -175,7 +260,7 @@ impl DataSetFileReadHandle {
             self.buffer_end_row = max_rows;
         }
 
-        // read selected block from file into the read-buffer
+        // Read selected block from file into the read buffer
         let offset_bytes = (self.header.row_size) * self.buffer_start_row * 4;
         let byte_slice_input: &mut [u8] = cast_slice_mut(self.read_buffer.as_mut_slice());
         let file_offset = self.payload_offset + offset_bytes;
@@ -183,7 +268,7 @@ impl DataSetFileReadHandle {
             Ok(_) => {}
             Err(_) => {
                 let msg = ("Failed to read data from the dataset-file.").to_string();
-                return Err(AinariError::Error(msg));
+                return Err(AinariError::InternalError(msg));
             }
         }
         let _ = self.target_file.read_exact(byte_slice_input);
@@ -192,6 +277,20 @@ impl DataSetFileReadHandle {
     }
 }
 
+/// Initializes a new dataset file with the given parameters.
+///
+/// # Arguments
+/// * `link` - Information about the dataset file locations.
+/// * `uuid` - Unique identifier for the dataset.
+/// * `name` - Name of the dataset.
+/// * `description` - Description of the dataset contents.
+/// * `row_size` - Size of each row in the dataset in elements.
+/// * `columns` - Mapping of column names to their positions.
+/// * `data_type` - Type of data stored in the dataset.
+///
+/// # Returns
+/// A DataSetFileWriteHandle for writing to the new dataset file,
+/// or an error if initialization fails.
 pub fn init_new_data_set_file(
     link: &DatasetLink,
     uuid: Uuid,
@@ -203,29 +302,29 @@ pub fn init_new_data_set_file(
 ) -> Result<DataSetFileWriteHandle, Box<dyn std::error::Error>> {
     let bincode_config = config::standard();
 
-    // check give dataset-type
+    // Check given dataset type
     if data_type == DataSetType::UndefinedType {
         return Err(Box::new(AinariError::InvalidInput(
             "Invalid dataset-type".to_string(),
         )));
     }
 
-    // check if file already exist
+    // Check if file already exists
     if Path::new(&link.local_file_path).exists() {
         let msg = format!("Dataset file '{}' already exists.", link.local_file_path);
         // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
-        // so here should be an internal error instand of an input-error
-        return Err(Box::new(AinariError::Error(msg)));
+        // so here should be an internal error instead of an input-error
+        return Err(Box::new(AinariError::InternalError(msg)));
     }
 
-    // initialize file
+    // Initialize file
     let file = fs::File::create(&link.local_file_path)?;
 
-    // initialize header
+    // Initialize header
     let base_header = DataSetBaseHeader::new();
     let header = DataSetHeaderV1_0::new(uuid, name, description, data_type, row_size, columns);
 
-    // initialize resulting file-handle
+    // Initialize resulting file handle
     let mut result = DataSetFileWriteHandle {
         link: link.clone(),
         header,
@@ -233,40 +332,48 @@ pub fn init_new_data_set_file(
         payload_offset: 0,
     };
 
-    // write base-header to file
+    // Write base header to file
     let encoded_base = bincode::encode_to_vec(&base_header, bincode_config)?;
     result
         .target_file
         .write_all(&(encoded_base.len() as u64).to_le_bytes())?;
     result.target_file.write_all(&encoded_base)?;
 
-    // write header to file
+    // Write header to file
     let encoded_header = bincode::encode_to_vec(&result.header, bincode_config)?;
     result
         .target_file
         .write_all(&(encoded_header.len() as u64).to_le_bytes())?;
     result.target_file.write_all(&encoded_header)?;
 
-    // flush file-buffer, to ensure, that the data are written to the disc
+    // Flush file buffer to ensure data is written to disk
     result.target_file.flush()?;
 
-    // get current byte-position within the file after writing the header
+    // Get current byte position within the file after writing the header
     result.payload_offset = result.target_file.stream_position()?;
 
     Ok(result)
 }
 
+/// Reads an existing dataset file and returns a handle for reading it.
+///
+/// # Arguments
+/// * `local_file_path` - Path to the dataset file to read.
+///
+/// # Returns
+/// A DataSetFileReadHandle for reading the dataset file,
+/// or an error if reading fails.
 pub fn read_data_set_file(
     local_file_path: &String,
 ) -> Result<DataSetFileReadHandle, Box<dyn std::error::Error>> {
     let bincode_config = config::standard();
 
-    // check if file even exist
+    // Check if file exists
     if !Path::new(local_file_path).exists() {
         let msg = format!("Dataset file '{local_file_path}' does not exists.");
         // HINT (kitsudaki): the path comes from the database and not from the user,
-        // so here should be an internal error instand of an input-error
-        return Err(Box::new(AinariError::Error(msg)));
+        // so here should be an internal error instead of an input-error
+        return Err(Box::new(AinariError::InternalError(msg)));
     }
 
     let file = fs::File::open(local_file_path)?;
@@ -287,37 +394,37 @@ pub fn read_data_set_file(
         buffer_end_row: 0,
     };
 
-    // read base-header-length
+    // Read base header length
     let mut base_len_buf = [0u8; 8];
     result.target_file.read_exact(&mut base_len_buf)?;
     let base_len = u64::from_le_bytes(base_len_buf);
 
-    // read base-header-length
+    // Read base header
     let mut base_buf = vec![0u8; base_len as usize];
     result.target_file.read_exact(&mut base_buf)?;
     // TODO: handle header
     let (_, _): (DataSetBaseHeader, usize) =
         bincode::decode_from_slice(&base_buf[..], bincode_config)?;
 
-    // read header-length
+    // Read header length
     let mut header_len_buf = [0u8; 8];
     result.target_file.read_exact(&mut header_len_buf)?;
     let header_len = u64::from_le_bytes(header_len_buf);
 
-    // read header-length
+    // Read header
     let mut header_buf = vec![0u8; header_len as usize];
     result.target_file.read_exact(&mut header_buf)?;
     let (header, _): (DataSetHeaderV1_0, usize) =
         bincode::decode_from_slice(&header_buf[..], bincode_config)?;
     result.header = header;
 
-    // TODO: make buffer-size configurable
+    // TODO: make buffer size configurable
     result.read_buffer.resize(
         ROWS_IN_READ_BUFFER as usize * result.header.row_size as usize,
         0f32,
     );
 
-    // get current byte-position within the file after reading the header
+    // Get current byte position within the file after reading the header
     result.payload_offset = result.target_file.stream_position()?;
 
     Ok(result)

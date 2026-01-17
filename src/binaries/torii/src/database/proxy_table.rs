@@ -25,7 +25,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the proxys table
 table! {
     proxys (uuid) {
         uuid -> Varchar,
@@ -44,6 +44,23 @@ table! {
     }
 }
 
+/// Represents a single entry in the proxys table.
+/// Contains all fields necessary to store and retrieve proxy server information from the database.
+///
+/// # Fields
+/// * `uuid` - Unique identifier for the proxy
+/// * `port` - Network port the proxy is listening on
+/// * `target_address` - Address the proxy forwards traffic to
+/// * `model_uuid` - UUID of the model this proxy is associated with
+/// * `owner_id` - User ID of the proxy owner
+/// * `project_id` - Project ID the proxy belongs to
+/// * `status` - Current status of the proxy (ACTIVE, DELETED, etc.)
+/// * `created_at` - Timestamp when the proxy was created
+/// * `created_by` - User ID who created the proxy
+/// * `updated_at` - Timestamp when the proxy was last updated
+/// * `updated_by` - User ID who last updated the proxy
+/// * `deleted_at` - Timestamp when the proxy was deleted (nullable)
+/// * `deleted_by` - User ID who deleted the proxy (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = proxys)]
 pub struct ProxyEntry {
@@ -62,6 +79,11 @@ pub struct ProxyEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the proxys table if it doesn't already exist.
+///
+/// # Returns
+/// * `Ok(())` if the table was created or already exists
+/// * `Box<dyn Error>` if an error occurs during table creation
 pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -85,6 +107,17 @@ pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new proxy entry to the database with default values for a newly created proxy.
+///
+/// # Arguments
+/// * `proxy_uuid` - Unique identifier for the new proxy
+/// * `port` - Network port the proxy will listen on
+/// * `target_address` - Address the proxy will forward traffic to
+/// * `model_uuid` - UUID of the model this proxy is associated with
+/// * `context` - User context containing ownership and project information
+///
+/// # Returns
+/// * `QueryResult<usize>` indicating the number of rows affected
 pub fn add_new_proxy(
     proxy_uuid: &Uuid,
     port: u16,
@@ -92,6 +125,7 @@ pub fn add_new_proxy(
     model_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // Create a new ProxyEntry with the provided parameters and current timestamps
     let proxy = ProxyEntry {
         uuid: proxy_uuid.to_string().clone(),
         port: port.into(),
@@ -111,6 +145,13 @@ pub fn add_new_proxy(
     add_proxy(&proxy)
 }
 
+/// Adds a proxy entry to the database.
+///
+/// # Arguments
+/// * `proxy` - Reference to the ProxyEntry to be added
+///
+/// # Returns
+/// * `QueryResult<usize>` indicating the number of rows affected
 pub fn add_proxy(proxy: &ProxyEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
@@ -119,14 +160,24 @@ pub fn add_proxy(proxy: &ProxyEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a proxy entry from the database based on its UUID and user context.
+///
+/// # Arguments
+/// * `proxy_uuid` - UUID of the proxy to retrieve
+/// * `context` - User context used to apply appropriate access control filters
+///
+/// # Returns
+/// * `Result<ProxyEntry, enums::DbError>` containing the proxy if found, or an appropriate error
 pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
+    // Start building the query with basic filtering for active proxies
     let mut query = proxys
         .filter(uuid.eq(proxy_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
+    // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -147,12 +198,22 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 }
 
+/// Finds an available port within the specified range that is not currently in use by a proxy.
+///
+/// # Arguments
+/// * `min_port` - Minimum port number to consider
+/// * `max_port` - Maximum port number to consider
+///
+/// # Returns
+/// * `Result<u16, ErrorResponse>` containing the available port if found, or an error if no ports are available
 pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse> {
+    // Get all active proxies sorted by port
     let proxys = list_all_proxys_sorted().map_err(|e| map_db_list_error("proxys", e))?;
 
     let mut prev_port = min_port;
 
-    // iterate over the port-sorted list to find a free port
+    // Iterate over the port-sorted list to find a free port
+    // between the previous port and the current proxy's port
     for proxy in proxys {
         if proxy.port as u16 > prev_port {
             return Ok(prev_port);
@@ -161,6 +222,7 @@ pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse
         prev_port = proxy.port as u16 + 1;
     }
 
+    // If we've checked all proxies and found a port within the range
     if prev_port < max_port {
         return Ok(prev_port);
     }
@@ -170,10 +232,15 @@ pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse
     ))
 }
 
+/// Lists all proxy entries from the database sorted by port number.
+///
+/// # Returns
+/// * `QueryResult<Vec<ProxyEntry>>` containing all active proxies sorted by port
 fn list_all_proxys_sorted() -> QueryResult<Vec<ProxyEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
+    // Query for active proxies ordered by port in ascending order
     let query = proxys
         .filter(status.eq("ACTIVE"))
         .into_boxed()
@@ -181,12 +248,21 @@ fn list_all_proxys_sorted() -> QueryResult<Vec<ProxyEntry>> {
     query.select(ProxyEntry::as_select()).load(&mut *conn)
 }
 
+/// Lists all proxy entries from the database that the user has access to.
+///
+/// # Arguments
+/// * `context` - User context used to apply appropriate access control filters
+///
+/// # Returns
+/// * `QueryResult<Vec<ProxyEntry>>` containing all proxies the user can access
 pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
+    // Start building the query with basic filtering for active proxies
     let mut query = proxys.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -197,7 +273,16 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     query.select(ProxyEntry::as_select()).load(&mut *conn)
 }
 
+/// Marks a proxy as deleted in the database.
+///
+/// # Arguments
+/// * `proxy_uuid` - UUID of the proxy to delete
+/// * `context` - User context used for access control and to record who performed the deletion
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` indicating success or failure
 pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // Verify the proxy exists and the user has permission to delete it
     get_proxy(proxy_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -219,6 +304,12 @@ pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     }
 }
 
+/// Marks all active proxies as deleted in the database.
+///
+/// This is typically used for cleanup operations.
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` indicating success or failure
 pub fn delete_all_proxy() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;

@@ -23,7 +23,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the projects table
 table! {
     projects (id) {
         id -> Varchar,
@@ -38,6 +38,10 @@ table! {
     }
 }
 
+/// Represents a project entry in the database.
+///
+/// This struct maps to the `projects` table in the database and contains
+/// all fields necessary to represent a project's state.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = projects)]
 pub struct ProjectEntry {
@@ -52,6 +56,15 @@ pub struct ProjectEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the projects table in the database.
+///
+/// This function creates the projects table if it doesn't already exist.
+/// It should be called during application startup.
+///
+/// # Returns
+///
+/// * `Ok(())` if the table was successfully initialized or already exists
+/// * An error if the database operation fails
 pub fn init_project_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -71,6 +84,21 @@ pub fn init_project_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new project to the database.
+///
+/// This function creates a new project entry with the provided parameters.
+/// It checks for admin permissions and ensures the project ID doesn't already exist.
+///
+/// # Arguments
+///
+/// * `project_id` - The unique identifier for the project
+/// * `project_name` - The name of the project
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(usize)` with the number of rows affected if successful
+/// * An error if the operation fails (permission denied, duplicate ID, or database error)
 pub fn add_new_project(
     project_id: &String,
     project_name: &str,
@@ -83,8 +111,8 @@ pub fn add_new_project(
         ));
     }
 
-    // check if project alredy exist in the database
-    // The same id is allowed multiple times in the table, but only one time active.
+    // Check if project already exists in the database
+    // Note: The same ID is allowed multiple times in the table, but only one can be active
     if get_project(project_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::UniqueViolation,
@@ -107,6 +135,19 @@ pub fn add_new_project(
     add_project(&project)
 }
 
+/// Adds a project to the database.
+///
+/// This is a lower-level function that performs the actual database insertion.
+/// It should typically be called by `add_new_project` rather than directly.
+///
+/// # Arguments
+///
+/// * `project` - The project to add to the database
+///
+/// # Returns
+///
+/// * `Ok(usize)` with the number of rows affected if successful
+/// * A database error if the operation fails
 pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
@@ -116,6 +157,21 @@ pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a project from the database.
+///
+/// This function fetches a project by its ID, checking for admin permissions.
+/// Only active projects (with status "ACTIVE") are returned.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project to retrieve
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(ProjectEntry)` if the project is found
+/// * `DbError::NotFound` if the project doesn't exist or the user lacks permissions
+/// * `DbError::InternalError` if a database error occurs
 pub fn get_project(
     project_id: &String,
     context: &UserContext,
@@ -140,6 +196,19 @@ pub fn get_project(
     }
 }
 
+/// Lists all active projects in the database.
+///
+/// This function retrieves all projects with status "ACTIVE".
+/// Non-admin users will receive an empty list.
+///
+/// # Arguments
+///
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(Vec<ProjectEntry>)` with all active projects if successful
+/// * A database error if the operation fails
 pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
     if context.is_admin != true.to_string() {
         let dummy: QueryResult<Vec<ProjectEntry>> = Ok(vec![]);
@@ -154,6 +223,21 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
         .load(&mut *conn)
 }
 
+/// Deletes a project from the database.
+///
+/// This function marks a project as deleted by changing its status to "DELETED".
+/// It checks for admin permissions before performing the operation.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project to delete
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(())` if the project was successfully deleted
+/// * `DbError::NotFound` if the project doesn't exist or the user lacks permissions
+/// * `DbError::InternalError` if a database error occurs
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);

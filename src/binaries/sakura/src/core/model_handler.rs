@@ -34,16 +34,24 @@ use super::blocks::block_trait::Block;
 use super::model_interface::ModelInterface;
 
 lazy_static::lazy_static! {
+    /// Global singleton for model data handling.
+    ///
+    /// This provides thread-safe access to all models and their components.
     pub static ref CLUSTER_HANDLER: RwLock<ModelDataHandler> = RwLock::new(init_model_data_handler());
 }
 
 // ==================================================================================================
 
+/// Represents a hexagon in the model graph containing multiple blocks.
+///
+/// A hexagon groups related blocks together in the model's processing graph.
 pub struct HexagonData {
+    /// Map of block UUIDs to their corresponding block instances.
     pub blocks: HashMap<Uuid, Arc<Mutex<dyn Block>>>,
 }
 
 impl HexagonData {
+    /// Creates a new empty HexagonData instance.
     pub fn new() -> Self {
         HexagonData {
             blocks: HashMap::new(),
@@ -53,15 +61,28 @@ impl HexagonData {
 
 // ==================================================================================================
 
+/// Contains all data for a single model including its structure and components.
+///
+/// This struct holds the complete state of a model including its metadata,
+/// processing blocks, input/output buffers, and interface.
 pub struct ModelContent {
+    /// Metadata describing the model's structure and configuration.
     pub model_meta: ModelMeta,
+    /// Map of hexagon UUIDs to their corresponding HexagonData instances.
     pub hexagon_data: RwLock<HashMap<Uuid, Arc<Mutex<HexagonData>>>>,
+    /// Map of input names to their corresponding InputBlock instances.
     pub inputs: RwLock<HashMap<String, Arc<Mutex<InputBlock>>>>,
+    /// Map of output names to their corresponding OutputBuffer instances.
     pub outputs: RwLock<HashMap<String, Arc<Mutex<OutputBuffer>>>>,
+    /// Optional interface for interacting with the model.
     pub model_interface: Option<Arc<Mutex<ModelInterface>>>,
 }
 
 impl ModelContent {
+    /// Creates a new ModelContent instance with the given metadata.
+    ///
+    /// # Arguments
+    /// * `model_meta` - Metadata describing the model's structure and configuration.
     pub fn new(model_meta: ModelMeta) -> Self {
         ModelContent {
             model_meta,
@@ -75,12 +96,21 @@ impl ModelContent {
 
 // ==================================================================================================
 
+/// Main handler for managing multiple models and their components.
+///
+/// This struct provides functionality for creating, accessing, and manipulating models
+/// and their associated blocks, inputs, and outputs.
 pub struct ModelDataHandler {
+    /// Map of model UUIDs to their corresponding ModelContent instances.
     pub models: HashMap<Uuid, ModelContent>,
 }
 
 // ==================================================================================================
 
+/// Initializes a new empty ModelDataHandler instance.
+///
+/// # Returns
+/// A new ModelDataHandler with an empty models map.
 pub fn init_model_data_handler() -> ModelDataHandler {
     ModelDataHandler {
         models: HashMap::new(),
@@ -90,6 +120,17 @@ pub fn init_model_data_handler() -> ModelDataHandler {
 // ==================================================================================================
 
 impl ModelDataHandler {
+    /// Initializes a new model with the given metadata and UUID.
+    ///
+    /// This creates a complete model structure including all blocks, inputs, and outputs.
+    ///
+    /// # Arguments
+    /// * `model_uuid` - UUID of the model to initialize.
+    /// * `parsed_model` - Metadata describing the model's structure and configuration.
+    ///
+    /// # Returns
+    /// * `Ok(())` on success.
+    /// * `Err(AinariError)` if the model already exists or if initialization fails.
     pub fn init_new_model(
         &mut self,
         model_uuid: &Uuid,
@@ -134,6 +175,15 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Registers a new model with the given metadata and optional interface.
+    ///
+    /// # Arguments
+    /// * `model_meta` - Metadata describing the model's structure and configuration.
+    /// * `interface` - Optional interface for interacting with the model.
+    ///
+    /// # Returns
+    /// * `Ok(())` on success.
+    /// * `Err(AinariError)` if the model already exists.
     pub fn register_model(
         &mut self,
         model_meta: &ModelMeta,
@@ -153,6 +203,14 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Gets an immutable reference to a model by its UUID.
+    ///
+    /// # Arguments
+    /// * `model_uuid` - UUID of the model to retrieve.
+    ///
+    /// # Returns
+    /// * `Ok(&ModelContent)` on success.
+    /// * `Err(AinariError)` if the model doesn't exist.
     pub fn get_model(&self, model_uuid: &Uuid) -> Result<&ModelContent, AinariError> {
         if let Some(model) = self.models.get(model_uuid) {
             Ok(model)
@@ -162,6 +220,14 @@ impl ModelDataHandler {
         }
     }
 
+    /// Gets a mutable reference to a model by its UUID.
+    ///
+    /// # Arguments
+    /// * `model_uuid` - UUID of the model to retrieve.
+    ///
+    /// # Returns
+    /// * `Ok(&mut ModelContent)` on success.
+    /// * `Err(AinariError)` if the model doesn't exist.
     pub fn get_model_mut(&mut self, model_uuid: &Uuid) -> Result<&mut ModelContent, AinariError> {
         if let Some(model) = self.models.get_mut(model_uuid) {
             Ok(model)
@@ -171,6 +237,14 @@ impl ModelDataHandler {
         }
     }
 
+    /// Adds a core block to the specified model.
+    ///
+    /// # Arguments
+    /// * `block_mutex` - The core block to add, wrapped in an Arc<Mutex>.
+    ///
+    /// # Returns
+    /// * `Ok(())` on success.
+    /// * `Err(AinariError)` if the block already exists or if the model doesn't exist.
     pub fn add_core_block(
         &mut self,
         block_mutex: &Arc<Mutex<CoreBlock>>,
@@ -178,6 +252,18 @@ impl ModelDataHandler {
         return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
 
+    /// Adds an output block to the model.
+    ///
+    /// This is a convenience method that wraps `add_block` for output blocks.
+    /// It clones the block mutex and casts it to a generic block mutex before passing it to `add_block`.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_mutex` - A reference to an Arc-wrapped Mutex containing the OutputBlock to add
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the block was added successfully, Err otherwise
     pub fn add_output_block(
         &mut self,
         block_mutex: &Arc<Mutex<OutputBlock>>,
@@ -185,6 +271,18 @@ impl ModelDataHandler {
         return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
     }
 
+    /// Adds an input block to the model.
+    ///
+    /// This method adds an input block to both the specified hexagon and the model's input collection.
+    /// It performs several checks to ensure the block doesn't already exist in either location.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_mutex` - A reference to an Arc-wrapped Mutex containing the InputBlock to add
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the block was added successfully, Err otherwise
     pub fn add_input_block(
         &mut self,
         block_mutex: &Arc<Mutex<InputBlock>>,
@@ -231,6 +329,18 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Adds an output buffer to the model.
+    ///
+    /// This method adds an output buffer to the model's output collection.
+    /// It checks if a buffer with the same name already exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_mutex` - A reference to an Arc-wrapped Mutex containing the OutputBuffer to add
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the buffer was added successfully, Err otherwise
     pub fn add_output_buffer(
         &mut self,
         block_mutex: &Arc<Mutex<OutputBuffer>>,
@@ -253,6 +363,18 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Generic method to add a block to a hexagon in the model.
+    ///
+    /// This method adds any type of block (input, core, output) to a hexagon in the specified model.
+    /// It performs checks to ensure the block doesn't already exist in the hexagon.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_mutex` - A reference to an Arc-wrapped Mutex containing the Block to add
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the block was added successfully, Err otherwise
     fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
         let block = block_mutex.lock().expect("mutex poisoned");
         let model_uuid = block.get_model_uud();
@@ -286,6 +408,18 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Retrieves the model interface for a given model.
+    ///
+    /// This method returns the model interface associated with the specified model UUID.
+    /// The interface is used to manage the model's execution state and other control functions.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Arc<Mutex<ModelInterface>>, AinariError>` - The model interface if found, Err otherwise
     pub fn get_model_interface(
         &self,
         model_uuid: &Uuid,
@@ -299,6 +433,17 @@ impl ModelDataHandler {
         }
     }
 
+    /// Retrieves the finish counter for a given model.
+    ///
+    /// The finish counter is used to track the completion status of model execution.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Arc<Mutex<FinishCounter>>, AinariError>` - The finish counter if found, Err otherwise
     #[allow(dead_code)]
     pub fn get_finish_counter(
         &self,
@@ -310,6 +455,19 @@ impl ModelDataHandler {
         Ok(model_interface.finish_counter_mutex.clone())
     }
 
+    /// Retrieves a block from a model's hexagon.
+    ///
+    /// This method finds a specific block within a hexagon of a model using the provided UUIDs.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    /// * `hexagon_uuid` - A reference to the UUID of the hexagon containing the block
+    /// * `block_uuid` - A reference to the UUID of the block to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Arc<Mutex<dyn Block>>, AinariError>` - The block if found, Err otherwise
     pub fn get_block(
         &self,
         model_uuid: &Uuid,
@@ -334,6 +492,16 @@ impl ModelDataHandler {
         Err(AinariError::InvalidInput(msg))
     }
 
+    /// Retrieves an input block from a model by its name.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    /// * `name` - A reference to the name of the input block
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Arc<Mutex<InputBlock>>, AinariError>` - The input block if found, Err otherwise
     pub fn get_input_block(
         &self,
         model_uuid: &Uuid,
@@ -350,6 +518,16 @@ impl ModelDataHandler {
         }
     }
 
+    /// Retrieves an output buffer from a model by its name.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    /// * `name` - A reference to the name of the output buffer
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Arc<Mutex<OutputBuffer>>, AinariError>` - The output buffer if found, Err otherwise
     pub fn get_output_buffer(
         &self,
         model_uuid: &Uuid,
@@ -366,6 +544,19 @@ impl ModelDataHandler {
         }
     }
 
+    /// Deletes a block from a model's hexagon.
+    ///
+    /// This method removes a block from a hexagon and cleans up the hexagon if it becomes empty.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    /// * `hexagon_uuid` - A reference to the UUID of the hexagon containing the block
+    /// * `block_uuid` - A reference to the UUID of the block to delete
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the block was deleted successfully, Err otherwise
     #[allow(dead_code)]
     pub fn delete_block(
         &mut self,
@@ -403,6 +594,17 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Deletes a model from the collection.
+    ///
+    /// This method removes a model and all its associated data from the collection.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model to delete
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if the model was deleted successfully, Err otherwise
     pub fn delete_model(&mut self, model_uuid: &Uuid) -> Result<(), AinariError> {
         if !self.models.contains_key(model_uuid) {
             let msg = format!("Model with uuid '{model_uuid}' not found.");
@@ -414,6 +616,17 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Resets all output buffers in a model.
+    ///
+    /// This method calls the reset method on all output buffers in the specified model.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - A reference to the UUID of the model
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), AinariError>` - Ok if all outputs were reset successfully, Err otherwise
     pub fn reset_outputs(&self, model_uuid: &Uuid) -> Result<(), AinariError> {
         let model_link = self.get_model(model_uuid)?;
         let outputs = model_link.outputs.read().expect("mutex poisoned");
@@ -425,16 +638,39 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Writes a serializable struct to a file using bincode serialization.
+    ///
+    /// This function serializes the given struct into a binary format and writes it to the specified
+    /// file along with a type identifier and length prefix.
+    ///
+    /// # Arguments
+    ///
+    /// * `writer` - A mutable reference to a buffered writer for the output file
+    /// * `struct_type` - The type identifier for the struct being written
+    /// * `value` - A reference to the struct to be serialized and written
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` on success
+    /// * An error if serialization or writing fails
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if serialization fails or if there are issues writing to the file.
     fn write_struct_to_file<T: Serialize>(
         &self,
         writer: &mut BufWriter<fs::File>,
         struct_type: ObjectType,
         value: &T,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        // Create bincode configuration
         let cfg = bincode::config::standard();
+        // Serialize the struct to a byte vector
         let data = bincode::serde::encode_to_vec(value, cfg)?;
+        // Get the length of the serialized data
         let len = data.len() as u32;
 
+        // Write type identifier, length, and data to the file
         writer.write_all(&[struct_type.to_u8()])?;
         writer.write_all(&len.to_le_bytes())?;
         writer.write_all(&data)?;
@@ -442,14 +678,35 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Writes a byte vector to a file with type identifier and length prefix.
+    ///
+    /// This function writes raw binary data to a file with a type identifier and length prefix
+    /// similar to the struct writing function.
+    ///
+    /// # Arguments
+    ///
+    /// * `writer` - A mutable reference to a buffered writer for the output file
+    /// * `struct_type` - The type identifier for the data being written
+    /// * `data` - The byte vector to be written
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` on success
+    /// * An error if writing fails
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there are issues writing to the file.
     fn write_vec_to_file(
         &self,
         writer: &mut BufWriter<fs::File>,
         struct_type: ObjectType,
         data: Vec<u8>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        // Get the length of the data
         let len = data.len() as u32;
 
+        // Write type identifier, length, and data to the file
         writer.write_all(&[struct_type.to_u8()])?;
         writer.write_all(&len.to_le_bytes())?;
         writer.write_all(&data)?;
@@ -457,6 +714,27 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Creates a checkpoint of a model by serializing its components to a file.
+    ///
+    /// This function serializes the model's metadata, blocks, and output buffers to a checkpoint
+    /// file for later restoration.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - The UUID of the model to checkpoint
+    /// * `local_temp_file_path` - The path where the checkpoint file will be created
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` on success
+    /// * An error if the model is not found, the file already exists, or serialization fails
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * The model with the specified UUID is not found
+    /// * The checkpoint file already exists
+    /// * There are issues creating or writing to the file
     pub fn create_checkpoint(
         &self,
         model_uuid: &Uuid,
@@ -467,7 +745,7 @@ impl ModelDataHandler {
             c
         } else {
             let msg = format!("Model with uuid '{model_uuid}' not found.");
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         };
 
         // check if file already exist
@@ -475,7 +753,7 @@ impl ModelDataHandler {
             let msg = format!("Checkpoint file '{local_temp_file_path}' already exists.");
             // HINT (kitsudaki): the path is defined by the backend itself and not by the user,
             // so here should be an internal error instand of an input-error
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         }
 
         // initialize file
@@ -512,6 +790,26 @@ impl ModelDataHandler {
         Ok(())
     }
 
+    /// Restores a model from a checkpoint file.
+    ///
+    /// This function reads a checkpoint file and reconstructs a model with all its components.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_uuid` - The UUID of the model to restore
+    /// * `local_temp_file_path` - The path to the checkpoint file
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` on success
+    /// * An error if the checkpoint file is invalid or restoration fails
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * The checkpoint file is invalid
+    /// * The model cannot be restored from the checkpoint
+    /// * There are issues reading the file
     pub fn restore_checkpoint(
         &mut self,
         model_uuid: &Uuid,
@@ -556,7 +854,7 @@ impl ModelDataHandler {
             let struct_type =
                 ObjectType::from_u8(type_buf[0]).ok_or("Unknown struct type in stream")?;
 
-            // read  (4 bytes)
+            // read length (4 bytes)
             reader.read_exact(&mut len_buf)?;
             let len = u32::from_le_bytes(len_buf) as usize;
 
@@ -673,7 +971,7 @@ impl ModelDataHandler {
             c
         } else {
             let msg = format!("Model with uuid '{model_uuid}' not found after restore.");
-            return Err(Box::new(AinariError::Error(msg)));
+            return Err(Box::new(AinariError::InternalError(msg)));
         };
 
         // connect new finish-counter to inputs

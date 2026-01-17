@@ -23,7 +23,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
+// Define the schema for the models table
 table! {
     models (uuid) {
         uuid -> Varchar,
@@ -43,25 +43,45 @@ table! {
     }
 }
 
+/// Represents a single entry in the models table
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = models)]
 pub struct ModelEntry {
+    /// Unique identifier for the model
     pub uuid: String,
+    /// Name of the model
     pub name: String,
+    /// Serialized JSON string of input specifications
     pub inputs: String,
+    /// Serialized JSON string of output specifications
     pub outputs: String,
+    /// Template content for the model
     pub template: String,
+    /// ID of the user who owns the model
     pub owner_id: String,
+    /// ID of the project the model belongs to
     pub project_id: String,
+    /// Current status of the model (ACTIVE, DELETED, etc.)
     pub status: String,
+    /// Timestamp when the model was created
     pub created_at: String,
+    /// ID of the user who created the model
     pub created_by: String,
+    /// Timestamp when the model was last updated
     pub updated_at: String,
+    /// ID of the user who last updated the model
     pub updated_by: String,
+    /// Timestamp when the model was deleted (if applicable)
     pub deleted_at: Option<String>,
+    /// ID of the user who deleted the model (if applicable)
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the models table in the database if it doesn't already exist
+///
+/// # Returns
+/// * `Ok(())` if the table was created or already exists
+/// * An error if there was a problem creating the table
 pub fn init_model_table() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -86,6 +106,19 @@ pub fn init_model_table() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Adds a new model to the database with the provided information
+///
+/// # Arguments
+/// * `model_uuid` - Unique identifier for the new model
+/// * `model_name` - Name for the new model
+/// * `model_template` - Template content for the new model
+/// * `inputs` - Vector of input specifications
+/// * `outputs` - Vector of output specifications
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(usize)` with the number of rows inserted on success
+/// * `Err` with an appropriate error on failure
 pub fn add_new_model(
     model_uuid: &Uuid,
     model_name: &str,
@@ -94,6 +127,7 @@ pub fn add_new_model(
     outputs: &Vec<String>,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // Serialize the input and output vectors to JSON strings
     let inputs_str = match serde_json::to_string(&inputs) {
         Ok(inputs_str) => inputs_str,
         Err(e) => {
@@ -113,6 +147,7 @@ pub fn add_new_model(
         }
     };
 
+    // Create the new model entry
     let model = ModelEntry {
         uuid: model_uuid.to_string().clone(),
         name: model_name.to_owned(),
@@ -130,9 +165,18 @@ pub fn add_new_model(
         deleted_by: None,
     };
 
+    // Insert the model into the database
     add_model(&model)
 }
 
+/// Adds a model entry to the database
+///
+/// # Arguments
+/// * `model` - The model entry to insert
+///
+/// # Returns
+/// * `Ok(usize)` with the number of rows inserted on success
+/// * `Err` with an appropriate error on failure
 pub fn add_model(model: &ModelEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
@@ -141,14 +185,25 @@ pub fn add_model(model: &ModelEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a specific model from the database
+///
+/// # Arguments
+/// * `model_uuid` - Unique identifier of the model to retrieve
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(ModelEntry)` with the model on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
 pub fn get_model(model_uuid: &Uuid, context: &UserContext) -> Result<ModelEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
 
+    // Build the query with appropriate filters based on user permissions
     let mut query = models
         .filter(uuid.eq(model_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
+    // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -156,6 +211,7 @@ pub fn get_model(model_uuid: &Uuid, context: &UserContext) -> Result<ModelEntry,
         }
     }
 
+    // Execute the query and return the result
     match query
         .select(ModelEntry::as_select())
         .first::<ModelEntry>(&mut *conn)
@@ -169,21 +225,38 @@ pub fn get_model(model_uuid: &Uuid, context: &UserContext) -> Result<ModelEntry,
     }
 }
 
+/// Lists all deleted models from the database
+///
+/// # Returns
+/// * `Ok(Vec<ModelEntry>)` with the list of deleted models on success
+/// * `Err` with an appropriate error on failure
 pub fn list_deleted_models() -> QueryResult<Vec<ModelEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
 
+    // Create a query to find all models with "DELETED" status
     let query = models.filter(status.eq("DELETED")).into_boxed();
 
+    // Execute the query and return the results
     query.select(ModelEntry::as_select()).load(&mut *conn)
 }
 
+/// Lists all active models from the database, applying appropriate filters based on user permissions
+///
+/// # Arguments
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(Vec<ModelEntry>)` with the list of models on success
+/// * `Err` with an appropriate error on failure
 pub fn list_models(context: &UserContext) -> QueryResult<Vec<ModelEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
 
+    // Build the query with appropriate filters based on user permissions
     let mut query = models.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -191,14 +264,27 @@ pub fn list_models(context: &UserContext) -> QueryResult<Vec<ModelEntry>> {
         }
     }
 
+    // Execute the query and return the results
     query.select(ModelEntry::as_select()).load(&mut *conn)
 }
 
+/// Marks a specific model as deleted in the database
+///
+/// # Arguments
+/// * `model_uuid` - Unique identifier of the model to delete
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
 pub fn delete_model(model_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // First verify that the model exists and the user has permission to delete it
     get_model(model_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
+
+    // Update the model's status to "DELETED" and set the deletion timestamp and user
     match diesel::update(models.filter(uuid.eq(model_uuid.to_string())))
         .set((
             status.eq("DELETED"),
@@ -216,9 +302,16 @@ pub fn delete_model(model_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     }
 }
 
+/// Marks all active models as deleted in the database
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
 pub fn delete_all_model() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::models::dsl::*;
+
+    // Update all active models to have "DELETED" status with a system user as the deleter
     match diesel::update(models.filter(status.eq("ACTIVE")))
         .set((
             status.eq("DELETED"),

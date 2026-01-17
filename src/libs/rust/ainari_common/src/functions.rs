@@ -17,6 +17,10 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path};
 
+/// Computes the SHA-256 hash of the given input string and returns it as a hexadecimal string.
+///
+/// This function takes a string slice as input, processes it through the SHA-256 hashing algorithm,
+/// and returns the resulting hash as a hexadecimal string.
 pub fn sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input);
@@ -24,6 +28,10 @@ pub fn sha256_hash(input: &str) -> String {
     hex::encode(result) // Convert hash bytes to a hexadecimal String
 }
 
+/// Extracts the token part from a Bearer token string.
+///
+/// This function splits the input string by spaces and checks if the first part is "Bearer".
+/// If so, it returns the second part as Some(&str). Otherwise, it returns None.
 pub fn split_bearer_token(token: &str) -> Option<&str> {
     let parts: Vec<&str> = token.splitn(2, ' ').collect();
     if parts.len() == 2 && parts[0] == "Bearer" {
@@ -33,6 +41,9 @@ pub fn split_bearer_token(token: &str) -> Option<&str> {
     }
 }
 
+/// Creates a SHA-256 hash of the input string and returns it as a formatted hexadecimal string.
+///
+/// Similar to `sha256_hash`, but uses a different formatting approach for the result.
 pub fn create_sha256_hash(input: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input);
@@ -40,6 +51,10 @@ pub fn create_sha256_hash(input: &str) -> String {
     format!("{:x}", result)
 }
 
+/// Checks if a given path is a safe subpath.
+///
+/// A safe subpath is one that doesn't contain parent directory references ("..") or
+/// absolute path components. This is useful for preventing directory traversal attacks.
 pub fn is_safe_subpath(path: &Path) -> bool {
     // Reject absolute paths immediately
     if path.is_absolute() {
@@ -58,6 +73,17 @@ pub fn is_safe_subpath(path: &Path) -> bool {
     true
 }
 
+/// Clears all files and subdirectories from the specified directory.
+///
+/// This function removes all contents of the given directory but leaves the directory itself intact.
+///
+/// # Arguments
+///
+/// * `dir` - A path to the directory to be cleared, which can be any type that implements `AsRef<Path>`
+///
+/// # Errors
+///
+/// Returns an `std::io::Error` if any operation fails during the directory clearing process.
 pub fn clear_directory<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -72,6 +98,10 @@ pub fn clear_directory<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Computes a PCG (Permuted Congruential Generator) hash of the given u32 value.
+///
+/// This is a fast, non-cryptographic hash function suitable for general-purpose use.
+/// The function updates the input value in place and returns the computed hash.
 #[inline]
 pub fn pcg_hash(input: &mut u32) -> u32 {
     let state = input.wrapping_mul(747_796_405).wrapping_add(2_891_336_453);
@@ -80,6 +110,19 @@ pub fn pcg_hash(input: &mut u32) -> u32 {
     *input
 }
 
+/// Calculates the position of a neighboring cell in a hexagonal grid.
+///
+/// Given a source position and a side number (0-11), returns the position of the adjacent cell.
+/// The side numbering follows a specific pattern used in hexagonal grid algorithms.
+///
+/// # Arguments
+///
+/// * `source_pos` - The position of the source cell
+/// * `side` - The side number (0-11) indicating which neighbor to get
+///
+/// # Panics
+///
+/// Panics if the side value is out of the valid range (0-11).
 pub fn get_neighbor_pos(source_pos: &Position, side: usize) -> Position {
     let mut result = Position { x: 0, y: 0, z: 0 };
 
@@ -182,6 +225,18 @@ pub fn get_neighbor_pos(source_pos: &Position, side: usize) -> Position {
     result
 }
 
+/// Gets the next five side numbers in a hexagonal grid traversal pattern.
+///
+/// Given a side number (0-11), returns an array of five side numbers that follow
+/// a specific pattern used in hexagonal grid algorithms.
+///
+/// # Arguments
+///
+/// * `side` - The starting side number (0-11)
+///
+/// # Panics
+///
+/// Panics if the side value is out of the valid range (0-11).
 pub fn get_next_sides(side: u8) -> [u8; 5] {
     match side {
         0 => [1, 4, 11, 5, 2],

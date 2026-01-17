@@ -21,23 +21,40 @@ use std::process;
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
 
+/// Configuration structure for the Hanami service
+///
+/// This struct contains all the necessary configuration parameters for the Hanami service.
+/// It includes general settings, API configuration, database configuration, and Miko endpoint configuration.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
+    /// Flag to enable debug mode
     pub debug: bool,
+    /// Flag to skip TLS verification (insecure)
     #[serde(default = "default_insecure_clients")]
     pub skip_tls_verification: bool,
     // groups
+    /// API configuration
     pub api: ainari_config::Api,
+    /// Database configuration
     pub database: ainari_config::Database,
+    /// Miko endpoint configuration
     pub miko: ainari_config::MikoEndpoint,
 }
 
+/// Default value for skip_tls_verification
+///
+/// This function returns the default value for the skip_tls_verification flag.
+/// The default value is false, meaning TLS verification is enabled by default.
 fn default_insecure_clients() -> bool {
     false
 }
 
-// Global singleton config
+/// Global singleton configuration instance
+///
+/// This lazy static variable holds the configuration for the Hanami service.
+/// It is initialized by reading from the configuration file at "/etc/ainari/hanami.toml".
+/// If the file cannot be read or parsed, the program will exit with an error.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let file_path = "/etc/ainari/hanami.toml";
     log::debug!("read config '{file_path}'");
@@ -65,6 +82,11 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 });
 
+/// Global singleton for the internal API key
+///
+/// This lazy static variable holds the internal API key as a Secret.
+/// The key is read from the "INTERNAL_API_KEY" environment variable.
+/// If the environment variable is not set, the program will exit with an error.
 pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNAL_API_KEY") {
     Ok(value) => Secret::from(value),
     Err(_) => {
@@ -73,6 +95,11 @@ pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNA
     }
 });
 
+/// Global singleton for the Sakura registration key
+///
+/// This lazy static variable holds the Sakura registration key as a Secret.
+/// The key is read from the "SAKURA_REGISTRATION_KEY" environment variable.
+/// If the environment variable is not set, the program will exit with an error.
 pub static SAKURA_REGISTRATION_KEY: Lazy<Secret> =
     Lazy::new(|| match env::var("SAKURA_REGISTRATION_KEY") {
         Ok(value) => Secret::from(value),

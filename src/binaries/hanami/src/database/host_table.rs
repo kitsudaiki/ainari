@@ -39,21 +39,43 @@ table! {
     }
 }
 
+/// Represents a host entry in the database.
+///
+/// This struct maps to the `hosts` table in the database and contains all the fields
+/// necessary to create, read, update, and delete host records.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = hosts)]
 pub struct HostEntry {
+    /// Unique identifier for the host
     pub uuid: String,
+    /// Human-readable name for the host
     pub name: String,
+    /// Network address of the host
     pub address: String,
+    /// Current status of the host (ACTIVE, DELETED, etc.)
     pub status: String,
+    /// Timestamp when the host was created
     pub created_at: String,
+    /// User ID who created the host
     pub created_by: String,
+    /// Timestamp when the host was last updated
     pub updated_at: String,
+    /// User ID who last updated the host
     pub updated_by: String,
+    /// Timestamp when the host was deleted (if applicable)
     pub deleted_at: Option<String>,
+    /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the hosts table in the database if it doesn't already exist.
+///
+/// This function creates the table with all necessary columns and constraints.
+/// It should be called during application startup to ensure the table exists.
+///
+/// # Returns
+/// * `Ok(())` if the table was successfully created or already exists
+/// * An error if there was an issue executing the SQL command
 pub fn init_host_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -74,6 +96,20 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new host to the database with default values.
+///
+/// This function creates a new HostEntry with the provided UUID, name, and address,
+/// sets the status to "ACTIVE", and uses the current timestamp and user context
+/// for creation and update information.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier for the new host
+/// * `host_name` - Human-readable name for the host
+/// * `host_address` - Network address of the host
+/// * `context` - User context containing information about the user performing the action
+///
+/// # Returns
+/// * QueryResult containing the number of rows affected
 pub fn add_new_host(
     host_uuid: &Uuid,
     host_name: &str,
@@ -96,12 +132,35 @@ pub fn add_new_host(
     add_host(&host)
 }
 
+/// Adds a host to the database.
+///
+/// This is a lower-level function that takes a fully constructed HostEntry and
+/// inserts it into the database.
+///
+/// # Arguments
+/// * `host` - HostEntry to be inserted into the database
+///
+/// # Returns
+/// * QueryResult containing the number of rows affected
 pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
     diesel::insert_into(hosts).values(host).execute(&mut *conn)
 }
 
+/// Retrieves a host by its network address.
+///
+/// This function queries the database for a host with the given address that
+/// has an "ACTIVE" status.
+///
+/// # Arguments
+/// * `host_address` - Network address of the host to retrieve
+/// * `context` - User context (not currently used in the query)
+///
+/// # Returns
+/// * Ok(HostEntry) if a matching host is found
+/// * DbError::NotFound if no matching host is found
+/// * DbError::InternalError if there was an error executing the query
 pub fn get_host_by_address(
     host_address: &String,
     _: &UserContext,
@@ -126,6 +185,19 @@ pub fn get_host_by_address(
     }
 }
 
+/// Retrieves a host by its UUID.
+///
+/// This function queries the database for a host with the given UUID that
+/// has an "ACTIVE" status.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host to retrieve
+/// * `context` - User context (not currently used in the query)
+///
+/// # Returns
+/// * Ok(HostEntry) if a matching host is found
+/// * DbError::NotFound if no matching host is found
+/// * DbError::InternalError if there was an error executing the query
 pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
@@ -147,6 +219,15 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
     }
 }
 
+/// Lists all active hosts in the database.
+///
+/// This function retrieves all hosts that have an "ACTIVE" status.
+///
+/// # Arguments
+/// * `context` - User context (not currently used in the query)
+///
+/// # Returns
+/// * QueryResult containing a vector of HostEntry objects
 pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
@@ -156,6 +237,19 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     query.select(HostEntry::as_select()).load(&mut *conn)
 }
 
+/// Deletes a host by marking it as "DELETED".
+///
+/// This function updates the host's status to "DELETED" and sets the deletion
+/// timestamp and user. It first verifies that the host exists and is active.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host to delete
+/// * `context` - User context containing information about the user performing the deletion
+///
+/// # Returns
+/// * Ok(()) if the host was successfully deleted
+/// * DbError::NotFound if the host doesn't exist or is already deleted
+/// * DbError::InternalError if there was an error executing the query
 pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     get_host(host_uuid, context)?;
 
@@ -178,6 +272,16 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
+/// Deletes all active hosts by marking them as "DELETED".
+///
+/// This function updates all hosts with an "ACTIVE" status to "DELETED"
+/// and sets the deletion timestamp and user. This is typically used for
+/// database reset or cleanup purposes.
+///
+/// # Returns
+/// * Ok(()) if all hosts were successfully deleted
+/// * DbError::NotFound if no active hosts were found
+/// * DbError::InternalError if there was an error executing the query
 #[allow(dead_code)]
 pub fn delete_all_host() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

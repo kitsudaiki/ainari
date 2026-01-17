@@ -23,21 +23,33 @@ use super::block_trait::*;
 
 // ==================================================================================================
 
+/// Represents a single axon in the neural network.
+/// Contains potential and delta values used in neural computations.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Axon {
+    /// The potential value of the axon, used in neural computations.
     pub potential: f32,
+    /// The delta value of the axon, used in neural computations.
     pub delta: f32,
 }
 
 // ==================================================================================================
 
+/// Represents a collection of axons within a block.
+/// Contains an array of axons with a fixed size defined by BLOCK_DIM.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AxonData {
+    /// Array of axons with size defined by BLOCK_DIM constant.
+    /// Uses BigArray for efficient serialization of large arrays.
     #[serde(with = "BigArray")]
     pub axons: [Axon; BLOCK_DIM],
 }
 
 impl AxonData {
+    /// Creates a new AxonData instance with default values for all axons.
+    ///
+    /// # Returns
+    /// An AxonData instance with all axons set to their default values.
     pub fn default() -> Self {
         AxonData {
             axons: std::array::from_fn(|_| Axon::default()),
@@ -47,29 +59,46 @@ impl AxonData {
 
 // ==================================================================================================
 
+/// Represents a section of axons connecting two blocks in the neural network.
+/// Contains information about the connection and the axon data.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AxonSection {
+    /// The axon data contained in this section.
     pub data: AxonData,
 
+    /// UUID of the model this axon section belongs to.
     pub model_uuid: Uuid,
 
+    /// UUID of the source hexagon this axon section originates from.
     pub source_hexagon_uuid: Uuid,
+    /// UUID of the target hexagon this axon section connects to.
     pub target_hexagon_uuid: Uuid,
 
+    /// UUID of the source block this axon section originates from.
     pub source_block_uuid: Uuid,
+    /// UUID of the target block this axon section connects to.
     pub target_block_uuid: Uuid,
 
+    /// Position within the target block.
     pub target_pos: u8,
+    /// Position within the source block.
     pub source_pos: u8,
+    /// Flag indicating whether the axon section is completed.
     pub done: bool,
 
+    /// Reference to the source block (not serialized).
     #[serde(skip)]
     pub source_block: Option<Arc<Mutex<dyn Block>>>,
+    /// Reference to the target block (not serialized).
     #[serde(skip)]
     pub target_block: Option<Arc<Mutex<dyn Block>>>,
 }
 
 impl Clone for AxonSection {
+    /// Creates a deep copy of the AxonSection.
+    ///
+    /// # Returns
+    /// A new AxonSection with the same values as the original.
     fn clone(&self) -> Self {
         Self {
             data: self.data,
@@ -93,6 +122,10 @@ impl Clone for AxonSection {
 }
 
 impl AxonSection {
+    /// Creates a new AxonSection with default values.
+    ///
+    /// # Returns
+    /// An AxonSection with all fields set to their default values.
     pub fn default() -> Self {
         AxonSection {
             data: AxonData::default(),
@@ -111,6 +144,13 @@ impl AxonSection {
 }
 
 impl PartialEq for AxonSection {
+    /// Compares two AxonSection instances for equality.
+    ///
+    /// # Arguments
+    /// * `other` - The other AxonSection to compare with.
+    ///
+    /// # Returns
+    /// true if all fields are equal, false otherwise.
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data
             && self.model_uuid == other.model_uuid
@@ -130,8 +170,10 @@ impl PartialEq for AxonSection {
 mod tests {
     use super::*;
 
+    /// Tests serialization and deserialization of AxonSection.
     #[test]
     fn test_serialize_deserialize() {
+        // Create a test AxonSection with some modified values
         let mut original = AxonSection {
             data: AxonData::default(),
             model_uuid: Uuid::new_v4(),
@@ -145,9 +187,11 @@ mod tests {
             target_block: None,
             done: false,
         };
+        // Modify specific axon values for testing
         original.data.axons[42].potential = 123.0f32;
         original.data.axons[42].delta = 124.0f32;
 
+        // Serialize the AxonSection
         let cfg = bincode::config::standard();
         let serialized: Vec<u8> =
             bincode::serde::encode_to_vec(&original, cfg).expect("Failed to serialize");
@@ -155,8 +199,10 @@ mod tests {
             .expect("Failed to deserialize")
             .0;
 
+        // Print the size of the serialized data
         println!("size: {}", serialized.len());
 
+        // Verify that the deserialized data matches the original
         assert_eq!(original, deserialized);
     }
 }

@@ -24,10 +24,26 @@ def request_context(address: str,
                     user_id: str,
                     passphrase: str,
                     verify_connection: bool = True) -> AccessContext:
-    auth_url = f'{address}/v1alpha/token'
-    # passphrase_bytes = passphrase.encode('utf-8')
-    # base64_encoded = base64.b64encode(passphrase_bytes)
+    """
+    Authenticates with the API and retrieves the necessary context for making subsequent requests.
 
+    Args:
+        address: The base URL of the API.
+        user_id: The client ID for authentication.
+        passphrase: The client secret for authentication.
+        verify_connection: Whether to verify the SSL certificate (default: True).
+
+    Returns:
+        AccessContext: An object containing the authentication token and endpoint addresses.
+
+    Raises:
+        ainari_exceptions.BadRequestException: If the response status code is 400.
+        ainari_exceptions.UnauthorizedException: If the response status code is 401.
+        ainari_exceptions.NotFoundException: If the response status code is 404.
+        ainari_exceptions.ConflictException: If the response status code is 409.
+        ainari_exceptions.InternalServerErrorException: If the response status code is 500.
+    """
+    auth_url = f'{address}/v1alpha/token'
     body = "token_format=jwt&grant_type=client_credentials" \
            f'&client_id={user_id}&client_secret={passphrase}'
 
@@ -46,7 +62,7 @@ def request_context(address: str,
     if resp.status_code == 500:
         raise ainari_exceptions.InternalServerErrorException()
 
-    # request where to reach the other endpoints
+    # Retrieve endpoint addresses
     path = "/v1alpha/endpoints"
     resp = ainari_request.send_get_request_without_context(token,
                                                            address,
@@ -54,19 +70,18 @@ def request_context(address: str,
                                                            "",
                                                            verify=verify_connection)
 
-    # get addresses
+    # Extract endpoint addresses from the response
     miko_address = address
     hanami_address = resp["hanami"]["public_address"]
     ryokan_address = resp["ryokan"]["public_address"]
     torii_address = resp["torii"]["public_address"]
     omamori_address = resp["omamori"]["public_address"]
 
+    # Process torii address to extract base address
     torii_address_split = torii_address.split(":")
     torii_base_address = torii_address_split[0] + ":" + torii_address_split[1]
 
+    # Create and return the context object
     context = AccessContext(token, miko_address, hanami_address,
                             ryokan_address, omamori_address, torii_address, torii_base_address)
-
-    # print(context)
-
     return context

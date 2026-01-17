@@ -24,7 +24,6 @@ use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema
 table! {
     tasks (uuid) {
         uuid -> Varchar,
@@ -48,6 +47,10 @@ table! {
     }
 }
 
+/// Represents a single task entry in the database.
+///
+/// This struct maps directly to the `tasks` table in the database and contains all the fields
+/// necessary to track a task's progress, state, and metadata.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = tasks)]
 pub struct TaskEntry {
@@ -71,6 +74,14 @@ pub struct TaskEntry {
     pub created_by: String,
 }
 
+/// Initializes the tasks table in the database if it doesn't already exist.
+///
+/// This function creates the tasks table with the appropriate schema. It's typically called
+/// during application startup to ensure the required database tables exist.
+///
+/// # Returns
+/// * `Ok(())` if the table was successfully initialized or already exists
+/// * An error if there was a problem executing the SQL statement
 pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -99,6 +110,22 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new task to the database.
+///
+/// This function creates a new task entry with the provided parameters and stores it in the database.
+/// The task is initialized with the `Created` state and default values for progress fields.
+///
+/// # Arguments
+/// * `task_uuid` - Unique identifier for the task
+/// * `model_uuid` - Identifier for the associated model
+/// * `task_name` - Name of the task
+/// * `task_type` - Type of the task
+/// * `total_number_of_epochs` - Total number of epochs the task should run
+/// * `total_number_of_cycles` - Total number of cycles the task should run
+/// * `context` - User context containing user ID and project ID
+///
+/// # Returns
+/// * `QueryResult<usize>` - Number of rows affected by the insert operation
 pub fn add_new_task(
     task_uuid: &Uuid,
     model_uuid: &Uuid,
@@ -108,6 +135,7 @@ pub fn add_new_task(
     total_number_of_cycles: &u64,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // Create a new TaskEntry with the provided parameters
     let task = TaskEntry {
         uuid: task_uuid.to_string().clone(),
         name: task_name.to_owned(),
@@ -129,9 +157,19 @@ pub fn add_new_task(
         created_by: context.user_id.clone(),
     };
 
+    // Insert the task into the database
     add_task(&task)
 }
 
+/// Internal function to add a task to the database.
+///
+/// This function handles the actual database insertion of a TaskEntry.
+///
+/// # Arguments
+/// * `task` - The task to be inserted
+///
+/// # Returns
+/// * `QueryResult<usize>` - Number of rows affected by the insert operation
 fn add_task(task: &TaskEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
@@ -139,6 +177,18 @@ fn add_task(task: &TaskEntry) -> QueryResult<usize> {
     diesel::insert_into(tasks).values(task).execute(&mut *conn)
 }
 
+/// Retrieves a specific task from the database.
+///
+/// This function fetches a task by its UUID and model UUID, applying appropriate access control
+/// based on the user's permissions in the provided context.
+///
+/// # Arguments
+/// * `task_uuid` - UUID of the task to retrieve
+/// * `model_uuid_in` - UUID of the associated model
+/// * `context` - User context containing user ID, project ID, and admin status
+///
+/// # Returns
+/// * `Result<TaskEntry, enums::DbError>` - The requested task or an error if not found or other error occurs
 pub fn get_task(
     task_uuid: &Uuid,
     model_uuid_in: &Uuid,
@@ -147,6 +197,7 @@ pub fn get_task(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Start building the query with the required filters
     let mut query = tasks
         // HINT (kitsudaiki): Had to rename the function-parameter model_uuid to model_uuid_in to have a different name,
         // because here in this filter, it results in conflicts in case both sides of the eq are named the same
@@ -156,6 +207,7 @@ pub fn get_task(
         )
         .into_boxed();
 
+    // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -163,6 +215,7 @@ pub fn get_task(
         }
     }
 
+    // Execute the query and handle the result
     match query
         .select(TaskEntry::as_select())
         .first::<TaskEntry>(&mut *conn)
@@ -176,14 +229,27 @@ pub fn get_task(
     }
 }
 
+/// Lists all tasks associated with a specific model in the database.
+///
+/// This function retrieves all tasks for a given model UUID, applying appropriate access control
+/// based on the user's permissions in the provided context.
+///
+/// # Arguments
+/// * `model_uuid_in` - UUID of the model to list tasks for
+/// * `context` - User context containing user ID, project ID, and admin status
+///
+/// # Returns
+/// * `QueryResult<Vec<TaskEntry>>` - Vector of task entries or an error if one occurs
 pub fn list_tasks(model_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Start building the query with the required filters
     let mut query = tasks
         .filter(model_uuid.eq(model_uuid_in.to_string()))
         .into_boxed();
 
+    // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -191,13 +257,26 @@ pub fn list_tasks(model_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Ve
         }
     }
 
+    // Execute the query and return the results
     query.select(TaskEntry::as_select()).load(&mut *conn)
 }
 
+/// Updates the progress of a task in the database.
+///
+/// This function updates the current epoch and cycle counters for a specific task.
+///
+/// # Arguments
+/// * `task_uuid` - UUID of the task to update
+/// * `epoch` - New value for current_epoch
+/// * `cycle` - New value for current_cycle
+///
+/// # Returns
+/// * `Result<(), ()>` - Ok(()) if successful, Err(()) if the task was not found or another error occurred
 pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Result<(), ()> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Update the task's progress fields
     match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
         .set((current_epoch.eq(epoch), current_cycle.eq(cycle)))
         .execute(&mut *conn)
@@ -211,13 +290,26 @@ pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Resul
     }
 }
 
+/// Updates the state of a task in the database.
+///
+/// This function changes the state of a task and updates the appropriate timestamp fields
+/// based on the new state.
+///
+/// # Arguments
+/// * `task_uuid` - UUID of the task to update
+/// * `new_state` - The new state to set for the task
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` - Ok(()) if successful, an error if the task was not found or another error occurred
 pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Handle different states with appropriate updates
     match new_state {
         TaskState::Created => Ok(()),
         TaskState::Queued => {
+            // Update task state and set queued_at timestamp
             match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
                 .set((
                     task_state.eq(new_state.to_string()),
@@ -234,6 +326,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
             }
         }
         TaskState::Active => {
+            // Update task state and set started_at timestamp
             match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
                 .set((
                     task_state.eq(new_state.to_string()),
@@ -250,6 +343,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
             }
         }
         TaskState::Aborted => {
+            // Update task state and set aborted_at timestamp
             match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
                 .set((
                     task_state.eq(new_state.to_string()),
@@ -266,6 +360,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
             }
         }
         TaskState::Finished => {
+            // Update task state and set finished_at timestamp
             match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
                 .set((
                     task_state.eq(new_state.to_string()),
@@ -285,10 +380,21 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
     }
 }
 
+/// Sets an error state for a task in the database.
+///
+/// This function updates a task's state to Error and sets the error message.
+///
+/// # Arguments
+/// * `task_uuid` - UUID of the task to update
+/// * `error_msg` - Error message to store
+///
+/// # Returns
+/// * `Result<(), ()>` - Ok(()) if successful, Err(()) if the task was not found or another error occurred
 pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Update task state to Error and set the error message
     match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
         .set((
             task_state.eq(TaskState::Error.to_string()),
@@ -305,10 +411,20 @@ pub fn set_error_state(task_uuid: &Uuid, error_msg: &String) -> Result<(), ()> {
     }
 }
 
+/// Checks if a task has been aborted.
+///
+/// This function queries the database to determine if a task is in the Aborted state.
+///
+/// # Arguments
+/// * `task_uuid` - UUID of the task to check
+///
+/// # Returns
+/// * `bool` - true if the task is aborted, false if not found or not aborted
 pub fn is_aborted(task_uuid: &Uuid) -> bool {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
+    // Build and execute the query to get the task
     let query = tasks.filter(uuid.eq(task_uuid.to_string())).into_boxed();
 
     match query

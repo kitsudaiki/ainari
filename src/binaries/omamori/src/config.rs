@@ -21,6 +21,17 @@ use std::process;
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
 
+/// Configuration structure for the application.
+/// Contains general settings and nested configuration for various components.
+///
+/// # Fields
+///
+/// * `debug` - Enables debug mode when true.
+/// * `skip_tls_verification` - When true, skips TLS certificate verification (insecure).
+/// * `api` - Configuration for API endpoints and settings.
+/// * `database` - Configuration for database connections.
+/// * `miko` - Configuration for Miko endpoint.
+/// * `simple_crypto` - Configuration for simple cryptographic operations.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
@@ -34,16 +45,31 @@ pub struct Config {
     pub simple_crypto: SimpleCryptoConf,
 }
 
+/// Default value for TLS verification setting.
+/// Returns false to enforce secure connections by default.
+///
+/// # Returns
+/// * `bool` - Default value for skip_tls_verification
 fn default_insecure_clients() -> bool {
     false
 }
 
+/// Configuration for simple cryptographic operations.
+/// Contains the base64-encoded encryption key.
+///
+/// # Fields
+///
+/// * `key_b64` - Base64 encoded cryptographic key wrapped in a Secret type.
 #[derive(Debug, Deserialize)]
 pub struct SimpleCryptoConf {
     pub key_b64: Secret,
 }
 
-// Global singleton config
+/// Global singleton configuration instance.
+/// Loads configuration from "/etc/ainari/omamori.toml" file.
+///
+/// The configuration is loaded once at startup and shared across the application.
+/// If the file cannot be read or parsed, the application will exit with an error.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     let file_path = "/etc/ainari/omamori.toml";
     log::debug!("read config '{file_path}'");
@@ -71,6 +97,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 });
 
+/// Global singleton for the internal API key.
+/// Loads the key from the INTERNAL_API_KEY environment variable.
+///
+/// If the environment variable is not set, the application will exit with an error.
 pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNAL_API_KEY") {
     Ok(value) => Secret::from(value),
     Err(_) => {

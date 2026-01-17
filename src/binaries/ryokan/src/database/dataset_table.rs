@@ -48,28 +48,50 @@ table! {
     }
 }
 
+/// Represents a dataset entry in the database.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = datasets)]
 pub struct DatasetEntry {
+    /// Unique identifier for the dataset
     pub uuid: String,
+    /// Name of the dataset
     pub name: String,
+    /// Address of the Onsen service associated with this dataset
     pub onsen_address: String,
+    /// Path to the file containing the dataset
     pub file_path: String,
+    /// Secret UUID used for authentication with the dataset
     pub secret_uuid: String,
+    /// Number of rows in the dataset
     pub number_of_rows: i64,
+    /// Number of columns in the dataset
     pub number_of_columns: i64,
+    /// JSON string containing the names of all columns in the dataset
     pub column_names: String,
+    /// ID of the user who owns this dataset
     pub owner_id: String,
+    /// ID of the project this dataset belongs to
     pub project_id: String,
+    /// Status of the dataset (e.g., "ACTIVE", "DELETED")
     pub status: String,
+    /// Timestamp when the dataset was created
     pub created_at: String,
+    /// ID of the user who created the dataset
     pub created_by: String,
+    /// Timestamp when the dataset was last updated
     pub updated_at: String,
+    /// ID of the user who last updated the dataset
     pub updated_by: String,
+    /// Timestamp when the dataset was deleted (if applicable)
     pub deleted_at: Option<String>,
+    /// ID of the user who deleted the dataset (if applicable)
     pub deleted_by: Option<String>,
 }
 
+/// Initializes the datasets table in the database.
+///
+/// This function creates the table if it doesn't already exist.
+/// Returns `Ok(())` on success or an error if the operation fails.
 pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -97,6 +119,22 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Adds a new dataset to the database.
+///
+/// This function creates a new `DatasetEntry` with the provided parameters
+/// and inserts it into the database.
+///
+/// # Arguments
+/// * `dataset_uuid` - The unique identifier for the new dataset
+/// * `dataset_name` - The name of the dataset
+/// * `onsen_address` - The address of the Onsen service
+/// * `file_path` - The path to the file containing the dataset
+/// * `secret_uuid` - The secret UUID for authentication
+/// * `dimension` - A tuple containing the number of rows and column names
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<usize>` - The number of rows affected by the insert operation
 pub fn add_new_dataset(
     dataset_uuid: &Uuid,
     dataset_name: &str,
@@ -106,6 +144,7 @@ pub fn add_new_dataset(
     dimension: &(i64, Vec<String>),
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // Serialize the column names vector to a JSON string
     let column_names_str = match serde_json::to_string(&dimension.1) {
         Ok(column_names_str) => column_names_str,
         Err(e) => {
@@ -116,6 +155,7 @@ pub fn add_new_dataset(
         }
     };
 
+    // Create a new DatasetEntry with the provided parameters
     let dataset = DatasetEntry {
         uuid: dataset_uuid.to_string().clone(),
         name: dataset_name.to_owned(),
@@ -139,6 +179,15 @@ pub fn add_new_dataset(
     add_dataset(&dataset)
 }
 
+/// Adds a dataset to the database.
+///
+/// This is a helper function that performs the actual database insert operation.
+///
+/// # Arguments
+/// * `dataset` - A reference to the `DatasetEntry` to be inserted
+///
+/// # Returns
+/// * `QueryResult<usize>` - The number of rows affected by the insert operation
 pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
@@ -148,6 +197,17 @@ pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a dataset from the database.
+///
+/// This function fetches a dataset by its UUID, applying appropriate filters
+/// based on the user's permissions.
+///
+/// # Arguments
+/// * `dataset_uuid` - The UUID of the dataset to retrieve
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<DatasetEntry, enums::DbError>` - The requested dataset or an error
 pub fn get_dataset(
     dataset_uuid: &Uuid,
     context: &UserContext,
@@ -155,10 +215,12 @@ pub fn get_dataset(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
+    // Start building the query with basic filters
     let mut query = datasets
         .filter(uuid.eq(dataset_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
+    // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -166,6 +228,7 @@ pub fn get_dataset(
         }
     }
 
+    // Execute the query and handle the result
     match query
         .select(DatasetEntry::as_select())
         .first::<DatasetEntry>(&mut *conn)
@@ -179,12 +242,24 @@ pub fn get_dataset(
     }
 }
 
+/// Lists all datasets accessible to the user.
+///
+/// This function retrieves all datasets that are active and accessible to the user
+/// based on their permissions.
+///
+/// # Arguments
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<Vec<DatasetEntry>>` - A vector of accessible datasets or an error
 pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
+    // Start building the query with basic filters
     let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
         if context.is_project_admin != true.to_string() {
@@ -192,27 +267,53 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
         }
     }
 
+    // Execute the query and return the results
     query.select(DatasetEntry::as_select()).load(&mut *conn)
 }
 
+/// Counts the number of datasets accessible to the user.
+///
+/// This function counts all datasets that are active and owned by the user.
+///
+/// # Arguments
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<i64>` - The count of accessible datasets or an error
 pub fn count_datasets(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
+    // Start building the query with basic filters
     let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
 
+    // Apply filters to only count datasets owned by the user
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
 
+    // Execute the query and return the count
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Deletes a dataset from the database.
+///
+/// This function marks a dataset as deleted by updating its status and setting
+/// the deletion timestamp and user.
+///
+/// # Arguments
+/// * `dataset_uuid` - The UUID of the dataset to delete
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` - Success or an error
 pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // First verify that the dataset exists and is accessible to the user
     get_dataset(dataset_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::datasets::dsl::*;
 
+    // Update the dataset status and deletion information
     match diesel::update(datasets.filter(uuid.eq(dataset_uuid.to_string())))
         .set((
             status.eq("DELETED"),

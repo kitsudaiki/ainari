@@ -22,7 +22,13 @@ use actix_web::{
     middleware::Next,
 };
 
-//Cross-Origin Resource Sharing (CORS) middleware, which is necessary to make web-browser happy to make the dasboard working
+/**
+ * Cross-Origin Resource Sharing (CORS) middleware implementation.
+ *
+ * This middleware handles CORS preflight requests (OPTIONS method) and adds the necessary
+ * CORS headers to all responses. It's essential for enabling cross-origin requests
+ * from web browsers to the server, which is required for the dashboard functionality.
+ */
 pub async fn cors_middleware<B>(
     req: ServiceRequest,
     next: Next<B>,
@@ -30,7 +36,9 @@ pub async fn cors_middleware<B>(
 where
     B: MessageBody + 'static,
 {
+    // Check if the request is a CORS preflight request (OPTIONS method)
     if req.method() == Method::OPTIONS {
+        // Create a response for preflight requests with all necessary CORS headers
         let res = HttpResponse::Ok()
             .insert_header(("access-control-allow-origin", "*"))
             .insert_header((
@@ -43,16 +51,20 @@ where
             ))
             .finish();
 
+        // Return the preflight response
         return Ok(req.into_response(res.map_into_right_body()));
     }
 
+    // Process the request with the next middleware in the chain
     let mut res = next.call(req).await?;
 
-    // Correct way to insert a header
+    // Add CORS headers to the response
+    // This allows any origin to access the resource (adjust in production for security)
     res.headers_mut().insert(
         HeaderName::from_static("access-control-allow-origin"),
         HeaderValue::from_static("*"),
     );
 
+    // Return the modified response
     Ok(res.map_into_left_body())
 }

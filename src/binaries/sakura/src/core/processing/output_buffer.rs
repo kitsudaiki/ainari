@@ -25,29 +25,46 @@ use crate::core::processing::worker_queue::*;
 use super::super::blocks::block_trait::*;
 use super::super::blocks::output_block::*;
 
+/// A buffer structure for storing output data from neural network processing.
+/// This structure holds the output neurons, their types, and various metadata
+/// needed for processing and backpropagation.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OutputBuffer {
+    /// Unique identifier for this output buffer
     #[allow(dead_code)]
     pub uuid: Uuid,
+    /// UUID of the hexagon this buffer belongs to
     #[allow(dead_code)]
     pub hexagon_uuid: Uuid,
+    /// UUID of the model this buffer belongs to
     pub model_uuid: Uuid,
+    /// Name of this output buffer
     pub name: String,
 
+    /// Collection of output neurons containing the processed data
     pub output_neurons: Vec<OutputNeuron>,
+    /// Type of output data this buffer holds
     pub output_type: OutputType,
+    /// Size of the output data in bytes
     pub output_size: u64,
 
+    /// Flag indicating whether this buffer has been finalized
     pub already_finalized: bool,
+    /// Number of blocks connected to this output buffer
     pub number_of_connected_blocks: u64,
+    /// Local counter for tracking completion status
     pub local_finish_counter: u64,
+    /// Shared counter for tracking overall processing completion
     #[serde(skip, default = "init_finish_counter")]
     pub finish_counter_mutex: Arc<Mutex<FinishCounter>>,
+    /// List of blocks that haven't completed processing
     #[serde(skip, default = "init_unfinished_blocks")]
     pub unfinished_blocks: Vec<Arc<Mutex<dyn Block>>>,
 }
 
 impl PartialEq for OutputBuffer {
+    /// Compares two OutputBuffers for equality based on their fields.
+    /// This is used to determine if two buffers represent the same logical output.
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
             && self.hexagon_uuid == other.hexagon_uuid
@@ -62,15 +79,21 @@ impl PartialEq for OutputBuffer {
     }
 }
 
+/// Initializes a new FinishCounter wrapped in an Arc<Mutex>
+/// This provides thread-safe access to the counter for tracking processing completion.
 fn init_finish_counter() -> Arc<Mutex<FinishCounter>> {
     Arc::new(Mutex::new(FinishCounter::default()))
 }
 
+/// Initializes an empty vector for tracking unfinished blocks
+/// This vector will hold blocks that haven't completed processing yet.
 fn init_unfinished_blocks() -> Vec<Arc<Mutex<dyn Block>>> {
     Vec::new()
 }
 
 impl OutputBuffer {
+    /// Creates a new OutputBuffer with the given parameters.
+    /// This initializes all fields to their default values and sets up the basic structure.
     pub fn new(
         name: &str,
         hexagon_uuid: &Uuid,
@@ -96,27 +119,36 @@ impl OutputBuffer {
         }
     }
 
+    /// Updates the buffer size and allocates space for the specified number of outputs.
+    /// This resizes the output_neurons vector to accommodate the new size and adjusts
+    /// the size based on the output type (float or int outputs require more space).
     pub fn update_buffer(&mut self, number_of_outputs: usize) {
         let mut number_of_outputs_copy = number_of_outputs;
 
         if self.output_size < number_of_outputs_copy as u64 {
             self.output_size = number_of_outputs_copy as u64;
 
+            // For float outputs, each output is represented by 32 bits (1 neuron per bit)
             if self.output_type == OutputType::FloatOutput {
                 number_of_outputs_copy *= 32;
             }
+            // For int outputs, each output is represented by 64 bits (1 neuron per bit)
             if self.output_type == OutputType::IntOutput {
                 number_of_outputs_copy *= 64;
             }
 
+            // Resize the output neurons vector, initializing new elements with default values
             self.output_neurons
                 .resize_with(number_of_outputs_copy, OutputNeuron::default);
         }
     }
 
+    /// Finalizes the training process by applying the sigmoid activation function
+    /// to all output neurons. This transforms the raw output values into probabilities.
     pub fn finalize_train(&mut self) {
         for out in self.output_neurons.iter_mut() {
             if out.output_value != 0.0f32 {
+                // Apply sigmoid function: 1 / (1 + e^(-x))
                 out.output_value = 1.0f32 / (1.0f32 + (-out.output_value).exp());
             }
         }
@@ -124,9 +156,12 @@ impl OutputBuffer {
         self.already_finalized = true;
     }
 
+    /// Finalizes the processing by applying the sigmoid activation function
+    /// and clearing the list of unfinished blocks.
     pub fn finalize_processing(&mut self) {
         for out in self.output_neurons.iter_mut() {
             if out.output_value != 0.0f32 {
+                // Apply sigmoid function: 1 / (1 + e^(-x))
                 out.output_value = 1.0f32 / (1.0f32 + (-out.output_value).exp());
             }
         }
@@ -135,12 +170,17 @@ impl OutputBuffer {
         self.unfinished_blocks.clear();
     }
 
+    /// Performs backpropagation by calculating the error for each output neuron
+    /// and scheduling backpropagation tasks for connected blocks.
     pub fn backpropagate(&mut self, cycle_number: u64) {
+        // Calculate the error for each output neuron
         for out in self.output_neurons.iter_mut() {
             let delta = out.output_value - out.expected_value;
+            // Calculate the gradient for backpropagation
             out.expected_value = delta * out.output_value * (1.0f32 - out.output_value);
         }
 
+        // Get the worker queue to schedule backpropagation tasks
         let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
         for block in self.unfinished_blocks.iter() {
             let worker_task = WorkerTask {
@@ -149,11 +189,13 @@ impl OutputBuffer {
                 cycle_number,
             };
 
+            // Add the task to the worker queue
             worker_queue.add(worker_task);
         }
         self.unfinished_blocks.clear();
     }
 
+    /// Resets the output values of all neurons to 0 and resets the local finish counter.
     pub fn reset_output(&mut self) {
         for out in self.output_neurons.iter_mut() {
             out.output_value = 0.0f32;
@@ -161,11 +203,15 @@ impl OutputBuffer {
         self.local_finish_counter = 0;
     }
 
+    /// Serializes the OutputBuffer to a byte vector using bincode.
+    /// This allows the buffer to be stored or transmitted efficiently.
     pub fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
         bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")
     }
 
+    /// Updates the finish counter and checks if all connected blocks have completed processing.
+    /// Returns true if the buffer is ready for the next processing cycle.
     pub fn update_finish_counter(&mut self, cycle_number: u64) -> bool {
         let finish_counter = self.finish_counter_mutex.lock().expect("mutex poisoned");
         let expected_cycle_number = finish_counter.get_expected_cycle_number();
@@ -180,6 +226,9 @@ impl OutputBuffer {
     }
 }
 
+/// Converts the output buffer's data to a flat buffer of f32 values.
+/// The conversion depends on the output type (plain, bool, int, or float).
+/// Returns the number of elements written to the buffer.
 pub fn convert_output_to_buffer(buffer: &mut [f32], output_buffer: &mut OutputBuffer) -> usize {
     output_buffer.already_finalized = false;
     match output_buffer.output_type {
@@ -190,6 +239,9 @@ pub fn convert_output_to_buffer(buffer: &mut [f32], output_buffer: &mut OutputBu
     }
 }
 
+/// Converts a flat buffer of f32 values to expected values in the output buffer.
+/// The conversion depends on the output type (plain, bool, int, or float).
+/// Returns the number of elements read from the buffer.
 pub fn convert_buffer_to_expected(
     output_buffer: &mut OutputBuffer,
     buffer: &[f32],
@@ -205,6 +257,8 @@ pub fn convert_buffer_to_expected(
     }
 }
 
+/// Handles conversion of plain output type to a flat buffer.
+/// Copies the output values directly to the buffer.
 fn handle_plain_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
@@ -215,6 +269,8 @@ fn handle_plain_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usiz
     number_of_outputs
 }
 
+/// Handles conversion of bool output type to a flat buffer.
+/// Converts output values to 0.0 or 1.0 based on a threshold of 0.5.
 fn handle_bool_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
@@ -225,6 +281,8 @@ fn handle_bool_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize
     number_of_outputs
 }
 
+/// Handles conversion of int output type to a flat buffer.
+/// Combines 64 neurons into a single integer value.
 fn handle_int_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 64);
 
@@ -242,6 +300,8 @@ fn handle_int_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize 
     number_of_outputs
 }
 
+/// Handles conversion of float output type to a flat buffer.
+/// Combines 32 neurons into a single float value using bit packing.
 fn handle_float_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 32);
 
@@ -259,6 +319,8 @@ fn handle_float_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usiz
     number_of_outputs
 }
 
+/// Handles setting expected values for plain output type.
+/// Copies the values directly from the buffer to the expected values.
 fn handle_plain_expected(
     output_buffer: &mut OutputBuffer,
     buffer: &[f32],
@@ -273,6 +335,8 @@ fn handle_plain_expected(
     number_of_outputs
 }
 
+/// Handles setting expected values for bool output type.
+/// Converts values to 0.0 or 1.0 based on a threshold of 0.5.
 fn handle_bool_expected(output_buffer: &mut OutputBuffer, buffer: &[f32], buffer_size: u64) -> u64 {
     let number_of_outputs = min(buffer_size, output_buffer.output_neurons.len() as u64);
 
@@ -284,6 +348,8 @@ fn handle_bool_expected(output_buffer: &mut OutputBuffer, buffer: &[f32], buffer
     number_of_outputs
 }
 
+/// Handles setting expected values for int output type.
+/// Expands a single integer value into 64 neurons.
 fn handle_int_expected(output_buffer: &mut OutputBuffer, buffer: &[f32], buffer_size: u64) -> u64 {
     let number_of_outputs = min(buffer_size, output_buffer.output_neurons.len() as u64 / 64);
 
@@ -300,6 +366,8 @@ fn handle_int_expected(output_buffer: &mut OutputBuffer, buffer: &[f32], buffer_
     number_of_outputs
 }
 
+/// Handles setting expected values for float output type.
+/// Expands a single float value into 32 neurons using bit unpacking.
 fn handle_float_expected(
     output_buffer: &mut OutputBuffer,
     buffer: &[f32],

@@ -26,6 +26,11 @@ use ainari_api::auth_middleware::{ApiValidationConfig, check_internal_request};
 use ainari_api::errors::ErrorResponse;
 use ainari_common::functions::split_bearer_token;
 
+/// Middleware for handling authorization and authentication of incoming API requests.
+///
+/// This middleware checks for valid authorization tokens in the request headers
+/// and verifies them against the configured validation rules. It skips validation
+/// for specific endpoints and HTTP methods as configured.
 pub async fn authorization_middleware(
     req: ServiceRequest,
     next: Next<impl MessageBody>,
@@ -46,7 +51,9 @@ pub async fn authorization_middleware(
     skip_check |= *req.method() == Method::OPTIONS;
 
     if !skip_check {
+        // Verify internal requests using the configured validation rules
         check_internal_request(&req, api_validation_config)?;
+        // Check the authorization header for valid token
         check_auth_header(&req).await?;
     }
     //else {
@@ -67,6 +74,19 @@ pub async fn authorization_middleware(
     resp
 }
 
+/// Validates the Authorization header of an incoming request.
+///
+/// This function extracts the token from the Authorization header,
+/// verifies its format, and checks its validity using the token handling module.
+///
+/// # Arguments
+///
+/// * `req` - The incoming request containing the Authorization header
+///
+/// # Returns
+///
+/// * `Ok(())` if the token is valid
+/// * `Err` with appropriate error response if the token is missing, malformed, or invalid
 async fn check_auth_header(req: &ServiceRequest) -> Result<(), actix_web::Error> {
     let uri = req.uri();
 

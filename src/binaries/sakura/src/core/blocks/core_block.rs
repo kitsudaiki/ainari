@@ -34,17 +34,31 @@ use super::super::processing::worker_queue::*;
 
 // ==================================================================================================
 
+/// Represents a connection between neurons in the neural network.
+///
+/// This struct holds the synaptic weights, activation border, and target neuron information.
+/// It's used to define how neurons are connected and how signals propagate through the network.
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Synapse {
+    /// The threshold value that must be exceeded for the synapse to activate.
     pub border: f32,
+    /// First synaptic weight value.
     pub weight_1: f32,
+    /// Second synaptic weight value.
     pub weight_2: f32,
 
+    /// Counter tracking how many times this synapse has been activated.
     pub active_counter: u8,
+    /// ID of the neuron that this synapse connects to.
     pub target_neuron_id: u16,
 }
 
 impl Synapse {
+    /// Creates a default Synapse instance with all values initialized to zero or uninitialized state.
+    ///
+    /// # Returns
+    ///
+    /// A new Synapse instance with default values.
     pub fn default() -> Self {
         Synapse {
             weight_1: 0.0f32,
@@ -59,18 +73,34 @@ impl Synapse {
 
 // ==================================================================================================
 
+/// A collection of synapses organized in a section.
+///
+/// This struct is used to group synapses together for efficient processing and storage.
+/// It contains an array of synapses with a fixed size defined by the BLOCK_DIM constant.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SynapseSection {
+    /// Array of synapses in this section.
+    ///
+    /// The size of this array is determined by the BLOCK_DIM constant.
     #[serde(with = "BigArray")]
     pub synapses: [Synapse; BLOCK_DIM],
 }
 
 impl SynapseSection {
+    /// Creates a default SynapseSection with random initial values for the first synapse.
+    ///
+    /// The first synapse in the section gets random target neuron ID and weight values,
+    /// while the rest are initialized to default values.
+    ///
+    /// # Returns
+    ///
+    /// A new SynapseSection with randomized first synapse.
     pub fn default() -> Self {
         let mut section = SynapseSection {
             synapses: std::array::from_fn(|_| Synapse::default()),
         };
 
+        // Initialize the first synapse with random values
         section.synapses[0].target_neuron_id = rand::rng().random_range(0..BLOCK_DIM) as u16;
         section.synapses[0].weight_1 = rand::rng().random_range(-0.5f32..0.5f32);
         section.synapses[0].weight_2 = rand::rng().random_range(-0.5f32..0.5f32);
@@ -81,15 +111,28 @@ impl SynapseSection {
 
 // ==================================================================================================
 
+/// Represents a connection between different parts of the neural network.
+///
+/// This struct is used to manage the flow of information between neurons and sections.
+/// It tracks the lower bound of the connection, source input, next connection, and usage status.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 struct Connection {
+    /// The lower bound value for this connection.
     pub lower_bound: f32,
+    /// The source input ID for this connection.
     pub source_input: u16,
+    /// The next connection ID.
     pub next: u16,
+    /// Flag indicating whether this connection is currently in use.
     pub used: bool,
 }
 
 impl Connection {
+    /// Creates a default Connection instance with all values initialized to zero or uninitialized state.
+    ///
+    /// # Returns
+    ///
+    /// A new Connection instance with default values.
     pub fn default() -> Self {
         Connection {
             lower_bound: 0.0f32,
@@ -102,13 +145,24 @@ impl Connection {
 
 // ==================================================================================================
 
+/// Represents a neuron in the neural network.
+///
+/// This struct holds the current input value and refractory time of a neuron.
+/// The refractory time prevents a neuron from firing immediately after it has fired.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Neuron {
+    /// The current input value of the neuron.
     pub input: f32,
+    /// The remaining refractory time of the neuron.
     pub refractory_time: u32,
 }
 
 impl Neuron {
+    /// Creates a default Neuron instance with all values initialized to zero.
+    ///
+    /// # Returns
+    ///
+    /// A new Neuron instance with default values.
     pub fn default() -> Self {
         Neuron {
             input: 0.0f32,
@@ -119,26 +173,55 @@ impl Neuron {
 
 // ==================================================================================================
 
+/// Represents a block of neurons and their connections in the neural network.
+///
+/// This is the core structural unit of the neural network, containing neurons, synapses,
+/// and connections organized in a specific layout.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct CoreBlock {
+    /// Unique identifier for this block.
     pub uuid: Uuid,
+    /// UUID of the hexagon this block belongs to.
     pub hexagon_uuid: Uuid,
+    /// UUID of the model this block is part of.
     pub model_uuid: Uuid,
 
+    /// Buffer for input/output operations of this block.
     pub block_io: BlockIoBuffer,
+    /// Settings for the neural network model.
     model_settings: Settings,
 
-    // HINT (kitsudaiki): this has to be a Vec instead of a static array to avoid a stack-overflow, because the object is too big
+    /// Collection of synapse sections in this block.
+    ///
+    /// Note: This is a Vec instead of a static array to prevent stack overflow
+    /// due to the potentially large size of this object.
     pub synapse_sections: Vec<SynapseSection>,
+    /// Array of neurons in this block.
     #[serde(with = "BigArray")]
     pub neurons: [Neuron; BLOCK_DIM * 3],
+    /// Array of connections between different parts of this block.
     #[serde(with = "BigArray")]
     connections: [Connection; BLOCK_DIM * 6],
 
+    /// Counter tracking the number of synapse sections used.
     pub section_counter: u64,
 }
 
 impl CoreBlock {
+    /// Creates a new CoreBlock instance with the given parameters.
+    ///
+    /// This function initializes the block with default values and sets up the initial structure
+    /// of neurons, synapses, and connections.
+    ///
+    /// # Arguments
+    ///
+    /// * `hexagon_uuid` - UUID of the hexagon this block belongs to
+    /// * `model_uuid` - UUID of the model this block is part of
+    /// * `model_settings` - Settings for the neural network model
+    ///
+    /// # Returns
+    ///
+    /// A new CoreBlock instance initialized with the given parameters.
     pub fn new(hexagon_uuid: &Uuid, model_uuid: &Uuid, model_settings: &Settings) -> Self {
         let mut block = CoreBlock {
             uuid: Uuid::new_v4(),
@@ -182,6 +265,10 @@ impl CoreBlock {
         block
     }
 
+    /// Checks if the block needs to be resized and performs the resize if necessary.
+    ///
+    /// This function checks the current usage of the block and resizes it when it reaches
+    /// 90% capacity. It increases both the number of synapse sections and output buffers.
     fn check_and_resize_block(&mut self) {
         // resize block in case it is filled enough
         if self.block_io.output_buffer.len() == 1
@@ -202,6 +289,10 @@ impl CoreBlock {
         }
     }
 
+    /// Applies the output values from the neurons to the axons.
+    ///
+    /// This function processes the output buffer, updating neuron states and axon potentials.
+    /// It handles the refractory period of neurons and transfers the neuron input to axon potentials.
     fn apply_output(&mut self) {
         let mut counter = 0;
         let mut neuron;
@@ -210,16 +301,21 @@ impl CoreBlock {
             for axon in buffer.data.axons.iter_mut() {
                 neuron = &mut self.neurons[counter];
 
+                // Reduce axon potential based on neuron cooldown settings
                 axon.potential /= self.model_settings.neuron_cooldown;
+                // Reduce refractory time by half (right shift by 1)
                 neuron.refractory_time >>= 1;
 
                 if neuron.refractory_time == 0 {
                     // // experimental stuff
                     // axon.potential = neuron.input.signum() * (neuron.input.abs().log2() + 1.0f32);
+                    // Set axon potential to neuron input when not refractory
                     axon.potential = neuron.input;
+                    // Reset refractory time
                     neuron.refractory_time = self.model_settings.refractory_time;
                 }
 
+                // Reset neuron input and axon delta
                 neuron.input = 0.0f32;
                 axon.delta = 0.0f32;
 
@@ -231,6 +327,14 @@ impl CoreBlock {
 
 // ==================================================================================================
 
+/// Creates a new synapse with random weights and initializes its properties.
+///
+/// # Arguments
+///
+/// * `synapse` - The synapse to initialize
+/// * `remaining_weight` - The remaining weight to assign to the synapse's border
+/// * `number_of_output_blocks` - The total number of output blocks in the network
+/// * `random_seed` - A mutable reference to a random seed for generating random values
 #[inline]
 fn create_new_synapse(
     synapse: &mut Synapse,
@@ -242,20 +346,32 @@ fn create_new_synapse(
     let sig_neg = 0.5f32;
     let mut sign_rand;
 
+    // Generate random weight for weight_1 with potential sign flip
     synapse.weight_1 = ((pcg_hash(random_seed) as f32) / rand_max) / 10.0f32;
     sign_rand = (pcg_hash(random_seed) % 1000) as f32;
     synapse.weight_1 *= 1.0f32 - (1000.0f32 * sig_neg > sign_rand) as u8 as f32 * 2.0f32;
 
+    // Generate random weight for weight_2 with potential sign flip
     synapse.weight_2 = ((pcg_hash(random_seed) as f32) / rand_max) / 10.0f32;
     sign_rand = (pcg_hash(random_seed) % 1000) as f32;
     synapse.weight_2 *= 1.0f32 - (1000.0f32 * sig_neg > sign_rand) as u8 as f32 * 2.0f32;
 
+    // Initialize the synapse properties
     synapse.border = remaining_weight;
     synapse.active_counter = 50;
     synapse.target_neuron_id =
         (pcg_hash(random_seed) % (number_of_output_blocks * BLOCK_DIM) as u32) as u16
 }
 
+/// Searches for a free connection in the connections array.
+///
+/// # Arguments
+///
+/// * `connections` - A slice of connections to search through
+///
+/// # Returns
+///
+/// The index of the first free connection found, or UNINIT_STATE_16 as usize if none found
 #[inline]
 fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     for (i, conn) in connections.iter().enumerate() {
@@ -267,6 +383,21 @@ fn search_free_connection(connections: &[Connection; BLOCK_DIM * 6]) -> usize {
     UNINIT_STATE_16 as usize
 }
 
+/// Trains a synapse section using the given connection and neuron data.
+///
+/// # Arguments
+///
+/// * `section` - The synapse section to train
+/// * `connection` - The connection containing input information
+/// * `neurons` - A mutable slice of neurons to update
+/// * `axon` - The axon containing the input potential
+/// * `number_of_output_blocks` - The total number of output blocks in the network
+/// * `random_seed` - A mutable reference to a random seed for generating random values
+/// * `connections` - A mutable array of all connections in the network
+///
+/// # Returns
+///
+/// true if the section requires a next connection to be created, false otherwise
 #[inline]
 fn train_section(
     section: &mut SynapseSection,
@@ -289,7 +420,7 @@ fn train_section(
             break;
         }
 
-        // create new synapse if necesarry and training is active
+        // create new synapse if necessary and training is active
         if synapse.target_neuron_id == UNINIT_STATE_16 {
             // because of the initialize of the section, the first position should
             // always be filled
@@ -309,21 +440,25 @@ fn train_section(
                 && potential < synapse.border - ABSOLUTE_CREATE_BORDER
                 && potential > ABSOLUTE_CREATE_BORDER;
 
+            // Adjust the synapse border based on the condition
             synapse.border = synapse.border * (!condition) as u8 as f32
                 + (synapse.border / 2.0f32) * (condition) as u8 as f32;
         }
 
         prev_border = synapse.border;
 
+        // Calculate the ratio of potential to border
         ratio = 1.0f32;
         if potential < synapse.border {
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
+        // Update the input of the target neuron
         target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
+        // Update the input of the next target neuron
         target_neuron = &mut neurons[((synapse.target_neuron_id + 1)
             % (number_of_output_blocks * BLOCK_DIM) as u16)
             as usize];
@@ -349,6 +484,15 @@ fn train_section(
     false
 }
 
+/// Processes a synapse section using the given connection and neuron data.
+///
+/// # Arguments
+///
+/// * `section` - The synapse section to process
+/// * `connection` - The connection containing input information
+/// * `neurons` - A mutable slice of neurons to update
+/// * `axon` - The axon containing the input potential
+/// * `number_of_output_blocks` - The total number of output blocks in the network
 #[inline]
 fn process_section(
     section: &mut SynapseSection,
@@ -371,15 +515,18 @@ fn process_section(
             break;
         }
 
+        // Calculate the ratio of potential to border
         ratio = 1.0f32;
         if potential < synapse.border {
             ratio = (1.0f32 / synapse.border) * potential;
         }
 
+        // Update the input of the target neuron
         target_neuron = &mut neurons
             [(synapse.target_neuron_id % (number_of_output_blocks * BLOCK_DIM) as u16) as usize];
         target_neuron.input += synapse.weight_1 * ratio * (potential > synapse.border) as u8 as f32;
 
+        // Update the input of the next target neuron
         target_neuron = &mut neurons[((synapse.target_neuron_id + 1)
             % (number_of_output_blocks * BLOCK_DIM) as u16)
             as usize];
@@ -389,6 +536,14 @@ fn process_section(
     }
 }
 
+/// Backpropagates errors through a synapse section.
+///
+/// # Arguments
+///
+/// * `section` - The synapse section to backpropagate through
+/// * `connection` - The connection containing input information
+/// * `source_axon` - The source axon whose delta needs to be updated
+/// * `output_buffer` - The buffer containing output axons
 #[inline]
 fn backpropagate_section(
     section: &mut SynapseSection,
@@ -412,17 +567,23 @@ fn backpropagate_section(
             break;
         }
 
+        // Calculate the output block and axon IDs for the target neuron
         output_block_id =
             ((synapse.target_neuron_id / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = (synapse.target_neuron_id % BLOCK_DIM as u16) as usize;
+
+        // Update the first weight and propagate the delta
         target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_1;
         synapse.weight_1 -= CORE_TRAIN_VALUE * target_axon.delta;
         source_axon.delta += delta;
 
+        // Calculate the output block and axon IDs for the next target neuron
         output_block_id =
             (((synapse.target_neuron_id + 1) / BLOCK_DIM as u16) as usize) % output_buffer.len();
         output_axon_id = ((synapse.target_neuron_id + 1) % BLOCK_DIM as u16) as usize;
+
+        // Update the second weight and propagate the delta
         target_axon = &output_buffer[output_block_id].data.axons[output_axon_id];
         delta = target_axon.delta * synapse.weight_2;
         synapse.weight_2 -= CORE_TRAIN_VALUE * target_axon.delta;
@@ -434,7 +595,19 @@ fn backpropagate_section(
 
 // ==================================================================================================
 
+/// Implementation of the Block trait for CoreBlock.
 impl Block for CoreBlock {
+    /// Trains the neural network block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (block index)
+    /// * `_` - Unused parameter (previous block)
+    /// * `_` - Unused parameter (cycle number)
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional finish counter or an AinariError
     fn train(
         &mut self,
         _: usize,
@@ -495,6 +668,15 @@ impl Block for CoreBlock {
         Ok(None)
     }
 
+    /// Processes the neural network block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (cycle number)
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional finish counter or an AinariError
     fn process(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         self.check_and_resize_block();
         let number_of_output_blocks = self.block_io.output_buffer.len();
@@ -530,6 +712,15 @@ impl Block for CoreBlock {
         Ok(None)
     }
 
+    /// Backpropagates errors through the neural network block.
+    ///
+    /// # Arguments
+    ///
+    /// * `_` - Unused parameter (cycle number)
+    ///
+    /// # Returns
+    ///
+    /// Result containing an optional finish counter or an AinariError
     fn backpropagate(&mut self, _: u64) -> Result<Option<Arc<Mutex<FinishCounter>>>, AinariError> {
         // // experimental stuff
         // for axon_section in self.block_io.input_buffer.iter_mut() {
@@ -558,6 +749,15 @@ impl Block for CoreBlock {
         Ok(None)
     }
 
+    /// Finalizes the training phase of the neural network block.
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current cycle number
+    ///
+    /// # Returns
+    ///
+    /// Result indicating success or an AinariError
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
         connect_outputs(
             &mut self.block_io,
@@ -570,25 +770,68 @@ impl Block for CoreBlock {
         Ok(())
     }
 
+    /// Finalizes the processing of this block for a given cycle.
+    ///
+    /// This function connects outputs and sends a forward processing task to the worker.
+    /// It is part of the neural network processing pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current cycle number in the processing sequence
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` on success
+    /// * `Err(AinariError)` if any operation fails
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
+        // Connect all outputs before processing
         connect_outputs(
             &mut self.block_io,
             &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
         )?;
+
+        // Send forward processing task to worker
         send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
 
         Ok(())
     }
 
+    /// Finalizes the backpropagation process for a given cycle.
+    ///
+    /// This function sends a backward propagation task with retry mechanism.
+    ///
+    /// # Arguments
+    ///
+    /// * `cycle_number` - The current cycle number in the processing sequence
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(bool)` indicating success of the operation
+    /// * `Err(AinariError)` if any operation fails
     fn finalize_backpropagate(&mut self, cycle_number: u64) -> Result<bool, AinariError> {
+        // Send backward propagation task with automatic retry
         let ret = send_backward_with_retry(&mut self.block_io, cycle_number);
 
         Ok(ret)
     }
 
+    /// Gets a free input slot in the block's input buffer.
+    ///
+    /// This function allocates an available input slot for an axon section.
+    /// It manages the input buffer and tracks used slots.
+    ///
+    /// # Arguments
+    ///
+    /// * `axon_section` - The axon section to be assigned to a free input slot
+    ///
+    /// # Returns
+    ///
+    /// * `true` if an input slot was successfully allocated
+    /// * `false` if no input slots are available
     fn get_free_input(&mut self, axon_section: &mut AxonSection) -> bool {
+        // Check and use the first input slot if available
         if self.block_io.inputs_in_use == 0 {
             axon_section.target_block_uuid = self.uuid;
             axon_section.target_hexagon_uuid = self.hexagon_uuid;
@@ -598,6 +841,7 @@ impl Block for CoreBlock {
             return true;
         }
 
+        // Check and use the second input slot if available
         if self.block_io.inputs_in_use == 1 {
             axon_section.target_block_uuid = self.uuid;
             axon_section.target_hexagon_uuid = self.hexagon_uuid;
@@ -607,32 +851,75 @@ impl Block for CoreBlock {
             return true;
         }
 
+        // No input slots available
         false
     }
 
+    /// Gets the unique identifier of this block.
+    ///
+    /// # Returns
+    ///
+    /// The UUID of this block
     fn get_uuid(&self) -> Uuid {
         self.uuid
     }
 
+    /// Gets the hexagon UUID this block belongs to.
+    ///
+    /// # Returns
+    ///
+    /// The UUID of the hexagon containing this block
     fn get_hexagon_uud(&self) -> Uuid {
         self.hexagon_uuid
     }
+
+    /// Gets the model UUID this block belongs to.
+    ///
+    /// # Returns
+    ///
+    /// The UUID of the model containing this block
     fn get_model_uud(&self) -> Uuid {
         self.model_uuid
     }
 
+    /// Gets a mutable reference to the block's I/O buffer.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the BlockIoBuffer
     fn get_block_io(&mut self) -> &mut BlockIoBuffer {
         &mut self.block_io
     }
 
+    /// Gets the type of this object.
+    ///
+    /// # Returns
+    ///
+    /// The ObjectType of this block (always CoreBlock)
     fn get_type(&self) -> ObjectType {
         ObjectType::CoreBlock
     }
 
+    /// Sets a new model UUID for this block.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_model_uuid` - The new UUID of the model this block belongs to
     fn set_model_uuid(&mut self, new_model_uuid: &Uuid) {
         self.model_uuid = *new_model_uuid;
     }
 
+    /// Serializes this block to a byte vector.
+    ///
+    /// Uses bincode for serialization with standard configuration.
+    ///
+    /// # Returns
+    ///
+    /// A byte vector containing the serialized block
+    ///
+    /// # Panics
+    ///
+    /// Panics if serialization fails
     fn serailize(&self) -> Vec<u8> {
         let cfg = bincode::config::standard();
         bincode::serde::encode_to_vec(self, cfg).expect("Failed to serialize")

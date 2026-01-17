@@ -25,51 +25,69 @@ use ainari_clients::endpoints::*;
 use ainari_clients::host::register_sakura_host;
 use ainari_common::error::AinariError;
 
+/// Registers the current host with the Ainari system.
+///
+/// This function:
+/// 1. Creates a Tokio runtime for asynchronous operations
+/// 2. Retrieves system endpoints from Miko
+/// 3. Gathers information about the host system
+/// 4. Collects UUIDs of deleted models from the database
+/// 5. Registers the host with Hanami using the collected information
+///
+/// # Errors
+/// Returns an `AinariError` if any step in the registration process fails.
 pub fn register_host() -> Result<(), AinariError> {
-    // Create a single-threaded runtime
+    // Create a single-threaded runtime for synchronous execution of async code
     let rt = Builder::new_current_thread()
-        .enable_all() // I/O & timers
+        .enable_all() // Enable I/O and timers for the runtime
         .build()
         .expect("failed to build runtime");
 
-    // LocalSet allows spawn_local to work
+    // LocalSet allows spawn_local to work, enabling local task execution
     let local = LocalSet::new();
 
-    // get endpoints from miko
+    // Retrieve system endpoints from Miko service
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = local.block_on(&rt, async {
         get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification).await
     })?;
 
+    // Get the host name from the system information
     let host_name = if let Some(host_name) = System::host_name() {
         host_name
     } else {
-        return Err(AinariError::Error("Failed to get host-name".to_string()));
+        return Err(AinariError::InternalError(
+            "Failed to get host-name".to_string(),
+        ));
     };
 
     log::debug!("read host-name: {host_name}");
 
+    // Retrieve list of deleted models from the database
     let deleted_models = match model_table::list_deleted_models() {
         Ok(models) => models,
         Err(e) => {
             log::error!("Failed to get list of models form database: '{e}'");
-            return Err(AinariError::Error("Internal Error".to_string()));
+            return Err(AinariError::InternalError("Internal Error".to_string()));
         }
     };
 
+    // Prepare a list of UUIDs for deleted models
     let mut resp = UuidList { list: Vec::new() };
 
+    // Convert each model UUID to the required format
     for model in deleted_models {
         let uuid = match convert_uuid(&model.uuid) {
             Ok(uuid) => uuid,
             Err(e) => {
                 log::error!("Failed to convert UUID: '{e}'");
-                return Err(AinariError::Error("Internal Error".to_string()));
+                return Err(AinariError::InternalError("Internal Error".to_string()));
             }
         };
         resp.list.push(uuid);
     }
 
+    // Register the host with Hanami service
     local.block_on(&rt, async {
         register_sakura_host(
             &endpoints.hanami,

@@ -14,15 +14,42 @@
 
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
+/// Retrieves the total amount of physical memory installed in the system.
+///
+/// This function initializes a system information handler and refreshes memory-specific
+/// information to get the most up-to-date value. It returns the total memory in bytes.
+///
+/// # Returns
+///
+/// * `u64` - Total amount of physical memory in bytes
 pub fn get_total_memory_amount() -> u64 {
+    // Create a new system information handler with all capabilities
     let mut sys = System::new_all();
+
+    // Refresh only memory-related information for accurate readings
     sys.refresh_specifics(RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()));
+
+    // Return the total memory amount in bytes
     sys.total_memory()
 }
 
+/// Retrieves the amount of free physical memory available in the system.
+///
+/// This function initializes a system information handler and refreshes memory-specific
+/// information to get the most current value of available memory. It returns the free
+/// memory in bytes.
+///
+/// # Returns
+///
+/// * `u64` - Amount of available memory in bytes
 pub fn get_free_memory_amount() -> u64 {
+    // Create a new system information handler with all capabilities
     let mut sys = System::new_all();
+
+    // Refresh only memory-related information for accurate readings
     sys.refresh_specifics(RefreshKind::nothing().with_memory(MemoryRefreshKind::everything()));
+
+    // Return the available memory amount in bytes
     sys.available_memory()
 }
 
