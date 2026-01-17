@@ -73,7 +73,11 @@ impl DataService for OnsenServer {
         while let Some(chunk_res) = stream.message().await.transpose() {
             let chunk = match chunk_res {
                 Ok(c) => c,
-                Err(e) => return Err(Status::new(Code::Unknown, format!("stream error: {}", e))),
+                Err(e) => {
+                    let msg = format!("stream error: {}", e);
+                    log::error!("{}", msg);
+                    return Err(Status::new(Code::Unknown, msg))
+                }
             };
 
             // open file on first real chunk (or immediately after we collected metadata)
@@ -81,10 +85,9 @@ impl DataService for OnsenServer {
                 let mut target_path = PathBuf::from(&config::CONFIG.storage.location);
                 let remote_file_path = Path::new(&chunk.remote_file_path);
                 if !is_safe_subpath(remote_file_path) {
-                    return Err(Status::internal(format!(
-                        "provided remote-path is invalid: {:?}",
-                        remote_file_path
-                    )));
+                    let msg = format!("provided remote-path is invalid: {:?}", remote_file_path);
+                    log::error!("{}", msg);
+                    return Err(Status::internal(msg));
                 }
                 target_path.push(remote_file_path);
 
@@ -92,7 +95,11 @@ impl DataService for OnsenServer {
                 if let Some(parent) = target_path.parent() {
                     fs::create_dir_all(parent)
                         .await
-                        .map_err(|e| Status::internal(format!("mkdir error: {}", e)))?;
+                        .map_err(|e| {
+                            let msg = format!("mkdir error: {}", e);
+                            log::error!("{}", msg);
+                            Status::internal(msg)
+                        })?;
                 }
 
                 let f = OpenOptions::new()
@@ -102,7 +109,9 @@ impl DataService for OnsenServer {
                     .open(&target_path)
                     .await
                     .map_err(|e| {
-                        Status::internal(format!("failed to open file {:?}: {}", target_path, e))
+                        let msg = format!("failed to open file {:?}: {}", target_path, e);
+                        log::error!("{}", msg);
+                        Status::internal(msg)
                     })?;
 
                 target_str = format!("{:?}", target_path);
@@ -115,7 +124,11 @@ impl DataService for OnsenServer {
                 if !chunk.chunk.is_empty() {
                     fh.write_all(&chunk.chunk)
                         .await
-                        .map_err(|e| Status::internal(format!("write error: {}", e)))?;
+                        .map_err(|e| {
+                            let msg = format!("write error: {}", e);
+                            log::error!("{}", msg);
+                            Status::internal(msg)
+                        })?;
                 }
             }
 
@@ -127,7 +140,11 @@ impl DataService for OnsenServer {
         if let Some(mut fh) = file {
             fh.flush()
                 .await
-                .map_err(|e| Status::internal(format!("flush error: {}", e)))?;
+                .map_err(|e| {
+                    let msg = format!("flush error: {}", e);
+                    log::error!("{}", msg);
+                    Status::internal(msg)
+                })?;
         }
 
         println!("File received successfully: {target_str}");
@@ -230,10 +247,9 @@ impl DataService for OnsenServer {
         let mut target_path = PathBuf::from(&config::CONFIG.storage.location);
         let remote_file_path = Path::new(&req.remote_file_path);
         if !is_safe_subpath(remote_file_path) {
-            return Err(Status::internal(format!(
-                "provided remote-path is invalid: {:?}",
-                remote_file_path
-            )));
+            let msg = format!("provided remote-path is invalid: {:?}", remote_file_path);
+            log::error!("{}", msg);
+            return Err(Status::internal(msg));
         }
         target_path.push(remote_file_path);
 
