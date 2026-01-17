@@ -18,7 +18,7 @@ metadata:
   name: onsen-pv
 spec:
   capacity:
-    storage: 100Mi
+    storage: 1Gi
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce

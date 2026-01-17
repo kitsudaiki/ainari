@@ -22,4 +22,4 @@ spec:
   storageClassName: {{ .Values.onsen.storage.storage_class }}
   resources:
     requests:
-      storage: 100Mi
+      storage: 1Gi

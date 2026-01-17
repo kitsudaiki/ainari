@@ -23,7 +23,7 @@ data:
     address = "http://10.10.0.1:50051"
 
     [storage]
-    location = "/tmp/onsen"
+    location = "/etc/ainari/onsen/"
     
     [miko]
     address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
