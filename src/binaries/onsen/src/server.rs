@@ -76,7 +76,7 @@ impl DataService for OnsenServer {
                 Err(e) => {
                     let msg = format!("stream error: {}", e);
                     log::error!("{}", msg);
-                    return Err(Status::new(Code::Unknown, msg))
+                    return Err(Status::new(Code::Unknown, msg));
                 }
             };
 
@@ -93,13 +93,11 @@ impl DataService for OnsenServer {
 
                 // create directory of target-file, if not already exist
                 if let Some(parent) = target_path.parent() {
-                    fs::create_dir_all(parent)
-                        .await
-                        .map_err(|e| {
-                            let msg = format!("mkdir error: {}", e);
-                            log::error!("{}", msg);
-                            Status::internal(msg)
-                        })?;
+                    fs::create_dir_all(parent).await.map_err(|e| {
+                        let msg = format!("mkdir error: {}", e);
+                        log::error!("{}", msg);
+                        Status::internal(msg)
+                    })?;
                 }
 
                 let f = OpenOptions::new()
@@ -122,13 +120,11 @@ impl DataService for OnsenServer {
             // write chunk bytes
             if let Some(fh) = file.as_mut() {
                 if !chunk.chunk.is_empty() {
-                    fh.write_all(&chunk.chunk)
-                        .await
-                        .map_err(|e| {
-                            let msg = format!("write error: {}", e);
-                            log::error!("{}", msg);
-                            Status::internal(msg)
-                        })?;
+                    fh.write_all(&chunk.chunk).await.map_err(|e| {
+                        let msg = format!("write error: {}", e);
+                        log::error!("{}", msg);
+                        Status::internal(msg)
+                    })?;
                 }
             }
 
@@ -138,13 +134,11 @@ impl DataService for OnsenServer {
         }
 
         if let Some(mut fh) = file {
-            fh.flush()
-                .await
-                .map_err(|e| {
-                    let msg = format!("flush error: {}", e);
-                    log::error!("{}", msg);
-                    Status::internal(msg)
-                })?;
+            fh.flush().await.map_err(|e| {
+                let msg = format!("flush error: {}", e);
+                log::error!("{}", msg);
+                Status::internal(msg)
+            })?;
         }
 
         println!("File received successfully: {target_str}");

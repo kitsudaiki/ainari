@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Start wireguard
-wg-quick up wg0
+# Start wireguard (using sudo for wg-quick)
+sudo wg-quick up wg0
 
-onsen
+# Run onsen
+/home/ainari/onsen
