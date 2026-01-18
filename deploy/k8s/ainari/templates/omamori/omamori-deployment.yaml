@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: omamori
   labels:
     app: omamori
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.omamori.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: omamori
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: omamori
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,7 +65,12 @@ spec:
                 values:
                 - omamori
             topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+      # Omamori container
       - name: omamori
         image: {{ .Values.omamori.docker.repository }}:{{ .Values.omamori.docker.tag }}
         imagePullPolicy: {{ .Values.omamori.docker.pull_policy }}
@@ -87,6 +111,7 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
         volumeMounts:
@@ -100,6 +125,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: omamori-config
           configMap:

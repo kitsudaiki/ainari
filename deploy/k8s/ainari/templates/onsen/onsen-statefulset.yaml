@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: onsen
   labels:
     app: onsen
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.onsen.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: onsen
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: onsen
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,6 +65,10 @@ spec:
                 values:
                 - onsen
             topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
       - name: onsen
         image: {{ .Values.onsen.docker.repository }}:{{ .Values.onsen.docker.tag }}
@@ -97,6 +120,9 @@ spec:
               - NET_ADMIN
               - SYS_MODULE
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: onsen-config
           configMap:

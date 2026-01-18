@@ -12,23 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: sakura
   labels:
     app: sakura
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   serviceName: sakura-tls-service
   replicas: {{ .Values.sakura.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: sakura
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: sakura
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -48,6 +67,9 @@ spec:
                 - sakura
             topologyKey: kubernetes.io/hostname
 
+      # ======================
+      # INIT CONTAINERS SECTION
+      # ======================
       initContainers:
       - name: copy-config
         image: busybox
@@ -65,7 +87,11 @@ spec:
         - name: sakura-config
           mountPath: /etc/ainari
 
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+      # Sakura container
       - name: sakura
         image: {{ .Values.sakura.docker.repository }}:{{ .Values.sakura.docker.tag }}
         imagePullPolicy: {{ .Values.sakura.docker.pull_policy }}
@@ -82,7 +108,6 @@ spec:
             secretKeyRef:
               name: sakura-registration-key
               key: sakura_retistration_key
-
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/sakura/
@@ -118,6 +143,7 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
         ports:
@@ -133,6 +159,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: sakura-configs
           projected:
@@ -156,6 +185,9 @@ spec:
           secret:
             secretName: wg-sakura-secret
 
+  # ======================
+  # VOLUME CLAIM TEMPLATES SECTION
+  # ======================
   volumeClaimTemplates:
   - metadata:
       name: data-volume

@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: torii
   labels:
     app: torii
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.torii.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: torii
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: torii
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,7 +65,12 @@ spec:
                 values:
                 - torii
             topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+      # Torii container
       - name: torii
         image: {{ .Values.torii.docker.repository }}:{{ .Values.torii.docker.tag }}
         imagePullPolicy: {{ .Values.torii.docker.pull_policy }}
@@ -86,7 +110,8 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 2
           failureThreshold: 3
-  
+
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
         volumeMounts:
@@ -100,6 +125,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: torii-config
           configMap:

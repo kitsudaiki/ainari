@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dashboard
   labels:
     app: dashboard
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.dashboard.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: dashboard
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: dashboard
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,13 +65,21 @@ spec:
                 values:
                 - dashboard
             topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+
+      # Dashboard container
       - name: dashboard
         image: {{ .Values.dashboard.docker.repository }}:{{ .Values.dashboard.docker.tag }}
         imagePullPolicy: {{ .Values.dashboard.docker.pull_policy }}
         env:
         - name: RUST_LOG
           value: "debug"
+
+        # Readiness probe
         readinessProbe:
           httpGet:
             path: /
@@ -63,6 +90,8 @@ spec:
           timeoutSeconds: 2
           successThreshold: 1
           failureThreshold: 3
+
+        # Liveness probe
         livenessProbe:
           httpGet:
             path: /
@@ -72,13 +101,15 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 2
           failureThreshold: 3
+
+        # Volume mounts
         volumeMounts:
         - name: dashboard-config
           mountPath: /usr/share/nginx/html/config.json
           subPath: config.json
           readOnly: true
 
-
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
         volumeMounts:
@@ -92,6 +123,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: tls-certs
           secret:

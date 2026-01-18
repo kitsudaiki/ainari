@@ -12,22 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ryokan
   labels:
     app: ryokan
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.ryokan.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: ryokan
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: ryokan
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,7 +65,12 @@ spec:
                 values:
                 - ryokan
             topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+      # Ryokan container
       - name: ryokan
         image: {{ .Values.ryokan.docker.repository }}:{{ .Values.ryokan.docker.tag }}
         imagePullPolicy: {{ .Values.ryokan.docker.pull_policy }}
@@ -74,7 +98,7 @@ spec:
           mountPath: /etc/wireguard
           readOnly: true
         securityContext:
-          seccompProfile: 
+          seccompProfile:
             type: RuntimeDefault
           capabilities:
             add:
@@ -101,8 +125,8 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 2
           failureThreshold: 3
-                
 
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
         volumeMounts:
@@ -116,6 +140,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: ryokan-config
           configMap:

@@ -12,23 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ======================
+# METADATA SECTION
+# ======================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: miko
   labels:
     app: miko
+
+# ======================
+# SPEC SECTION
+# ======================
 spec:
   replicas: {{ .Values.miko.replica_count }}
+
+  # ======================
+  # SELECTOR SECTION
+  # ======================
   selector:
     matchLabels:
       app: miko
+
+  # ======================
+  # TEMPLATE SECTION
+  # ======================
   template:
     metadata:
       labels:
         app: miko
     spec:
+
+      # ======================
+      # AFFINITY SECTION
+      # ======================
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: miko-node
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - miko
+            topologyKey: kubernetes.io/hostname
+
+      # ======================
+      # CONTAINERS SECTION
+      # ======================
       containers:
+      # Miko container
       - name: miko
         image: {{ .Values.miko.docker.repository }}:{{ .Values.miko.docker.tag }}
         imagePullPolicy: {{ .Values.miko.docker.pull_policy }}
@@ -46,6 +88,7 @@ spec:
             secretKeyRef:
               name: internal-api-key
               key: internal_api_key
+
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/miko/
@@ -57,6 +100,7 @@ spec:
           mountPath: /etc/ainari/token_key
           subPath: token-key
           readOnly: true
+
         readinessProbe:
           exec:
             command:
@@ -68,6 +112,7 @@ spec:
           timeoutSeconds: 2
           successThreshold: 1
           failureThreshold: 3
+
         livenessProbe:
           exec:
             command:
@@ -79,8 +124,11 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
+      # TLS termination container
       - name: tls-termination
         image: nginx:latest
+        ports:
+        - containerPort: 8443
         volumeMounts:
         - name: tls-certs
           mountPath: /etc/nginx/certs
@@ -92,6 +140,9 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # ======================
+      # VOLUMES SECTION
+      # ======================
       volumes:
         - name: miko-config
           configMap:
