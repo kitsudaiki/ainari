@@ -43,6 +43,12 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# omamori
 COPY --from=builder /app/omamori /usr/bin/omamori
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/omamori && \
+    chmod +x /usr/bin/omamori
+
+USER ainari
 CMD [ "omamori" ]

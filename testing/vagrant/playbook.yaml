@@ -257,6 +257,7 @@
         kubectl label nodes {{ item }} omamori-node=true
         kubectl label nodes {{ item }} onsen-node=true
         kubectl label nodes {{ item }} ainari-dashboard-node=true
+        sudo kubectl config set-context --current --namespace=ainari
       loop:
         - server
         - agent1

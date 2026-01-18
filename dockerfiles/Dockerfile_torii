@@ -43,6 +43,12 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# torii
 COPY --from=builder /app/torii /usr/bin/torii
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/torii && \
+    chmod +x /usr/bin/torii
+
+USER ainari
 CMD [ "torii" ]

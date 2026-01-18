@@ -43,6 +43,12 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# miko
 COPY --from=builder /app/miko /usr/bin/miko
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/miko && \
+    chmod +x /usr/bin/miko
+
+USER ainari
 CMD [ "miko" ]

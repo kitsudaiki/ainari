@@ -44,7 +44,8 @@ RUN apt-get update && \
                        libsqlite3-0 \
                        wireguard-tools \
                        iptables-persistent \
-                       iproute2 && \
+                       iproute2 \
+                       sudo && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
@@ -53,9 +54,22 @@ RUN apt-get update && \
 # when starting wireguard inside the pod. Didn't found a better solution so far... 
 RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
 
-# sakura
-COPY --from=builder /app/sakura /usr/bin/sakura
-COPY dockerfiles/files/start_sakura.sh /start_sakura.sh
-RUN chmod +x /start_sakura.sh
+# Create ainari user and set up directories
+RUN useradd -m ainari
 
-CMD ["/start_sakura.sh"]
+# Allow the user to creage the wireguard-connection
+RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
+
+# sakura
+COPY --from=builder /app/sakura /home/ainari/sakura
+COPY dockerfiles/files/start_sakura.sh /home/ainari/start_sakura.sh
+RUN mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /home/ainari/sakura && \
+    chown ainari:ainari /home/ainari/start_sakura.sh && \
+    chmod +x /home/ainari/start_sakura.sh
+
+USER ainari
+WORKDIR /home/ainari
+
+CMD ["/home/ainari/start_sakura.sh"]

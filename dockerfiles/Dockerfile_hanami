@@ -43,6 +43,12 @@ RUN apt-get update && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# hanami
 COPY --from=builder /app/hanami /usr/bin/hanami
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/hanami && \
+    chmod +x /usr/bin/hanami
+
+USER ainari
 CMD [ "hanami" ]

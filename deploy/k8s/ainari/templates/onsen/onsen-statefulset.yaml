@@ -66,21 +66,21 @@ spec:
         ports:
         - containerPort: 50051
           name: grpc
-        readinessProbe:
-          tcpSocket:
-            port: 50051
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 2
-          successThreshold: 1
-          failureThreshold: 3
-        livenessProbe:
-          tcpSocket:
-            port: 50051
-          initialDelaySeconds: 15
-          periodSeconds: 20
-          timeoutSeconds: 2
-          failureThreshold: 3
+        # readinessProbe:
+        #   tcpSocket:
+        #     port: 50051
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+        #   timeoutSeconds: 2
+        #   successThreshold: 1
+        #   failureThreshold: 3
+        # livenessProbe:
+        #   tcpSocket:
+        #     port: 50051
+        #   initialDelaySeconds: 15
+        #   periodSeconds: 20
+        #   timeoutSeconds: 2
+        #   failureThreshold: 3
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/onsen/
