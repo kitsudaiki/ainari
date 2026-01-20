@@ -56,7 +56,7 @@
                         <div v-show="selectedTab === 'csv'">
                             <br />
                             <label>
-                                <input type="file" @change="onFile2Change" />
+                                <input type="file" @change="onFile1Change" />
                             </label>
                         </div>
                         <div v-show="selectedTab === 'mnist'">
@@ -178,7 +178,7 @@ async function handleAccept() {
                 baseURL: authContext.ryokan_address,
             });
 
-            const response = ryokan_api.post(
+            const response = await ryokan_api.post(
                 `/v1alpha/dataset/csv/${form.datasetName}`,
                 formData,
                 {
