@@ -141,7 +141,7 @@ pub async fn create_request_task(
             model_uuid: *model_uuid,
             name: body.name.clone(),
             info: TaskVariant::Request(Box::new(info)),
-            meta: TaskMeta::new(number_of_cycles, 1, time_length),
+            meta: TaskMeta::new(number_of_cycles, 1, time_length, 0),
         };
         super::add_task_to_model(task, &task_type, &context)?;
 

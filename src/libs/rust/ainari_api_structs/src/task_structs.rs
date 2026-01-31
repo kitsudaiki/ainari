@@ -117,6 +117,8 @@ pub struct TaskCreateTrainReq {
     pub number_of_epochs: u64,
     #[validate(range(min = 1, max = 100000000))]
     pub time_length: Option<u64>,
+    #[validate(range(min = 0, max = 100000000))]
+    pub forecast_length: Option<u64>,
     #[validate(nested, length(min = 1))]
     pub inputs: Vec<TaskDatasetLink>,
     #[validate(nested, length(min = 1))]

@@ -25,7 +25,8 @@ def create_train_task(context: AccessContext,
                       inputs: list,
                       outputs: list,
                       number_of_epochs: int = 1,
-                      timeLength: int = 1) -> dict:
+                      time_length: int = 1,
+                      forecast_length: int = 0) -> dict:
     address = f"{context.torii_base_address}:{torii_port}"
     print(f"address: {address}")
     path = f"/v1alpha/model/{model_uuid}/task/train"
@@ -34,7 +35,8 @@ def create_train_task(context: AccessContext,
         "number_of_epochs": number_of_epochs,
         "inputs": inputs,
         "outputs": outputs,
-        "time_length": timeLength,
+        "time_length": time_length,
+        "forecast_length": forecast_length,
     }
     return ainari_request.send_post_request(context,
                                             address,

@@ -76,8 +76,8 @@ export default defineComponent({
 
                 // calculate current progress
                 let state =
-                    (100 / task_response.data.total_number_of_cycles) *
-                    task_response.data.total_number_of_epochs;
+                    (100 / (task_response.data.total_number_of_cycles *
+                    task_response.data.total_number_of_epochs));
                 state *=
                     task_response.data.current_epoch *
                         task_response.data.total_number_of_cycles +

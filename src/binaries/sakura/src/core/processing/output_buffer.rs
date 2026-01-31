@@ -229,7 +229,7 @@ impl OutputBuffer {
 /// Converts the output buffer's data to a flat buffer of f32 values.
 /// The conversion depends on the output type (plain, bool, int, or float).
 /// Returns the number of elements written to the buffer.
-pub fn convert_output_to_buffer(buffer: &mut [f32], output_buffer: &mut OutputBuffer) -> usize {
+pub fn convert_output_to_buffer(buffer: &mut Vec<f32>, output_buffer: &mut OutputBuffer) -> usize {
     output_buffer.already_finalized = false;
     match output_buffer.output_type {
         OutputType::PlainOutput => handle_plain_output(buffer, output_buffer),
@@ -259,7 +259,9 @@ pub fn convert_buffer_to_expected(
 
 /// Handles conversion of plain output type to a flat buffer.
 /// Copies the output values directly to the buffer.
-fn handle_plain_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
+fn handle_plain_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+    buffer.resize(output_buffer.output_neurons.len(), 0.0f32);
+
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
     for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
@@ -271,7 +273,9 @@ fn handle_plain_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usiz
 
 /// Handles conversion of bool output type to a flat buffer.
 /// Converts output values to 0.0 or 1.0 based on a threshold of 0.5.
-fn handle_bool_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
+fn handle_bool_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+    buffer.resize(output_buffer.output_neurons.len(), 0.0f32);
+
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len());
 
     for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
@@ -283,15 +287,16 @@ fn handle_bool_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize
 
 /// Handles conversion of int output type to a flat buffer.
 /// Combines 64 neurons into a single integer value.
-fn handle_int_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
+fn handle_int_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+    buffer.resize(output_buffer.output_neurons.len() / 64, 0.0f32);
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 64);
 
     for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {
-        let mut val: u32 = 0;
+        let mut val: u64 = 0;
 
         for offset in 0..64 {
             let neuron = &output_buffer.output_neurons[i * 64 + offset];
-            val = (val << 1) | ((neuron.output_value >= 0.5) as u32);
+            val = (val << 1) | ((neuron.output_value >= 0.50) as u64);
         }
 
         *buffer = val as f32;
@@ -302,7 +307,8 @@ fn handle_int_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize 
 
 /// Handles conversion of float output type to a flat buffer.
 /// Combines 32 neurons into a single float value using bit packing.
-fn handle_float_output(buffer: &mut [f32], output_buffer: &OutputBuffer) -> usize {
+fn handle_float_output(buffer: &mut Vec<f32>, output_buffer: &OutputBuffer) -> usize {
+    buffer.resize(output_buffer.output_neurons.len() / 32, 0.0f32);
     let number_of_outputs = min(buffer.len(), output_buffer.output_neurons.len() / 32);
 
     for (i, buffer) in buffer.iter_mut().enumerate().take(number_of_outputs) {

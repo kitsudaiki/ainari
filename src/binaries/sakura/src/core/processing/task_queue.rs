@@ -122,14 +122,14 @@ mod tests {
             model_uuid,
             name: "task1".to_string(),
             info: TaskVariant::CheckpointSave(info1),
-            meta: TaskMeta::new(1, 1, 1),
+            meta: TaskMeta::new(1, 1, 1, 0),
         };
         let task2 = Task {
             uuid: uuid2,
             model_uuid,
             name: "task2".to_string(),
             info: TaskVariant::CheckpointSave(info2),
-            meta: TaskMeta::new(1, 1, 1),
+            meta: TaskMeta::new(1, 1, 1, 0),
         };
 
         queue.add(task1);

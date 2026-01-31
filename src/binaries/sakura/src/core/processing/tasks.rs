@@ -100,8 +100,10 @@ pub struct TaskMeta {
     pub number_of_finished_cycles: u64,
     /// Number of epochs completed so far.
     pub number_of_finished_epochs: u64,
-    /// Time length for the task in seconds.
+    /// Time length for the task in input-values.
     pub time_length: u64,
+    /// Forecast length for the task in input-values.
+    pub forecast_length: u64,
 
     /// Counter for tracking task cycles across all epochs.
     pub task_cycle_counter: u64,
@@ -124,13 +126,19 @@ impl TaskMeta {
     /// # Returns
     ///
     /// A new TaskMeta instance initialized with the given parameters.
-    pub fn new(number_of_cycler_per_epoch: u64, number_of_epochs: u64, time_length: u64) -> Self {
+    pub fn new(
+        number_of_cycler_per_epoch: u64,
+        number_of_epochs: u64,
+        time_length: u64,
+        forecast_length: u64,
+    ) -> Self {
         Self {
             number_of_cycles: number_of_cycler_per_epoch,
             number_of_epochs,
             number_of_finished_cycles: 0,
             number_of_finished_epochs: 0,
             time_length,
+            forecast_length,
 
             task_cycle_counter: 0,
 
@@ -300,7 +308,7 @@ impl Task {
 
         // update and check cycle- and epoch-counter
         self.meta.number_of_finished_cycles += 1;
-        if self.meta.number_of_finished_cycles == self.meta.number_of_cycles {
+        if self.meta.number_of_finished_cycles >= self.meta.number_of_cycles {
             self.meta.number_of_finished_epochs += 1;
             if self.meta.number_of_finished_epochs == self.meta.number_of_epochs {
                 self.meta.is_finished = true;
@@ -407,6 +415,7 @@ fn run_train_task_cycle(
             file_handle,
             meta.number_of_finished_cycles,
             meta.time_length,
+            meta.forecast_length,
         ) {
             Ok(()) => {}
             Err(AinariError::Unauthorized(msg)) => {
@@ -432,10 +441,8 @@ fn run_train_task_cycle(
             model_uuid,
             hexagon_name,
             file_handle,
-            meta.number_of_finished_cycles,
-            meta.time_length,
+            meta,
             &WorkerTaskType::Train,
-            meta.task_cycle_counter,
         ) {
             Ok(()) => {}
             Err(AinariError::Unauthorized(msg)) => {
@@ -495,10 +502,8 @@ fn run_request_task_cycle(
             model_uuid,
             hexagon_name,
             file_handle,
-            meta.number_of_finished_cycles,
-            meta.time_length,
+            meta,
             &WorkerTaskType::Process,
-            meta.number_of_finished_cycles,
         ) {
             Ok(()) => {}
             Err(AinariError::Unauthorized(msg)) => {
@@ -581,10 +586,8 @@ pub fn apply_plain_input(
 /// * `model_uuid` - Unique identifier for the model
 /// * `hexagon_name` - Name of the hexagon (input block) to apply data to
 /// * `file_handle` - Mutable reference to the dataset file handle
-/// * `cycle_count` - Current cycle count
-/// * `time_length` - Length of time for the input data
+/// * `meta` - Task-meta construct with cycle-counter and so on
 /// * `task_type` - Type of worker task (Train or Process)
-/// * `task_cycle_counter` - Counter for the task cycle
 ///
 /// # Returns
 ///
@@ -593,10 +596,8 @@ fn apply_dataset_to_input(
     model_uuid: &Uuid,
     hexagon_name: &String,
     file_handle: &mut DataSetFileReadHandle,
-    cycle_count: u64,
-    time_length: u64,
+    meta: &TaskMeta,
     task_type: &WorkerTaskType,
-    task_cycle_counter: u64,
 ) -> Result<(), AinariError> {
     // get input-block
     let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
@@ -605,17 +606,24 @@ fn apply_dataset_to_input(
 
     let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
 
+    let offset = if meta.forecast_length == 0 {
+        meta.number_of_finished_cycles
+    } else {
+        meta.number_of_finished_cycles * meta.forecast_length
+    };
+
     // fill input with data from dataset
     let mut pos_counter: usize = 0;
-    for time_point in 0..time_length {
-        let (input_ptr, input_size) =
-            file_handle.get_data_from_file(&(cycle_count + time_point))?;
+    for cycle_internal_time_point in 0..meta.time_length {
+        let row_number = offset + cycle_internal_time_point;
+        let (input_ptr, input_size) = file_handle.get_data_from_file(&row_number)?;
         let allow_creation = *task_type == WorkerTaskType::Train;
+
         input_block.apply_input(
             input_ptr,
             input_size as usize,
             pos_counter,
-            time_length as usize,
+            meta.time_length as usize,
             allow_creation,
         );
 
@@ -627,7 +635,7 @@ fn apply_dataset_to_input(
     let worker_task = WorkerTask {
         task_type: task_type.clone(),
         block: Arc::clone(&input_block_mutex) as Arc<Mutex<dyn Block>>,
-        cycle_number: task_cycle_counter,
+        cycle_number: meta.task_cycle_counter,
     };
     worker_queue.add(worker_task);
 
@@ -677,6 +685,7 @@ pub fn apply_expected(
 /// * `file_handle` - Mutable reference to the dataset file handle
 /// * `cycle_count` - Current cycle count
 /// * `time_length` - Length of time for the input data
+/// * `forecast_length` - Length of time for the output data
 ///
 /// # Returns
 ///
@@ -687,11 +696,32 @@ fn apply_dataset_to_expected(
     file_handle: &mut DataSetFileReadHandle,
     cycle_count: u64,
     time_length: u64,
+    forecast_length: u64,
 ) -> Result<(), AinariError> {
-    let (input_ptr, input_size) =
-        file_handle.get_data_from_file(&(cycle_count + time_length - 1))?;
+    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let output_buffer_mutex = model_handler.get_output_buffer(model_uuid, hexagon_name)?;
 
-    apply_expected(model_uuid, hexagon_name, input_ptr, input_size)?;
+    let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
+    output_buffer.reset_output();
+
+    if forecast_length == 0 {
+        let (input_ptr, input_size) =
+            file_handle.get_data_from_file(&(cycle_count + time_length - 1))?;
+        convert_buffer_to_expected(&mut output_buffer, input_ptr, input_size);
+    } else {
+        // fill input with data from dataset
+        let (_, row_size) = file_handle.get_data_from_file(&(cycle_count + time_length))?;
+        let mut input_buffer = vec![0.0f32; (row_size * forecast_length) as usize];
+        for cycle_internal_time_point in 0..forecast_length {
+            let row_number =
+                (cycle_count * forecast_length) + time_length + cycle_internal_time_point;
+            let (input_ptr, input_size) = file_handle.get_data_from_file(&row_number)?;
+            let start = (cycle_internal_time_point * row_size) as usize;
+            input_buffer[start..start + input_size as usize].copy_from_slice(input_ptr);
+        }
+
+        convert_buffer_to_expected(&mut output_buffer, &input_buffer, input_buffer.len() as u64);
+    }
 
     Ok(())
 }

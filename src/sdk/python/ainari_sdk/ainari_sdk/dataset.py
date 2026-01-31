@@ -70,7 +70,7 @@ def check_dataset(context: AccessContext,
 def upload_mnist_files(context: AccessContext,
                        name: str,
                        input_file_path: str,
-                       label_file_path: str) -> str:
+                       label_file_path: str) -> dict:
     path = f"/v1alpha/dataset/mnist/{name}"
     files = [input_file_path, label_file_path]
 
@@ -82,7 +82,7 @@ def upload_mnist_files(context: AccessContext,
 
 def upload_csv_files(context: AccessContext,
                      name: str,
-                     input_file_path: str) -> str:
+                     input_file_path: str) -> dict:
     path = f"/v1alpha/dataset/csv/{name}"
     files = [input_file_path]
 

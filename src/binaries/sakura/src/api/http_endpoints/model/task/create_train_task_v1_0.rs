@@ -53,6 +53,7 @@ pub async fn create_train_task(
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::Train;
     let time_length = body.time_length.unwrap_or(1);
+    let forecast_length = body.forecast_length.unwrap_or(0);
     let mut number_of_cycles = u64::MAX;
 
     if time_length < 1 {
@@ -111,13 +112,18 @@ pub async fn create_train_task(
         }
 
         // handle the time-lenght-value
-        if number_of_cycles < time_length {
+        let cycle_length = time_length + forecast_length;
+        if number_of_cycles < cycle_length {
             let msg = format!(
-                "Time-length {time_length} is bigger than at least of of the seleced datasets."
+                "Time-length {cycle_length} is bigger than at least of of the seleced datasets."
             );
             return Err(ErrorResponse::BadRequest(msg));
         }
+        // TODO: seems not fully correct calculated
         number_of_cycles -= time_length - 1;
+        if forecast_length > 0 {
+            number_of_cycles /= forecast_length;
+        }
 
         // create new task
         let task = Task {
@@ -125,7 +131,12 @@ pub async fn create_train_task(
             model_uuid: *model_uuid,
             name: body.name.clone(),
             info: TaskVariant::Training(info),
-            meta: TaskMeta::new(number_of_cycles, body.number_of_epochs, time_length),
+            meta: TaskMeta::new(
+                number_of_cycles,
+                body.number_of_epochs,
+                time_length,
+                forecast_length,
+            ),
         };
         super::add_task_to_model(task, &task_type, &context)?;
 

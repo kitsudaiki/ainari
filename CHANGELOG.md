@@ -27,6 +27,7 @@
     - quota-management was added to the admin-section of the dashboard
     - dataset list in the dashboard now prints the number of rows and columns
     - cluster list in the dashboard now prints the cluster adress
+- added forecast-length as new parameter for train-tasks (only via python-sdk at the moment)
 
 ### Changed
 
@@ -46,7 +47,8 @@
 - fixed broken version-output of the pre-build docker images
 - restart of hanami and sakura instance in regard of the cluster was now fixed to avoid broken cluster and hosts after restart
 - restarts of the same sakura-host doesn't result in duplications in hanami anymore
-
+- progress-bar in dashboard for multiple epochs is now calculated correctly
+- fixed number of output-values in case of int and float output-type
 
 ## v0.10.0
 

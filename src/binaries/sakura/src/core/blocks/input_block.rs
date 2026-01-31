@@ -144,14 +144,14 @@ impl InputBlock {
     /// * `input_size` - Size of the input data.
     /// * `offset` - Offset to apply to the input data.
     /// * `time_length` - Length of the time dimension of the input data.
-    /// * `allow_cration` - Whether to allow creation of new input links.
+    /// * `allow_creation` - Whether to allow creation of new input links.
     pub fn apply_input(
         &mut self,
         input_ptr: &[f32],
         input_size: usize,
         offset: usize,
         time_length: usize,
-        allow_cration: bool,
+        allow_creation: bool,
     ) {
         // resize links, if necessary
         let maximum_size = input_size * 2 * time_length;
@@ -162,7 +162,7 @@ impl InputBlock {
         let mut is_negative;
         let mut total_position;
 
-        if allow_cration {
+        if allow_creation {
             // update links
             for (i, val) in input_ptr.iter().enumerate().take(input_size) {
                 total_position = (offset + i) * 2;

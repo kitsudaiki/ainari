@@ -16,10 +16,10 @@
 
 import matplotlib
 import matplotlib.pyplot as plt
-from ainari_sdk import ainari_token
 from ainari_sdk import model
 from ainari_sdk import dataset
 from ainari_sdk import task
+from ainari_sdk import login
 import configparser
 import urllib3
 import time
@@ -54,7 +54,7 @@ matplotlib.use('Qt5Agg')
 config = configparser.ConfigParser()
 config.read('/etc/ainari/hanami_testing.conf')
 
-address = config["connection"]["address"]
+miko_address = config["connection"]["miko_address"]
 test_user_id = config["connection"]["test_user"]
 test_user_pw = config["connection"]["test_passphrase"]
 
@@ -84,17 +84,19 @@ template_name = "dynamic"
 request_dataset_name = "request_test_dataset"
 train_dataset_name = "train_test_dataset"
 
-token = ainari_token.request_token(address, test_user_id, test_user_pw, False)
+context = login.request_context(miko_address, test_user_id, test_user_pw, False)
+context.verify_connection = False
+print(context)
 
 # initial cleanup for the case of leftovers from previous run
-dataset.delete_all_datasets(token, address, False)
-model.delete_all_model(token, address, False)
+dataset.delete_all_datasets(context)
+model.delete_all_model(context)
 
 # update dataset
 train_dataset_uuid = dataset.upload_csv_files(
-    token, address, train_dataset_name, train_inputs_file, False)["uuid"]
+    context, train_dataset_name, train_inputs_file)["uuid"]
 request_dataset_uuid = dataset.upload_csv_files(
-    token, address, request_dataset_name, request_inputs_file, False)["uuid"]
+    context, request_dataset_name, request_inputs_file)["uuid"]
 
 # define relations between data and model
 train_inputs = [
@@ -128,25 +130,28 @@ request_outputs = [
 ]
 
 replicas = 5
-model_uuids = [""] * 10
-task_uuids = [""] * 10
+model_uuids = [""] * replicas
+torii_ports = [0] * replicas
+task_uuids = [""] * replicas
 flattened_list = [0.0] * 1750
 
 # create all model
 for x in range(replicas):
-    model_uuids[x] = model.create_model(
-        token, address, model_name + str(x), model_template, False)["uuid"]
+    model_resp = model.create_model(context,  model_name + str(x), model_template)
+    model_uuids[x] = model_resp["uuid"]
+    torii_ports[x] = model_resp["torii_port"]
+
 
 # train
 for x in range(replicas):
     print("train replica: ", x)
     print('\n')
     task_uuids[x] = task.create_train_task(
-        token, address, generic_task_name, model_uuids[x], train_inputs, train_outputs, 200, 20, False)["uuid"]
+        context, torii_ports[x], generic_task_name, model_uuids[x], train_inputs, train_outputs, 200, 20)["uuid"]
     finished = False
     while not finished:
         time.sleep(1)
-        result = task.get_task(token, address, task_uuids[x], model_uuids[x], False)
+        result = task.get_task(context, torii_ports[x], task_uuids[x], model_uuids[x])
         # print(json.dumps(result, indent=4))
 
         finished = result["state"] == "Finished" or result["state"] == "Error"
@@ -162,6 +167,8 @@ for x in range(replicas):
     
 # test
 for x in range(replicas):
+    print("==================================================")
+
     print("test replica: ", x)
     with open(request_inputs_file, mode='r') as file:
         reader = csv.reader(file)
@@ -180,14 +187,14 @@ for x in range(replicas):
             inputs = dict()
             inputs["test_input"] = values
 
-            output_values = model.request(token, address, model_uuids[x], inputs, output_names, False)
+            output_values = model.request(context, torii_ports[x], model_uuids[x], inputs, output_names)
             out_val = json.dumps(output_values["outputs"]["test_output"][0], indent=4)
             flattened_list[index] += float(out_val)
 
 # delete everything again
 for x in range(replicas):
-    model.delete_model(token, address, model_uuids[x], False)
-dataset.delete_dataset(token, address, train_dataset_uuid, False)
+    model.delete_model(context, model_uuids[x])
+dataset.delete_dataset(context, train_dataset_uuid)
 
 # update result
 for r in range(len(flattened_list)):
