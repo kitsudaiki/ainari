@@ -36,4 +36,4 @@ openssl = "0.10"
 diesel = { version = "2.3", features = ["sqlite", "uuid"] }
 
 [build-dependencies]
-chrono = "0.4.40"
+chrono = "0.4.43"
