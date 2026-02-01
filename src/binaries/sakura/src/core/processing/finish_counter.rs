@@ -21,25 +21,12 @@ use super::tasks::Task;
 /// within a specific cycle, and can trigger actions when the completion criteria are met.
 #[derive(Default, Debug)]
 pub struct FinishCounter {
-    /// Number of input tasks that have been compared in the current cycle.
     pub input_compare: usize,
-
-    /// Number of output tasks that have been compared in the current cycle.
     pub output_compare: usize,
-
-    /// The threshold number of task comparisons needed to consider the cycle finished.
     task_compare: usize,
-
-    /// Current count of completed tasks in the current cycle.
     counter: usize,
-
-    /// The cycle number we're expecting to complete.
     expected_cycle_number: u64,
-
-    /// Flag indicating whether this cycle has already been marked as finished.
     already_finished: bool,
-
-    /// Optional reference to the task that this counter is associated with.
     pub task: Option<Arc<Mutex<Task>>>,
 }
 

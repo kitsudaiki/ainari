@@ -218,7 +218,6 @@ impl ModelInterface {
                 model_data_handler.get_output_buffer(&self.model_uuid, hexagon_name)?;
 
             let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
-            data.resize(output_buffer.output_neurons.len(), 0.0f32);
             convert_output_to_buffer(data, &mut output_buffer);
         }
 

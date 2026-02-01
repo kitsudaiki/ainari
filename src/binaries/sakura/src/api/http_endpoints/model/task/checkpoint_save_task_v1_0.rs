@@ -89,7 +89,7 @@ pub async fn checkpoint_save_task(
         model_uuid: *model_uuid,
         name: body.name.clone(),
         info: TaskVariant::CheckpointSave(info),
-        meta: TaskMeta::new(1, 1, 1),
+        meta: TaskMeta::new(1, 1, 1, 0),
     };
     super::add_task_to_model(task, &task_type, &context)?;
 

@@ -42,9 +42,8 @@ use super::super::processing::worker_queue::*;
 pub struct Synapse {
     /// The threshold value that must be exceeded for the synapse to activate.
     pub border: f32,
-    /// First synaptic weight value.
+    /// synaptic weight values.
     pub weight_1: f32,
-    /// Second synaptic weight value.
     pub weight_2: f32,
 
     /// Counter tracking how many times this synapse has been activated.
