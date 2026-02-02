@@ -45,6 +45,16 @@ use ainari_common::secret::Secret;
 use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle, read_data_set_file};
 use ainari_dataset::file_encryption::decrypt_file;
 
+/// Retrieves the current number of open tasks for a specific model.
+///
+/// This function queries the model interface to get the count of currently open tasks.
+/// It handles cases where the model might not exist or lacks an interface.
+///
+/// # Arguments
+/// * `model_uuid` - The UUID of the model to check
+///
+/// # Returns
+/// * `Result<usize, ErrorResponse>` - The number of open tasks or an error
 fn get_current_number_of_open_tasks(model_uuid: &Uuid) -> Result<usize, ErrorResponse> {
     // get model-handle
     let model_handler = model_handler::CLUSTER_HANDLER
@@ -67,6 +77,18 @@ fn get_current_number_of_open_tasks(model_uuid: &Uuid) -> Result<usize, ErrorRes
         .get_number_open_tasks())
 }
 
+/// Checks if the task queue quota for a model is exceeded.
+///
+/// This asynchronous function verifies whether the current number of open tasks
+/// for a model exceeds the user's quota. It queries the quota service and compares
+/// it with the current task count.
+///
+/// # Arguments
+/// * `model_uuid` - The UUID of the model to check
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<(), ErrorResponse>` - Success or an error if quota is exceeded
 async fn check_task_queue_quota(
     model_uuid: &Uuid,
     context: &UserContext,
@@ -94,6 +116,13 @@ async fn check_task_queue_quota(
     Ok(())
 }
 
+/// Converts a string representation of a task type to its enum variant.
+///
+/// # Arguments
+/// * `task_type` - The string to convert
+///
+/// # Returns
+/// * `Result<TaskType, ErrorResponse>` - The converted task type or an error
 fn convert_task_type(task_type: &String) -> Result<TaskType, ErrorResponse> {
     let converted_task_type = TaskType::from_str(task_type.as_str()).map_err(|_| {
         log::error!("Failed to convert task-type '{task_type}'");
@@ -103,6 +132,13 @@ fn convert_task_type(task_type: &String) -> Result<TaskType, ErrorResponse> {
     Ok(converted_task_type)
 }
 
+/// Converts a string representation of a task state to its enum variant.
+///
+/// # Arguments
+/// * `task_state` - The string to convert
+///
+/// # Returns
+/// * `Result<TaskState, ErrorResponse>` - The converted task state or an error
 fn convert_task_state(task_state: &String) -> Result<TaskState, ErrorResponse> {
     let converted_task_state = TaskState::from_str(task_state.as_str()).map_err(|_| {
         log::error!("Failed to convert task-state '{task_state}'");
@@ -112,6 +148,18 @@ fn convert_task_state(task_state: &String) -> Result<TaskState, ErrorResponse> {
     Ok(converted_task_state)
 }
 
+/// Adds a new task to a model and stores it in the database.
+///
+/// This function handles both the database storage and the model interface registration
+/// of a new task. It ensures the task is properly tracked in both places.
+///
+/// # Arguments
+/// * `task` - The task to add
+/// * `task_type` - The type of the task
+/// * `context` - The user context for database operations
+///
+/// # Returns
+/// * `Result<(), ErrorResponse>` - Success or an error
 fn add_task_to_model(
     task: Task,
     task_type: &TaskType,
@@ -159,6 +207,18 @@ fn add_task_to_model(
     Ok(())
 }
 
+/// Handles the output data from a task, preparing it for further processing.
+///
+/// This function manages the output buffer from the model and calculates
+/// the column information for the output data.
+///
+/// # Arguments
+/// * `output` - The task output to handle
+/// * `model_uuid` - The UUID of the model
+/// * `total_output_size` - The current total output size
+///
+/// # Returns
+/// * `Result<(Column, u64), ErrorResponse>` - The column information and size
 fn handle_output(
     output: &TaskDatasetResultLink,
     model_uuid: &Uuid,
@@ -186,6 +246,17 @@ fn handle_output(
     Ok((col, size))
 }
 
+/// Retrieves a secret from the secret service.
+///
+/// This asynchronous function fetches secret payload information from the
+/// secret service using the provided UUID and user context.
+///
+/// # Arguments
+/// * `secret_uuid` - The UUID of the secret to retrieve
+/// * `context` - The user context for authentication
+///
+/// # Returns
+/// * `Result<Secret, ErrorResponse>` - The retrieved secret or an error
 async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
@@ -204,6 +275,23 @@ async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret,
     Ok(Secret::from(secret_payload.secret_payload))
 }
 
+/// Handles the input data for a task, downloading, decrypting, and preparing it.
+///
+/// This asynchronous function manages the entire input data pipeline:
+/// 1. Gets dataset information
+/// 2. Downloads the encrypted dataset
+/// 3. Decrypts the dataset
+/// 4. Prepares the dataset for processing
+///
+/// # Arguments
+/// * `input` - The task input to handle
+/// * `endpoint` - The endpoint to use for dataset operations
+/// * `temp_dir` - The temporary directory for file operations
+/// * `context` - The user context for authentication
+/// * `number_of_cycles` - The number of cycles to potentially adjust
+///
+/// # Returns
+/// * `Result<DataSetFileReadHandle, ErrorResponse>` - The prepared dataset handle
 async fn handle_input(
     input: &TaskDatasetLink,
     endpoint: &Endpoint,
@@ -270,6 +358,13 @@ async fn handle_input(
     Ok(file_handle)
 }
 
+/// Removes all files and directories in the specified target directory.
+///
+/// This function performs a complete cleanup of the specified directory,
+/// removing all files and subdirectories within it.
+///
+/// # Arguments
+/// * `target_dir_path` - The path to the directory to remove
 fn remove_all(target_dir_path: &String) {
     // delete all temporary files
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
@@ -277,6 +372,18 @@ fn remove_all(target_dir_path: &String) {
     });
 }
 
+/// Checks if the provided I/O matches the model's expected I/O.
+///
+/// This function verifies that:
+/// 1. All provided I/O matches the model's expected hexagon names
+/// 2. All expected hexagon names have corresponding I/O provided
+///
+/// # Arguments
+/// * `model_io` - The expected I/O hexagon names from the model
+/// * `provided_io` - The provided I/O to check
+///
+/// # Returns
+/// * `Result<(), ErrorResponse>` - Success or an error if I/O doesn't match
 fn check_model_io<T>(model_io: &Vec<String>, provided_io: &Vec<T>) -> Result<(), ErrorResponse>
 where
     T: DatasetLink,
