@@ -109,6 +109,23 @@ pub struct TaskDatasetResultLink {
     pub hexagon: String,
 }
 
+pub trait DatasetLink {
+    fn get_hexagon_name(&self) -> String;
+}
+
+// Implement the trait for both types
+impl DatasetLink for TaskDatasetLink {
+    fn get_hexagon_name(&self) -> String {
+        self.hexagon.clone()
+    }
+}
+
+impl DatasetLink for TaskDatasetResultLink {
+    fn get_hexagon_name(&self) -> String {
+        self.hexagon.clone()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskCreateTrainReq {
     #[validate(length(min = 4, max = 127))]

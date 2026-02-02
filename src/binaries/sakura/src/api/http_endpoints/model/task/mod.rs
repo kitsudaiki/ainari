@@ -276,3 +276,33 @@ fn remove_all(target_dir_path: &String) {
         log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
     });
 }
+
+fn check_model_io<T>(model_io: &Vec<String>, provided_io: &Vec<T>) -> Result<(), ErrorResponse>
+where
+    T: DatasetLink,
+{
+    for link in provided_io {
+        if !model_io.contains(&link.get_hexagon_name()) {
+            let hexagon_name = &link.get_hexagon_name();
+            let msg = format!("Hexagon with name {hexagon_name} not found in model");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+    }
+
+    for name in model_io {
+        let mut found = false;
+        for link in provided_io {
+            if &link.get_hexagon_name() == name {
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            let msg = format!("No data provided for hexagon {name}");
+            return Err(ErrorResponse::BadRequest(msg));
+        }
+    }
+
+    Ok(())
+}
