@@ -19,6 +19,7 @@
 - image pull-policy can now be changed by the helm-values
 - support other namespaces thand "default"
 - support for multiple sakura instances
+- validation for task-input to avoid a mismatch between given input and the model
 - dashboard:
     - added error-popups
     - validation of input-fields and error-message for invalid inputs

@@ -62,8 +62,22 @@ pub async fn create_train_task(
     }
 
     // check if model exist
-    model_table::get_model(&model_uuid, &context)
+    let model_data = model_table::get_model(&model_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("model", &model_uuid, e))?;
+
+    // get inputs and outputs of the model
+    let model_inputs: Vec<String> = serde_json::from_str(&model_data.inputs).map_err(|e| {
+        log::error!("Failed to deserialize inputs: '{e}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+    let model_outputs: Vec<String> = serde_json::from_str(&model_data.outputs).map_err(|e| {
+        log::error!("Failed to deserialize outputs: '{e}'");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+
+    // check model against the provided data
+    super::check_model_io(&model_inputs, &body.inputs)?;
+    super::check_model_io(&model_outputs, &body.outputs)?;
 
     // create directory, where all temp-files of this operation are stored
     let temp_dir = format!(
