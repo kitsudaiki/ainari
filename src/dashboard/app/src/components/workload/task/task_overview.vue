@@ -55,8 +55,8 @@
                                     v-if="openDropdown === task.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openDeleteModal(task)">
-                                        Delete
+                                    <button @click="openAbortModal(task)">
+                                        Abort
                                     </button>
                                 </div>
                             </div>
@@ -76,6 +76,16 @@
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
         />
+
+        <TaskAbortModal
+            v-if="showAbortModal"
+            :model_uuid="props.id"
+            :torii_port="torii_port"
+            :task="taskToAbort"
+            :icons="icons"
+            @accept="acceptAbortModal"
+            @cancel="cancelAbortModal"
+        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -90,6 +100,7 @@ import axios from "axios";
 
 import { getAuthContext } from "@/auth_context";
 import TaskCreateModal from "./task_create_modal.vue";
+import TaskAbortModal from "./task_abort_modal.vue";
 import ProgressBar from "./progress_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
@@ -102,6 +113,9 @@ const tasks = ref<{ uuid: string; taskName: string }[]>([]);
 const showAddModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
+const taskToAbort = ref<{ uuid: string } | null>(null);
+const showAbortModal = ref(false);
+
 var torii_port = 0;
 
 async function fetchTasks() {
@@ -169,6 +183,25 @@ function cancelAddModal() {
 async function acceptAddModal() {
     await fetchTasks();
     cancelAddModal();
+}
+
+//=============================================================================
+// Abort modal
+//=============================================================================
+function openAbortModal(task: { uuid: string }) {
+    taskToAbort.value = task;
+    showAbortModal.value = true;
+    openDropdown.value = null;
+}
+function cancelAbortModal() {
+    showAbortModal.value = false;
+    taskToAbort.value = null;
+    openDropdown.value = null; // close any open action dropdown
+}
+
+async function acceptAbortModal() {
+    await fetchTasks();
+    cancelAbortModal();
 }
 
 //=============================================================================
