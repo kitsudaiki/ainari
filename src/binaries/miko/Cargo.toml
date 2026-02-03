@@ -23,7 +23,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
 # jwt-token
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 # config-file
 toml = "0.9"
 # singleton (like used for the config-variable)
