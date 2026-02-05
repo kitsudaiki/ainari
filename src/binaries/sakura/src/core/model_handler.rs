@@ -607,7 +607,7 @@ impl ModelDataHandler {
     /// * `Result<(), AinariError>` - Ok if the model was deleted successfully, Err otherwise
     pub fn delete_model(&mut self, model_uuid: &Uuid) -> Result<(), AinariError> {
         if !self.models.contains_key(model_uuid) {
-            let msg = format!("Model with uuid '{model_uuid}' not found.");
+            let msg: String = format!("Model with uuid '{model_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
         }
 
@@ -1042,8 +1042,8 @@ mod tests {
             assert_eq!(hexagons.len(), 1);
         }
 
-        assert!(root_handler.delete_model(&model_uuid).is_ok());
-        assert!(root_handler.delete_model(&model_uuid).is_err());
+        assert!(root_handler.prepare_delete_model(&model_uuid).is_ok());
+        assert!(root_handler.prepare_delete_model(&model_uuid).is_err());
     }
 
     #[test]

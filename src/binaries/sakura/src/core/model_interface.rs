@@ -140,6 +140,14 @@ impl ModelInterface {
     ///
     /// This method sets the running flag to false and joins the worker thread.
     pub fn stop(&mut self) {
+        // remove all open tasks from the queue
+        let mut queue_handle = self.queue.lock().expect("mutex poisoned");
+        queue_handle.clear();
+        drop(queue_handle);
+
+        thread::sleep(std::time::Duration::from_millis(5));
+
+        // stop all threads
         self.running.store(false, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();

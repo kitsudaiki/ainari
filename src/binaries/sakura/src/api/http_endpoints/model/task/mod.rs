@@ -139,7 +139,7 @@ fn convert_task_type(task_type: &String) -> Result<TaskType, ErrorResponse> {
 ///
 /// # Returns
 /// * `Result<TaskState, ErrorResponse>` - The converted task state or an error
-fn convert_task_state(task_state: &String) -> Result<TaskState, ErrorResponse> {
+pub fn convert_task_state(task_state: &String) -> Result<TaskState, ErrorResponse> {
     let converted_task_state = TaskState::from_str(task_state.as_str()).map_err(|_| {
         log::error!("Failed to convert task-state '{task_state}'");
         ErrorResponse::InternalError("Internal Error".to_string())
