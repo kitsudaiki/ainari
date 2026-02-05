@@ -38,10 +38,6 @@ pub async fn delete_model_internal(
     model_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // delete model from database
-    model_table::delete_model(&model_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("model", &model_uuid, e))?;
-
     // delete model from core
     let mut model_handle = model_handler::CLUSTER_HANDLER
         .write()
@@ -49,6 +45,10 @@ pub async fn delete_model_internal(
     model_handle
         .delete_model(&model_uuid)
         .map_err(map_ainari_error_to_api_response)?;
+
+    // delete model from database
+    model_table::delete_model(&model_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("model", &model_uuid, e))?;
 
     Ok(NoContent)
 }

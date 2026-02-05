@@ -177,7 +177,7 @@ impl Task {
     pub fn start_task(&mut self) -> bool {
         // check if task was aborted
         if task_table::is_aborted(&self.uuid) {
-            return true;
+            return false;
         }
 
         {
@@ -301,7 +301,7 @@ impl Task {
                 &(self.meta.number_of_finished_cycles as i64),
             );
             if task_table::is_aborted(&self.uuid) {
-                // TODO: handle abort correctly
+                self.meta.is_finished = true;
                 return;
             }
         }
