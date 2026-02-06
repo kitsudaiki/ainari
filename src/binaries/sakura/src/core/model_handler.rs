@@ -1042,8 +1042,8 @@ mod tests {
             assert_eq!(hexagons.len(), 1);
         }
 
-        assert!(root_handler.prepare_delete_model(&model_uuid).is_ok());
-        assert!(root_handler.prepare_delete_model(&model_uuid).is_err());
+        assert!(root_handler.delete_model(&model_uuid).is_ok());
+        assert!(root_handler.delete_model(&model_uuid).is_err());
     }
 
     #[test]
