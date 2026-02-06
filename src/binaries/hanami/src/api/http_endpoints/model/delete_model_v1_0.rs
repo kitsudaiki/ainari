@@ -54,17 +54,6 @@ pub async fn delete_model(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // send request to torii to delete the proxy, which is connected to the model
-    proxy_clients::delete_proxy(
-        &endpoints.torii,
-        &context.token,
-        &config::INTERNAL_API_KEY,
-        &proxy_uuid,
-        config::CONFIG.skip_tls_verification,
-    )
-    .await
-    .map_err(map_ainari_error_to_api_response)?;
-
     // send request to sakura to delete the model
     model_clients::delete_model(
         &host_data.address,
@@ -79,6 +68,17 @@ pub async fn delete_model(
     // delete model from database of hanami
     meta_model_table::delete_meta_model(&model_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("model-meta", &model_uuid, e))?;
+
+    // send request to torii to delete the proxy, which is connected to the model
+    proxy_clients::delete_proxy(
+        &endpoints.torii,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &proxy_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
 
     Ok(NoContent)
 }

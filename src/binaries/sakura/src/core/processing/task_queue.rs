@@ -73,6 +73,11 @@ impl TaskQueue {
     pub fn len(&self) -> usize {
         self.queue.len()
     }
+
+    /// Removed all remaining entries from the queue
+    pub fn clear(&mut self) {
+        self.queue.clear();
+    }
 }
 
 /// Initializes a new empty task queue.

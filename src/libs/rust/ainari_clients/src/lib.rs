@@ -64,7 +64,7 @@ pub fn prepare_client(address: &str, insecure: bool) -> Client {
             .finish()
     } else {
         // Return a regular HTTP client for non-HTTPS connections
-        Client::new()
+        Client::builder().timeout(Duration::from_secs(60)).finish()
     }
 }
 

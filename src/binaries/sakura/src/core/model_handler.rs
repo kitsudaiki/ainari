@@ -37,7 +37,7 @@ lazy_static::lazy_static! {
     /// Global singleton for model data handling.
     ///
     /// This provides thread-safe access to all models and their components.
-    pub static ref CLUSTER_HANDLER: RwLock<ModelDataHandler> = RwLock::new(init_model_data_handler());
+    pub static ref MODEL_HANDLER: RwLock<ModelDataHandler> = RwLock::new(init_model_data_handler());
 }
 
 // ==================================================================================================
@@ -607,7 +607,7 @@ impl ModelDataHandler {
     /// * `Result<(), AinariError>` - Ok if the model was deleted successfully, Err otherwise
     pub fn delete_model(&mut self, model_uuid: &Uuid) -> Result<(), AinariError> {
         if !self.models.contains_key(model_uuid) {
-            let msg = format!("Model with uuid '{model_uuid}' not found.");
+            let msg: String = format!("Model with uuid '{model_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
         }
 
@@ -1022,7 +1022,7 @@ mod tests {
             key2: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut root_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         root_handler.models.clear();
 
         {
@@ -1072,7 +1072,7 @@ mod tests {
             test_output: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut root_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         root_handler.models.clear();
         let mut parsed_model = parse_model_template(&model_name, &template).unwrap();
         parsed_model.uuid = model_uuid;
@@ -1228,7 +1228,7 @@ mod tests {
             test_output: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut root_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         root_handler.models.clear();
         let mut parsed_model = parse_model_template(&model_name, &template).unwrap();
         parsed_model.uuid = model_uuid;

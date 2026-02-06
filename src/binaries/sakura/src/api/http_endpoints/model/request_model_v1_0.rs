@@ -50,9 +50,7 @@ pub async fn request_model(
         .map_err(|e| map_db_uuid_get_delete_error("model", &model_uuid, e))?;
 
     // get model-interface
-    let model_handler = model_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
+    let model_handler = model_handler::MODEL_HANDLER.read().expect("mutex poisoned");
     let model_interface_mutex = model_handler
         .get_model_interface(&model_uuid)
         .map_err(map_ainari_error_to_api_response)?;

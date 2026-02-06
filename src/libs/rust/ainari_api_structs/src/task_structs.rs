@@ -54,7 +54,7 @@ impl FromStr for TaskType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema, ApiComponent)]
 pub enum TaskState {
     Created = 0,
     Queued = 1,

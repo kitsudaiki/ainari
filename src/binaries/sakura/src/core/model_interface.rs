@@ -140,6 +140,14 @@ impl ModelInterface {
     ///
     /// This method sets the running flag to false and joins the worker thread.
     pub fn stop(&mut self) {
+        // remove all open tasks from the queue
+        let mut queue_handle = self.queue.lock().expect("mutex poisoned");
+        queue_handle.clear();
+        drop(queue_handle);
+
+        thread::sleep(std::time::Duration::from_millis(5));
+
+        // stop all threads
         self.running.store(false, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
@@ -188,7 +196,7 @@ impl ModelInterface {
 
         // reset output-values in the backend
         {
-            let model_data_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            let model_data_handler = MODEL_HANDLER.read().expect("mutex poisoned");
             for hexagon_name in outputs.keys() {
                 let output_buffer_mutex =
                     model_data_handler.get_output_buffer(&self.model_uuid, hexagon_name)?;
@@ -212,7 +220,7 @@ impl ModelInterface {
         run_iteration(&self.model_uuid, &self.finish_counter_mutex)?;
 
         // get output-values from the backend
-        let model_data_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        let model_data_handler = MODEL_HANDLER.read().expect("mutex poisoned");
         for (hexagon_name, data) in outputs.iter_mut() {
             let output_buffer_mutex =
                 model_data_handler.get_output_buffer(&self.model_uuid, hexagon_name)?;
@@ -371,7 +379,7 @@ mod tests {
         // Initialize processing
         let worker_handler = WORKER_HANDLER.lock().expect("mutex poisoned");
         drop(worker_handler);
-        let model_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let model_data_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         drop(model_data_handler);
 
         // create dummy-model
@@ -400,7 +408,7 @@ mod tests {
             test_output: 3,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut root_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         root_handler.models.clear();
         let mut parsed_model = parse_model_template(&model_name, &template).unwrap();
         parsed_model.uuid = model_uuid;

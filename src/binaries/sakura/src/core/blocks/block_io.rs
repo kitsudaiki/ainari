@@ -70,7 +70,7 @@ pub fn connect_outputs(
     // in case of training, get targets for all not-connected axon-sections
     for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
         if axon_section.target_pos == UNINIT_STATE_8 {
-            // let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+            // let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
 
             // set source-values for the axon-section
             axon_section.model_uuid = *model_uuid;
@@ -82,7 +82,7 @@ pub fn connect_outputs(
             connect_to_new_target(axon_section)?;
         } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
             // Get model handler to fetch block references
-            let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
             axon_section.model_uuid = *model_uuid;
             axon_section.source_block = Some(model_handler.get_block(
                 model_uuid,

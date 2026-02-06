@@ -50,6 +50,9 @@
 - restarts of the same sakura-host doesn't result in duplications in hanami anymore
 - progress-bar in dashboard for multiple epochs is now calculated correctly
 - fixed number of output-values in case of int and float output-type
+- task-abort-endpoint not works
+- task-abort-modal was fixed in the dashboard
+- fixed delete model with running tasks
 
 ## v0.10.0
 

@@ -16,20 +16,20 @@
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal model-delete-modal">
+        <div class="modal task-delete-modal">
             <div class="modal-topbar">
-                <span>Delete model</span>
+                <span>Abort task</span>
             </div>
             <div class="modal-content">
-                <p>Are you sure you want to delete?</p>
-                <strong>Model: {{ model?.uuid }}</strong>
+                <p>Are you sure you want to abort?</p>
+                <strong>Task: {{ task?.uuid }}</strong>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(model?.uuid)"
+                        @click="handleAccept(task?.uuid, model_uuid, torii_port)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -54,7 +54,9 @@ import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    model: { uuid: string; name: string } | null;
+    model_uuid: string;
+    torii_port: number;
+    task: { uuid: string } | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,21 +66,21 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(model_uuid: string) {
-    if (!model_uuid) return;
+async function handleAccept(task_uuid: string, model_uuid: string, torii_port: number) {
+    if (!task_uuid) return;
     try {
         const authContext = getAuthContext();
-        const hanami_api = axios.create({
-            baseURL: authContext.hanami_address,
+        const sakura_api = axios.create({
+            baseURL: `${authContext.torii_base_address}:${torii_port}`,
         });
 
-        await hanami_api.delete(`/v1alpha/model/${model_uuid}`, {
+        await sakura_api.put(`/v1alpha/model/${model_uuid}/task/${task_uuid}/abort`, {}, {
             headers: { Authorization: `Bearer ${authContext.token}` },
         });
 
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to delete model");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to delete task");
     }
 }
 
@@ -88,7 +90,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.model-delete-modal {
+.task-delete-modal {
     width: 30rem;
 }
 </style>

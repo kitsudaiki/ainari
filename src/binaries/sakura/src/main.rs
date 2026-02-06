@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .lock()
         .expect("mutex poisoned");
     drop(worker_handler);
-    let model_data_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    let model_data_handler = MODEL_HANDLER.write().expect("mutex poisoned");
     drop(model_data_handler);
 
     database::init_database()?;
