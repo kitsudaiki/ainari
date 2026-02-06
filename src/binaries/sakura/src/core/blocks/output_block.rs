@@ -137,7 +137,7 @@ impl OutputBlock {
     fn connect_output_buffer(&mut self) -> Result<(), AinariError> {
         // connect output-buffer if not already done
         if self.output_buffer.is_none() {
-            let root_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            let root_handler = MODEL_HANDLER.read().expect("mutex poisoned");
             let output_buffer_mutex =
                 root_handler.get_output_buffer(&self.model_uuid, &self.output_buffer_name)?;
 

@@ -181,7 +181,7 @@ impl Task {
         }
 
         {
-            let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+            let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
             let _ = model_handler.reset_outputs(&self.model_uuid);
         }
 
@@ -551,7 +551,7 @@ pub fn apply_plain_input(
     time_length: u64,
     task_type: &WorkerTaskType,
 ) -> Result<(), AinariError> {
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
     let input_block_mutex = model_handler.get_input_block(model_uuid, hexagon_name)?;
 
     let mut input_block = input_block_mutex.lock().expect("mutex poisoned");
@@ -600,7 +600,7 @@ fn apply_dataset_to_input(
     task_type: &WorkerTaskType,
 ) -> Result<(), AinariError> {
     // get input-block
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
     let input_block_mutex = model_handler.get_input_block(model_uuid, hexagon_name)?;
     drop(model_handler);
 
@@ -663,7 +663,7 @@ pub fn apply_expected(
     input_ptr: &[f32],
     input_size: u64,
 ) -> Result<(), AinariError> {
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
     let output_buffer_mutex = model_handler.get_output_buffer(model_uuid, hexagon_name)?;
 
     let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
@@ -698,7 +698,7 @@ fn apply_dataset_to_expected(
     time_length: u64,
     forecast_length: u64,
 ) -> Result<(), AinariError> {
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
     let output_buffer_mutex = model_handler.get_output_buffer(model_uuid, hexagon_name)?;
 
     let mut output_buffer = output_buffer_mutex.lock().expect("mutex poisoned");
@@ -743,7 +743,7 @@ fn write_output_into_dataset(
     model_uuid: &Uuid,
     file_handle: &mut DataSetFileWriteHandle,
 ) -> Result<(), AinariError> {
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
 
     // get column-description from the dataset
     for (hexagon_name, col_get) in &file_handle.header.columns {
@@ -789,7 +789,7 @@ fn handle_checkpoint_save_task(
     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
     {
-        let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
         match model_handler.create_checkpoint(model_uuid, &local_temp_file_path) {
             Ok(()) => {}
             Err(_) => {
@@ -902,7 +902,7 @@ fn handle_checkpoint_restore_task(
         }
 
         // restore model from the downloaded and decrypted checkpoint-file
-        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         match model_handler.restore_checkpoint(model_uuid, &local_temp_file_path) {
             Ok(()) => {}
             Err(_) => {

@@ -57,9 +57,7 @@ use ainari_dataset::file_encryption::decrypt_file;
 /// * `Result<usize, ErrorResponse>` - The number of open tasks or an error
 fn get_current_number_of_open_tasks(model_uuid: &Uuid) -> Result<usize, ErrorResponse> {
     // get model-handle
-    let model_handler = model_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
+    let model_handler = model_handler::MODEL_HANDLER.read().expect("mutex poisoned");
     let model_handle = match model_handler.models.get(model_uuid) {
         Some(model_handle) => model_handle,
         None => return Err(ErrorResponse::InternalError("".to_string())),
@@ -165,9 +163,7 @@ fn add_task_to_model(
     task_type: &TaskType,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
-    let model_handler = model_handler::CLUSTER_HANDLER
-        .read()
-        .expect("mutex poisoned");
+    let model_handler = model_handler::MODEL_HANDLER.read().expect("mutex poisoned");
     let model_handle = match model_handler.models.get(&task.model_uuid) {
         Some(model_handle) => model_handle,
         None => return Err(ErrorResponse::InternalError("".to_string())),
@@ -224,7 +220,7 @@ fn handle_output(
     model_uuid: &Uuid,
     total_output_size: u64,
 ) -> Result<(Column, u64), ErrorResponse> {
-    let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+    let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
 
     let size = {
         let output_buffer_mutex = model_handler

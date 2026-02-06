@@ -64,7 +64,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
     let selected_block_option;
 
     {
-        let model_handler = CLUSTER_HANDLER.read().expect("mutex poisoned");
+        let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
 
         // get source-block
         source_block = model_handler.get_block(
@@ -109,7 +109,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
 
     // create new block if no existing block is available
     if target_information.is_output {
-        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         let output_block_mutex = Arc::new(Mutex::new(OutputBlock::new(
             &target_information.hexagon_uuid,
             &axon_section.model_uuid,
@@ -124,7 +124,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
             return Ok(());
         }
     } else {
-        let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         let core_block_mutex = Arc::new(Mutex::new(CoreBlock::new(
             &target_information.hexagon_uuid,
             &axon_section.model_uuid,
@@ -210,7 +210,7 @@ fn check_axon_setion(axon_section: &mut AxonSection) -> Result<(), AinariError> 
 /// * `Ok(TargetInformation)` containing information about the target hexagon
 /// * `Err(AinariError)` if any step fails
 fn get_target_hexagon(axon_section: &mut AxonSection) -> Result<TargetInformation, AinariError> {
-    let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
     let mut target_information = TargetInformation::default();
     let model_link = model_handler.get_model_mut(&axon_section.model_uuid)?;
 
@@ -301,7 +301,7 @@ mod tests {
             key2: 2,2,2;"
             .to_string();
 
-        let mut root_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+        let mut root_handler = MODEL_HANDLER.write().expect("mutex poisoned");
         root_handler.models.clear();
         let mut parsed_model = parse_model_template(&model_name, &template).unwrap();
         parsed_model.uuid = model_uuid;

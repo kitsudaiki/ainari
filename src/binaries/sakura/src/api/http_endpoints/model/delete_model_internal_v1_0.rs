@@ -63,7 +63,7 @@ pub async fn delete_model_internal(
     }
 
     // prepare delete of model from core
-    let model_handle = model_handler::CLUSTER_HANDLER
+    let model_handle = model_handler::MODEL_HANDLER
         .write()
         .expect("mutex poisoned");
     let model_interface = model_handle
@@ -76,7 +76,7 @@ pub async fn delete_model_internal(
     interface.stop();
 
     // delete model from core
-    let mut model_handle = model_handler::CLUSTER_HANDLER
+    let mut model_handle = model_handler::MODEL_HANDLER
         .write()
         .expect("mutex poisoned");
     model_handle

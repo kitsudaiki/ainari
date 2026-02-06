@@ -18,7 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::model_handler::CLUSTER_HANDLER;
+use crate::core::model_handler::MODEL_HANDLER;
 use crate::database::model_table;
 
 use ainari_api::common_functions::*;
@@ -56,7 +56,7 @@ pub async fn create_model_internal(
     parsed_model.uuid = model_uuid;
 
     // parse model-template and create model from it
-    let mut model_handler = CLUSTER_HANDLER.write().expect("mutex poisoned");
+    let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
     model_handler
         .init_new_model(&model_uuid, &parsed_model)
         .map_err(map_ainari_error_to_api_response)?;
