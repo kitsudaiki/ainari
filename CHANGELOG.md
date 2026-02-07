@@ -20,6 +20,7 @@
 - support other namespaces thand "default"
 - support for multiple sakura instances
 - validation for task-input to avoid a mismatch between given input and the model
+- validation for task-input to avoid a mismatch between given input and the dataset
 - dashboard:
     - added error-popups
     - validation of input-fields and error-message for invalid inputs

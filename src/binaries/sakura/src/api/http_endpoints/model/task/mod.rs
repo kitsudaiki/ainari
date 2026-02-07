@@ -306,6 +306,15 @@ async fn handle_input(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    // check if requested column even exist in the dataset
+    if !dataset_resp.column_names.contains(&input.dataset_column) {
+        let msg = format!(
+            "Dataset-column with name '{}' doesn't exist in dataset with UUID '{}'",
+            input.dataset_column, input.dataset_uuid
+        );
+        return Err(ErrorResponse::BadRequest(msg));
+    }
+
     // create temp-file-paths
     let local_file_path = format!("{}/{}", temp_dir, dataset_resp.uuid);
     let local_encrypted_file_path = format!("{local_file_path}_encrypted");
