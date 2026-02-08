@@ -247,9 +247,17 @@ impl ModelDataHandler {
     /// * `Err(AinariError)` if the block already exists or if the model doesn't exist.
     pub fn add_core_block(
         &mut self,
+        model_uuid: &Uuid,
+        hexagon_uuid: &Uuid,
+        block_uuid: &Uuid,
         block_mutex: &Arc<Mutex<CoreBlock>>,
     ) -> Result<(), AinariError> {
-        return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
+        return self.add_block(
+            model_uuid,
+            hexagon_uuid,
+            block_uuid,
+            &(block_mutex.clone() as Arc<Mutex<dyn Block>>),
+        );
     }
 
     /// Adds an output block to the model.
@@ -266,9 +274,17 @@ impl ModelDataHandler {
     /// * `Result<(), AinariError>` - Ok if the block was added successfully, Err otherwise
     pub fn add_output_block(
         &mut self,
+        model_uuid: &Uuid,
+        hexagon_uuid: &Uuid,
+        block_uuid: &Uuid,
         block_mutex: &Arc<Mutex<OutputBlock>>,
     ) -> Result<(), AinariError> {
-        return self.add_block(&(block_mutex.clone() as Arc<Mutex<dyn Block>>));
+        return self.add_block(
+            model_uuid,
+            hexagon_uuid,
+            block_uuid,
+            &(block_mutex.clone() as Arc<Mutex<dyn Block>>),
+        );
     }
 
     /// Adds an input block to the model.
@@ -375,21 +391,22 @@ impl ModelDataHandler {
     /// # Returns
     ///
     /// * `Result<(), AinariError>` - Ok if the block was added successfully, Err otherwise
-    fn add_block(&mut self, block_mutex: &Arc<Mutex<dyn Block>>) -> Result<(), AinariError> {
-        let block = block_mutex.lock().expect("mutex poisoned");
-        let model_uuid = block.get_model_uud();
-        let hexagon_uuid = block.get_hexagon_uud();
-        let block_uuid = block.get_uuid();
-
-        let model_link = self.get_model_mut(&model_uuid)?;
+    fn add_block(
+        &mut self,
+        model_uuid: &Uuid,
+        hexagon_uuid: &Uuid,
+        block_uuid: &Uuid,
+        block_mutex: &Arc<Mutex<dyn Block>>,
+    ) -> Result<(), AinariError> {
+        let model_link = self.get_model_mut(model_uuid)?;
 
         // get hexagon from model
         let mut hexagon_data = model_link.hexagon_data.write().expect("mutex poisoned");
         hexagon_data
-            .entry(hexagon_uuid)
+            .entry(*hexagon_uuid)
             .or_insert_with(|| Arc::new(Mutex::new(HexagonData::new())));
 
-        let mut hexgon_link = if let Some(h) = hexagon_data.get_mut(&hexagon_uuid) {
+        let mut hexgon_link = if let Some(h) = hexagon_data.get_mut(hexagon_uuid) {
             h.lock().expect("mutex poisoned")
         } else {
             let msg = format!("Hexagon with uuid '{hexagon_uuid}' not found.");
@@ -397,14 +414,14 @@ impl ModelDataHandler {
         };
 
         // add new block
-        if hexgon_link.blocks.contains_key(&block_uuid) {
+        if hexgon_link.blocks.contains_key(block_uuid) {
             let msg = format!("Block with uuid '{block_uuid}' already exist.");
             return Err(AinariError::InvalidInput(msg));
         }
 
         hexgon_link
             .blocks
-            .insert(block_uuid, Arc::clone(block_mutex));
+            .insert(*block_uuid, Arc::clone(block_mutex));
         Ok(())
     }
 
@@ -927,7 +944,12 @@ impl ModelDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     core_block.set_model_uuid(model_uuid);
-                    self.add_core_block(&Arc::new(Mutex::new(core_block)))?;
+                    self.add_core_block(
+                        &core_block.model_uuid.clone(),
+                        &core_block.hexagon_uuid.clone(),
+                        &core_block.uuid.clone(),
+                        &Arc::new(Mutex::new(core_block)),
+                    )?;
                 }
                 // OutputBlock
                 ObjectType::OutputBlock => {
@@ -941,7 +963,12 @@ impl ModelDataHandler {
                             .expect("Failed to deserialize")
                             .0;
                     output_block.set_model_uuid(model_uuid);
-                    self.add_output_block(&Arc::new(Mutex::new(output_block)))?;
+                    self.add_output_block(
+                        &output_block.model_uuid.clone(),
+                        &output_block.hexagon_uuid.clone(),
+                        &output_block.uuid.clone(),
+                        &Arc::new(Mutex::new(output_block)),
+                    )?;
                 }
                 // OutputBuffer
                 ObjectType::OutputBuffer => {
@@ -1115,13 +1142,29 @@ mod tests {
             &finish_counter,
         )));
 
+        let core_block_uuid = core_block.lock().unwrap().uuid;
+        let output_block_uuid = output_block.lock().unwrap().uuid;
+
         // input-block and output-buffer are already added by initilizing of the model, so the names can not be added again
         assert!(root_handler.add_output_buffer(&output_buffer).is_err());
         assert!(root_handler.add_input_block(&input_block).is_err());
 
         // add blocks to model
-        assert!(root_handler.add_core_block(&core_block).is_ok());
-        assert!(root_handler.add_output_block(&output_block).is_ok());
+        assert!(
+            root_handler
+                .add_core_block(&model_uuid, &hexagon_uuid0, &core_block_uuid, &core_block)
+                .is_ok()
+        );
+        assert!(
+            root_handler
+                .add_output_block(
+                    &model_uuid,
+                    &hexagon_uuid1,
+                    &output_block_uuid,
+                    &output_block
+                )
+                .is_ok()
+        );
         {
             let model = root_handler.models.get(&model_uuid).unwrap();
             let hexagons = model.hexagon_data.read().expect("mutex poisoned");
@@ -1144,9 +1187,22 @@ mod tests {
         }
 
         // check add blocks with the same ids again
-        assert!(root_handler.add_core_block(&core_block).is_err());
+        assert!(
+            root_handler
+                .add_core_block(&model_uuid, &hexagon_uuid0, &core_block_uuid, &core_block)
+                .is_err()
+        );
         assert!(root_handler.add_input_block(&input_block).is_err());
-        assert!(root_handler.add_output_block(&output_block).is_err());
+        assert!(
+            root_handler
+                .add_output_block(
+                    &model_uuid,
+                    &hexagon_uuid1,
+                    &output_block_uuid,
+                    &output_block
+                )
+                .is_err()
+        );
         assert!(root_handler.add_output_buffer(&output_buffer).is_err());
 
         // check getter
@@ -1271,10 +1327,23 @@ mod tests {
             &finish_counter,
         )));
 
+        let core_block_uuid = core_block_mutex.lock().unwrap().uuid;
+        let output_block_uuid = output_block_mutex.lock().unwrap().uuid;
+
         // add blocks to model
-        let _ = root_handler.add_core_block(&core_block_mutex);
+        let _ = root_handler.add_core_block(
+            &model_uuid,
+            &hexagon_uuid0,
+            &core_block_uuid,
+            &core_block_mutex,
+        );
         let _ = root_handler.add_input_block(&input_block_mutex);
-        let _ = root_handler.add_output_block(&output_block_mutex);
+        let _ = root_handler.add_output_block(
+            &model_uuid,
+            &hexagon_uuid1,
+            &output_block_uuid,
+            &output_block_mutex,
+        );
         let _ = root_handler.add_output_buffer(&output_buffer_mutex);
 
         // save and restore

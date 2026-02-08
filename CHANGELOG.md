@@ -54,6 +54,7 @@
 - task-abort-endpoint not works
 - task-abort-modal was fixed in the dashboard
 - fixed delete model with running tasks
+- race-condition in resizing of the model was fixed (hopefully)
 
 ## v0.10.0
 

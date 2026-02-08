@@ -54,7 +54,7 @@ struct TargetInformation {
 /// # Returns
 /// * `Ok(())` if the connection is successful
 /// * `Err(AinariError)` if any step fails
-pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), AinariError> {
+pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<bool, AinariError> {
     check_axon_setion(axon_section)?;
 
     let target_information = get_target_hexagon(axon_section)?;
@@ -103,7 +103,7 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
         if selected_block.get_free_input(axon_section) {
             axon_section.target_block = Some(selected_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return Ok(());
+            return Ok(false);
         }
     }
 
@@ -115,13 +115,22 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
             &axon_section.model_uuid,
             &target_information.output_hexagon_name,
         )));
-        model_handler.add_output_block(&output_block_mutex)?;
-        drop(model_handler);
         let mut output_block = output_block_mutex.lock().expect("mutex poisoned");
+        let model_uuid: Uuid = output_block.get_model_uud();
+        let hexagon_uuid: Uuid = output_block.get_hexagon_uud();
+        let block_uuid: Uuid = output_block.get_uuid();
+        model_handler.add_output_block(
+            &model_uuid,
+            &hexagon_uuid,
+            &block_uuid,
+            &output_block_mutex,
+        )?;
+        drop(model_handler);
+
         if output_block.get_free_input(axon_section) {
             axon_section.target_block = Some(output_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return Ok(());
+            return Ok(true);
         }
     } else {
         let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
@@ -130,13 +139,17 @@ pub fn connect_to_new_target(axon_section: &mut AxonSection) -> Result<(), Ainar
             &axon_section.model_uuid,
             &model_settings,
         )));
-        model_handler.add_core_block(&core_block_mutex)?;
-        drop(model_handler);
         let mut core_block = core_block_mutex.lock().expect("mutex poisoned");
+        let model_uuid: Uuid = core_block.get_model_uud();
+        let hexagon_uuid: Uuid = core_block.get_hexagon_uud();
+        let block_uuid: Uuid = core_block.get_uuid();
+
+        model_handler.add_core_block(&model_uuid, &hexagon_uuid, &block_uuid, &core_block_mutex)?;
+        drop(model_handler);
         if core_block.get_free_input(axon_section) {
             axon_section.target_block = Some(core_block_mutex.clone());
             axon_section.source_block = Some(source_block);
-            return Ok(());
+            return Ok(true);
         }
     }
 
@@ -344,10 +357,23 @@ mod tests {
             &finish_counter,
         )));
 
+        let core_block_uuid = core_block_mutex.lock().unwrap().uuid;
+        let output_block_uuid = output_block_mutex.lock().unwrap().uuid;
+
         // add blocks to model
-        let _ = root_handler.add_core_block(&core_block_mutex);
+        let _ = root_handler.add_core_block(
+            &model_uuid,
+            &hexagon_uuid0,
+            &core_block_uuid,
+            &core_block_mutex,
+        );
         let _ = root_handler.add_input_block(&input_block_mutex);
-        let _ = root_handler.add_output_block(&output_block_mutex);
+        let _ = root_handler.add_output_block(
+            &model_uuid,
+            &hexagon_uuid1,
+            &output_block_uuid,
+            &output_block_mutex,
+        );
         let _ = root_handler.add_output_buffer(&output_buffer_mutex);
         drop(root_handler);
 
@@ -359,7 +385,7 @@ mod tests {
         test_section.source_pos = 0;
 
         match connect_to_new_target(&mut test_section) {
-            Ok(()) => {}
+            Ok(_) => {}
             Err(e) => {
                 println!("{e}");
                 panic!();
