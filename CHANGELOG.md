@@ -13,6 +13,10 @@
 - in the meta-cluster table of hanami the name of the cluster is now also stored
 - renamed cluster to model
 
+#### Checkpoint-Breaking
+
+- block-size was changed from 128 to 512 as workaround for a conceptional bug in bigger tests
+
 ### Added
 
 - Vagrantfile with ansible playbook to deploy multiple virtual machines with a kubernestes with fully deployed ainari-setup and sdk-api-test
@@ -35,6 +39,8 @@
 
 - changed the image-build process for the new vagrant-test-setup
 - sakura and onsen are now statefulsets within the kubernetes setup
+- changed learning-factor from 0.1 to 0.05 for core-blocks
+- changed border-value from 0.05 to 0.1
 - dashboard
     - updated imports
     - messages when api-requests failed
