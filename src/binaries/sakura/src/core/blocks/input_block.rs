@@ -255,13 +255,14 @@ impl Block for InputBlock {
     ///
     /// Result indicating success or failure.
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
-        connect_outputs(
+        send_forward(
             &mut self.block_io,
+            WorkerTaskType::Train,
+            cycle_number,
             &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        )?;
-        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
+        );
 
         Ok(())
     }
@@ -276,13 +277,14 @@ impl Block for InputBlock {
     ///
     /// Result indicating success or failure.
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
-        connect_outputs(
+        send_forward(
             &mut self.block_io,
+            WorkerTaskType::Process,
+            cycle_number,
             &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        )?;
-        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
+        );
 
         Ok(())
     }

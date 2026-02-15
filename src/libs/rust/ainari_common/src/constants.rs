@@ -22,14 +22,14 @@ pub const UNINIT_STATE_16: u16 = 0xFFFF;
 pub const UNINIT_STATE_8: u8 = 0xFF;
 
 // network-predefines
-pub const BLOCK_DIM: usize = 128;
+pub const BLOCK_DIM: usize = 512;
 pub const POSSIBLE_NEXT_AXON_STEP: usize = 80;
 pub const NUMBER_OF_POSSIBLE_NEXT: usize = 86;
 pub const POTENTIAL_BORDER: f32 = 0.00001f32;
-pub const CORE_TRAIN_VALUE: f32 = 0.1f32;
+pub const CORE_TRAIN_VALUE: f32 = 0.05f32;
 pub const OUTPUT_TRAIN_VALUE: f32 = 0.05f32;
-pub const ABSOLUTE_CREATE_BORDER: f32 = 0.05f32;
-pub const RELATIVE_CREATE_BORDER: f32 = 0.05f32;
+pub const ABSOLUTE_CREATE_BORDER: f32 = 0.1f32;
+pub const RELATIVE_CREATE_BORDER: f32 = 0.1f32;
 
 // processing
 pub const NUMBER_OF_RESERVED_THREADS: usize = 2;

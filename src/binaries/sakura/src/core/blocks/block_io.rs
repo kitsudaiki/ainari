@@ -62,42 +62,40 @@ pub struct BlockIoBuffer {
 ///
 /// * `Result<(), AinariError>` - Returns Ok(()) on success or an error if connection fails
 pub fn connect_outputs(
-    io_buffer: &mut BlockIoBuffer,
+    axon_section: &mut AxonSection,
     model_uuid: &Uuid,
     source_hexagon_uuid: &Uuid,
     source_block_uuid: &Uuid,
-) -> Result<(), AinariError> {
-    // in case of training, get targets for all not-connected axon-sections
-    for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
-        if axon_section.target_pos == UNINIT_STATE_8 {
-            // let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
+    source_pos: u8,
+) -> Result<bool, AinariError> {
+    if axon_section.target_pos == UNINIT_STATE_8 {
+        // let mut model_handler = MODEL_HANDLER.write().expect("mutex poisoned");
 
-            // set source-values for the axon-section
-            axon_section.model_uuid = *model_uuid;
-            axon_section.source_hexagon_uuid = *source_hexagon_uuid;
-            axon_section.source_block_uuid = *source_block_uuid;
-            axon_section.source_pos = i as u8;
+        // set source-values for the axon-section
+        axon_section.model_uuid = *model_uuid;
+        axon_section.source_hexagon_uuid = *source_hexagon_uuid;
+        axon_section.source_block_uuid = *source_block_uuid;
+        axon_section.source_pos = source_pos;
 
-            // model_handler.get_target(axon_section);
-            connect_to_new_target(axon_section)?;
-        } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
-            // Get model handler to fetch block references
-            let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
-            axon_section.model_uuid = *model_uuid;
-            axon_section.source_block = Some(model_handler.get_block(
-                model_uuid,
-                &axon_section.source_hexagon_uuid,
-                &axon_section.source_block_uuid,
-            )?);
-            axon_section.target_block = Some(model_handler.get_block(
-                model_uuid,
-                &axon_section.target_hexagon_uuid,
-                &axon_section.target_block_uuid,
-            )?);
-        }
+        // model_handler.get_target(axon_section);
+        return connect_to_new_target(axon_section);
+    } else if axon_section.source_block.is_none() || axon_section.target_block.is_none() {
+        // Get model handler to fetch block references
+        let model_handler = MODEL_HANDLER.read().expect("mutex poisoned");
+        axon_section.model_uuid = *model_uuid;
+        axon_section.source_block = Some(model_handler.get_block(
+            model_uuid,
+            &axon_section.source_hexagon_uuid,
+            &axon_section.source_block_uuid,
+        )?);
+        axon_section.target_block = Some(model_handler.get_block(
+            model_uuid,
+            &axon_section.target_hexagon_uuid,
+            &axon_section.target_block_uuid,
+        )?);
     }
 
-    Ok(())
+    Ok(true)
 }
 
 /// Sends the output axon sections to their target blocks and schedules processing tasks.
@@ -112,9 +110,25 @@ pub fn connect_outputs(
 /// * `io_buffer` - Reference to the block's IO buffer
 /// * `task_type` - Type of worker task to schedule
 /// * `cycle_number` - Current cycle number for task tracking
-pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_number: u64) {
+pub fn send_forward(
+    io_buffer: &mut BlockIoBuffer,
+    task_type: WorkerTaskType,
+    cycle_number: u64,
+    model_uuid: &Uuid,
+    source_hexagon_uuid: &Uuid,
+    source_block_uuid: &Uuid,
+) {
     // send outputs to target
-    for axon_section in io_buffer.output_buffer.iter() {
+    for (i, axon_section) in io_buffer.output_buffer.iter_mut().enumerate() {
+        let forward_allowed = connect_outputs(
+            axon_section,
+            model_uuid,
+            source_hexagon_uuid,
+            source_block_uuid,
+            i as u8,
+        )
+        .unwrap_or(true);
+
         // Get the target block mutex or skip this axon section
         let target_block_mutex = if let Some(t) = &axon_section.target_block {
             t
@@ -134,15 +148,17 @@ pub fn send_forward(io_buffer: &BlockIoBuffer, task_type: WorkerTaskType, cycle_
         if target_bock_io.input_buffer_counter >= target_bock_io.inputs_in_use {
             target_bock_io.input_buffer_counter = 0;
 
-            let worker_task = WorkerTask {
-                task_type: task_type.clone(),
-                block: Arc::clone(target_block_mutex),
-                cycle_number,
-            };
+            if forward_allowed {
+                let worker_task = WorkerTask {
+                    task_type: task_type.clone(),
+                    block: Arc::clone(target_block_mutex),
+                    cycle_number,
+                };
 
-            // Add the task to the worker queue
-            let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
-            worker_queue.add(worker_task);
+                // Add the task to the worker queue
+                let mut worker_queue = WORKER_QUEUE.lock().expect("mutex poisoned");
+                worker_queue.add(worker_task);
+            }
         }
     }
 }

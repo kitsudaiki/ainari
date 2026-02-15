@@ -646,9 +646,9 @@ impl Block for CoreBlock {
                 );
                 if need_next {
                     let next = search_free_connection(&self.connections) as u16;
-                    let mut temp_conn = &mut self.connections[i];
-                    temp_conn.next = next;
                     if next != UNINIT_STATE_16 {
+                        let mut temp_conn = &mut self.connections[i];
+                        temp_conn.next = next;
                         temp_conn = &mut self.connections[next as usize];
                         temp_conn.source_input = conn.source_input;
                     }
@@ -727,7 +727,6 @@ impl Block for CoreBlock {
         //         axon.delta *= 1.4427f32 * (0.5f32).powf(axon.potential);
         //     }
         // }
-
         for (i, conn) in self.connections.iter_mut().enumerate() {
             if i >= self.synapse_sections.len() {
                 break;
@@ -758,13 +757,14 @@ impl Block for CoreBlock {
     ///
     /// Result indicating success or an AinariError
     fn finalize_train(&mut self, cycle_number: u64) -> Result<(), AinariError> {
-        connect_outputs(
+        send_forward(
             &mut self.block_io,
+            WorkerTaskType::Train,
+            cycle_number,
             &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        )?;
-        send_forward(&self.block_io, WorkerTaskType::Train, cycle_number);
+        );
 
         Ok(())
     }
@@ -783,16 +783,14 @@ impl Block for CoreBlock {
     /// * `Ok(())` on success
     /// * `Err(AinariError)` if any operation fails
     fn finalize_process(&mut self, cycle_number: u64) -> Result<(), AinariError> {
-        // Connect all outputs before processing
-        connect_outputs(
+        send_forward(
             &mut self.block_io,
+            WorkerTaskType::Process,
+            cycle_number,
             &self.model_uuid,
             &self.hexagon_uuid,
             &self.uuid,
-        )?;
-
-        // Send forward processing task to worker
-        send_forward(&self.block_io, WorkerTaskType::Process, cycle_number);
+        );
 
         Ok(())
     }
