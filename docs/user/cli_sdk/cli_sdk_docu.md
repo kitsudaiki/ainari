@@ -37,7 +37,7 @@ The CLI and the SDK-library provides functions to interact with the API of the b
     source ainari_sdk_env/bin/activate
 
     # install sdk
-    cd Ainari/src/sdk/python/ainari_sdk
+    cd ainari/src/sdk/python/ainari_sdk
     pip3 install -U .
     ```
 
@@ -88,7 +88,7 @@ amount of time until it expires, based on the configuration of the server.
     In case of the cli, the address and login credentials only have to be set via environment variables
 
     ```bash
-    export MIKO_ADDRESS=http://127.0.0.1:11417
+    export AINARI_ADDRESS=http://127.0.0.1:11417
     export AINARI_USER=asdf
     export AINARI_PASSPHRASE=asdfasdf
     ```
