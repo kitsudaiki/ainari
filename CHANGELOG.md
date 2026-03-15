@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## v0.11.0
+
+(Changes since v0.10.0)
 
 ### BREAKING-CHANGES
 
