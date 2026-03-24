@@ -206,10 +206,6 @@ added/enabled again in the near future:
     Until 0.7.0 there were policies and roles, which were removed for the moment, because they were
     not translated into the new Rust code so far. Will be added in one of the next releases again.
 
-## Roadmap
-
-see [Roadmap](https://github.com/kitsudaiki/ainari/blob/develop/ROADMAP.md)
-
 ## Author
 
 **Tobias Anker**
