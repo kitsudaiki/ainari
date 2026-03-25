@@ -27,7 +27,6 @@ nav:
     - home/overview.md
     - home/license.md
     - home/CHANGELOG.md
-    - home/ROADMAP.md
   - User-Docu:
     - CLI and SDK:
       - user/cli_sdk/cli_sdk_docu.md

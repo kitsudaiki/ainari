@@ -1,0 +1,453 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Torii-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "0.9.0"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/proxy/internal": {
+      "post": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Register new proxy",
+        "description": "Register new proxy.",
+        "operationId": "post_v1alpha-proxy-internal-b7896230c4a213302caa08228a4f5760",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ProxyResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "model_uuid",
+                    "port",
+                    "target_address",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "model_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "port": {
+                      "type": "integer",
+                      "format": "uint16",
+                      "minimum": 0.0
+                    },
+                    "target_address": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/proxy": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "List proxy",
+        "description": "List basic information of all proxy from the database.",
+        "operationId": "get_v1alpha-proxy-9a1e417526c62d6c55723ea2bd1d992c",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/proxy/{proxy_uuid}": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Get proxy",
+        "description": "Get information of a proxy from the database.",
+        "operationId": "get_v1alpha-proxy-ef7d4f0735ca5c212f1336edfe16d38b",
+        "parameters": [
+          {
+            "name": "proxy_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/proxy/{proxy_uuid}/internal": {
+      "delete": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Delete proxy",
+        "description": "Delete a proxy from the database.",
+        "operationId": "delete_v1alpha-proxy-edc6950e4f9e34f2682f80d1728b7bc3",
+        "parameters": [
+          {
+            "name": "proxy_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProxyBasicResp": {
+        "type": "object",
+        "required": [
+          "model_uuid",
+          "port",
+          "target_address",
+          "uuid"
+        ],
+        "properties": {
+          "model_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyCreateReq": {
+        "title": "ProxyCreateReq",
+        "type": "object",
+        "required": [
+          "model_uuid",
+          "target_address"
+        ],
+        "properties": {
+          "model_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_address": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "ProxyListResp": {
+        "title": "ProxyListResp",
+        "type": "object",
+        "required": [
+          "proxys"
+        ],
+        "properties": {
+          "proxys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProxyBasicResp"
+            }
+          }
+        }
+      },
+      "ProxyResp": {
+        "title": "ProxyResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "model_uuid",
+          "port",
+          "target_address",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "model_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}
