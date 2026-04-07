@@ -33,7 +33,7 @@ setup(
     # packages=['ainari_sdk', 'ainari_sdk.ainari_messages'],
     packages=['ainari_sdk'],
     install_requires=['jsonschema==4.26.0',
-                      'requests==2.32.5',
+                      'requests==2.33.0',
                       'simplejson==3.20.2',
                       'requests_toolbelt==1.0.0'],
     # cmdclass={
