@@ -50,17 +50,6 @@ ansible-lint:
     RUN ansible-lint deploy/ansible/ainari
 
 
-secret-scan:
-    RUN apt-get update && \
-        apt-get install -y python3 python3-pip git python3-venv && \
-        python3 -m venv check_env
-    ENV PATH="/code/check_env/bin:$PATH"
-    RUN pip3 install detect-secrets
-    COPY . .
-    COPY .secrets.baseline .secrets.baseline
-    RUN git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
-
-
 prepare-build-dependencies:
     # install dependencies
     RUN apt-get update && \

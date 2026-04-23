@@ -119,15 +119,19 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git python3 python3-venv python3-pip
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -
         name: Run check
-        run: earthly --ci +secret-scan
-    
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install detect-secrets
+          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
 
   build_python_package:
