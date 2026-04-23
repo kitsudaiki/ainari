@@ -135,6 +135,7 @@ pub async fn create_train_task(
         }
         // TODO: seems not fully correct calculated
         number_of_cycles -= time_length - 1;
+        #[allow(clippy::manual_checked_ops)]
         if forecast_length > 0 {
             number_of_cycles /= forecast_length;
         }
