@@ -36,7 +36,8 @@ jobs:
         name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler gcc ssh curl pkg-config libssl-dev libsqlite3-dev
+          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       -

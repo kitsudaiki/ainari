@@ -57,6 +57,7 @@ secret-scan:
     ENV PATH="/code/check_env/bin:$PATH"
     RUN pip3 install detect-secrets
     COPY . .
+    COPY .secrets.baseline .secrets.baseline
     RUN git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
 
