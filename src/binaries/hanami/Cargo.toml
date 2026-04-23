@@ -38,7 +38,7 @@ lazy_static = "1.4"
 chrono = "0.4.43"
 futures = "0.3"
 bytes = "1"
-uuid = { version = "1.21.0", features = ["serde", "fast-rng", "v4"] }
+uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 
 [dev-dependencies]
 serial_test = "3"
