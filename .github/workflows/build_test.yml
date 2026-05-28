@@ -176,7 +176,7 @@ jobs:
           cp ./ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl /tmp/ainari_python_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_python_build_result
           path: /tmp/ainari_python_build_result
@@ -220,7 +220,7 @@ jobs:
           cp ./deploy/k8s/ainari/ainari-$HELM_VERSION.tgz /tmp/ainari_helm_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_helm_build_result
           path: /tmp/ainari_helm_build_result
@@ -270,7 +270,7 @@ jobs:
           cp ./target/debug/onsen /tmp/ainari_debug_build_result/ainari/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_debug_build_result
           path: /tmp/ainari_debug_build_result
@@ -312,7 +312,7 @@ jobs:
           cp -r builds/ainarictl /tmp/ainarictl_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainarictl_build_result
           path: /tmp/ainarictl_build_result
@@ -777,7 +777,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"          
       -
         name: Upload digest
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: digests-${{ matrix.builds.component }}-${{ env.PLATFORM_PAIR_COMPONENT }}
           path: /tmp/digests/*
