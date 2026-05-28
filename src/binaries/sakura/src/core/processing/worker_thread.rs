@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use core_affinity;
-use rand::Rng;
+use rand::RngExt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};

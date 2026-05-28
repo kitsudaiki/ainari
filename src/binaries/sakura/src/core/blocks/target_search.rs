@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rand::Rng;
+use rand::RngExt;
 use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
