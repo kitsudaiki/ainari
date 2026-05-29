@@ -3,7 +3,7 @@ from setuptools import setup
 # from subprocess import check_call
 import os
 
-version = os.getenv('PYTHON_PACKAGE_VERSION', '0.0.0')
+version = os.getenv('PYTHON_PACKAGE_VERSION', '0.11.0')
 
 
 # NOTE (kitsudaiki): leftover of old implementation, but left disabled
@@ -33,8 +33,8 @@ setup(
     # packages=['ainari_sdk', 'ainari_sdk.ainari_messages'],
     packages=['ainari_sdk'],
     install_requires=['jsonschema==4.26.0',
-                      'requests==2.32.5',
-                      'simplejson==3.20.2',
+                      'requests==2.33.1',
+                      'simplejson==4.0.1',
                       'requests_toolbelt==1.0.0'],
     # cmdclass={
     #     'install': GenerateProtobufMessages,

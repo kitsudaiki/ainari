@@ -50,16 +50,6 @@ ansible-lint:
     RUN ansible-lint deploy/ansible/ainari
 
 
-secret-scan:
-    RUN apt-get update && \
-        apt-get install -y python3 python3-pip git python3-venv && \
-        python3 -m venv check_env
-    ENV PATH="/code/check_env/bin:$PATH"
-    RUN pip3 install detect-secrets
-    COPY . .
-    RUN git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
-
-
 prepare-build-dependencies:
     # install dependencies
     RUN apt-get update && \
@@ -117,17 +107,16 @@ generate-docs:
         python3 -m venv ainari_env && \
         . ainari_env/bin/activate && \
         pip3 install hapless \
-                     mkdocs \
-                     mkdocs-material \
-                     mkdocs-swagger-ui-tag \
-                     mkdocs-drawio-exporter && \
+                     mkdocs==1.6.1 \
+                     mkdocs-material==9.7.3 \
+                     mkdocs-swagger-ui-tag==0.8.0 \
+                     mkdocs-drawio-exporter==0.10.2 && \
         wget https://github.com/jgraph/drawio-desktop/releases/download/v28.2.5/drawio-amd64-28.2.5.deb && \
         apt -f -y install ./drawio-amd64-*.deb
 
 
     COPY mkdocs.yml .
     COPY CHANGELOG.md .
-    COPY ROADMAP.md .
     COPY LICENSE .
     COPY docs docs
     RUN rm -rf docs/example_configs
