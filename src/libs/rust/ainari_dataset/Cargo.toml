@@ -14,7 +14,7 @@ byteorder = "1.5"
 bincode = "2.0"
 bytemuck = "1.25"
 csv = "1.4"
-uuid = { version = "1.23.1", features = ["v4", "serde"] }
+uuid = { version = "1.23.2", features = ["v4", "serde"] }
 tokio = { version = "1.49", features = ["rt-multi-thread", "macros", "fs"] }
 # encryption
 openssl = "0.10"
