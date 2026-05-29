@@ -38,7 +38,7 @@ rand = "0.10.1"
 lazy_static = "1.4"
 chrono = "0.4.43"
 futures = "0.3"
-uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
+uuid = { version = "1.23.2", features = ["serde", "fast-rng", "v4"] }
 
 [dev-dependencies]
 serial_test = "3"
