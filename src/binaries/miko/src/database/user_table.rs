@@ -16,7 +16,7 @@ use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use rand::{Rng, distr::Alphanumeric};
+use rand::{RngExt, distr::Alphanumeric};
 use std::env;
 use std::error::Error;
 
