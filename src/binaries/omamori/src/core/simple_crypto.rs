@@ -16,7 +16,7 @@ use aes_gcm::aead::{Aead, KeyInit, generic_array::GenericArray};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use rand::RngCore; // needed to use .encode() and .decode()
+use rand::TryRng; // needed to use .encode() and .decode()
 use uuid::Uuid;
 
 use crate::config;
@@ -69,7 +69,7 @@ impl SimpleCrypto {
 
         // generate random nonce
         let mut nonce_bytes = [0u8; NONCE_SIZE];
-        rand::rng().fill_bytes(&mut nonce_bytes);
+        let _ = rand::rng().try_fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // encrypt
