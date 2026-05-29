@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 use pest::Parser;
 use pest_derive::Parser;
-use rand::Rng;
+use rand::RngExt;
 use uuid::Uuid;
 
 use super::model_meta_structs::*;

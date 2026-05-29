@@ -11,4 +11,4 @@
 
 ## Omamori
 
-<swagger-ui src="open_api_docu_oammori.json"/>
+<swagger-ui src="open_api_docu_omamori.json"/>

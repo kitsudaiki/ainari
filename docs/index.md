@@ -172,11 +172,6 @@ Ainari is split into a micro-service architecture. See here for
 
     [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.ainari.cloud/)
 
-- :octicons-milestone-24:{ .lg .middle } **Roadmap**
-
-    ______________________________________________________________________
-
-    [:octicons-arrow-right-24: Roadmap](/home/ROADMAP/)
 
 </div>
 
