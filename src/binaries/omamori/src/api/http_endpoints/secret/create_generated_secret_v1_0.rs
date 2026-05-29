@@ -17,7 +17,7 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use rand::RngCore;
+use rand::TryRng;
 use uuid::Uuid;
 use validator::Validate; // needed to use .encode() and .decode()
 
@@ -84,6 +84,6 @@ pub async fn create_secret(
 
 fn generate_256bit_key_base64() -> Secret {
     let mut key = [0u8; 32];
-    rand::rng().fill_bytes(&mut key);
+    let _ = rand::rng().try_fill_bytes(&mut key);
     Secret::from(STANDARD.encode(key))
 }
