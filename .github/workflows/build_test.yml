@@ -23,7 +23,7 @@ jobs:
   #     - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
   #       with:
   #         version: v0.8.0
-  #     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+  #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
   #     - 
   #       name: Run check
   #       run: earthly --ci +ansible-lint
@@ -39,7 +39,7 @@ jobs:
           sudo apt-get install -y protobuf-compiler gcc ssh curl pkg-config libssl-dev libsqlite3-dev
           sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: Run Clippy
         run: cargo clippy --all-targets --all-features
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48
         with:
@@ -71,7 +71,7 @@ jobs:
         with:
           version: "latest"
       -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: Run check
         run: earthly --ci +flake8
@@ -84,7 +84,7 @@ jobs:
     steps:
       -
         name: checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: Run binary files check script
         run: |
@@ -105,7 +105,7 @@ jobs:
     steps:
       -
         name: checkout code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: lint commits
         uses: wagoid/commitlint-github-action@7f0a61df502599e1f1f50880aaa7ec1e2c0592f2
@@ -124,7 +124,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git python3 python3-venv python3-pip
       -
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: Run check
         run: |
@@ -152,7 +152,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -176,7 +176,7 @@ jobs:
           cp ./ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl /tmp/ainari_python_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_python_build_result
           path: /tmp/ainari_python_build_result
@@ -202,7 +202,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -220,7 +220,7 @@ jobs:
           cp ./deploy/k8s/ainari/ainari-$HELM_VERSION.tgz /tmp/ainari_helm_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_helm_build_result
           path: /tmp/ainari_helm_build_result
@@ -244,7 +244,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -270,7 +270,7 @@ jobs:
           cp ./target/debug/onsen /tmp/ainari_debug_build_result/ainari/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainari_debug_build_result
           path: /tmp/ainari_debug_build_result
@@ -292,7 +292,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -312,7 +312,7 @@ jobs:
           cp -r builds/ainarictl /tmp/ainarictl_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ainarictl_build_result
           path: /tmp/ainarictl_build_result
@@ -334,7 +334,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -370,7 +370,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -466,7 +466,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -582,7 +582,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -728,7 +728,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -777,7 +777,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"          
       -
         name: Upload digest
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: digests-${{ matrix.builds.component }}-${{ env.PLATFORM_PAIR_COMPONENT }}
           path: /tmp/digests/*
@@ -915,7 +915,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
@@ -1116,7 +1116,7 @@ jobs:
           fi
       -
         name: Checkout repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
         name: Publish Python Badges
         uses: ./.github/actions/badge
@@ -1162,7 +1162,7 @@ jobs:
       -
         name: Checkout repository
         run: |
-          # use manually clone, because with the "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" action the name of the
+          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
           # branch can not be read by the git commands, which is necessary for the build-script
           git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
           cd ${GITHUB_REPOSITORY#*/}
