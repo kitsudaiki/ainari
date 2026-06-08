@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.11.1
+
+(Changes since v0.11.0)
+
+### Changed
+
+- various dependency updates, also to fix vulnerabilities in these dependencies
+
 ## v0.11.0
 
 (Changes since v0.10.0)
