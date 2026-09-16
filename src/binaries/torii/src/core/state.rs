@@ -1,6 +1,7 @@
 //! Runtime state shared by all HTTP handlers.
 
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 
 use aya::Bpf;
 use aya::maps::{HashMap as AyaHashMap, MapData};
@@ -9,11 +10,13 @@ use uuid::Uuid;
 use crate::core::models::{ArpProxyPod, RouteFilterPod, RouteTargetPod, TapInfo};
 
 use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_crypto_structs::*;
+use ainari_api_structs::network_filter_structs::*;
 
 /// Holds the application's runtime state, mapped variables, and eBPF context.
 pub struct GatewayState {
     pub routes: HashMap<Uuid, Route>,
-    pub floating_ips: HashMap<String, String>,
+    pub floating_ips: HashMap<Ipv4Addr, Ipv4Addr>,
     pub taps: HashMap<String, TapInfo>, // TAP devices and the VMs behind them
     pub crypto_keys: HashMap<String, CryptoKey>, // installed IPsec keys, by "direction:spi"
     pub connections: HashMap<String, Connection>, // VM-to-VM connections, by "local->remote"

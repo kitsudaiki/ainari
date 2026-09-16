@@ -15,12 +15,12 @@
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::floating_ip_structs::*;
 
 #[api_operation(
     tag = "floating_ip",
@@ -35,27 +35,20 @@ both eBPF NAT maps, which terminates the external access."###,
     error_code = 500
 )]
 pub async fn delete_floating_ip_internal(
-    floating_ip: Path<String>,
+    floating_ip: Path<FloatingIpPath>,
     _context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let floating_ip = floating_ip.into_inner();
+    let floating_ip = floating_ip.into_inner().ip;
 
-    let fip_addr: Ipv4Addr = match floating_ip.parse() {
-        Ok(addr) => addr,
-        Err(_) => return Err(ErrorResponse::BadRequest("Invalid FIP".to_string())),
-    };
+    let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
-    let mut st = ROUTE_HANDLER.lock().await;
-
-    let internal_ip = match st.floating_ips.remove(&floating_ip) {
+    let internal_ip = match state.floating_ips.remove(&floating_ip) {
         Some(internal_ip) => internal_ip,
         None => return Err(ErrorResponse::NotFound("Floating IP not found".to_string())),
     };
 
-    let _ = st.fip_dnat_map.remove(&u32::from(fip_addr));
-    if let Ok(int_addr) = internal_ip.parse::<Ipv4Addr>() {
-        let _ = st.fip_snat_map.remove(&u32::from(int_addr));
-    }
+    let _ = state.fip_dnat_map.remove(&u32::from(floating_ip));
+    let _ = state.fip_snat_map.remove(&u32::from(internal_ip));
 
     Ok(NoContent)
 }

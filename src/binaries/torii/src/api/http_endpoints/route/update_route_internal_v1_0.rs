@@ -14,14 +14,13 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::core::filter::apply_filter;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_ifindex;
 
 use ainari_api::errors::ErrorResponse;
@@ -53,11 +52,7 @@ pub async fn update_route_internal(
     let route_uuid = route_uuid.into_inner();
 
     // the destination address doubles as the key of the eBPF route map
-    let ip_addr: Ipv4Addr = match body.dest_ip.parse() {
-        Ok(ip) => ip,
-        Err(_) => return Err(ErrorResponse::BadRequest("Invalid IP".to_string())),
-    };
-    let ip_u32 = u32::from(ip_addr);
+    let ip_u32 = u32::from(body.dest_ip);
 
     // resolve the new target interface and its link layer details
     if get_ifindex(&body.target_iface) == 0 {
@@ -69,22 +64,22 @@ pub async fn update_route_internal(
 
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
-    let taps = { ROUTE_HANDLER.lock().await.taps.clone() };
+    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
     let target = build_route_target(&body, &taps).map_err(ErrorResponse::BadRequest)?;
 
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     let previous_dest = match st.routes.get(&route_uuid) {
-        Some(route) => route.dest_ip.clone(),
+        Some(route) => route.dest_ip,
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
 
     let updated_route = Route {
         uuid: route_uuid,
-        dest_ip: body.dest_ip.clone(),
+        dest_ip: body.dest_ip,
         target_iface: body.target_iface.clone(),
-        gateway_ip: body.gateway_ip.clone(),
-        next_hop_ip: body.next_hop_ip.clone(),
+        gateway_ip: body.gateway_ip,
+        next_hop_ip: body.next_hop_ip,
         next_hop_mac: body.next_hop_mac.clone(),
         encrypted: body.encrypted,
     };
@@ -108,11 +103,9 @@ pub async fn update_route_internal(
     // old key keeps an orphaned entry behind. The stale routing entry goes away
     // for exactly the same reason.
     if previous_dest != body.dest_ip {
-        if let Ok(previous_addr) = previous_dest.parse::<Ipv4Addr>() {
-            let previous_key = u32::from(previous_addr);
-            let _ = st.route_map.remove(&previous_key);
-            let _ = st.filter_map.remove(&previous_key);
-        }
+        let previous_key = u32::from(previous_dest);
+        let _ = st.route_map.remove(&previous_key);
+        let _ = st.filter_map.remove(&previous_key);
         let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
         apply_filter(&mut st, route_uuid, ip_u32, rules).map_err(ErrorResponse::InternalError)?;
     }

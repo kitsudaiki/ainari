@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     proxy_handler.fill_proxy_handler().await?;
     drop(proxy_handler);
 
-    let route_handler = ROUTE_HANDLER.lock().await;
+    let route_handler = GATEWAY_STATE_HANDLE.lock().await;
     drop(route_handler);
 
     api::http_server::run_server().await?;

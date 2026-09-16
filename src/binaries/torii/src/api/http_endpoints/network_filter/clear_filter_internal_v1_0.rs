@@ -17,10 +17,10 @@ use apistos::api_operation;
 use uuid::Uuid;
 
 use crate::core::filter::{apply_filter, build_filter_response, route_filter_key};
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -40,7 +40,7 @@ pub async fn clear_filter_internal(
     _context: UserContext,
 ) -> Result<Json<FilterResponse>, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     let (dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
         Some(key) => key,

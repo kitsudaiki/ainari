@@ -15,7 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -29,10 +29,10 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_route(_context: UserContext) -> Result<Json<RouteListResponse>, ErrorResponse> {
-    let st = ROUTE_HANDLER.lock().await;
+    let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut routes: Vec<Route> = st.routes.values().cloned().collect();
-    routes.sort_by(|a, b| a.dest_ip.cmp(&b.dest_ip));
+    routes.sort_by_key(|route| route.dest_ip);
 
     Ok(Json(RouteListResponse { routes }))
 }

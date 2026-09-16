@@ -31,7 +31,7 @@ use crate::core::utils::{enable_forwarding, get_ifindex};
 
 
 lazy_static::lazy_static! {
-    pub static ref ROUTE_HANDLER: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
+    pub static ref GATEWAY_STATE_HANDLE: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
 }
 
 

@@ -46,14 +46,10 @@ pub fn resolve_next_hop_mac(req: &RouteRequest, taps: &HashMap<String, TapInfo>)
         return info.vm_mac.unwrap_or([0u8; 6]);
     }
 
-    let probe = req
-        .next_hop_ip
-        .clone()
-        .filter(|ip| !ip.is_empty())
-        .unwrap_or_else(|| req.dest_ip.clone());
+    let probe = req.next_hop_ip.unwrap_or(req.dest_ip);
 
-    if !probe.is_empty() && probe != "0.0.0.0" {
-        let mac = get_arp_mac(&probe);
+    if !probe.is_unspecified() {
+        let mac = get_arp_mac(probe);
         // get_arp_mac falls back to broadcast when resolution fails.
         if mac != [0xff; 6] {
             return mac;
@@ -100,34 +96,32 @@ pub fn build_route_target(
         // route towards the gateway that hosts the remote VM plus the policies
         // that keep unprotected traffic from taking the same path.
         action = ROUTE_ACTION_KERNEL;
-        if req.gateway_ip.is_empty() {
-            return Err(
-                "encrypted routes need the underlay address of the remote gateway in gateway_ip"
-                    .to_string(),
-            );
-        }
+        let gateway_ip = match req.gateway_ip {
+            Some(gateway_ip) => gateway_ip,
+            None => {
+                return Err(
+                    "encrypted routes need the underlay address of the remote gateway in gateway_ip"
+                        .to_string(),
+                );
+            }
+        };
         let dest = format!("{}/32", req.dest_ip);
         run_ip(&[
             "route",
             "replace",
             &dest,
             "via",
-            &req.gateway_ip,
+            &gateway_ip.to_string(),
             "dev",
             &req.target_iface,
         ])?;
-        install_block_policies(&req.dest_ip)?;
-    } else if !req.gateway_ip.is_empty() {
+        install_block_policies(req.dest_ip)?;
+    } else if let Some(gateway_ip) = req.gateway_ip {
         action = ROUTE_ACTION_ENCAP;
-        let dst_ip: Ipv4Addr = req
-            .gateway_ip
-            .parse()
-            .map_err(|_| "Invalid gateway_ip".to_string())?;
-        encap_dst_ip = u32::from(dst_ip);
-        encap_dst_mac = get_arp_mac(&req.gateway_ip);
+        encap_dst_ip = u32::from(gateway_ip);
+        encap_dst_mac = get_arp_mac(gateway_ip);
 
-        let local_ip_str = get_local_ip("eth0").unwrap_or_else(|| "0.0.0.0".to_string());
-        let local_ip: Ipv4Addr = local_ip_str.parse().unwrap_or(Ipv4Addr::new(0, 0, 0, 0));
+        let local_ip = get_local_ip("eth0").unwrap_or(Ipv4Addr::UNSPECIFIED);
         encap_src_ip = u32::from(local_ip);
         encap_src_mac = get_mac_address("eth0");
     } else {

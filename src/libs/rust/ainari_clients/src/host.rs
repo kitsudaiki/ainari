@@ -48,16 +48,10 @@ pub async fn register_sakura_host(
     registration_key: &Secret,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
-    // Clone the internal address from the Hanami endpoint configuration
     let address = hanami_endpoint.internal_address.clone();
-
-    // Prepare the HTTP client with the appropriate settings
     let client = prepare_client(&address, insecure_client);
-
-    // Construct the URL for the host registration endpoint
     let url = format!("{address}/v1alpha/host/internal");
 
-    // Create the request body with host details
     let body = HostCreateReq {
         name: name.to_owned(),
         host_address: sakura_address.to_owned(),
@@ -65,10 +59,7 @@ pub async fn register_sakura_host(
         registration_key: Secret::from(registration_key.reveal()),
     };
 
-    // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
-
-    // Send the POST request with the required headers
     let response = client
         .post(url)
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
@@ -76,7 +67,6 @@ pub async fn register_sakura_host(
         .send_body(json_str)
         .await;
 
-    // Handle the response and return the result
     let resp: Result<HostResp, AinariError> = handle_response(response, "sakura-host", "").await;
     resp
 }
@@ -107,19 +97,11 @@ pub async fn register_onsen_host(
     registration_key: &Secret,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
-    // Clone the internal address from the Ryokan endpoint configuration
     let address = ryokan_endpoint.internal_address.clone();
-
-    // Prepare the HTTP client with the appropriate settings
     let client = prepare_client(&address, insecure_client);
-
-    // Construct the URL for the host registration endpoint
     let url = format!("{address}/v1alpha/host/internal");
-
-    // Create an empty UUID list as Onsen hosts typically don't have deleted UUIDs
     let empty_default_uuid_list = UuidList::default();
 
-    // Create the request body with host details
     let body = HostCreateReq {
         name: name.to_owned(),
         host_address: onsen_address.to_owned(),
@@ -127,10 +109,8 @@ pub async fn register_onsen_host(
         registration_key: Secret::from(registration_key.reveal()),
     };
 
-    // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request with the required headers
     let response = client
         .post(url)
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
@@ -138,7 +118,6 @@ pub async fn register_onsen_host(
         .send_body(json_str)
         .await;
 
-    // Handle the response and return the result
     let resp: Result<HostResp, AinariError> = handle_response(response, "onsen-host", "").await;
     resp
 }

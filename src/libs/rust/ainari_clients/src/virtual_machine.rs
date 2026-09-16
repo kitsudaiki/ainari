@@ -46,14 +46,12 @@ pub async fn create_virtual_machine(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
-    // Create the request body with the provided name and template
     let body = VirtualMachineCreateReq {
         template: template.to_owned(),
         name: name.to_owned(),
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request to create the virtual_machine
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -91,7 +89,6 @@ pub async fn get_virtual_machine(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/internal");
 
-    // Send the GET request to retrieve the virtual_machine information
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -99,7 +96,6 @@ pub async fn get_virtual_machine(
         .send()
         .await;
 
-    // Handle the response and return the result
     let resp: Result<VirtualMachineResp, AinariError> = handle_response(
         response,
         "virtual_machine",
@@ -130,7 +126,6 @@ pub async fn list_virtual_machine(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
-    // Send the GET request to list all virtual_machines
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -138,7 +133,6 @@ pub async fn list_virtual_machine(
         .send()
         .await;
 
-    // Handle the response and return the result
     let resp: Result<VirtualMachineListResp, AinariError> =
         handle_response(response, "virtual_machine", "").await;
     resp
@@ -167,7 +161,6 @@ pub async fn delete_virtual_machine(
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/internal");
 
-    // Send the DELETE request to remove the virtual_machine
     let response = client
         .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -175,7 +168,6 @@ pub async fn delete_virtual_machine(
         .send()
         .await;
 
-    // Handle the empty response and return the result
     handle_empty_response(
         response,
         "virtual_machine",

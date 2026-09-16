@@ -49,14 +49,10 @@ pub async fn init_dataset_in_ryokan(
     dimension: (u64, Vec<String>),
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    // Construct the base URL for the Ryokan service
     let address = ryokan_endpoint.internal_address.clone();
-    // Prepare the HTTP client with appropriate security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the full URL for the dataset initialization endpoint
     let url = format!("{address}/v1alpha/dataset/internal");
 
-    // Create the request body with dataset information
     let body = DatasetInitReq {
         uuid: *dataset_uuid,
         name: name.to_owned(),
@@ -65,10 +61,8 @@ pub async fn init_dataset_in_ryokan(
         column_names: dimension.1,
     };
 
-    // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request to initialize the dataset
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -77,7 +71,6 @@ pub async fn init_dataset_in_ryokan(
         .send_body(json_str)
         .await;
 
-    // Handle the response and return the result
     let resp: Result<DatasetInternalResp, AinariError> =
         handle_response(response, "dataset", "").await;
     resp
@@ -106,14 +99,10 @@ pub async fn get_dataset(
     dataset_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<DatasetInternalResp, AinariError> {
-    // Construct the base URL for the Ryokan service
     let address = ryokan_endpoint.internal_address.clone();
-    // Prepare the HTTP client with appropriate security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the full URL for the dataset retrieval endpoint
     let url = format!("{address}/v1alpha/dataset/{dataset_uuid}/internal");
 
-    // Send the GET request to retrieve the dataset information
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))

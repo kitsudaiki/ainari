@@ -14,45 +14,55 @@
 
 use std::net::Ipv4Addr;
 
+use ainari_common::secret::Secret;
 use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteRequest {
-    pub dest_ip: Ipv4Addr,
-    pub target_iface: String,
-    #[serde(default)]
-    pub gateway_ip: Option<Ipv4Addr>,
-    #[serde(default)]
-    pub next_hop_ip: Option<Ipv4Addr>,
-    #[serde(default)]
-    pub next_hop_mac: Option<String>,
-    #[serde(default)]
-    pub encrypted: bool,
+pub struct CryptoKeyRequest {
+    pub direction: String,
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    pub peer_gateway_ip: Ipv4Addr,
+    pub spi: u32,
+    pub key: Secret,
 }
 
 #[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteResponse {
-    pub success: bool,
-    pub message: String,
-    pub route: Option<Route>,
-}
-
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteListResponse {
-    pub routes: Vec<Route>,
+pub struct CryptoKeyListResponse {
+    pub keys: Vec<CryptoKey>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct Route {
-    pub uuid: Uuid,
-    pub dest_ip: Ipv4Addr,
-    pub target_iface: String,
-    pub gateway_ip: Option<Ipv4Addr>,
-    pub next_hop_ip: Option<Ipv4Addr>,
-    pub next_hop_mac: Option<String>,
-    pub encrypted: bool,
+pub struct CryptoKey {
+    pub direction: String,
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    pub peer_gateway_ip: Ipv4Addr,
+    pub spi: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct CryptoToggleRequest {
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    #[serde(default)]
+    pub peer_gateway_ip: Option<Ipv4Addr>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ConnectionListResponse {
+    pub connections: Vec<Connection>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct Connection {
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    pub peer_gateway_ip: Ipv4Addr,
+    pub enabled: bool,
+    pub active_egress_spi: Option<u32>,
 }

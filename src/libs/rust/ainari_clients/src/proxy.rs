@@ -47,22 +47,16 @@ pub async fn create_proxy(
     target_address: &str,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = torii_endpoint.internal_address.clone();
-    // Prepare the HTTP client with the specified security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the URL for the proxy creation endpoint
     let url = format!("{address}/v1alpha/proxy/internal");
 
-    // Create the request body with the required parameters
     let body = ProxyCreateReq {
         target_address: target_address.to_owned(),
         virtual_machine_uuid: *virtual_machine_uuid,
     };
-    // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request with the required headers and body
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -96,21 +90,16 @@ pub async fn get_proxy(
     proxy_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = torii_endpoint.internal_address.clone();
-    // Prepare the HTTP client with the specified security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the URL for the proxy retrieval endpoint
     let url = format!("{address}/v1alpha/proxy/{proxy_uuid}");
 
-    // Send the GET request with the required authorization header
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
-    // Handle the response and return the result
     let resp: Result<ProxyResp, AinariError> =
         handle_response(response, "proxy", &proxy_uuid.to_string()).await;
     resp
@@ -134,21 +123,16 @@ pub async fn list_proxy(
     token: &String,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = torii_endpoint.internal_address.clone();
-    // Prepare the HTTP client with the specified security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the URL for the proxy listing endpoint
     let url = format!("{address}/v1alpha/proxy");
 
-    // Send the GET request with the required authorization header
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
-    // Handle the response and return the result
     let resp: Result<ProxyResp, AinariError> = handle_response(response, "proxy", "").await;
     resp
 }
@@ -175,14 +159,10 @@ pub async fn delete_proxy(
     proxy_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<(), AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = torii_endpoint.internal_address.clone();
-    // Prepare the HTTP client with the specified security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the URL for the proxy deletion endpoint
     let url = format!("{address}/v1alpha/proxy/{proxy_uuid}/internal");
 
-    // Send the DELETE request with the required headers
     let response = client
         .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -190,6 +170,5 @@ pub async fn delete_proxy(
         .send()
         .await;
 
-    // Handle the empty response (no content expected) and return the result
     handle_empty_response(response, "proxy", &proxy_uuid.to_string()).await
 }

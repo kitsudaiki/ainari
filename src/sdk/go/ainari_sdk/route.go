@@ -29,8 +29,11 @@ func AddRoute(context AccessContext, destIp, targetIface, gatewayIp, nextHopIp, 
 	jsonBody := map[string]interface{}{
 		"dest_ip":      destIp,
 		"target_iface": targetIface,
-		"gateway_ip":   gatewayIp,
 		"encrypted":    encrypted,
+	}
+	// a route without a remote gateway is delivered locally
+	if gatewayIp != "" {
+		jsonBody["gateway_ip"] = gatewayIp
 	}
 	// the next-hop is resolved by the gateway itself, if it is not given explicitly
 	if nextHopIp != "" {
@@ -53,8 +56,11 @@ func UpdateRoute(context AccessContext, routeUuid, destIp, targetIface, gatewayI
 	jsonBody := map[string]interface{}{
 		"dest_ip":      destIp,
 		"target_iface": targetIface,
-		"gateway_ip":   gatewayIp,
 		"encrypted":    encrypted,
+	}
+	// a route without a remote gateway is delivered locally
+	if gatewayIp != "" {
+		jsonBody["gateway_ip"] = gatewayIp
 	}
 	// the next-hop is resolved by the gateway itself, if it is not given explicitly
 	if nextHopIp != "" {

@@ -15,10 +15,10 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -32,7 +32,7 @@ entry in the eBPF filter map either."###,
     error_code = 500
 )]
 pub async fn list_filter(_context: UserContext) -> Result<Json<FilterListResponse>, ErrorResponse> {
-    let st = ROUTE_HANDLER.lock().await;
+    let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut filters: Vec<FilterEntry> = st
         .filters
@@ -41,12 +41,12 @@ pub async fn list_filter(_context: UserContext) -> Result<Json<FilterListRespons
             let route = st.routes.get(route_uuid)?;
             Some(FilterEntry {
                 route_uuid: *route_uuid,
-                dest_ip: route.dest_ip.clone(),
+                dest_ip: route.dest_ip,
                 filter: rules.clone(),
             })
         })
         .collect();
-    filters.sort_by(|a, b| a.dest_ip.cmp(&b.dest_ip));
+    filters.sort_by_key(|entry| entry.dest_ip);
 
     Ok(Json(FilterListResponse { filters }))
 }

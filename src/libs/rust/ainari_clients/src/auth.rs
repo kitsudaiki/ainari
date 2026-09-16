@@ -36,21 +36,17 @@ pub async fn check_token(
     token: String,
     insecure_client: bool,
 ) -> Result<String, AinariError> {
-    // Prepare the HTTP client with the given address and security settings
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/token");
 
-    // Send the GET request with the token in the Authorization header
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
-    // Handle the response from the server
     match response {
         Ok(mut resp) => {
-            // Check the HTTP status code of the response
             match resp.status() {
                 StatusCode::UNAUTHORIZED => {
                     log::debug!("Invalid token with 401-error");
@@ -71,7 +67,6 @@ pub async fn check_token(
                 }
             }
 
-            // Extract and process the response body
             let body_str = match resp.body().await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {

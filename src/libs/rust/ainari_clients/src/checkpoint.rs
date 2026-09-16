@@ -47,22 +47,16 @@ pub async fn init_checkpoint(
     name: &str,
     insecure_client: bool,
 ) -> Result<CheckpointInternalResp, AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = ryokan_endpoint.internal_address.clone();
-    // Prepare the HTTP client based on the address and security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the API endpoint URL for checkpoint creation
     let url = format!("{address}/v1alpha/checkpoint/internal");
 
-    // Create the request body with the provided checkpoint details
     let body = CheckpointCreateReq {
         uuid: *checkpoint_uuid,
         name: name.to_owned(),
     };
-    // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request to create the checkpoint
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -71,7 +65,6 @@ pub async fn init_checkpoint(
         .send_body(json_str)
         .await;
 
-    // Handle the response and return the result
     let resp: Result<CheckpointInternalResp, AinariError> =
         handle_response(response, "checkpoint", "").await;
     resp
@@ -100,14 +93,10 @@ pub async fn get_checkpoint(
     checkpoint_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<CheckpointInternalResp, AinariError> {
-    // Clone the internal address from the endpoint configuration
     let address = ryokan_endpoint.internal_address.clone();
-    // Prepare the HTTP client based on the address and security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the API endpoint URL for checkpoint retrieval
     let url = format!("{address}/v1alpha/checkpoint/{checkpoint_uuid}/internal");
 
-    // Send the GET request to retrieve the checkpoint details
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -115,7 +104,6 @@ pub async fn get_checkpoint(
         .send()
         .await;
 
-    // Handle the response and return the result
     let resp: Result<CheckpointInternalResp, AinariError> =
         handle_response(response, "checkpoint", &checkpoint_uuid.to_string()).await;
     resp

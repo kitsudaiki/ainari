@@ -4,6 +4,10 @@
 //! interface indices, MAC addresses, neighbour resolution and the `ip` command
 //! itself - so the endpoints and the routing logic stay readable.
 
+use std::net::Ipv4Addr;
+
+use ainari_common::secret::Secret;
+
 /// Retrieves the system index of a network interface.
 ///
 /// This function reads the `/sys/class/net/{name}/ifindex` file to resolve the
@@ -54,8 +58,8 @@ pub fn get_mac_address(iface: &str) -> [u8; 6] {
 /// * `iface` - The name of the network interface
 ///
 /// # Returns
-/// An `Option<String>` containing the IP address, or None if unavailable.
-pub fn get_local_ip(iface: &str) -> Option<String> {
+/// An `Option<Ipv4Addr>` containing the IP address, or None if unavailable.
+pub fn get_local_ip(iface: &str) -> Option<Ipv4Addr> {
     let output = std::process::Command::new("ip")
         .arg("-4")
         .arg("addr")
@@ -68,7 +72,7 @@ pub fn get_local_ip(iface: &str) -> Option<String> {
         if line.contains("inet ") {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2 {
-                return Some(parts[1].split('/').next()?.to_string());
+                return parts[1].split('/').next()?.parse().ok();
             }
         }
     }
@@ -82,18 +86,19 @@ pub fn get_local_ip(iface: &str) -> Option<String> {
 /// up to 10 times to allow network convergence.
 ///
 /// # Arguments
-/// * `ip` - The target IPv4 address as a string
+/// * `ip` - The target IPv4 address
 ///
 /// # Returns
 /// A 6-byte array `[u8; 6]` containing the resolved MAC address, or a broadcast address (0xff) on failure.
-pub fn get_arp_mac(ip: &str) -> [u8; 6] {
+pub fn get_arp_mac(ip: Ipv4Addr) -> [u8; 6] {
+    let ip = ip.to_string();
     for _ in 0..10 {
         std::process::Command::new("ping")
             .arg("-c")
             .arg("1")
             .arg("-W")
             .arg("1")
-            .arg(ip)
+            .arg(&ip)
             .output()
             .ok();
         if let Ok(arp_table) = std::fs::read_to_string("/proc/net/arp") {
@@ -130,19 +135,56 @@ pub fn get_arp_mac(ip: &str) -> [u8; 6] {
 /// # Returns
 /// `Ok(())` when the command succeeded, otherwise the captured stderr
 pub fn run_ip(args: &[&str]) -> Result<(), String> {
+    run_ip_with_secrets(args, &[])
+}
+
+/// Runs an `ip` command whose arguments contain secret values.
+///
+/// The error message of a failed command repeats the full command line, and
+/// iproute2 may echo arguments on stderr as well. Every secret is therefore
+/// masked in the message before it is handed back to the caller, which usually
+/// forwards it into logs or an HTTP response.
+///
+/// # Arguments
+/// * `args` - The argument vector handed to the `ip` binary
+/// * `secrets` - The secrets revealed somewhere inside `args`
+///
+/// # Returns
+/// `Ok(())` when the command succeeded, otherwise the masked error message
+pub fn run_ip_with_secrets(args: &[&str], secrets: &[&Secret]) -> Result<(), String> {
     let output = std::process::Command::new("ip")
         .args(args)
         .output()
-        .map_err(|e| format!("failed to run ip {:?}: {}", args, e))?;
+        .map_err(|e| mask_secrets(format!("failed to run ip {:?}: {}", args, e), secrets))?;
 
     if output.status.success() {
         return Ok(());
     }
-    Err(format!(
-        "ip {} failed: {}",
-        args.join(" "),
-        String::from_utf8_lossy(&output.stderr).trim()
+    Err(mask_secrets(
+        format!(
+            "ip {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ),
+        secrets,
     ))
+}
+
+/// Replaces every occurrence of the given secrets in a message by their masked form.
+///
+/// # Arguments
+/// * `message` - The message that may contain secret values
+/// * `secrets` - The secrets to mask
+///
+/// # Returns
+/// The message without any of the secret values
+fn mask_secrets(mut message: String, secrets: &[&Secret]) -> String {
+    for secret in secrets {
+        if !secret.reveal().is_empty() {
+            message = message.replace(secret.reveal(), &secret.to_string());
+        }
+    }
+    message
 }
 
 /// Enables IPv4 forwarding for the given sysctl path, ignoring missing knobs.
@@ -180,4 +222,27 @@ pub fn parse_mac(mac: &str) -> Option<[u8; 6]> {
         return None;
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn secrets_are_masked_in_error_messages() {
+        let key = Secret::from("0xdeadbeef");
+        let message = mask_secrets(
+            "ip xfrm state add 0xdeadbeef 128 failed: 0xdeadbeef".to_string(),
+            &[&key],
+        );
+        assert_eq!(message, "ip xfrm state add *** 128 failed: ***");
+    }
+
+    #[test]
+    fn a_failing_command_does_not_leak_its_secrets() {
+        let key = Secret::from("0xdeadbeef");
+        let err =
+            run_ip_with_secrets(&["this-is-no-ip-object", key.reveal()], &[&key]).unwrap_err();
+        assert!(!err.contains(key.reveal()), "{}", err);
+    }
 }

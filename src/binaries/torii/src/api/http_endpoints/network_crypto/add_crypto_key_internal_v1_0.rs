@@ -15,14 +15,14 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::core::crypto::{apply_connection_policies, install_sa, normalize_key};
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
 
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
@@ -54,16 +54,6 @@ pub async fn register_crypto_key_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    for (label, value) in [
-        ("local_ip", &body.local_ip),
-        ("remote_ip", &body.remote_ip),
-        ("peer_gateway_ip", &body.peer_gateway_ip),
-    ] {
-        if value.parse::<Ipv4Addr>().is_err() {
-            return Err(ErrorResponse::BadRequest(format!("Invalid {}", label)));
-        }
-    }
-
     let key = normalize_key(&body.key).map_err(ErrorResponse::BadRequest)?;
 
     let local_gateway_ip = match get_local_ip("eth0") {
@@ -80,26 +70,26 @@ pub async fn register_crypto_key_internal(
     let remote_sel = format!("{}/32", body.remote_ip);
     let conn_id = format!("{}->{}", body.local_ip, body.remote_ip);
 
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     // Remember the connection this key belongs to. A connection is protected as
     // soon as it exists; the toggle endpoint can switch that off again without
     // touching the keys.
     let mut conn = st.connections.get(&conn_id).cloned().unwrap_or(Connection {
-        local_ip: body.local_ip.clone(),
-        remote_ip: body.remote_ip.clone(),
-        peer_gateway_ip: body.peer_gateway_ip.clone(),
+        local_ip: body.local_ip,
+        remote_ip: body.remote_ip,
+        peer_gateway_ip: body.peer_gateway_ip,
         enabled: true,
         active_egress_spi: None,
     });
-    conn.peer_gateway_ip = body.peer_gateway_ip.clone();
+    conn.peer_gateway_ip = body.peer_gateway_ip;
 
     // The SA always describes the tunnel between the two gateways; only its
     // direction and its selector differ.
     let result = match body.direction.as_str() {
         "egress" => install_sa(
-            &local_gateway_ip,
-            &body.peer_gateway_ip,
+            local_gateway_ip,
+            body.peer_gateway_ip,
             &spi,
             &key,
             &local_sel,
@@ -111,8 +101,8 @@ pub async fn register_crypto_key_internal(
             conn.active_egress_spi = Some(body.spi);
         }),
         "ingress" => install_sa(
-            &body.peer_gateway_ip,
-            &local_gateway_ip,
+            body.peer_gateway_ip,
+            local_gateway_ip,
             &spi,
             &key,
             &remote_sel,
@@ -131,7 +121,7 @@ pub async fn register_crypto_key_internal(
     // Write the policies of the connection. They demand ESP while the encryption
     // is switched on and are plain allow rules while it is switched off, so a
     // key installed on a disabled connection is stored but stays unused.
-    apply_connection_policies(&conn, &local_gateway_ip).map_err(ErrorResponse::InternalError)?;
+    apply_connection_policies(&conn, local_gateway_ip).map_err(ErrorResponse::InternalError)?;
 
     let encryption_state = if conn.enabled {
         "active"
@@ -142,9 +132,9 @@ pub async fn register_crypto_key_internal(
 
     let entry = CryptoKey {
         direction: body.direction.clone(),
-        local_ip: body.local_ip.clone(),
-        remote_ip: body.remote_ip.clone(),
-        peer_gateway_ip: body.peer_gateway_ip.clone(),
+        local_ip: body.local_ip,
+        remote_ip: body.remote_ip,
+        peer_gateway_ip: body.peer_gateway_ip,
         spi: body.spi,
     };
     st.crypto_keys

@@ -20,11 +20,11 @@ use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::core::models::{ArpProxyPod, TapInfo};
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{enable_forwarding, get_ifindex, get_mac_address, parse_mac, run_ip};
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use torii_common::ArpProxy;
 
@@ -95,12 +95,7 @@ pub async fn register_tap_internal(
 
     let tap_mac = get_mac_address(name);
     let vm_mac = body.vm_mac.as_deref().and_then(parse_mac);
-    let vm_ip = body
-        .vm_ip
-        .as_deref()
-        .and_then(|ip| ip.parse::<Ipv4Addr>().ok())
-        .map(u32::from)
-        .unwrap_or(0);
+    let vm_ip = body.vm_ip.map(u32::from).unwrap_or(0);
 
     if body.vm_mac.is_some() && vm_mac.is_none() {
         return Err(ErrorResponse::BadRequest("Invalid vm_mac".to_string()));
@@ -137,7 +132,7 @@ pub async fn register_tap_internal(
     }
 
     {
-        let mut st = ROUTE_HANDLER.lock().await;
+        let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
         // Teach the XDP ARP responder to serve this link. Answers carry the MAC
         // of the TAP itself, which becomes the gateway MAC of the attached VM.
@@ -161,7 +156,7 @@ pub async fn register_tap_internal(
 
     // DYNAMIC eBPF ATTACHMENT
     if !exists {
-        let mut st = ROUTE_HANDLER.lock().await;
+        let mut st = GATEWAY_STATE_HANDLE.lock().await;
         if let Some(program) = st.bpf.program_mut("overlay_ingress") {
             // Provide explicit type inference to TryInto
             let overlay_prog: Result<&mut Xdp, _> = program.try_into();

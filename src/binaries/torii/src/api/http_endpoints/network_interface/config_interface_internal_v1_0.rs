@@ -18,6 +18,7 @@ use validator::Validate;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(

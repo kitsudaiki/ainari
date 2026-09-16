@@ -17,42 +17,27 @@ use std::net::Ipv4Addr;
 use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteRequest {
-    pub dest_ip: Ipv4Addr,
-    pub target_iface: String,
+pub struct TapRequest {
+    pub tap_name: String,
     #[serde(default)]
-    pub gateway_ip: Option<Ipv4Addr>,
+    pub vm_mac: Option<String>,
     #[serde(default)]
-    pub next_hop_ip: Option<Ipv4Addr>,
-    #[serde(default)]
-    pub next_hop_mac: Option<String>,
-    #[serde(default)]
-    pub encrypted: bool,
+    pub vm_ip: Option<Ipv4Addr>,
 }
 
 #[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteResponse {
+pub struct TapResponse {
     pub success: bool,
     pub message: String,
-    pub route: Option<Route>,
-}
-
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteListResponse {
-    pub routes: Vec<Route>,
+    pub tap_name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct Route {
-    pub uuid: Uuid,
-    pub dest_ip: Ipv4Addr,
-    pub target_iface: String,
-    pub gateway_ip: Option<Ipv4Addr>,
-    pub next_hop_ip: Option<Ipv4Addr>,
-    pub next_hop_mac: Option<String>,
-    pub encrypted: bool,
+pub struct IfaceConfigRequest {
+    pub iface_name: String,
+    pub ip_cidr: Option<String>,
+    pub up: bool,
 }

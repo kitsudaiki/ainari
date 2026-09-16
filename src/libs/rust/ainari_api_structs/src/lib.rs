@@ -32,3 +32,7 @@ pub mod task_structs;
 pub mod user_context;
 pub mod user_structs;
 pub mod virtual_machine_structs;
+pub mod network_crypto_structs;
+pub mod network_filter_structs;
+pub mod network_interface_structs;
+

@@ -51,7 +51,6 @@ pub async fn run_root_cmd(
     if response.success {
         Ok(())
     } else {
-        // Return stderr if available, otherwise fallback to the exit code
         let err_msg = if !response.stderr.is_empty() {
             response.stderr.trim().to_string()
         } else {

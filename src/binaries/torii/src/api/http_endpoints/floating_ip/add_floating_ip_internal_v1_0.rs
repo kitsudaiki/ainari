@@ -15,12 +15,12 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 use validator::Validate;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
@@ -36,39 +36,30 @@ The floating IP is associated with a private internal IP, which updates both the
     error_code = 500
 )]
 pub async fn register_floating_ip_internal(
-    body: Json<FloatingIpRequest>,
+    body: Json<FloatingIpCreateReq>,
     _context: UserContext,
 ) -> Result<CreatedJson<RouteResponse>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let fip_addr: Ipv4Addr = match body.floating_ip.parse() {
-        Ok(ip) => ip,
-        Err(_) => return Err(ErrorResponse::BadRequest("Invalid FIP".to_string())),
-    };
-    let int_addr: Ipv4Addr = match body.internal_ip.parse() {
-        Ok(ip) => ip,
-        Err(_) => return Err(ErrorResponse::BadRequest("Invalid Internal IP".to_string())),
-    };
+    let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
-    let mut st = ROUTE_HANDLER.lock().await;
-
-    st.floating_ips
+    state.floating_ips
         .insert(body.floating_ip.clone(), body.internal_ip.clone());
 
-    if st
+    if state
         .fip_dnat_map
-        .insert(u32::from(fip_addr), u32::from(int_addr), 0)
+        .insert(u32::from(body.floating_ip), u32::from(body.internal_ip), 0)
         .is_err()
     {
         return Err(ErrorResponse::InternalError(
             "eBPF Map error (DNAT)".to_string(),
         ));
     }
-    if st
+    if state
         .fip_snat_map
-        .insert(u32::from(int_addr), u32::from(fip_addr), 0)
+        .insert(u32::from(body.internal_ip), u32::from(body.floating_ip), 0)
         .is_err()
     {
         return Err(ErrorResponse::InternalError(

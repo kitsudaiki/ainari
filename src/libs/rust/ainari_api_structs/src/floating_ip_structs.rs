@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::Ipv4Addr;
+
 use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -23,15 +25,16 @@ use validator::Validate;
 pub struct FloatingIpCreateReq {
     pub name: String,
     pub network_uuid: Uuid,
-    pub target_ip: String,
+    pub floating_ip: Ipv4Addr,
+    pub internal_ip: Ipv4Addr,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct FloatingIpResp {
     pub uuid: Uuid,
     pub network_uuid: Uuid,
-    pub target_ip: String,
-    pub floating_ip_address: String,
+    pub floating_ip: Ipv4Addr,
+    pub internal_ip: Ipv4Addr,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -42,11 +45,17 @@ pub struct FloatingIpResp {
 pub struct FloatingIpBasicResp {
     pub uuid: Uuid,
     pub network_uuid: Uuid,
-    pub target_ip: String,
-    pub floating_ip_address: String,
+    pub floating_ip: Ipv4Addr,
+    pub internal_ip: Ipv4Addr,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct FloatingIpListResp {
     pub floating_ips: Vec<FloatingIpBasicResp>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, ApiComponent)]
+pub struct FloatingIpPath {
+    /// The floating IPv4 address
+    pub ip: Ipv4Addr,
 }

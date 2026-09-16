@@ -3,8 +3,8 @@
 //! A route filter is kept twice: as the textual rules the control plane hands
 //! out and takes back (`RouteFilterRules`), and as the flat `RouteFilter`
 //! struct the eBPF datapath reads. This module owns the conversion between the
-//! two, including the normalisation that lets a subnet and the equivalent
-//! explicit range be recognised as the same entry.
+//! two. IP and port ranges arrive already parsed and normalised, see
+//! `IpRangeRule` and `PortRangeRule`.
 
 use std::net::Ipv4Addr;
 
@@ -12,153 +12,10 @@ use uuid::Uuid;
 
 use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, IpRange, PortRange, RouteFilter};
 
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_filter_structs::*;
 
 use crate::core::models::RouteFilterPod;
 use crate::core::state::GatewayState;
-
-/// Renders the canonical text form of an address range.
-///
-/// The same range can be written in several ways, and the client is free to use
-/// any of them. What comes back is always the shortest unambiguous form: a bare
-/// address for a single host, CIDR notation whenever the range happens to be an
-/// aligned block, and the explicit `first-last` form for everything else.
-///
-/// # Arguments
-/// * `first` - First address of the range
-/// * `last` - Last address of the range (inclusive)
-///
-/// # Returns
-/// A `String` holding the canonical notation of the range
-fn canonical_ip_spec(first: u32, last: u32) -> String {
-    if first == last {
-        return Ipv4Addr::from(first).to_string();
-    }
-
-    // A range is a subnet exactly when its size is a power of two and its first
-    // address is aligned to that size.
-    let size = u64::from(last) - u64::from(first) + 1;
-    if size.is_power_of_two() && u64::from(first) % size == 0 {
-        let prefix = 32 - size.trailing_zeros();
-        return format!("{}/{}", Ipv4Addr::from(first), prefix);
-    }
-
-    format!("{}-{}", Ipv4Addr::from(first), Ipv4Addr::from(last))
-}
-
-/// Parses one entry of the IP include-list.
-///
-/// Three notations are accepted and all of them end up as an inclusive range:
-///
-/// * `10.0.0.7` - a single address
-/// * `10.0.0.0/24` - a subnet, expanded to its first and last address
-/// * `10.0.0.5-10.0.0.9` - an explicit range
-///
-/// # Arguments
-/// * `spec` - The textual entry as it arrived from the client
-///
-/// # Returns
-/// A `Result` with the parsed rule, or a message naming what was wrong with it
-pub fn parse_ip_range(spec: &str) -> Result<IpRangeRule, String> {
-    let spec = spec.trim();
-    if spec.is_empty() {
-        return Err("Empty IP range".to_string());
-    }
-
-    let (first, last) = if let Some((addr, prefix)) = spec.split_once('/') {
-        let addr: Ipv4Addr = addr
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid address in '{}'", spec))?;
-        let prefix: u32 = prefix
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid prefix length in '{}'", spec))?;
-        if prefix > 32 {
-            return Err(format!("Prefix length out of range in '{}'", spec));
-        }
-        // A /0 mask cannot be produced by shifting a u32 by 32, so widen first.
-        let mask = (!0u64 << (32 - prefix)) as u32;
-        let network = u32::from(addr) & mask;
-        (network, network | !mask)
-    } else if let Some((from, to)) = spec.split_once('-') {
-        let from: Ipv4Addr = from
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid start address in '{}'", spec))?;
-        let to: Ipv4Addr = to
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid end address in '{}'", spec))?;
-        if u32::from(from) > u32::from(to) {
-            return Err(format!("Range '{}' ends before it starts", spec));
-        }
-        (u32::from(from), u32::from(to))
-    } else {
-        let addr: Ipv4Addr = spec
-            .parse()
-            .map_err(|_| format!("Invalid address '{}'", spec))?;
-        (u32::from(addr), u32::from(addr))
-    };
-
-    Ok(IpRangeRule {
-        spec: canonical_ip_spec(first, last),
-        first: Ipv4Addr::from(first),
-        last: Ipv4Addr::from(last),
-    })
-}
-
-/// Parses one entry of the port include-list.
-///
-/// Accepts a single port (`22`) as well as a range (`8000-8100`).
-///
-/// # Arguments
-/// * `spec` - The textual entry as it arrived from the client
-///
-/// # Returns
-/// A `Result` with the parsed rule, or a message naming what was wrong with it
-pub fn parse_port_range(spec: &str) -> Result<PortRangeRule, String> {
-    let spec = spec.trim();
-    if spec.is_empty() {
-        return Err("Empty port".to_string());
-    }
-
-    let (first, last) = if let Some((from, to)) = spec.split_once('-') {
-        let from: u16 = from
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid start port in '{}'", spec))?;
-        let to: u16 = to
-            .trim()
-            .parse()
-            .map_err(|_| format!("Invalid end port in '{}'", spec))?;
-        if from > to {
-            return Err(format!("Port range '{}' ends before it starts", spec));
-        }
-        (from, to)
-    } else {
-        let port: u16 = spec
-            .parse()
-            .map_err(|_| format!("Invalid port '{}'", spec))?;
-        (port, port)
-    };
-
-    if first == 0 {
-        return Err(format!("Port 0 is not a usable port in '{}'", spec));
-    }
-
-    let canonical = if first == last {
-        format!("{}", first)
-    } else {
-        format!("{}-{}", first, last)
-    };
-
-    Ok(PortRangeRule {
-        spec: canonical,
-        first,
-        last,
-    })
-}
 
 /// Translates the textual rules of a route into the struct the datapath reads.
 ///
@@ -215,10 +72,9 @@ pub fn build_route_filter(rules: &RouteFilterRules) -> Result<RouteFilter, Strin
 /// # Returns
 /// An `Option` with the destination address and the map key of the route, or
 /// `None` when no such route exists
-pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(String, u32)> {
+pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(Ipv4Addr, u32)> {
     let route = st.routes.get(route_uuid)?;
-    let addr: Ipv4Addr = route.dest_ip.parse().ok()?;
-    Some((route.dest_ip.clone(), u32::from(addr)))
+    Some((route.dest_ip, u32::from(route.dest_ip)))
 }
 
 /// Commits a new set of include-lists for one route.
@@ -271,7 +127,7 @@ pub fn apply_filter(
 pub fn build_filter_response(
     st: &GatewayState,
     route_uuid: Uuid,
-    dest_ip: String,
+    dest_ip: Ipv4Addr,
     message: String,
 ) -> FilterResponse {
     FilterResponse {
@@ -287,80 +143,6 @@ pub fn build_filter_response(
 mod tests {
     use super::*;
 
-    /// Parses a spec and returns its canonical form together with its bounds.
-    fn ip(spec: &str) -> (String, u32, u32) {
-        let rule = parse_ip_range(spec).expect(spec);
-        (rule.spec, u32::from(rule.first), u32::from(rule.last))
-    }
-
-    #[test]
-    fn single_address_is_its_own_range() {
-        assert_eq!(
-            ip("10.0.0.7"),
-            ("10.0.0.7".to_string(), 0x0a000007, 0x0a000007)
-        );
-    }
-
-    #[test]
-    fn subnet_expands_to_first_and_last_address() {
-        assert_eq!(
-            ip("10.0.0.0/24"),
-            ("10.0.0.0/24".to_string(), 0x0a000000, 0x0a0000ff)
-        );
-        // Host bits are dropped, exactly like a router would.
-        assert_eq!(ip("10.0.0.42/24").1, 0x0a000000);
-        assert_eq!(ip("0.0.0.0/0"), ("0.0.0.0/0".to_string(), 0, u32::MAX));
-        assert_eq!(
-            ip("10.0.0.7/32"),
-            ("10.0.0.7".to_string(), 0x0a000007, 0x0a000007)
-        );
-    }
-
-    #[test]
-    fn explicit_range_keeps_its_bounds() {
-        assert_eq!(
-            ip("10.0.0.5-10.0.0.9"),
-            ("10.0.0.5-10.0.0.9".to_string(), 0x0a000005, 0x0a000009)
-        );
-    }
-
-    #[test]
-    fn a_range_that_is_a_subnet_is_reported_as_one() {
-        // This is what makes removal independent of the notation used to add.
-        assert_eq!(ip("10.0.0.0-10.0.0.255").0, "10.0.0.0/24");
-    }
-
-    #[test]
-    fn broken_ip_specs_are_rejected() {
-        assert!(parse_ip_range("").is_err());
-        assert!(parse_ip_range("10.0.0.256").is_err());
-        assert!(parse_ip_range("10.0.0.0/33").is_err());
-        assert!(parse_ip_range("10.0.0.9-10.0.0.5").is_err());
-    }
-
-    #[test]
-    fn ports_accept_singles_and_ranges() {
-        let single = parse_port_range("22").unwrap();
-        assert_eq!(
-            (single.spec.as_str(), single.first, single.last),
-            ("22", 22, 22)
-        );
-
-        let range = parse_port_range("5000-5100").unwrap();
-        assert_eq!(
-            (range.spec.as_str(), range.first, range.last),
-            ("5000-5100", 5000, 5100)
-        );
-    }
-
-    #[test]
-    fn broken_port_specs_are_rejected() {
-        assert!(parse_port_range("").is_err());
-        assert!(parse_port_range("0").is_err());
-        assert!(parse_port_range("65536").is_err());
-        assert!(parse_port_range("100-10").is_err());
-    }
-
     #[test]
     fn empty_rules_translate_to_a_filter_that_allows_everything() {
         let filter = build_route_filter(&RouteFilterRules::default()).unwrap();
@@ -371,8 +153,8 @@ mod tests {
     #[test]
     fn rules_are_copied_into_the_ebpf_representation() {
         let rules = RouteFilterRules {
-            ip_ranges: vec![parse_ip_range("10.0.0.0/24").unwrap()],
-            ports: vec![parse_port_range("5000-5100").unwrap()],
+            ip_ranges: vec!["10.0.0.0/24".parse().unwrap()],
+            ports: vec!["5000-5100".parse().unwrap()],
         };
         let filter = build_route_filter(&rules).unwrap();
 
@@ -388,7 +170,7 @@ mod tests {
     fn a_list_longer_than_the_map_value_is_rejected() {
         let rules = RouteFilterRules {
             ip_ranges: (0..=FILTER_MAX_IP_RANGES)
-                .map(|i| parse_ip_range(&format!("10.0.0.{}", i)).unwrap())
+                .map(|i| format!("10.0.0.{}", i).parse().unwrap())
                 .collect(),
             ports: Vec::new(),
         };

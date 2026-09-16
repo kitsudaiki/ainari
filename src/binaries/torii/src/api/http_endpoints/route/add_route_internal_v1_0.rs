@@ -20,9 +20,6 @@ use validator::Validate;
 
 use crate::core::routing_interface::*;
 
-
-use std::net::Ipv4Addr;
-
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::utils::get_ifindex;
@@ -47,11 +44,7 @@ pub async fn register_route_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let ip_addr: Ipv4Addr = match body.dest_ip.parse() {
-        Ok(ip) => ip,
-        Err(_) => return Err(ErrorResponse::BadRequest("Invalid IP".to_string())),
-    };
-    let ip_u32 = u32::from(ip_addr);
+    let ip_u32 = u32::from(body.dest_ip);
 
     if get_ifindex(&body.target_iface) == 0 {
         return Err(ErrorResponse::NotFound(format!(
@@ -62,21 +55,21 @@ pub async fn register_route_internal(
 
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
-    let taps = { ROUTE_HANDLER.lock().await.taps.clone() };
+    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
     let target = match build_route_target(&body, &taps) {
         Ok(target) => target,
         Err(_err) => return Err(ErrorResponse::BadRequest("Invalid Input".to_string())),
     };
 
     let route_uuid = Uuid::new_v4();
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     let route = Route {
         uuid: route_uuid,
-        dest_ip: body.dest_ip.clone(),
+        dest_ip: body.dest_ip,
         target_iface: body.target_iface.clone(),
-        gateway_ip: body.gateway_ip.clone(),
-        next_hop_ip: body.next_hop_ip.clone(),
+        gateway_ip: body.gateway_ip,
+        next_hop_ip: body.next_hop_ip,
         next_hop_mac: body.next_hop_mac.clone(),
         encrypted: body.encrypted,
     };

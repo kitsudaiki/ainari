@@ -14,15 +14,15 @@
 
 use actix_web::web::Json;
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::core::crypto::apply_connection_policies;
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -50,12 +50,6 @@ pub async fn toggle_crypto_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    for (label, value) in [("local_ip", &body.local_ip), ("remote_ip", &body.remote_ip)] {
-        if value.parse::<Ipv4Addr>().is_err() {
-            return Err(ErrorResponse::BadRequest(format!("Invalid {}", label)));
-        }
-    }
-
     let local_gateway_ip = match get_local_ip("eth0") {
         Some(ip) => ip,
         None => {
@@ -66,20 +60,15 @@ pub async fn toggle_crypto_internal(
     };
 
     let conn_id = format!("{}->{}", body.local_ip, body.remote_ip);
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     // A connection this gateway holds a key for is already known. For an unknown
     // one the peer has to be named, otherwise there is no tunnel to describe.
     let mut conn = match st.connections.get(&conn_id).cloned() {
         Some(conn) => conn,
         None => {
-            let peer = match body.peer_gateway_ip.clone() {
-                Some(peer) if peer.parse::<Ipv4Addr>().is_ok() => peer,
-                Some(_) => {
-                    return Err(ErrorResponse::BadRequest(
-                        "Invalid peer_gateway_ip".to_string(),
-                    ));
-                }
+            let peer = match body.peer_gateway_ip {
+                Some(peer) => peer,
                 None => {
                     return Err(ErrorResponse::NotFound(
                         "Unknown connection. Install a key first or pass peer_gateway_ip."
@@ -88,8 +77,8 @@ pub async fn toggle_crypto_internal(
                 }
             };
             Connection {
-                local_ip: body.local_ip.clone(),
-                remote_ip: body.remote_ip.clone(),
+                local_ip: body.local_ip,
+                remote_ip: body.remote_ip,
                 peer_gateway_ip: peer,
                 enabled: body.enabled,
                 active_egress_spi: None,
@@ -98,11 +87,11 @@ pub async fn toggle_crypto_internal(
     };
 
     conn.enabled = body.enabled;
-    if let Some(peer) = body.peer_gateway_ip.as_ref() {
-        conn.peer_gateway_ip = peer.clone();
+    if let Some(peer) = body.peer_gateway_ip {
+        conn.peer_gateway_ip = peer;
     }
 
-    apply_connection_policies(&conn, &local_gateway_ip).map_err(ErrorResponse::InternalError)?;
+    apply_connection_policies(&conn, local_gateway_ip).map_err(ErrorResponse::InternalError)?;
 
     let keys_held = st
         .crypto_keys

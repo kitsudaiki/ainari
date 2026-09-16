@@ -16,7 +16,7 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{get_local_ip, run_ip};
 
 use ainari_api::errors::ErrorResponse;
@@ -40,7 +40,7 @@ pub async fn delete_crypto_key_internal(
     _context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let (direction, spi) = path.into_inner();
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     let entry = match st.crypto_keys.remove(&format!("{}:{}", direction, spi)) {
         Some(entry) => entry,
@@ -57,9 +57,10 @@ pub async fn delete_crypto_key_internal(
     };
 
     let (src, dst) = match entry.direction.as_str() {
-        "egress" => (local_gateway_ip, entry.peer_gateway_ip.clone()),
-        _ => (entry.peer_gateway_ip.clone(), local_gateway_ip),
+        "egress" => (local_gateway_ip, entry.peer_gateway_ip),
+        _ => (entry.peer_gateway_ip, local_gateway_ip),
     };
+    let (src, dst) = (src.to_string(), dst.to_string());
     let spi_hex = format!("0x{:08x}", spi);
 
     run_ip(&[

@@ -17,11 +17,11 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, build_filter_response, parse_port_range, route_filter_key};
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::filter::{apply_filter, build_filter_response, route_filter_key};
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -54,13 +54,7 @@ pub async fn add_filter_port_internal(
         return Err(ErrorResponse::BadRequest("No port given".to_string()));
     }
 
-    // Parse everything up front: a request with one bad entry changes nothing.
-    let mut parsed = Vec::with_capacity(body.ports.len());
-    for spec in &body.ports {
-        parsed.push(parse_port_range(spec).map_err(ErrorResponse::BadRequest)?);
-    }
-
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
     let (dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
         Some(key) => key,
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
@@ -68,7 +62,7 @@ pub async fn add_filter_port_internal(
 
     let mut rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
     let mut added = 0;
-    for rule in parsed {
+    for rule in body.ports.iter().cloned() {
         let known = rules
             .ports
             .iter()

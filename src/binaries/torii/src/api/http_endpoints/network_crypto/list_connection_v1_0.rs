@@ -15,10 +15,10 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
+use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -35,10 +35,10 @@ connection from a deliberately unprotected one."###,
 pub async fn list_connection(
     _context: UserContext,
 ) -> Result<Json<ConnectionListResponse>, ErrorResponse> {
-    let st = ROUTE_HANDLER.lock().await;
+    let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut connections: Vec<Connection> = st.connections.values().cloned().collect();
-    connections.sort_by(|a, b| (&a.local_ip, &a.remote_ip).cmp(&(&b.local_ip, &b.remote_ip)));
+    connections.sort_by_key(|conn| (conn.local_ip, conn.remote_ip));
 
     Ok(Json(ConnectionListResponse { connections }))
 }

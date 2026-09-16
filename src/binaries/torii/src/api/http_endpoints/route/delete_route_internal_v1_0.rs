@@ -15,11 +15,10 @@
 use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
-use std::net::Ipv4Addr;
 use uuid::Uuid;
 
 use crate::core::crypto::remove_block_policies;
-use crate::core::routing_interface::ROUTE_HANDLER;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::run_ip;
 
 use ainari_api::errors::ErrorResponse;
@@ -42,26 +41,22 @@ pub async fn delete_route_internal(
     _context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
-    let mut st = ROUTE_HANDLER.lock().await;
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     let route = match st.routes.remove(&route_uuid) {
         Some(route) => route,
         None => return Err(ErrorResponse::NotFound("Route not found".to_string())),
     };
 
-    // A route whose destination does not parse never made it into the maps, so
-    // dropping the bookkeeping above is all there is to do for it.
-    if let Ok(ip_addr) = route.dest_ip.parse::<Ipv4Addr>() {
-        let dest_key = u32::from(ip_addr);
-        let _ = st.route_map.remove(&dest_key);
-        // The filter guards the route, so it dies with it.
-        let _ = st.filter_map.remove(&dest_key);
-    }
+    let dest_key = u32::from(route.dest_ip);
+    let _ = st.route_map.remove(&dest_key);
+    // The filter guards the route, so it dies with it.
+    let _ = st.filter_map.remove(&dest_key);
     st.filters.remove(&route_uuid);
 
     if route.encrypted {
         // Drop the fail-closed policies together with the route they guard.
-        remove_block_policies(&route.dest_ip);
+        remove_block_policies(route.dest_ip);
         let dest = format!("{}/32", route.dest_ip);
         let _ = run_ip(&["route", "del", &dest]);
     }

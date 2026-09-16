@@ -5,8 +5,11 @@
 //! module owns everything that touches Security Associations and policies, so
 //! the rules about when traffic is protected live in exactly one place.
 
-use crate::core::utils::run_ip;
-use ainari_api_structs::route_structs::*;
+use std::net::Ipv4Addr;
+
+use crate::core::utils::{run_ip, run_ip_with_secrets};
+use ainari_api_structs::network_crypto_structs::*;
+use ainari_common::secret::Secret;
 
 /// Normalises and validates AES-256-GCM key material coming from the API.
 ///
@@ -18,9 +21,13 @@ use ainari_api_structs::route_structs::*;
 /// * `key` - Hex encoded key material, with or without a `0x` prefix
 ///
 /// # Returns
-/// A `Result` with the normalised key string, or a message describing the problem
-pub fn normalize_key(key: &str) -> Result<String, String> {
-    let hex = key.trim().trim_start_matches("0x").trim_start_matches("0X");
+/// A `Result` with the normalised key, or a message describing the problem
+pub fn normalize_key(key: &Secret) -> Result<Secret, String> {
+    let hex = key
+        .reveal()
+        .trim()
+        .trim_start_matches("0x")
+        .trim_start_matches("0X");
     if hex.len() != 72 {
         return Err(format!(
             "AES-256-GCM needs 36 bytes (32 byte key + 4 byte salt) = 72 hex digits, got {}",
@@ -30,7 +37,7 @@ pub fn normalize_key(key: &str) -> Result<String, String> {
     if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err("key must be hex encoded".to_string());
     }
-    Ok(format!("0x{}", hex))
+    Ok(Secret::from(format!("0x{}", hex)))
 }
 
 /// Writes the xfrm policies of a connection according to its current state.
@@ -53,7 +60,12 @@ pub fn normalize_key(key: &str) -> Result<String, String> {
 ///
 /// # Returns
 /// `Ok(())` when the kernel accepted all policies of the connection
-pub fn apply_connection_policies(conn: &Connection, local_gateway_ip: &str) -> Result<(), String> {
+pub fn apply_connection_policies(
+    conn: &Connection,
+    local_gateway_ip: Ipv4Addr,
+) -> Result<(), String> {
+    let local_gateway_ip = local_gateway_ip.to_string();
+    let peer_gateway_ip = conn.peer_gateway_ip.to_string();
     let local_sel = format!("{}/32", conn.local_ip);
     let remote_sel = format!("{}/32", conn.remote_ip);
 
@@ -106,9 +118,9 @@ pub fn apply_connection_policies(conn: &Connection, local_gateway_ip: &str) -> R
         "out",
         "tmpl",
         "src",
-        local_gateway_ip,
+        &local_gateway_ip,
         "dst",
-        &conn.peer_gateway_ip,
+        &peer_gateway_ip,
         "proto",
         "esp",
     ];
@@ -132,9 +144,9 @@ pub fn apply_connection_policies(conn: &Connection, local_gateway_ip: &str) -> R
             dir,
             "tmpl",
             "src",
-            &conn.peer_gateway_ip,
+            &peer_gateway_ip,
             "dst",
-            local_gateway_ip,
+            &local_gateway_ip,
             "proto",
             "esp",
             "mode",
@@ -162,47 +174,54 @@ pub fn apply_connection_policies(conn: &Connection, local_gateway_ip: &str) -> R
 /// * `sel_dst` - Selector destination, the VM address traffic goes to
 ///
 /// # Returns
-/// `Ok(())` when the kernel accepted the Security Association
+/// `Ok(())` when the kernel accepted the Security Association, otherwise an
+/// error message with the key masked
 pub fn install_sa(
-    src: &str,
-    dst: &str,
+    src: Ipv4Addr,
+    dst: Ipv4Addr,
     spi: &str,
-    key: &str,
+    key: &Secret,
     sel_src: &str,
     sel_dst: &str,
 ) -> Result<(), String> {
+    let src = src.to_string();
+    let dst = dst.to_string();
+
     // A leftover state under this SPI would make the add fail; it is the key we
     // are about to overwrite anyway.
     let _ = run_ip(&[
-        "xfrm", "state", "delete", "src", src, "dst", dst, "proto", "esp", "spi", spi,
+        "xfrm", "state", "delete", "src", &src, "dst", &dst, "proto", "esp", "spi", spi,
     ]);
 
-    run_ip(&[
-        "xfrm",
-        "state",
-        "add",
-        "src",
-        src,
-        "dst",
-        dst,
-        "proto",
-        "esp",
-        "spi",
-        spi,
-        "reqid",
-        "0",
-        "mode",
-        "tunnel",
-        "aead",
-        "rfc4106(gcm(aes))",
-        key,
-        "128",
-        "sel",
-        "src",
-        sel_src,
-        "dst",
-        sel_dst,
-    ])
+    run_ip_with_secrets(
+        &[
+            "xfrm",
+            "state",
+            "add",
+            "src",
+            &src,
+            "dst",
+            &dst,
+            "proto",
+            "esp",
+            "spi",
+            spi,
+            "reqid",
+            "0",
+            "mode",
+            "tunnel",
+            "aead",
+            "rfc4106(gcm(aes))",
+            key.reveal(),
+            "128",
+            "sel",
+            "src",
+            sel_src,
+            "dst",
+            sel_dst,
+        ],
+        &[key],
+    )
 }
 
 /// Installs the fail-closed xfrm policies of an encrypted route.
@@ -218,7 +237,7 @@ pub fn install_sa(
 ///
 /// # Returns
 /// `Ok(())` if both policies could be installed
-pub fn install_block_policies(dest_ip: &str) -> Result<(), String> {
+pub fn install_block_policies(dest_ip: Ipv4Addr) -> Result<(), String> {
     let dest = format!("{}/32", dest_ip);
     run_ip(&[
         "xfrm", "policy", "update", "dst", &dest, "dir", "out", "action", "block", "priority",
@@ -238,7 +257,7 @@ pub fn install_block_policies(dest_ip: &str) -> Result<(), String> {
 ///
 /// # Returns
 /// None. Errors are ignored: the policies may already be gone.
-pub fn remove_block_policies(dest_ip: &str) {
+pub fn remove_block_policies(dest_ip: Ipv4Addr) {
     let dest = format!("{}/32", dest_ip);
     let _ = run_ip(&["xfrm", "policy", "delete", "dst", &dest, "dir", "out"]);
     let _ = run_ip(&["xfrm", "policy", "delete", "src", &dest, "dir", "fwd"]);
