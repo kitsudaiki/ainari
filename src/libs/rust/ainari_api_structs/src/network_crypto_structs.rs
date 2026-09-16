@@ -62,7 +62,6 @@ pub struct CryptoToggleResp {
     pub enabled: bool,
 }
 
-
 #[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ConnectionListResp {
     pub connections: Vec<ConnectionResp>,

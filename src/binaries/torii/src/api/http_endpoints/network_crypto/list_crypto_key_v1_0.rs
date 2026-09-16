@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::models::CryptoKey;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
@@ -42,7 +42,6 @@ pub async fn list_crypto_key(
 
     let mut resp = CryptoKeyListResp::default();
     for crypto_key in crypto_keys {
-
         let converted_crypto_key = CryptoKeyResp {
             direction: crypto_key.direction,
             local_ip: crypto_key.local_ip,

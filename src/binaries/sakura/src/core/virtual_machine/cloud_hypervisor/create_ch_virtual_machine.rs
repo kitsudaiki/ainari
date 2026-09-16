@@ -5,12 +5,10 @@ use cloud_hypervisor_client::models::{
 };
 use cloud_hypervisor_client::socket_based_api_client;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 use uuid::Uuid;
 
-use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 
 use ainari_clients::root_wrap::*;
@@ -63,9 +61,9 @@ pub async fn create_ch_virtual_machine(
     number_of_cores: i32,
     memory_size: i64,
     root_disk_path: Option<String>,
-    seed_path: &String,
+    seed_path: &str,
     tap_name: &String,
-    mac_address: &String,
+    mac_address: &str,
 ) -> Result<VmHandle, AinariError> {
     create_tap_device(tap_name, Some("192.168.100.1/24")).await?;
     log::info!("Start creation of VM {uuid}");
@@ -97,7 +95,7 @@ pub async fn create_ch_virtual_machine(
         ..Default::default()
     };
 
-    let (disk_path, has_root_disk) = if let Some(disk_path) = root_disk_path {
+    let (disk_path, _has_root_disk) = if let Some(disk_path) = root_disk_path {
         (disk_path, true)
     } else {
         ("".to_string(), false)
@@ -124,7 +122,7 @@ pub async fn create_ch_virtual_machine(
 
         net: Some(vec![NetConfig {
             tap: Some(tap_name.clone()),
-            mac: Some(mac_address.clone()),
+            mac: Some(mac_address.to_string()),
             ..Default::default()
         }]),
         memory: Some(MemoryConfig {
@@ -138,7 +136,7 @@ pub async fn create_ch_virtual_machine(
                 ..Default::default()
             },
             DiskConfig {
-                path: Some(seed_path.clone()),
+                path: Some(seed_path.to_string()),
                 readonly: Some(true),
                 ..Default::default()
             },

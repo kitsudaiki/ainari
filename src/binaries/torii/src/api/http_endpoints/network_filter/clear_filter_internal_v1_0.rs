@@ -48,13 +48,8 @@ pub async fn clear_filter_internal(
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
 
-    apply_filter(
-        &mut st,
-        route_uuid,
-        dest_key,
-        RouteFilterRules::default(),
-    )
-    .map_err(|e| map_internal_error("clear packet-filter", e))?;
+    apply_filter(&mut st, route_uuid, dest_key, RouteFilterRules::default())
+        .map_err(|e| map_internal_error("clear packet-filter", e))?;
 
     let message = format!(
         "Packet filter of {} cleared, every address and port allowed",

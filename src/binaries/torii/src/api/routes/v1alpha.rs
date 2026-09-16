@@ -52,13 +52,9 @@ pub fn v1alpha_routes() -> Scope {
                         post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal),
                     ),
                 )
-                .service(
-                    resource("/{floating_ip}/internal").route(
-                        delete().to(
-                            delete_floating_ip_internal_v1_0::delete_floating_ip_internal,
-                        ),
-                    ),
-                ),
+                .service(resource("/{floating_ip}/internal").route(
+                    delete().to(delete_floating_ip_internal_v1_0::delete_floating_ip_internal),
+                )),
         )
         .service(
             scope("/route")
@@ -73,8 +69,7 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
                 )
                 .service(
-                    resource("/{route_uuid}/filter")
-                        .route(get().to(get_filter_v1_0::get_filter)),
+                    resource("/{route_uuid}/filter").route(get().to(get_filter_v1_0::get_filter)),
                 )
                 .service(
                     resource("/{route_uuid}/filter/internal")
@@ -82,9 +77,11 @@ pub fn v1alpha_routes() -> Scope {
                 )
                 .service(
                     resource("/{route_uuid}/filter/ip_range/internal")
-                        .route(post().to(
-                            add_filter_ip_range_internal_v1_0::add_filter_ip_range_internal,
-                        ))
+                        .route(
+                            post().to(
+                                add_filter_ip_range_internal_v1_0::add_filter_ip_range_internal,
+                            ),
+                        )
                         .route(delete().to(
                             delete_filter_ip_range_internal_v1_0::delete_filter_ip_range_internal,
                         )),
@@ -92,9 +89,10 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{route_uuid}/filter/port/internal")
                         .route(post().to(add_filter_port_internal_v1_0::add_filter_port_internal))
-                        .route(delete().to(
-                            delete_filter_port_internal_v1_0::delete_filter_port_internal,
-                        )),
+                        .route(
+                            delete()
+                                .to(delete_filter_port_internal_v1_0::delete_filter_port_internal),
+                        ),
                 ),
         )
         .service(
@@ -103,27 +101,21 @@ pub fn v1alpha_routes() -> Scope {
         )
         .service(
             scope("/network_crypto")
-                .service(
-                    resource("/key")
-                        .route(get().to(list_crypto_key_v1_0::list_crypto_key)),
-                )
+                .service(resource("/key").route(get().to(list_crypto_key_v1_0::list_crypto_key)))
                 .service(
                     resource("/key/internal").route(
                         post().to(add_crypto_key_internal_v1_0::register_crypto_key_internal),
                     ),
                 )
-                .service(
-                    resource("/key/{direction}/{spi}/internal").route(
-                        delete().to(delete_crypto_key_internal_v1_0::delete_crypto_key_internal),
-                    ),
-                )
+                .service(resource("/key/{direction}/{spi}/internal").route(
+                    delete().to(delete_crypto_key_internal_v1_0::delete_crypto_key_internal),
+                ))
                 .service(
                     resource("/toggle/internal")
                         .route(post().to(toggle_crypto_internal_v1_0::toggle_crypto_internal)),
                 )
                 .service(
-                    resource("/connection")
-                        .route(get().to(list_connection_v1_0::list_connection)),
+                    resource("/connection").route(get().to(list_connection_v1_0::list_connection)),
                 ),
         )
         .service(

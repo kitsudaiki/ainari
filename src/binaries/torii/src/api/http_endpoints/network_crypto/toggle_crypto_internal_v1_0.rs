@@ -17,9 +17,9 @@ use apistos::api_operation;
 use validator::Validate;
 
 use crate::core::crypto::apply_connection_policies;
+use crate::core::models::Connection;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
-use crate::core::models::Connection;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -115,10 +115,10 @@ pub async fn toggle_crypto_internal(
     log::debug!("{}", message);
 
     let resp = CryptoToggleResp {
-        local_ip: body.local_ip.clone(),
-        remote_ip: body.remote_ip.clone(),
-        peer_gateway_ip: body.peer_gateway_ip.clone(),
-        enabled: body.enabled.clone(),
+        local_ip: body.local_ip,
+        remote_ip: body.remote_ip,
+        peer_gateway_ip: body.peer_gateway_ip,
+        enabled: body.enabled,
     };
 
     Ok(Json(resp))

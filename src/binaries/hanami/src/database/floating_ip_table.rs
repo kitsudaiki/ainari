@@ -123,8 +123,8 @@ pub fn add_new_floating_ip(
     let floating_ip_addr = FloatingIpEntry {
         uuid: *network_uuid,
         network_uuid: *floating_ip_uuid,
-        internal_ip_addr: internal_ip_addr.clone(),
-        floating_ip_addr: floating_ip_addr.clone(),
+        internal_ip_addr: *internal_ip_addr,
+        floating_ip_addr: *floating_ip_addr,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -427,7 +427,13 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
-        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
 
         hard_delete_floating_ip(&uuid1);
 
@@ -472,7 +478,13 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
-        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
         let entry2 = new_entry(
             &uuid2,
             &network_uuid1,
@@ -506,7 +518,13 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
-        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
 
         hard_delete_floating_ip(&uuid1);
 
@@ -554,7 +572,13 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", true, false);
 
-        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
         let entry2 = new_entry(
             &uuid2,
             &network_uuid1,
@@ -587,8 +611,20 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
-        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
-        let entry2 = new_entry(&uuid2, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        let entry2 = new_entry(
+            &uuid2,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
         // neither DELETED entries nor entries of other owners are counted
         let entry3 = new_entry(
             &uuid3,

@@ -48,7 +48,7 @@ pub async fn create_floating_ip(
     let floating_ip_uuid = Uuid::new_v4();
 
     // TODO: generate ip
-    let floating_ip_address = "127.0.0.1".to_owned();
+    let _floating_ip_address = "127.0.0.1".to_owned();
 
     // add new floating_ip to datbase
     floating_ip_table::add_new_floating_ip(

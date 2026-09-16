@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::models::Connection;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
@@ -43,7 +43,6 @@ pub async fn list_connection(
 
     let mut resp = ConnectionListResp::default();
     for connection in connections {
-
         let converted_route = ConnectionResp {
             local_ip: connection.local_ip,
             remote_ip: connection.remote_ip,

@@ -46,8 +46,9 @@ pub async fn register_floating_ip_internal(
     let uuid = Uuid::new_v4();
     let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
-    state.floating_ips
-        .insert(body.floating_ip.clone(), body.internal_ip.clone());
+    state
+        .floating_ips
+        .insert(body.floating_ip, body.internal_ip);
 
     if state
         .fip_dnat_map
@@ -67,11 +68,11 @@ pub async fn register_floating_ip_internal(
     }
 
     let resp = FloatingIpInternalResp {
-        uuid: uuid,
+        uuid,
         name: body.name.clone(),
-        network_uuid: body.network_uuid.clone(),
-        floating_ip: body.floating_ip.clone(),
-        internal_ip: body.internal_ip.clone(),
+        network_uuid: body.network_uuid,
+        floating_ip: body.floating_ip,
+        internal_ip: body.internal_ip,
     };
 
     Ok(CreatedJson(resp))

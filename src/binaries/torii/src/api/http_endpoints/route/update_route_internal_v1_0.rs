@@ -18,11 +18,11 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::core::filter::apply_filter;
+use crate::core::models::Route;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_ifindex;
-use crate::core::models::Route;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -111,7 +111,6 @@ pub async fn update_route_internal(
         apply_filter(&mut st, route_uuid, ip_u32, rules)
             .map_err(|e| map_internal_error("move packet-filter of route", e))?;
     }
-
 
     let updated_route = RouteResp {
         uuid: route_uuid,

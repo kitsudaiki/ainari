@@ -14,16 +14,9 @@
 
 use chrono::{DateTime, Utc};
 use diesel::Connection; // Required for .transaction()
-use diesel::backend::Backend;
 use diesel::connection::SimpleConnection;
-use diesel::deserialize::{self, FromSql, FromSqlRow};
-use diesel::expression::AsExpression;
 use diesel::prelude::*;
-use diesel::serialize::{self, Output, ToSql};
-use diesel::sql_types::Varchar;
-use diesel::sqlite::Sqlite;
 use std::error::Error;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -142,9 +135,9 @@ pub fn add_new_task(
 ) -> QueryResult<usize> {
     // Create a new TaskEntry with the provided parameters
     let task = TaskEntry {
-        uuid: task_uuid.clone(),
+        uuid: *task_uuid,
         name: task_name.to_owned(),
-        resource_uuid: resource_uuid.clone(),
+        resource_uuid: *resource_uuid,
         resource_type: resource_type.to_string().clone(),
         task_type: task_type.clone(),
         task_state: TaskState::Created,
@@ -277,7 +270,8 @@ pub fn list_tasks(
 ///
 /// # Returns
 /// * `Result<(), ()>` - Ok(()) if successful, Err(()) if the task was not found or another error occurred
-pub fn update_task_progress(task_uuid: &Uuid, epoch: &i64, cycle: &i64) -> Result<(), ()> {
+#[allow(dead_code)]
+pub fn update_task_progress(_task_uuid: &Uuid, _epoch: &i64, _cycle: &i64) -> Result<(), ()> {
     // let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     // use self::tasks::dsl::*;
 
@@ -352,6 +346,7 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
 }
 
 /// Appends a new message to the task's messages list.
+#[allow(dead_code)]
 pub fn add_message_to_task(task_uuid: &Uuid, new_message: &str) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
@@ -446,9 +441,9 @@ mod tests {
         };
 
         let task = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -495,9 +490,9 @@ mod tests {
         };
 
         let task1 = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -513,9 +508,9 @@ mod tests {
         };
 
         let task2 = TaskEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: "Bob".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -552,9 +547,9 @@ mod tests {
         let resource_type = TaskResourceType::VirtualMachine;
 
         let task1 = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -570,9 +565,9 @@ mod tests {
         };
 
         let task2 = TaskEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: "Bob".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -588,9 +583,9 @@ mod tests {
         };
 
         let task3 = TaskEntry {
-            uuid: uuid3.clone(),
+            uuid: uuid3,
             name: "Poi".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -699,9 +694,9 @@ mod tests {
         };
 
         let task = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -783,7 +778,7 @@ mod tests {
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
-        let context = UserContext {
+        let _context = UserContext {
             token: "".to_string(),
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -792,9 +787,9 @@ mod tests {
         };
 
         let task = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -843,9 +838,9 @@ mod tests {
         };
 
         let task = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -887,9 +882,9 @@ mod tests {
         let owner_id = "test-user".to_string();
 
         let task = TaskEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
-            resource_uuid: resource_uuid.clone(),
+            resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,

@@ -19,7 +19,6 @@ use tokio::task::LocalSet;
 use crate::config;
 use crate::database::virtual_machine_table;
 
-use ainari_api::common_functions::convert_uuid;
 use ainari_api_structs::host_structs::UuidList;
 use ainari_clients::endpoints::*;
 use ainari_clients::host::register_sakura_host;

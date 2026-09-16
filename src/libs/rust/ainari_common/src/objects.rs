@@ -22,8 +22,8 @@ use diesel::sql_types::Nullable;
 use diesel::sql_types::Varchar;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use uuid::Uuid;
 use std::net::{AddrParseError, Ipv4Addr};
+use uuid::Uuid;
 
 use super::constants::UNINIT_POINT_32;
 
@@ -251,7 +251,6 @@ impl TryFrom<DbVecString> for Vec<String> {
 }
 
 //===================================================================================================
-
 
 // The transparent bridge struct for Ipv4Addr
 #[derive(Debug, Clone, PartialEq, AsExpression, FromSqlRow)]

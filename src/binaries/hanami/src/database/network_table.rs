@@ -109,13 +109,13 @@ pub fn init_network_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_network(
     network_uuid: &Uuid,
     network_name: &str,
-    subnet: &String,
+    subnet: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let network = NetworkEntry {
         uuid: *network_uuid,
         name: network_name.to_string().clone(),
-        subnet: subnet.clone(),
+        subnet: subnet.to_string(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),

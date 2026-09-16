@@ -13,17 +13,8 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::backend::Backend;
 use diesel::connection::SimpleConnection;
-use diesel::deserialize::{self, FromSql, FromSqlRow};
-use diesel::expression::AsExpression;
 use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind;
-use diesel::serialize::{self, Output, ToSql};
-use diesel::sql_types::Varchar;
-use diesel::sqlite::Sqlite;
-use std::error::Error;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -137,6 +128,8 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
 /// # Returns
 /// * `Ok(usize)` with the number of rows inserted on success
 /// * `Err` with an appropriate error on failure
+#[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub fn add_new_virtual_machine(
     virtual_machine_uuid: &Uuid,
     virtual_machine_name: &str,
@@ -146,21 +139,21 @@ pub fn add_new_virtual_machine(
     image_uuid: &Uuid,
     seed_uuid: &Uuid,
     public_key_uuid: &Uuid,
-    ip_addresses: &Vec<String>,
+    ip_addresses: &[String],
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Create the new virtual_machine entry
     let virtual_machine = VirtualMachineEntry {
-        uuid: virtual_machine_uuid.clone(),
+        uuid: *virtual_machine_uuid,
         name: virtual_machine_name.to_owned(),
         is_created: false,
-        number_of_cores: number_of_cores,
-        size_of_memory: size_of_memory,
-        size_of_disk: size_of_disk,
-        image_uuid: image_uuid.clone(),
-        seed_uuid: seed_uuid.clone(),
-        public_key_uuid: public_key_uuid.clone(),
-        ip_addresses: ip_addresses.clone(),
+        number_of_cores,
+        size_of_memory,
+        size_of_disk,
+        image_uuid: *image_uuid,
+        seed_uuid: *seed_uuid,
+        public_key_uuid: *public_key_uuid,
+        ip_addresses: ip_addresses.to_vec(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -184,6 +177,7 @@ pub fn add_new_virtual_machine(
 /// # Returns
 /// * `Ok(usize)` with the number of rows inserted on success
 /// * `Err` with an appropriate error on failure
+#[allow(dead_code)]
 pub fn add_virtual_machine(virtual_machine: VirtualMachineEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::virtual_machines::dsl::*;
@@ -378,7 +372,7 @@ mod tests {
         };
 
         let virtual_machine = VirtualMachineEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
@@ -487,7 +481,7 @@ mod tests {
         };
 
         let virtual_machine1 = VirtualMachineEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
@@ -509,7 +503,7 @@ mod tests {
         };
 
         let virtual_machine2 = VirtualMachineEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             is_created: false,
             number_of_cores: 2,
@@ -558,7 +552,7 @@ mod tests {
         };
 
         let virtual_machine = VirtualMachineEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
@@ -596,7 +590,7 @@ mod tests {
         let uuid3 = Uuid::new_v4();
 
         let virtual_machine1 = VirtualMachineEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 1,
@@ -618,7 +612,7 @@ mod tests {
         };
 
         let virtual_machine2 = VirtualMachineEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             is_created: false,
             number_of_cores: 1,
@@ -640,7 +634,7 @@ mod tests {
         };
 
         let virtual_machine3 = VirtualMachineEntry {
-            uuid: uuid3.clone(),
+            uuid: uuid3,
             name: "Poi".to_string(),
             is_created: false,
             number_of_cores: 1,

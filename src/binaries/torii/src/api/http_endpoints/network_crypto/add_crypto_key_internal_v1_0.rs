@@ -18,9 +18,9 @@ use apistos::api_operation;
 use validator::Validate;
 
 use crate::core::crypto::{apply_connection_policies, install_sa, normalize_key};
+use crate::core::models::{Connection, CryptoKey};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
-use crate::core::models::{CryptoKey, Connection};
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;

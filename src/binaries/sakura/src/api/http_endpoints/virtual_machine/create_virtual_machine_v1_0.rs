@@ -24,7 +24,6 @@ use crate::core::processing::tasks::{
     CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
 };
 use crate::database::task_table;
-use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -63,7 +62,7 @@ pub async fn create_virtual_machine(
 
     // prepare task-info
     let info = CloudHypervisorVirtualMachineCreateInfo {
-        vm_uuid: vm_uuid.clone(),
+        vm_uuid,
         number_of_cores: 2,
         memory_size: 1_073_741_824,
         public_key: Secret::from(
@@ -71,7 +70,7 @@ pub async fn create_virtual_machine(
         ),
     };
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
+    let _endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -79,7 +78,7 @@ pub async fn create_virtual_machine(
         // create new task
         let task = Task {
             uuid: task_uuid,
-            resouce_uuid: virtual_machine_uuid.clone(),
+            resouce_uuid: *virtual_machine_uuid,
             resource_type: TaskResourceType::VirtualMachine,
             name: body.name.clone(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info),

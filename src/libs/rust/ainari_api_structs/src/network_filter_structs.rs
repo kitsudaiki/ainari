@@ -27,7 +27,6 @@ pub struct FilterIpRangeReq {
     pub ranges: Vec<IpRangeRule>,
 }
 
-
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterPortReq {
     /// Single port or explicit `first-last` range
@@ -357,8 +356,7 @@ mod tests {
 
     #[test]
     fn requests_carry_ports_in_textual_notation() {
-        let req: FilterPortReq =
-            serde_json::from_str(r#"{"ports": ["22", "8000-8100"]}"#).unwrap();
+        let req: FilterPortReq = serde_json::from_str(r#"{"ports": ["22", "8000-8100"]}"#).unwrap();
         assert_eq!((req.ports[0].first, req.ports[0].last), (22, 22));
         assert_eq!((req.ports[1].first, req.ports[1].last), (8000, 8100));
 

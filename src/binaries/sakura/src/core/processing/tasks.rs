@@ -12,31 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytemuck::cast_slice;
-use std::collections::HashMap;
-use std::fs;
-use std::io::Write;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tokio::runtime::Builder;
-use tokio::task::LocalSet;
 use uuid::Uuid;
 
 use ainari_api_structs::task_structs::*;
-use ainari_clients::onsen_file_transfer::*;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
-use ainari_dataset::dataset_io::{DataSetFileReadHandle, DataSetFileWriteHandle};
-use ainari_dataset::file_encryption::{decrypt_file, encrypt_file};
 
-use crate::config;
 use crate::database::task_table;
 
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 
-use super::super::processing::task_queue::*;
-
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
     pub vm_uuid: Uuid,
     pub number_of_cores: i32,
@@ -54,6 +42,7 @@ pub enum TaskVariant {
 /// Metadata for tracking the progress and state of a task.
 /// Includes counters for cycles and epochs, timestamps, and completion status.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TaskMeta {
     pub number_of_cycles: u64,
     pub number_of_epochs: u64,
@@ -212,6 +201,7 @@ impl Task {
 
     /// Finishes the current cycle of the task and prepares for the next cycle.
     /// Updates progress in the database and checks for task completion.
+    #[allow(dead_code)]
     pub fn finish_cycle(&mut self) {
         // update current state in database at least after 1 second
         let now = Instant::now();
@@ -247,13 +237,14 @@ impl Task {
     /// # Returns
     ///
     /// `true` if the task is finished, `false` otherwise.
+    #[allow(dead_code)]
     pub fn is_task_finished(&self) -> bool {
         self.meta.is_finished
     }
 }
 
 async fn handle_vm_creation(
-    task_uuid: &Uuid,
+    _task_uuid: &Uuid,
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
@@ -263,7 +254,7 @@ async fn handle_vm_creation(
     let tap_device_name = "tap-vm".to_string();
     let mac_address = "02:00:00:00:00:42".to_string();
 
-    let ret = match create_ch_virtual_machine(
+    match create_ch_virtual_machine(
         virtual_machine_uuid,
         task_info.number_of_cores,
         task_info.memory_size,
@@ -274,9 +265,9 @@ async fn handle_vm_creation(
     )
     .await
     {
-        Ok(_) => return,
+        Ok(_) => (),
         Err(e) => log::error!("fail: {:?}", e),
-    };
+    }
 }
 
 // /// Handles the task of saving a virtual_machine checkpoint.
@@ -445,6 +436,7 @@ async fn handle_vm_creation(
 /// # Arguments
 ///
 /// * `target_dir_path` - Path to the directory to be removed
+#[allow(dead_code)]
 fn remove_dir_all(target_dir_path: &String) {
     // delete all temporary files
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {

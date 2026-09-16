@@ -7,7 +7,9 @@ use aya::Bpf;
 use aya::maps::{HashMap as AyaHashMap, MapData};
 use uuid::Uuid;
 
-use crate::core::models::{ArpProxyPod, RouteFilterPod, RouteTargetPod, TapInfo, Route, Connection, CryptoKey};
+use crate::core::models::{
+    ArpProxyPod, Connection, CryptoKey, Route, RouteFilterPod, RouteTargetPod, TapInfo,
+};
 
 use ainari_api_structs::network_filter_structs::*;
 

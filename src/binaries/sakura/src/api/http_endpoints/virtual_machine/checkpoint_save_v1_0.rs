@@ -20,7 +20,6 @@ use validator::Validate;
 
 use crate::api::http_endpoints::virtual_machine::get_secret;
 use crate::config;
-use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant};
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
 
@@ -50,7 +49,7 @@ pub async fn checkpoint_save_task(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::CheckpointSave;
+    let _task_type = TaskType::CheckpointSave;
 
     // check if virtual_machine exist
     virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
@@ -71,7 +70,7 @@ pub async fn checkpoint_save_task(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
+    let _secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
 
     // prepare task-info
     // let info = CheckpointSaveInfo {

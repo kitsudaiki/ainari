@@ -68,11 +68,13 @@ impl TaskQueue {
     /// # Returns
     ///
     /// * `usize` - The number of tasks in the queue
+    #[allow(dead_code)]
     pub fn get_number_open_tasks(&self) -> usize {
         self.queue.len()
     }
 
     /// Removed all remaining entries from the queue
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.queue.clear();
     }
@@ -99,7 +101,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
+    use crate::core::processing::tasks::{
+        CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
+    };
 
     #[test]
     fn test_add_and_get() {
@@ -111,31 +115,33 @@ mod tests {
         let secret = Secret::from("asdf");
         let resource_type = TaskResourceType::VirtualMachine;
 
-        let info1 = CheckpointSaveInfo {
-            onsen_address: "127.0.0.1".to_string(),
-            file_path: "asdf".to_string(),
-            secret: secret.clone(),
+        let info1 = CloudHypervisorVirtualMachineCreateInfo {
+            vm_uuid: virtual_machine_uuid,
+            number_of_cores: 1,
+            memory_size: 1024,
+            public_key: secret.clone(),
         };
-        let info2 = CheckpointSaveInfo {
-            onsen_address: "127.0.0.1".to_string(),
-            file_path: "asdf".to_string(),
-            secret: secret.clone(),
+        let info2 = CloudHypervisorVirtualMachineCreateInfo {
+            vm_uuid: virtual_machine_uuid,
+            number_of_cores: 1,
+            memory_size: 1024,
+            public_key: secret.clone(),
         };
 
         let task1 = Task {
             uuid: uuid1,
-            resouce_uuid: virtual_machine_uuid.clone(),
+            resouce_uuid: virtual_machine_uuid,
             resource_type: resource_type.clone(),
             name: "task1".to_string(),
-            info: TaskVariant::CheckpointSave(info1),
+            info: TaskVariant::CloudHypervisorVirtualMachineCreate(info1),
             meta: TaskMeta::new(1, 1, 1, 0),
         };
         let task2 = Task {
             uuid: uuid2,
-            resouce_uuid: virtual_machine_uuid.clone(),
+            resouce_uuid: virtual_machine_uuid,
             resource_type: resource_type.clone(),
             name: "task2".to_string(),
-            info: TaskVariant::CheckpointSave(info2),
+            info: TaskVariant::CloudHypervisorVirtualMachineCreate(info2),
             meta: TaskMeta::new(1, 1, 1, 0),
         };
 

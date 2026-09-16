@@ -56,9 +56,7 @@ pub async fn get_endpoints(
             };
 
             match resp.status() {
-                StatusCode::BAD_REQUEST => {
-                    Err(AinariError::InvalidInput(body_str))
-                }
+                StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
                 StatusCode::OK => {
                     let deserialized: EndpontsResp = match serde_json::from_str(&body_str) {
                         Ok(body) => body,

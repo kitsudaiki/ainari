@@ -147,7 +147,8 @@ pub async fn register_tap_internal(
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
 
-        st.taps.insert(name.to_string(), TapInfo { tap_mac, vm_mac });
+        st.taps
+            .insert(name.to_string(), TapInfo { tap_mac, vm_mac });
     }
 
     // DYNAMIC eBPF ATTACHMENT

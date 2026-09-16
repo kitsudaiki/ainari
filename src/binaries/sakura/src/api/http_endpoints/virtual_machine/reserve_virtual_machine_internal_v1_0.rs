@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::ToSocketAddrs;
-
 use actix_web::web::Json;
 use ainari_common::secret::Secret;
 use apistos::actix::CreatedJson;
@@ -65,7 +63,7 @@ pub async fn create_virtual_machine_internal(
 
     // prepare task-info
     let info = CloudHypervisorVirtualMachineCreateInfo {
-        vm_uuid: virtual_machine_uuid.clone(),
+        vm_uuid: virtual_machine_uuid,
         number_of_cores: 2,
         memory_size: 1_073_741_824,
         public_key: Secret::from(
@@ -73,7 +71,7 @@ pub async fn create_virtual_machine_internal(
         ),
     };
 
-    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
+    let _endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
@@ -81,7 +79,7 @@ pub async fn create_virtual_machine_internal(
         // create new task
         let task = Task {
             uuid: task_uuid,
-            resouce_uuid: virtual_machine_uuid.clone(),
+            resouce_uuid: virtual_machine_uuid,
             resource_type: TaskResourceType::VirtualMachine,
             name: body.name.clone(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info),

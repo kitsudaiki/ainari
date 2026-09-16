@@ -21,18 +21,13 @@ pub mod list_virtual_machine_internal_v1_0;
 pub mod reserve_virtual_machine_internal_v1_0;
 
 use std::fs;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::config;
-use crate::core::processing::tasks::Task;
-use crate::core::processing::worker_handler::*;
-use crate::database::task_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
-use ainari_api_structs::task_structs::{TaskState, TaskType};
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::dataset::*;
 use ainari_clients::endpoints::get_endpoints;
@@ -89,6 +84,7 @@ async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret,
 ///
 /// # Returns
 /// * `Result<DataSetFileReadHandle, ErrorResponse>` - The prepared dataset handle
+#[allow(dead_code)]
 async fn handle_input(
     input: &TaskDatasetLink,
     endpoint: &Endpoint,

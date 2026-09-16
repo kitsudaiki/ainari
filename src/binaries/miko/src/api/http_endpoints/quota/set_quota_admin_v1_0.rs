@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env::current_dir;
-
 use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;

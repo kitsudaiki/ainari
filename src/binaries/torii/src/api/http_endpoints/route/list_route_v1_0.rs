@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::models::Route;
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -37,7 +37,6 @@ pub async fn list_route(_context: UserContext) -> Result<Json<RouteListResp>, Er
 
     let mut resp = RouteListResp::default();
     for route in routes {
-
         let converted_route = RouteResp {
             uuid: route.uuid,
             dest_ip: route.dest_ip,

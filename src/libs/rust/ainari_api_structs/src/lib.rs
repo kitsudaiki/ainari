@@ -22,6 +22,9 @@ pub mod endpoints_structs;
 pub mod file_structs;
 pub mod floating_ip_structs;
 pub mod host_structs;
+pub mod network_crypto_structs;
+pub mod network_filter_structs;
+pub mod network_interface_structs;
 pub mod network_structs;
 pub mod project_structs;
 pub mod proxy_structs;
@@ -32,7 +35,3 @@ pub mod task_structs;
 pub mod user_context;
 pub mod user_structs;
 pub mod virtual_machine_structs;
-pub mod network_crypto_structs;
-pub mod network_filter_structs;
-pub mod network_interface_structs;
-

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rand::RngExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -20,7 +19,6 @@ use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
-use ainari_common::constants::*;
 use ainari_common::error::AinariError;
 
 use super::task_queue::*;
@@ -73,11 +71,18 @@ impl WorkerThread {
             local.block_on(&rt, async move {
                 while running_clone.load(Ordering::Relaxed) {
                     // Get a task from the worker queue
-                    let mut worker_queue = queue_clone.lock().expect("mutex poisoned");
-                    if let Some(task_mutex) = worker_queue.get() {
-                        drop(worker_queue);
-
-                        let mut task = task_mutex.lock().expect("mutex poisoned");
+                    let next_task = queue_clone.lock().expect("mutex poisoned").get();
+                    if let Some(task_mutex) = next_task {
+                        // The queue handed over its only reference to the task, so the task
+                        // can be moved out of its mutex. That way no lock is held across the
+                        // await-points of the processing.
+                        let mut task = match Arc::try_unwrap(task_mutex) {
+                            Ok(task_mutex) => task_mutex.into_inner().expect("mutex poisoned"),
+                            Err(_) => {
+                                log::error!("Task is still referenced elsewhere, skip processing");
+                                continue;
+                            }
+                        };
 
                         // Process the task and handle any errors
                         match process_task(&mut task).await {
@@ -96,7 +101,6 @@ impl WorkerThread {
                             }
                         };
                     } else {
-                        drop(worker_queue);
                         // Sleep briefly if there are no tasks to process
                         thread::sleep(Duration::from_millis(1));
                     }

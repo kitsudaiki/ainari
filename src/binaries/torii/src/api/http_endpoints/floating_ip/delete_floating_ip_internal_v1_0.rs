@@ -19,8 +19,8 @@ use apistos::api_operation;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::floating_ip_structs::*;
+use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "floating_ip",

@@ -20,6 +20,7 @@ use log::LevelFilter;
 use tokio::process::Command;
 use tonic::{Request, Response, Status, transport::Server};
 
+#[allow(clippy::result_large_err)]
 pub mod root_wrapper {
     tonic::include_proto!("root_wrapper");
 }

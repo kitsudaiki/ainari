@@ -162,6 +162,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 /// # Returns
 /// - `Ok(usize)` with the number of rows affected if successful
 /// - An error if the user is not an admin, if the quota already exists, or if the insertion fails
+#[allow(clippy::too_many_arguments)]
 pub fn add_new_quota(
     user_id: &String,
     max_virtual_machine: i32,
@@ -303,6 +304,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// - `Ok(())` if the quota was updated successfully
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
+#[allow(clippy::too_many_arguments)]
 pub fn set_quota(
     user_id: &String,
     new_max_virtual_machine: i32,
@@ -499,6 +501,8 @@ mod tests {
         let new_max_dataset = 53;
         let new_max_checkpoint = 54;
         let new_max_secret = 55;
+        let new_max_network = 57;
+        let new_max_floating_ip = 58;
         let new_max_taskqueue = 56;
 
         // set new quota
@@ -509,6 +513,8 @@ mod tests {
                 new_max_dataset,
                 new_max_checkpoint,
                 new_max_secret,
+                new_max_network,
+                new_max_floating_ip,
                 new_max_taskqueue,
                 &context
             )
@@ -521,6 +527,8 @@ mod tests {
             assert_eq!(retrieved_quota.max_dataset, new_max_dataset);
             assert_eq!(retrieved_quota.max_checkpoint, new_max_checkpoint);
             assert_eq!(retrieved_quota.max_secret, new_max_secret);
+            assert_eq!(retrieved_quota.max_network, new_max_network);
+            assert_eq!(retrieved_quota.max_floating_ip, new_max_floating_ip);
             assert_eq!(retrieved_quota.max_taskqueue, new_max_taskqueue);
             assert_eq!(retrieved_quota.status, quota.status);
             assert_eq!(retrieved_quota.created_by, quota.created_by);

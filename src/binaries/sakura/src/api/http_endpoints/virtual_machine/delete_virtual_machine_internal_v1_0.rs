@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use actix_web::web::Path;
-use ainari_api_structs::task_structs::TaskState;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::task_table;
 use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
