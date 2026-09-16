@@ -49,9 +49,9 @@ an address or an ARP exchange on this link."###,
     error_code = 500
 )]
 pub async fn register_tap_internal(
-    body: Json<TapRequest>,
+    body: Json<TapReq>,
     _context: UserContext,
-) -> Result<CreatedJson<TapResponse>, ErrorResponse> {
+) -> Result<CreatedJson<TapResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -174,7 +174,7 @@ pub async fn register_tap_internal(
         }
     }
 
-    let resp = TapResponse {
+    let resp = TapResp {
         success: true,
         message: "TAP device configured successfully".to_string(),
         tap_name: name.to_string(),

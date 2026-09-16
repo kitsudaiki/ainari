@@ -19,9 +19,9 @@ use validator::Validate;
 use crate::core::crypto::apply_connection_policies;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
+use crate::core::models::Connection;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
 use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
@@ -43,9 +43,9 @@ demands ESP drops the now unprotected packets of the other one."###,
     error_code = 500
 )]
 pub async fn toggle_crypto_internal(
-    body: Json<CryptoToggleRequest>,
+    body: Json<CryptoToggleReq>,
     _context: UserContext,
-) -> Result<Json<RouteResponse>, ErrorResponse> {
+) -> Result<Json<CryptoToggleResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -111,12 +111,13 @@ pub async fn toggle_crypto_internal(
             body.local_ip, body.remote_ip, keys_held
         )
     };
-    println!("{}", message);
+    log::debug!("{}", message);
 
-    let resp = RouteResponse {
-        success: true,
-        message,
-        route: None,
+    let resp = CryptoToggleResp {
+        local_ip: body.local_ip.clone(),
+        remote_ip: body.remote_ip.clone(),
+        peer_gateway_ip: body.peer_gateway_ip.clone(),
+        enabled: body.enabled.clone(),
     };
 
     Ok(Json(resp))

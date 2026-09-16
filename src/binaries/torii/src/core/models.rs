@@ -5,6 +5,8 @@
 //! devices and IPsec connections, plus the wrappers that make the eBPF map
 //! values usable with Aya.
 
+use std::net::Ipv4Addr;
+use uuid::Uuid;
 
 use torii_common::{ArpProxy, RouteFilter, RouteTarget};
 
@@ -40,4 +42,33 @@ unsafe impl aya::Pod for RouteFilterPod {}
 pub struct TapInfo {
     pub tap_mac: [u8; 6],
     pub vm_mac: Option<[u8; 6]>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CryptoKey {
+    pub direction: String,
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    pub peer_gateway_ip: Ipv4Addr,
+    pub spi: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct Connection {
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    pub peer_gateway_ip: Ipv4Addr,
+    pub enabled: bool,
+    pub active_egress_spi: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Route {
+    pub uuid: Uuid,
+    pub dest_ip: Ipv4Addr,
+    pub target_iface: String,
+    pub gateway_ip: Option<Ipv4Addr>,
+    pub next_hop_ip: Option<Ipv4Addr>,
+    pub next_hop_mac: Option<String>,
+    pub encrypted: bool,
 }

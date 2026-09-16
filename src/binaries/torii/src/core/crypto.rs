@@ -8,7 +8,8 @@
 use std::net::Ipv4Addr;
 
 use crate::core::utils::{run_ip, run_ip_with_secrets};
-use ainari_api_structs::network_crypto_structs::*;
+use crate::core::models::Connection;
+
 use ainari_common::secret::Secret;
 
 /// Normalises and validates AES-256-GCM key material coming from the API.

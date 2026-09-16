@@ -30,11 +30,13 @@ import (
 )
 
 var (
-	floatingIpInternalIp string
+	floatingIpName        string
+	floatingIpNetworkUuid string
+	floatingIpInternalIp  string
 )
 
 var addFloatingIpCmd = &cobra.Command{
-	Use:   "add -i INTERNAL_IP FLOATING_IP",
+	Use:   "add -n NAME -u NETWORK_UUID -i INTERNAL_IP FLOATING_IP",
 	Short: "Assign a floating IP to an internal IP.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -44,7 +46,11 @@ var addFloatingIpCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		floatingIp := args[0]
-		content, err := ainari_sdk.AddFloatingIp(context, floatingIp, floatingIpInternalIp)
+		content, err := ainari_sdk.AddFloatingIp(context,
+			floatingIpName,
+			floatingIpNetworkUuid,
+			floatingIp,
+			floatingIpInternalIp)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -84,7 +90,11 @@ func Init_FloatingIp_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(floatingIpCmd)
 
 	floatingIpCmd.AddCommand(addFloatingIpCmd)
+	addFloatingIpCmd.Flags().StringVarP(&floatingIpName, "name", "n", "", "Name of the floating IP (mandatory)")
+	addFloatingIpCmd.Flags().StringVarP(&floatingIpNetworkUuid, "network", "u", "", "UUID of the network, which the internal address belongs to (mandatory)")
 	addFloatingIpCmd.Flags().StringVarP(&floatingIpInternalIp, "internal", "i", "", "Internal address, which the floating IP is assigned to (mandatory)")
+	addFloatingIpCmd.MarkFlagRequired("name")
+	addFloatingIpCmd.MarkFlagRequired("network")
 	addFloatingIpCmd.MarkFlagRequired("internal")
 
 	floatingIpCmd.AddCommand(deleteFloatingIpCmd)

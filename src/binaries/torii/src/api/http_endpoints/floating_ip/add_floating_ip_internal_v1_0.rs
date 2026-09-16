@@ -15,13 +15,13 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
-use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -36,13 +36,14 @@ The floating IP is associated with a private internal IP, which updates both the
     error_code = 500
 )]
 pub async fn register_floating_ip_internal(
-    body: Json<FloatingIpCreateReq>,
+    body: Json<FloatingIpInternalCreateReq>,
     _context: UserContext,
-) -> Result<CreatedJson<RouteResponse>, ErrorResponse> {
+) -> Result<CreatedJson<FloatingIpInternalResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
+    let uuid = Uuid::new_v4();
     let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
     state.floating_ips
@@ -67,10 +68,12 @@ pub async fn register_floating_ip_internal(
         ));
     }
 
-    let resp = RouteResponse {
-        success: true,
-        message: "Floating IP mapped".to_string(),
-        route: None,
+    let resp = FloatingIpInternalResp {
+        uuid: uuid,
+        name: body.name.clone(),
+        network_uuid: body.network_uuid.clone(),
+        floating_ip: body.floating_ip.clone(),
+        internal_ip: body.internal_ip.clone(),
     };
 
     Ok(CreatedJson(resp))

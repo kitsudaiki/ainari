@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TapRequest {
+pub struct TapReq {
     pub tap_name: String,
     #[serde(default)]
     pub vm_mac: Option<String>,
@@ -29,14 +29,21 @@ pub struct TapRequest {
 }
 
 #[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TapResponse {
+pub struct TapResp {
     pub success: bool,
     pub message: String,
     pub tap_name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct IfaceConfigRequest {
+pub struct IfaceConfigReq {
+    pub iface_name: String,
+    pub ip_cidr: Option<String>,
+    pub up: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct IfaceConfigResp {
     pub iface_name: String,
     pub ip_cidr: Option<String>,
     pub up: bool,

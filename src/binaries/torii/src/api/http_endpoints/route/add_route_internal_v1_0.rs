@@ -23,6 +23,7 @@ use crate::core::routing_interface::*;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::utils::get_ifindex;
+use crate::core::models::Route;
 
 use ainari_api_structs::route_structs::*;
 use ainari_api::errors::ErrorResponse;
@@ -37,9 +38,9 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn register_route_internal(
-    body: Json<RouteRequest>,
+    body: Json<RouteReq>,
     _context: UserContext,
-) -> Result<CreatedJson<RouteResponse>, ErrorResponse> {
+) -> Result<CreatedJson<RouteResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -83,11 +84,15 @@ pub async fn register_route_internal(
         return Err(ErrorResponse::InternalError("eBPF Map error".to_string()));
     }
 
-    let resp = RouteResponse {
-        success: true,
-        message: "Route created".to_string(),
-        route: Some(route),
+    let route = RouteResp {
+        uuid: route_uuid,
+        dest_ip: body.dest_ip,
+        target_iface: body.target_iface.clone(),
+        gateway_ip: body.gateway_ip,
+        next_hop_ip: body.next_hop_ip,
+        next_hop_mac: body.next_hop_mac.clone(),
+        encrypted: body.encrypted,
     };
 
-    Ok(CreatedJson(resp))
+    Ok(CreatedJson(route))
 }

@@ -7,10 +7,8 @@ use aya::Bpf;
 use aya::maps::{HashMap as AyaHashMap, MapData};
 use uuid::Uuid;
 
-use crate::core::models::{ArpProxyPod, RouteFilterPod, RouteTargetPod, TapInfo};
+use crate::core::models::{ArpProxyPod, RouteFilterPod, RouteTargetPod, TapInfo, Route, Connection, CryptoKey};
 
-use ainari_api_structs::route_structs::*;
-use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::network_filter_structs::*;
 
 /// Holds the application's runtime state, mapped variables, and eBPF context.

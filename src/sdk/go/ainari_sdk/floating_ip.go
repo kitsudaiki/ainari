@@ -24,11 +24,13 @@ import (
 	"fmt"
 )
 
-func AddFloatingIp(context AccessContext, floatingIp, internalIp string) (map[string]interface{}, error) {
+func AddFloatingIp(context AccessContext, name, networkUuid, floatingIp, internalIp string) (map[string]interface{}, error) {
 	path := "v1alpha/floating_ip/internal"
 	jsonBody := map[string]interface{}{
-		"floating_ip": floatingIp,
-		"internal_ip": internalIp,
+		"name":         name,
+		"network_uuid": networkUuid,
+		"floating_ip":  floatingIp,
+		"internal_ip":  internalIp,
 	}
 	return SendPost(context, context.ToriiAddress, path, jsonBody)
 }

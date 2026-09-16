@@ -17,7 +17,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, build_filter_response, route_filter_key};
+use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -41,9 +41,9 @@ that is already present is a no-op rather than an error."###,
 )]
 pub async fn add_filter_ip_range_internal(
     route_uuid: Path<Uuid>,
-    body: Json<FilterIpRangeRequest>,
+    body: Json<FilterIpRangeReq>,
     _context: UserContext,
-) -> Result<Json<FilterResponse>, ErrorResponse> {
+) -> Result<Json<FilterResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -83,9 +83,13 @@ pub async fn add_filter_ip_range_internal(
             .map_or(0, |rules| rules.ip_ranges.len()),
         dest_ip
     );
-    println!("{}", message);
+    log::debug!("{}", message);
 
-    Ok(Json(build_filter_response(
-        &st, route_uuid, dest_ip, message,
-    )))
+    let resp = FilterResp {
+        route_uuid,
+        dest_ip,
+        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
+    };
+
+    Ok(Json(resp))
 }

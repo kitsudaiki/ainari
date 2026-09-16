@@ -35,7 +35,7 @@ use ainari_api_structs::route_structs::*;
 /// # Returns
 /// A 6-byte MAC address, or all zeros when no next hop could be determined
 /// (in which case the datapath forwards the frame without rewriting L2)
-pub fn resolve_next_hop_mac(req: &RouteRequest, taps: &HashMap<String, TapInfo>) -> [u8; 6] {
+pub fn resolve_next_hop_mac(req: &RouteReq, taps: &HashMap<String, TapInfo>) -> [u8; 6] {
     if let Some(mac) = req.next_hop_mac.as_deref().and_then(parse_mac) {
         return mac;
     }
@@ -74,7 +74,7 @@ pub fn resolve_next_hop_mac(req: &RouteRequest, taps: &HashMap<String, TapInfo>)
 /// # Returns
 /// A `Result` holding the populated `RouteTarget`, or an error message
 pub fn build_route_target(
-    req: &RouteRequest,
+    req: &RouteReq,
     taps: &HashMap<String, TapInfo>,
 ) -> Result<RouteTarget, String> {
     let ifindex = get_ifindex(&req.target_iface);

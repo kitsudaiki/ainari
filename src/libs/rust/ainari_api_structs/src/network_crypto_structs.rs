@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKeyRequest {
+pub struct CryptoKeyReq {
     pub direction: String,
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
@@ -30,13 +30,13 @@ pub struct CryptoKeyRequest {
     pub key: Secret,
 }
 
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKeyListResponse {
-    pub keys: Vec<CryptoKey>,
+#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct CryptoKeyListResp {
+    pub keys: Vec<CryptoKeyResp>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKey {
+pub struct CryptoKeyResp {
     pub direction: String,
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
@@ -45,7 +45,7 @@ pub struct CryptoKey {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoToggleRequest {
+pub struct CryptoToggleReq {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     #[serde(default)]
@@ -53,13 +53,23 @@ pub struct CryptoToggleRequest {
     pub enabled: bool,
 }
 
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct ConnectionListResponse {
-    pub connections: Vec<Connection>,
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct CryptoToggleResp {
+    pub local_ip: Ipv4Addr,
+    pub remote_ip: Ipv4Addr,
+    #[serde(default)]
+    pub peer_gateway_ip: Option<Ipv4Addr>,
+    pub enabled: bool,
+}
+
+
+#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ConnectionListResp {
+    pub connections: Vec<ConnectionResp>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct Connection {
+pub struct ConnectionResp {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,

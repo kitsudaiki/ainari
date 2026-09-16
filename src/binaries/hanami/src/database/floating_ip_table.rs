@@ -17,6 +17,7 @@ use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
 use std::error::Error;
+use std::net::Ipv4Addr;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -30,8 +31,8 @@ table! {
     floating_ips (uuid) {
         uuid -> Varchar,
         network_uuid -> Varchar,
-        target_ip -> Varchar,
-        floating_ip_address -> Varchar,
+        internal_ip_addr -> Varchar,
+        floating_ip_addr -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -45,7 +46,7 @@ table! {
 }
 
 /// Represents an entry in the floating_ips table.
-/// This struct contains all the fields required to create, query, and update meta floating_ip records.
+/// This struct contains all the fields required to create, query, and update meta floating_ip_addr records.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = floating_ips)]
 pub struct FloatingIpEntry {
@@ -53,8 +54,10 @@ pub struct FloatingIpEntry {
     pub uuid: Uuid,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub network_uuid: Uuid,
-    pub target_ip: String,
-    pub floating_ip_address: String,
+    #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
+    pub internal_ip_addr: Ipv4Addr,
+    #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
+    pub floating_ip_addr: Ipv4Addr,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -79,8 +82,8 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS floating_ips (
         uuid VARCHAR(40) PRIMARY KEY,
         network_uuid VARCHAR(40),
-        target_ip VARCHAR(40),
-        floating_ip_address VARCHAR(40),
+        internal_ip_addr VARCHAR(40),
+        floating_ip_addr VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -96,16 +99,16 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Adds a new meta floating_ip to the database.
+/// Adds a new meta floating_ip_addr to the database.
 ///
 /// This function creates a new FloatingIpEntry with the provided parameters and inserts it into the database.
 /// The status is set to "ACTIVE" and timestamps are set to the current time.
 ///
 /// # Arguments
-/// * `floating_ip_uuid` - The unique identifier for the meta floating_ip
-/// * `floating_ip_name` - The name of the meta floating_ip
-/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this floating_ip
-/// * `proxy_uuid` - The UUID of the proxy associated with this floating_ip
+/// * `floating_ip_uuid` - The unique identifier for the meta floating_ip_addr
+/// * `floating_ip_name` - The name of the meta floating_ip_addr
+/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this floating_ip_addr
+/// * `proxy_uuid` - The UUID of the proxy associated with this floating_ip_addr
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -113,15 +116,15 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
 pub fn add_new_floating_ip(
     floating_ip_uuid: &Uuid,
     network_uuid: &Uuid,
-    target_ip: &String,
-    floating_ip_address: &String,
+    internal_ip_addr: &Ipv4Addr,
+    floating_ip_addr: &Ipv4Addr,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    let floating_ip = FloatingIpEntry {
+    let floating_ip_addr = FloatingIpEntry {
         uuid: *network_uuid,
         network_uuid: *floating_ip_uuid,
-        target_ip: target_ip.clone(),
-        floating_ip_address: floating_ip_address.clone(),
+        internal_ip_addr: internal_ip_addr.clone(),
+        floating_ip_addr: floating_ip_addr.clone(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -133,15 +136,15 @@ pub fn add_new_floating_ip(
         deleted_by: None,
     };
 
-    add_floating_ip(floating_ip)
+    add_floating_ip(floating_ip_addr)
 }
 
-/// Adds a meta floating_ip to the database.
+/// Adds a meta floating_ip_addr to the database.
 ///
 /// This is a helper function that performs the actual insertion of a FloatingIpEntry into the database.
 ///
 /// # Arguments
-/// * `floating_ip` - The FloatingIpEntry to be inserted
+/// * `floating_ip_addr` - The FloatingIpEntry to be inserted
 ///
 /// # Returns
 /// A QueryResult indicating the number of rows affected
@@ -153,13 +156,13 @@ pub fn add_floating_ip(floating_ip: FloatingIpEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
-/// Retrieves a meta floating_ip from the database.
+/// Retrieves a meta floating_ip_addr from the database.
 ///
-/// This function queries the database for a meta floating_ip with the specified UUID and checks the user's permissions.
+/// This function queries the database for a meta floating_ip_addr with the specified UUID and checks the user's permissions.
 /// Only active floating_ips are returned, and the query is filtered based on the user's role and project membership.
 ///
 /// # Arguments
-/// * `floating_ip_uuid` - The UUID of the meta floating_ip to retrieve
+/// * `floating_ip_uuid` - The UUID of the meta floating_ip_addr to retrieve
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
@@ -250,13 +253,13 @@ pub fn count_floating_ips(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Force deletes a meta floating_ip from the database.
+/// Force deletes a meta floating_ip_addr from the database.
 ///
-/// This function marks a meta floating_ip as deleted without checking permissions.
+/// This function marks a meta floating_ip_addr as deleted without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
-/// * `floating_ip_uuid` - The UUID of the meta floating_ip to delete
+/// * `floating_ip_uuid` - The UUID of the meta floating_ip_addr to delete
 ///
 /// # Returns
 /// A Result indicating success or an error
@@ -281,13 +284,13 @@ pub fn force_delete_floating_ip(floating_ip_uuid: &Uuid) -> Result<(), enums::Db
     }
 }
 
-/// Deletes a meta floating_ip from the database.
+/// Deletes a meta floating_ip_addr from the database.
 ///
-/// This function marks a meta floating_ip as deleted after verifying that the user has permission to delete it.
-/// It first checks if the floating_ip exists and if the user has the necessary permissions.
+/// This function marks a meta floating_ip_addr as deleted after verifying that the user has permission to delete it.
+/// It first checks if the floating_ip_addr exists and if the user has the necessary permissions.
 ///
 /// # Arguments
-/// * `floating_ip_uuid` - The UUID of the meta floating_ip to delete
+/// * `floating_ip_uuid` - The UUID of the meta floating_ip_addr to delete
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
@@ -296,7 +299,7 @@ pub fn delete_floating_ip(
     floating_ip_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
-    // Verify the meta floating_ip exists and the user has permission to delete it
+    // Verify the meta floating_ip_addr exists and the user has permission to delete it
     get_floating_ip(floating_ip_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -351,6 +354,9 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
+    const INTERNAL_IP: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+    const FLOATING_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 0, 1);
+
     fn hard_delete_floating_ip(floating_ip_uuid: &Uuid) {
         use self::floating_ips::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -358,67 +364,103 @@ mod tests {
             .execute(&mut *conn);
     }
 
-    #[test]
-    #[serial]
-    fn test_add_get_floating_ip() {
-        let _ = init_floating_ip_table();
-        let uuid1 = Uuid::new_v4();
-        let network_uuid = Uuid::new_v4();
-        let target_ip = "127.0.0.1".to_owned();
-        let floating_ip_address = "192.168.0.1".to_owned();
-
-        let project_id = "test-project".to_string();
-        let owner_id = "test-user".to_string();
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-
-        let floating_ip = FloatingIpEntry {
-            uuid: uuid1,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
+    /// Builds a FloatingIpEntry for the tests with the given identity and status.
+    fn new_entry(
+        entry_uuid: &Uuid,
+        entry_network_uuid: &Uuid,
+        entry_owner_id: &str,
+        entry_project_id: &str,
+        entry_status: &str,
+    ) -> FloatingIpEntry {
+        FloatingIpEntry {
+            uuid: *entry_uuid,
+            network_uuid: *entry_network_uuid,
+            internal_ip_addr: INTERNAL_IP,
+            floating_ip_addr: FLOATING_IP,
+            owner_id: entry_owner_id.to_string(),
+            project_id: entry_project_id.to_string(),
+            status: entry_status.to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-        };
+        }
+    }
+
+    /// Builds a UserContext for the tests.
+    fn new_context(
+        user_id: &str,
+        project_id: &str,
+        is_admin: bool,
+        is_project_admin: bool,
+    ) -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: user_id.to_string(),
+            project_id: project_id.to_string(),
+            is_admin: is_admin.to_string(),
+            is_project_admin: is_project_admin.to_string(),
+        }
+    }
+
+    /// Unwraps a get-result. `enums::DbError` implements neither `Debug` nor `PartialEq`,
+    /// so the results can not be handled by `expect` and `assert_eq`.
+    fn expect_entry(result: Result<FloatingIpEntry, enums::DbError>) -> FloatingIpEntry {
+        match result {
+            Ok(entry) => entry,
+            Err(_) => panic!("floating-ip was not found"),
+        }
+    }
+
+    /// Asserts that a get-result reports a missing entry.
+    fn assert_not_found(result: Result<FloatingIpEntry, enums::DbError>) {
+        assert!(matches!(result, Err(enums::DbError::NotFound)));
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_get_floating_ip() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
 
         hard_delete_floating_ip(&uuid1);
 
-        add_floating_ip(floating_ip.clone()).unwrap();
-        match get_floating_ip(&uuid1, &context) {
-            Ok(retrieved_floating_ip) => {
-                assert_eq!(retrieved_floating_ip.uuid, floating_ip.uuid);
-                assert_eq!(retrieved_floating_ip.network_uuid, floating_ip.network_uuid);
-                assert_eq!(retrieved_floating_ip.target_ip, floating_ip.target_ip);
-                assert_eq!(
-                    retrieved_floating_ip.floating_ip_address,
-                    floating_ip.floating_ip_address
-                );
-                assert_eq!(retrieved_floating_ip.owner_id, floating_ip.owner_id);
-                assert_eq!(retrieved_floating_ip.project_id, floating_ip.project_id);
-                assert_eq!(retrieved_floating_ip.status, floating_ip.status);
-                assert_eq!(retrieved_floating_ip.created_by, floating_ip.created_by);
-                assert_eq!(retrieved_floating_ip.updated_by, floating_ip.updated_by);
-                assert_eq!(retrieved_floating_ip.deleted_at, floating_ip.deleted_at);
-                assert_eq!(retrieved_floating_ip.deleted_by, floating_ip.deleted_by);
-            }
-            Err(_) => {
-                assert_eq!(true, false);
-            }
-        };
+        add_floating_ip(entry.clone()).unwrap();
+        let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
+
+        assert_eq!(retrieved.uuid, entry.uuid);
+        assert_eq!(retrieved.network_uuid, entry.network_uuid);
+        assert_eq!(retrieved.internal_ip_addr, entry.internal_ip_addr);
+        assert_eq!(retrieved.floating_ip_addr, entry.floating_ip_addr);
+        assert_eq!(retrieved.owner_id, entry.owner_id);
+        assert_eq!(retrieved.project_id, entry.project_id);
+        assert_eq!(retrieved.status, entry.status);
+        assert_eq!(retrieved.created_at, entry.created_at);
+        assert_eq!(retrieved.created_by, entry.created_by);
+        assert_eq!(retrieved.updated_at, entry.updated_at);
+        assert_eq!(retrieved.updated_by, entry.updated_by);
+        assert_eq!(retrieved.deleted_at, entry.deleted_at);
+        assert_eq!(retrieved.deleted_by, entry.deleted_by);
 
         hard_delete_floating_ip(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_floating_ip_not_found() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        hard_delete_floating_ip(&uuid1);
+
+        assert_not_found(get_floating_ip(&uuid1, &context));
     }
 
     #[test]
@@ -427,59 +469,31 @@ mod tests {
         let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let network_uuid = Uuid::new_v4();
-        let target_ip = "127.0.0.1".to_owned();
-        let floating_ip_address = "192.168.0.1".to_owned();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
 
-        let project_id = "test-project".to_string();
-        let owner_id = "test-user".to_string();
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-
-        let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "DELETED".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry2 = new_entry(
+            &uuid2,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
 
-        add_floating_ip(floating_ip1).unwrap();
-        add_floating_ip(floating_ip2).unwrap();
-        let floating_ips = list_floating_ips(&context).unwrap();
-        assert_eq!(floating_ips.len(), 1);
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+
+        // only the ACTIVE entry is listed
+        let entries = list_floating_ips(&context).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].uuid, uuid1);
+        assert_eq!(entries[0].internal_ip_addr, INTERNAL_IP);
+        assert_eq!(entries[0].floating_ip_addr, FLOATING_IP);
+
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
     }
@@ -489,42 +503,78 @@ mod tests {
     fn test_delete_floating_ip() {
         let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
-        let network_uuid = Uuid::new_v4();
-        let target_ip = "127.0.0.1".to_owned();
-        let floating_ip_address = "192.168.0.1".to_owned();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
 
-        let project_id = "test-project".to_string();
-        let owner_id = "test-user".to_string();
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-
-        let floating_ip = FloatingIpEntry {
-            uuid: uuid1,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
+        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
 
         hard_delete_floating_ip(&uuid1);
 
-        add_floating_ip(floating_ip.clone()).unwrap();
-        let _ = delete_floating_ip(&uuid1, &context);
-        let result = get_floating_ip(&uuid1, &context);
-        assert!(result.is_err());
+        add_floating_ip(entry).unwrap();
+        assert!(delete_floating_ip(&uuid1, &context).is_ok());
+
+        assert_not_found(get_floating_ip(&uuid1, &context));
+
+        hard_delete_floating_ip(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_force_delete_floating_ip() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        // the entry belongs to another project, so only the force-delete can remove it
+        let entry = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "other-user",
+            "other-project",
+            "ACTIVE",
+        );
+
+        hard_delete_floating_ip(&uuid1);
+
+        add_floating_ip(entry).unwrap();
+        assert!(force_delete_floating_ip(&uuid1).is_ok());
+
+        assert_not_found(get_floating_ip(&uuid1, &context));
+
+        hard_delete_floating_ip(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_delete_all_floating_ip() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", true, false);
+
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry2 = new_entry(
+            &uuid2,
+            &network_uuid1,
+            "other-user",
+            "other-project",
+            "ACTIVE",
+        );
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+
+        assert!(delete_all_floating_ip().is_ok());
+
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 0);
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
     }
 
     #[test]
@@ -534,78 +584,29 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let network_uuid = Uuid::new_v4();
-        let target_ip = "127.0.0.1".to_owned();
-        let floating_ip_address = "192.168.0.1".to_owned();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
 
-        let project_id = "test-project".to_string();
-        let owner_id = "test-user".to_string();
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-
-        let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let floating_ip3 = FloatingIpEntry {
-            uuid: uuid3,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        let entry2 = new_entry(&uuid2, &network_uuid1, "test-user", "test-project", "ACTIVE");
+        // neither DELETED entries nor entries of other owners are counted
+        let entry3 = new_entry(
+            &uuid3,
+            &network_uuid1,
+            "other-user",
+            "test-project",
+            "ACTIVE",
+        );
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
 
-        add_floating_ip(floating_ip1).unwrap();
-        add_floating_ip(floating_ip2).unwrap();
-        add_floating_ip(floating_ip3).unwrap();
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+        add_floating_ip(entry3).unwrap();
 
-        let number = count_floating_ips(&context).unwrap();
-        assert_eq!(number, 3);
+        assert_eq!(count_floating_ips(&context).unwrap(), 2);
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -619,139 +620,74 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let network_uuid = Uuid::new_v4();
-        let target_ip = "127.0.0.1".to_owned();
-        let floating_ip_address = "192.168.0.1".to_owned();
+        let network_uuid1 = Uuid::new_v4();
 
-        let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: "test-user-43".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let floating_ip3 = FloatingIpEntry {
-            uuid: uuid3,
-            network_uuid: network_uuid,
-            target_ip: target_ip.clone(),
-            floating_ip_address: floating_ip_address.clone(),
-            owner_id: "test-user-44".to_string(),
-            project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user-42",
+            "test_permissions_1",
+            "ACTIVE",
+        );
+        let entry2 = new_entry(
+            &uuid2,
+            &network_uuid1,
+            "test-user-43",
+            "test_permissions_1",
+            "ACTIVE",
+        );
+        let entry3 = new_entry(
+            &uuid3,
+            &network_uuid1,
+            "test-user-44",
+            "test_permissions_2",
+            "ACTIVE",
+        );
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
 
-        add_floating_ip(floating_ip1).unwrap();
-        add_floating_ip(floating_ip2).unwrap();
-        add_floating_ip(floating_ip3).unwrap();
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+        add_floating_ip(entry3).unwrap();
 
         // list-test normal user
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-        let floating_ips = list_floating_ips(&context).unwrap();
-        assert_eq!(floating_ips.len(), 1);
+        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 1);
 
         // list-test project-admin
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
-        };
-        let floating_ips = list_floating_ips(&context).unwrap();
-        assert_eq!(floating_ips.len(), 2);
+        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 2);
 
         // list-test admin
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
-        };
-        let floating_ips = list_floating_ips(&context).unwrap();
-        assert_eq!(floating_ips.len(), 3);
+        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 3);
 
         // get-test normal user
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-        match get_floating_ip(&uuid1, &context) {
-            Ok(retrieved_floating_ip) => {
-                assert_eq!(retrieved_floating_ip.uuid, uuid1);
-            }
-            Err(_) => {
-                assert_eq!(true, false);
-            }
-        };
+        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
+        assert_eq!(retrieved.uuid, uuid1);
 
-        // get-test normal user false uuid
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-        if get_floating_ip(&uuid3, &context).is_ok() {
-            assert_eq!(true, false);
-        };
+        // get-test normal user, entry of another user within the same project
+        assert!(get_floating_ip(&uuid2, &context).is_err());
 
-        // delete-test normal user false uuid
-        let context = UserContext {
-            token: "".to_string(),
-            user_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-        if delete_floating_ip(&uuid3, &context).is_ok() {
-            assert_eq!(true, false);
-        };
+        // get-test normal user, entry of another project
+        assert!(get_floating_ip(&uuid3, &context).is_err());
+
+        // get-test project-admin, entry of another user within the same project
+        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        let retrieved = expect_entry(get_floating_ip(&uuid2, &context));
+        assert_eq!(retrieved.uuid, uuid2);
+
+        // get-test admin, entry of another project
+        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        let retrieved = expect_entry(get_floating_ip(&uuid3, &context));
+        assert_eq!(retrieved.uuid, uuid3);
+
+        // delete-test normal user, entry of another project
+        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        assert!(delete_floating_ip(&uuid3, &context).is_err());
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);

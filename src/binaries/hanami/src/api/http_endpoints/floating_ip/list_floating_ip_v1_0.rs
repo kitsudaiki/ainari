@@ -47,8 +47,8 @@ pub async fn list_floating_ip(
         let obj = FloatingIpBasicResp {
             uuid: floating_ip.uuid,
             network_uuid: floating_ip.network_uuid,
-            target_ip: floating_ip.target_ip,
-            floating_ip_address: floating_ip.floating_ip_address,
+            floating_ip: floating_ip.floating_ip_addr,
+            internal_ip: floating_ip.internal_ip_addr,
         };
 
         resp.floating_ips.push(obj);

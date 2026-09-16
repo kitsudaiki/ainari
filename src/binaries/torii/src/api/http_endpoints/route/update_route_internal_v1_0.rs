@@ -22,6 +22,7 @@ use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_ifindex;
+use crate::core::models::Route;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -42,9 +43,9 @@ remain unaffected."###,
 )]
 pub async fn update_route_internal(
     route_uuid: Path<Uuid>,
-    body: Json<RouteRequest>,
+    body: Json<RouteReq>,
     _context: UserContext,
-) -> Result<Json<RouteResponse>, ErrorResponse> {
+) -> Result<Json<RouteResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -110,11 +111,16 @@ pub async fn update_route_internal(
         apply_filter(&mut st, route_uuid, ip_u32, rules).map_err(ErrorResponse::InternalError)?;
     }
 
-    let resp = RouteResponse {
-        success: true,
-        message: "Route updated atomically".to_string(),
-        route: Some(updated_route),
+
+    let updated_route = RouteResp {
+        uuid: route_uuid,
+        dest_ip: body.dest_ip,
+        target_iface: body.target_iface.clone(),
+        gateway_ip: body.gateway_ip,
+        next_hop_ip: body.next_hop_ip,
+        next_hop_mac: body.next_hop_mac.clone(),
+        encrypted: body.encrypted,
     };
 
-    Ok(Json(resp))
+    Ok(Json(updated_route))
 }

@@ -23,6 +23,7 @@ use diesel::sql_types::Varchar;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
+use std::net::{AddrParseError, Ipv4Addr};
 
 use super::constants::UNINIT_POINT_32;
 
@@ -246,5 +247,48 @@ impl TryFrom<DbVecString> for Vec<String> {
     fn try_from(db_vec: DbVecString) -> Result<Self, Self::Error> {
         // Parse the JSON string back into a Vec<String>
         serde_json::from_str(&db_vec.0)
+    }
+}
+
+//===================================================================================================
+
+
+// The transparent bridge struct for Ipv4Addr
+#[derive(Debug, Clone, PartialEq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = Varchar)]
+pub struct DbIpv4Addr(String);
+
+// Tell Diesel how to write to SQLite
+impl<DB: Backend> ToSql<Varchar, DB> for DbIpv4Addr
+where
+    String: ToSql<Varchar, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+// Tell Diesel how to read from SQLite
+impl<DB: Backend> FromSql<Varchar, DB> for DbIpv4Addr
+where
+    String: FromSql<Varchar, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let s = String::from_sql(bytes)?;
+        Ok(DbIpv4Addr(s))
+    }
+}
+
+impl From<Ipv4Addr> for DbIpv4Addr {
+    fn from(dt: Ipv4Addr) -> Self {
+        DbIpv4Addr(dt.to_string())
+    }
+}
+
+impl TryFrom<DbIpv4Addr> for Ipv4Addr {
+    type Error = AddrParseError; // Fulfills Diesel's Error requirement
+
+    fn try_from(db_ip: DbIpv4Addr) -> Result<Self, Self::Error> {
+        db_ip.0.parse()
     }
 }

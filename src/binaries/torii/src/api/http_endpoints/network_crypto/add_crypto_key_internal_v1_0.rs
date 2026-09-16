@@ -20,10 +20,10 @@ use validator::Validate;
 use crate::core::crypto::{apply_connection_policies, install_sa, normalize_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
+use crate::core::models::{CryptoKey, Connection};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
-use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -47,9 +47,9 @@ decides which one is used."###,
     error_code = 500
 )]
 pub async fn register_crypto_key_internal(
-    body: Json<CryptoKeyRequest>,
+    body: Json<CryptoKeyReq>,
     _context: UserContext,
-) -> Result<CreatedJson<RouteResponse>, ErrorResponse> {
+) -> Result<CreatedJson<CryptoKeyResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -140,7 +140,7 @@ pub async fn register_crypto_key_internal(
     st.crypto_keys
         .insert(format!("{}:{}", body.direction, body.spi), entry);
 
-    println!(
+    log::debug!(
         "Installed {} key spi 0x{:08x} for {} <-> {} via {} ({})",
         body.direction,
         body.spi,
@@ -150,13 +150,12 @@ pub async fn register_crypto_key_internal(
         encryption_state
     );
 
-    let resp = RouteResponse {
-        success: true,
-        message: format!(
-            "IPsec {} key 0x{:08x} installed ({})",
-            body.direction, body.spi, encryption_state
-        ),
-        route: None,
+    let resp = CryptoKeyResp {
+        direction: body.direction.clone(),
+        local_ip: body.local_ip,
+        remote_ip: body.remote_ip,
+        peer_gateway_ip: body.peer_gateway_ip,
+        spi: body.spi,
     };
 
     Ok(CreatedJson(resp))

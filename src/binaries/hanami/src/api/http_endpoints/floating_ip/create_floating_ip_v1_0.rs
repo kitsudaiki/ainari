@@ -54,8 +54,8 @@ pub async fn create_floating_ip(
     floating_ip_table::add_new_floating_ip(
         &floating_ip_uuid,
         &body.network_uuid,
-        &body.target_ip,
-        &floating_ip_address,
+        &body.internal_ip,
+        &body.floating_ip,
         &context,
     )
     .map_err(|e| {
@@ -64,18 +64,18 @@ pub async fn create_floating_ip(
     })?;
 
     // get new created floating_ip from database to get addtional information
-    let floating_ip = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
+    let floating_ip_entrry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("project", &floating_ip_uuid, e))?;
 
     let resp = FloatingIpResp {
         uuid: floating_ip_uuid,
-        network_uuid: floating_ip.network_uuid,
-        target_ip: floating_ip.target_ip,
-        floating_ip_address: floating_ip.floating_ip_address,
-        created_by: floating_ip.created_by,
-        created_at: floating_ip.created_at,
-        updated_by: floating_ip.updated_by,
-        updated_at: floating_ip.updated_at,
+        network_uuid: floating_ip_entrry.network_uuid,
+        floating_ip: floating_ip_entrry.floating_ip_addr,
+        internal_ip: floating_ip_entrry.internal_ip_addr,
+        created_by: floating_ip_entrry.created_by,
+        created_at: floating_ip_entrry.created_at,
+        updated_by: floating_ip_entrry.updated_by,
+        updated_at: floating_ip_entrry.updated_at,
     };
 
     Ok(CreatedJson(resp))

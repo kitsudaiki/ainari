@@ -114,31 +114,6 @@ pub fn apply_filter(
     Ok(())
 }
 
-/// Builds the answer of a filter operation from the state of the route.
-///
-/// # Arguments
-/// * `st` - The locked gateway state
-/// * `route_uuid` - The UUID of the route that was worked on
-/// * `dest_ip` - Destination address of that route
-/// * `message` - Human readable summary of what the operation did
-///
-/// # Returns
-/// A `FilterResponse` carrying the current include-lists of the route
-pub fn build_filter_response(
-    st: &GatewayState,
-    route_uuid: Uuid,
-    dest_ip: Ipv4Addr,
-    message: String,
-) -> FilterResponse {
-    FilterResponse {
-        success: true,
-        message,
-        route_uuid,
-        dest_ip,
-        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

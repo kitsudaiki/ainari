@@ -16,7 +16,7 @@ use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::core::filter::{build_filter_response, route_filter_key};
+use crate::core::filter::route_filter_key;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -35,7 +35,7 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn get_filter(
     route_uuid: Path<Uuid>,
     _context: UserContext,
-) -> Result<Json<FilterResponse>, ErrorResponse> {
+) -> Result<Json<FilterResp>, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
@@ -55,8 +55,13 @@ pub async fn get_filter(
             rules.ports.len()
         )
     };
+    log::debug!("{}", message);
 
-    Ok(Json(build_filter_response(
-        &st, route_uuid, dest_ip, message,
-    )))
+    let resp = FilterResp {
+        route_uuid,
+        dest_ip,
+        filter: rules,
+    };
+
+    Ok(Json(resp))
 }

@@ -41,6 +41,23 @@ pub struct FloatingIpResp {
     pub updated_by: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct FloatingIpInternalCreateReq {
+    pub name: String,
+    pub network_uuid: Uuid,
+    pub floating_ip: Ipv4Addr,
+    pub internal_ip: Ipv4Addr,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct FloatingIpInternalResp {
+    pub uuid: Uuid,
+    pub name: String,
+    pub network_uuid: Uuid,
+    pub floating_ip: Ipv4Addr,
+    pub internal_ip: Ipv4Addr,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct FloatingIpBasicResp {
     pub uuid: Uuid,

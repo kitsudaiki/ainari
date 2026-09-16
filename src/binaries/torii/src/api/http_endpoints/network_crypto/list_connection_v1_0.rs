@@ -16,6 +16,7 @@ use actix_web::web::Json;
 use apistos::api_operation;
 
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::core::models::Connection;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
@@ -34,11 +35,25 @@ connection from a deliberately unprotected one."###,
 )]
 pub async fn list_connection(
     _context: UserContext,
-) -> Result<Json<ConnectionListResponse>, ErrorResponse> {
+) -> Result<Json<ConnectionListResp>, ErrorResponse> {
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut connections: Vec<Connection> = st.connections.values().cloned().collect();
     connections.sort_by_key(|conn| (conn.local_ip, conn.remote_ip));
 
-    Ok(Json(ConnectionListResponse { connections }))
+    let mut resp = ConnectionListResp::default();
+    for connection in connections {
+
+        let converted_route = ConnectionResp {
+            local_ip: connection.local_ip,
+            remote_ip: connection.remote_ip,
+            peer_gateway_ip: connection.peer_gateway_ip,
+            enabled: connection.enabled,
+            active_egress_spi: connection.active_egress_spi,
+        };
+
+        resp.connections.push(converted_route);
+    }
+
+    Ok(Json(resp))
 }

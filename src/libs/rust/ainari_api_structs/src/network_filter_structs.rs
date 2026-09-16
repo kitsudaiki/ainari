@@ -21,7 +21,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
-pub struct FilterIpRangeRequest {
+pub struct FilterIpRangeReq {
     /// Single address, CIDR subnet or explicit `first-last` range
     #[schemars(with = "Vec<String>")]
     pub ranges: Vec<IpRangeRule>,
@@ -29,16 +29,14 @@ pub struct FilterIpRangeRequest {
 
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
-pub struct FilterPortRequest {
+pub struct FilterPortReq {
     /// Single port or explicit `first-last` range
     #[schemars(with = "Vec<String>")]
     pub ports: Vec<PortRangeRule>,
 }
 
 #[derive(Debug, Serialize, JsonSchema, ApiComponent, Validate)]
-pub struct FilterResponse {
-    pub success: bool,
-    pub message: String,
+pub struct FilterResp {
     pub route_uuid: Uuid,
     pub dest_ip: Ipv4Addr,
     pub filter: RouteFilterRules,
@@ -326,12 +324,12 @@ mod tests {
 
     #[test]
     fn requests_carry_ranges_in_textual_notation() {
-        let req: FilterIpRangeRequest =
+        let req: FilterIpRangeReq =
             serde_json::from_str(r#"{"ranges": ["10.0.0.7", "10.0.0.0-10.0.0.255"]}"#).unwrap();
         assert_eq!(req.ranges[0].spec, "10.0.0.7");
         assert_eq!(req.ranges[1].spec, "10.0.0.0/24");
 
-        assert!(serde_json::from_str::<FilterIpRangeRequest>(r#"{"ranges": ["10.0.0.256"]}"#).is_err());
+        assert!(serde_json::from_str::<FilterIpRangeReq>(r#"{"ranges": ["10.0.0.256"]}"#).is_err());
     }
 
     #[test]
@@ -359,11 +357,11 @@ mod tests {
 
     #[test]
     fn requests_carry_ports_in_textual_notation() {
-        let req: FilterPortRequest =
+        let req: FilterPortReq =
             serde_json::from_str(r#"{"ports": ["22", "8000-8100"]}"#).unwrap();
         assert_eq!((req.ports[0].first, req.ports[0].last), (22, 22));
         assert_eq!((req.ports[1].first, req.ports[1].last), (8000, 8100));
 
-        assert!(serde_json::from_str::<FilterPortRequest>(r#"{"ports": ["0"]}"#).is_err());
+        assert!(serde_json::from_str::<FilterPortReq>(r#"{"ports": ["0"]}"#).is_err());
     }
 }

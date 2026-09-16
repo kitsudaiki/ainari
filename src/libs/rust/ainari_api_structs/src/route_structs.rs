@@ -21,7 +21,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteRequest {
+pub struct RouteReq {
     pub dest_ip: Ipv4Addr,
     pub target_iface: String,
     #[serde(default)]
@@ -34,20 +34,13 @@ pub struct RouteRequest {
     pub encrypted: bool,
 }
 
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteResponse {
-    pub success: bool,
-    pub message: String,
-    pub route: Option<Route>,
-}
-
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RouteListResponse {
-    pub routes: Vec<Route>,
+#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct RouteListResp {
+    pub routes: Vec<RouteResp>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct Route {
+pub struct RouteResp {
     pub uuid: Uuid,
     pub dest_ip: Ipv4Addr,
     pub target_iface: String,

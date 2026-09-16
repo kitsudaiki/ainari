@@ -43,8 +43,8 @@ pub async fn get_floating_ip(
     let resp = FloatingIpResp {
         uuid: floating_ip_data.uuid,
         network_uuid: floating_ip_data.network_uuid,
-        target_ip: floating_ip_data.target_ip,
-        floating_ip_address: floating_ip_data.floating_ip_address,
+        floating_ip: floating_ip_data.floating_ip_addr,
+        internal_ip: floating_ip_data.internal_ip_addr,
         created_by: floating_ip_data.created_by,
         created_at: floating_ip_data.created_at,
         updated_by: floating_ip_data.updated_by,

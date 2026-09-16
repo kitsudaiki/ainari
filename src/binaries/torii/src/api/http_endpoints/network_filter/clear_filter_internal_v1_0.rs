@@ -16,7 +16,7 @@ use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::core::filter::{apply_filter, build_filter_response, route_filter_key};
+use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -38,7 +38,7 @@ unrestricted default state."###,
 pub async fn clear_filter_internal(
     route_uuid: Path<Uuid>,
     _context: UserContext,
-) -> Result<Json<FilterResponse>, ErrorResponse> {
+) -> Result<Json<FilterResp>, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
@@ -59,9 +59,13 @@ pub async fn clear_filter_internal(
         "Packet filter of {} cleared, every address and port allowed",
         dest_ip
     );
-    println!("{}", message);
+    log::debug!("{}", message);
 
-    Ok(Json(build_filter_response(
-        &st, route_uuid, dest_ip, message,
-    )))
+    let resp = FilterResp {
+        route_uuid,
+        dest_ip,
+        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
+    };
+
+    Ok(Json(resp))
 }

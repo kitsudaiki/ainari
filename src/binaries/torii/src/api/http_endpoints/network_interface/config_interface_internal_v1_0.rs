@@ -17,7 +17,6 @@ use apistos::api_operation;
 use validator::Validate;
 
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::*;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
@@ -33,9 +32,9 @@ CIDRs and enable interfaces on the host operating system."###,
     error_code = 500
 )]
 pub async fn config_interface_internal(
-    body: Json<IfaceConfigRequest>,
+    body: Json<IfaceConfigReq>,
     _context: UserContext,
-) -> Result<Json<RouteResponse>, ErrorResponse> {
+) -> Result<Json<IfaceConfigResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -56,10 +55,10 @@ pub async fn config_interface_internal(
             .status();
     }
 
-    let resp = RouteResponse {
-        success: true,
-        message: format!("Interface {} configured successfully", name),
-        route: None,
+    let resp = IfaceConfigResp {
+        iface_name: body.iface_name.clone(),
+        ip_cidr: body.ip_cidr.clone(),
+        up: body.up,
     };
 
     Ok(Json(resp))
