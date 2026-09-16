@@ -64,7 +64,7 @@ pub async fn init_dataset(
     )
     .map_err(|e| {
         log::error!("Failed to add dataset to database: {e}");
-        ErrorResponse::InternalError("Internal error".to_string())
+        ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     let dataset_data = dataset_table::get_dataset(dataset_uuid, &context)

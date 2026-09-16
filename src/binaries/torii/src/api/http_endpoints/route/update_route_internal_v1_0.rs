@@ -24,6 +24,7 @@ use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_ifindex;
 use crate::core::models::Route;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -92,9 +93,8 @@ pub async fn update_route_internal(
         .insert(ip_u32, RouteTargetPod(target), 0)
         .is_err()
     {
-        return Err(ErrorResponse::InternalError(
-            "eBPF Map error on update".to_string(),
-        ));
+        log::error!("eBPF Map error on update");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     st.routes.insert(route_uuid, updated_route.clone());
@@ -108,7 +108,8 @@ pub async fn update_route_internal(
         let _ = st.route_map.remove(&previous_key);
         let _ = st.filter_map.remove(&previous_key);
         let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-        apply_filter(&mut st, route_uuid, ip_u32, rules).map_err(ErrorResponse::InternalError)?;
+        apply_filter(&mut st, route_uuid, ip_u32, rules)
+            .map_err(|e| map_internal_error("move packet-filter of route", e))?;
     }
 
 

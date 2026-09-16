@@ -19,6 +19,7 @@ use apistos::api_operation;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{get_local_ip, run_ip};
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 
@@ -50,9 +51,8 @@ pub async fn delete_crypto_key_internal(
     let local_gateway_ip = match get_local_ip("eth0") {
         Some(ip) => ip,
         None => {
-            return Err(ErrorResponse::InternalError(
-                "No underlay address on eth0".to_string(),
-            ));
+            log::error!("No underlay address on eth0");
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -66,7 +66,7 @@ pub async fn delete_crypto_key_internal(
     run_ip(&[
         "xfrm", "state", "delete", "src", &src, "dst", &dst, "proto", "esp", "spi", &spi_hex,
     ])
-    .map_err(ErrorResponse::InternalError)?;
+    .map_err(|e| map_internal_error(&format!("delete crypto-key with spi '{spi_hex}'"), e))?;
 
     println!(
         "Removed {} key spi {} for {} <-> {}",

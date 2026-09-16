@@ -81,7 +81,8 @@ pub async fn register_route_internal(
         .insert(ip_u32, RouteTargetPod(target), 0)
         .is_err()
     {
-        return Err(ErrorResponse::InternalError("eBPF Map error".to_string()));
+        log::error!("eBPF Map error");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     let route = RouteResp {

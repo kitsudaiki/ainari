@@ -64,7 +64,7 @@ pub async fn init_checkpoint(
     )
     .map_err(|e| {
         log::error!("Failed to add checkpoint to database: {e}");
-        ErrorResponse::InternalError("Internal error".to_string())
+        ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     let checkpoint = checkpoint_table::get_checkpoint(checkpoint_uuid, &context)

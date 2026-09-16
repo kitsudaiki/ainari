@@ -19,6 +19,7 @@ use uuid::Uuid;
 use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -53,7 +54,7 @@ pub async fn clear_filter_internal(
         dest_key,
         RouteFilterRules::default(),
     )
-    .map_err(ErrorResponse::InternalError)?;
+    .map_err(|e| map_internal_error("clear packet-filter", e))?;
 
     let message = format!(
         "Packet filter of {} cleared, every address and port allowed",

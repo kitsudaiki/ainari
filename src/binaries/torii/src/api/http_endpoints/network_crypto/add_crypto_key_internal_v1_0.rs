@@ -22,6 +22,7 @@ use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::get_local_ip;
 use crate::core::models::{CryptoKey, Connection};
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -59,9 +60,8 @@ pub async fn register_crypto_key_internal(
     let local_gateway_ip = match get_local_ip("eth0") {
         Some(ip) => ip,
         None => {
-            return Err(ErrorResponse::InternalError(
-                "No underlay address on eth0".to_string(),
-            ));
+            log::error!("No underlay address on eth0");
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
@@ -116,12 +116,13 @@ pub async fn register_crypto_key_internal(
         }
     };
 
-    result.map_err(ErrorResponse::InternalError)?;
+    result.map_err(|e| map_internal_error("install crypto-key", e))?;
 
     // Write the policies of the connection. They demand ESP while the encryption
     // is switched on and are plain allow rules while it is switched off, so a
     // key installed on a disabled connection is stored but stays unused.
-    apply_connection_policies(&conn, local_gateway_ip).map_err(ErrorResponse::InternalError)?;
+    apply_connection_policies(&conn, local_gateway_ip)
+        .map_err(|e| map_internal_error("apply connection-policies", e))?;
 
     let encryption_state = if conn.enabled {
         "active"

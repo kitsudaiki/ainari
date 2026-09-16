@@ -16,6 +16,7 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -45,9 +46,7 @@ pub async fn config_interface_internal(
         std::process::Command::new("ip")
             .args(["link", "set", name, "up"])
             .status()
-            .map_err(|e| {
-                ErrorResponse::InternalError(format!("Failed to bring interface up: {}", e))
-            })?;
+            .map_err(|e| map_internal_error(&format!("bring interface '{name}' up"), e))?;
     }
     if let Some(ip) = &body.ip_cidr {
         let _ = std::process::Command::new("ip")

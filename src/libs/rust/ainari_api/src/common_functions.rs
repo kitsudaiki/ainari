@@ -244,6 +244,21 @@ pub fn map_db_count_error(obj_type: &str, e: diesel::result::Error) -> ErrorResp
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
+/// Maps internal errors, which must not be exposed to the client, to appropriate ErrorResponse.
+///
+/// # Arguments
+///
+/// * `action` - A string slice describing the action, which has failed.
+/// * `e` - The error, which occurred while performing the action.
+///
+/// # Returns
+///
+/// An ErrorResponse object with the generic internal error message.
+pub fn map_internal_error(action: &str, e: impl std::fmt::Display) -> ErrorResponse {
+    log::error!("Failed to {action} with error: '{e}'");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
 /// Checks if an object with the given ID already exists in the database.
 ///
 /// # Arguments

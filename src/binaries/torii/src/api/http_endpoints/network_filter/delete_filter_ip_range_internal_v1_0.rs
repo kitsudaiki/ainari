@@ -20,6 +20,7 @@ use validator::Validate;
 use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -68,7 +69,8 @@ pub async fn delete_filter_ip_range_internal(
     });
     let removed = before - rules.ip_ranges.len();
 
-    apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::InternalError)?;
+    apply_filter(&mut st, route_uuid, dest_key, rules)
+        .map_err(|e| map_internal_error("apply packet-filter", e))?;
 
     let remaining = st
         .filters

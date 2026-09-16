@@ -54,18 +54,16 @@ pub async fn register_floating_ip_internal(
         .insert(u32::from(body.floating_ip), u32::from(body.internal_ip), 0)
         .is_err()
     {
-        return Err(ErrorResponse::InternalError(
-            "eBPF Map error (DNAT)".to_string(),
-        ));
+        log::error!("eBPF Map error (DNAT)");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
     if state
         .fip_snat_map
         .insert(u32::from(body.internal_ip), u32::from(body.floating_ip), 0)
         .is_err()
     {
-        return Err(ErrorResponse::InternalError(
-            "eBPF Map error (SNAT)".to_string(),
-        ));
+        log::error!("eBPF Map error (SNAT)");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     let resp = FloatingIpInternalResp {

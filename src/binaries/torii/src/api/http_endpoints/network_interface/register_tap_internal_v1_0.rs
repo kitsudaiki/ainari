@@ -23,6 +23,7 @@ use crate::core::models::{ArpProxyPod, TapInfo};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{enable_forwarding, get_ifindex, get_mac_address, parse_mac, run_ip};
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -63,20 +64,18 @@ pub async fn register_tap_internal(
         std::process::Command::new("ip")
             .args(["tuntap", "add", "mode", "tap", name])
             .status()
-            .map_err(|e| ErrorResponse::InternalError(format!("Failed to create TAP: {}", e)))?;
+            .map_err(|e| map_internal_error(&format!("create TAP '{name}'"), e))?;
     }
 
     std::process::Command::new("ip")
         .args(["link", "set", name, "up"])
         .status()
-        .map_err(|e| ErrorResponse::InternalError(format!("Failed to bring TAP up: {}", e)))?;
+        .map_err(|e| map_internal_error(&format!("bring TAP '{name}' up"), e))?;
 
     std::process::Command::new("ethtool")
         .args(["-K", name, "tx", "off", "rx", "off"])
         .status()
-        .map_err(|e| {
-            ErrorResponse::InternalError(format!("Failed to disable offloading: {}", e))
-        })?;
+        .map_err(|e| map_internal_error(&format!("disable offloading of TAP '{name}'"), e))?;
 
     // The TAP must not own any address: the eBPF datapath is the gateway of the
     // VM, and an address here would collide with every other TAP serving the
@@ -87,10 +86,8 @@ pub async fn register_tap_internal(
 
     let ifindex = get_ifindex(name);
     if ifindex == 0 {
-        return Err(ErrorResponse::InternalError(format!(
-            "TAP {} has no interface index",
-            name
-        )));
+        log::error!("TAP '{name}' has no interface index");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
     let tap_mac = get_mac_address(name);
@@ -108,7 +105,7 @@ pub async fn register_tap_internal(
         let vm_ip_str = Ipv4Addr::from(vm_ip).to_string();
         let route = format!("{}/32", vm_ip_str);
         run_ip(&["route", "replace", &route, "dev", name])
-            .map_err(ErrorResponse::InternalError)?;
+            .map_err(|e| map_internal_error(&format!("add host-route '{route}'"), e))?;
 
         if let Some(mac) = vm_mac {
             let mac_str = format!(
@@ -126,7 +123,7 @@ pub async fn register_tap_internal(
                 "nud",
                 "permanent",
             ])
-            .map_err(ErrorResponse::InternalError)?;
+            .map_err(|e| map_internal_error(&format!("add neighbour-entry '{vm_ip_str}'"), e))?;
         }
         enable_forwarding(&format!("/proc/sys/net/ipv4/conf/{}/forwarding", name));
     }
@@ -146,9 +143,8 @@ pub async fn register_tap_internal(
             .insert(ifindex, ArpProxyPod(proxy), 0)
             .is_err()
         {
-            return Err(ErrorResponse::InternalError(
-                "eBPF Map error (ARP proxy)".to_string(),
-            ));
+            log::error!("eBPF Map error (ARP proxy)");
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
 
         st.taps.insert(name.to_string(), TapInfo { tap_mac, vm_mac });

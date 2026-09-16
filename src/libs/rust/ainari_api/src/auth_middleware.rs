@@ -266,7 +266,7 @@ async fn check_auth_header(
         Err(AinariError::InvalidInput(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::InternalError(msg)) => {
             log::error!("Failed check token against Miko with error: '{msg}'");
-            Err(ErrorResponse::InternalError("".to_string()).into())
+            Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
         }
     }
 }
