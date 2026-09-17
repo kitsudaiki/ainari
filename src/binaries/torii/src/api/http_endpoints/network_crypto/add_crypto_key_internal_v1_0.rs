@@ -86,8 +86,8 @@ pub async fn register_crypto_key_internal(
 
     // The SA always describes the tunnel between the two gateways; only its
     // direction and its selector differ.
-    let result = match body.direction.as_str() {
-        "egress" => install_sa(
+    let result = match body.direction {
+        CryptoDirection::Egress => install_sa(
             local_gateway_ip,
             body.peer_gateway_ip,
             &spi,
@@ -100,7 +100,7 @@ pub async fn register_crypto_key_internal(
             // is pinned to further down.
             conn.active_egress_spi = Some(body.spi);
         }),
-        "ingress" => install_sa(
+        CryptoDirection::Ingress => install_sa(
             body.peer_gateway_ip,
             local_gateway_ip,
             &spi,
@@ -108,12 +108,6 @@ pub async fn register_crypto_key_internal(
             &remote_sel,
             &local_sel,
         ),
-        other => {
-            return Err(ErrorResponse::BadRequest(format!(
-                "Unknown direction '{}', expected egress or ingress",
-                other
-            )));
-        }
     };
 
     result.map_err(|e| map_internal_error("install crypto-key", e))?;
@@ -132,14 +126,13 @@ pub async fn register_crypto_key_internal(
     st.connections.insert(conn_id, conn);
 
     let entry = CryptoKey {
-        direction: body.direction.clone(),
+        direction: body.direction,
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
         peer_gateway_ip: body.peer_gateway_ip,
         spi: body.spi,
     };
-    st.crypto_keys
-        .insert(format!("{}:{}", body.direction, body.spi), entry);
+    st.crypto_keys.insert((body.direction, body.spi), entry);
 
     log::debug!(
         "Installed {} key spi 0x{:08x} for {} <-> {} via {} ({})",
@@ -152,7 +145,7 @@ pub async fn register_crypto_key_internal(
     );
 
     let resp = CryptoKeyResp {
-        direction: body.direction.clone(),
+        direction: body.direction,
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
         peer_gateway_ip: body.peer_gateway_ip,

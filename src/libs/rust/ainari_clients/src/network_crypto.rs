@@ -34,7 +34,7 @@ traffic, so a rotation never has a gap in which traffic would leave unprotected.
 - `torii_endpoint`: The endpoint configuration for the Torii service
 - `token`: Authentication token for accessing the API
 - `internal_api_key`: Internal API key for privileged operations
-- `direction`: Direction of the key, either `egress` or `ingress`
+- `direction`: Direction the key protects, either `CryptoDirection::Egress` or `CryptoDirection::Ingress`
 - `local_ip`: Address of the local virtual_machine of the connection
 - `remote_ip`: Address of the remote virtual_machine of the connection
 - `peer_gateway_ip`: Address of the gateway, which handles the remote virtual_machine
@@ -50,7 +50,7 @@ pub async fn create_crypto_key(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
-    direction: &str,
+    direction: CryptoDirection,
     local_ip: &Ipv4Addr,
     remote_ip: &Ipv4Addr,
     peer_gateway_ip: &Ipv4Addr,
@@ -63,7 +63,7 @@ pub async fn create_crypto_key(
     let url = format!("{address}/v1alpha/network_crypto/key/internal");
 
     let body = CryptoKeyReq {
-        direction: direction.to_owned(),
+        direction,
         local_ip: *local_ip,
         remote_ip: *remote_ip,
         peer_gateway_ip: *peer_gateway_ip,
@@ -132,7 +132,7 @@ after a rotation has moved the traffic to its successor.
 - `torii_endpoint`: The endpoint configuration for the Torii service
 - `token`: Authentication token for accessing the API
 - `internal_api_key`: Internal API key for privileged operations
-- `direction`: Direction of the key, either `egress` or `ingress`
+- `direction`: Direction the key protects, either `CryptoDirection::Egress` or `CryptoDirection::Ingress`
 - `spi`: Security-Parameter-Index of the key to delete
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
 
@@ -143,7 +143,7 @@ pub async fn delete_crypto_key(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
-    direction: &str,
+    direction: CryptoDirection,
     spi: u32,
     insecure_client: bool,
 ) -> Result<(), AinariError> {

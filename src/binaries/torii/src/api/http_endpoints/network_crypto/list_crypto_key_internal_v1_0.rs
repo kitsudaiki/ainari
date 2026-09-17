@@ -38,7 +38,7 @@ pub async fn list_crypto_key_internal(
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut crypto_keys: Vec<CryptoKey> = st.crypto_keys.values().cloned().collect();
-    crypto_keys.sort_by_key(|key| (key.direction.clone(), key.spi));
+    crypto_keys.sort_by_key(|key| (key.direction, key.spi));
 
     let mut resp = CryptoKeyListResp::default();
     for crypto_key in crypto_keys {

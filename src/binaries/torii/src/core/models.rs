@@ -10,6 +10,8 @@ use uuid::Uuid;
 
 use torii_common::{ArpProxy, RouteFilter, RouteTarget};
 
+use ainari_api_structs::network_crypto_structs::CryptoDirection;
+
 /// Wrapper for passing RouteTarget to Aya eBPF maps safely.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
@@ -46,7 +48,7 @@ pub struct TapInfo {
 
 #[derive(Debug, Clone)]
 pub struct CryptoKey {
-    pub direction: String,
+    pub direction: CryptoDirection,
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,

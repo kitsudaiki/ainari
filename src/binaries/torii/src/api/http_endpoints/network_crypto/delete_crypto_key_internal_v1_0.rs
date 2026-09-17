@@ -21,6 +21,7 @@ use crate::core::utils::{get_local_ip, run_ip};
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::network_crypto_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -37,13 +38,13 @@ hole - the traffic is discarded until another key is installed."###,
     error_code = 500
 )]
 pub async fn delete_crypto_key_internal(
-    path: Path<(String, u32)>,
+    path: Path<CryptoKeyPath>,
     _context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    let (direction, spi) = path.into_inner();
+    let CryptoKeyPath { direction, spi } = path.into_inner();
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
-    let entry = match st.crypto_keys.remove(&format!("{}:{}", direction, spi)) {
+    let entry = match st.crypto_keys.remove(&(direction, spi)) {
         Some(entry) => entry,
         None => return Err(ErrorResponse::NotFound("No such key".to_string())),
     };
@@ -56,9 +57,9 @@ pub async fn delete_crypto_key_internal(
         }
     };
 
-    let (src, dst) = match entry.direction.as_str() {
-        "egress" => (local_gateway_ip, entry.peer_gateway_ip),
-        _ => (entry.peer_gateway_ip, local_gateway_ip),
+    let (src, dst) = match entry.direction {
+        CryptoDirection::Egress => (local_gateway_ip, entry.peer_gateway_ip),
+        CryptoDirection::Ingress => (entry.peer_gateway_ip, local_gateway_ip),
     };
     let (src, dst) = (src.to_string(), dst.to_string());
     let spi_hex = format!("0x{:08x}", spi);
