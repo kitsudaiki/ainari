@@ -24,11 +24,14 @@ import (
 	"fmt"
 )
 
-func CreateVirtualMachine(context AccessContext, name string) (map[string]interface{}, error) {
+func CreateVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, imageUuid, networkUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
-		"name":     name,
-		"template": "asfasdfasdf",
+		"number_of_cores": numberOfCores,
+		"memory_size":     memorySize,
+		"image_uuid":      imageUuid,
+		"name":            name,
+		"network_uuid":    networkUuid,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

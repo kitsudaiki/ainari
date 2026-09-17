@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::Ipv4Addr;
+
 use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
@@ -29,13 +31,15 @@ table! {
         uuid -> Varchar,
         name -> Varchar,
         is_created -> Bool,
-        number_of_cores -> BigInt,
-        size_of_memory -> BigInt,
-        size_of_disk -> BigInt,
+        number_of_cores -> Integer,
+        memory_size -> BigInt,
         image_uuid -> Varchar,
-        seed_uuid -> Varchar,
-        public_key_uuid -> Varchar,
-        ip_addresses -> Varchar,
+        network_uuid -> Varchar,
+        internal_ip -> Varchar,
+        root_disk_path -> Nullable<Varchar>,
+        seed_path -> Varchar,
+        tap_name -> Varchar,
+        mac_address -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -56,17 +60,18 @@ pub struct VirtualMachineEntry {
     pub uuid: Uuid,
     pub name: String,
     pub is_created: bool,
-    pub number_of_cores: i64,
-    pub size_of_memory: i64,
-    pub size_of_disk: i64,
+    pub number_of_cores: i32,
+    pub memory_size: i64,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub image_uuid: Uuid,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
-    pub seed_uuid: Uuid,
-    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
-    pub public_key_uuid: Uuid,
-    #[diesel(serialize_as = DbVecString, deserialize_as = DbVecString)]
-    pub ip_addresses: Vec<String>,
+    pub network_uuid: Uuid,
+    #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
+    pub internal_ip: Ipv4Addr,
+    pub root_disk_path: Option<String>,
+    pub seed_path: String,
+    pub tap_name: String,
+    pub mac_address: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -94,12 +99,14 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
         name VARCHAR(256),
         is_created BOOL,
         number_of_cores INTEGER,
-        size_of_memory INTEGER,
-        size_of_disk INTEGER,
+        memory_size INTEGER,
         image_uuid VARCHAR(40),
-        seed_uuid VARCHAR(40),
-        public_key_uuid VARCHAR(40),
-        ip_addresses TEXT,
+        network_uuid VARCHAR(40),
+        internal_ip VARCHAR(40),
+        root_disk_path VARCHAR(1024),
+        seed_path VARCHAR(1024),
+        tap_name VARCHAR(256),
+        mac_address VARCHAR(32),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -120,9 +127,15 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
 /// # Arguments
 /// * `virtual_machine_uuid` - Unique identifier for the new virtual_machine
 /// * `virtual_machine_name` - Name for the new virtual_machine
-/// * `virtual_machine_template` - Template content for the new virtual_machine
-/// * `inputs` - Vector of input specifications
-/// * `outputs` - Vector of output specifications
+/// * `number_of_cores` - Number of cpu-cores of the new virtual_machine
+/// * `memory_size` - Amount of memory in bytes of the new virtual_machine
+/// * `image_uuid` - Unique identifier of the image of the new virtual_machine
+/// * `network_uuid` - Unique identifier of the network of the new virtual_machine
+/// * `internal_ip` - Internal address of the new virtual_machine
+/// * `root_disk_path` - Optional path to the root-disk-image of the new virtual_machine
+/// * `seed_path` - Path to the cloud-init seed-image of the new virtual_machine
+/// * `tap_name` - Name of the TAP-device of the new virtual_machine
+/// * `mac_address` - MAC-address of the network-interface of the new virtual_machine
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -133,13 +146,15 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
 pub fn add_new_virtual_machine(
     virtual_machine_uuid: &Uuid,
     virtual_machine_name: &str,
-    number_of_cores: i64,
-    size_of_memory: i64,
-    size_of_disk: i64,
+    number_of_cores: i32,
+    memory_size: i64,
     image_uuid: &Uuid,
-    seed_uuid: &Uuid,
-    public_key_uuid: &Uuid,
-    ip_addresses: &[String],
+    network_uuid: &Uuid,
+    internal_ip: &Ipv4Addr,
+    root_disk_path: Option<String>,
+    seed_path: &str,
+    tap_name: &str,
+    mac_address: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Create the new virtual_machine entry
@@ -148,12 +163,14 @@ pub fn add_new_virtual_machine(
         name: virtual_machine_name.to_owned(),
         is_created: false,
         number_of_cores,
-        size_of_memory,
-        size_of_disk,
+        memory_size,
         image_uuid: *image_uuid,
-        seed_uuid: *seed_uuid,
-        public_key_uuid: *public_key_uuid,
-        ip_addresses: ip_addresses.to_vec(),
+        network_uuid: *network_uuid,
+        internal_ip: *internal_ip,
+        root_disk_path,
+        seed_path: seed_path.to_owned(),
+        tap_name: tap_name.to_owned(),
+        mac_address: mac_address.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -376,12 +393,14 @@ mod tests {
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
-            size_of_memory: 4096,
-            size_of_disk: 1024,
+            memory_size: 4096,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: vec!["192.168.1.1".to_string()],
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -409,28 +428,36 @@ mod tests {
                     virtual_machine.number_of_cores
                 );
                 assert_eq!(
-                    retrieved_virtual_machine.size_of_memory,
-                    virtual_machine.size_of_memory
-                );
-                assert_eq!(
-                    retrieved_virtual_machine.size_of_disk,
-                    virtual_machine.size_of_disk
+                    retrieved_virtual_machine.memory_size,
+                    virtual_machine.memory_size
                 );
                 assert_eq!(
                     retrieved_virtual_machine.image_uuid,
                     virtual_machine.image_uuid
                 );
                 assert_eq!(
-                    retrieved_virtual_machine.seed_uuid,
-                    virtual_machine.seed_uuid
+                    retrieved_virtual_machine.network_uuid,
+                    virtual_machine.network_uuid
                 );
                 assert_eq!(
-                    retrieved_virtual_machine.public_key_uuid,
-                    virtual_machine.public_key_uuid
+                    retrieved_virtual_machine.internal_ip,
+                    virtual_machine.internal_ip
                 );
                 assert_eq!(
-                    retrieved_virtual_machine.ip_addresses,
-                    virtual_machine.ip_addresses
+                    retrieved_virtual_machine.root_disk_path,
+                    virtual_machine.root_disk_path
+                );
+                assert_eq!(
+                    retrieved_virtual_machine.seed_path,
+                    virtual_machine.seed_path
+                );
+                assert_eq!(
+                    retrieved_virtual_machine.tap_name,
+                    virtual_machine.tap_name
+                );
+                assert_eq!(
+                    retrieved_virtual_machine.mac_address,
+                    virtual_machine.mac_address
                 );
                 assert_eq!(retrieved_virtual_machine.owner_id, virtual_machine.owner_id);
                 assert_eq!(
@@ -485,12 +512,14 @@ mod tests {
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
-            size_of_memory: 4096,
-            size_of_disk: 1024,
+            memory_size: 4096,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: vec!["192.168.1.1".to_string()],
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -507,12 +536,14 @@ mod tests {
             name: "Bob".to_string(),
             is_created: false,
             number_of_cores: 2,
-            size_of_memory: 4096,
-            size_of_disk: 1024,
+            memory_size: 4096,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: vec!["192.168.1.1".to_string()],
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -556,12 +587,14 @@ mod tests {
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 2,
-            size_of_memory: 4096,
-            size_of_disk: 1024,
+            memory_size: 4096,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: vec!["192.168.1.1".to_string()],
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -594,12 +627,14 @@ mod tests {
             name: "Alice".to_string(),
             is_created: false,
             number_of_cores: 1,
-            size_of_memory: 1024,
-            size_of_disk: 20480,
+            memory_size: 1024,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: Vec::new(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -616,12 +651,14 @@ mod tests {
             name: "Bob".to_string(),
             is_created: false,
             number_of_cores: 1,
-            size_of_memory: 1024,
-            size_of_disk: 20480,
+            memory_size: 1024,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: Vec::new(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -638,12 +675,14 @@ mod tests {
             name: "Poi".to_string(),
             is_created: false,
             number_of_cores: 1,
-            size_of_memory: 1024,
-            size_of_disk: 20480,
+            memory_size: 1024,
             image_uuid: Uuid::new_v4(),
-            seed_uuid: Uuid::new_v4(),
-            public_key_uuid: Uuid::new_v4(),
-            ip_addresses: Vec::new(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
+            seed_path: "/tmp/seed.iso".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::Ipv4Addr;
+
 use uuid::Uuid;
 
 use ainari_api_structs::virtual_machine_structs::*;
@@ -29,25 +31,44 @@ use crate::{handle_empty_response, handle_response};
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
 /// * `name` - Name of the virtual_machine to be created.
-/// * `template` - Template to be used for virtual_machine creation.
+/// * `number_of_cores` - Number of cpu-cores to assign to the virtual_machine.
+/// * `memory_size` - Amount of memory in bytes to assign to the virtual_machine.
+/// * `root_disk_path` - Optional path to the root-disk-image of the virtual_machine.
+/// * `seed_path` - Path to the cloud-init seed-image of the virtual_machine.
+/// * `internal_ip` - Internal address, which is assigned to the virtual_machine.
+/// * `tap_name` - Name of the TAP-device, which is attached to the virtual_machine.
+/// * `mac_address` - MAC-address of the network-interface of the virtual_machine.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
 /// A `Result` containing the created `VirtualMachineResp` on success, or an `AinariError` on failure.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_virtual_machine(
     sakura_address: &String,
     token: &String,
     internal_api_key: &Secret,
     name: &str,
-    template: &str,
+    number_of_cores: i32,
+    memory_size: i64,
+    root_disk_path: Option<String>,
+    seed_path: &str,
+    internal_ip: &Ipv4Addr,
+    tap_name: &String,
+    mac_address: &str,
     insecure_client: bool,
 ) -> Result<VirtualMachineResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
     let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
-    let body = VirtualMachineCreateReq {
-        template: template.to_owned(),
+    let body = VirtualMachineInternalCreateReq {
+        number_of_cores,
+        memory_size,
+        root_disk_path,
+        seed_path: seed_path.to_owned(),
+        internal_ip: *internal_ip,
+        tap_name: tap_name.to_owned(),
+        mac_address: mac_address.to_owned(),
         name: name.to_owned(),
     };
     let json_str = serde_json::to_string(&body).unwrap();

@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::Ipv4Addr;
+
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use rand::prelude::IndexedRandom;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
+use crate::database::host_table::HostEntry;
 use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
@@ -27,6 +31,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::virtual_machine_structs::*;
 use ainari_clients::endpoints::*;
+use ainari_clients::network_interface::*;
 use ainari_clients::proxy as proxy_clients;
 use ainari_clients::quota::get_quota;
 use ainari_clients::virtual_machine as virtual_machine_clients;
@@ -34,7 +39,7 @@ use ainari_clients::virtual_machine as virtual_machine_clients;
 #[api_operation(
     tag = "virtual_machine",
     summary = "Create new virtual_machine",
-    description = r###"Create new virtual_machine based on a virtual_machine-template."###,
+    description = r###"Create new virtual_machine."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
@@ -49,6 +54,33 @@ pub async fn create_virtual_machine(
 
     check_quota(&context).await?;
 
+    let selected_host = select_host(&context)?;
+    let (virtual_machine_resp, proxy_uuid) =
+        prepare_selected_host(&selected_host, &body, &context).await?;
+
+    // parse uuid-string
+    let sakura_uuid = convert_uuid(&selected_host.uuid)?;
+
+    // add new virtual_machine to database
+    let virtual_machine_uuid = virtual_machine_resp.uuid;
+    meta_virtual_machine_table::add_new_meta_virtual_machine(
+        &virtual_machine_uuid,
+        &body.name,
+        &sakura_uuid,
+        &proxy_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        log::error!(
+            "Failed to add virtual_machine with UUID '{virtual_machine_uuid}' to database with error: {e}."
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+
+    Ok(CreatedJson(virtual_machine_resp))
+}
+
+fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     // list all avaialble hosts
     let hosts = host_table::list_hosts(&context).map_err(|e| {
         log::error!("Failed to get list of hosts form database: '{e}'");
@@ -70,13 +102,33 @@ pub async fn create_virtual_machine(
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 
+    Ok(selected_host.clone())
+}
+
+async fn prepare_selected_host(
+    selected_host: &HostEntry,
+    body: &Json<VirtualMachineCreateReq>,
+    context: &UserContext,
+) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
+    let root_disk_path = Some("/tmp/ubuntu-24.04.raw".to_string());
+    let seed_path = "/tmp/seed.iso".to_string();
+    let internal_ip = Ipv4Addr::new(192, 168, 100, 2);
+    let tap_name = "tap-vm".to_string();
+    let mac_address = "02:00:00:00:00:42".to_string();
+
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
         &selected_host.address,
         &context.token,
         &config::INTERNAL_API_KEY,
         &body.name,
-        &body.template,
+        body.number_of_cores,
+        body.memory_size,
+        root_disk_path,
+        &seed_path,
+        &internal_ip,
+        &tap_name,
+        &mac_address,
         config::CONFIG.skip_tls_verification,
     )
     .await
@@ -100,29 +152,9 @@ pub async fn create_virtual_machine(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    // set port-number for the response
     virtual_machine_resp.torii_port = proxy_resp.port;
 
-    // parse uuid-string
-    let sakura_uuid = convert_uuid(&selected_host.uuid)?;
-
-    // add new virtual_machine to database
-    let virtual_machine_uuid = virtual_machine_resp.uuid;
-    meta_virtual_machine_table::add_new_meta_virtual_machine(
-        &virtual_machine_uuid,
-        &body.name,
-        &sakura_uuid,
-        &proxy_resp.uuid,
-        &context,
-    )
-    .map_err(|e| {
-        log::error!(
-            "Failed to add virtual_machine with UUID '{virtual_machine_uuid}' to database with error: {e}."
-        );
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
-
-    Ok(CreatedJson(virtual_machine_resp))
+    Ok((virtual_machine_resp, proxy_resp.uuid))
 }
 
 /// Asynchronously checks if the user's current number of meta_virtual_machines is within their quota limit.

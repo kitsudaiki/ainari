@@ -30,13 +30,16 @@ import (
 )
 
 var (
-	templatePath   string
-	checkpointName string
-	virtual_machineMode    string
+	virtual_machineNumberOfCores int32
+	virtual_machineMemorySize    int64
+	virtual_machineImageUuid     string
+	virtual_machineNetworkUuid   string
+	checkpointName               string
+	virtual_machineMode          string
 )
 
 var createVirtualMachineCmd = &cobra.Command{
-	Use:   "create NAME",
+	Use:   "create -c NUMBER_OF_CORES -m MEMORY_SIZE -i IMAGE_UUID -u NETWORK_UUID NAME",
 	Short: "Create a new virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -46,7 +49,12 @@ var createVirtualMachineCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		virtual_machineName := args[0]
-		content, err := ainari_sdk.CreateVirtualMachine(context, virtual_machineName)
+		content, err := ainari_sdk.CreateVirtualMachine(context,
+			virtual_machineName,
+			virtual_machineNumberOfCores,
+			virtual_machineMemorySize,
+			virtual_machineImageUuid,
+			virtual_machineNetworkUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -122,8 +130,14 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(virtual_machineCmd)
 
 	virtual_machineCmd.AddCommand(createVirtualMachineCmd)
-	// createVirtualMachineCmd.Flags().StringVarP(&templatePath, "template", "t", "", "VirtualMachine Template (mandatory)")
-	// createVirtualMachineCmd.MarkFlagRequired("template")
+	createVirtualMachineCmd.Flags().Int32VarP(&virtual_machineNumberOfCores, "cores", "c", 0, "Number of cpu-cores of the virtual machine (mandatory)")
+	createVirtualMachineCmd.Flags().Int64VarP(&virtual_machineMemorySize, "memory", "m", 0, "Amount of memory in bytes of the virtual machine (mandatory)")
+	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineImageUuid, "image", "i", "", "UUID of the image of the virtual machine (mandatory)")
+	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineNetworkUuid, "network", "u", "", "UUID of the network of the virtual machine (mandatory)")
+	createVirtualMachineCmd.MarkFlagRequired("cores")
+	createVirtualMachineCmd.MarkFlagRequired("memory")
+	createVirtualMachineCmd.MarkFlagRequired("image")
+	createVirtualMachineCmd.MarkFlagRequired("network")
 
 	virtual_machineCmd.AddCommand(getVirtualMachineCmd)
 

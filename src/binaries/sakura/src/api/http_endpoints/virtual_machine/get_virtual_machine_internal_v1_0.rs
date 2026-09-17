@@ -44,8 +44,12 @@ pub async fn get_virtual_machine_internal(
 
     let resp = VirtualMachineResp {
         uuid: *virtual_machine_uuid,
+        number_of_cores: virtual_machine_data.number_of_cores,
+        memory_size: virtual_machine_data.memory_size,
+        image_uuid: virtual_machine_data.image_uuid,
         name: virtual_machine_data.name,
-        template: "".to_string(),
+        network_uuid: virtual_machine_data.network_uuid,
+        internal_ip: virtual_machine_data.internal_ip,
         torii_port: 0,
         created_by: virtual_machine_data.created_by,
         created_at: virtual_machine_data.created_at,

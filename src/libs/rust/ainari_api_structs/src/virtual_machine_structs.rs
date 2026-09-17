@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::Ipv4Addr;
+
 use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -21,17 +23,36 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineCreateReq {
+    pub number_of_cores: i32,
+    pub memory_size: i64,
+    pub image_uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub name: String,
-    #[validate(length(min = 10))]
-    pub template: String,
+    pub network_uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct VirtualMachineInternalCreateReq {
+    pub number_of_cores: i32,
+    pub memory_size: i64,
+    pub root_disk_path: Option<String>,
+    pub seed_path: String,
+    pub internal_ip: Ipv4Addr,
+    pub tap_name: String,
+    pub mac_address: String,
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineResp {
     pub uuid: Uuid,
+    pub number_of_cores: i32,
+    pub memory_size: i64,
+    pub image_uuid: Uuid,
     pub name: String,
-    pub template: String,
+    pub network_uuid: Uuid,
+    pub internal_ip: Ipv4Addr,
     pub torii_port: u16,
     pub created_at: DateTime<Utc>,
     pub created_by: String,

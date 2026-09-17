@@ -35,13 +35,13 @@ use ainari_clients::endpoints::get_endpoints;
 #[api_operation(
     tag = "virtual_machine",
     summary = "Create new virtual_machine",
-    description = r###"Create new virtual_machine based on a virtual_machine-template."###,
+    description = r###"Create new virtual_machine."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
 )]
 pub async fn create_virtual_machine_internal(
-    body: Json<VirtualMachineCreateReq>,
+    body: Json<VirtualMachineInternalCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<VirtualMachineResp>, ErrorResponse> {
     // validate incoming json
@@ -50,51 +50,6 @@ pub async fn create_virtual_machine_internal(
 
     let virtual_machine_uuid = Uuid::new_v4();
 
-    let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::VirtualMachineCreate;
-
-    // create directory, where all temp-files of this operation are stored
-    let temp_dir = format!(
-        "{}/task_{}",
-        config::CONFIG.storage.tempfile_location,
-        task_uuid
-    );
-    create_directory(&temp_dir).await?;
-
-    // prepare task-info
-    let info = CloudHypervisorVirtualMachineCreateInfo {
-        vm_uuid: virtual_machine_uuid,
-        number_of_cores: 2,
-        memory_size: 1_073_741_824,
-        public_key: Secret::from(
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5WE9inFSDLr3GesaH0AYEVlGV1q//dCIYEHL2Ju/A6 neptune@nep-station",
-        ),
-    };
-
-    let _endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
-        .await
-        .map_err(map_ainari_error_to_api_response)?;
-
-    {
-        // create new task
-        let task = Task {
-            uuid: task_uuid,
-            resouce_uuid: virtual_machine_uuid,
-            resource_type: TaskResourceType::VirtualMachine,
-            name: body.name.clone(),
-            info: TaskVariant::CloudHypervisorVirtualMachineCreate(info),
-            meta: TaskMeta::new(0, 0, 0, 0),
-        };
-        super::super::task::add_task(task, &task_type, &context)?;
-
-        Ok(())
-    }
-    .inspect_err(|e| {
-        log::error!("Creating a train-task failed with error: {e}");
-        // in case of an error, delete the temp-directory with all downlaoded files of this task again
-        super::remove_all(&temp_dir);
-    })?;
-
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
             |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
@@ -102,8 +57,12 @@ pub async fn create_virtual_machine_internal(
 
     let resp = VirtualMachineResp {
         uuid: virtual_machine_uuid,
+        number_of_cores: virtual_machine_data.number_of_cores,
+        memory_size: virtual_machine_data.memory_size,
+        image_uuid: virtual_machine_data.image_uuid,
         name: virtual_machine_data.name,
-        template: "asdfasdfasdf".to_string(),
+        network_uuid: virtual_machine_data.network_uuid,
+        internal_ip: virtual_machine_data.internal_ip,
         torii_port: 0,
         created_by: virtual_machine_data.created_by,
         created_at: virtual_machine_data.created_at,
