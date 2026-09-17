@@ -34,7 +34,7 @@ pub struct FilterPortReq {
     pub ports: Vec<PortRangeRule>,
 }
 
-#[derive(Debug, Serialize, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterResp {
     pub route_uuid: Uuid,
     pub dest_ip: Ipv4Addr,
@@ -42,12 +42,12 @@ pub struct FilterResp {
 }
 
 /// Response payload for listing the packet filters of all routes.
-#[derive(Debug, Serialize, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterListResponse {
     pub filters: Vec<FilterEntry>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct RouteFilterRules {
     pub ip_ranges: Vec<IpRangeRule>,
     pub ports: Vec<PortRangeRule>,
@@ -67,7 +67,7 @@ impl RouteFilterRules {
 }
 
 /// One entry of the filter overview.
-#[derive(Debug, Serialize, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterEntry {
     pub route_uuid: Uuid,
     pub dest_ip: Ipv4Addr,
@@ -89,11 +89,40 @@ impl FromStr for IpRangeRule {
     }
 }
 
-/// Requests carry an IP range in its textual notation, so it is parsed right
-/// while deserializing and a malformed entry rejects the whole request.
+/// A rule arrives in one of two shapes: requests write it in its textual
+/// notation, while a response carries it expanded with its decoded bounds. Both
+/// are identified by their spec, which is why the expanded form only has to
+/// keep that field.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum RangeRuleRepr {
+    Spec(String),
+    Expanded { spec: String },
+}
+
+impl RangeRuleRepr {
+    /// Unwraps the textual notation carried by either shape.
+    ///
+    /// # Arguments
+    /// None
+    ///
+    /// # Returns
+    /// The `spec` of the rule
+    fn into_spec(self) -> String {
+        match self {
+            RangeRuleRepr::Spec(spec) => spec,
+            RangeRuleRepr::Expanded { spec } => spec,
+        }
+    }
+}
+
+/// The textual notation is parsed right while deserializing, so a malformed
+/// entry rejects the whole request. Re-parsing the spec of an expanded rule
+/// keeps the bounds of a decoded rule consistent with its notation, whoever
+/// sent it.
 impl<'de> Deserialize<'de> for IpRangeRule {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let spec = String::deserialize(deserializer)?;
+        let spec = RangeRuleRepr::deserialize(deserializer)?.into_spec();
         spec.parse().map_err(serde::de::Error::custom)
     }
 }
@@ -114,11 +143,10 @@ impl FromStr for PortRangeRule {
     }
 }
 
-/// Requests carry a port range in its textual notation, so it is parsed right
-/// while deserializing and a malformed entry rejects the whole request.
+/// Accepts the same two shapes as an IP range, for the same reason.
 impl<'de> Deserialize<'de> for PortRangeRule {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let spec = String::deserialize(deserializer)?;
+        let spec = RangeRuleRepr::deserialize(deserializer)?.into_spec();
         spec.parse().map_err(serde::de::Error::custom)
     }
 }
@@ -329,6 +357,26 @@ mod tests {
         assert_eq!(req.ranges[1].spec, "10.0.0.0/24");
 
         assert!(serde_json::from_str::<FilterIpRangeReq>(r#"{"ranges": ["10.0.0.256"]}"#).is_err());
+    }
+
+    #[test]
+    fn responses_carry_ranges_in_their_expanded_form() {
+        // A client reads back what an endpoint sent, so both shapes of a rule
+        // have to survive the trip.
+        let rules = RouteFilterRules {
+            ip_ranges: vec!["10.0.0.0/24".parse().unwrap()],
+            ports: vec!["8000-8100".parse().unwrap()],
+        };
+
+        let encoded = serde_json::to_string(&rules).unwrap();
+        let decoded: RouteFilterRules = serde_json::from_str(&encoded).unwrap();
+
+        assert_eq!(decoded.ip_ranges[0].spec, "10.0.0.0/24");
+        assert_eq!(u32::from(decoded.ip_ranges[0].last), 0x0a0000ff);
+        assert_eq!(
+            (decoded.ports[0].first, decoded.ports[0].last),
+            (8000, 8100)
+        );
     }
 
     #[test]

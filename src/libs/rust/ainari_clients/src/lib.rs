@@ -16,11 +16,16 @@ pub mod auth;
 pub mod checkpoint;
 pub mod dataset;
 pub mod endpoints;
+pub mod floating_ip;
 pub mod host;
+pub mod network_crypto;
+pub mod network_filter;
+pub mod network_interface;
 pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;
 pub mod root_wrap;
+pub mod route;
 pub mod secret;
 pub mod virtual_machine;
 

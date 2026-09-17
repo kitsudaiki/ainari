@@ -34,7 +34,7 @@ pub struct RouteReq {
     pub encrypted: bool,
 }
 
-#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct RouteListResp {
     pub routes: Vec<RouteResp>,
 }

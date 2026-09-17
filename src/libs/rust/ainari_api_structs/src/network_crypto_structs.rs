@@ -30,7 +30,7 @@ pub struct CryptoKeyReq {
     pub key: Secret,
 }
 
-#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct CryptoKeyListResp {
     pub keys: Vec<CryptoKeyResp>,
 }
@@ -62,7 +62,7 @@ pub struct CryptoToggleResp {
     pub enabled: bool,
 }
 
-#[derive(Debug, Default, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ConnectionListResp {
     pub connections: Vec<ConnectionResp>,
 }

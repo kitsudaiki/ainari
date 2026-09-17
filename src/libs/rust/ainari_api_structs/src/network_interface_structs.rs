@@ -28,7 +28,7 @@ pub struct TapReq {
     pub vm_ip: Option<Ipv4Addr>,
 }
 
-#[derive(Debug, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TapResp {
     pub success: bool,
     pub message: String,
