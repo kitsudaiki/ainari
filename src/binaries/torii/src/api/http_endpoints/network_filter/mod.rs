@@ -17,5 +17,5 @@ pub mod add_filter_port_internal_v1_0;
 pub mod clear_filter_internal_v1_0;
 pub mod delete_filter_ip_range_internal_v1_0;
 pub mod delete_filter_port_internal_v1_0;
-pub mod get_filter_v1_0;
-pub mod list_filter_v1_0;
+pub mod get_filter_internal_v1_0;
+pub mod list_filter_internal_v1_0;

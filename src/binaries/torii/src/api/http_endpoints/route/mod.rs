@@ -14,5 +14,5 @@
 
 pub mod add_route_internal_v1_0;
 pub mod delete_route_internal_v1_0;
-pub mod list_route_v1_0;
+pub mod list_route_internal_v1_0;
 pub mod update_route_internal_v1_0;

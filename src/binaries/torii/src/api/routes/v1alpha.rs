@@ -60,19 +60,17 @@ pub fn v1alpha_routes() -> Scope {
             scope("/route")
                 .service(
                     resource("/internal")
+                        .route(get().to(list_route_internal_v1_0::list_route_internal))
                         .route(post().to(add_route_internal_v1_0::register_route_internal)),
                 )
-                .service(resource("").route(get().to(list_route_v1_0::list_route)))
                 .service(
                     resource("/{route_uuid}/internal")
                         .route(put().to(update_route_internal_v1_0::update_route_internal))
                         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
                 )
                 .service(
-                    resource("/{route_uuid}/filter").route(get().to(get_filter_v1_0::get_filter)),
-                )
-                .service(
                     resource("/{route_uuid}/filter/internal")
+                        .route(get().to(get_filter_internal_v1_0::get_filter_internal))
                         .route(delete().to(clear_filter_internal_v1_0::clear_filter_internal)),
                 )
                 .service(
@@ -97,14 +95,15 @@ pub fn v1alpha_routes() -> Scope {
         )
         .service(
             scope("/network_filter")
-                .service(resource("").route(get().to(list_filter_v1_0::list_filter))),
+                .service(resource("").route(get().to(list_filter_internal_v1_0::list_filter_internal))),
         )
         .service(
             scope("/network_crypto")
-                .service(resource("/key").route(get().to(list_crypto_key_v1_0::list_crypto_key)))
+                .service(resource("/key"))
                 .service(
-                    resource("/key/internal").route(
-                        post().to(add_crypto_key_internal_v1_0::register_crypto_key_internal),
+                    resource("/key/internal")
+                        .route(get().to(list_crypto_key_internal_v1_0::list_crypto_key_internal))
+                        .route(post().to(add_crypto_key_internal_v1_0::register_crypto_key_internal),
                     ),
                 )
                 .service(resource("/key/{direction}/{spi}/internal").route(
@@ -115,7 +114,7 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(toggle_crypto_internal_v1_0::toggle_crypto_internal)),
                 )
                 .service(
-                    resource("/connection").route(get().to(list_connection_v1_0::list_connection)),
+                    resource("/connection/internal").route(get().to(list_connection_internal_v1_0::list_connection_internal)),
                 ),
         )
         .service(

@@ -14,6 +14,6 @@
 
 pub mod add_crypto_key_internal_v1_0;
 pub mod delete_crypto_key_internal_v1_0;
-pub mod list_connection_v1_0;
-pub mod list_crypto_key_v1_0;
+pub mod list_connection_internal_v1_0;
+pub mod list_crypto_key_internal_v1_0;
 pub mod toggle_crypto_internal_v1_0;

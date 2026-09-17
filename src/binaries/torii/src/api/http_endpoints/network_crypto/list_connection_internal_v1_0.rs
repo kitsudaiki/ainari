@@ -15,7 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::models::CryptoKey;
+use crate::core::models::Connection;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -24,33 +24,34 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "network_crypto",
-    summary = "List crypto-keys",
-    description = r###"List the IPsec keys this gateway currently holds.
+    summary = "List connections",
+    description = r###"List the VM-to-VM connections this gateway knows about.
 
-The key material is never part of the answer - it is written straight into the
-kernel and not kept in the application state."###,
+Shows for every connection whether its encryption is currently switched on and
+which outbound key is in use, which is the quickest way to tell a protected
+connection from a deliberately unprotected one."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_crypto_key(
+pub async fn list_connection_internal(
     _context: UserContext,
-) -> Result<Json<CryptoKeyListResp>, ErrorResponse> {
+) -> Result<Json<ConnectionListResp>, ErrorResponse> {
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
-    let mut crypto_keys: Vec<CryptoKey> = st.crypto_keys.values().cloned().collect();
-    crypto_keys.sort_by_key(|key| (key.direction.clone(), key.spi));
+    let mut connections: Vec<Connection> = st.connections.values().cloned().collect();
+    connections.sort_by_key(|conn| (conn.local_ip, conn.remote_ip));
 
-    let mut resp = CryptoKeyListResp::default();
-    for crypto_key in crypto_keys {
-        let converted_crypto_key = CryptoKeyResp {
-            direction: crypto_key.direction,
-            local_ip: crypto_key.local_ip,
-            remote_ip: crypto_key.remote_ip,
-            peer_gateway_ip: crypto_key.peer_gateway_ip,
-            spi: crypto_key.spi,
+    let mut resp = ConnectionListResp::default();
+    for connection in connections {
+        let converted_route = ConnectionResp {
+            local_ip: connection.local_ip,
+            remote_ip: connection.remote_ip,
+            peer_gateway_ip: connection.peer_gateway_ip,
+            enabled: connection.enabled,
+            active_egress_spi: connection.active_egress_spi,
         };
 
-        resp.keys.push(converted_crypto_key);
+        resp.connections.push(converted_route);
     }
 
     Ok(Json(resp))

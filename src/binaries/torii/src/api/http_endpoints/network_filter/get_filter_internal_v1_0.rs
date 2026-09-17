@@ -32,7 +32,7 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_filter(
+pub async fn get_filter_internal(
     route_uuid: Path<Uuid>,
     _context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {

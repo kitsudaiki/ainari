@@ -25,18 +25,18 @@ import (
 )
 
 func AddFloatingIp(context AccessContext, name, networkUuid, floatingIp, internalIp string) (map[string]interface{}, error) {
-	path := "v1alpha/floating_ip/internal"
+	path := "v1alpha/floating_ip"
 	jsonBody := map[string]interface{}{
 		"name":         name,
 		"network_uuid": networkUuid,
 		"floating_ip":  floatingIp,
 		"internal_ip":  internalIp,
 	}
-	return SendPost(context, context.ToriiAddress, path, jsonBody)
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
 func DeleteFloatingIp(context AccessContext, floatingIp string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/floating_ip/%s/internal", floatingIp)
+	path := fmt.Sprintf("v1alpha/floating_ip/%s", floatingIp)
 	vars := map[string]interface{}{}
-	return SendDelete(context, context.ToriiAddress, path, vars)
+	return SendDelete(context, context.HanamiAddress, path, vars)
 }
