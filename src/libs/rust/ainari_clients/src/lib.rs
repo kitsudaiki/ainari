@@ -23,6 +23,7 @@ pub mod network_filter;
 pub mod network_interface;
 pub mod onsen_file_transfer;
 pub mod proxy;
+pub mod public_key;
 pub mod quota;
 pub mod root_wrap;
 pub mod route;

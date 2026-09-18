@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod db_handle;
+pub mod public_key_table;
 pub mod secret_table;
 pub mod simple_crypto_table;
 
@@ -31,6 +32,15 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initilaized simple-crypto-database-table"),
         Err(e) => {
             log::error!("Failed to initialize simple-crypto-database-table: {e}");
+            return Err(e);
+        }
+    };
+
+    // Initialize public-key-table
+    match public_key_table::init_public_key_table() {
+        Ok(_) => log::info!("Initilaized public-key-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize public-key-database-table: {e}");
             return Err(e);
         }
     };

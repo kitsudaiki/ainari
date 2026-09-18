@@ -402,6 +402,7 @@ name = "ainari_common"
 version = "0.1.0"
 dependencies = [
  "apistos-schemars",
+ "base64",
  "chrono",
  "diesel",
  "hex",

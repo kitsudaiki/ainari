@@ -12,6 +12,9 @@ chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10.8"
 hex = "0.4"
 
+# encoding
+base64 = "0.22"
+
 # json
 serde = { version = "1", features = ["derive", "serde_derive", "alloc"] }
 serde_json = "1"
