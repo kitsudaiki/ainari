@@ -14,10 +14,10 @@
 
 pub mod auth;
 pub mod checkpoint;
-pub mod dataset;
 pub mod endpoints;
 pub mod floating_ip;
 pub mod host;
+pub mod image;
 pub mod network_crypto;
 pub mod network_filter;
 pub mod network_interface;

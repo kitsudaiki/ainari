@@ -36,14 +36,14 @@ def list_quotas(context: AccessContext) -> dict:
 def set_quota(context: AccessContext,
               user_id: str,
               max_instance: int,
-              max_dataset: int,
+              max_image: int,
               max_checkpoint: int,
               max_secret: int,
               max_taskqueue: int) -> dict:
     path = f"/v1alpha/quota/{user_id}/admin"
     json_body = {
         "max_instance": max_instance,
-        "max_dataset": max_dataset,
+        "max_image": max_image,
         "max_checkpoint": max_checkpoint,
         "max_secret": max_secret,
         "max_taskqueue": max_taskqueue,

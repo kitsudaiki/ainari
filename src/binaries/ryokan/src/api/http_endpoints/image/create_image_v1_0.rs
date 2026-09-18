@@ -25,21 +25,21 @@ use uuid::Uuid;
 
 use crate::config;
 use crate::core::converter::{load_csv_file, load_mnist_images};
-use crate::database::dataset_table;
+use crate::database::image_table;
 use crate::onsen_functions::select_onsen;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 use ainari_dataset::dataset_io::read_data_set_file;
 use ainari_dataset::file_encryption::encrypt_file;
 
 #[api_operation(
-    tag = "dataset",
-    summary = "Create new dataset",
-    description = r###"Create new dataset by uploading files."###,
+    tag = "image",
+    summary = "Create new image",
+    description = r###"Create new image by uploading files."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
@@ -48,21 +48,21 @@ pub async fn upload_binary(
     payload: Multipart,
     path: Path<(String, String)>,
     context: UserContext,
-) -> Result<CreatedJson<DatasetResp>, ErrorResponse> {
-    let (dataset_type, name) = path.into_inner();
-    let dataset_uuid = Uuid::new_v4();
+) -> Result<CreatedJson<ImageResp>, ErrorResponse> {
+    let (image_type, name) = path.into_inner();
+    let image_uuid = Uuid::new_v4();
     let target_dir_path = format!(
         "{}/{}",
         config::CONFIG.storage.tempfile_location,
-        dataset_uuid
+        image_uuid
     );
     let converted_result_path = format!("{target_dir_path}/converted_result");
     let encrypted_result_path = format!("{target_dir_path}/encrypted_result");
-    let upload_file_path_str: String = format!("datasets/{dataset_uuid}");
+    let upload_file_path_str: String = format!("images/{image_uuid}");
 
-    super::check_dataset_type(&dataset_type)?;
+    super::check_image_type(&image_type)?;
 
-    super::check_dataset_quota(&context).await?;
+    super::check_image_quota(&context).await?;
 
     create_directory(&target_dir_path).await?;
 
@@ -73,17 +73,17 @@ pub async fn upload_binary(
         let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
 
         convert_uploaded_files(
-            &dataset_uuid,
+            &image_uuid,
             &name,
-            &dataset_type,
+            &image_type,
             &converted_result_path,
             &temp_file_paths,
         )
         .await?;
 
-        let (number_of_rows, column_names) = get_dataset_dimension(&converted_result_path)?;
+        let (number_of_rows, column_names) = get_image_dimension(&converted_result_path)?;
 
-        let (secret_uuid, secret) = super::super::generate_new_key(&dataset_uuid, &context).await?;
+        let (secret_uuid, secret) = super::super::generate_new_key(&image_uuid, &context).await?;
 
         encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
             .await
@@ -105,8 +105,8 @@ pub async fn upload_binary(
     let (number_of_rows, column_names, secret_uuid) = result?;
 
     let dimension = (number_of_rows as i64, column_names.clone());
-    dataset_table::add_new_dataset(
-        &dataset_uuid,
+    image_table::add_new_image(
+        &image_uuid,
         &name,
         &selected_onsen.address,
         &upload_file_path_str,
@@ -115,22 +115,22 @@ pub async fn upload_binary(
         &context,
     )
     .map_err(|e| {
-        log::error!("Failed to add dataset to database: {e}");
+        log::error!("Failed to add image to database: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    let dataset_data = dataset_table::get_dataset(&dataset_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("dataset", &dataset_uuid, e))?;
+    let image_data = image_table::get_image(&image_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
 
-    let resp = DatasetResp {
-        uuid: dataset_uuid,
-        name: dataset_data.name,
-        number_of_rows: dataset_data.number_of_rows as u64,
+    let resp = ImageResp {
+        uuid: image_uuid,
+        name: image_data.name,
+        number_of_rows: image_data.number_of_rows as u64,
         column_names,
-        created_by: dataset_data.created_by,
-        created_at: dataset_data.created_at,
-        updated_by: dataset_data.updated_by,
-        updated_at: dataset_data.updated_at,
+        created_by: image_data.created_by,
+        created_at: image_data.created_at,
+        updated_by: image_data.updated_by,
+        updated_at: image_data.updated_at,
     };
 
     Ok(CreatedJson(resp))
@@ -219,7 +219,7 @@ async fn write_payload_into_file(
         match result {
             Ok(_) => {}
             Err(e) => {
-                log::debug!("Dataset-upload broken or canceled.");
+                log::debug!("Image-upload broken or canceled.");
                 let _ = std::fs::remove_file(&temp_file_path).map_err(|e| {
                     let tempfile_path_str: String = temp_file_path.to_string_lossy().into();
                     log::error!(
@@ -234,16 +234,16 @@ async fn write_payload_into_file(
     Ok(temp_file_paths)
 }
 
-/// Converts uploaded files to the expected format based on dataset type.
+/// Converts uploaded files to the expected format based on image type.
 ///
-/// Handles different dataset types (currently MNIST and CSV) and performs
+/// Handles different image types (currently MNIST and CSV) and performs
 /// the appropriate conversion to a standard format for processing.
 ///
 /// # Arguments
 ///
-/// * `dataset_uuid` - Unique identifier for the dataset
-/// * `name` - Name of the dataset
-/// * `dataset_type` - Type of dataset ("mnist" or "csv")
+/// * `image_uuid` - Unique identifier for the image
+/// * `name` - Name of the image
+/// * `image_type` - Type of image ("mnist" or "csv")
 /// * `target_filepath` - Path to the output converted file
 /// * `temp_file_paths` - Paths to temporary files containing uploaded data
 ///
@@ -251,25 +251,25 @@ async fn write_payload_into_file(
 ///
 /// A `Result` indicating success or failure
 async fn convert_uploaded_files(
-    dataset_uuid: &Uuid,
+    image_uuid: &Uuid,
     name: &str,
-    dataset_type: &String,
+    image_type: &String,
     target_filepath: &str,
     temp_file_paths: &[PathBuf],
 ) -> Result<(), ErrorResponse> {
-    // process mnist-dataset
-    if dataset_type == "mnist" {
+    // process mnist-image
+    if image_type == "mnist" {
         let path_len = temp_file_paths.len();
         if temp_file_paths.len() != 2 {
             return Err(ErrorResponse::BadRequest(format!(
-                "MNIST-dataset expect 2 uploaded files, but there were {path_len} files found."
+                "MNIST-image expect 2 uploaded files, but there were {path_len} files found."
             )));
         }
         match load_mnist_images(
             &temp_file_paths[0],
             &temp_file_paths[1],
             target_filepath,
-            *dataset_uuid,
+            *image_uuid,
             name,
             None,
         ) {
@@ -285,14 +285,14 @@ async fn convert_uploaded_files(
                 }
             },
         };
-    } else if dataset_type == "csv" {
+    } else if image_type == "csv" {
         let path_len = temp_file_paths.len();
         if temp_file_paths.len() != 1 {
             return Err(ErrorResponse::BadRequest(format!(
-                "CSV-dataset expect 1 uploaded files, but there were {path_len} files found."
+                "CSV-image expect 1 uploaded files, but there were {path_len} files found."
             )));
         }
-        match load_csv_file(&temp_file_paths[0], target_filepath, *dataset_uuid, name) {
+        match load_csv_file(&temp_file_paths[0], target_filepath, *image_uuid, name) {
             Ok(()) => {}
             Err(e) => match e.downcast_ref::<AinariError>() {
                 Some(AinariError::InvalidInput(e)) => {
@@ -310,21 +310,21 @@ async fn convert_uploaded_files(
     Ok(())
 }
 
-/// Retrieves the dimensions of a dataset file.
+/// Retrieves the dimensions of an image file.
 ///
-/// Extracts the number of rows and column names from a dataset file.
+/// Extracts the number of rows and column names from an image file.
 ///
 /// # Arguments
 ///
-/// * `target_path` - Path to the dataset file
+/// * `target_path` - Path to the image file
 ///
 /// # Returns
 ///
 /// A `Result` containing a tuple of (number_of_rows, column_names) on success,
 /// or an `ErrorResponse` on failure
-fn get_dataset_dimension(target_path: &String) -> Result<(u64, Vec<String>), ErrorResponse> {
+fn get_image_dimension(target_path: &String) -> Result<(u64, Vec<String>), ErrorResponse> {
     let file_handle = read_data_set_file(target_path).map_err(|e| {
-        log::error!("Failed to read dataset dimensions from file '{target_path}' with error: {e}");
+        log::error!("Failed to read image dimensions from file '{target_path}' with error: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 

@@ -192,7 +192,7 @@ def upload_files(context: AccessContext,
     Args:
         context: The AccessContext object containing authentication and connection settings.
         address: The base URL of the API.
-        path: Additional path parameter with type and name of the new dataset.
+        path: Additional path parameter with type and name of the new image.
         file_paths: A list of file paths to upload.
 
     Returns:

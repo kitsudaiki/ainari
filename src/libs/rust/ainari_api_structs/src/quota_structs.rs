@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 pub struct QuotaResp {
     pub user_id: String,
     pub max_virtual_machine: i32,
-    pub max_dataset: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
     pub max_network: i32,
@@ -35,7 +35,7 @@ pub struct QuotaResp {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct QuotaSetReq {
     pub max_virtual_machine: i32,
-    pub max_dataset: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
     pub max_network: i32,
@@ -47,7 +47,7 @@ pub struct QuotaSetReq {
 pub struct QuotaBasicResp {
     pub user_id: String,
     pub max_virtual_machine: i32,
-    pub max_dataset: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
     pub max_network: i32,

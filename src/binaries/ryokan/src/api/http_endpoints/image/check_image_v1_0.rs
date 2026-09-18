@@ -25,11 +25,11 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
-use crate::database::dataset_table;
+use crate::database::image_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::onsen_file_transfer::*;
@@ -40,43 +40,43 @@ use ainari_dataset::dataset_io::{Column, DataSetFileReadHandle};
 use ainari_dataset::file_encryption::decrypt_file;
 
 #[api_operation(
-    tag = "dataset",
-    summary = "Check dataset",
-    description = r###"Check two datasets against each other to get the accurary compared to the reference."###,
+    tag = "image",
+    summary = "Check image",
+    description = r###"Check two images against each other to get the accurary compared to the reference."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn check_dataset(
-    body: Json<DatasetCheckReq>,
-    dataset_uuid: Path<Uuid>,
+pub async fn check_image(
+    body: Json<ImageCheckReq>,
+    image_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<DatasetCheckResp>, ErrorResponse> {
+) -> Result<Json<ImageCheckResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let dataset_uuid = dataset_uuid;
+    let image_uuid = image_uuid;
     let reference_uuid = body.reference_uuid;
-    let dataset_column = body.dataset_column.clone();
+    let image_column = body.image_column.clone();
     let reference_column = body.reference_column.clone();
 
     // create directory, where all temp-files of this operation are stored
     let compare_dir = format!(
         "{}/cmp_{}_{}",
         config::CONFIG.storage.tempfile_location,
-        dataset_uuid,
+        image_uuid,
         reference_uuid
     );
     create_directory(&compare_dir).await?;
 
     let result = {
         // get data to compare
-        let (mut dataset_file_handle, dataset_col_get, mut row_count) =
-            get_dataset_column(&dataset_uuid, &dataset_column, &compare_dir, &context).await?;
+        let (mut image_file_handle, image_col_get, mut row_count) =
+            get_image_column(&image_uuid, &image_column, &compare_dir, &context).await?;
         let (mut reference_file_handle, ref_col_get, ref_row_count) =
-            get_dataset_column(&reference_uuid, &reference_column, &compare_dir, &context).await?;
+            get_image_column(&reference_uuid, &reference_column, &compare_dir, &context).await?;
 
         if row_count > ref_row_count {
             row_count = ref_row_count;
@@ -86,8 +86,8 @@ pub async fn check_dataset(
 
         for i in 0..row_count {
             let correct = check_row(
-                &mut dataset_file_handle,
-                &dataset_col_get,
+                &mut image_file_handle,
+                &image_col_get,
                 &mut reference_file_handle,
                 &ref_col_get,
                 i,
@@ -102,7 +102,7 @@ pub async fn check_dataset(
             }
         }
 
-        let resp = DatasetCheckResp {
+        let resp = ImageCheckResp {
             accuracy: accuracy / row_count as f32,
         };
 
@@ -116,34 +116,34 @@ pub async fn check_dataset(
     Ok(Json(resp))
 }
 
-/// Checks if the specified row in the dataset matches the corresponding row in the reference dataset.
+/// Checks if the specified row in the image matches the corresponding row in the reference image.
 ///
-/// This function compares the highest position values in the specified row of both datasets.
+/// This function compares the highest position values in the specified row of both images.
 /// It returns `Ok(true)` if the values match, `Ok(false)` if they don't, or an error if something goes wrong.
 ///
 /// # Arguments
 ///
-/// * `dataset_file_handle` - Mutable reference to the dataset file handle
-/// * `dataset_column` - Reference to the column in the dataset to check
-/// * `reference_file_handle` - Mutable reference to the reference dataset file handle
-/// * `reference_columns` - Reference to the column in the reference dataset to check
-/// * `row` - The row number to check in both datasets
+/// * `image_file_handle` - Mutable reference to the image file handle
+/// * `image_column` - Reference to the column in the image to check
+/// * `reference_file_handle` - Mutable reference to the reference image file handle
+/// * `reference_columns` - Reference to the column in the reference image to check
+/// * `row` - The row number to check in both images
 ///
 /// # Returns
 ///
 /// * `Result<bool, AinariError>` - True if rows match, false if they don't, or an error
 fn check_row(
-    dataset_file_handle: &mut DataSetFileReadHandle,
-    dataset_column: &Column,
+    image_file_handle: &mut DataSetFileReadHandle,
+    image_column: &Column,
     reference_file_handle: &mut DataSetFileReadHandle,
     reference_columns: &Column,
     row: u64,
 ) -> Result<bool, AinariError> {
-    let dataset_row = get_highest_pos_row(dataset_file_handle, dataset_column, row)?;
+    let image_row = get_highest_pos_row(image_file_handle, image_column, row)?;
     let reference_row = get_highest_pos_row(reference_file_handle, reference_columns, row)?;
-    // println!("row: {row}    dataset_row: {dataset_row}  reference_row: {reference_row}");
+    // println!("row: {row}    image_row: {image_row}  reference_row: {reference_row}");
 
-    if dataset_row != reference_row {
+    if image_row != reference_row {
         return Ok(false);
     }
 
@@ -169,7 +169,7 @@ fn get_highest_pos_row(
     col_get: &Column,
     row: u64,
 ) -> Result<u64, AinariError> {
-    // calculate position in dataset-file
+    // calculate position in image-file
     let size_input = (col_get.end - col_get.start) as usize;
     let mut offset_bytes = (file_handle.header.row_size) * 4 * row;
     offset_bytes += col_get.start * 4;
@@ -202,14 +202,14 @@ fn get_highest_pos_row(
     }
 }
 
-/// Retrieves a dataset column for comparison purposes.
+/// Retrieves an image column for comparison purposes.
 ///
-/// This function downloads the dataset file, decrypts it, and extracts the specified column information.
-/// It returns the file handle, column information, and row count for the specified dataset and column.
+/// This function downloads the image file, decrypts it, and extracts the specified column information.
+/// It returns the file handle, column information, and row count for the specified image and column.
 ///
 /// # Arguments
 ///
-/// * `dataset_uuid` - UUID of the dataset to retrieve
+/// * `image_uuid` - UUID of the image to retrieve
 /// * `column_name` - Name of the column to extract
 /// * `compare_dir` - Directory to store downloaded files temporarily
 /// * `context` - User context containing authentication information
@@ -217,30 +217,30 @@ fn get_highest_pos_row(
 /// # Returns
 ///
 /// * `Result<(DataSetFileReadHandle, Column, u64), ErrorResponse>` - Tuple containing file handle, column info, and row count, or an error
-async fn get_dataset_column(
-    dataset_uuid: &Uuid,
+async fn get_image_column(
+    image_uuid: &Uuid,
     column_name: &String,
     compare_dir: &String,
     context: &UserContext,
 ) -> Result<(DataSetFileReadHandle, Column, u64), ErrorResponse> {
-    let dataset_resp = dataset_table::get_dataset(dataset_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("dataset", dataset_uuid, e))?;
+    let image_resp = image_table::get_image(image_uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_error("image", image_uuid, e))?;
 
-    let secret_uuid = convert_uuid(&dataset_resp.secret_uuid)?;
+    let secret_uuid = convert_uuid(&image_resp.secret_uuid)?;
     let secret = get_secret(&secret_uuid, context).await?;
 
     // create temporary file-paths
-    let local_file_path = format!("{compare_dir}/{dataset_uuid}");
+    let local_file_path = format!("{compare_dir}/{image_uuid}");
     let local_encrypted_file_path = format!("{local_file_path}_encrypted");
 
     download_file(
-        &dataset_resp.onsen_address,
-        &dataset_resp.file_path,
+        &image_resp.onsen_address,
+        &image_resp.file_path,
         &local_encrypted_file_path,
     )
     .await
     .map_err(|e| {
-        log::error!("Failed to download dataset-file from onsen: {e}");
+        log::error!("Failed to download image-file from onsen: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
@@ -252,18 +252,18 @@ async fn get_dataset_column(
 
     let file_handle = read_data_set_file(&local_file_path).map_err(|e| {
         log::error!(
-            "Failed to read dataset-file '{}' with error: {e}",
-            dataset_resp.file_path
+            "Failed to read image-file '{}' with error: {e}",
+            image_resp.file_path
         );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     // get column-information
-    let dataset_col_get = match file_handle.header.columns.get(column_name) {
+    let image_col_get = match file_handle.header.columns.get(column_name) {
         Some(col) => col.clone(),
         _ => {
             let msg = format!(
-                "Column with name '{column_name}' not found in dataset with UUID '{dataset_uuid}."
+                "Column with name '{column_name}' not found in image with UUID '{image_uuid}."
             );
             return Err(ErrorResponse::NotFound(msg));
         }
@@ -271,7 +271,7 @@ async fn get_dataset_column(
 
     let row_count = file_handle.get_number_of_rows();
 
-    Ok((file_handle, dataset_col_get, row_count))
+    Ok((file_handle, image_col_get, row_count))
 }
 
 /// Retrieves a secret from the Miko service.

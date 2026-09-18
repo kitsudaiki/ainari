@@ -17,46 +17,46 @@ from . import ainari_request
 from .access_context import AccessContext
 
 
-def list_datasets(context: AccessContext) -> dict:
-    path = "/v1alpha/dataset"
+def list_images(context: AccessContext) -> dict:
+    path = "/v1alpha/image"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
                                            path,
                                            "")
 
 
-def get_dataset(context: AccessContext,
-                dataset_uuid: str) -> dict:
-    path = f"/v1alpha/dataset/{dataset_uuid}"
+def get_image(context: AccessContext,
+                image_uuid: str) -> dict:
+    path = f"/v1alpha/image/{image_uuid}"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
                                            path,
                                            "")
 
 
-def delete_dataset(context: AccessContext,
-                   dataset_uuid: str):
-    path = f"/v1alpha/dataset/{dataset_uuid}"
+def delete_image(context: AccessContext,
+                   image_uuid: str):
+    path = f"/v1alpha/image/{image_uuid}"
     ainari_request.send_delete_request(context,
                                        context.ryokan_adress,
                                        path,
                                        "")
 
 
-def delete_all_datasets(context: AccessContext):
-    body = list_datasets(context)["datasets"]
+def delete_all_images(context: AccessContext):
+    body = list_images(context)["images"]
     for entry in body:
-        delete_dataset(context, entry["uuid"])
+        delete_image(context, entry["uuid"])
 
 
-def check_dataset(context: AccessContext,
-                  dataset_uuid: str,
-                  dataset_column: str,
+def check_image(context: AccessContext,
+                  image_uuid: str,
+                  image_column: str,
                   reference_uuid: str,
                   reference_column: str) -> dict:
-    path = f"/v1alpha/dataset/{dataset_uuid}/check"
+    path = f"/v1alpha/image/{image_uuid}/check"
     json_body = {
-        "dataset_column": dataset_column,
+        "image_column": image_column,
         "reference_uuid": reference_uuid,
         "reference_column": reference_column,
     }
@@ -71,7 +71,7 @@ def upload_mnist_files(context: AccessContext,
                        name: str,
                        input_file_path: str,
                        label_file_path: str) -> dict:
-    path = f"/v1alpha/dataset/mnist/{name}"
+    path = f"/v1alpha/image/mnist/{name}"
     files = [input_file_path, label_file_path]
 
     return ainari_request.upload_files(context,
@@ -83,7 +83,7 @@ def upload_mnist_files(context: AccessContext,
 def upload_csv_files(context: AccessContext,
                      name: str,
                      input_file_path: str) -> dict:
-    path = f"/v1alpha/dataset/csv/{name}"
+    path = f"/v1alpha/image/csv/{name}"
     files = [input_file_path]
 
     return ainari_request.upload_files(context,

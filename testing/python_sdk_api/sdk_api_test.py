@@ -17,7 +17,7 @@
 from ainari_sdk import login
 from ainari_sdk import checkpoint
 from ainari_sdk import model
-from ainari_sdk import dataset
+from ainari_sdk import image
 from ainari_sdk import host
 from ainari_sdk import proxy
 from ainari_sdk import project
@@ -83,8 +83,8 @@ model_name = "test_model"
 checkpoint_name = "test_checkpoint"
 generic_task_name = "test_task"
 template_name = "dynamic"
-request_dataset_name = "request_test_dataset"
-train_dataset_name = "train_test_dataset"
+request_image_name = "request_test_image"
+train_image_name = "train_test_image"
 secret_name = "test_secret"
 secret_payload = "this is a dummy secret-payload for testing"
 
@@ -146,34 +146,34 @@ def test_user():
         pass
 
 
-def test_dataset():
-    print("test dataset")
+def test_image():
+    print("test image")
 
-    result = dataset.upload_mnist_files(
-        context, train_dataset_name, train_inputs, train_labels)
-    mnist_dataset_uuid = result["uuid"]
+    result = image.upload_mnist_files(
+        context, train_image_name, train_inputs, train_labels)
+    mnist_image_uuid = result["uuid"]
 
-    dataset.list_datasets(context)
-    mnist_dataset = dataset.get_dataset(context, mnist_dataset_uuid)
-    assert mnist_dataset["number_of_rows"] == 60000
-    assert len(mnist_dataset["column_names"]) == 2
+    image.list_images(context)
+    mnist_image = image.get_image(context, mnist_image_uuid)
+    assert mnist_image["number_of_rows"] == 60000
+    assert len(mnist_image["column_names"]) == 2
 
-    result = dataset.upload_csv_files(
+    result = image.upload_csv_files(
         context, "csv_test", "./csv_test.csv")
-    csv_dataset_uuid = result["uuid"]
+    csv_image_uuid = result["uuid"]
 
-    csv_dataset = dataset.get_dataset(context, csv_dataset_uuid)
-    assert csv_dataset["number_of_rows"] == 3
-    assert len(csv_dataset["column_names"]) == 3
+    csv_image = image.get_image(context, csv_image_uuid)
+    assert csv_image["number_of_rows"] == 3
+    assert len(csv_image["column_names"]) == 3
 
     try:
-        dataset.get_dataset(context, " 569003fd-bf24-410b-8678-28f141877ac9")
+        image.get_image(context, " 569003fd-bf24-410b-8678-28f141877ac9")
     except ainari_exceptions.NotFoundException:
         pass
-    dataset.delete_dataset(context, mnist_dataset_uuid)
-    dataset.delete_dataset(context, csv_dataset_uuid)
+    image.delete_image(context, mnist_image_uuid)
+    image.delete_image(context, csv_image_uuid)
     try:
-        dataset.delete_dataset(context, mnist_dataset_uuid)
+        image.delete_image(context, mnist_image_uuid)
     except ainari_exceptions.NotFoundException:
         pass
 
@@ -225,7 +225,7 @@ def test_quota():
     quota.list_quotas(context)
     user_quota = quota.get_quota(context, user_id)
     assert user_quota["max_model"] == 10
-    assert user_quota["max_dataset"] == 10
+    assert user_quota["max_image"] == 10
     assert user_quota["max_checkpoint"] == 10
     assert user_quota["max_secret"] == 10
     assert user_quota["max_taskqueue"] == 10
@@ -239,7 +239,7 @@ def test_quota():
     user_quota = quota.set_quota(context, user_id, 11, 12, 13, 14, 0)
     user_quota = quota.get_quota(context, user_id)
     assert user_quota["max_model"] == 11
-    assert user_quota["max_dataset"] == 12
+    assert user_quota["max_image"] == 12
     assert user_quota["max_checkpoint"] == 13
     assert user_quota["max_secret"] == 14
     assert user_quota["max_taskqueue"] == 10
@@ -274,19 +274,19 @@ def _creat_and_resore_checkpoint(model_uuid, torii_port):
     return model_uuid, torii_port
 
 
-def _train(model_uuid, torii_port, train_dataset_uuid):
+def _train(model_uuid, torii_port, train_image_uuid):
     inputs = [
         {
-            "dataset_uuid": train_dataset_uuid,
-            "dataset_column": "picture",
+            "image_uuid": train_image_uuid,
+            "image_column": "picture",
             "hexagon": "picture_hex"
         }
     ]
 
     outputs = [
         {
-            "dataset_uuid": train_dataset_uuid,
-            "dataset_column": "label",
+            "image_uuid": train_image_uuid,
+            "image_column": "label",
             "hexagon": "label_hex"
         }
     ]
@@ -319,12 +319,12 @@ def _train(model_uuid, torii_port, train_dataset_uuid):
     task.delete_task(context, torii_port, task_uuid, model_uuid)
 
 
-def _test(model_uuid, torii_port, request_dataset_uuid):
+def _test(model_uuid, torii_port, request_image_uuid):
     # run testing
     inputs = [
         {
-            "dataset_uuid": request_dataset_uuid,
-            "dataset_column": "picture",
+            "image_uuid": request_image_uuid,
+            "image_column": "picture",
             "hexagon": "picture_hex"
         }
     ]
@@ -361,16 +361,16 @@ def _test(model_uuid, torii_port, request_dataset_uuid):
     task.delete_task(context, torii_port, task_uuid, model_uuid)
     time.sleep(1)
 
-    accuracy = dataset.check_dataset(
-        context, task_uuid, "label_hex", request_dataset_uuid, "label")["accuracy"]
+    accuracy = image.check_image(
+        context, task_uuid, "label_hex", request_image_uuid, "label")["accuracy"]
     print("=======================================")
     print("test-result: " + str(accuracy))
     print("=======================================")
     assert accuracy > 0.85
 
-    # # download part of the resulting dataset
-    # data = dataset.download_dataset_content(
-    #     context, result_dataset_uuid, "test_output", 10, 100)["data"]
+    # # download part of the resulting image
+    # data = image.download_image_content(
+    #     context, result_image_uuid, "test_output", 10, 100)["data"]
     # assert len(data[0]) == 10
 
 
@@ -382,24 +382,24 @@ def test_workflow():
     model_uuid = model_resp["uuid"]
     torii_port = model_resp["torii_port"]
 
-    train_dataset_uuid = ""
-    request_dataset_uuid = ""
+    train_image_uuid = ""
+    request_image_uuid = ""
     try:
-        train_dataset_uuid = dataset.upload_mnist_files(
-            context, train_dataset_name, train_inputs, train_labels)["uuid"]
+        train_image_uuid = image.upload_mnist_files(
+            context, train_image_name, train_inputs, train_labels)["uuid"]
         time.sleep(1)
-        request_dataset_uuid = dataset.upload_mnist_files(
-            context, request_dataset_name, request_inputs, request_labels)["uuid"]
+        request_image_uuid = image.upload_mnist_files(
+            context, request_image_name, request_inputs, request_labels)["uuid"]
         time.sleep(1)
     except:
         # HINT (kitsudaiki): within the github-CI, the upload sometimes failes. Not sure why.
         #                    Maybe because of the limited resources. So it will be given a second
         #                    chance to make it right.
-        train_dataset_uuid = dataset.upload_mnist_files(
-            context, train_dataset_name, train_inputs, train_labels)["uuid"]
+        train_image_uuid = image.upload_mnist_files(
+            context, train_image_name, train_inputs, train_labels)["uuid"]
         time.sleep(1)
-        request_dataset_uuid = dataset.upload_mnist_files(
-            context, request_dataset_name, request_inputs, request_labels)["uuid"]
+        request_image_uuid = image.upload_mnist_files(
+            context, request_image_name, request_inputs, request_labels)["uuid"]
         time.sleep(1)
 
     # hosts_json = hosts.list_hosts(context)["body"]
@@ -408,14 +408,14 @@ def test_workflow():
     #     target_host_uuid = hosts_json[1][0]
     #     model.switch_host(context, model_uuid, target_host_uuid)
 
-    _train(model_uuid, torii_port, train_dataset_uuid)
+    _train(model_uuid, torii_port, train_image_uuid)
 
-    _test(model_uuid, torii_port, request_dataset_uuid)
-    _test(model_uuid, torii_port, request_dataset_uuid)
+    _test(model_uuid, torii_port, request_image_uuid)
+    _test(model_uuid, torii_port, request_image_uuid)
 
     model_uuid, torii_port = _creat_and_resore_checkpoint(model_uuid, torii_port)
 
-    _test(model_uuid, torii_port, request_dataset_uuid)
+    _test(model_uuid, torii_port, request_image_uuid)
 
     inputs = dict()
     inputs["picture_hex"] = test_values.get_direct_io_test_intput()
@@ -432,15 +432,15 @@ def test_workflow():
         max(output_values["outputs"]["label_hex"])) == 5
 
     # cleanup
-    dataset.delete_dataset(context, train_dataset_uuid)
-    dataset.delete_dataset(context, request_dataset_uuid)
+    image.delete_image(context, train_image_uuid)
+    image.delete_image(context, request_image_uuid)
     model.delete_model(context, model_uuid)
 
 
 context = login.request_context(miko_address, test_user_id, test_user_pw, False)
 context.verify_connection = False
 print(context)
-dataset.delete_all_datasets(context)
+image.delete_all_images(context)
 checkpoint.delete_all_checkpoints(context)
 model.delete_all_model(context)
 project.delete_all_projects(context)
@@ -457,7 +457,7 @@ print(f"torii-version: {version}")
 
 test_project()
 test_user()
-test_dataset()
+test_image()
 test_model()
 test_secret()
 test_quota()

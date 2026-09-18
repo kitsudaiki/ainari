@@ -17,7 +17,7 @@ use apistos::web::{Scope, delete, get, post, put, resource, scope};
 use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::checkpoint::*;
-use crate::api::http_endpoints::dataset::*;
+use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
 
 pub fn v1alpha_routes() -> Scope {
@@ -30,30 +30,26 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/dataset")
+            scope("/image")
                 .service(
-                    resource("/internal")
-                        .route(post().to(init_dataset_internal_v1_0::init_dataset)),
+                    resource("/internal").route(post().to(init_image_internal_v1_0::init_image)),
+                )
+                .service(resource("/count").route(get().to(get_image_count_v1_0::get_image_count)))
+                .service(
+                    resource("/{image_uuid}")
+                        .route(get().to(get_image_v1_0::get_image))
+                        .route(delete().to(delete_image_v1_0::delete_image)),
                 )
                 .service(
-                    resource("/count").route(get().to(get_dataset_count_v1_0::get_dataset_count)),
+                    resource("/{image_uuid}/check").route(put().to(check_image_v1_0::check_image)),
                 )
                 .service(
-                    resource("/{dataset_uuid}")
-                        .route(get().to(get_dataset_v1_0::get_dataset))
-                        .route(delete().to(delete_dataset_v1_0::delete_dataset)),
+                    resource("/{image_uuid}/internal")
+                        .route(get().to(get_image_internal_v1_0::get_image_internal)),
                 )
+                .service(resource("").route(get().to(list_image_v1_0::list_image)))
                 .service(
-                    resource("/{dataset_uuid}/check")
-                        .route(put().to(check_dataset_v1_0::check_dataset)),
-                )
-                .service(
-                    resource("/{dataset_uuid}/internal")
-                        .route(get().to(get_dataset_internal_v1_0::get_dataset_internal)),
-                )
-                .service(resource("").route(get().to(list_dataset_v1_0::list_dataset)))
-                .service(
-                    resource("/{type}/{name}").route(post().to(create_dataset_v1_0::upload_binary)),
+                    resource("/{type}/{name}").route(post().to(create_image_v1_0::upload_binary)),
                 ),
         )
         .service(

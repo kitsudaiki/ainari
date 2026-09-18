@@ -14,8 +14,8 @@
 
 use data::data_service_server::{DataService, DataServiceServer};
 use data::{
-    DataChunk, DataResponse, DatasetDimensionRequest, DatasetDimensionResponse, DeleteRequest,
-    DownloadRequest,
+    DataChunk, DataResponse, DeleteRequest, DownloadRequest, ImageDimensionRequest,
+    ImageDimensionResponse,
 };
 use tonic::{Code, Request, Response, Status, transport::Server};
 
@@ -263,24 +263,24 @@ impl DataService for OnsenServer {
         }))
     }
 
-    /// Handles requests for dataset dimensions.
+    /// Handles requests for image dimensions.
     ///
-    /// This method reads the dataset file and returns the number of rows and columns.
+    /// This method reads the image file and returns the number of rows and columns.
     /// The file path is constructed from the provided remote_file_path and the
     /// configured storage location.
     ///
     /// # Arguments
     ///
-    /// * `request` - A tonic Request containing a DatasetDimensionRequest.
+    /// * `request` - A tonic Request containing an ImageDimensionRequest.
     ///
     /// # Returns
     ///
-    /// * `Result<Response<DatasetDimensionResponse>, Status>` - The response containing the dataset
+    /// * `Result<Response<ImageDimensionResponse>, Status>` - The response containing the image
     ///   dimensions or an error status.
-    async fn get_dataset_dimension(
+    async fn get_image_dimension(
         &self,
-        request: Request<DatasetDimensionRequest>,
-    ) -> Result<Response<DatasetDimensionResponse>, Status> {
+        request: Request<ImageDimensionRequest>,
+    ) -> Result<Response<ImageDimensionResponse>, Status> {
         let req = request.into_inner();
 
         let target_path = format!(
@@ -301,7 +301,7 @@ impl DataService for OnsenServer {
         let number_of_rows = file_handle.get_number_of_rows();
         let number_of_columns = file_handle.header.columns.len() as u64;
 
-        Ok(Response::new(DatasetDimensionResponse {
+        Ok(Response::new(ImageDimensionResponse {
             status: format!("Deleted file: {:?}", target_path),
             number_of_rows: number_of_rows as i64,
             number_of_columns: number_of_columns as i64,

@@ -48,8 +48,8 @@ pub async fn set_quota_admin(
     if body.max_virtual_machine != 0 {
         current_quota.max_virtual_machine = body.max_virtual_machine;
     }
-    if body.max_dataset != 0 {
-        current_quota.max_dataset = body.max_dataset;
+    if body.max_image != 0 {
+        current_quota.max_image = body.max_image;
     }
     if body.max_checkpoint != 0 {
         current_quota.max_checkpoint = body.max_checkpoint;
@@ -71,7 +71,7 @@ pub async fn set_quota_admin(
     quota_table::set_quota(
         &quota_id,
         current_quota.max_virtual_machine,
-        current_quota.max_dataset,
+        current_quota.max_image,
         current_quota.max_checkpoint,
         current_quota.max_secret,
         current_quota.max_network,
@@ -88,7 +88,7 @@ pub async fn set_quota_admin(
     let resp = QuotaResp {
         user_id: quota.id,
         max_virtual_machine: quota.max_virtual_machine,
-        max_dataset: quota.max_dataset,
+        max_image: quota.max_image,
         max_checkpoint: quota.max_checkpoint,
         max_secret: quota.max_secret,
         max_network: quota.max_network,

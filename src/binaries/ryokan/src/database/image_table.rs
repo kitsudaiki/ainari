@@ -27,7 +27,7 @@ use ainari_common::enums;
 
 // Define the schema
 table! {
-    datasets (uuid) {
+    images (uuid) {
         uuid -> Varchar,
         name -> Varchar,
         onsen_address -> Varchar,
@@ -48,54 +48,54 @@ table! {
     }
 }
 
-/// Represents a dataset entry in the database.
+/// Represents an image entry in the database.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
-#[diesel(table_name = datasets)]
-pub struct DatasetEntry {
-    /// Unique identifier for the dataset
+#[diesel(table_name = images)]
+pub struct ImageEntry {
+    /// Unique identifier for the image
     pub uuid: String,
-    /// Name of the dataset
+    /// Name of the image
     pub name: String,
-    /// Address of the Onsen service associated with this dataset
+    /// Address of the Onsen service associated with this image
     pub onsen_address: String,
-    /// Path to the file containing the dataset
+    /// Path to the file containing the image
     pub file_path: String,
-    /// Secret UUID used for authentication with the dataset
+    /// Secret UUID used for authentication with the image
     pub secret_uuid: String,
-    /// Number of rows in the dataset
+    /// Number of rows in the image
     pub number_of_rows: i64,
-    /// Number of columns in the dataset
+    /// Number of columns in the image
     pub number_of_columns: i64,
-    /// JSON string containing the names of all columns in the dataset
+    /// JSON string containing the names of all columns in the image
     pub column_names: String,
-    /// ID of the user who owns this dataset
+    /// ID of the user who owns this image
     pub owner_id: String,
-    /// ID of the project this dataset belongs to
+    /// ID of the project this image belongs to
     pub project_id: String,
-    /// Status of the dataset (e.g., "ACTIVE", "DELETED")
+    /// Status of the image (e.g., "ACTIVE", "DELETED")
     pub status: String,
-    /// Timestamp when the dataset was created
+    /// Timestamp when the image was created
     pub created_at: String,
-    /// ID of the user who created the dataset
+    /// ID of the user who created the image
     pub created_by: String,
-    /// Timestamp when the dataset was last updated
+    /// Timestamp when the image was last updated
     pub updated_at: String,
-    /// ID of the user who last updated the dataset
+    /// ID of the user who last updated the image
     pub updated_by: String,
-    /// Timestamp when the dataset was deleted (if applicable)
+    /// Timestamp when the image was deleted (if applicable)
     pub deleted_at: Option<String>,
-    /// ID of the user who deleted the dataset (if applicable)
+    /// ID of the user who deleted the image (if applicable)
     pub deleted_by: Option<String>,
 }
 
-/// Initializes the datasets table in the database.
+/// Initializes the images table in the database.
 ///
 /// This function creates the table if it doesn't already exist.
 /// Returns `Ok(())` on success or an error if the operation fails.
-pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
+pub fn init_image_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS datasets (
+        "CREATE TABLE IF NOT EXISTS images (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         onsen_address VARCHAR(256),
@@ -119,25 +119,25 @@ pub fn init_dataset_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Adds a new dataset to the database.
+/// Adds a new image to the database.
 ///
-/// This function creates a new `DatasetEntry` with the provided parameters
+/// This function creates a new `ImageEntry` with the provided parameters
 /// and inserts it into the database.
 ///
 /// # Arguments
-/// * `dataset_uuid` - The unique identifier for the new dataset
-/// * `dataset_name` - The name of the dataset
+/// * `image_uuid` - The unique identifier for the new image
+/// * `image_name` - The name of the image
 /// * `onsen_address` - The address of the Onsen service
-/// * `file_path` - The path to the file containing the dataset
+/// * `file_path` - The path to the file containing the image
 /// * `secret_uuid` - The secret UUID for authentication
 /// * `dimension` - A tuple containing the number of rows and column names
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-pub fn add_new_dataset(
-    dataset_uuid: &Uuid,
-    dataset_name: &str,
+pub fn add_new_image(
+    image_uuid: &Uuid,
+    image_name: &str,
     onsen_address: &str,
     file_path: &str,
     secret_uuid: &Uuid,
@@ -155,10 +155,10 @@ pub fn add_new_dataset(
         }
     };
 
-    // Create a new DatasetEntry with the provided parameters
-    let dataset = DatasetEntry {
-        uuid: dataset_uuid.to_string().clone(),
-        name: dataset_name.to_owned(),
+    // Create a new ImageEntry with the provided parameters
+    let image = ImageEntry {
+        uuid: image_uuid.to_string().clone(),
+        name: image_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
         secret_uuid: secret_uuid.to_string().clone(),
@@ -176,48 +176,45 @@ pub fn add_new_dataset(
         deleted_by: None,
     };
 
-    add_dataset(&dataset)
+    add_image(&image)
 }
 
-/// Adds a dataset to the database.
+/// Adds an image to the database.
 ///
 /// This is a helper function that performs the actual database insert operation.
 ///
 /// # Arguments
-/// * `dataset` - A reference to the `DatasetEntry` to be inserted
+/// * `image` - A reference to the `ImageEntry` to be inserted
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-pub fn add_dataset(dataset: &DatasetEntry) -> QueryResult<usize> {
+pub fn add_image(image: &ImageEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::datasets::dsl::*;
+    use self::images::dsl::*;
 
-    diesel::insert_into(datasets)
-        .values(dataset)
+    diesel::insert_into(images)
+        .values(image)
         .execute(&mut *conn)
 }
 
-/// Retrieves a dataset from the database.
+/// Retrieves an image from the database.
 ///
-/// This function fetches a dataset by its UUID, applying appropriate filters
+/// This function fetches an image by its UUID, applying appropriate filters
 /// based on the user's permissions.
 ///
 /// # Arguments
-/// * `dataset_uuid` - The UUID of the dataset to retrieve
+/// * `image_uuid` - The UUID of the image to retrieve
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `Result<DatasetEntry, enums::DbError>` - The requested dataset or an error
-pub fn get_dataset(
-    dataset_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<DatasetEntry, enums::DbError> {
+/// * `Result<ImageEntry, enums::DbError>` - The requested image or an error
+pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::datasets::dsl::*;
+    use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = datasets
-        .filter(uuid.eq(dataset_uuid.to_string()).and(status.eq("ACTIVE")))
+    let mut query = images
+        .filter(uuid.eq(image_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
     // Apply additional filters based on user permissions
@@ -230,10 +227,10 @@ pub fn get_dataset(
 
     // Execute the query and handle the result
     match query
-        .select(DatasetEntry::as_select())
-        .first::<DatasetEntry>(&mut *conn)
+        .select(ImageEntry::as_select())
+        .first::<ImageEntry>(&mut *conn)
     {
-        Ok(dataset) => Ok(dataset),
+        Ok(image) => Ok(image),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
             log::error!("Database-error: {e:?}");
@@ -242,22 +239,22 @@ pub fn get_dataset(
     }
 }
 
-/// Lists all datasets accessible to the user.
+/// Lists all images accessible to the user.
 ///
-/// This function retrieves all datasets that are active and accessible to the user
+/// This function retrieves all images that are active and accessible to the user
 /// based on their permissions.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `QueryResult<Vec<DatasetEntry>>` - A vector of accessible datasets or an error
-pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
+/// * `QueryResult<Vec<ImageEntry>>` - A vector of accessible images or an error
+pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::datasets::dsl::*;
+    use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = images.filter(status.eq("ACTIVE")).into_boxed();
 
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -268,26 +265,26 @@ pub fn list_datasets(context: &UserContext) -> QueryResult<Vec<DatasetEntry>> {
     }
 
     // Execute the query and return the results
-    query.select(DatasetEntry::as_select()).load(&mut *conn)
+    query.select(ImageEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the number of datasets accessible to the user.
+/// Counts the number of images accessible to the user.
 ///
-/// This function counts all datasets that are active and owned by the user.
+/// This function counts all images that are active and owned by the user.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `QueryResult<i64>` - The count of accessible datasets or an error
-pub fn count_datasets(context: &UserContext) -> QueryResult<i64> {
+/// * `QueryResult<i64>` - The count of accessible images or an error
+pub fn count_images(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::datasets::dsl::*;
+    use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = datasets.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = images.filter(status.eq("ACTIVE")).into_boxed();
 
-    // Apply filters to only count datasets owned by the user
+    // Apply filters to only count images owned by the user
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
 
@@ -295,26 +292,26 @@ pub fn count_datasets(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Deletes a dataset from the database.
+/// Deletes an image from the database.
 ///
-/// This function marks a dataset as deleted by updating its status and setting
+/// This function marks an image as deleted by updating its status and setting
 /// the deletion timestamp and user.
 ///
 /// # Arguments
-/// * `dataset_uuid` - The UUID of the dataset to delete
+/// * `image_uuid` - The UUID of the image to delete
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// * `Result<(), enums::DbError>` - Success or an error
-pub fn delete_dataset(dataset_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
-    // First verify that the dataset exists and is accessible to the user
-    get_dataset(dataset_uuid, context)?;
+pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // First verify that the image exists and is accessible to the user
+    get_image(image_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::datasets::dsl::*;
+    use self::images::dsl::*;
 
-    // Update the dataset status and deletion information
-    match diesel::update(datasets.filter(uuid.eq(dataset_uuid.to_string())))
+    // Update the image status and deletion information
+    match diesel::update(images.filter(uuid.eq(image_uuid.to_string())))
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
@@ -336,17 +333,16 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    fn hard_delete_dataset(dataset_uuid: &Uuid) {
-        use self::datasets::dsl::*;
+    fn hard_delete_image(image_uuid: &Uuid) {
+        use self::images::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        let _ =
-            diesel::delete(datasets.filter(uuid.eq(dataset_uuid.to_string()))).execute(&mut *conn);
+        let _ = diesel::delete(images.filter(uuid.eq(image_uuid.to_string()))).execute(&mut *conn);
     }
 
     #[test]
     #[serial]
-    fn test_add_get_dataset() {
-        let _ = init_dataset_table();
+    fn test_add_get_image() {
+        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -364,7 +360,7 @@ mod tests {
         };
         let column_names = "[\"input\", \"output\"]".to_string();
 
-        let dataset = DatasetEntry {
+        let image = ImageEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -384,33 +380,30 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&uuid1);
+        hard_delete_image(&uuid1);
 
-        add_dataset(&dataset).unwrap();
-        if let Ok(retrieved_dataset) = get_dataset(&uuid1, &context) {
-            assert_eq!(retrieved_dataset.uuid, dataset.uuid);
-            assert_eq!(retrieved_dataset.name, dataset.name);
-            assert_eq!(retrieved_dataset.file_path, dataset.file_path);
-            assert_eq!(retrieved_dataset.secret_uuid, dataset.secret_uuid);
-            assert_eq!(retrieved_dataset.number_of_rows, dataset.number_of_rows);
-            assert_eq!(
-                retrieved_dataset.number_of_columns,
-                dataset.number_of_columns
-            );
-            assert_eq!(retrieved_dataset.status, dataset.status);
-            assert_eq!(retrieved_dataset.created_by, dataset.created_by);
-            assert_eq!(retrieved_dataset.updated_by, dataset.updated_by);
-            assert_eq!(retrieved_dataset.deleted_at, dataset.deleted_at);
-            assert_eq!(retrieved_dataset.deleted_by, dataset.deleted_by);
+        add_image(&image).unwrap();
+        if let Ok(retrieved_image) = get_image(&uuid1, &context) {
+            assert_eq!(retrieved_image.uuid, image.uuid);
+            assert_eq!(retrieved_image.name, image.name);
+            assert_eq!(retrieved_image.file_path, image.file_path);
+            assert_eq!(retrieved_image.secret_uuid, image.secret_uuid);
+            assert_eq!(retrieved_image.number_of_rows, image.number_of_rows);
+            assert_eq!(retrieved_image.number_of_columns, image.number_of_columns);
+            assert_eq!(retrieved_image.status, image.status);
+            assert_eq!(retrieved_image.created_by, image.created_by);
+            assert_eq!(retrieved_image.updated_by, image.updated_by);
+            assert_eq!(retrieved_image.deleted_at, image.deleted_at);
+            assert_eq!(retrieved_image.deleted_by, image.deleted_by);
         };
 
-        hard_delete_dataset(&uuid1);
+        hard_delete_image(&uuid1);
     }
 
     #[test]
     #[serial]
-    fn test_list_datasets() {
-        let _ = init_dataset_table();
+    fn test_list_images() {
+        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
@@ -429,7 +422,7 @@ mod tests {
         };
         let column_names = "[\"input\", \"output\"]".to_string();
 
-        let dataset1 = DatasetEntry {
+        let image1 = ImageEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -449,7 +442,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let dataset2 = DatasetEntry {
+        let image2 = ImageEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
@@ -469,21 +462,21 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
 
-        add_dataset(&dataset1).unwrap();
-        add_dataset(&dataset2).unwrap();
-        let datasets = list_datasets(&context).unwrap();
-        assert_eq!(datasets.len(), 1);
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
+        add_image(&image1).unwrap();
+        add_image(&image2).unwrap();
+        let images = list_images(&context).unwrap();
+        assert_eq!(images.len(), 1);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
     }
 
     #[test]
     #[serial]
-    fn test_delete_dataset() {
-        let _ = init_dataset_table();
+    fn test_delete_image() {
+        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -501,7 +494,7 @@ mod tests {
         };
         let column_names = "[\"input\", \"output\"]".to_string();
 
-        let dataset = DatasetEntry {
+        let image = ImageEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -521,22 +514,22 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&uuid1);
+        hard_delete_image(&uuid1);
 
-        add_dataset(&dataset).unwrap();
-        let _ = delete_dataset(&uuid1, &context);
-        let result = get_dataset(&uuid1, &context);
+        add_image(&image).unwrap();
+        let _ = delete_image(&uuid1, &context);
+        let result = get_image(&uuid1, &context);
         assert!(result.is_err());
     }
 
     #[test]
     #[serial]
-    fn test_count_datasets() {
-        let _ = init_dataset_table();
+    fn test_count_images() {
+        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let name = "test-dataset".to_string();
+        let name = "test-image".to_string();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
         let number_of_rows = 42;
@@ -553,7 +546,7 @@ mod tests {
         };
         let column_names = "[\"input\", \"output\"]".to_string();
 
-        let dataset1 = DatasetEntry {
+        let image1 = ImageEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -573,7 +566,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let dataset2 = DatasetEntry {
+        let image2 = ImageEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -593,7 +586,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let dataset3 = DatasetEntry {
+        let image3 = ImageEntry {
             uuid: uuid3.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -613,26 +606,26 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
-        hard_delete_dataset(&uuid3);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
+        hard_delete_image(&uuid3);
 
-        add_dataset(&dataset1).unwrap();
-        add_dataset(&dataset2).unwrap();
-        add_dataset(&dataset3).unwrap();
+        add_image(&image1).unwrap();
+        add_image(&image2).unwrap();
+        add_image(&image3).unwrap();
 
-        let number = count_datasets(&context).unwrap();
+        let number = count_images(&context).unwrap();
         assert_eq!(number, 3);
 
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
-        hard_delete_dataset(&uuid3);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
+        hard_delete_image(&uuid3);
     }
 
     #[test]
     #[serial]
-    fn test_datasets_permissions() {
-        let _ = init_dataset_table();
+    fn test_images_permissions() {
+        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -642,7 +635,7 @@ mod tests {
         let number_of_columns = 43;
         let column_names = "[\"input\", \"output\"]".to_string();
 
-        let dataset1 = DatasetEntry {
+        let image1 = ImageEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -662,7 +655,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let dataset2 = DatasetEntry {
+        let image2 = ImageEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
@@ -682,7 +675,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let dataset3 = DatasetEntry {
+        let image3 = ImageEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
@@ -702,13 +695,13 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
-        hard_delete_dataset(&uuid3);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
+        hard_delete_image(&uuid3);
 
-        add_dataset(&dataset1).unwrap();
-        add_dataset(&dataset2).unwrap();
-        add_dataset(&dataset3).unwrap();
+        add_image(&image1).unwrap();
+        add_image(&image2).unwrap();
+        add_image(&image3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -718,8 +711,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let datasets = list_datasets(&context).unwrap();
-        assert_eq!(datasets.len(), 1);
+        let images = list_images(&context).unwrap();
+        assert_eq!(images.len(), 1);
 
         // list-test project-admin
         let context = UserContext {
@@ -729,8 +722,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let datasets = list_datasets(&context).unwrap();
-        assert_eq!(datasets.len(), 2);
+        let images = list_images(&context).unwrap();
+        assert_eq!(images.len(), 2);
 
         // list-test admin
         let context = UserContext {
@@ -740,8 +733,8 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let datasets = list_datasets(&context).unwrap();
-        assert_eq!(datasets.len(), 3);
+        let images = list_images(&context).unwrap();
+        assert_eq!(images.len(), 3);
 
         // get-test normal user
         let context = UserContext {
@@ -751,9 +744,9 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        match get_dataset(&uuid1, &context) {
-            Ok(retrieved_dataset) => {
-                assert_eq!(retrieved_dataset.uuid, uuid1.to_string());
+        match get_image(&uuid1, &context) {
+            Ok(retrieved_image) => {
+                assert_eq!(retrieved_image.uuid, uuid1.to_string());
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -768,7 +761,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if get_dataset(&uuid3, &context).is_ok() {
+        if get_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -780,12 +773,12 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if delete_dataset(&uuid3, &context).is_ok() {
+        if delete_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
-        hard_delete_dataset(&uuid1);
-        hard_delete_dataset(&uuid2);
-        hard_delete_dataset(&uuid3);
+        hard_delete_image(&uuid1);
+        hard_delete_image(&uuid2);
+        hard_delete_image(&uuid3);
     }
 }

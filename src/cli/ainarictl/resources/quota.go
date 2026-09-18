@@ -31,11 +31,11 @@ import (
 )
 
 var (
-    maxVirtualMachine    int
-    maxDataset    int
-    maxCheckpoint int
-    maxSecret     int
-    maxTaskqueue  int
+    maxVirtualMachine int
+    maxImage          int
+    maxCheckpoint     int
+    maxSecret         int
+    maxTaskqueue      int
 )
 
 var setQuotaCmd = &cobra.Command{
@@ -50,7 +50,7 @@ var setQuotaCmd = &cobra.Command{
 		}
 		userId := args[0]
 
-		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxDataset, maxCheckpoint, maxSecret, maxTaskqueue)
+		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxTaskqueue)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -107,7 +107,7 @@ func Init_Quota_Commands(rootCmd *cobra.Command) {
 
 	quotaCmd.AddCommand(setQuotaCmd)
 	setQuotaCmd.Flags().IntVar(&maxVirtualMachine, "max_virtual_machine", 0, "Set quota as admin")
-	setQuotaCmd.Flags().IntVar(&maxDataset, "max_dataset", 0, "Set quota as admin")
+	setQuotaCmd.Flags().IntVar(&maxImage, "max_image", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxCheckpoint, "max_checkpoint", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxSecret, "max_secret", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxTaskqueue, "max_taskqueue", 0, "Set quota as admin")

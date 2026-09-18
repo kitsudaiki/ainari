@@ -198,32 +198,32 @@ impl FromStr for TaskState {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskDatasetLink {
-    pub dataset_uuid: Uuid,
+pub struct TaskImageLink {
+    pub image_uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
-    pub dataset_column: String,
+    pub image_column: String,
     #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskDatasetResultLink {
+pub struct TaskImageResultLink {
     #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
-pub trait DatasetLink {
+pub trait ImageLink {
     fn get_hexagon_name(&self) -> String;
 }
 
 // Implement the trait for both types
-impl DatasetLink for TaskDatasetLink {
+impl ImageLink for TaskImageLink {
     fn get_hexagon_name(&self) -> String {
         self.hexagon.clone()
     }
 }
 
-impl DatasetLink for TaskDatasetResultLink {
+impl ImageLink for TaskImageResultLink {
     fn get_hexagon_name(&self) -> String {
         self.hexagon.clone()
     }
@@ -240,9 +240,9 @@ pub struct TaskCreateTrainReq {
     #[validate(range(min = 0, max = 100000000))]
     pub forecast_length: Option<u64>,
     #[validate(nested, length(min = 1))]
-    pub inputs: Vec<TaskDatasetLink>,
+    pub inputs: Vec<TaskImageLink>,
     #[validate(nested, length(min = 1))]
-    pub outputs: Vec<TaskDatasetLink>,
+    pub outputs: Vec<TaskImageLink>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -252,9 +252,9 @@ pub struct TaskCreateRequestReq {
     #[validate(range(min = 1, max = 100000000))]
     pub time_length: Option<u64>,
     #[validate(nested, length(min = 1))]
-    pub inputs: Vec<TaskDatasetLink>,
+    pub inputs: Vec<TaskImageLink>,
     #[validate(nested, length(min = 1))]
-    pub results: Vec<TaskDatasetResultLink>,
+    pub results: Vec<TaskImageResultLink>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

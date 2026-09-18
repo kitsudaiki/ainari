@@ -13,9 +13,9 @@
 // limitations under the License.
 
 pub mod checkpoint_table;
-pub mod dataset_table;
 pub mod db_handle;
 pub mod host_table;
+pub mod image_table;
 
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize host-table
@@ -27,11 +27,11 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Initialize dataset-table
-    match dataset_table::init_dataset_table() {
-        Ok(_) => log::info!("Initilaized dataset-database-table"),
+    // Initialize image-table
+    match image_table::init_image_table() {
+        Ok(_) => log::info!("Initilaized image-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize dataset-database-table: {e}");
+            log::error!("Failed to initialize image-database-table: {e}");
             return Err(e);
         }
     };

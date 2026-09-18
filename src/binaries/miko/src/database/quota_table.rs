@@ -31,7 +31,7 @@ table! {
     quotas (id) {
         id -> Varchar,
         max_virtual_machine -> Integer,
-        max_dataset -> Integer,
+        max_image -> Integer,
         max_checkpoint -> Integer,
         max_secret -> Integer,
         max_network -> Integer,
@@ -50,14 +50,14 @@ table! {
 /// Represents a quota entry in the database.
 ///
 /// This struct contains information about resource limits for a user
-/// including maximum allowed virtual_machines, datasets, checkpoints, secrets, and task queues.
+/// including maximum allowed virtual_machines, images, checkpoints, secrets, and task queues.
 /// It also tracks the status, creation, update, and deletion information.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = quotas)]
 pub struct QuotaEntry {
     pub id: String,
     pub max_virtual_machine: i32,
-    pub max_dataset: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
     pub max_network: i32,
@@ -86,7 +86,7 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         "CREATE TABLE IF NOT EXISTS quotas (
         id VARCHAR(256),
         max_virtual_machine INTEGER,
-        max_dataset INTEGER,
+        max_image INTEGER,
         max_checkpoint INTEGER,
         max_secret INTEGER,
         max_network INTEGER,
@@ -153,7 +153,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 /// # Arguments
 /// * `user_id` - The ID of the user to create the quota for
 /// * `max_virtual_machine` - Maximum number of virtual_machines allowed
-/// * `max_dataset` - Maximum number of datasets allowed
+/// * `max_image` - Maximum number of images allowed
 /// * `max_checkpoint` - Maximum number of checkpoints allowed
 /// * `max_secret` - Maximum number of secrets allowed
 /// * `max_taskqueue` - Maximum number of task queues allowed
@@ -166,7 +166,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 pub fn add_new_quota(
     user_id: &String,
     max_virtual_machine: i32,
-    max_dataset: i32,
+    max_image: i32,
     max_checkpoint: i32,
     max_secret: i32,
     max_network: i32,
@@ -193,7 +193,7 @@ pub fn add_new_quota(
     let quota = QuotaEntry {
         id: user_id.clone(),
         max_virtual_machine,
-        max_dataset,
+        max_image,
         max_checkpoint,
         max_secret,
         max_network,
@@ -294,7 +294,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// # Arguments
 /// * `user_id` - The ID of the user to update the quota for
 /// * `new_max_virtual_machine` - New maximum number of virtual_machines allowed
-/// * `new_max_dataset` - New maximum number of datasets allowed
+/// * `new_max_image` - New maximum number of images allowed
 /// * `new_max_checkpoint` - New maximum number of checkpoints allowed
 /// * `new_max_secret` - New maximum number of secrets allowed
 /// * `new_max_taskqueue` - New maximum number of task queues allowed
@@ -308,7 +308,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 pub fn set_quota(
     user_id: &String,
     new_max_virtual_machine: i32,
-    new_max_dataset: i32,
+    new_max_image: i32,
     new_max_checkpoint: i32,
     new_max_secret: i32,
     max_new_network: i32,
@@ -326,7 +326,7 @@ pub fn set_quota(
     match diesel::update(quotas.filter(id.eq(user_id.to_string())))
         .set((
             max_virtual_machine.eq(new_max_virtual_machine),
-            max_dataset.eq(new_max_dataset),
+            max_image.eq(new_max_image),
             max_checkpoint.eq(new_max_checkpoint),
             max_secret.eq(new_max_secret),
             max_network.eq(max_new_network),
@@ -423,7 +423,7 @@ mod tests {
         let quota = QuotaEntry {
             id: owner_id.clone(),
             max_virtual_machine: 42,
-            max_dataset: 43,
+            max_image: 43,
             max_checkpoint: 44,
             max_secret: 45,
             max_network: 50,
@@ -447,7 +447,7 @@ mod tests {
                 retrieved_quota.max_virtual_machine,
                 quota.max_virtual_machine
             );
-            assert_eq!(retrieved_quota.max_dataset, quota.max_dataset);
+            assert_eq!(retrieved_quota.max_image, quota.max_image);
             assert_eq!(retrieved_quota.max_checkpoint, quota.max_checkpoint);
             assert_eq!(retrieved_quota.max_secret, quota.max_secret);
             assert_eq!(retrieved_quota.max_taskqueue, quota.max_taskqueue);
@@ -478,7 +478,7 @@ mod tests {
         let quota = QuotaEntry {
             id: owner_id.clone(),
             max_virtual_machine: 42,
-            max_dataset: 43,
+            max_image: 43,
             max_checkpoint: 44,
             max_secret: 45,
             max_network: 50,
@@ -498,7 +498,7 @@ mod tests {
         add_quota(&quota).unwrap();
 
         let new_max_virtual_machine = 52;
-        let new_max_dataset = 53;
+        let new_max_image = 53;
         let new_max_checkpoint = 54;
         let new_max_secret = 55;
         let new_max_network = 57;
@@ -510,7 +510,7 @@ mod tests {
             set_quota(
                 &owner_id,
                 new_max_virtual_machine,
-                new_max_dataset,
+                new_max_image,
                 new_max_checkpoint,
                 new_max_secret,
                 new_max_network,
@@ -524,7 +524,7 @@ mod tests {
         if let Ok(retrieved_quota) = get_quota(&owner_id, &context) {
             assert_eq!(retrieved_quota.id, quota.id);
             assert_eq!(retrieved_quota.max_virtual_machine, new_max_virtual_machine);
-            assert_eq!(retrieved_quota.max_dataset, new_max_dataset);
+            assert_eq!(retrieved_quota.max_image, new_max_image);
             assert_eq!(retrieved_quota.max_checkpoint, new_max_checkpoint);
             assert_eq!(retrieved_quota.max_secret, new_max_secret);
             assert_eq!(retrieved_quota.max_network, new_max_network);
@@ -558,7 +558,7 @@ mod tests {
         let user1 = QuotaEntry {
             id: owner_id1.clone(),
             max_virtual_machine: 42,
-            max_dataset: 43,
+            max_image: 43,
             max_checkpoint: 44,
             max_secret: 45,
             max_network: 50,
@@ -576,7 +576,7 @@ mod tests {
         let user2 = QuotaEntry {
             id: owner_id2.clone(),
             max_virtual_machine: 42,
-            max_dataset: 43,
+            max_image: 43,
             max_checkpoint: 44,
             max_secret: 45,
             max_network: 50,
@@ -621,7 +621,7 @@ mod tests {
         let quota = QuotaEntry {
             id: owner_id.clone(),
             max_virtual_machine: 42,
-            max_dataset: 43,
+            max_image: 43,
             max_checkpoint: 44,
             max_secret: 45,
             max_network: 50,

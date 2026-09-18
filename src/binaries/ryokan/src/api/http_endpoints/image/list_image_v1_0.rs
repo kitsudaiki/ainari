@@ -15,38 +15,35 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::dataset_table;
+use crate::database::image_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::dataset_structs::*;
+use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "dataset",
-    summary = "List dataset",
-    description = r###"List basic information of all dataset from the database."###,
+    tag = "image",
+    summary = "List image",
+    description = r###"List basic information of all image from the database."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_dataset(context: UserContext) -> Result<Json<DatasetListResp>, ErrorResponse> {
-    let datasets =
-        dataset_table::list_datasets(&context).map_err(|e| map_db_list_error("datasets", e))?;
+pub async fn list_image(context: UserContext) -> Result<Json<ImageListResp>, ErrorResponse> {
+    let images = image_table::list_images(&context).map_err(|e| map_db_list_error("images", e))?;
 
-    let mut resp = DatasetListResp {
-        datasets: Vec::new(),
-    };
+    let mut resp = ImageListResp { images: Vec::new() };
 
-    for dataset in datasets {
-        let uuid = convert_uuid(&dataset.uuid)?;
-        let obj = DatasetBasicResp {
+    for image in images {
+        let uuid = convert_uuid(&image.uuid)?;
+        let obj = ImageBasicResp {
             uuid,
-            name: dataset.name.clone(),
-            number_of_rows: dataset.number_of_rows as u64,
-            number_of_columns: dataset.number_of_columns as u64,
+            name: image.name.clone(),
+            number_of_rows: image.number_of_rows as u64,
+            number_of_columns: image.number_of_columns as u64,
         };
 
-        resp.datasets.push(obj);
+        resp.images.push(obj);
     }
 
     Ok(Json(resp))

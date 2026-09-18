@@ -26,49 +26,49 @@ import (
 
 // const chunkSize = 128 * 1024 // 128 KiB
 
-func CreateMnistDataset(context AccessContext, datasetName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/dataset/mnist/%s", datasetName)
+func CreateMnistImage(context AccessContext, imageName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/mnist/%s", imageName)
 	files := []string{imageFilePath, labelFilePath}
 	return UploadFiles(context, path, files)
 }
 
-func CreateCsvDataset(context AccessContext, datasetName, filePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/dataset/csv/%s", datasetName)
+func CreateCsvImage(context AccessContext, imageName, filePath string,) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/csv/%s", imageName)
 	files := []string{filePath}
 	return UploadFiles(context, path, files)
 }
 
-func GetDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
+func GetImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func ListDataset(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/dataset"
+func ListImage(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/image"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func DeleteDataset(context AccessContext, datasetUuid string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/dataset/%s", datasetUuid)
+func DeleteImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.RyokanAddress, path, vars)
 }
 
-func CheckDataset(context AccessContext, uuid, referenceDatasetUuid string,) (map[string]interface{}, error) {
-	path := "v1alpha/dataset/check"
+func CheckImage(context AccessContext, uuid, referenceImageUuid string,) (map[string]interface{}, error) {
+	path := "v1alpha/image/check"
 	vars := map[string]interface{}{
 		"uuid":           uuid,
-		"reference_uuid": referenceDatasetUuid,
+		"reference_uuid": referenceImageUuid,
 	}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func DownloadDatasetContent(context AccessContext, datasetUuid, columnName string, numberOfRows, rowOffset int,) (map[string]interface{}, error) {
-	path := "v1alpha/dataset/content"
+func DownloadImageContent(context AccessContext, imageUuid, columnName string, numberOfRows, rowOffset int,) (map[string]interface{}, error) {
+	path := "v1alpha/image/content"
 	vars := map[string]interface{}{
-		"uuid":           datasetUuid,
+		"uuid":           imageUuid,
 		"column_name":    columnName,
 		"number_of_rows": numberOfRows,
 		"row_offset":     rowOffset,

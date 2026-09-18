@@ -45,17 +45,17 @@ echo ""
 $EXECUTABLE user create -n "cli test user" -p "asdfasdf" cli_test_user
 $EXECUTABLE quota get cli_test_user
 $EXECUTABLE quota list
-$EXECUTABLE quota set --max_checkpoint 5 --max_model 6 --max_dataset 7 --max_secret 9 cli_test_user
+$EXECUTABLE quota set --max_checkpoint 5 --max_model 6 --max_image 7 --max_secret 9 cli_test_user
 $EXECUTABLE user delete cli_test_user
 
 # ########################
 echo ""
-echo "########################### dataset tests ##########################"
+echo "########################### image tests ##########################"
 echo ""
-DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_dataset | jq -r '.uuid')
-$EXECUTABLE dataset get $DATASET_UUID
-$EXECUTABLE dataset list
-$EXECUTABLE dataset delete $DATASET_UUID
+IMAGE_UUID=$($EXECUTABLE image create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_image | jq -r '.uuid')
+$EXECUTABLE image get $IMAGE_UUID
+$EXECUTABLE image list
+$EXECUTABLE image delete $IMAGE_UUID
 
 # ########################
 echo ""
@@ -81,19 +81,19 @@ echo ""
 echo "########################### workfloat tests ##########################"
 # $EXECUTABLE host list 
 
-train_DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_dataset_train | jq -r '.uuid')
-echo "Train-Dataset-UUID: $train_DATASET_UUID"
+train_IMAGE_UUID=$($EXECUTABLE image create mnist -j -i $TRAIN_INPUTS -l $TRAIN_LABELS cli_test_image_train | jq -r '.uuid')
+echo "Train-Image-UUID: $train_IMAGE_UUID"
 
-request_DATASET_UUID=$($EXECUTABLE dataset create mnist -j -i $REQUEST_INPUTS -l $REQUEST_LABELS cli_test_dataset_req | jq -r '.uuid')
-echo "Request-Dataset-UUID: $request_DATASET_UUID"
+request_IMAGE_UUID=$($EXECUTABLE image create mnist -j -i $REQUEST_INPUTS -l $REQUEST_LABELS cli_test_image_req | jq -r '.uuid')
+echo "Request-Image-UUID: $request_IMAGE_UUID"
 
 CLUSTER_UUID=$($EXECUTABLE model create -j -t ./model_template cli_test_model | jq -r '.uuid')
 echo "Model-UUID: $CLUSTER_UUID"
 
 
 # train test
-echo "$EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task"
-task_uuid=$($EXECUTABLE task create train -j -i $train_DATASET_UUID:picture:picture -o $train_DATASET_UUID:label:label $CLUSTER_UUID cli_train_test_task | jq -r '.uuid')
+echo "$EXECUTABLE task create train -j -i $train_IMAGE_UUID:picture:picture -o $train_IMAGE_UUID:label:label $CLUSTER_UUID cli_train_test_task"
+task_uuid=$($EXECUTABLE task create train -j -i $train_IMAGE_UUID:picture:picture -o $train_IMAGE_UUID:label:label $CLUSTER_UUID cli_train_test_task | jq -r '.uuid')
 echo "Train-Task-UUID: $task_uuid"
 
 while true; do
@@ -122,8 +122,8 @@ $EXECUTABLE task get $CLUSTER_UUID $task_uuid
 #sleep 2
 
 # request test
-echo "$EXECUTABLE task create request -j -i $request_DATASET_UUID:picture:picture -r label:cli_test_output $CLUSTER_UUID cli_request_test_task"
-req_task_uuid=$($EXECUTABLE task create request -j -i $request_DATASET_UUID:picture:picture -r label:cli_test_output $CLUSTER_UUID cli_request_test_task | jq -r '.uuid')
+echo "$EXECUTABLE task create request -j -i $request_IMAGE_UUID:picture:picture -r label:cli_test_output $CLUSTER_UUID cli_request_test_task"
+req_task_uuid=$($EXECUTABLE task create request -j -i $request_IMAGE_UUID:picture:picture -r label:cli_test_output $CLUSTER_UUID cli_request_test_task | jq -r '.uuid')
 echo "Request-Task-UUID: $req_task_uuid"
 
 $EXECUTABLE task list $CLUSTER_UUID 
@@ -141,11 +141,11 @@ while true; do
 done
 $EXECUTABLE task get $CLUSTER_UUID $req_task_uuid
 
-$EXECUTABLE dataset list
+$EXECUTABLE image list
 
-# $EXECUTABLE dataset check -r $request_DATASET_UUID $req_task_uuid
+# $EXECUTABLE image check -r $request_IMAGE_UUID $req_task_uuid
 
-# content=$($EXECUTABLE dataset content -j -c cli_test_output -o 100 -n 10 $result_uuid | jq -r 'length')
+# content=$($EXECUTABLE image content -j -c cli_test_output -o 100 -n 10 $result_uuid | jq -r 'length')
 # if [[ "$content" != 10 ]]; then
 #     echo "content as length of $content instead of 10"
 # fi
@@ -153,6 +153,6 @@ $EXECUTABLE dataset list
 # # clear all test-resources
 # $EXECUTABLE checkpoint delete $checkpoint_uuid
 $EXECUTABLE model delete $CLUSTER_UUID
-$EXECUTABLE dataset delete $train_DATASET_UUID
-$EXECUTABLE dataset delete $request_DATASET_UUID
-$EXECUTABLE dataset delete $req_task_uuid
+$EXECUTABLE image delete $train_IMAGE_UUID
+$EXECUTABLE image delete $request_IMAGE_UUID
+$EXECUTABLE image delete $req_task_uuid

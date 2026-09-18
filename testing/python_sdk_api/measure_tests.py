@@ -17,7 +17,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from ainari_sdk import model
-from ainari_sdk import dataset
+from ainari_sdk import image
 from ainari_sdk import task
 from ainari_sdk import login
 import configparser
@@ -81,44 +81,44 @@ model_template = \
 model_name = "test_model"
 generic_task_name = "test_task"
 template_name = "dynamic"
-request_dataset_name = "request_test_dataset"
-train_dataset_name = "train_test_dataset"
+request_image_name = "request_test_image"
+train_image_name = "train_test_image"
 
 context = login.request_context(miko_address, test_user_id, test_user_pw, False)
 context.verify_connection = False
 print(context)
 
 # initial cleanup for the case of leftovers from previous run
-dataset.delete_all_datasets(context)
+image.delete_all_images(context)
 model.delete_all_model(context)
 
-# update dataset
-train_dataset_uuid = dataset.upload_csv_files(
-    context, train_dataset_name, train_inputs_file)["uuid"]
-request_dataset_uuid = dataset.upload_csv_files(
-    context, request_dataset_name, request_inputs_file)["uuid"]
+# update image
+train_image_uuid = image.upload_csv_files(
+    context, train_image_name, train_inputs_file)["uuid"]
+request_image_uuid = image.upload_csv_files(
+    context, request_image_name, request_inputs_file)["uuid"]
 
 # define relations between data and model
 train_inputs = [
     {
-        "dataset_uuid": train_dataset_uuid,
-        "dataset_column": "test_input",
+        "image_uuid": train_image_uuid,
+        "image_column": "test_input",
         "hexagon": "test_input"
     }
 ]
 
 train_outputs = [
     {
-        "dataset_uuid": train_dataset_uuid,
-        "dataset_column": "test_output",
+        "image_uuid": train_image_uuid,
+        "image_column": "test_output",
         "hexagon": "test_output"
     }
 ]
 
 request_inputs = [
     {
-        "dataset_uuid": train_dataset_uuid,
-        "dataset_column": "test_input",
+        "image_uuid": train_image_uuid,
+        "image_column": "test_input",
         "hexagon": "test_input"
     }
 ]
@@ -194,7 +194,7 @@ for x in range(replicas):
 # delete everything again
 for x in range(replicas):
     model.delete_model(context, model_uuids[x])
-dataset.delete_dataset(context, train_dataset_uuid)
+image.delete_image(context, train_image_uuid)
 
 # update result
 for r in range(len(flattened_list)):

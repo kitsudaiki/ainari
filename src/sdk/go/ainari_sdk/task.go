@@ -25,14 +25,14 @@ import (
 )
 
 type TaskInput struct {
-	HexagonName        string `json:"hexagon"`
-	DatasetColumnName  string `json:"dataset_column"`
-	DatasetUuid        string `json:"dataset_uuid"`
+	HexagonName     string `json:"hexagon"`
+	ImageColumnName string `json:"image_column"`
+	ImageUuid       string `json:"image_uuid"`
 }
 
 type TaskResult struct {
-	HexagonName        string `json:"hexagon"`
-	DatasetColumnName  string `json:"dataset_column"`
+	HexagonName     string `json:"hexagon"`
+	ImageColumnName string `json:"image_column"`
 }
 
 func CreateTrainTask(context AccessContext, toriiPort int, name, virtual_machineUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int) (map[string]interface{}, error) {

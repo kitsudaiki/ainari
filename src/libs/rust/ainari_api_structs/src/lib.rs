@@ -17,11 +17,11 @@
 pub mod auth_structs;
 pub mod checkpoint_structs;
 pub mod common_structs;
-pub mod dataset_structs;
 pub mod endpoints_structs;
 pub mod file_structs;
 pub mod floating_ip_structs;
 pub mod host_structs;
+pub mod image_structs;
 pub mod network_crypto_structs;
 pub mod network_filter_structs;
 pub mod network_interface_structs;

@@ -54,14 +54,14 @@ func convertTaskIO(input []string) ([]ainari_sdk.TaskInput, error) {
 		if len(parts) != 3 {
 			return ret, errors.New("Error: Invalid format before or after ':'")
 		}
-		datasetUUID := parts[0]
+		imageUUID := parts[0]
 		columnName := parts[1]
 		hexagonName := parts[2]
 
 		item := ainari_sdk.TaskInput{
-			HexagonName:       hexagonName, 
-			DatasetColumnName: columnName, 
-			DatasetUuid:       datasetUUID,
+			HexagonName:     hexagonName, 
+			ImageColumnName: columnName, 
+			ImageUuid:       imageUUID,
 		}
 
 		ret = append(ret, item)
@@ -89,8 +89,8 @@ func convertTaskResult(input []string) ([]ainari_sdk.TaskResult, error) {
 		columnName := parts[1]
 
 		item := ainari_sdk.TaskResult{
-			HexagonName:       hexagonName, 
-			DatasetColumnName: columnName,
+			HexagonName:     hexagonName, 
+			ImageColumnName: columnName,
 		}
 
 		ret = append(ret, item)
@@ -123,7 +123,7 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 }
 
 var createTrainTaskCmd = &cobra.Command{
-	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
+	Use:   "train -i IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -o IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
 	Short: "Create a new train task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -156,7 +156,7 @@ var createTrainTaskCmd = &cobra.Command{
 }
 
 var createRequestTaskCmd = &cobra.Command{
-	Use:   "request -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME CLUSTER_UUID TASK_NAME",
+	Use:   "request -i IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME CLUSTER_UUID TASK_NAME",
 	Short: "Create a new request task.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -341,15 +341,15 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	taskCmd.AddCommand(createTaskCmd)
 
 	createTaskCmd.AddCommand(createTrainTaskCmd)
-	createTrainTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "VirtualMachine outputs, which are paris of '-o <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
+	createTrainTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
+	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "VirtualMachine outputs, which are paris of '-o <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createTrainTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
 	createTrainTaskCmd.Flags().IntVarP(&numberOfEpochs, "epochs", "e", 1, "Number of epochs for the training")
 	createTrainTaskCmd.MarkFlagRequired("input")
 	createTrainTaskCmd.MarkFlagRequired("output")
 
 	createTaskCmd.AddCommand(createRequestTaskCmd)
-	createRequestTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
+	createRequestTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
 	createRequestTaskCmd.Flags().StringSliceVarP(&outputData, "result", "r", []string{}, "VirtualMachine result, which are paris of '-r <HEXAGON_NAME>:<COLUMN_NAME>' (mandatory)")
 	createRequestTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
 	createRequestTaskCmd.MarkFlagRequired("input")

@@ -19,17 +19,17 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct DatasetInitReq {
+pub struct ImageInitReq {
     pub uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub name: String,
-    pub dataset_type: String,
+    pub image_type: String,
     pub number_of_rows: u64,
     pub column_names: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetInternalResp {
+pub struct ImageInternalResp {
     pub uuid: Uuid,
     pub name: String,
     pub onsen_address: String,
@@ -44,7 +44,7 @@ pub struct DatasetInternalResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetResp {
+pub struct ImageResp {
     pub uuid: Uuid,
     pub name: String,
     pub number_of_rows: u64,
@@ -56,7 +56,7 @@ pub struct DatasetResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetBasicResp {
+pub struct ImageBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub number_of_rows: u64,
@@ -64,20 +64,20 @@ pub struct DatasetBasicResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetListResp {
-    pub datasets: Vec<DatasetBasicResp>,
+pub struct ImageListResp {
+    pub images: Vec<ImageBasicResp>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct DatasetCheckReq {
+pub struct ImageCheckReq {
     #[validate(length(min = 4, max = 127))]
-    pub dataset_column: String,
+    pub image_column: String,
     pub reference_uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub reference_column: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct DatasetCheckResp {
+pub struct ImageCheckResp {
     pub accuracy: f32,
 }

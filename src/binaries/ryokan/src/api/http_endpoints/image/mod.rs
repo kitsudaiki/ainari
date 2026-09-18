@@ -12,48 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod check_dataset_v1_0;
-pub mod create_dataset_v1_0;
-pub mod delete_dataset_v1_0;
-pub mod get_dataset_count_v1_0;
-pub mod get_dataset_internal_v1_0;
-pub mod get_dataset_v1_0;
-pub mod init_dataset_internal_v1_0;
-pub mod list_dataset_v1_0;
+pub mod check_image_v1_0;
+pub mod create_image_v1_0;
+pub mod delete_image_v1_0;
+pub mod get_image_count_v1_0;
+pub mod get_image_internal_v1_0;
+pub mod get_image_v1_0;
+pub mod init_image_internal_v1_0;
+pub mod list_image_v1_0;
 
 use crate::config;
-use crate::database::dataset_table;
+use crate::database::image_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::quota::get_quota;
 
-/// Validates that the provided dataset type is one of the supported types.
+/// Validates that the provided image type is one of the supported types.
 ///
-/// This function checks if the given `dataset_type` is either "mnist" or "csv".
+/// This function checks if the given `image_type` is either "mnist" or "csv".
 /// If the type is not in the supported list, it returns an `ErrorResponse::BadRequest`
 /// with a descriptive message. Otherwise, it returns `Ok(())` indicating the type is valid.
 ///
 /// # Arguments
 ///
-/// * `dataset_type` - A string slice containing the dataset type to validate.
+/// * `image_type` - A string slice containing the image type to validate.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the dataset type is valid ("mnist" or "csv").
-/// * `Err(ErrorResponse::BadRequest)` - If the dataset type is not in the supported list.
+/// * `Ok(())` - If the image type is valid ("mnist" or "csv").
+/// * `Err(ErrorResponse::BadRequest)` - If the image type is not in the supported list.
 ///
-fn check_dataset_type(dataset_type: &String) -> Result<(), ErrorResponse> {
-    if !["mnist", "csv"].contains(&dataset_type.as_str()) {
-        let msg = format!("Type '{dataset_type}' is not in list [ mnist, csv ]");
+fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
+    if !["mnist", "csv"].contains(&image_type.as_str()) {
+        let msg = format!("Type '{image_type}' is not in list [ mnist, csv ]");
         return Err(ErrorResponse::BadRequest(msg.to_string()));
     }
 
     Ok(())
 }
 
-/// Checks if the user has reached their dataset quota limit.
+/// Checks if the user has reached their image quota limit.
 ///
 /// # Arguments
 ///
@@ -61,21 +61,21 @@ fn check_dataset_type(dataset_type: &String) -> Result<(), ErrorResponse> {
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the user is within their dataset quota limit
+/// * `Ok(())` - If the user is within their image quota limit
 ///
 /// * `Err(ErrorResponse::Unauthorized)` - If the user is not authorized to check their quota
 /// * `Err(ErrorResponse::BadRequest)` - If the input to the quota check is invalid
-/// * `Err(ErrorResponse::Conflict)` - If the user has exceeded their dataset quota
+/// * `Err(ErrorResponse::Conflict)` - If the user has exceeded their image quota
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error checking the quota
 ///
-async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of datasets of the user
-    let current_number_of_datasets = dataset_table::count_datasets(context).map_err(|e| {
-        log::error!("Failed to count datasets in database.: {e}");
+async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
+    // get number of images of the user
+    let current_number_of_images = image_table::count_images(context).map_err(|e| {
+        log::error!("Failed to count images in database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // check the maximum number of datasets defined in miko
+    // check the maximum number of images defined in miko
     let miko_endpoint = &config::CONFIG.miko;
     let quota = get_quota(
         miko_endpoint,
@@ -86,11 +86,11 @@ async fn check_dataset_quota(context: &UserContext) -> Result<(), ErrorResponse>
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let max_number_of_datasets = quota.max_dataset as i64;
+    let max_number_of_images = quota.max_image as i64;
     // check if quota is already exceeded
-    if current_number_of_datasets as i64 >= max_number_of_datasets {
+    if current_number_of_images as i64 >= max_number_of_images {
         return Err(ErrorResponse::Conflict(
-            "Maximum number of datasets exceeded.".to_string(),
+            "Maximum number of images exceeded.".to_string(),
         ));
     }
 

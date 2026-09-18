@@ -15,7 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::dataset_table;
+use crate::database::image_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -23,21 +23,21 @@ use ainari_api_structs::common_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "dataset",
-    summary = "Get number of dataset of the user",
-    description = r###"Get number of dataset of the user from the database."###,
+    tag = "image",
+    summary = "Get number of image of the user",
+    description = r###"Get number of image of the user from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_dataset_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
-    let number_of_dataset = dataset_table::count_datasets(&context)
-        .map_err(|e| map_db_count_error("dataset-meta", e))?;
+pub async fn get_image_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
+    let number_of_image =
+        image_table::count_images(&context).map_err(|e| map_db_count_error("image-meta", e))?;
 
-    let dataset_resp = Count {
-        number_of_items: number_of_dataset as u64,
+    let image_resp = Count {
+        number_of_items: number_of_image as u64,
     };
 
-    Ok(Json(dataset_resp))
+    Ok(Json(image_resp))
 }
