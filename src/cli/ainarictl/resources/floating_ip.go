@@ -36,16 +36,19 @@ var (
 )
 
 var addFloatingIpCmd = &cobra.Command{
-	Use:   "add -n NAME -u NETWORK_UUID -i INTERNAL_IP FLOATING_IP",
-	Short: "Assign a floating IP to an internal IP.",
-	Args:  cobra.ExactArgs(1),
+	Use:   "add -n NAME -u NETWORK_UUID -i INTERNAL_IP [FLOATING_IP]",
+	Short: "Assign a floating IP to an internal IP. If no FLOATING_IP is given, a free one is selected.",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		floatingIp := args[0]
+		floatingIp := ""
+		if len(args) == 1 {
+			floatingIp = args[0]
+		}
 		content, err := ainari_sdk.AddFloatingIp(context,
 			floatingIpName,
 			floatingIpNetworkUuid,

@@ -21,7 +21,7 @@ use std::error::Error;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
-use crate::database::db_handle;
+use crate::database::{assignable_ip_range, db_handle};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -136,7 +136,7 @@ pub fn reserve_new_address(
     internal_cidr: &str,
     context: &UserContext,
 ) -> Result<(String, Ipv4Addr), enums::DbError> {
-    let (first_internal_ip, last_internal_ip) = match internal_ip_range(internal_cidr) {
+    let (first_internal_ip, last_internal_ip) = match assignable_ip_range(internal_cidr) {
         Some(range) => range,
         None => {
             log::error!("Invalid or too small CIDR '{internal_cidr}' for internal IP-addresses");
@@ -283,29 +283,6 @@ fn get_highest_internal_ip(
     }
 
     Ok(highest)
-}
-
-/// Calculates the range of the assignable internal IP-addresses of a CIDR like `192.168.100.0/24`.
-///
-/// The network-address and the first address, which is reserved for the gateway, are skipped at
-/// the beginning, and the broadcast-address at the end.
-///
-/// # Returns
-/// The numeric values of the first and last assignable IP-address, or None if the CIDR is invalid
-/// or too small to contain at least one assignable IP-address
-fn internal_ip_range(cidr: &str) -> Option<(u32, u32)> {
-    let (ip_str, prefix_str) = cidr.split_once('/')?;
-    let ip = u32::from(ip_str.parse::<Ipv4Addr>().ok()?);
-    let prefix_len = prefix_str.parse::<u32>().ok()?;
-    if prefix_len > 30 {
-        return None;
-    }
-
-    let mask = u32::MAX.checked_shl(32 - prefix_len).unwrap_or(0);
-    let network_address = ip & mask;
-    let broadcast_address = network_address | !mask;
-
-    Some((network_address + 2, broadcast_address - 1))
 }
 
 /// Converts a MAC-address-string like `02:00:00:00:00:2a` into its numeric value.
@@ -799,39 +776,6 @@ mod tests {
         hard_delete_address(&first_mac);
         hard_delete_address(&second_mac);
         hard_delete_address(&third_mac);
-    }
-
-    #[test]
-    fn test_internal_ip_range() {
-        let range = |first: Ipv4Addr, last: Ipv4Addr| Some((u32::from(first), u32::from(last)));
-
-        assert_eq!(
-            internal_ip_range("192.168.100.0/24"),
-            range(
-                Ipv4Addr::new(192, 168, 100, 2),
-                Ipv4Addr::new(192, 168, 100, 254)
-            )
-        );
-        // host-bits of the address are ignored
-        assert_eq!(
-            internal_ip_range("10.1.2.3/16"),
-            range(Ipv4Addr::new(10, 1, 0, 2), Ipv4Addr::new(10, 1, 255, 254))
-        );
-        // smallest possible network with exactly one assignable address
-        assert_eq!(
-            internal_ip_range("10.0.0.0/30"),
-            range(Ipv4Addr::new(10, 0, 0, 2), Ipv4Addr::new(10, 0, 0, 2))
-        );
-        assert_eq!(
-            internal_ip_range("0.0.0.0/0"),
-            range(Ipv4Addr::new(0, 0, 0, 2), Ipv4Addr::new(255, 255, 255, 254))
-        );
-
-        assert_eq!(internal_ip_range("10.0.0.0/31"), None);
-        assert_eq!(internal_ip_range("10.0.0.0/33"), None);
-        assert_eq!(internal_ip_range("10.0.0.0"), None);
-        assert_eq!(internal_ip_range("10.0.0/24"), None);
-        assert_eq!(internal_ip_range("10.0.0.0/abc"), None);
     }
 
     #[test]

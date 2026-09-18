@@ -24,13 +24,16 @@ import (
 	"fmt"
 )
 
+// AddFloatingIp creates a new floating ip. If floatingIp is an empty string, a free floating ip is selected.
 func AddFloatingIp(context AccessContext, name, networkUuid, floatingIp, internalIp string) (map[string]interface{}, error) {
 	path := "v1alpha/floating_ip"
 	jsonBody := map[string]interface{}{
 		"name":         name,
 		"network_uuid": networkUuid,
-		"floating_ip":  floatingIp,
 		"internal_ip":  internalIp,
+	}
+	if floatingIp != "" {
+		jsonBody["floating_ip"] = floatingIp
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

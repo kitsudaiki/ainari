@@ -19,6 +19,8 @@ pub mod host_table;
 pub mod meta_virtual_machine_table;
 pub mod network_table;
 
+use std::net::Ipv4Addr;
+
 /// Initializes all database tables required for the application.
 ///
 /// This function orchestrates the initialization of all database tables
@@ -75,4 +77,65 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     Ok(())
+}
+
+/// Calculates the range of the assignable IP-addresses of a CIDR like `192.168.100.0/24`.
+///
+/// The network-address and the first address, which is reserved for the gateway, are skipped at
+/// the beginning, and the broadcast-address at the end.
+///
+/// # Returns
+/// The numeric values of the first and last assignable IP-address, or None if the CIDR is invalid
+/// or too small to contain at least one assignable IP-address
+pub fn assignable_ip_range(cidr: &str) -> Option<(u32, u32)> {
+    let (ip_str, prefix_str) = cidr.split_once('/')?;
+    let ip = u32::from(ip_str.parse::<Ipv4Addr>().ok()?);
+    let prefix_len = prefix_str.parse::<u32>().ok()?;
+    if prefix_len > 30 {
+        return None;
+    }
+
+    let mask = u32::MAX.checked_shl(32 - prefix_len).unwrap_or(0);
+    let network_address = ip & mask;
+    let broadcast_address = network_address | !mask;
+
+    Some((network_address + 2, broadcast_address - 1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_assignable_ip_range() {
+        let range = |first: Ipv4Addr, last: Ipv4Addr| Some((u32::from(first), u32::from(last)));
+
+        assert_eq!(
+            assignable_ip_range("192.168.100.0/24"),
+            range(
+                Ipv4Addr::new(192, 168, 100, 2),
+                Ipv4Addr::new(192, 168, 100, 254)
+            )
+        );
+        // host-bits of the address are ignored
+        assert_eq!(
+            assignable_ip_range("10.1.2.3/16"),
+            range(Ipv4Addr::new(10, 1, 0, 2), Ipv4Addr::new(10, 1, 255, 254))
+        );
+        // smallest possible network with exactly one assignable address
+        assert_eq!(
+            assignable_ip_range("10.0.0.0/30"),
+            range(Ipv4Addr::new(10, 0, 0, 2), Ipv4Addr::new(10, 0, 0, 2))
+        );
+        assert_eq!(
+            assignable_ip_range("0.0.0.0/0"),
+            range(Ipv4Addr::new(0, 0, 0, 2), Ipv4Addr::new(255, 255, 255, 254))
+        );
+
+        assert_eq!(assignable_ip_range("10.0.0.0/31"), None);
+        assert_eq!(assignable_ip_range("10.0.0.0/33"), None);
+        assert_eq!(assignable_ip_range("10.0.0.0"), None);
+        assert_eq!(assignable_ip_range("10.0.0/24"), None);
+        assert_eq!(assignable_ip_range("10.0.0.0/abc"), None);
+    }
 }

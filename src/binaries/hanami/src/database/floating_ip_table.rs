@@ -16,11 +16,12 @@ use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
 use std::error::Error;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
-use crate::database::db_handle;
+use crate::database::{assignable_ip_range, db_handle};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -93,50 +94,218 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
         updated_by VARCHAR(256),
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
-    );",
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_floating_ip_addr
+        ON floating_ips (floating_ip_addr);",
     )?;
 
     Ok(())
 }
 
-/// Adds a new meta floating_ip_addr to the database.
+/// Errors, which can occur while reserving a floating IP-address.
+#[derive(Debug, PartialEq)]
+pub enum FloatingIpReserveError {
+    /// The CIDR is invalid or too small to contain at least one assignable IP-address
+    InvalidCidr,
+    /// The requested floating IP-address is not within the assignable range of the CIDR
+    NotInRange,
+    /// The requested floating IP-address is already used by another entry
+    AlreadyUsed,
+    /// All floating IP-addresses of the CIDR are already used
+    NoFreeAddress,
+    /// Any other database-error
+    InternalError,
+}
+
+impl From<enums::DbError> for FloatingIpReserveError {
+    fn from(_: enums::DbError) -> Self {
+        FloatingIpReserveError::InternalError
+    }
+}
+
+/// Reserves a floating IP-address by adding a new floating-ip entry to the database.
 ///
-/// This function creates a new FloatingIpEntry with the provided parameters and inserts it into the database.
-/// The status is set to "ACTIVE" and timestamps are set to the current time.
+/// Floating IP-addresses are unique within the whole table and not only within a network.
+/// The reservation is done by inserting the new entry, so the floating IP-address can not
+/// be taken by another request. The status is set to "ACTIVE" and timestamps are set to the
+/// current time.
+///
+/// If a floating IP-address is requested, it is only reserved, if it is within the range of the
+/// CIDR and not already used. Otherwise the new floating IP-address is the highest existing floating
+/// IP-address within the range of the CIDR increased by one. If another request was faster, the
+/// floating IP-address is increased again until the reservation was successful.
 ///
 /// # Arguments
-/// * `floating_ip_uuid` - The unique identifier for the meta floating_ip_addr
-/// * `floating_ip_name` - The name of the meta floating_ip_addr
-/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this floating_ip_addr
-/// * `proxy_uuid` - The UUID of the proxy associated with this floating_ip_addr
+/// * `network_uuid` - The UUID of the network the floating IP-address belongs to
+/// * `internal_ip_addr` - The internal IP-address, which is reachable over the floating IP-address
+/// * `floating_ip_addr` - Optional requested floating IP-address. If None, a free one is selected.
+/// * `floating_cidr` - CIDR like `203.0.113.0/24`, which defines the range of the floating IP-addresses.
+///   The network-address, the first address (gateway) and the broadcast-address are not assigned.
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
-/// A QueryResult indicating the number of rows affected
+/// A Result containing the UUID of the new entry and the reserved floating IP-address,
+/// or a FloatingIpReserveError if the reservation failed
 pub fn add_new_floating_ip(
-    floating_ip_uuid: &Uuid,
     network_uuid: &Uuid,
     internal_ip_addr: &Ipv4Addr,
-    floating_ip_addr: &Ipv4Addr,
+    floating_ip_addr: Option<&Ipv4Addr>,
+    floating_cidr: &str,
     context: &UserContext,
-) -> QueryResult<usize> {
-    let floating_ip_addr = FloatingIpEntry {
-        uuid: *network_uuid,
-        network_uuid: *floating_ip_uuid,
-        internal_ip_addr: *internal_ip_addr,
-        floating_ip_addr: *floating_ip_addr,
-        owner_id: context.user_id.clone(),
-        project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
-        created_at: Utc::now(),
-        created_by: context.user_id.clone(),
-        updated_at: Utc::now(),
-        updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
+) -> Result<(Uuid, Ipv4Addr), FloatingIpReserveError> {
+    let (first_floating_ip, last_floating_ip) = match assignable_ip_range(floating_cidr) {
+        Some(range) => range,
+        None => {
+            log::error!("Invalid or too small CIDR '{floating_cidr}' for floating IP-addresses");
+            return Err(FloatingIpReserveError::InvalidCidr);
+        }
     };
 
-    add_floating_ip(floating_ip_addr)
+    // reserve exactly the requested floating IP-address
+    if let Some(requested_ip) = floating_ip_addr {
+        let requested = u32::from(*requested_ip);
+        if !(first_floating_ip..=last_floating_ip).contains(&requested) {
+            return Err(FloatingIpReserveError::NotInRange);
+        }
+
+        return reserve_floating_ip_from(
+            requested,
+            last_floating_ip,
+            false,
+            network_uuid,
+            internal_ip_addr,
+            context,
+        );
+    }
+
+    let first_candidate = match get_highest_floating_ip(first_floating_ip, last_floating_ip)? {
+        Some(highest) => u32::from(highest) + 1,
+        None => first_floating_ip,
+    };
+
+    reserve_floating_ip_from(
+        first_candidate,
+        last_floating_ip,
+        true,
+        network_uuid,
+        internal_ip_addr,
+        context,
+    )
+}
+
+/// Tries to reserve floating IP-addresses, beginning with the given one, until the reservation
+/// was successful.
+///
+/// If the insert fails, because the floating IP-address was already reserved by another request
+/// in the meantime, the floating IP-address is increased and the reservation is tried again,
+/// if `increase_on_conflict` is set. Otherwise the reservation fails with `AlreadyUsed`.
+///
+/// # Arguments
+/// * `first_candidate` - Numeric value of the first floating IP-address to try
+/// * `last_floating_ip` - Numeric value of the last floating IP-address, which can be assigned
+/// * `increase_on_conflict` - true to try the next floating IP-address, if the current one is already used
+/// * `network_uuid` - The UUID of the network the floating IP-address belongs to
+/// * `internal_ip_addr` - The internal IP-address, which is reachable over the floating IP-address
+/// * `context` - The user context containing information about the user and project
+///
+/// # Returns
+/// A Result containing the UUID of the new entry and the reserved floating IP-address,
+/// or a FloatingIpReserveError if the reservation failed
+fn reserve_floating_ip_from(
+    first_candidate: u32,
+    last_floating_ip: u32,
+    increase_on_conflict: bool,
+    network_uuid: &Uuid,
+    internal_ip_addr: &Ipv4Addr,
+    context: &UserContext,
+) -> Result<(Uuid, Ipv4Addr), FloatingIpReserveError> {
+    let mut candidate = first_candidate;
+    loop {
+        if candidate > last_floating_ip {
+            log::error!("No free floating IP-address left");
+            return Err(FloatingIpReserveError::NoFreeAddress);
+        }
+
+        let floating_ip_uuid = Uuid::new_v4();
+        let floating_ip_addr = Ipv4Addr::from(candidate);
+        let floating_ip = FloatingIpEntry {
+            uuid: floating_ip_uuid,
+            network_uuid: *network_uuid,
+            internal_ip_addr: *internal_ip_addr,
+            floating_ip_addr,
+            owner_id: context.user_id.clone(),
+            project_id: context.project_id.clone(),
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: context.user_id.clone(),
+            updated_at: Utc::now(),
+            updated_by: context.user_id.clone(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        match add_floating_ip(floating_ip) {
+            Ok(_) => return Ok((floating_ip_uuid, floating_ip_addr)),
+            Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, info)) => {
+                // another request was faster and reserved this floating IP-address, so try the next one.
+                // Otherwise the UUID was in conflict, so only a new UUID is generated in the next try.
+                if info.message().contains("floating_ips.floating_ip_addr") {
+                    if !increase_on_conflict {
+                        return Err(FloatingIpReserveError::AlreadyUsed);
+                    }
+                    candidate += 1;
+                }
+            }
+            Err(e) => {
+                log::error!("Database-error: {e:?}");
+                return Err(FloatingIpReserveError::InternalError);
+            }
+        }
+    }
+}
+
+/// Gets the highest floating IP-address within a range from the database.
+///
+/// The whole table is taken into account, because floating IP-addresses are unique within the
+/// whole table. Entries of all states are taken into account, because also deleted entries still
+/// block their floating IP-address. The IP-addresses are compared numerically, because the
+/// alphabetical order of the strings is not the numeric order (`10.0.0.10` < `10.0.0.9`).
+///
+/// # Arguments
+/// * `first_floating_ip` - Numeric value of the first IP-address of the range
+/// * `last_floating_ip` - Numeric value of the last IP-address of the range
+///
+/// # Returns
+/// A Result containing the highest floating IP-address within the range, or None if there is none yet
+fn get_highest_floating_ip(
+    first_floating_ip: u32,
+    last_floating_ip: u32,
+) -> Result<Option<Ipv4Addr>, enums::DbError> {
+    let floating_ip_strs = {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::floating_ips::dsl::*;
+
+        floating_ips
+            .select(floating_ip_addr)
+            .load::<String>(&mut *conn)
+            .map_err(|e| {
+                log::error!("Database-error: {e:?}");
+                enums::DbError::InternalError
+            })?
+    };
+
+    let mut highest: Option<Ipv4Addr> = None;
+    for ip_str in floating_ip_strs {
+        let ip = ip_str.parse::<Ipv4Addr>().map_err(|_| {
+            log::error!("Invalid floating IP-address '{ip_str}' in the database");
+            enums::DbError::InternalError
+        })?;
+        if (first_floating_ip..=last_floating_ip).contains(&u32::from(ip)) {
+            highest = highest.max(Some(ip));
+        }
+    }
+
+    Ok(highest)
 }
 
 /// Adds a meta floating_ip_addr to the database.
@@ -354,13 +523,40 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
+    use std::sync::LazyLock;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
     const INTERNAL_IP: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
-    const FLOATING_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 0, 1);
+
+    /// CIDR for the reservation-tests, which is not used by the entries of `new_entry`.
+    const TEST_CIDR: &str = "203.0.113.0/24";
+    const FIRST_TEST_IP: Ipv4Addr = Ipv4Addr::new(203, 0, 113, 2);
+    const LAST_TEST_IP: Ipv4Addr = Ipv4Addr::new(203, 0, 113, 254);
+
+    /// Random start within `198.18.0.0/15` for the floating IP-addresses of the test-entries,
+    /// so leftovers of an aborted test-run in the database don't collide with a new run.
+    static FLOATING_IP_BASE: LazyLock<u32> = LazyLock::new(|| {
+        u32::from(Ipv4Addr::new(198, 18, 0, 0)) + u32::from(rand::random::<u16>())
+    });
+    static FLOATING_IP_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    /// Returns a new floating IP-address for a test-entry, because floating IP-addresses
+    /// have to be unique within the whole table.
+    fn next_floating_ip() -> Ipv4Addr {
+        Ipv4Addr::from(*FLOATING_IP_BASE + FLOATING_IP_COUNTER.fetch_add(1, Ordering::SeqCst))
+    }
 
     fn hard_delete_floating_ip(floating_ip_uuid: &Uuid) {
         use self::floating_ips::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
+            .execute(&mut *conn);
+    }
+
+    fn hard_delete_floating_ip_addr(address: &Ipv4Addr) {
+        use self::floating_ips::dsl::*;
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        let _ = diesel::delete(floating_ips.filter(floating_ip_addr.eq(address.to_string())))
             .execute(&mut *conn);
     }
 
@@ -376,7 +572,7 @@ mod tests {
             uuid: *entry_uuid,
             network_uuid: *entry_network_uuid,
             internal_ip_addr: INTERNAL_IP,
-            floating_ip_addr: FLOATING_IP,
+            floating_ip_addr: next_floating_ip(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
             status: entry_status.to_string(),
@@ -417,6 +613,285 @@ mod tests {
     /// Asserts that a get-result reports a missing entry.
     fn assert_not_found(result: Result<FloatingIpEntry, enums::DbError>) {
         assert!(matches!(result, Err(enums::DbError::NotFound)));
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_floating_ip() {
+        let _ = init_floating_ip_table();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        let (uuid1, floating_ip1) =
+            add_new_floating_ip(&network_uuid1, &INTERNAL_IP, None, TEST_CIDR, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
+        assert!(
+            (u32::from(FIRST_TEST_IP)..=u32::from(LAST_TEST_IP)).contains(&u32::from(floating_ip1))
+        );
+
+        let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
+        assert_eq!(retrieved.uuid, uuid1);
+        assert_eq!(retrieved.network_uuid, network_uuid1);
+        assert_eq!(retrieved.internal_ip_addr, INTERNAL_IP);
+        assert_eq!(retrieved.floating_ip_addr, floating_ip1);
+        assert_eq!(retrieved.owner_id, "test-user");
+        assert_eq!(retrieved.status, "ACTIVE");
+
+        // floating IP-addresses are unique within the whole table, so another network gets the next one,
+        // even if the first entry is deleted
+        assert!(delete_floating_ip(&uuid1, &context).is_ok());
+        let (uuid2, floating_ip2) =
+            add_new_floating_ip(&network_uuid2, &INTERNAL_IP, None, TEST_CIDR, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
+        assert_ne!(uuid2, uuid1);
+        assert_eq!(u32::from(floating_ip2), u32::from(floating_ip1) + 1);
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_duplicate_floating_ip_addr() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        let mut entry2 = new_entry(
+            &uuid2,
+            &network_uuid2,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry2.floating_ip_addr = entry1.floating_ip_addr;
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+
+        add_floating_ip(entry1).unwrap();
+        // the floating IP-address must be unique, even across networks
+        assert!(add_floating_ip(entry2).is_err());
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_highest_floating_ip() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+
+        // an own range, so no other entries of the table are within it
+        let first = u32::from(Ipv4Addr::new(192, 0, 2, 2));
+        let last = u32::from(Ipv4Addr::new(192, 0, 2, 254));
+
+        // alphabetically "192.0.2.9" would be higher than "192.0.2.10"
+        let mut entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry1.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 9);
+        let mut entry2 = new_entry(
+            &uuid2,
+            &network_uuid2,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
+        entry2.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 10);
+        // outside of the range, so it is ignored
+        let mut entry3 = new_entry(
+            &uuid3,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry3.floating_ip_addr = Ipv4Addr::new(192, 0, 3, 50);
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+        hard_delete_floating_ip(&uuid3);
+
+        assert!(matches!(get_highest_floating_ip(first, last), Ok(None)));
+
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+        add_floating_ip(entry3).unwrap();
+
+        assert!(matches!(
+            get_highest_floating_ip(first, last),
+            Ok(Some(ip)) if ip == Ipv4Addr::new(192, 0, 2, 10)
+        ));
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+        hard_delete_floating_ip(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_reserve_floating_ip_retry_on_conflict() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        // simulate other requests in another network, which already reserved the first two addresses
+        let base = u32::from(Ipv4Addr::new(192, 0, 2, 100));
+        let mut taken1 = new_entry(
+            &uuid1,
+            &network_uuid2,
+            "other-user",
+            "other-project",
+            "ACTIVE",
+        );
+        taken1.floating_ip_addr = Ipv4Addr::from(base);
+        let mut taken2 = new_entry(
+            &uuid2,
+            &network_uuid2,
+            "other-user",
+            "other-project",
+            "ACTIVE",
+        );
+        taken2.floating_ip_addr = Ipv4Addr::from(base + 1);
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+        add_floating_ip(taken1).unwrap();
+        add_floating_ip(taken2).unwrap();
+
+        let (reserved_uuid, reserved_ip) = reserve_floating_ip_from(
+            base,
+            base + 10,
+            true,
+            &network_uuid1,
+            &INTERNAL_IP,
+            &context,
+        )
+        .unwrap_or_else(|_| panic!("reservation failed"));
+        assert_eq!(reserved_ip, Ipv4Addr::from(base + 2));
+        assert_eq!(
+            expect_entry(get_floating_ip(&reserved_uuid, &context)).network_uuid,
+            network_uuid1
+        );
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
+        hard_delete_floating_ip(&reserved_uuid);
+    }
+
+    #[test]
+    #[serial]
+    fn test_reserve_floating_ip_range_exhausted() {
+        let _ = init_floating_ip_table();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        let last = u32::from(LAST_TEST_IP);
+        let result =
+            reserve_floating_ip_from(last + 1, last, true, &network_uuid1, &INTERNAL_IP, &context);
+        assert_eq!(result, Err(FloatingIpReserveError::NoFreeAddress));
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_floating_ip_requested() {
+        let _ = init_floating_ip_table();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        // an own range, so no other entries of the table are within it
+        let cidr = "192.0.2.0/24";
+        let requested = Ipv4Addr::new(192, 0, 2, 200);
+        hard_delete_floating_ip_addr(&requested);
+
+        let (uuid1, floating_ip1) = add_new_floating_ip(
+            &network_uuid1,
+            &INTERNAL_IP,
+            Some(&requested),
+            cidr,
+            &context,
+        )
+        .unwrap_or_else(|_| panic!("reservation failed"));
+        assert_eq!(floating_ip1, requested);
+        assert_eq!(
+            expect_entry(get_floating_ip(&uuid1, &context)).floating_ip_addr,
+            requested
+        );
+
+        // already used, also in another network and also if the entry is deleted
+        let result = add_new_floating_ip(
+            &network_uuid2,
+            &INTERNAL_IP,
+            Some(&requested),
+            cidr,
+            &context,
+        );
+        assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
+        assert!(delete_floating_ip(&uuid1, &context).is_ok());
+        let result = add_new_floating_ip(
+            &network_uuid2,
+            &INTERNAL_IP,
+            Some(&requested),
+            cidr,
+            &context,
+        );
+        assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
+
+        // not within the assignable range of the CIDR
+        for not_in_range in [
+            Ipv4Addr::new(192, 0, 2, 0),
+            Ipv4Addr::new(192, 0, 2, 1),
+            Ipv4Addr::new(192, 0, 2, 255),
+            Ipv4Addr::new(192, 0, 3, 5),
+        ] {
+            let result = add_new_floating_ip(
+                &network_uuid1,
+                &INTERNAL_IP,
+                Some(&not_in_range),
+                cidr,
+                &context,
+            );
+            assert_eq!(result, Err(FloatingIpReserveError::NotInRange));
+        }
+
+        hard_delete_floating_ip(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_floating_ip_invalid_cidr() {
+        let _ = init_floating_ip_table();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        for cidr in ["203.0.113.0/31", "203.0.113.0", "no-cidr/24"] {
+            let result = add_new_floating_ip(&network_uuid1, &INTERNAL_IP, None, cidr, &context);
+            assert_eq!(result, Err(FloatingIpReserveError::InvalidCidr));
+        }
     }
 
     #[test]
@@ -492,6 +967,7 @@ mod tests {
             "test-project",
             "DELETED",
         );
+        let floating_ip1 = entry1.floating_ip_addr;
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -504,7 +980,7 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].uuid, uuid1);
         assert_eq!(entries[0].internal_ip_addr, INTERNAL_IP);
-        assert_eq!(entries[0].floating_ip_addr, FLOATING_IP);
+        assert_eq!(entries[0].floating_ip_addr, floating_ip1);
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);

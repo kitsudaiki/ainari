@@ -25,7 +25,9 @@ use validator::Validate;
 pub struct FloatingIpCreateReq {
     pub name: String,
     pub network_uuid: Uuid,
-    pub floating_ip: Ipv4Addr,
+    /// Requested floating IP-address. If not set, a free one is selected.
+    #[serde(default)]
+    pub floating_ip: Option<Ipv4Addr>,
     pub internal_ip: Ipv4Addr,
 }
 

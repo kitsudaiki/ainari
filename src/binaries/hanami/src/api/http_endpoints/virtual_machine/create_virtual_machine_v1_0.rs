@@ -25,6 +25,7 @@ use crate::config;
 use crate::database::host_table;
 use crate::database::host_table::HostEntry;
 use crate::database::meta_virtual_machine_table;
+use crate::database::address_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -115,6 +116,8 @@ async fn prepare_selected_host(
     let internal_ip = Ipv4Addr::new(192, 168, 100, 2);
     let tap_name = "tap-vm".to_string();
     let mac_address = "02:00:00:00:00:42".to_string();
+
+    //address_table::reserve_new_address()
 
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(

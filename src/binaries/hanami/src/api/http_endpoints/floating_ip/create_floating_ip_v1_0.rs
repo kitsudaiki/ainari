@@ -15,11 +15,12 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use uuid::Uuid;
+use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::config;
 use crate::database::floating_ip_table;
+use crate::database::floating_ip_table::FloatingIpReserveError;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -27,12 +28,16 @@ use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::quota::get_quota;
 
+// TODO: take the range of the floating ip-addresses from the config
+const FLOATING_IP_CIDR: &str = "192.168.0.0/24";
+
 #[api_operation(
     tag = "floating_ip",
     summary = "Create new floating_ip",
-    description = r###"Create new floating_ip."###,
+    description = r###"Create new floating_ip. If no floating ip-address is requested, a free one is selected."###,
     error_code = 400,
     error_code = 401,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn create_floating_ip(
@@ -45,23 +50,15 @@ pub async fn create_floating_ip(
 
     check_quota(&context).await?;
 
-    let floating_ip_uuid = Uuid::new_v4();
-
-    // TODO: generate ip
-    let _floating_ip_address = "127.0.0.1".to_owned();
-
-    // add new floating_ip to datbase
-    floating_ip_table::add_new_floating_ip(
-        &floating_ip_uuid,
+    // add new floating_ip to datbase and reserve the requested or a free floating ip-address for it
+    let (floating_ip_uuid, _) = floating_ip_table::add_new_floating_ip(
         &body.network_uuid,
         &body.internal_ip,
-        &body.floating_ip,
+        body.floating_ip.as_ref(),
+        FLOATING_IP_CIDR,
         &context,
     )
-    .map_err(|e| {
-        log::error!("Failed to add floating_ip with UUID '{floating_ip_uuid}' to database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
+    .map_err(|e| map_reserve_error(e, body.floating_ip.as_ref()))?;
 
     // get new created floating_ip from database to get addtional information
     let floating_ip_entrry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
@@ -79,6 +76,38 @@ pub async fn create_floating_ip(
     };
 
     Ok(CreatedJson(resp))
+}
+
+/// Converts an error of the floating ip-address reservation into an error-response.
+///
+/// # Arguments
+///
+/// * `error` - The error of the reservation
+/// * `requested_ip` - The floating ip-address, which was requested by the user, if any
+///
+/// # Returns
+///
+/// The error-response, which is sent back to the user
+fn map_reserve_error(
+    error: FloatingIpReserveError,
+    requested_ip: Option<&Ipv4Addr>,
+) -> ErrorResponse {
+    let requested = requested_ip.map(|ip| ip.to_string()).unwrap_or_default();
+    match error {
+        FloatingIpReserveError::NotInRange => ErrorResponse::BadRequest(format!(
+            "Floating ip '{requested}' is not within the range '{FLOATING_IP_CIDR}'."
+        )),
+        FloatingIpReserveError::AlreadyUsed => {
+            ErrorResponse::Conflict(format!("Floating ip '{requested}' is already used."))
+        }
+        FloatingIpReserveError::NoFreeAddress => {
+            ErrorResponse::Conflict("No free floating ip left.".to_string())
+        }
+        FloatingIpReserveError::InvalidCidr | FloatingIpReserveError::InternalError => {
+            log::error!("Failed to add new floating_ip to database.");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        }
+    }
 }
 
 /// Asynchronously checks if the user's current number of floating_ips is within their quota limit.
