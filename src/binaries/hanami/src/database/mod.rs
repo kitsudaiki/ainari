@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod address_table;
 pub mod db_handle;
 pub mod floating_ip_table;
 pub mod host_table;
@@ -60,6 +61,15 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initialized floating-ip-database-table"),
         Err(e) => {
             log::error!("Failed to initialize floating-ip-database-table: {e}");
+            return Err(e);
+        }
+    };
+
+    // Initialize address table
+    match address_table::init_address_table() {
+        Ok(_) => log::info!("Initialized address-database-table"),
+        Err(e) => {
+            log::error!("Failed to initialize address-database-table: {e}");
             return Err(e);
         }
     };
