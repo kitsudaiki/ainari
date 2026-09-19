@@ -29,7 +29,9 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_route_internal(_context: UserContext) -> Result<Json<RouteListResp>, ErrorResponse> {
+pub async fn list_route_internal(
+    _context: UserContext,
+) -> Result<Json<RouteListResp>, ErrorResponse> {
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut routes: Vec<Route> = st.routes.values().cloned().collect();

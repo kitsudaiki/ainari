@@ -12,7 +12,7 @@ mod nat;
 mod utils;
 
 use aya_ebpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
-use network_types::eth::EthHdr;
+use network_types::eth::{EthHdr, EtherType};
 
 use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL};
 
@@ -21,8 +21,8 @@ use decap::{is_tunnel_packet, process_tunnel_packet};
 use encap::encap_and_redirect;
 use filter::filter_allows;
 use forward::redirect_local;
-use maps::lookup_route;
-use nat::apply_dnat;
+use maps::{is_floating_ip, is_uplink, lookup_route, uplink_mode};
+use nat::{apply_dnat, apply_snat, destination_ip};
 use utils::ptr_at;
 
 /// Processes incoming packets on overlay network interfaces.
@@ -47,6 +47,12 @@ use utils::ptr_at;
 /// created route is in; as soon as the control plane adds an IP range or a port
 /// to a route, packets that are named by none of its entries are dropped here.
 ///
+/// In the single gateway setup (uplink mode) the same program also serves the
+/// uplink towards the outside. There the floating IP NAT is done in both
+/// directions by this program alone: DNAT for what enters through the uplink,
+/// SNAT for what leaves through it. Without uplink mode nothing of that applies
+/// and the program behaves exactly like in the split setup.
+///
 /// # Arguments
 /// * `ctx` - The eBPF XDP Context containing raw packet data and metadata
 ///
@@ -61,13 +67,38 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
 
     let eth_type = unsafe { core::ptr::read_unaligned(ethhdr).ether_type };
 
+    let uplink_mode = uplink_mode();
+    let from_uplink = uplink_mode && is_uplink(ctx.ingress_ifindex() as u32);
+
     // Answer ARP requests locally on every interface served by the responder.
     if let Some(action) = handle_arp_request(&ctx, eth_type) {
         return action;
     }
 
+    // Single gateway setup: from the uplink only the floating IPs lead into the
+    // virtual network. Everything else arriving there - the ARP traffic of that
+    // segment, packets addressed to the gateway host itself - is the kernel's.
+    if from_uplink {
+        if eth_type != EtherType::Ipv4 {
+            return xdp_action::XDP_PASS;
+        }
+        match destination_ip(&ctx, eth_type) {
+            Some(ip) if is_floating_ip(ip) => {}
+            _ => return xdp_action::XDP_PASS,
+        }
+    }
+
     // Apply DNAT if necessary. Returns the true Target IP (or original IP if no DNAT).
-    if let Some(dest_ip) = apply_dnat(&ctx, eth_type)
+    // The single gateway setup translates only what enters through the uplink,
+    // so a VM reaches the floating IP of another VM through the outside, just
+    // like in the split setup, and both of them see consistent addresses.
+    let dest_ip = if !uplink_mode || from_uplink {
+        apply_dnat(&ctx, eth_type)
+    } else {
+        destination_ip(&ctx, eth_type)
+    };
+
+    if let Some(dest_ip) = dest_ip
         && let Some((route_key, target)) = lookup_route(dest_ip)
     {
         // The filter belongs to the route, so it guards every way out of it -
@@ -83,6 +114,12 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
             // IPsec protected destination: let the kernel encrypt and route it.
             return xdp_action::XDP_PASS;
         } else {
+            // Single gateway setup: leaving through the uplink means leaving the
+            // virtual network, so the VM is masked behind its floating IP. This
+            // happens after the filter, which therefore still sees the VM.
+            if uplink_mode && is_uplink(target.ifindex) {
+                apply_snat(&ctx, eth_type);
+            }
             return redirect_local(&ctx, &target);
         }
     }

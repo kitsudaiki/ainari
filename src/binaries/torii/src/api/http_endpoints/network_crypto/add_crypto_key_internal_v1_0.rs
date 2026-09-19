@@ -17,6 +17,7 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::config::CONFIG;
 use crate::core::crypto::{apply_connection_policies, install_sa, normalize_key};
 use crate::core::models::{Connection, CryptoKey};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
@@ -57,10 +58,10 @@ pub async fn register_crypto_key_internal(
 
     let key = normalize_key(&body.key).map_err(ErrorResponse::BadRequest)?;
 
-    let local_gateway_ip = match get_local_ip("eth0") {
+    let local_gateway_ip = match get_local_ip(&CONFIG.network.underlay_iface) {
         Some(ip) => ip,
         None => {
-            log::error!("No underlay address on eth0");
+            log::error!("No underlay address on {}", CONFIG.network.underlay_iface);
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };

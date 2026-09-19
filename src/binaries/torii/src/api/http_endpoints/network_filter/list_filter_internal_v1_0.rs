@@ -31,7 +31,9 @@ entry in the eBPF filter map either."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_filter_internal(_context: UserContext) -> Result<Json<FilterListResponse>, ErrorResponse> {
+pub async fn list_filter_internal(
+    _context: UserContext,
+) -> Result<Json<FilterListResponse>, ErrorResponse> {
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut filters: Vec<FilterEntry> = st

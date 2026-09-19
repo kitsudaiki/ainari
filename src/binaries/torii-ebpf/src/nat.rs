@@ -1,6 +1,6 @@
 use crate::headers::{ArpHdr, Ipv4Hdr, TcpHdr, UdpHdr};
 use crate::maps::{FIP_DNAT_MAP, FIP_SNAT_MAP};
-use crate::utils::{csum_replace4, ipv4_checksum, ptr_at_mut};
+use crate::utils::{csum_replace4, ipv4_checksum, ptr_at, ptr_at_mut};
 use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::icmp::IcmpHdr;
@@ -206,4 +206,31 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
     // Return the destination IP (whether we modified the packet or not) so
     // the routing pipeline can forward the packet correctly.
     dest_ip
+}
+
+/// Reads the destination address of a packet without translating anything.
+///
+/// The counterpart of [`apply_dnat`] and [`apply_snat`] for the paths of the
+/// single gateway setup that must leave the addresses alone: IPv4 packets yield
+/// their destination, ARP packets the address they ask for.
+///
+/// # Arguments
+/// * `ctx` - The XDP packet context
+/// * `eth_type` - The parsed protocol type of the packet
+///
+/// # Returns
+/// An `Option<u32>` containing the destination IP, or None if there is none
+#[inline(always)]
+pub fn destination_ip(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
+    if eth_type == EtherType::Ipv4 {
+        let ipv4 = ptr_at::<Ipv4Hdr>(ctx, EthHdr::LEN).ok()?;
+        return Some(u32::from_be(
+            unsafe { core::ptr::read_unaligned(ipv4) }.dst_addr,
+        ));
+    }
+    if eth_type == EtherType::Arp {
+        let arp = ptr_at::<ArpHdr>(ctx, EthHdr::LEN).ok()?;
+        return Some(u32::from_be(unsafe { core::ptr::read_unaligned(arp) }.tpa));
+    }
+    None
 }

@@ -16,6 +16,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::env;
 use std::fs;
+use std::net::Ipv4Addr;
 use std::process;
 
 use ainari_common::config as ainari_config;
@@ -45,6 +46,12 @@ pub struct Config {
     pub miko: ainari_config::MikoEndpoint,
     /// Port range configuration
     pub ports: Ports,
+    /// Network interfaces the eBPF datapath is attached to
+    #[serde(default)]
+    pub network: Network,
+    /// Settings for local development and testing only
+    #[serde(default)]
+    pub development: Development,
 }
 
 /// Default value for skip_tls_verification
@@ -63,6 +70,77 @@ pub struct Ports {
     pub min_port: u16,
     /// Maximum port number
     pub max_port: u16,
+}
+
+/// Network interface configuration
+///
+/// Names the interfaces the eBPF programs are attached to at startup.
+#[derive(Debug, Deserialize)]
+pub struct Network {
+    /// Interface of the overlay network, `overlay_ingress` is attached to it
+    #[serde(default = "default_overlay_iface")]
+    pub overlay_iface: String,
+    /// Interface of the underlay network, `underlay_ingress` is attached to it
+    #[serde(default = "default_underlay_iface")]
+    pub underlay_iface: String,
+}
+
+impl Default for Network {
+    fn default() -> Self {
+        Self {
+            overlay_iface: default_overlay_iface(),
+            underlay_iface: default_underlay_iface(),
+        }
+    }
+}
+
+/// Default value for overlay_iface
+fn default_overlay_iface() -> String {
+    "veth-gw".to_owned()
+}
+
+/// Default value for underlay_iface
+fn default_underlay_iface() -> String {
+    "eth0".to_owned()
+}
+
+/// Development configuration
+///
+/// Settings which are only meant for local development and testing and must
+/// not be used in a production deployment.
+#[derive(Debug, Default, Deserialize)]
+pub struct Development {
+    /// Run as single node: the uplink, the floating IPs and all VMs sit behind
+    /// this one gateway, without underlay, tunnel or IPsec
+    #[serde(default)]
+    pub single_node: bool,
+    /// Interface facing the outside, on which the floating IPs are served.
+    /// Required if `single_node` is enabled.
+    pub uplink_iface: Option<String>,
+    /// Next hop behind the uplink, which all traffic leaving the virtual
+    /// network is sent to. Required if `single_node` is enabled.
+    pub uplink_next_hop: Option<Ipv4Addr>,
+}
+
+impl Development {
+    /// Checks that the single node setup has everything it needs
+    ///
+    /// # Returns
+    /// `Ok(())` if the section is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.single_node {
+            return Ok(());
+        }
+        if self.uplink_iface.as_deref().is_none_or(str::is_empty) {
+            return Err("'development.single_node' requires 'development.uplink_iface'".to_owned());
+        }
+        if self.uplink_next_hop.is_none() {
+            return Err(
+                "'development.single_node' requires 'development.uplink_next_hop'".to_owned(),
+            );
+        }
+        Ok(())
+    }
 }
 
 /// Global singleton config virtual_machine
@@ -87,8 +165,13 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             // Attempt to parse the TOML content into our Config struct
             match toml::from_str(&content) {
                 Ok(v) => {
+                    let config: Config = v;
+                    if let Err(e) = config.development.validate() {
+                        log::error!("Invalid config '{file_path}': {e}");
+                        process::exit(1);
+                    }
                     log::info!("successfully loaded config '{file_path}'");
-                    v
+                    config
                 }
                 Err(e) => {
                     log::error!("Failed to parse '{e}'");
@@ -120,3 +203,42 @@ pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNA
         process::exit(1);
     }
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load(name: &str) -> Config {
+        let path = format!(
+            "{}/../../../example_configs/ainari/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        toml::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn the_example_config_runs_without_single_node() {
+        let config = load("torii.toml");
+        assert!(!config.development.single_node);
+        assert_eq!(config.network.underlay_iface, "eth0");
+        assert!(config.development.validate().is_ok());
+    }
+
+    #[test]
+    fn the_single_node_example_config_is_valid() {
+        let config = load("torii_single_node.toml");
+        assert!(config.development.single_node);
+        assert_eq!(config.development.uplink_iface.as_deref(), Some("uplink0"));
+        assert!(config.development.validate().is_ok());
+    }
+
+    #[test]
+    fn single_node_requires_an_uplink() {
+        let development = Development {
+            single_node: true,
+            uplink_iface: None,
+            uplink_next_hop: Some(Ipv4Addr::new(10, 0, 0, 1)),
+        };
+        assert!(development.validate().is_err());
+    }
+}

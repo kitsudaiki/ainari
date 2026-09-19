@@ -16,6 +16,7 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::config::CONFIG;
 use crate::core::crypto::apply_connection_policies;
 use crate::core::models::Connection;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
@@ -51,10 +52,10 @@ pub async fn toggle_crypto_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let local_gateway_ip = match get_local_ip("eth0") {
+    let local_gateway_ip = match get_local_ip(&CONFIG.network.underlay_iface) {
         Some(ip) => ip,
         None => {
-            log::error!("No underlay address on eth0");
+            log::error!("No underlay address on {}", CONFIG.network.underlay_iface);
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };

@@ -1,8 +1,8 @@
 use crate::filter::filter_allows;
 use crate::forward::redirect_local;
 use crate::headers::{Ipv4Hdr, UdpHdr};
-use crate::maps::lookup_route;
-use crate::nat::apply_snat;
+use crate::maps::{is_uplink, lookup_route, uplink_mode};
+use crate::nat::{apply_snat, destination_ip};
 use crate::utils::ptr_at;
 use aya_ebpf::bindings::xdp_action;
 use aya_ebpf::programs::XdpContext;
@@ -64,6 +64,12 @@ pub fn is_tunnel_packet(ctx: &XdpContext) -> bool {
 /// redirect. Without that step an unnumbered TAP would hand the VM a frame with
 /// a foreign destination MAC, which the VM would silently discard.
 ///
+/// In the split setup every decapsulated packet is masked behind its floating
+/// IP, because the edge gateway only ever forwards it to the uplink. In the
+/// single gateway setup (uplink mode) the SNAT is limited to packets that
+/// really leave through an uplink, so tunnel traffic towards a local VM keeps
+/// its source address.
+///
 /// # Arguments
 /// * `ctx` - The XDP context containing the raw network packet
 ///
@@ -84,8 +90,16 @@ pub fn process_tunnel_packet(ctx: &XdpContext) -> u32 {
 
     let eth_type = unsafe { core::ptr::read_unaligned(inner_eth).ether_type };
 
+    let uplink_mode = uplink_mode();
+
     // Apply SNAT if necessary. Returns the true Target IP
-    if let Some(dest_ip) = apply_snat(ctx, eth_type)
+    let dest_ip = if uplink_mode {
+        destination_ip(ctx, eth_type)
+    } else {
+        apply_snat(ctx, eth_type)
+    };
+
+    if let Some(dest_ip) = dest_ip
         && let Some((route_key, target)) = lookup_route(dest_ip)
         && target.action == ROUTE_ACTION_LOCAL
     {
@@ -94,6 +108,9 @@ pub fn process_tunnel_packet(ctx: &XdpContext) -> u32 {
         // this filter yet.
         if !filter_allows(ctx, eth_type, route_key) {
             return xdp_action::XDP_DROP;
+        }
+        if uplink_mode && is_uplink(target.ifindex) {
+            apply_snat(ctx, eth_type);
         }
         return redirect_local(ctx, &target);
     }

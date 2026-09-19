@@ -12,24 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use aya::maps::HashMap as AyaHashMap;
+use aya::maps::{Array, HashMap as AyaHashMap};
 use aya::programs::{Xdp, XdpFlags};
 use aya::{Bpf, include_bytes_aligned};
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
+use std::process;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
-use crate::core::models::{ArpProxyPod, RouteFilterPod, RouteTargetPod};
+use torii_common::{ArpProxy, CONFIG_UPLINK_MODE};
+
+use crate::config::CONFIG;
+use crate::core::models::{ArpProxyPod, Route, RouteFilterPod, RouteTargetPod};
+use crate::core::routing::build_route_target;
 use crate::core::state::GatewayState;
-use crate::core::utils::{enable_forwarding, get_ifindex};
+use crate::core::utils::{enable_forwarding, get_ifindex, get_mac_address};
+
+use ainari_api_structs::route_structs::RouteReq;
 
 lazy_static::lazy_static! {
     pub static ref GATEWAY_STATE_HANDLE: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
 }
 
 pub fn init_routing() -> GatewayState {
-    let overlay_iface = std::env::var("OVERLAY_IFACE").unwrap_or_else(|_| "veth-gw".to_string());
-    let underlay_iface = std::env::var("UNDERLAY_IFACE").unwrap_or_else(|_| "eth0".to_string());
+    let overlay_iface = &CONFIG.network.overlay_iface;
+    let underlay_iface = &CONFIG.network.underlay_iface;
 
     // IPsec protected traffic is routed by the kernel instead of the eBPF
     // datapath, which requires forwarding to be enabled in this namespace.
@@ -64,8 +73,8 @@ pub fn init_routing() -> GatewayState {
         .try_into()
         .unwrap();
     overlay.load().unwrap();
-    if get_ifindex(&overlay_iface) > 0 {
-        overlay.attach(&overlay_iface, XdpFlags::SKB_MODE).unwrap();
+    if get_ifindex(overlay_iface) > 0 {
+        overlay.attach(overlay_iface, XdpFlags::SKB_MODE).unwrap();
         println!("Attached overlay_ingress to {}", overlay_iface);
     } else {
         println!(
@@ -80,16 +89,14 @@ pub fn init_routing() -> GatewayState {
         .try_into()
         .unwrap();
     underlay.load().unwrap();
-    if get_ifindex(&underlay_iface) > 0 {
-        underlay
-            .attach(&underlay_iface, XdpFlags::SKB_MODE)
-            .unwrap();
+    if get_ifindex(underlay_iface) > 0 {
+        underlay.attach(underlay_iface, XdpFlags::SKB_MODE).unwrap();
         println!("Attached underlay_ingress to {}", underlay_iface);
     } else {
         println!("Warning: Underlay interface {} not found.", underlay_iface);
     }
 
-    GatewayState {
+    let mut state = GatewayState {
         routes: HashMap::new(),
         floating_ips: HashMap::new(),
         taps: HashMap::new(),
@@ -102,5 +109,113 @@ pub fn init_routing() -> GatewayState {
         fip_snat_map,
         arp_proxy_map,
         bpf, // Retain Bpf context for dynamic API attachments
+    };
+
+    // SINGLE NODE SETUP (development only): this gateway is the edge towards
+    // the outside as well, so the VMs and their floating IPs live behind one
+    // gateway. Without it the uplink maps stay empty and the datapath behaves
+    // exactly like in the split setup.
+    let development = &CONFIG.development;
+    if development.single_node {
+        // both values are checked when the config is loaded
+        let uplink_iface = development.uplink_iface.as_deref().unwrap_or_default();
+        let next_hop = development.uplink_next_hop.unwrap_or(Ipv4Addr::UNSPECIFIED);
+        if let Err(e) = setup_single_node(&mut state, uplink_iface, next_hop, overlay_iface) {
+            log::error!("Failed to set up the single node setup: {e}");
+            process::exit(1);
+        }
     }
+
+    state
+}
+
+/// Turns this gateway into the single node setup.
+///
+/// The overlay program is attached to the uplink (unless it already sits there
+/// as the overlay interface), the uplink is registered in `UPLINK_MAP` together
+/// with its MAC - which the ARP responder hands out for the floating IPs - and
+/// the uplink mode of the datapath is switched on. At last the routes towards
+/// the next hop and the default route are pointed at the uplink, so everything
+/// that is not a VM leaves the virtual network there.
+///
+/// # Arguments
+/// * `state` - The freshly initialized gateway state
+/// * `uplink_iface` - Name of the interface facing the outside
+/// * `next_hop` - Address behind the uplink all outgoing traffic is sent to
+/// * `overlay_iface` - Name of the interface the overlay program was attached to at startup
+///
+/// # Returns
+/// `Ok(())` once the uplink is active, otherwise the reason why it could not be set up
+fn setup_single_node(
+    state: &mut GatewayState,
+    uplink_iface: &str,
+    next_hop: Ipv4Addr,
+    overlay_iface: &str,
+) -> Result<(), anyhow::Error> {
+    let ifindex = get_ifindex(uplink_iface);
+    if ifindex == 0 {
+        anyhow::bail!("Uplink interface {} not found", uplink_iface);
+    }
+
+    if uplink_iface != overlay_iface {
+        let overlay: &mut Xdp = state
+            .bpf
+            .program_mut("overlay_ingress")
+            .expect("Missing overlay_ingress")
+            .try_into()?;
+        overlay.attach(uplink_iface, XdpFlags::SKB_MODE)?;
+    }
+
+    let mut uplinks: AyaHashMap<_, u32, ArpProxyPod> =
+        AyaHashMap::try_from(state.bpf.map_mut("UPLINK_MAP").expect("Missing UPLINK_MAP"))?;
+    let uplink = ArpProxy {
+        mac: get_mac_address(uplink_iface),
+        _pad: [0; 2],
+        vm_ip: 0,
+    };
+    uplinks.insert(ifindex, ArpProxyPod(uplink), 0)?;
+
+    let mut config: Array<_, u32> = Array::try_from(
+        state
+            .bpf
+            .map_mut("GATEWAY_CONFIG")
+            .expect("Missing GATEWAY_CONFIG"),
+    )?;
+    config.set(CONFIG_UPLINK_MODE, 1, 0)?;
+
+    for dest_ip in [next_hop, Ipv4Addr::UNSPECIFIED] {
+        let req = RouteReq {
+            dest_ip,
+            target_iface: uplink_iface.to_owned(),
+            gateway_ip: None,
+            next_hop_ip: Some(next_hop),
+            next_hop_mac: None,
+            encrypted: false,
+        };
+        let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
+        state
+            .route_map
+            .insert(u32::from(dest_ip), RouteTargetPod(target), 0)?;
+
+        let route_uuid = Uuid::new_v4();
+        state.routes.insert(
+            route_uuid,
+            Route {
+                uuid: route_uuid,
+                dest_ip,
+                target_iface: req.target_iface,
+                gateway_ip: None,
+                next_hop_ip: req.next_hop_ip,
+                next_hop_mac: None,
+                encrypted: false,
+            },
+        );
+    }
+
+    log::warn!(
+        "Single node setup (development only): {} is the uplink towards {}, floating IPs are served on it",
+        uplink_iface,
+        next_hop
+    );
+    Ok(())
 }

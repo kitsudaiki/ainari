@@ -4,7 +4,7 @@ use network_types::eth::{EthHdr, EtherType};
 use torii_common::ROUTE_ACTION_LOCAL;
 
 use crate::headers::ArpHdr;
-use crate::maps::{lookup_arp_proxy, lookup_route_exact};
+use crate::maps::{is_floating_ip, lookup_arp_proxy, lookup_route_exact, lookup_uplink};
 use crate::utils::ptr_at_mut;
 
 /// Hardware type for Ethernet inside an ARP header.
@@ -37,6 +37,11 @@ const ARP_OP_REPLY: u16 = 2;
 /// * requests for an address that is routed back onto the very same interface,
 ///   i.e. the address of the VM asking
 ///
+/// In the single gateway setup the uplink is served as well, but only for the
+/// floating IPs: the gateway answers them with the MAC of the uplink, so the
+/// outside reaches a VM without the VM itself having to take part in ARP.
+/// Every other address on the uplink is left to the kernel.
+///
 /// # Arguments
 /// * `ctx` - The XDP context of the received packet
 /// * `eth_type` - The already parsed EtherType of the frame
@@ -50,10 +55,15 @@ pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> 
         return None;
     }
 
-    // Only interfaces explicitly registered by the control plane (the TAP
-    // devices) are served; the underlay and the veth uplink keep their
-    // ordinary forwarding behaviour.
-    let proxy = lookup_arp_proxy(ctx.ingress_ifindex() as u32)?;
+    // Only interfaces explicitly registered by the control plane are served:
+    // the TAP devices, and in the single gateway setup the uplinks. The
+    // underlay and the veth uplink of the split setup keep their ordinary
+    // forwarding behaviour.
+    let ingress = ctx.ingress_ifindex() as u32;
+    let (proxy, on_uplink) = match lookup_arp_proxy(ingress) {
+        Some(proxy) => (proxy, false),
+        None => (lookup_uplink(ingress)?, true),
+    };
 
     let arp_ptr = ptr_at_mut::<ArpHdr>(ctx, EthHdr::LEN).ok()?;
     let arp = unsafe { core::ptr::read_unaligned(arp_ptr) };
@@ -74,19 +84,26 @@ pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> 
         return None;
     }
 
-    // Never claim an address that lives on the asking side of the link.
-    if proxy.vm_ip != 0 && tpa == proxy.vm_ip {
-        return None;
-    }
-    if let Some(route) = lookup_route_exact(tpa)
-        && route.action == ROUTE_ACTION_LOCAL
-        && route.ifindex == ctx.ingress_ifindex() as u32
-    {
-        return None;
+    if on_uplink {
+        // On the uplink the gateway speaks for its floating IPs only.
+        if !is_floating_ip(tpa) {
+            return None;
+        }
+    } else {
+        // Never claim an address that lives on the asking side of the link.
+        if proxy.vm_ip != 0 && tpa == proxy.vm_ip {
+            return None;
+        }
+        if let Some(route) = lookup_route_exact(tpa)
+            && route.action == ROUTE_ACTION_LOCAL
+            && route.ifindex == ingress
+        {
+            return None;
+        }
     }
 
     // Turn the request into a reply: the sender becomes the target and the
-    // TAP device itself becomes the sender of the answer.
+    // TAP device (or the uplink) itself becomes the sender of the answer.
     let eth_ptr = ptr_at_mut::<EthHdr>(ctx, 0).ok()?;
     let mut eth = unsafe { core::ptr::read_unaligned(eth_ptr) };
     eth.dst_addr = eth.src_addr;

@@ -13,6 +13,18 @@ pub const ROUTE_ACTION_ENCAP: u32 = 1;
 /// bypassed for those destinations - the kernel builds the tunnel instead.
 pub const ROUTE_ACTION_KERNEL: u32 = 2;
 
+/// Index of the uplink mode switch inside the `GATEWAY_CONFIG` array map.
+///
+/// `0` (the default) is the split setup: an edge gateway translates floating IPs
+/// on every interface and applies the SNAT when it decapsulates the traffic that
+/// the VMM gateways tunnel to it. `1` is the single gateway setup, in which the
+/// VMs and the uplink live behind the same gateway: floating IPs are translated
+/// only on the interfaces listed in `UPLINK_MAP`, and the SNAT is applied to
+/// every packet that leaves through one of them.
+pub const CONFIG_UPLINK_MODE: u32 = 0;
+/// Number of entries of the `GATEWAY_CONFIG` array map.
+pub const CONFIG_ENTRIES: u32 = 1;
+
 /// Target descriptor used inside eBPF maps for routing logic.
 ///
 /// This C-compatible struct provides the eBPF application with routing
@@ -51,6 +63,10 @@ pub struct RouteTarget {
 /// towards exactly one VM, answering with a single MAC for every queried
 /// address is unambiguous and lets several VMs of the *same* subnet live on the
 /// same host without any address collision on the host side.
+///
+/// The same struct describes an uplink in the single gateway setup: there `mac`
+/// is the MAC of the uplink, handed out for the floating IPs, and `vm_ip` is
+/// unused (0).
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct ArpProxy {

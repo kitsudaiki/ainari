@@ -151,6 +151,30 @@
         "presentation": { "reveal": "always", "focus": true, "panel": "shared" }
       },
       {
+        "label": "setup single-node uplink",
+        "type": "shell",
+        "command": "sudo ${workspaceFolder}/scripts/setup_single_node_uplink.sh",
+        "problemMatcher": []
+      },
+      {
+        "label": "remove single-node uplink",
+        "type": "shell",
+        "command": "sudo ${workspaceFolder}/scripts/setup_single_node_uplink.sh down",
+        "problemMatcher": []
+      },
+      {
+        "label": "Run Torii (single-node)",
+        "type": "shell",
+        "dependsOn": "build ebpf payload",
+        // uplink setup and torii share one sudo, so the password is asked only once
+        "command": "cargo build --package torii && sudo -E RUST_BACKTRACE=full RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/scripts/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/debug/torii'",
+        "problemMatcher": ["$rustc"],
+        "group": {
+            "kind": "build",
+        },
+        "presentation": { "reveal": "always", "focus": true, "panel": "shared" }
+      },
+      {
         "label": "Run Neko",
         "type": "shell",
         "command": "cargo build --package neko && sudo -E RUST_BACKTRACE=full RUST_LOG=debug ${workspaceFolder}/target/debug/neko",

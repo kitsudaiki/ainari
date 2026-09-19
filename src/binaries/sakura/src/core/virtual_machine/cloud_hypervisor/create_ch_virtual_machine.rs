@@ -120,9 +120,18 @@ pub async fn create_ch_virtual_machine(
             ..Default::default()
         }),
 
+        // No checksum offloading: the gateways rewrite addresses with
+        // incremental checksum updates, which are only correct on complete
+        // checksums. With offloading the VM hands over a partial one, and on
+        // a path where nobody finishes it (e.g. VM -> floating IP of another
+        // VM through the host) the receiver drops the packet. TSO and UFO
+        // depend on checksum offloading, so they go as well.
         net: Some(vec![NetConfig {
             tap: Some(tap_name.clone()),
             mac: Some(mac_address.to_string()),
+            offload_csum: Some(false),
+            offload_tso: Some(false),
+            offload_ufo: Some(false),
             ..Default::default()
         }]),
         memory: Some(MemoryConfig {

@@ -16,6 +16,7 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
+use crate::config::CONFIG;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{get_local_ip, run_ip};
 
@@ -49,10 +50,10 @@ pub async fn delete_crypto_key_internal(
         None => return Err(ErrorResponse::NotFound("No such key".to_string())),
     };
 
-    let local_gateway_ip = match get_local_ip("eth0") {
+    let local_gateway_ip = match get_local_ip(&CONFIG.network.underlay_iface) {
         Some(ip) => ip,
         None => {
-            log::error!("No underlay address on eth0");
+            log::error!("No underlay address on {}", CONFIG.network.underlay_iface);
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };

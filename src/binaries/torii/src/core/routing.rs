@@ -9,6 +9,7 @@ use std::net::Ipv4Addr;
 
 use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL, RouteTarget};
 
+use crate::config::CONFIG;
 use crate::core::crypto::install_block_policies;
 use crate::core::models::TapInfo;
 use crate::core::utils::{
@@ -121,9 +122,10 @@ pub fn build_route_target(
         encap_dst_ip = u32::from(gateway_ip);
         encap_dst_mac = get_arp_mac(gateway_ip);
 
-        let local_ip = get_local_ip("eth0").unwrap_or(Ipv4Addr::UNSPECIFIED);
+        let local_ip =
+            get_local_ip(&CONFIG.network.underlay_iface).unwrap_or(Ipv4Addr::UNSPECIFIED);
         encap_src_ip = u32::from(local_ip);
-        encap_src_mac = get_mac_address("eth0");
+        encap_src_mac = get_mac_address(&CONFIG.network.underlay_iface);
     } else {
         // Local delivery: rewrite the frame onto the target link. The source
         // becomes the router port itself, the destination its next hop.
