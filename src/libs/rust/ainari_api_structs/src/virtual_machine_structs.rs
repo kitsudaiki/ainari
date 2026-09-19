@@ -23,34 +23,35 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineCreateReq {
-    pub number_of_cores: i32,
-    pub memory_size: i64,
-    pub image_uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub name: String,
+    pub number_of_cores: i32,
+    pub memory_size: i64,
     pub network_uuid: Uuid,
+    pub image_uuid: Uuid,
+    pub public_key_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineInternalCreateReq {
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+    pub network_uuid: Uuid,
     pub number_of_cores: i32,
     pub memory_size: i64,
-    pub root_disk_path: Option<String>,
-    pub seed_path: String,
     pub internal_ip: Ipv4Addr,
     pub tap_name: String,
     pub mac_address: String,
-    #[validate(length(min = 4, max = 127))]
-    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineResp {
     pub uuid: Uuid,
+    pub name: String,
+    pub is_created: bool,
     pub number_of_cores: i32,
     pub memory_size: i64,
     pub image_uuid: Uuid,
-    pub name: String,
     pub network_uuid: Uuid,
     pub internal_ip: Ipv4Addr,
     pub torii_port: u16,

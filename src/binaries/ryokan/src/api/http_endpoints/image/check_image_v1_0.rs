@@ -69,7 +69,7 @@ pub async fn check_image(
         image_uuid,
         reference_uuid
     );
-    create_directory(&compare_dir).await?;
+    create_directory_api(&compare_dir).await?;
 
     let result = {
         // get data to compare

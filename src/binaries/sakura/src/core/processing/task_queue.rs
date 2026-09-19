@@ -117,15 +117,11 @@ mod tests {
 
         let info1 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
-            number_of_cores: 1,
-            memory_size: 1024,
-            public_key: secret.clone(),
+            name: "test-task1".to_string(),
         };
         let info2 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
-            number_of_cores: 1,
-            memory_size: 1024,
-            public_key: secret.clone(),
+            name: "test-task2".to_string(),
         };
 
         let task1 = Task {
@@ -134,7 +130,7 @@ mod tests {
             resource_type: resource_type.clone(),
             name: "task1".to_string(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info1),
-            meta: TaskMeta::new(1, 1, 1, 0),
+            meta: TaskMeta::new(),
         };
         let task2 = Task {
             uuid: uuid2,
@@ -142,7 +138,7 @@ mod tests {
             resource_type: resource_type.clone(),
             name: "task2".to_string(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info2),
-            meta: TaskMeta::new(1, 1, 1, 0),
+            meta: TaskMeta::new(),
         };
 
         queue.add(task1);

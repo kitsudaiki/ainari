@@ -20,4 +20,5 @@ address = "http://127.0.0.1:11417"
 max_number_of_threads = 0
 
 [storage]
+local_vm_storage_path = "/etc/ainari/virtual_machines"
 tempfile_location = "/tmp/sakura"

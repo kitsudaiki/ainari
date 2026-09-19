@@ -12,24 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use ainari_api_structs::task_structs::*;
+use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
-use ainari_common::secret::Secret;
-
-use crate::database::task_table;
 
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
+use crate::database::task_table;
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
     pub vm_uuid: Uuid,
-    pub number_of_cores: i32,
-    pub memory_size: i64,
-    pub public_key: Secret,
+    pub name: String,
+    pub context: UserContext,
 }
 
 /// An enumeration of different task variants that a Task can have.
@@ -44,17 +41,7 @@ pub enum TaskVariant {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct TaskMeta {
-    pub number_of_cycles: u64,
-    pub number_of_epochs: u64,
-    pub number_of_finished_cycles: u64,
-    pub number_of_finished_epochs: u64,
-    pub time_length: u64,
-    pub forecast_length: u64,
-
-    pub task_cycle_counter: u64,
-
     pub is_finished: bool,
-    pub prev_timestamp: std::time::Instant,
 }
 
 impl TaskMeta {
@@ -69,25 +56,8 @@ impl TaskMeta {
     /// # Returns
     ///
     /// A new TaskMeta virtual_machine initialized with the given parameters.
-    pub fn new(
-        number_of_cycler_per_epoch: u64,
-        number_of_epochs: u64,
-        time_length: u64,
-        forecast_length: u64,
-    ) -> Self {
-        Self {
-            number_of_cycles: number_of_cycler_per_epoch,
-            number_of_epochs,
-            number_of_finished_cycles: 0,
-            number_of_finished_epochs: 0,
-            time_length,
-            forecast_length,
-
-            task_cycle_counter: 0,
-
-            is_finished: false,
-            prev_timestamp: std::time::Instant::now(),
-        }
+    pub fn new() -> Self {
+        Self { is_finished: false }
     }
 }
 
@@ -138,7 +108,6 @@ impl Task {
             return Ok(());
         }
 
-        self.meta.prev_timestamp = Instant::now();
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Active);
 
         match &mut self.info {
@@ -199,39 +168,6 @@ impl Task {
         Ok(())
     }
 
-    /// Finishes the current cycle of the task and prepares for the next cycle.
-    /// Updates progress in the database and checks for task completion.
-    #[allow(dead_code)]
-    pub fn finish_cycle(&mut self) {
-        // update current state in database at least after 1 second
-        let now = Instant::now();
-        if now.duration_since(self.meta.prev_timestamp) >= Duration::from_secs(1) {
-            self.meta.prev_timestamp = now;
-            let _ = task_table::update_task_progress(
-                &self.uuid,
-                &(self.meta.number_of_finished_epochs as i64),
-                &(self.meta.number_of_finished_cycles as i64),
-            );
-            if task_table::is_aborted(&self.uuid) {
-                self.meta.is_finished = true;
-                return;
-            }
-        }
-
-        // update and check cycle- and epoch-counter
-        self.meta.number_of_finished_cycles += 1;
-        if self.meta.number_of_finished_cycles >= self.meta.number_of_cycles {
-            self.meta.number_of_finished_epochs += 1;
-            if self.meta.number_of_finished_epochs == self.meta.number_of_epochs {
-                self.meta.is_finished = true;
-                return;
-            } else {
-                self.meta.number_of_finished_cycles = 0;
-            }
-        }
-        self.meta.task_cycle_counter += 1;
-    }
-
     /// Checks if the task has been completed.
     ///
     /// # Returns
@@ -249,22 +185,7 @@ async fn handle_vm_creation(
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
 ) {
-    let root_disk_path = Some("/tmp/ubuntu-24.04.raw".to_string());
-    let seed_disk_path = "/tmp/seed.iso".to_string();
-    let tap_device_name = "tap-vm".to_string();
-    let mac_address = "02:00:00:00:00:42".to_string();
-
-    match create_ch_virtual_machine(
-        virtual_machine_uuid,
-        task_info.number_of_cores,
-        task_info.memory_size,
-        root_disk_path,
-        &seed_disk_path,
-        &tap_device_name,
-        &mac_address,
-    )
-    .await
-    {
+    match create_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
         Ok(_) => (),
         Err(e) => log::error!("fail: {:?}", e),
     }

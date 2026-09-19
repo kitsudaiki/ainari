@@ -34,6 +34,7 @@ table! {
         number_of_cores -> Integer,
         memory_size -> BigInt,
         image_uuid -> Varchar,
+        public_key_uuid -> Varchar,
         network_uuid -> Varchar,
         internal_ip -> Varchar,
         root_disk_path -> Nullable<Varchar>,
@@ -64,6 +65,8 @@ pub struct VirtualMachineEntry {
     pub memory_size: i64,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub image_uuid: Uuid,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub public_key_uuid: Uuid,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub network_uuid: Uuid,
     #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
@@ -101,6 +104,7 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
         number_of_cores INTEGER,
         memory_size INTEGER,
         image_uuid VARCHAR(40),
+        public_key_uuid VARCHAR(40),
         network_uuid VARCHAR(40),
         internal_ip VARCHAR(40),
         root_disk_path VARCHAR(1024),
@@ -122,55 +126,63 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Values of a new virtual_machine, which are provided by the caller of `add_new_virtual_machine`
+#[derive(Debug, Clone)]
+pub struct NewVirtualMachine {
+    /// Unique identifier for the new virtual_machine
+    pub uuid: Uuid,
+    /// Name for the new virtual_machine
+    pub name: String,
+    /// Number of cpu-cores of the new virtual_machine
+    pub number_of_cores: i32,
+    /// Amount of memory in bytes of the new virtual_machine
+    pub memory_size: i64,
+    /// Unique identifier of the image of the new virtual_machine
+    pub image_uuid: Uuid,
+    /// Unique identifier of the public-key of the new virtual_machine
+    pub public_key_uuid: Uuid,
+    /// Unique identifier of the network of the new virtual_machine
+    pub network_uuid: Uuid,
+    /// Internal address of the new virtual_machine
+    pub internal_ip: Ipv4Addr,
+    /// Optional path to the root-disk-image of the new virtual_machine
+    pub root_disk_path: Option<String>,
+    /// Path to the cloud-init seed-image of the new virtual_machine
+    pub seed_path: String,
+    /// Name of the TAP-device of the new virtual_machine
+    pub tap_name: String,
+    /// MAC-address of the network-interface of the new virtual_machine
+    pub mac_address: String,
+}
+
 /// Adds a new virtual_machine to the database with the provided information
 ///
 /// # Arguments
-/// * `virtual_machine_uuid` - Unique identifier for the new virtual_machine
-/// * `virtual_machine_name` - Name for the new virtual_machine
-/// * `number_of_cores` - Number of cpu-cores of the new virtual_machine
-/// * `memory_size` - Amount of memory in bytes of the new virtual_machine
-/// * `image_uuid` - Unique identifier of the image of the new virtual_machine
-/// * `network_uuid` - Unique identifier of the network of the new virtual_machine
-/// * `internal_ip` - Internal address of the new virtual_machine
-/// * `root_disk_path` - Optional path to the root-disk-image of the new virtual_machine
-/// * `seed_path` - Path to the cloud-init seed-image of the new virtual_machine
-/// * `tap_name` - Name of the TAP-device of the new virtual_machine
-/// * `mac_address` - MAC-address of the network-interface of the new virtual_machine
+/// * `new_virtual_machine` - Values of the new virtual_machine
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
 /// * `Ok(usize)` with the number of rows inserted on success
 /// * `Err` with an appropriate error on failure
-#[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 pub fn add_new_virtual_machine(
-    virtual_machine_uuid: &Uuid,
-    virtual_machine_name: &str,
-    number_of_cores: i32,
-    memory_size: i64,
-    image_uuid: &Uuid,
-    network_uuid: &Uuid,
-    internal_ip: &Ipv4Addr,
-    root_disk_path: Option<String>,
-    seed_path: &str,
-    tap_name: &str,
-    mac_address: &str,
+    new_virtual_machine: NewVirtualMachine,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Create the new virtual_machine entry
     let virtual_machine = VirtualMachineEntry {
-        uuid: *virtual_machine_uuid,
-        name: virtual_machine_name.to_owned(),
+        uuid: new_virtual_machine.uuid,
+        name: new_virtual_machine.name,
         is_created: false,
-        number_of_cores,
-        memory_size,
-        image_uuid: *image_uuid,
-        network_uuid: *network_uuid,
-        internal_ip: *internal_ip,
-        root_disk_path,
-        seed_path: seed_path.to_owned(),
-        tap_name: tap_name.to_owned(),
-        mac_address: mac_address.to_owned(),
+        number_of_cores: new_virtual_machine.number_of_cores,
+        memory_size: new_virtual_machine.memory_size,
+        image_uuid: new_virtual_machine.image_uuid,
+        public_key_uuid: new_virtual_machine.public_key_uuid,
+        network_uuid: new_virtual_machine.network_uuid,
+        internal_ip: new_virtual_machine.internal_ip,
+        root_disk_path: new_virtual_machine.root_disk_path,
+        seed_path: new_virtual_machine.seed_path,
+        tap_name: new_virtual_machine.tap_name,
+        mac_address: new_virtual_machine.mac_address,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -194,7 +206,6 @@ pub fn add_new_virtual_machine(
 /// # Returns
 /// * `Ok(usize)` with the number of rows inserted on success
 /// * `Err` with an appropriate error on failure
-#[allow(dead_code)]
 pub fn add_virtual_machine(virtual_machine: VirtualMachineEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::virtual_machines::dsl::*;
@@ -296,6 +307,57 @@ pub fn list_virtual_machines(context: &UserContext) -> QueryResult<Vec<VirtualMa
         .load(&mut *conn)
 }
 
+/// Updates the image, public-key, seed-image and root-disk of an existing virtual_machine
+/// and marks it as created
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to update
+/// * `new_image_uuid` - Unique identifier of the new image of the virtual_machine
+/// * `new_public_key_uuid` - Unique identifier of the new public-key of the virtual_machine
+/// * `new_seed_path` - New path to the cloud-init seed-image of the virtual_machine
+/// * `new_root_disk_path` - New optional path to the root-disk-image of the virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
+#[allow(dead_code)]
+pub fn update_virtual_machine(
+    virtual_machine_uuid: &Uuid,
+    new_image_uuid: &Uuid,
+    new_public_key_uuid: &Uuid,
+    new_seed_path: &str,
+    new_root_disk_path: Option<String>,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // First verify that the virtual_machine exists and the user has permission to update it
+    get_virtual_machine(virtual_machine_uuid, context)?;
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    // Update the values and set the update timestamp and user
+    match diesel::update(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
+        .set((
+            is_created.eq(true),
+            image_uuid.eq(new_image_uuid.to_string()),
+            public_key_uuid.eq(new_public_key_uuid.to_string()),
+            seed_path.eq(new_seed_path),
+            root_disk_path.eq(new_root_disk_path),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Marks a specific virtual_machine as deleted in the database
 ///
 /// # Arguments
@@ -395,6 +457,7 @@ mod tests {
             number_of_cores: 2,
             memory_size: 4096,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -436,6 +499,10 @@ mod tests {
                     virtual_machine.image_uuid
                 );
                 assert_eq!(
+                    retrieved_virtual_machine.public_key_uuid,
+                    virtual_machine.public_key_uuid
+                );
+                assert_eq!(
                     retrieved_virtual_machine.network_uuid,
                     virtual_machine.network_uuid
                 );
@@ -451,10 +518,7 @@ mod tests {
                     retrieved_virtual_machine.seed_path,
                     virtual_machine.seed_path
                 );
-                assert_eq!(
-                    retrieved_virtual_machine.tap_name,
-                    virtual_machine.tap_name
-                );
+                assert_eq!(retrieved_virtual_machine.tap_name, virtual_machine.tap_name);
                 assert_eq!(
                     retrieved_virtual_machine.mac_address,
                     virtual_machine.mac_address
@@ -514,6 +578,7 @@ mod tests {
             number_of_cores: 2,
             memory_size: 4096,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -538,6 +603,7 @@ mod tests {
             number_of_cores: 2,
             memory_size: 4096,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -589,6 +655,7 @@ mod tests {
             number_of_cores: 2,
             memory_size: 4096,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -629,6 +696,7 @@ mod tests {
             number_of_cores: 1,
             memory_size: 1024,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -653,6 +721,7 @@ mod tests {
             number_of_cores: 1,
             memory_size: 1024,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),
@@ -677,6 +746,7 @@ mod tests {
             number_of_cores: 1,
             memory_size: 1024,
             image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
             internal_ip: Ipv4Addr::new(192, 168, 100, 2),
             root_disk_path: Some("/tmp/ubuntu-24.04.raw".to_string()),

@@ -13,24 +13,17 @@
 // limitations under the License.
 
 use actix_web::web::Json;
-use ainari_common::secret::Secret;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::config;
-use crate::core::processing::tasks::{
-    CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
-};
 use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::virtual_machine_structs::*;
-use ainari_clients::endpoints::get_endpoints;
 
 #[api_operation(
     tag = "virtual_machine",
@@ -50,6 +43,32 @@ pub async fn create_virtual_machine_internal(
 
     let virtual_machine_uuid = Uuid::new_v4();
 
+    // these values coming from the task, so they are temporary filled with nil-values
+    let empty_image_uuid = Uuid::nil();
+    let empty_public_key_uuid = Uuid::nil();
+
+    let new_virtual_machine = virtual_machine_table::NewVirtualMachine {
+        uuid: virtual_machine_uuid,
+        name: body.name.clone(),
+        number_of_cores: body.number_of_cores,
+        memory_size: body.memory_size,
+        image_uuid: empty_image_uuid,
+        public_key_uuid: empty_public_key_uuid,
+        network_uuid: body.network_uuid,
+        internal_ip: body.internal_ip,
+        root_disk_path: None,
+        seed_path: "".to_owned(),
+        tap_name: body.tap_name.clone(),
+        mac_address: body.mac_address.clone(),
+    };
+
+    virtual_machine_table::add_new_virtual_machine(new_virtual_machine, &context).map_err(|e| {
+        log::error!(
+            "Failed to add virtual-machine with UUID '{virtual_machine_uuid}' to database.: {e}"
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
             |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
@@ -57,10 +76,11 @@ pub async fn create_virtual_machine_internal(
 
     let resp = VirtualMachineResp {
         uuid: virtual_machine_uuid,
+        name: virtual_machine_data.name,
+        is_created: virtual_machine_data.is_created,
         number_of_cores: virtual_machine_data.number_of_cores,
         memory_size: virtual_machine_data.memory_size,
         image_uuid: virtual_machine_data.image_uuid,
-        name: virtual_machine_data.name,
         network_uuid: virtual_machine_data.network_uuid,
         internal_ip: virtual_machine_data.internal_ip,
         torii_port: 0,

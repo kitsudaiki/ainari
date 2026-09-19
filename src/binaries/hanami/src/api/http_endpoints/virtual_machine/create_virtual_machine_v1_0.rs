@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::Ipv4Addr;
 
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
@@ -22,17 +21,17 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
+use crate::database::address_table;
 use crate::database::host_table;
 use crate::database::host_table::HostEntry;
 use crate::database::meta_virtual_machine_table;
-use crate::database::address_table;
+use crate::database::network_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::virtual_machine_structs::*;
 use ainari_clients::endpoints::*;
-use ainari_clients::network_interface::*;
 use ainari_clients::proxy as proxy_clients;
 use ainari_clients::quota::get_quota;
 use ainari_clients::virtual_machine as virtual_machine_clients;
@@ -54,6 +53,8 @@ pub async fn create_virtual_machine(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     check_quota(&context).await?;
+
+    // TODO: add check if network-, image- and public-key-uuid exist
 
     let selected_host = select_host(&context)?;
     let (virtual_machine_resp, proxy_uuid) =
@@ -83,7 +84,7 @@ pub async fn create_virtual_machine(
 
 fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     // list all avaialble hosts
-    let hosts = host_table::list_hosts(&context).map_err(|e| {
+    let hosts = host_table::list_hosts(context).map_err(|e| {
         log::error!("Failed to get list of hosts form database: '{e}'");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
@@ -111,13 +112,12 @@ async fn prepare_selected_host(
     body: &Json<VirtualMachineCreateReq>,
     context: &UserContext,
 ) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
-    let root_disk_path = Some("/tmp/ubuntu-24.04.raw".to_string());
-    let seed_path = "/tmp/seed.iso".to_string();
-    let internal_ip = Ipv4Addr::new(192, 168, 100, 2);
-    let tap_name = "tap-vm".to_string();
-    let mac_address = "02:00:00:00:00:42".to_string();
+    let network_data = network_table::get_network(&body.network_uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_error("network", &body.network_uuid, e))?;
 
-    //address_table::reserve_new_address()
+    let vm_address =
+        address_table::reserve_new_address(&network_data.uuid, &network_data.subnet, context)
+            .map_err(|e| map_db_register_error("mac", e))?;
 
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
@@ -125,13 +125,12 @@ async fn prepare_selected_host(
         &context.token,
         &config::INTERNAL_API_KEY,
         &body.name,
+        &body.network_uuid,
         body.number_of_cores,
         body.memory_size,
-        root_disk_path,
-        &seed_path,
-        &internal_ip,
-        &tap_name,
-        &mac_address,
+        &vm_address.internal_ip,
+        &vm_address.tap_name,
+        &vm_address.mac_address,
         config::CONFIG.skip_tls_verification,
     )
     .await

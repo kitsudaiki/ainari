@@ -167,6 +167,7 @@ async fn handle_input(
 ///
 /// # Arguments
 /// * `target_dir_path` - The path to the directory to remove
+#[allow(dead_code)]
 fn remove_all(target_dir_path: &String) {
     // delete all temporary files
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {

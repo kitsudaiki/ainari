@@ -44,6 +44,7 @@ pub async fn get_virtual_machine_internal(
 
     let resp = VirtualMachineResp {
         uuid: *virtual_machine_uuid,
+        is_created: virtual_machine_data.is_created,
         number_of_cores: virtual_machine_data.number_of_cores,
         memory_size: virtual_machine_data.memory_size,
         image_uuid: virtual_machine_data.image_uuid,

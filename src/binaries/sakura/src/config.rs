@@ -61,7 +61,7 @@ fn default_insecure_clients() -> bool {
 /// Contains settings related to file storage.
 #[derive(Debug, Deserialize)]
 pub struct Storage {
-    /// Path where temporary files will be stored.
+    pub local_vm_storage_path: String,
     pub tempfile_location: String,
 }
 

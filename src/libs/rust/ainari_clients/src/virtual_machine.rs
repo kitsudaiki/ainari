@@ -49,10 +49,9 @@ pub async fn create_virtual_machine(
     token: &String,
     internal_api_key: &Secret,
     name: &str,
+    network_uuid: &Uuid,
     number_of_cores: i32,
     memory_size: i64,
-    root_disk_path: Option<String>,
-    seed_path: &str,
     internal_ip: &Ipv4Addr,
     tap_name: &String,
     mac_address: &str,
@@ -62,14 +61,13 @@ pub async fn create_virtual_machine(
     let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
     let body = VirtualMachineInternalCreateReq {
+        name: name.to_owned(),
+        network_uuid: *network_uuid,
         number_of_cores,
         memory_size,
-        root_disk_path,
-        seed_path: seed_path.to_owned(),
         internal_ip: *internal_ip,
         tap_name: tap_name.to_owned(),
         mac_address: mac_address.to_owned(),
-        name: name.to_owned(),
     };
     let json_str = serde_json::to_string(&body).unwrap();
 

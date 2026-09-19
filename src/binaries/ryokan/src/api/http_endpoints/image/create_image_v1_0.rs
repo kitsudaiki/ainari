@@ -64,7 +64,7 @@ pub async fn upload_binary(
 
     super::check_image_quota(&context).await?;
 
-    create_directory(&target_dir_path).await?;
+    create_directory_api(&target_dir_path).await?;
 
     let selected_onsen = select_onsen(&context)?;
 

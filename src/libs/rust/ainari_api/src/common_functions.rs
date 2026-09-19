@@ -22,6 +22,18 @@ use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
+pub async fn create_directory(path: &String) -> Result<(), AinariError> {
+    match fs::create_dir_all(&path).await {
+        Ok(_) => (),
+        Err(e) => {
+            log::error!("Failed to directory '{path}' with error: {e}");
+            return Err(AinariError::InternalError("Internal Error".to_string()));
+        }
+    }
+
+    Ok(())
+}
+
 /// Creates a directory and all necessary parent directories asynchronously.
 ///
 /// # Arguments
@@ -32,7 +44,7 @@ use ainari_common::error::AinariError;
 ///
 /// * `Ok(())` if the directory was created successfully.
 /// * `Err(ErrorResponse::InternalError)` if an error occurred during directory creation.
-pub async fn create_directory(path: &String) -> Result<(), ErrorResponse> {
+pub async fn create_directory_api(path: &String) -> Result<(), ErrorResponse> {
     match fs::create_dir_all(&path).await {
         Ok(_) => (),
         Err(e) => {
@@ -164,6 +176,11 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
     }
 }
 
+pub fn map_db_register_error(obj_type: &str, _err: enums::DbError) -> ErrorResponse {
+    log::error!("Error while register {obj_type} with in db DB");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
 /// Maps database errors for get and delete operations using ID to appropriate ErrorResponse.
 ///
 /// # Arguments
@@ -210,6 +227,22 @@ pub fn map_db_uuid_get_delete_error(
         }
         enums::DbError::NotFound => {
             ErrorResponse::NotFound(format!("{obj_type} with UUID '{uuid}' not found."))
+        }
+    }
+}
+
+pub fn map_db_uuid_get_delete_ainari_error(
+    obj_type: &str,
+    uuid: &Uuid,
+    err: enums::DbError,
+) -> AinariError {
+    match err {
+        enums::DbError::InternalError => {
+            log::error!("Error while deleting {obj_type} with UUID '{uuid}' from DB");
+            AinariError::InternalError("Internal Error".to_string())
+        }
+        enums::DbError::NotFound => {
+            AinariError::InvalidInput(format!("{obj_type} with UUID '{uuid}' not found."))
         }
     }
 }
