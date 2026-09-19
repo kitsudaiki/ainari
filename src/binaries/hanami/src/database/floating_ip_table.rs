@@ -95,8 +95,9 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
         deleted_at VARCHAR(64),
         deleted_by VARCHAR(256)
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_floating_ip_addr
-        ON floating_ips (floating_ip_addr);",
+    DROP INDEX IF EXISTS floating_ips_floating_ip_addr;
+    CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_active_floating_ip_addr
+        ON floating_ips (floating_ip_addr) WHERE status = 'ACTIVE';",
     )?;
 
     Ok(())
@@ -125,14 +126,15 @@ impl From<enums::DbError> for FloatingIpReserveError {
 
 /// Reserves a floating IP-address by adding a new floating-ip entry to the database.
 ///
-/// Floating IP-addresses are unique within the whole table and not only within a network.
+/// Floating IP-addresses are unique across all ACTIVE entries of the whole table and not only
+/// within a network. Deleted entries don't block their floating IP-address, so it can be reused.
 /// The reservation is done by inserting the new entry, so the floating IP-address can not
 /// be taken by another request. The status is set to "ACTIVE" and timestamps are set to the
 /// current time.
 ///
 /// If a floating IP-address is requested, it is only reserved, if it is within the range of the
-/// CIDR and not already used. Otherwise the new floating IP-address is the highest existing floating
-/// IP-address within the range of the CIDR increased by one. If another request was faster, the
+/// CIDR and not already used by an ACTIVE entry. Otherwise the new floating IP-address is the highest
+/// floating IP-address of all ACTIVE entries within the range of the CIDR increased by one. If another request was faster, the
 /// floating IP-address is increased again until the reservation was successful.
 ///
 /// # Arguments
@@ -266,9 +268,9 @@ fn reserve_floating_ip_from(
 
 /// Gets the highest floating IP-address within a range from the database.
 ///
-/// The whole table is taken into account, because floating IP-addresses are unique within the
-/// whole table. Entries of all states are taken into account, because also deleted entries still
-/// block their floating IP-address. The IP-addresses are compared numerically, because the
+/// The whole table is taken into account, because floating IP-addresses are unique across all
+/// ACTIVE entries of the whole table. Only ACTIVE entries are taken into account, because deleted
+/// entries don't block their floating IP-address. The IP-addresses are compared numerically, because the
 /// alphabetical order of the strings is not the numeric order (`10.0.0.10` < `10.0.0.9`).
 ///
 /// # Arguments
@@ -286,6 +288,7 @@ fn get_highest_floating_ip(
         use self::floating_ips::dsl::*;
 
         floating_ips
+            .filter(status.eq("ACTIVE"))
             .select(floating_ip_addr)
             .load::<String>(&mut *conn)
             .map_err(|e| {
@@ -638,17 +641,24 @@ mod tests {
         assert_eq!(retrieved.owner_id, "test-user");
         assert_eq!(retrieved.status, "ACTIVE");
 
-        // floating IP-addresses are unique within the whole table, so another network gets the next one,
-        // even if the first entry is deleted
-        assert!(delete_floating_ip(&uuid1, &context).is_ok());
+        // floating IP-addresses are unique within the whole table, so another network gets the next one
         let (uuid2, floating_ip2) =
             add_new_floating_ip(&network_uuid2, &INTERNAL_IP, None, TEST_CIDR, &context)
                 .unwrap_or_else(|_| panic!("reservation failed"));
         assert_ne!(uuid2, uuid1);
         assert_eq!(u32::from(floating_ip2), u32::from(floating_ip1) + 1);
 
+        // deleted entries don't block their floating IP-address, so it is reused
+        assert!(delete_floating_ip(&uuid2, &context).is_ok());
+        let (uuid3, floating_ip3) =
+            add_new_floating_ip(&network_uuid2, &INTERNAL_IP, None, TEST_CIDR, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
+        assert_ne!(uuid3, uuid2);
+        assert_eq!(floating_ip3, floating_ip2);
+
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
+        hard_delete_floating_ip(&uuid3);
     }
 
     #[test]
@@ -689,11 +699,84 @@ mod tests {
 
     #[test]
     #[serial]
+    fn test_duplicate_floating_ip_addr_of_deleted_entries() {
+        let _ = init_floating_ip_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let uuid4 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        let entry1 = new_entry(
+            &uuid1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
+        let floating_ip = entry1.floating_ip_addr;
+        let mut entry2 = new_entry(
+            &uuid2,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
+        entry2.floating_ip_addr = floating_ip;
+        let mut entry3 = new_entry(
+            &uuid3,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry3.floating_ip_addr = floating_ip;
+        let mut entry4 = new_entry(
+            &uuid4,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry4.floating_ip_addr = floating_ip;
+
+        for entry_uuid in [&uuid1, &uuid2, &uuid3, &uuid4] {
+            hard_delete_floating_ip(entry_uuid);
+        }
+
+        // deleted entries can share a floating IP-address with each other and with one ACTIVE entry
+        add_floating_ip(entry1).unwrap();
+        add_floating_ip(entry2).unwrap();
+        add_floating_ip(entry3).unwrap();
+        // but not with a second ACTIVE entry
+        assert!(add_floating_ip(entry4).is_err());
+
+        // after deleting the ACTIVE entry, the floating IP-address can be used again
+        assert!(delete_floating_ip(&uuid3, &context).is_ok());
+        let mut entry4 = new_entry(
+            &uuid4,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry4.floating_ip_addr = floating_ip;
+        add_floating_ip(entry4).unwrap();
+
+        for entry_uuid in [&uuid1, &uuid2, &uuid3, &uuid4] {
+            hard_delete_floating_ip(entry_uuid);
+        }
+    }
+
+    #[test]
+    #[serial]
     fn test_get_highest_floating_ip() {
         let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
+        let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
 
@@ -715,9 +798,18 @@ mod tests {
             &network_uuid2,
             "test-user",
             "test-project",
-            "DELETED",
+            "ACTIVE",
         );
         entry2.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 10);
+        // deleted, so it is ignored
+        let mut entry4 = new_entry(
+            &uuid4,
+            &network_uuid2,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
+        entry4.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 20);
         // outside of the range, so it is ignored
         let mut entry3 = new_entry(
             &uuid3,
@@ -731,12 +823,14 @@ mod tests {
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
+        hard_delete_floating_ip(&uuid4);
 
         assert!(matches!(get_highest_floating_ip(first, last), Ok(None)));
 
         add_floating_ip(entry1).unwrap();
         add_floating_ip(entry2).unwrap();
         add_floating_ip(entry3).unwrap();
+        add_floating_ip(entry4).unwrap();
 
         assert!(matches!(
             get_highest_floating_ip(first, last),
@@ -746,6 +840,7 @@ mod tests {
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
+        hard_delete_floating_ip(&uuid4);
     }
 
     #[test]
@@ -842,7 +937,7 @@ mod tests {
             requested
         );
 
-        // already used, also in another network and also if the entry is deleted
+        // already used by an ACTIVE entry, also in another network
         let result = add_new_floating_ip(
             &network_uuid2,
             &INTERNAL_IP,
@@ -851,15 +946,18 @@ mod tests {
             &context,
         );
         assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
+
+        // after deleting the entry, the floating IP-address can be requested again
         assert!(delete_floating_ip(&uuid1, &context).is_ok());
-        let result = add_new_floating_ip(
+        let (uuid2, floating_ip2) = add_new_floating_ip(
             &network_uuid2,
             &INTERNAL_IP,
             Some(&requested),
             cidr,
             &context,
-        );
-        assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
+        )
+        .unwrap_or_else(|_| panic!("reservation failed"));
+        assert_eq!(floating_ip2, requested);
 
         // not within the assignable range of the CIDR
         for not_in_range in [
@@ -879,6 +977,7 @@ mod tests {
         }
 
         hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
     }
 
     #[test]
