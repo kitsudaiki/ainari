@@ -24,8 +24,6 @@ import (
 	"fmt"
 	ainarictl_common "ainarictl/common"
 	"os"
-	"strings"
-	"errors"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
 	"github.com/spf13/cobra"
@@ -33,71 +31,7 @@ import (
 
 var (
 	checkpointUuid string
-	inputData      []string
-	outputData     []string
-	timeLength     int
-	numberOfEpochs int
 )
-
-func convertTaskIO(input []string) ([]ainari_sdk.TaskInput, error) {
-	ret := []ainari_sdk.TaskInput{}
-
-	for _, val := range input {
-
-		// Check if both separator ":" are present
-		if !strings.Contains(val, ":") {
-			return ret, errors.New("Error: Required separators ':' are missing")
-		}
-
-		// Split at ":"
-		parts := strings.Split(val, ":")
-		if len(parts) != 3 {
-			return ret, errors.New("Error: Invalid format before or after ':'")
-		}
-		imageUUID := parts[0]
-		columnName := parts[1]
-		hexagonName := parts[2]
-
-		item := ainari_sdk.TaskInput{
-			HexagonName:     hexagonName, 
-			ImageColumnName: columnName, 
-			ImageUuid:       imageUUID,
-		}
-
-		ret = append(ret, item)
-	}
-
-	return ret, nil
-}
-
-func convertTaskResult(input []string) ([]ainari_sdk.TaskResult, error) {
-	ret := []ainari_sdk.TaskResult{}
-
-	for _, val := range input {
-
-		// Check if both separator ":" are present
-		if !strings.Contains(val, ":") {
-			return ret, errors.New("Error: Required separators ':' are missing")
-		}
-
-		// Split at ":"
-		parts := strings.Split(val, ":")
-		if len(parts) != 2 {
-			return ret, errors.New("Error: Invalid format before or after ':'")
-		}
-		hexagonName := parts[0]
-		columnName := parts[1]
-
-		item := ainari_sdk.TaskResult{
-			HexagonName:     hexagonName, 
-			ImageColumnName: columnName,
-		}
-
-		ret = append(ret, item)
-	}
-
-	return ret, nil
-}
 
 func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
 
@@ -120,72 +54,6 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 	}
 
 	return int(toriiPort)
-}
-
-var createTrainTaskCmd = &cobra.Command{
-	Use:   "train -i IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -o IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
-	Short: "Create a new train task.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
-		taskName := args[1]
-		taskInput, err := convertTaskIO(inputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		taskOutput, err := convertTaskIO(outputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.CreateTrainTask(context, toriiPort, taskName, virtual_machineUuid, taskInput, taskOutput, numberOfEpochs, timeLength)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var createRequestTaskCmd = &cobra.Command{
-	Use:   "request -i IMAGE_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME CLUSTER_UUID TASK_NAME",
-	Short: "Create a new request task.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
-		taskName := args[1]
-		taskInput, err := convertTaskIO(inputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		taskOutput, err := convertTaskResult(outputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.CreateRequestTask(context, toriiPort, taskName, virtual_machineUuid, taskInput, taskOutput, timeLength)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
 }
 
 var createCheckpointSaveTaskCmd = &cobra.Command{
@@ -279,29 +147,6 @@ var listTaskCmd = &cobra.Command{
 	},
 }
 
-var deleteTaskCmd = &cobra.Command{
-	Use:   "delete CLUSTER_UUID TASK_UUID",
-	Short: "Delete a specific task from the backend.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
-		taskUuid := args[1]
-		_, err = ainari_sdk.DeleteTask(context, toriiPort, taskUuid, virtual_machineUuid)
-		if err == nil {
-			fmt.Printf("successfully deleted task '%v'\n", taskUuid)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
 var abortTaskCmd = &cobra.Command{
 	Use:   "abort CLUSTER_UUID TASK_UUID",
 	Short: "Abort a specific task.",
@@ -340,21 +185,6 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 
 	taskCmd.AddCommand(createTaskCmd)
 
-	createTaskCmd.AddCommand(createTrainTaskCmd)
-	createTrainTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "VirtualMachine outputs, which are paris of '-o <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createTrainTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
-	createTrainTaskCmd.Flags().IntVarP(&numberOfEpochs, "epochs", "e", 1, "Number of epochs for the training")
-	createTrainTaskCmd.MarkFlagRequired("input")
-	createTrainTaskCmd.MarkFlagRequired("output")
-
-	createTaskCmd.AddCommand(createRequestTaskCmd)
-	createRequestTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "VirtualMachine input, which are paris of '-i <IMAGE_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createRequestTaskCmd.Flags().StringSliceVarP(&outputData, "result", "r", []string{}, "VirtualMachine result, which are paris of '-r <HEXAGON_NAME>:<COLUMN_NAME>' (mandatory)")
-	createRequestTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
-	createRequestTaskCmd.MarkFlagRequired("input")
-	createRequestTaskCmd.MarkFlagRequired("result")
-
 	createTaskCmd.AddCommand(createCheckpointSaveTaskCmd)
 
 	createTaskCmd.AddCommand(createCheckpointRestoreTaskCmd)
@@ -364,8 +194,6 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	taskCmd.AddCommand(getTaskCmd)
 
 	taskCmd.AddCommand(listTaskCmd)
-
-	taskCmd.AddCommand(deleteTaskCmd)
 
 	taskCmd.AddCommand(abortTaskCmd)
 }

@@ -24,6 +24,13 @@ import (
 	"fmt"
 )
 
+// GetOwnQuota returns the quota of the user of the current access-context.
+func GetOwnQuota(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/quota"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}
+
 func GetQuota(context AccessContext, userId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
 	vars := map[string]interface{}{}
@@ -36,14 +43,16 @@ func ListQuota(context AccessContext) (map[string]interface{}, error) {
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func SetQuota(context AccessContext, userId string, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxTaskqueue int) (map[string]interface{}, error) {
+func SetQuota(context AccessContext, userId string, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxNetwork, maxFloatingIp, maxTaskqueue int) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
 	jsonBody := map[string]interface{}{
-		"max_virtual_machine":    maxVirtualMachine,
-		"max_image":    maxImage,
-		"max_checkpoint": maxCheckpoint,
-		"max_secret":     maxSecret,
-		"max_taskqueue":  maxTaskqueue,
+		"max_virtual_machine": maxVirtualMachine,
+		"max_image":           maxImage,
+		"max_checkpoint":      maxCheckpoint,
+		"max_secret":          maxSecret,
+		"max_network":         maxNetwork,
+		"max_floating_ip":     maxFloatingIp,
+		"max_taskqueue":       maxTaskqueue,
 	}
 	return SendPut(context, context.MikoAddress, path, jsonBody)
 }

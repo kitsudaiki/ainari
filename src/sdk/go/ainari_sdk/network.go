@@ -24,34 +24,30 @@ import (
 	"fmt"
 )
 
-// AddFloatingIp creates a new floating ip. If floatingIp is an empty string, a free floating ip is selected.
-func AddFloatingIp(context AccessContext, name, networkUuid, floatingIp, internalIp string) (map[string]interface{}, error) {
-	path := "v1alpha/floating_ip"
+// CreateNetwork creates a new network with the given name for the given subnet in CIDR-notation.
+func CreateNetwork(context AccessContext, name, subnet string) (map[string]interface{}, error) {
+	path := "v1alpha/network"
 	jsonBody := map[string]interface{}{
-		"name":         name,
-		"network_uuid": networkUuid,
-		"internal_ip":  internalIp,
-	}
-	if floatingIp != "" {
-		jsonBody["floating_ip"] = floatingIp
+		"name":   name,
+		"subnet": subnet,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func GetFloatingIp(context AccessContext, floatingIpUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/floating_ip/%s", floatingIpUuid)
+func GetNetwork(context AccessContext, networkUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/network/%s", networkUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func ListFloatingIp(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/floating_ip"
+func ListNetwork(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/network"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func DeleteFloatingIp(context AccessContext, floatingIpUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/floating_ip/%s", floatingIpUuid)
+func DeleteNetwork(context AccessContext, networkUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/network/%s", networkUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.HanamiAddress, path, vars)
 }

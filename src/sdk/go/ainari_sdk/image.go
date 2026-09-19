@@ -56,12 +56,22 @@ func DeleteImage(context AccessContext, imageUuid string,) (map[string]interface
 	return SendDelete(context, context.RyokanAddress, path, vars)
 }
 
-func CheckImage(context AccessContext, uuid, referenceImageUuid string,) (map[string]interface{}, error) {
-	path := "v1alpha/image/check"
-	vars := map[string]interface{}{
-		"uuid":           uuid,
-		"reference_uuid": referenceImageUuid,
+// CheckImage compares a column of an image with a column of a reference-image and returns the
+// accuracy of the comparison.
+func CheckImage(context AccessContext, imageUuid, imageColumn, referenceImageUuid, referenceColumn string,) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/%s/check", imageUuid)
+	jsonBody := map[string]interface{}{
+		"image_column":     imageColumn,
+		"reference_uuid":   referenceImageUuid,
+		"reference_column": referenceColumn,
 	}
+	return SendPut(context, context.RyokanAddress, path, jsonBody)
+}
+
+// GetImageCount returns the number of images of the project.
+func GetImageCount(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/image/count"
+	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 

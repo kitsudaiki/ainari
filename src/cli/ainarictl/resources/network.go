@@ -29,9 +29,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var getCheckpointCmd = &cobra.Command{
-	Use:   "get CHECKPOINT_UUID",
-	Short: "Get information of a specific checkpoint.",
+var (
+	networkSubnet string
+)
+
+var createNetworkCmd = &cobra.Command{
+	Use:   "create -s SUBNET NAME",
+	Short: "Create a new network.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -39,65 +43,8 @@ var getCheckpointCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		checkpointUuid := args[0]
-		content, err := ainari_sdk.GetCheckpoint(context, checkpointUuid)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		ainarictl_common.PrintSingle(content)
-	},
-}
-
-var listCheckpointCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all checkpoint.",
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.ListCheckpoint(context)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		ainarictl_common.PrintList(content["checkpoints"].([]interface{}))
-	},
-}
-
-var deleteCheckpointCmd = &cobra.Command{
-	Use:   "delete CHECKPOINT_UUID",
-	Short: "Delete a specific checkpoint from the backend.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		checkpointUuid := args[0]
-		_, err = ainari_sdk.DeleteCheckpoint(context, checkpointUuid)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		fmt.Printf("successfully deleted checkpoint '%v'\n", checkpointUuid)
-	},
-}
-
-
-var getCheckpointCountCmd = &cobra.Command{
-	Use:   "count",
-	Short: "Get the number of checkpoints of the project.",
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.GetCheckpointCount(context)
+		networkName := args[0]
+		content, err := ainari_sdk.CreateNetwork(context, networkName, networkSubnet)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -107,19 +54,81 @@ var getCheckpointCountCmd = &cobra.Command{
 	},
 }
 
-var checkpointCmd = &cobra.Command{
-	Use:   "checkpoint",
-	Short: "Manage checkpoint.",
+var getNetworkCmd = &cobra.Command{
+	Use:   "get NETWORK_UUID",
+	Short: "Get information of a specific network.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		networkUuid := args[0]
+		content, err := ainari_sdk.GetNetwork(context, networkUuid)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
 }
 
-func Init_Checkpoint_Commands(rootCmd *cobra.Command) {
-	rootCmd.AddCommand(checkpointCmd)
+var listNetworkCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all network.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListNetwork(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintList(content["networks"].([]interface{}))
+	},
+}
 
-	checkpointCmd.AddCommand(getCheckpointCmd)
+var deleteNetworkCmd = &cobra.Command{
+	Use:   "delete NETWORK_UUID",
+	Short: "Delete a specific network from the backend.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		networkUuid := args[0]
+		_, err = ainari_sdk.DeleteNetwork(context, networkUuid)
+		if err == nil {
+			fmt.Printf("successfully deleted network '%v'\n", networkUuid)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
 
-	checkpointCmd.AddCommand(listCheckpointCmd)
+var networkCmd = &cobra.Command{
+	Use:   "network",
+	Short: "Manage network.",
+}
 
-	checkpointCmd.AddCommand(deleteCheckpointCmd)
+func Init_Network_Commands(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(networkCmd)
 
-	checkpointCmd.AddCommand(getCheckpointCountCmd)
+	networkCmd.AddCommand(createNetworkCmd)
+	createNetworkCmd.Flags().StringVarP(&networkSubnet, "subnet", "s", "", "Subnet of the network in CIDR-notation (mandatory)")
+	createNetworkCmd.MarkFlagRequired("subnet")
+
+	networkCmd.AddCommand(getNetworkCmd)
+
+	networkCmd.AddCommand(listNetworkCmd)
+
+	networkCmd.AddCommand(deleteNetworkCmd)
 }

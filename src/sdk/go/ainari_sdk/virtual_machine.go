@@ -24,16 +24,30 @@ import (
 	"fmt"
 )
 
-func CreateVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, imageUuid, networkUuid string) (map[string]interface{}, error) {
+// ReserveVirtualMachine reserves a new virtual machine on one of the sakura-hosts. The image and
+// the public-key are not deployed here, but by the task of CreateVirtualMachine.
+func ReserveVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, networkUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
 		"number_of_cores": numberOfCores,
 		"memory_size":     memorySize,
-		"image_uuid":      imageUuid,
 		"name":            name,
 		"network_uuid":    networkUuid,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
+}
+
+// CreateVirtualMachine creates a task on the sakura-host of a reserved virtual machine, which
+// installs the image and the public-key in the virtual machine and boots it.
+func CreateVirtualMachine(context AccessContext, toriiPort int, virtual_machineUuid, imageUuid, publicKeyUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s", virtual_machineUuid)
+	jsonBody := map[string]interface{}{
+		"vm_uuid":         virtual_machineUuid,
+		"image_uuid":      imageUuid,
+		"public_key_uuid": publicKeyUuid,
+	}
+	return SendPost(context, address, path, jsonBody)
 }
 
 func GetVirtualMachine(context AccessContext, virtual_machineUuid string) (map[string]interface{}, error) {
@@ -52,4 +66,11 @@ func DeleteVirtualMachine(context AccessContext, virtual_machineUuid string) (ma
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s", virtual_machineUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.HanamiAddress, path, vars)
+}
+
+// GetVirtualMachineCount returns the number of virtual machines of the project.
+func GetVirtualMachineCount(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/virtual_machine/count"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.HanamiAddress, path, vars)
 }

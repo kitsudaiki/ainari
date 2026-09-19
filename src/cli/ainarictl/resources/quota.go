@@ -35,6 +35,8 @@ var (
     maxImage          int
     maxCheckpoint     int
     maxSecret         int
+    maxNetwork        int
+    maxFloatingIp     int
     maxTaskqueue      int
 )
 
@@ -50,7 +52,7 @@ var setQuotaCmd = &cobra.Command{
 		}
 		userId := args[0]
 
-		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxTaskqueue)
+		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxNetwork, maxFloatingIp, maxTaskqueue)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -97,6 +99,25 @@ var listQuotaCmd = &cobra.Command{
 	},
 }
 
+var getOwnQuotaCmd = &cobra.Command{
+	Use:   "show",
+	Short: "Get the quota of the own user.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.GetOwnQuota(context)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
 var quotaCmd = &cobra.Command{
 	Use:   "quota",
 	Short: "Manage quota.",
@@ -110,9 +131,13 @@ func Init_Quota_Commands(rootCmd *cobra.Command) {
 	setQuotaCmd.Flags().IntVar(&maxImage, "max_image", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxCheckpoint, "max_checkpoint", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxSecret, "max_secret", 0, "Set quota as admin")
+	setQuotaCmd.Flags().IntVar(&maxNetwork, "max_network", 0, "Set quota as admin")
+	setQuotaCmd.Flags().IntVar(&maxFloatingIp, "max_floating_ip", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxTaskqueue, "max_taskqueue", 0, "Set quota as admin")
 
 	quotaCmd.AddCommand(getQuotaCmd)
 
 	quotaCmd.AddCommand(listQuotaCmd)
+
+	quotaCmd.AddCommand(getOwnQuotaCmd)
 }

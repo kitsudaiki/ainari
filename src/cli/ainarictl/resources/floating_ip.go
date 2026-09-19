@@ -63,8 +63,47 @@ var addFloatingIpCmd = &cobra.Command{
 	},
 }
 
+var getFloatingIpCmd = &cobra.Command{
+	Use:   "get FLOATING_IP_UUID",
+	Short: "Get information of a specific floating IP.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		floatingIpUuid := args[0]
+		content, err := ainari_sdk.GetFloatingIp(context, floatingIpUuid)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var listFloatingIpCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all floating ip.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListFloatingIp(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintList(content["floating_ips"].([]interface{}))
+	},
+}
+
 var deleteFloatingIpCmd = &cobra.Command{
-	Use:   "delete FLOATING_IP",
+	Use:   "delete FLOATING_IP_UUID",
 	Short: "Delete a specific floating IP from the gateway.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -73,10 +112,10 @@ var deleteFloatingIpCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		floatingIp := args[0]
-		_, err = ainari_sdk.DeleteFloatingIp(context, floatingIp)
+		floatingIpUuid := args[0]
+		_, err = ainari_sdk.DeleteFloatingIp(context, floatingIpUuid)
 		if err == nil {
-			fmt.Printf("successfully deleted floating ip '%v'\n", floatingIp)
+			fmt.Printf("successfully deleted floating ip '%v'\n", floatingIpUuid)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -99,6 +138,10 @@ func Init_FloatingIp_Commands(rootCmd *cobra.Command) {
 	addFloatingIpCmd.MarkFlagRequired("name")
 	addFloatingIpCmd.MarkFlagRequired("network")
 	addFloatingIpCmd.MarkFlagRequired("internal")
+
+	floatingIpCmd.AddCommand(getFloatingIpCmd)
+
+	floatingIpCmd.AddCommand(listFloatingIpCmd)
 
 	floatingIpCmd.AddCommand(deleteFloatingIpCmd)
 }

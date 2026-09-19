@@ -50,6 +50,73 @@ var getVersionCmd = &cobra.Command{
 }
 
 
+var getEndpointsCmd = &cobra.Command{
+	Use:   "endpoints",
+	Short: "Get the addresses of the components of the backend.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.GetEndpoints(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
+}
+
+var renewTokenCmd = &cobra.Command{
+	Use:   "renew",
+	Short: "Request a new token for the own user.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.RenewToken(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
+}
+
+var validateTokenCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Validate the token of the own user and return its user-context.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ValidateToken(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
+}
+
+var tokenCmd = &cobra.Command{
+	Use:   "token",
+	Short: "Manage the token of the own user.",
+}
+
 func Init_Common_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(getVersionCmd)
+
+	rootCmd.AddCommand(getEndpointsCmd)
+
+	rootCmd.AddCommand(tokenCmd)
+
+	tokenCmd.AddCommand(renewTokenCmd)
+
+	tokenCmd.AddCommand(validateTokenCmd)
 }

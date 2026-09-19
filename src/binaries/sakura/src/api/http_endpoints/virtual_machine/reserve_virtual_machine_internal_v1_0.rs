@@ -33,7 +33,7 @@ use ainari_api_structs::virtual_machine_structs::*;
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_virtual_machine_internal(
+pub async fn reserve_virtual_machine_internal(
     body: Json<VirtualMachineInternalCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<VirtualMachineResp>, ErrorResponse> {

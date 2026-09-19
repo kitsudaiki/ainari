@@ -28,8 +28,6 @@ pub struct VirtualMachineCreateReq {
     pub number_of_cores: i32,
     pub memory_size: i64,
     pub network_uuid: Uuid,
-    pub image_uuid: Uuid,
-    pub public_key_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

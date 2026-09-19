@@ -33,7 +33,7 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/internal")
                         .route(post().to(
-                            reserve_virtual_machine_internal_v1_0::create_virtual_machine_internal,
+                            reserve_virtual_machine_internal_v1_0::reserve_virtual_machine_internal,
                         ))
                         .route(
                             get().to(
@@ -53,15 +53,15 @@ pub fn v1alpha_routes() -> Scope {
                         )),
                 )
                 .service(
-                    resource("/")
+                    resource("/{virtual_machine_uuid}")
                         .route(post().to(create_virtual_machine_v1_0::create_virtual_machine)),
                 )
                 .service(
-                    resource("/checkpoint_save")
+                    resource("/{virtual_machine_uuid}/checkpoint_save")
                         .route(post().to(checkpoint_save_v1_0::checkpoint_save_task)),
                 )
                 .service(
-                    resource("/checkpoint_restore")
+                    resource("/{virtual_machine_uuid}/checkpoint_restore")
                         .route(post().to(checkpoint_restore_v1_0::checkpoint_restore_task)),
                 ),
         )
