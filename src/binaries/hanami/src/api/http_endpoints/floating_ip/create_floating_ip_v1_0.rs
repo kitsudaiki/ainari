@@ -20,12 +20,15 @@ use validator::Validate;
 
 use crate::config;
 use crate::database::floating_ip_table;
+use crate::database::floating_ip_table::FloatingIpEntry;
 use crate::database::floating_ip_table::FloatingIpReserveError;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::floating_ip as floating_ip_clients;
 use ainari_clients::quota::get_quota;
 
 // TODO: take the range of the floating ip-addresses from the config
@@ -64,6 +67,9 @@ pub async fn create_floating_ip(
     let floating_ip_entrry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("project", &floating_ip_uuid, e))?;
 
+    // register the NAT of the floating ip-address in the torii, which is reachable from outside
+    register_floating_ip(&floating_ip_entrry, &body.name, &context).await?;
+
     let resp = FloatingIpResp {
         uuid: floating_ip_uuid,
         network_uuid: floating_ip_entrry.network_uuid,
@@ -76,6 +82,59 @@ pub async fn create_floating_ip(
     };
 
     Ok(CreatedJson(resp))
+}
+
+/// Registers the NAT of a floating ip-address in the torii
+///
+/// The floating ip-address is translated by the torii, which is reachable from the outside,
+/// because that is where the traffic of the virtual_machines enters and leaves the virtual
+/// network. If the registration fails, the reserved address is released again, so it is not
+/// blocked by an entry, which the torii doesn't know.
+///
+/// # Arguments
+/// * `floating_ip_entry` - Reserved floating ip-address with its internal address
+/// * `name` - Name of the floating ip-address
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` if the floating ip-address is registered in the torii
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+async fn register_floating_ip(
+    floating_ip_entry: &FloatingIpEntry,
+    name: &str,
+    context: &UserContext,
+) -> Result<(), ErrorResponse> {
+    let result = async {
+        // get endpoints from miko
+        let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
+            .await
+            .map_err(map_ainari_error_to_api_response)?;
+
+        floating_ip_clients::create_floating_ip(
+            &endpoints.torii,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            name,
+            &floating_ip_entry.network_uuid,
+            &floating_ip_entry.floating_ip_addr,
+            &floating_ip_entry.internal_ip_addr,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+        .map_err(map_ainari_error_to_api_response)
+    }
+    .await;
+
+    if let Err(e) = result {
+        log::error!(
+            "Failed to register floating ip '{}' in torii. Releasing it again.",
+            floating_ip_entry.floating_ip_addr
+        );
+        let _ = floating_ip_table::force_delete_floating_ip(&floating_ip_entry.uuid);
+        return Err(e);
+    }
+
+    Ok(())
 }
 
 /// Converts an error of the floating ip-address reservation into an error-response.

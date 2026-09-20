@@ -24,6 +24,7 @@ use crate::core::models::Route;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::utils::get_ifindex;
+use crate::config::CONFIG;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -44,6 +45,13 @@ pub async fn register_route_internal(
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+
+    // a caller, which doesn't know the interfaces of this gateway, can leave the target-interface
+    // empty to address the underlay of this gateway
+    let mut body = body.into_inner();
+    if body.target_iface.is_empty() {
+        body.target_iface = CONFIG.network.underlay_iface.clone();
+    }
 
     let ip_u32 = u32::from(body.dest_ip);
 

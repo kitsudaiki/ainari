@@ -34,7 +34,7 @@ pub fn v1alpha_routes() -> Scope {
             scope("/virtual_machine")
                 .service(
                     resource("")
-                        .route(post().to(create_virtual_machine_v1_0::create_virtual_machine))
+                        .route(post().to(reserve_virtual_machine_v1_0::reserve_virtual_machine))
                         .route(get().to(list_virtual_machine_v1_0::list_virtual_machine)),
                 )
                 .service(
