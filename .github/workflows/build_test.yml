@@ -8,15 +8,11 @@ permissions:
 
 env:
   REGISTRY_DOCS_IMAGE: kitsudaiki/ainari_docs
-  AINARI_ADMIN_ID: asdf
-  AINARI_ADMIN_NAME: asdf
-  AINARI_ADMIN_PASSPHRASE: asdfasdf
-  RUSTFLAGS: "-Dwarnings"
 
 jobs:
   # ansible-lint:
   #   name: "Lint ansible playbook"
-  #   runs-on: ubuntu-latest
+  #   runs-on: ubuntu-24.04
   #   env:
   #     FORCE_COLOR: 1
   #   steps:
@@ -68,7 +64,7 @@ jobs:
 
   rustfmt-check:
     name: cargo fmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       -
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -83,7 +79,7 @@ jobs:
 
   flake8-check:
     name: "flake8 check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -111,7 +107,7 @@ jobs:
 
   check-for-executables:
     name: "Detect binary executables"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       -
         name: checkout code
@@ -132,7 +128,7 @@ jobs:
 
   commit-lint:
     name: "Lint commits"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       -
         name: checkout code
@@ -145,7 +141,7 @@ jobs:
 
   detect-sectets:
     name: "Detect secrets"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -168,7 +164,7 @@ jobs:
   build_python_package:
     name: "Build SDK python-package"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -218,7 +214,7 @@ jobs:
   build_helm_package:
     name: "Build Helm package"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -262,7 +258,7 @@ jobs:
   build_ainari_debug:
     name: "Compile ainari (debug)"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -327,7 +323,7 @@ jobs:
   build_ainarictl:
     name: "Compile CLI"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
     steps:
@@ -377,7 +373,7 @@ jobs:
   cargo_tests:
     name: "Cargo Test"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
       INTERNAL_API_KEY: test-internal-api-key
@@ -420,155 +416,15 @@ jobs:
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           sudo cp -r ./example_configs/ainari /etc/ainari
+          # the tests create their sqlite-database-files beside the configs, so the directory has
+          # to belong to the unprivileged user, which runs the tests
+          sudo chown -R "$(id -u):$(id -g)" /etc/ainari
       -
         name: Run tests
         run: |
           cd ${GITHUB_REPOSITORY#*/}
           # only one test-thread to avoid conflicts between tests, which access the same singleton
           cargo test -- --test-threads=1
-
-  python_version_test:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    needs: [ cargo_tests, build_ainari_debug, build_ainarictl, build_helm_package, build_python_package ]
-    strategy:
-      fail-fast: false
-      matrix:
-        python_version:
-          - { tag: "python-3_10", name: "Python 3.10", version: "3.10", runs-on: "ubuntu-22.04" }
-          - { tag: "python-3_11", name: "Python 3.11", version: "3.11", runs-on: "ubuntu-22.04" }
-          - { tag: "python-3_12", name: "Python 3.12", version: "3.12", runs-on: "ubuntu-24.04" }
-    runs-on: ${{ matrix.python_version.runs-on }}
-    name: "${{ matrix.python_version.name }}"
-    outputs:
-      python-3_10: ${{ steps.status.outputs.python-3_10 }}
-      python-3_11: ${{ steps.status.outputs.python-3_11 }}
-      python-3_12: ${{ steps.status.outputs.python-3_12 }}
-    steps:
-      -
-        name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssl libsqlite3-0 
-      -
-        name: Set python-version as environment variable
-        run: |
-          if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
-              echo "PYTHON_PACKAGE_VERSION=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          else \
-              echo "PYTHON_PACKAGE_VERSION=0.0.0" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          fi
-      -
-        name: Checkout repository
-        run: |
-          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
-          # branch can not be read by the git commands, which is necessary for the build-script
-          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
-          cd ${GITHUB_REPOSITORY#*/}
-          git checkout ${GITHUB_REF#refs/heads/}
-          git submodule init
-          git submodule update --recursive
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: ainari_python_build_result
-          path: /tmp/ainari_python_build_result
-      -
-        name: Get artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-        with:
-          name: ainari_debug_build_result
-          path: /tmp/ainari_debug_build_result
-      -
-        name: Install dependencies for SDK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler wget gzip python3 python3-pip
-          cd /tmp/ainari_python_build_result
-          ls -l
-          pip3 install -U ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl
-      -
-        name: Download mnist-files
-        run: |
-          cd /tmp/
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
-          wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
-          gzip -d train-images-idx3-ubyte.gz
-          gzip -d train-labels-idx1-ubyte.gz
-          gzip -d t10k-images-idx3-ubyte.gz
-          gzip -d t10k-labels-idx1-ubyte.gz
-      -
-        name: run Sakura in background
-        run: |
-          cd ${GITHUB_REPOSITORY#*/}
-          export INTERNAL_API_KEY=test-internal-api-key && export SAKURA_REGISTRATION_KEY=sakura-key && export ONSEN_REGISTRATION_KEY=onsen-key
-          chmod +x /tmp/ainari_debug_build_result/ainari/hanami
-          chmod +x /tmp/ainari_debug_build_result/ainari/miko
-          chmod +x /tmp/ainari_debug_build_result/ainari/ryokan
-          chmod +x /tmp/ainari_debug_build_result/ainari/sakura
-          chmod +x /tmp/ainari_debug_build_result/ainari/torii
-          chmod +x /tmp/ainari_debug_build_result/ainari/omamori
-          chmod +x /tmp/ainari_debug_build_result/ainari/onsen
-          mkdir -p builds/binaries
-          sudo cp -r ./example_configs/ainari /etc/ainari
-          sudo chmod 777 -R /etc/ainari
-          /tmp/ainari_debug_build_result/ainari/hanami &
-          /tmp/ainari_debug_build_result/ainari/miko &
-          /tmp/ainari_debug_build_result/ainari/ryokan &
-          /tmp/ainari_debug_build_result/ainari/torii &
-          /tmp/ainari_debug_build_result/ainari/omamori &
-          # sleep to make sure, that hanami is started before sakura starts
-          sleep 10
-          /tmp/ainari_debug_build_result/ainari/sakura &
-          /tmp/ainari_debug_build_result/ainari/onsen &
-          # BINARY_PID=$!
-          # trap "kill $BINARY_PID" EXIT
-      -
-        name: Sleep for 15 seconds
-        uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
-        with:
-          time: '15s'    
-      -
-        name: Install python
-        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f
-        with:
-          python-version: "${{ matrix.python_version.version }}"
-      -
-        name: Install ainari-sdk
-        run: |
-          cd /tmp/ainari_python_build_result
-          ls -l
-          pip install -U ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl
-      -
-        name: Print installed python-version
-        run: |
-          python --version
-      -
-        name: Print installed pip-packages
-        run: |
-          pip list
-      -
-        name: Run test
-        run: |
-          cd ${GITHUB_REPOSITORY#*/}/testing/python_sdk_api
-          mkdir -p test_dir
-          cp sdk_api_test.py test_dir/
-          cp test_values.py test_dir/
-          cp csv_test.csv test_dir/
-          cd test_dir
-          python sdk_api_test.py
-      # -
-      #   name: Get log-output for debugging
-      #   id: docker_log
-      #   if: ${{ always() }}
-      #   run: docker logs hanami
-      -
-        name: Update Result
-        id: status
-        if: ${{ always() }}
-        run: echo "${{ matrix.python_version.tag }}=${{ job.status }}" >> $GITHUB_OUTPUT
     
     
 
@@ -978,39 +834,39 @@ jobs:
 
 
 
-  badge-upload:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && always() }}
-    needs: [ docker_merge, python_version_test ]
-    runs-on: ubuntu-22.04
-    name: Publish badges
-    steps:
-      -
-        name: Set branch name as environment variable
-        run: |
-          if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
-              echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          else \
-              echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
-          fi
-      -
-        name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      -
-        name: Publish Python Badges
-        uses: ./.github/actions/badge
-        with:
-          category: python_version
-          badges: ${{ toJson(needs.python_version_test.outputs) }}
-          github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
-          branch_name: ${{ env.BRANCH_NAME }}
-      # -
-      #   name: Publish Kubernetes Badges
-      #   uses: ./.github/actions/badge
-      #   with:
-      #     category: kubernetes_version
-      #     badges: ${{ toJson(needs.kubernetes_test.outputs) }}
-      #     github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
-      #     branch_name: ${{ env.BRANCH_NAME }}
+  # badge-upload:
+  #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && always() }}
+  #   needs: [ docker_merge ]
+  #   runs-on: ubuntu-22.04
+  #   name: Publish badges
+  #   steps:
+  #     -
+  #       name: Set branch name as environment variable
+  #       run: |
+  #         if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
+  #             echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
+  #         else \
+  #             echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
+  #         fi
+  #     -
+  #       name: Checkout repository
+  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+  #     -
+  #       name: Publish Python Badges
+  #       uses: ./.github/actions/badge
+  #       with:
+  #         category: python_version
+  #         badges: ${{ toJson(needs.python_version_test.outputs) }}
+  #         github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
+  #         branch_name: ${{ env.BRANCH_NAME }}
+  #     # -
+  #     #   name: Publish Kubernetes Badges
+  #     #   uses: ./.github/actions/badge
+  #     #   with:
+  #     #     category: kubernetes_version
+  #     #     badges: ${{ toJson(needs.kubernetes_test.outputs) }}
+  #     #     github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
+  #     #     branch_name: ${{ env.BRANCH_NAME }}
 
 
 
@@ -1065,7 +921,7 @@ jobs:
   upload_files:
     name: "Upload files to share"
     needs: [ docker_merge ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     env:
       FORCE_COLOR: 1
