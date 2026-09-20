@@ -1,0 +1,30 @@
+# Config of the torii in front of the sakura-host for the local docker-compose setup.
+#
+# This gateway owns the TAP-devices of the virtual machines. It has no uplink, so everything,
+# which is not addressed to one of its virtual machines, goes to the torii at the edge.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11419
+internal_ip = "0.0.0.0"
+internal_port = 10419
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[miko]
+address = "http://miko:11417"
+
+[ports]
+min_port = 10042
+max_port = 10053
+
+[network]
+# there is no overlay-interface here, the TAP-devices are attached when they are created
+overlay_iface = "none"
+underlay_iface = "eth0"
+# underlay-address of the torii at the edge of the network
+default_gateway_ip = "172.30.0.10"

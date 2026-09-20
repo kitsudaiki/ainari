@@ -45,8 +45,8 @@ use ainari_clients::quota::get_quota;
 /// * `Err(ErrorResponse::BadRequest)` - If the image type is not in the supported list.
 ///
 fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
-    if !["mnist", "csv"].contains(&image_type.as_str()) {
-        let msg = format!("Type '{image_type}' is not in list [ mnist, csv ]");
+    if !["mnist", "csv", "disk"].contains(&image_type.as_str()) {
+        let msg = format!("Type '{image_type}' is not in list [ mnist, csv, disk ]");
         return Err(ErrorResponse::BadRequest(msg.to_string()));
     }
 

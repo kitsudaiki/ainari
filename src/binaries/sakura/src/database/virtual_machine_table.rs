@@ -307,6 +307,51 @@ pub fn list_virtual_machines(context: &UserContext) -> QueryResult<Vec<VirtualMa
         .load(&mut *conn)
 }
 
+/// Sets the image and the public-key of a reserved virtual_machine
+///
+/// A virtual_machine is reserved without an image and without a public-key. Both are chosen, when
+/// the virtual_machine is really created, and are stored here, so the task, which creates it, can
+/// read them from the database.
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to update
+/// * `new_image_uuid` - Unique identifier of the image of the virtual_machine
+/// * `new_public_key_uuid` - Unique identifier of the public-key of the virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
+pub fn set_virtual_machine_image(
+    virtual_machine_uuid: &Uuid,
+    new_image_uuid: &Uuid,
+    new_public_key_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // First verify that the virtual_machine exists and the user has permission to update it
+    get_virtual_machine(virtual_machine_uuid, context)?;
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    match diesel::update(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
+        .set((
+            image_uuid.eq(new_image_uuid.to_string()),
+            public_key_uuid.eq(new_public_key_uuid.to_string()),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Updates the image, public-key, seed-image and root-disk of an existing virtual_machine
 /// and marks it as created
 ///

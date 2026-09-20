@@ -40,6 +40,33 @@ pub struct Config {
     pub database: ainari_config::Database,
     /// Miko endpoint configuration
     pub miko: ainari_config::MikoEndpoint,
+    /// Network configuration
+    #[serde(default)]
+    pub network: Network,
+}
+
+/// Network configuration
+///
+/// Defines the addresses, which hanami hands out to the virtual machines.
+#[derive(Debug, Deserialize)]
+pub struct Network {
+    /// Range of the floating ip-addresses in CIDR-notation, which the gateway at the edge of the
+    /// network translates to the internal addresses of the virtual machines
+    #[serde(default = "default_floating_ip_cidr")]
+    pub floating_ip_cidr: String,
+}
+
+impl Default for Network {
+    fn default() -> Self {
+        Self {
+            floating_ip_cidr: default_floating_ip_cidr(),
+        }
+    }
+}
+
+/// Default range of the floating ip-addresses
+fn default_floating_ip_cidr() -> String {
+    "10.0.0.0/24".to_owned()
 }
 
 /// Default value for skip_tls_verification
@@ -56,10 +83,15 @@ fn default_insecure_clients() -> bool {
 /// It is initialized by reading from the configuration file at "/etc/ainari/hanami.toml".
 /// If the file cannot be read or parsed, the program will exit with an error.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/hanami.toml";
+    // the path of the config-file can be overwritten, which the containers of the
+    // docker-compose-setup use to mount their config to another place
+    let file_path = match env::var("CONFIG_FILE") {
+        Ok(value) => value,
+        Err(_) => "/etc/ainari/hanami.toml".to_owned(),
+    };
     log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(file_path) {
+    match fs::read_to_string(file_path.clone()) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             match toml::from_str(&content) {

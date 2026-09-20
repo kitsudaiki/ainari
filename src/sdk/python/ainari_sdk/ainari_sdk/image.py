@@ -75,6 +75,22 @@ def check_image(context: AccessContext,
                                            json_body)
 
 
+def upload_disk_file(context: AccessContext,
+                     name: str,
+                     input_file_path: str) -> dict:
+    """
+    Uploads a disk-image, which is used as boot-disk of a virtual machine. The file is stored as
+    it is, so it has to be an image, which cloud-hypervisor can boot, like a qcow2-cloud-image.
+    """
+    path = f"/v1alpha/image/disk/{name}"
+    files = [input_file_path]
+
+    return ainari_request.upload_files(context,
+                                       context.ryokan_adress,
+                                       path,
+                                       files)
+
+
 def upload_mnist_files(context: AccessContext,
                        name: str,
                        input_file_path: str,

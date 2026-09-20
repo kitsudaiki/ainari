@@ -166,6 +166,44 @@ pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
 /// # Returns
 ///
 /// * `Result<HostEntry, enums::DbError>` - The requested host if found, or an error
+/// Retrieves a host by its address.
+///
+/// # Arguments
+///
+/// * `host_address` - Address of the host to retrieve
+///
+/// # Returns
+///
+/// * `Ok(HostEntry)` with the host on success
+/// * `Err(enums::DbError)` if there is no active host with that address
+pub fn get_host_by_address(
+    host_address: &String,
+    _: &UserContext,
+) -> Result<HostEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let query = hosts
+        .filter(
+            address
+                .eq(host_address.to_string())
+                .and(status.eq("ACTIVE")),
+        )
+        .into_boxed();
+
+    match query
+        .select(HostEntry::as_select())
+        .first::<HostEntry>(&mut *conn)
+    {
+        Ok(host) => Ok(host),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;

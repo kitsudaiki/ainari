@@ -51,6 +51,16 @@ pub async fn create_virtual_machine(
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::VirtualMachineCreate;
 
+    // the virtual_machine was reserved without an image and without a public-key, so both are
+    // stored now, before the task, which creates the virtual_machine, reads them again
+    virtual_machine_table::set_virtual_machine_image(
+        &virtual_machine_uuid,
+        &body.image_uuid,
+        &body.public_key_uuid,
+        &context,
+    )
+    .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
             |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),

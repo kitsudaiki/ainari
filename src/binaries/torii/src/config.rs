@@ -54,6 +54,23 @@ pub struct Config {
     pub development: Development,
 }
 
+impl Config {
+    /// Checks that the sections of the config fit together
+    ///
+    /// # Returns
+    /// `Ok(())` if the config is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        self.network.validate()?;
+
+        // the single node setup is the edge of the network as well, so it requires an uplink
+        if self.development.single_node && self.network.uplink().is_none() {
+            return Err("'development.single_node' requires 'network.uplink_iface'".to_owned());
+        }
+
+        Ok(())
+    }
+}
+
 /// Default value for skip_tls_verification
 ///
 /// Returns `false` to enforce TLS verification by default for security reasons.
@@ -83,6 +100,18 @@ pub struct Network {
     /// Interface of the underlay network, `underlay_ingress` is attached to it
     #[serde(default = "default_underlay_iface")]
     pub underlay_iface: String,
+    /// Interface facing the outside, on which the floating IPs are served. Only the gateway at
+    /// the edge of the network has one. If it is set, `uplink_next_hop` is required as well.
+    #[serde(default)]
+    pub uplink_iface: Option<String>,
+    /// Next hop behind the uplink, which all traffic leaving the virtual network is sent to
+    #[serde(default)]
+    pub uplink_next_hop: Option<Ipv4Addr>,
+    /// Underlay-address of the gateway at the edge of the network. A gateway, which only serves
+    /// virtual machines, sends everything it has no route for to that gateway. A gateway with an
+    /// own uplink doesn't have one, because it is the edge itself.
+    #[serde(default)]
+    pub default_gateway_ip: Option<Ipv4Addr>,
 }
 
 impl Default for Network {
@@ -90,7 +119,45 @@ impl Default for Network {
         Self {
             overlay_iface: default_overlay_iface(),
             underlay_iface: default_underlay_iface(),
+            uplink_iface: None,
+            uplink_next_hop: None,
+            default_gateway_ip: None,
         }
+    }
+}
+
+impl Network {
+    /// Checks that the uplink of the gateway has everything it needs
+    ///
+    /// # Returns
+    /// `Ok(())` if the section is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        let has_iface = !self.uplink_iface.as_deref().unwrap_or_default().is_empty();
+        if has_iface && self.uplink_next_hop.is_none() {
+            return Err("'network.uplink_iface' requires 'network.uplink_next_hop'".to_owned());
+        }
+        if !has_iface && self.uplink_next_hop.is_some() {
+            return Err("'network.uplink_next_hop' requires 'network.uplink_iface'".to_owned());
+        }
+        if has_iface && self.default_gateway_ip.is_some() {
+            return Err(
+                "'network.default_gateway_ip' can not be used together with 'network.uplink_iface'"
+                    .to_owned(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Returns the uplink of the gateway, if it has one
+    ///
+    /// # Returns
+    /// The name of the uplink-interface together with its next hop, or `None` for a gateway
+    /// without an uplink
+    pub fn uplink(&self) -> Option<(&str, Ipv4Addr)> {
+        let iface = self.uplink_iface.as_deref().filter(|it| !it.is_empty())?;
+        let next_hop = self.uplink_next_hop?;
+
+        Some((iface, next_hop))
     }
 }
 
@@ -114,33 +181,6 @@ pub struct Development {
     /// this one gateway, without underlay, tunnel or IPsec
     #[serde(default)]
     pub single_node: bool,
-    /// Interface facing the outside, on which the floating IPs are served.
-    /// Required if `single_node` is enabled.
-    pub uplink_iface: Option<String>,
-    /// Next hop behind the uplink, which all traffic leaving the virtual
-    /// network is sent to. Required if `single_node` is enabled.
-    pub uplink_next_hop: Option<Ipv4Addr>,
-}
-
-impl Development {
-    /// Checks that the single node setup has everything it needs
-    ///
-    /// # Returns
-    /// `Ok(())` if the section is consistent, otherwise the reason why not
-    pub fn validate(&self) -> Result<(), String> {
-        if !self.single_node {
-            return Ok(());
-        }
-        if self.uplink_iface.as_deref().is_none_or(str::is_empty) {
-            return Err("'development.single_node' requires 'development.uplink_iface'".to_owned());
-        }
-        if self.uplink_next_hop.is_none() {
-            return Err(
-                "'development.single_node' requires 'development.uplink_next_hop'".to_owned(),
-            );
-        }
-        Ok(())
-    }
 }
 
 /// Global singleton config virtual_machine
@@ -166,7 +206,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
             match toml::from_str(&content) {
                 Ok(v) => {
                     let config: Config = v;
-                    if let Err(e) = config.development.validate() {
+                    if let Err(e) = config.validate() {
                         log::error!("Invalid config '{file_path}': {e}");
                         process::exit(1);
                     }
@@ -221,24 +261,49 @@ mod tests {
         let config = load("torii.toml");
         assert!(!config.development.single_node);
         assert_eq!(config.network.underlay_iface, "eth0");
-        assert!(config.development.validate().is_ok());
+        assert!(config.network.uplink().is_none());
+        assert!(config.validate().is_ok());
     }
 
     #[test]
     fn the_single_node_example_config_is_valid() {
         let config = load("torii_single_node.toml");
         assert!(config.development.single_node);
-        assert_eq!(config.development.uplink_iface.as_deref(), Some("uplink0"));
-        assert!(config.development.validate().is_ok());
+        assert_eq!(
+            config.network.uplink(),
+            Some(("uplink0", Ipv4Addr::new(10, 0, 0, 1)))
+        );
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn the_public_example_config_has_an_uplink_without_single_node() {
+        let config = load("torii_public.toml");
+        assert!(!config.development.single_node);
+        assert_eq!(
+            config.network.uplink(),
+            Some(("veth-gw", Ipv4Addr::new(10, 0, 0, 1)))
+        );
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn an_uplink_requires_a_next_hop() {
+        let network = Network {
+            uplink_iface: Some("uplink0".to_owned()),
+            uplink_next_hop: None,
+            ..Default::default()
+        };
+        assert!(network.validate().is_err());
     }
 
     #[test]
     fn single_node_requires_an_uplink() {
-        let development = Development {
-            single_node: true,
-            uplink_iface: None,
-            uplink_next_hop: Some(Ipv4Addr::new(10, 0, 0, 1)),
+        let config = Config {
+            development: Development { single_node: true },
+            network: Network::default(),
+            ..load("torii.toml")
         };
-        assert!(development.validate().is_err());
+        assert!(config.validate().is_err());
     }
 }

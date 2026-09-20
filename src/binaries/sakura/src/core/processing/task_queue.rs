@@ -104,6 +104,17 @@ mod tests {
     use crate::core::processing::tasks::{
         CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
     };
+    use ainari_api_structs::user_context::UserContext;
+
+    fn test_context() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        }
+    }
 
     #[test]
     fn test_add_and_get() {
@@ -118,10 +129,12 @@ mod tests {
         let info1 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
             name: "test-task1".to_string(),
+            context: test_context(),
         };
         let info2 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
             name: "test-task2".to_string(),
+            context: test_context(),
         };
 
         let task1 = Task {

@@ -111,17 +111,22 @@ pub fn init_routing() -> GatewayState {
         bpf, // Retain Bpf context for dynamic API attachments
     };
 
-    // SINGLE NODE SETUP (development only): this gateway is the edge towards
-    // the outside as well, so the VMs and their floating IPs live behind one
-    // gateway. Without it the uplink maps stay empty and the datapath behaves
-    // exactly like in the split setup.
-    let development = &CONFIG.development;
-    if development.single_node {
-        // both values are checked when the config is loaded
-        let uplink_iface = development.uplink_iface.as_deref().unwrap_or_default();
-        let next_hop = development.uplink_next_hop.unwrap_or(Ipv4Addr::UNSPECIFIED);
-        if let Err(e) = setup_single_node(&mut state, uplink_iface, next_hop, overlay_iface) {
-            log::error!("Failed to set up the single node setup: {e}");
+    // UPLINK: the gateway at the edge of the network serves the floating IPs and sends
+    // everything, which leaves the virtual network, to the next hop behind its uplink. A gateway
+    // without an uplink keeps the uplink maps empty and only routes within the network.
+    if let Some((uplink_iface, next_hop)) = CONFIG.network.uplink() {
+        if let Err(e) = setup_uplink(&mut state, uplink_iface, next_hop, overlay_iface) {
+            log::error!("Failed to set up the uplink: {e}");
+            process::exit(1);
+        }
+    }
+
+    // DEFAULT ROUTE: a gateway without an own uplink sends everything, which is not addressed to
+    // one of its virtual machines, through the underlay to the gateway at the edge of the network
+    if let Some(gateway_ip) = CONFIG.network.default_gateway_ip {
+        let underlay_iface = &CONFIG.network.underlay_iface;
+        if let Err(e) = setup_default_route(&mut state, gateway_ip, underlay_iface) {
+            log::error!("Failed to set up the default route: {e}");
             process::exit(1);
         }
     }
@@ -129,7 +134,56 @@ pub fn init_routing() -> GatewayState {
     state
 }
 
-/// Turns this gateway into the single node setup.
+/// Points the default route of this gateway to the gateway at the edge of the network.
+///
+/// Everything, which doesn't match one of the routes of this gateway, is encapsulated and sent
+/// through the underlay to that gateway, which forwards it to the outside.
+///
+/// # Arguments
+/// * `state` - State of the gateway, which the route is added to
+/// * `gateway_ip` - Underlay-address of the gateway at the edge of the network
+/// * `underlay_iface` - Interface, which carries the traffic to the other gateways
+///
+/// # Returns
+/// `Ok(())` once the default route is programmed, otherwise the reason why it could not be set up
+fn setup_default_route(
+    state: &mut GatewayState,
+    gateway_ip: Ipv4Addr,
+    underlay_iface: &str,
+) -> Result<(), anyhow::Error> {
+    let req = RouteReq {
+        dest_ip: Ipv4Addr::UNSPECIFIED,
+        target_iface: underlay_iface.to_owned(),
+        gateway_ip: Some(gateway_ip),
+        next_hop_ip: None,
+        next_hop_mac: None,
+        encrypted: false,
+    };
+    let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
+    state
+        .route_map
+        .insert(u32::from(Ipv4Addr::UNSPECIFIED), RouteTargetPod(target), 0)?;
+
+    let route_uuid = Uuid::new_v4();
+    state.routes.insert(
+        route_uuid,
+        Route {
+            uuid: route_uuid,
+            dest_ip: Ipv4Addr::UNSPECIFIED,
+            target_iface: req.target_iface,
+            gateway_ip: req.gateway_ip,
+            next_hop_ip: None,
+            next_hop_mac: None,
+            encrypted: false,
+        },
+    );
+
+    log::info!("default route points to the gateway {gateway_ip}");
+
+    Ok(())
+}
+
+/// Turns this gateway into the edge of the network by activating its uplink.
 ///
 /// The overlay program is attached to the uplink (unless it already sits there
 /// as the overlay interface), the uplink is registered in `UPLINK_MAP` together
@@ -146,7 +200,7 @@ pub fn init_routing() -> GatewayState {
 ///
 /// # Returns
 /// `Ok(())` once the uplink is active, otherwise the reason why it could not be set up
-fn setup_single_node(
+fn setup_uplink(
     state: &mut GatewayState,
     uplink_iface: &str,
     next_hop: Ipv4Addr,

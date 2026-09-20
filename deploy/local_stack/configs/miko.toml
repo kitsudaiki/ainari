@@ -1,0 +1,37 @@
+# Config of miko for the local docker-compose setup.
+#
+# The public addresses are the ports, which the compose-setup publishes on the host, because the
+# clients (sdk, cli) run outside of docker. The internal addresses are the container-names, which
+# the components use to talk to each other.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11417
+internal_ip = "0.0.0.0"
+internal_port = 10417
+
+[database]
+file_path = "/etc/ainari/miko_db"
+
+[auth]
+token_key_path = "/etc/ainari/token_key"
+token_expire_time = 3600
+
+[endpoints.hanami]
+public_address = "http://127.0.0.1:11418"
+internal_address = "http://hanami:10418"
+
+[endpoints.ryokan]
+public_address = "http://127.0.0.1:11416"
+internal_address = "http://ryokan:10416"
+
+[endpoints.torii]
+public_address = "http://127.0.0.1:11419"
+internal_address = "http://torii-public:10419"
+
+[endpoints.omamori]
+public_address = "http://127.0.0.1:11421"
+internal_address = "http://omamori:10421"

@@ -72,20 +72,27 @@ pub async fn upload_binary(
     let result = {
         let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
 
-        convert_uploaded_files(
-            &image_uuid,
-            &name,
-            &image_type,
-            &converted_result_path,
-            &temp_file_paths,
-        )
-        .await?;
+        // a disk-image is the boot-disk of a virtual_machine, which is stored as it is. There is
+        // nothing to convert and it has no rows and columns like the data-sets.
+        let (source_path, number_of_rows, column_names) = if image_type == "disk" {
+            (get_disk_image_path(&temp_file_paths)?, 0, Vec::new())
+        } else {
+            convert_uploaded_files(
+                &image_uuid,
+                &name,
+                &image_type,
+                &converted_result_path,
+                &temp_file_paths,
+            )
+            .await?;
 
-        let (number_of_rows, column_names) = get_image_dimension(&converted_result_path)?;
+            let (number_of_rows, column_names) = get_image_dimension(&converted_result_path)?;
+            (converted_result_path.clone(), number_of_rows, column_names)
+        };
 
         let (secret_uuid, secret) = super::super::generate_new_key(&image_uuid, &context).await?;
 
-        encrypt_file(&converted_result_path, &encrypted_result_path, &secret)
+        encrypt_file(&source_path, &encrypted_result_path, &secret)
             .await
             .map_err(map_ainari_error_to_api_response)?;
 
@@ -134,6 +141,33 @@ pub async fn upload_binary(
     };
 
     Ok(CreatedJson(resp))
+}
+
+/// Returns the path of the single uploaded file of a disk-image.
+///
+/// # Arguments
+///
+/// * `temp_file_paths` - Paths to the temporary files containing the uploaded data
+///
+/// # Returns
+///
+/// A `Result` containing the path of the uploaded disk-image, or an `ErrorResponse`, if there was
+/// not exactly one file uploaded
+fn get_disk_image_path(temp_file_paths: &[PathBuf]) -> Result<String, ErrorResponse> {
+    let path_len = temp_file_paths.len();
+    if path_len != 1 {
+        return Err(ErrorResponse::BadRequest(format!(
+            "Disk-image expect 1 uploaded files, but there were {path_len} files found."
+        )));
+    }
+
+    match temp_file_paths[0].to_str() {
+        Some(path) => Ok(path.to_string()),
+        None => {
+            log::error!("Path of the uploaded disk-image is not valid utf-8.");
+            Err(ErrorResponse::InternalError("Internal Error".to_string()))
+        }
+    }
 }
 
 /// Writes the contents of a multipart payload to temporary files.
@@ -243,7 +277,7 @@ async fn write_payload_into_file(
 ///
 /// * `image_uuid` - Unique identifier for the image
 /// * `name` - Name of the image
-/// * `image_type` - Type of image ("mnist" or "csv")
+/// * `image_type` - Type of image ("mnist" or "csv"). A disk-image is not converted at all.
 /// * `target_filepath` - Path to the output converted file
 /// * `temp_file_paths` - Paths to temporary files containing uploaded data
 ///

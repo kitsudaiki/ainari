@@ -1,7 +1,12 @@
+# Config of sakura for the local docker-compose setup.
+#
+# Sakura shares the network-namespace of the torii in front of it, so its api is reachable at the
+# address of that container. Hanami uses this address to talk to sakura and to find the torii,
+# which owns the TAP-devices of the virtual machines of this host.
 debug = true
 log_path = "/var/log"
 skip_tls_verification = true
-address = "http://127.0.0.1:11420"
+address = "http://torii-vmm:11420"
 
 [api]
 public_ip = "0.0.0.0"
@@ -13,7 +18,7 @@ internal_port = 10420
 file_path = "/etc/ainari/sakura_db"
 
 [miko]
-address = "http://127.0.0.1:11417"
+address = "http://miko:11417"
 
 [processing]
 # 0 means there is no limitation
@@ -24,7 +29,5 @@ local_vm_storage_path = "/etc/ainari/virtual_machines"
 tempfile_location = "/tmp/sakura"
 
 [hypervisor]
-# path of the cloud-hypervisor binary, which runs the virtual machines
 binary_path = "/usr/local/bin/cloud-hypervisor"
-# path of the firmware, which boots the virtual machines
 firmware_path = "/usr/local/share/CLOUDHV.fd"

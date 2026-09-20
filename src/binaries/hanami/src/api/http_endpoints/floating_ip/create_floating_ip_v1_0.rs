@@ -31,9 +31,6 @@ use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::floating_ip as floating_ip_clients;
 use ainari_clients::quota::get_quota;
 
-// TODO: take the range of the floating ip-addresses from the config
-const FLOATING_IP_CIDR: &str = "192.168.0.0/24";
-
 #[api_operation(
     tag = "floating_ip",
     summary = "Create new floating_ip",
@@ -58,7 +55,7 @@ pub async fn create_floating_ip(
         &body.network_uuid,
         &body.internal_ip,
         body.floating_ip.as_ref(),
-        FLOATING_IP_CIDR,
+        &config::CONFIG.network.floating_ip_cidr,
         &context,
     )
     .map_err(|e| map_reserve_error(e, body.floating_ip.as_ref()))?;
@@ -154,7 +151,8 @@ fn map_reserve_error(
     let requested = requested_ip.map(|ip| ip.to_string()).unwrap_or_default();
     match error {
         FloatingIpReserveError::NotInRange => ErrorResponse::BadRequest(format!(
-            "Floating ip '{requested}' is not within the range '{FLOATING_IP_CIDR}'."
+            "Floating ip '{requested}' is not within the range '{}'.",
+            config::CONFIG.network.floating_ip_cidr
         )),
         FloatingIpReserveError::AlreadyUsed => {
             ErrorResponse::Conflict(format!("Floating ip '{requested}' is already used."))

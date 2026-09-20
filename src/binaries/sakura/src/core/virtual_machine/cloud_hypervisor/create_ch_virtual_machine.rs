@@ -141,7 +141,7 @@ pub async fn create_ch_virtual_machine(
     // start cloud-hypervisor process, which is controlled via its API-socket
     let socket_path = format!("/tmp/cloud-hypervisor-{uuid}.sock");
     let _ = fs::remove_file(&socket_path);
-    let mut child = Command::new("/tmp/cloud-hypervisor")
+    let mut child = Command::new(&config::CONFIG.hypervisor.binary_path)
         .arg("--api-socket")
         .arg(&socket_path)
         .spawn()
@@ -153,7 +153,7 @@ pub async fn create_ch_virtual_machine(
 
     let vm_config = VmConfig {
         payload: PayloadConfig {
-            firmware: Some(String::from("/tmp/CLOUDHV.fd")),
+            firmware: Some(config::CONFIG.hypervisor.firmware_path.clone()),
             ..Default::default()
         },
         cpus: Some(CpusConfig {
@@ -192,12 +192,12 @@ pub async fn create_ch_virtual_machine(
         // writable root-disk and read-only cloud-init seed-image
         disks: Some(vec![
             DiskConfig {
-                path: Some(root_disk_path),
+                path: Some(root_disk_path.clone()),
                 readonly: Some(false),
                 ..Default::default()
             },
             DiskConfig {
-                path: Some(seed_path),
+                path: Some(seed_path.clone()),
                 readonly: Some(true),
                 ..Default::default()
             },
@@ -231,6 +231,17 @@ pub async fn create_ch_virtual_machine(
             log::error!("Failed to wait for VMM-process {vm_pid}: {e}");
         }
     });
+
+    // the virtual_machine runs now, so its disks are stored and it is marked as created
+    virtual_machine_table::update_virtual_machine(
+        uuid,
+        &virtual_machine_data.image_uuid,
+        &virtual_machine_data.public_key_uuid,
+        &seed_path,
+        Some(root_disk_path),
+        context,
+    )
+    .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
 
     log::info!("New VM {uuid} started");
 

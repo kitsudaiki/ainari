@@ -26,6 +26,15 @@ import (
 
 // const chunkSize = 128 * 1024 // 128 KiB
 
+// CreateDiskImage uploads a disk-image, which is used as boot-disk of a virtual machine. The file
+// is stored as it is, so it has to be an image, which cloud-hypervisor can boot, like a
+// qcow2-cloud-image.
+func CreateDiskImage(context AccessContext, imageName, filePath string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/image/disk/%s", imageName)
+	files := []string{filePath}
+	return UploadFiles(context, path, files)
+}
+
 func CreateMnistImage(context AccessContext, imageName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/image/mnist/%s", imageName)
 	files := []string{imageFilePath, labelFilePath}

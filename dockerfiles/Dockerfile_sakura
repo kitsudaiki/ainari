@@ -20,17 +20,22 @@ COPY src src
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 
-# also copy the git-directory, which is necessary for the version-information
-COPY .git .git
+# the version-endpoint reports this value, which is read at compile-time. The git-directory
+# itself is not copied into the image, because .dockerignore excludes it.
+ARG GIT_VERSION=unknown
+ENV GIT_VERSION=$GIT_VERSION
 
-RUN ~/.cargo/bin/cargo build --release
-RUN cp target/release/hanami /app/
-RUN cp target/release/miko /app/
-RUN cp target/release/omamori /app/
-RUN cp target/release/onsen /app/
-RUN cp target/release/ryokan /app/
+# only this component is built, the other binaries of the workspace have their own image
+RUN ~/.cargo/bin/cargo build --release -p sakura
 RUN cp target/release/sakura /app/
-RUN cp target/release/torii /app/
+
+# the hypervisor, which runs the virtual machines, and the firmware, which boots them
+ARG CLOUD_HYPERVISOR_VERSION=v53.0
+RUN curl -fSLo /app/cloud-hypervisor \
+        https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/${CLOUD_HYPERVISOR_VERSION}/cloud-hypervisor-static && \
+    chmod +x /app/cloud-hypervisor
+RUN curl -fSLo /app/CLOUDHV.fd \
+        https://github.com/cloud-hypervisor/edk2/releases/latest/download/CLOUDHV.fd
 
 # ---------------------------------------------------
 
@@ -38,10 +43,16 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# qemu-utils provides qemu-img, which converts a downloaded image into the boot-disk of a virtual
+# machine. cloud-image-utils provides cloud-localds, which builds the cloud-init seed-image.
+# libcap2-bin provides setcap, which is only used while building this image.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends openssl \
                        curl \
                        libsqlite3-0 \
+                       qemu-utils \
+                       cloud-image-utils \
+                       libcap2-bin \
                        wireguard-tools \
                        iptables-persistent \
                        iproute2 \
@@ -51,7 +62,7 @@ RUN apt-get update && \
 
 # horrible dirty workaround to prevent the error
 # sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far... 
+# when starting wireguard inside the pod. Didn't found a better solution so far...
 RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
 
 # Create ainari user and set up directories
@@ -60,14 +71,32 @@ RUN useradd -m ainari
 # Allow the user to creage the wireguard-connection
 RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
 
+# The virtual machines are opened through /dev/kvm, which belongs to the group 'kvm' on the host.
+# The id of that group differs between hosts, so it can be overwritten at build-time and the
+# container gets the id of the host additionally over 'group_add' in the docker-compose-file.
+ARG KVM_GID=993
+RUN groupadd -g ${KVM_GID} kvm || groupmod -g ${KVM_GID} kvm && \
+    usermod -aG kvm ainari
+
 # sakura
 COPY --from=builder /app/sakura /home/ainari/sakura
 COPY dockerfiles/files/start_sakura.sh /home/ainari/start_sakura.sh
-RUN mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
+RUN mkdir -p /etc/ainari/virtual_machines && \
+    chown -R ainari:ainari /etc/ainari && \
     chown ainari:ainari /home/ainari/sakura && \
     chown ainari:ainari /home/ainari/start_sakura.sh && \
-    chmod +x /home/ainari/start_sakura.sh
+    chmod +x /home/ainari/sakura /home/ainari/start_sakura.sh
+
+# the hypervisor and its firmware. The paths are the defaults of the '[hypervisor]'-section of
+# the config of sakura.
+COPY --from=builder /app/cloud-hypervisor /usr/local/bin/cloud-hypervisor
+COPY --from=builder /app/CLOUDHV.fd /usr/local/share/CLOUDHV.fd
+
+# Attaching a virtual machine to an existing TAP-device is the only privileged operation of this
+# container. The capability is given to the hypervisor-binary itself, so neither sakura nor the
+# container need to run as root. The container still has to carry CAP_NET_ADMIN in its bounding
+# set, which the docker-compose-file does with 'cap_add'.
+RUN setcap cap_net_admin+ep /usr/local/bin/cloud-hypervisor
 
 USER ainari
 WORKDIR /home/ainari
