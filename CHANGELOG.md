@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+### BREAKING-CHANGES
+
+#### EVERYTHING
+
+Complete rework of the project to give it more purpose:
+- outsources the old neural network core into the side-project: https://github.com/kitsudaiki/saki
+- integrated a first version of VM creation with the the cloud hypervisor
+- added new network layer to torii
+- added basic handling for networks, floating-ips, images and public-keys
+
+
+## v0.11.1
+
+(Changes since v0.11.0)
+
+### Changed
+
+- various dependency updates, also to fix vulnerabilities in these dependencies
+
 ## v0.11.0
 
 (Changes since v0.10.0)

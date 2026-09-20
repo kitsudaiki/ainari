@@ -10,16 +10,24 @@
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/codeql.yml?branch=develop&style=flat-square&label=CodeQL)](https://github.com/kitsudaiki/ainari/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
-# Currently under heavily reconstruction
+# **IMPORTANT**: Currently under heavy reconstruction
 
-## Supported Environment
+<img align="left" width="210" height="210" src="assets/wip.jpg">
+
+### **This project is currently under heavy reconstruction,** 
+### **by moving this project from an AIaaS to an IaaS**
+### **The old neural network core was outsourced to the side-project [Saki](https://github.com/kitsudaiki/saki)**
+### **Last version of this project with the old neural network core is v0.11.1**
+
+
+<!-- ## Supported Environment
 
 | Python-SDK                                  | Deployment                                          |
 | ------------------------------------------- | --------------------------------------------------- |
 | [![python-3_10][img_python-3_10]][workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][workflow] |
 | [![python-3_11][img_python-3_11]][workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][workflow] |
 | [![python-3_12][img_python-3_12]][workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][workflow] |
-|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][workflow] |
+|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][workflow] | -->
 
 ## Overview
 
@@ -30,7 +38,7 @@ Ainari is split into a micro-service architecture. See here for
   <img src="assets/ainari_overview.jpg" width="1500" height="700" />
 </p>
 
-## Getting started
+<!-- ## Getting started
 
 - [Example-Workflow](https://docs.ainari.cloud/user/cli_sdk/example_workflow/)
 
@@ -46,7 +54,7 @@ Ainari is split into a micro-service architecture. See here for
 
 - [Development-Guide](https://docs.ainari.cloud/developer/repo/development/)
 
-- [Dependency-Overview](https://docs.ainari.cloud/developer/repo/dependencies/)
+- [Dependency-Overview](https://docs.ainari.cloud/developer/repo/dependencies/) -->
 
 ## Pre-build objects
 
@@ -69,11 +77,11 @@ eMail: tobias.anker@kitsunemimi.moe
 The complete project is under
 [Apache 2 license](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE).
 
-[img_kubernetes-1_30]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
+<!-- [img_kubernetes-1_30]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
 [img_kubernetes-1_31]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
 [img_kubernetes-1_32]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
 [img_kubernetes-1_33]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
 [img_python-3_10]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_10/shields.json&style=flat-square
 [img_python-3_11]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_11/shields.json&style=flat-square
 [img_python-3_12]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_12/shields.json&style=flat-square
-[workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
+[workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml -->
