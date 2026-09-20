@@ -36,44 +36,27 @@
 
 ## Build sakura as docker-image
 
-### With docker-build
-
-Run `docker build -t <DOCKER_IMAGE_NAME> .`
+Run `docker build -f dockerfiles/Dockerfile_<COMPONENT> -t <DOCKER_IMAGE_NAME> .`
 
 !!! example
 
     ```bash
-    docker build -t sakura:test .
+    docker build -f dockerfiles/Dockerfile_sakura -t sakura:test .
     ```
-
-### With earthly
-
-- Install [earthly](https://github.com/earthly/earthly)
-
-- The code can be build as image like this:
-
-    ```bash
-    earthly +build-image --image_name=<DOCKER_IMAGE_NAME>
-    ```
-
-    !!! example
-
-        ```bash
-        earthly +build-image --image_name=sakura:test
-        ```
 
 ## Build CLI-client
 
-- Install [earthly](https://github.com/earthly/earthly)
+- Install [go](https://go.dev/doc/install) (the required version is defined in the
+    `go.mod`-file of the cli)
 
-- build protobuf-messages within the ainari_sdk directory
+- build the cli
 
     ```bash
-    earthly --artifact +compile-cli/tmp/ainarictl ./builds/
+    cd ./src/cli/ainarictl
+    go build .
     ```
 
-- then you have a new local directory `builds`, where the resulting binary of the build-process is
-    placed into
+- the resulting binary `ainarictl` is placed beside the sources within the same directory
 
 ## Build python-SDK as package
 
@@ -97,16 +80,15 @@ Run `docker build -t <DOCKER_IMAGE_NAME> .`
 ## Prechecks
 
 There are a bunch of pre-checks at the beginning of the CI-pipeline, which can fail and where it is
-useful to be able to run the same tests locally for debugging. Nearly all of them use
-[earthly](https://github.com/earthly/earthly)
+useful to be able to run the same tests locally for debugging.
 
 ### Flake8-check
 
-- run `earthly --ci +flake8`
+- run `pip3 install flake8` and then `flake8 src/sdk/python`
 
 ### Secret-scan
 
-- run `earthly --ci +secret-scan`
+- run `git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline`
 
 It is possible, that the check fails, even if there are no (new) secrets in the code and fails,
 because of some other code-movements. The check compares all to the `.secrets.baseline`-file, where
@@ -118,20 +100,20 @@ also line-numbers are marked. To update the file to get the test green again:
 
 <!-- ### Ansible-lint
 
--   run `earthly --ci +ansible-lint` -->
+-   run `ansible-lint deploy/ansible/ainari` -->
 
 ## Build docs
 
 - The documenation can be build as image like this:
 
     ```bash
-    earthly +build-docs --image_name=<DOCKER_IMAGE_NAME>
+    docker build -f dockerfiles/Dockerfile_docs -t <DOCKER_IMAGE_NAME> .
     ```
 
     !!! example
 
         ```bash
-        earthly +docs --image_name=ainari_docs:test
+        docker build -f dockerfiles/Dockerfile_docs -t ainari_docs:test .
         ```
 
 - The documentation listen on port 8000 within the docker-container. So the port has to be forwarded

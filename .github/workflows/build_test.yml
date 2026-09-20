@@ -20,13 +20,19 @@ jobs:
   #   env:
   #     FORCE_COLOR: 1
   #   steps:
-  #     - uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203
-  #       with:
-  #         version: v0.8.0
   #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-  #     - 
+  #     -
+  #       name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y python3 python3-pip python3-venv
+  #     -
   #       name: Run check
-  #       run: earthly --ci +ansible-lint
+  #       run: |
+  #         python3 -m venv lint_env
+  #         source lint_env/bin/activate
+  #         pip3 install ansible-lint
+  #         ansible-lint deploy/ansible/ainari
 
   clippy-check:
     name: cargo clippy
@@ -82,14 +88,24 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
-      -
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       -
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip python3-venv
+      -
         name: Run check
-        run: earthly --ci +flake8
+        run: |
+          python3 -m venv flake8_env
+          source flake8_env/bin/activate
+          pip3 install flake8
+          # generated protobuf-code and local build-output are no hand-written sources and are
+          # not checked here
+          rm -rf src/sdk/python/ainari_sdk/ainari_sdk/ainari_messages/proto3_pb2.py \
+                 src/sdk/python/ainari_sdk/ainari_env \
+                 src/sdk/python/ainari_sdk/build
+          flake8 src/sdk/python
 
 
 
@@ -316,9 +332,17 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget protobuf-compiler golang-goprotobuf-dev
+      -
+        name: Install Go
+        run: |
+          wget -c https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+          sudo tar -C /usr/local/ -xzf go1.25.0.linux-amd64.tar.gz
+          rm go1.25.0.linux-amd64.tar.gz
+          echo "/usr/local/go/bin" >> "${GITHUB_PATH}"
       -
         name: Checkout repository
         run: |
@@ -332,14 +356,14 @@ jobs:
       -
         name: Compile code
         run: |
-          cd ${GITHUB_REPOSITORY#*/}
-          earthly --artifact +compile-cli/tmp/ainarictl ./builds/
+          cd ${GITHUB_REPOSITORY#*/}/src/cli/ainarictl
+          go build .
       -
         name: Copy files
         run: |
           mkdir /tmp/ainarictl_build_result
           cd ${GITHUB_REPOSITORY#*/}
-          cp -r builds/ainarictl /tmp/ainarictl_build_result/
+          cp ./src/cli/ainarictl/ainarictl /tmp/ainarictl_build_result/
       -
         name: Create artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -356,11 +380,31 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
+      INTERNAL_API_KEY: test-internal-api-key
+      SAKURA_REGISTRATION_KEY: sakura-key
+      ONSEN_REGISTRATION_KEY: sakura-key
     steps:
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler gcc g++ ssh curl zstd pkg-config libssl-dev libsqlite3-dev
+          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
+      -
+        name: Install Rust Nightly
+        run: |
+          # the build-script of torii compiles the eBPF-programs of the datapath with the
+          # nightly-toolchain and requires rust-src for "-Z build-std=core"
+          rustup toolchain install nightly --profile minimal --component rust-src
+      -
+        name: Install bpf-linker
+        run: |
+          # linker, which is used to link the eBPF-programs of the datapath
+          curl -sSfLO https://github.com/aya-rs/bpf-linker/releases/latest/download/bpf-linker-x86_64-unknown-linux-musl.tar.zst
+          mkdir -p "${HOME}/.local/bin"
+          tar -xpf bpf-linker-x86_64-unknown-linux-musl.tar.zst -C "${HOME}/.local/bin"
+          rm bpf-linker-x86_64-unknown-linux-musl.tar.zst
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
       -
         name: Checkout repository
         run: |
@@ -372,10 +416,16 @@ jobs:
           git submodule init
           git submodule update --recursive
       -
-        name: Compile code
+        name: Prepare config-files
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly +test-ainari
+          sudo cp -r ./example_configs/ainari /etc/ainari
+      -
+        name: Run tests
+        run: |
+          cd ${GITHUB_REPOSITORY#*/}
+          # only one test-thread to avoid conflicts between tests, which access the same singleton
+          cargo test -- --test-threads=1
 
   python_version_test:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
@@ -984,10 +1034,6 @@ jobs:
         name: Check docker-tag
         run: echo "Docker-tag=$BRANCH_NAME"
       -
-        uses: earthly/actions-setup@b81a8e082d9fae6174210cfc6e54bd2feb124d94
-        with:
-          version: "latest"
-      -
         name: Checkout repository
         run: |
           # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
@@ -1001,7 +1047,9 @@ jobs:
         name: Build docs
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          earthly  +build-docs --image_name=${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }}
+          docker build -f dockerfiles/Dockerfile_docs \
+                       -t ${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }} \
+                       .
       -
         name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
