@@ -31,10 +31,9 @@ use crate::{handle_empty_response, handle_response};
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
 /// * `name` - Name of the virtual_machine to be created.
+/// * `network_uuid` - Uuid of the network, which the virtual_machine is attached to.
 /// * `number_of_cores` - Number of cpu-cores to assign to the virtual_machine.
 /// * `memory_size` - Amount of memory in bytes to assign to the virtual_machine.
-/// * `root_disk_path` - Optional path to the root-disk-image of the virtual_machine.
-/// * `seed_path` - Path to the cloud-init seed-image of the virtual_machine.
 /// * `internal_ip` - Internal address, which is assigned to the virtual_machine.
 /// * `tap_name` - Name of the TAP-device, which is attached to the virtual_machine.
 /// * `mac_address` - MAC-address of the network-interface of the virtual_machine.

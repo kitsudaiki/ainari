@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "checkpoint",
-    summary = "List checkpoint",
-    description = r###"List basic information of all checkpoint from the database."###,
+    summary = "List checkpoints",
+    description = r###"List basic information of all checkpoints from the database."###,
     error_code = 401,
     error_code = 500
 )]

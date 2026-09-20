@@ -97,6 +97,15 @@ async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     Ok(())
 }
 
+/// Deletes the temporary directory of an upload together with its content.
+///
+/// This is used for cleanup, so a failure is only logged and not reported back: the operation,
+/// which triggered the cleanup, already has its own result and must not be masked by an error of
+/// the cleanup itself.
+///
+/// # Arguments
+///
+/// * `target_dir_path` - Path of the temporary directory to delete
 fn remove_all(target_dir_path: &String) {
     // delete all temporary files
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {

@@ -30,9 +30,11 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "secret",
     summary = "Create new secret",
-    description = r###"Create new secret based on a secret-template."###,
+    description = r###"Create a new secret from the payload, which is provided by the request."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn create_secret(
@@ -53,13 +55,13 @@ pub async fn create_secret(
         .store(&secret_uuid, &body.secret_payload)
         .map_err(map_ainari_error_to_api_response)?;
 
-    // add new secret to datbase
+    // add new secret to database
     secret_table::add_new_secret(&secret_uuid, &body.name, &context).map_err(|e| {
         log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // get new created secret from database to get addtional information
+    // get new created secret from database to get additional information
     let secret = secret_table::get_secret(&secret_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("project", &secret_uuid, e))?;
 

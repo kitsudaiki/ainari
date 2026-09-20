@@ -30,9 +30,14 @@ use ainari_clients::quota::get_quota;
 #[api_operation(
     tag = "checkpoint",
     summary = "Initialize new checkpoint",
-    description = r###"Initialize  new checkpoint. This can only be done by an admin."###,
+    description = r###"Initialize a new checkpoint.
+
+Prepares the database-entry and the onsen, before the payload is uploaded.
+
+This is an internal call, which is protected by the internal api-key."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -86,6 +91,20 @@ pub async fn init_checkpoint(
     Ok(CreatedJson(resp))
 }
 
+/// Checks if the user is still allowed to create another checkpoint.
+///
+/// The current number of checkpoints of the user is counted in the database and compared against
+/// the maximum, which is defined by the quota of the user in the miko.
+///
+/// # Arguments
+///
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is still below the limit.
+/// * `Err(ErrorResponse::Conflict)` - The quota of the user is already exhausted.
+/// * `Err(ErrorResponse)` - The checkpoints could not be counted or the quota not be read.
 async fn check_checkpoint_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of checkpoints of the user
     let current_number_of_checkpoints =

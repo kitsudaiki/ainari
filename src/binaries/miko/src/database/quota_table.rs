@@ -156,6 +156,8 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 /// * `max_image` - Maximum number of images allowed
 /// * `max_checkpoint` - Maximum number of checkpoints allowed
 /// * `max_secret` - Maximum number of secrets allowed
+/// * `max_network` - Maximum number of networks allowed
+/// * `max_floating_ip` - Maximum number of floating ip-addresses allowed
 /// * `max_taskqueue` - Maximum number of task queues allowed
 /// * `context` - The user context containing authentication information
 ///
@@ -238,7 +240,7 @@ pub fn add_quota(quota: &QuotaEntry) -> QueryResult<usize> {
 ///
 /// # Arguments
 /// * `user_id` - The ID of the user to retrieve the quota for
-/// * `context` - The user context containing authentication information
+/// * `_` - The user context (unused, but kept for consistency with the other tables)
 ///
 /// # Returns
 /// - `Ok(QuotaEntry)` if the quota is found
@@ -297,6 +299,8 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// * `new_max_image` - New maximum number of images allowed
 /// * `new_max_checkpoint` - New maximum number of checkpoints allowed
 /// * `new_max_secret` - New maximum number of secrets allowed
+/// * `max_new_network` - New maximum number of networks allowed
+/// * `max_new_floating_ip` - New maximum number of floating ip-addresses allowed
 /// * `new_max_taskqueue` - New maximum number of task queues allowed
 /// * `context` - The user context containing authentication information
 ///

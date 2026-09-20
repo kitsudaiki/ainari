@@ -17,6 +17,8 @@ use std::fmt;
 
 // ==================================================================================================
 
+/// Result of a database-lookup, which reduces the diesel-errors to the two cases, the callers
+/// actually have to distinguish.
 pub enum DbError {
     NotFound,
     InternalError,
@@ -24,6 +26,10 @@ pub enum DbError {
 
 // ==================================================================================================
 
+/// Status-code of a call into the former C++-backend.
+///
+/// Leftover of the previous project-direction and currently unused, because no C++-code is called
+/// anymore.
 #[repr(i32)]
 #[derive(Debug, PartialEq)]
 pub enum ReturnStatus {
@@ -33,6 +39,15 @@ pub enum ReturnStatus {
 }
 
 impl ReturnStatus {
+    /// Converts the raw integer of a C++-call into a `ReturnStatus`.
+    ///
+    /// # Arguments
+    ///
+    /// * `val` - Raw status-value as returned by the C++-side
+    ///
+    /// # Returns
+    ///
+    /// The matching status, or `Error` for every value, which is not known.
     pub fn from_cpp(val: i32) -> Self {
         match val {
             0 => ReturnStatus::OK,
@@ -51,6 +66,9 @@ impl fmt::Display for ReturnStatus {
 
 // ==================================================================================================
 
+/// Type of an output-value of the former neural-network-backend.
+///
+/// Leftover of the previous project-direction and currently unused.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
 pub enum OutputType {
     #[default]
@@ -62,6 +80,9 @@ pub enum OutputType {
 
 // ==================================================================================================
 
+/// Type-tag of an object within a binary file of the former neural-network-backend.
+///
+/// Leftover of the previous project-direction and currently unused.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum ObjectType {
     Unknown,
@@ -74,6 +95,11 @@ pub enum ObjectType {
 }
 
 impl ObjectType {
+    /// Converts the type into the byte, which represents it within a binary file.
+    ///
+    /// # Returns
+    ///
+    /// The byte-representation of the type.
     pub fn to_u8(&self) -> u8 {
         match self {
             ObjectType::Unknown => 0,
@@ -86,6 +112,15 @@ impl ObjectType {
         }
     }
 
+    /// Converts a byte of a binary file back into its type.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - Byte-representation of the type
+    ///
+    /// # Returns
+    ///
+    /// The matching type, or None, if the byte belongs to no known type.
     pub fn from_u8(value: u8) -> Option<ObjectType> {
         match value {
             0 => Some(ObjectType::Unknown),

@@ -27,7 +27,7 @@ use ainari_common::functions::sha256_hash;
 #[api_operation(
     tag = "auth",
     summary = "Create Token",
-    description = r###"Create Token for given user credentials"###,
+    description = r###"Create a new access-token for the given user-credentials."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
@@ -89,6 +89,19 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     Ok(Json(response))
 }
 
+/// Parses the form-encoded body of a token-request.
+///
+/// The token-endpoint follows the oauth2-conventions, so the credentials arrive as
+/// `application/x-www-form-urlencoded` instead of json.
+///
+/// # Arguments
+///
+/// * `body` - The raw request-body
+///
+/// # Returns
+///
+/// * `Ok(OAuth2Request)` - The parsed request.
+/// * `Err(...)` - The body is not valid form-encoding or misses a required field.
 fn parse_oauth2_body(body: &str) -> Result<OAuth2Request, serde_urlencoded::de::Error> {
     serde_urlencoded::from_str(body)
 }

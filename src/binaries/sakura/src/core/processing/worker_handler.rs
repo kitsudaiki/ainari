@@ -27,13 +27,21 @@ lazy_static::lazy_static! {
 
 /// WorkerHandler manages a collection of worker threads for parallel task processing.
 ///
-/// This struct serves as a container for multiple WorkerThread virtual_machines, allowing centralized
+/// This struct serves as a container for multiple WorkerThread instances, allowing centralized
 /// management and coordination of worker threads.
 pub struct WorkerHandler {
     /// Vector containing all worker threads managed by this handler.
     pub worker_threads: Vec<WorkerThread>,
 }
 
+/// Hands a task over to one of the worker-threads.
+///
+/// The worker is chosen by the uuid of the resource, so all tasks of the same virtual machine
+/// always end up in the same queue and are processed one after another.
+///
+/// # Arguments
+///
+/// * `task` - The task to enqueue
 pub fn add_task_to_queue(task: Task) {
     let mut worker_handler = WORKER_HANDLER.lock().expect("mutex poisoned");
 
@@ -51,7 +59,7 @@ pub fn add_task_to_queue(task: Task) {
 /// configuration settings, then creates and initializes the worker threads.
 ///
 /// # Returns
-/// A new WorkerHandler virtual_machine with initialized worker threads.
+/// A new WorkerHandler with initialized worker threads.
 ///
 /// # Panics
 /// Panics if unable to determine the number of available CPU threads.

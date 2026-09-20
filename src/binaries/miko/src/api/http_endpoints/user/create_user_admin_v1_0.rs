@@ -31,6 +31,7 @@ use ainari_api_structs::user_structs::*;
     description = r###"Create new user. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -48,13 +49,13 @@ pub async fn create_user_admin(
     // check if user-id already exist
     check_if_id_exist_in_db("user", user_id, user_table::get_user(user_id, &context))?;
 
-    // add new quota for the user to datbase
+    // add new quota for the user to database
     quota_table::add_new_quota(user_id, 10, 10, 10, 10, 10, 10, 10, &context).map_err(|e| {
         log::error!("Failed to add quota for user with ID '{user_id}' to database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // add new user to datbase
+    // add new user to database
     user_table::add_new_user(
         user_id,
         &body.name,
@@ -69,7 +70,7 @@ pub async fn create_user_admin(
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // get new created user from database to get addtional information
+    // get new created user from database to get additional information
     let user = user_table::get_user(user_id, &context)
         .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
 

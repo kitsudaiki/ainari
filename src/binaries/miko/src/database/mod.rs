@@ -17,6 +17,15 @@ pub mod project_table;
 pub mod quota_table;
 pub mod user_table;
 
+/// Creates all database-tables of the service, if they not already exist.
+///
+/// Initializes the user-, project- and quota-tables in order. If one of them fails, the whole
+/// initialization fails, because the service can not work with an incomplete database.
+///
+/// # Returns
+///
+/// * `Ok(())` - All tables are available.
+/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize user-table
     match user_table::init_user_table() {

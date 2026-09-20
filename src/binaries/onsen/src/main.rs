@@ -21,6 +21,17 @@ mod server;
 use log::LevelFilter;
 use std::fs;
 
+/// Entrypoint of the onsen.
+///
+/// Storage-pool, which holds the payloads of the images and checkpoints. It provides no REST-api
+/// and is not reachable from the internet; the ryokan and the sakura talk to it over grpc.
+///
+/// Creates the storage-directory, registers this host on the ryokan and then hands over to the
+/// grpc-server, which blocks until the service is stopped.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();

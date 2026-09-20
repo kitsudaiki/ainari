@@ -48,7 +48,7 @@ pub struct MnistImage {
 ///
 /// # Returns
 ///
-/// A new Vec<f32> containing the converted values.
+/// A new `Vec<f32>` containing the converted values.
 fn convert_vec_u8_to_f32(vec_u8: &[u8]) -> Vec<f32> {
     vec_u8.iter().map(|&x| x as f32).collect()
 }

@@ -24,11 +24,9 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "checkpoint",
-    summary = "Get number of checkpoint of the user",
-    description = r###"Get number of checkpoint of the user from the database."###,
-    error_code = 400,
+    summary = "Get number of checkpoints of the user",
+    description = r###"Get number of checkpoints of the user from the database."###,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
 pub async fn get_checkpoint_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {

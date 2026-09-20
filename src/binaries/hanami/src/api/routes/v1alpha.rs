@@ -21,6 +21,11 @@ use crate::api::http_endpoints::network::*;
 use crate::api::http_endpoints::sakura_host::*;
 use crate::api::http_endpoints::virtual_machine::*;
 
+/// Builds the `/v1alpha`-scope with all endpoints of the hanami.
+///
+/// # Returns
+///
+/// The scope, which is registered on the http-server.
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(

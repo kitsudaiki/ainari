@@ -20,6 +20,16 @@ mod database;
 
 use log::LevelFilter;
 
+/// Entrypoint of the hanami.
+///
+/// Manages the sakura-hosts, the virtual networks and the floating ip-addresses.
+///
+/// Sets up the logging, initializes the database and then hands over to the http-server,
+/// which blocks until the service is stopped.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let enable_debug_log = config::CONFIG.debug;

@@ -30,9 +30,14 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "proxy",
     summary = "Register new proxy",
-    description = r###"Register new proxy."###,
+    description = r###"Register a new proxy.
+
+A free port from the configured port-range is selected for it and the proxy is
+added to the running proxy-handler."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn register_proxy_internal(
@@ -68,7 +73,7 @@ pub async fn register_proxy_internal(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // get new created proxy from database to get addtional information
+    // get new created proxy from database to get additional information
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
 

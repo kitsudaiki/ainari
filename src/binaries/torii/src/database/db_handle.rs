@@ -22,6 +22,18 @@ lazy_static::lazy_static! {
     pub static ref DB_CONN: Arc<Mutex<SqliteConnection>> = Arc::new(Mutex::new(establish_connection()));
 }
 
+/// Opens the connection to the sqlite-database of the service.
+///
+/// This is called once to fill the `DB_CONN`-singleton, which is shared by all tables.
+///
+/// # Returns
+///
+/// The open connection.
+///
+/// # Panics
+///
+/// Panics, if the database-file can not be opened, because the service can not work
+/// without its database.
 pub fn establish_connection() -> SqliteConnection {
     let file_path = config::CONFIG.database.file_path.clone();
     //let database_url = ":memory:".to_string();

@@ -22,6 +22,19 @@ use log::LevelFilter;
 use core::proxy_handler::*;
 use core::routing_interface::*;
 
+/// Entrypoint of the torii.
+///
+/// Gateway with its routes, proxies, packet-filters and NAT-configuration.
+///
+/// Sets up the logging, initializes the database and then hands over to the http-server,
+/// which blocks until the service is stopped.
+///
+/// The proxy-handler and the routing-state are restored from the database on startup, so the
+/// gateway serves the connections, which already existed before the restart.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();

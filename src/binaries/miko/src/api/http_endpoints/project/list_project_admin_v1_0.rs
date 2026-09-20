@@ -24,8 +24,10 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "project",
-    summary = "List project",
-    description = r###"List basic information of all project from the database. This can only be done by an admin."###,
+    summary = "List projects",
+    description = r###"List basic information of all projects from the database.
+
+This can only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]

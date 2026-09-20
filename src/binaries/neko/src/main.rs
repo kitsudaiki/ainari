@@ -30,10 +30,22 @@ use root_wrapper::{CommandRequest, CommandResponse};
 
 use crate::command_rules::COMMAND_RULES;
 
+/// Implementation of the root-wrapper-service, which checks every request against the allow-list
+/// before it is executed.
 #[derive(Debug, Default)]
 pub struct Checker;
 
 impl Checker {
+    /// Checks a requested command against the allow-list.
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd` - Command of the request
+    /// * `args` - Arguments of the request
+    ///
+    /// # Returns
+    ///
+    /// True, if at least one rule of the allow-list matches, else false.
     fn is_allowed(&self, cmd: &str, args: &[String]) -> bool {
         COMMAND_RULES.iter().any(|rule| rule.matches(cmd, args))
     }
@@ -41,6 +53,11 @@ impl Checker {
 
 #[tonic::async_trait]
 impl NekoRootWrapper for Checker {
+    /// Executes a command with root-privileges, if it is allowed by the policy.
+    ///
+    /// A rejected command is answered with a `permission_denied`-status. A command, which was
+    /// allowed but failed, is not an error of the call itself, so its exit-code and output are
+    /// returned within the response instead.
     async fn execute(
         &self,
         request: Request<CommandRequest>,
@@ -90,6 +107,15 @@ impl NekoRootWrapper for Checker {
     }
 }
 
+/// Entrypoint of the neko.
+///
+/// Small daemon, which runs with root-privileges and executes a fixed set of commands on behalf of
+/// the other services, so those do not have to run privileged themselves. It only listens on the
+/// loopback-interface, so it is not reachable from outside of the host.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the server fail to start.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();

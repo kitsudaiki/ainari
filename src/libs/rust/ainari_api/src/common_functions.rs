@@ -22,6 +22,19 @@ use ainari_clients::onsen_file_transfer;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
+/// Creates a directory and all necessary parent directories asynchronously.
+///
+/// Same as `create_directory_api`, but returns an `AinariError`, so it can be used outside of the
+/// endpoints, where no `ErrorResponse` is available yet.
+///
+/// # Arguments
+///
+/// * `path` - A string slice that holds the path to the directory to be created.
+///
+/// # Returns
+///
+/// * `Ok(())` if the directory was created successfully.
+/// * `Err(AinariError::InternalError)` if an error occurred during directory creation.
 pub async fn create_directory(path: &String) -> Result<(), AinariError> {
     match fs::create_dir_all(&path).await {
         Ok(_) => (),
@@ -176,6 +189,19 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
     }
 }
 
+/// Maps a database-error of a register-operation to the appropriate ErrorResponse.
+///
+/// The concrete error is only logged, because a failed registration is always a problem of the
+/// service itself and never something, the caller could fix.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being registered.
+/// * `_err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// An ErrorResponse with the generic internal error message.
 pub fn map_db_register_error(obj_type: &str, _err: enums::DbError) -> ErrorResponse {
     log::error!("Error while register {obj_type} with in db DB");
     ErrorResponse::InternalError("Internal Error".to_string())
@@ -231,6 +257,21 @@ pub fn map_db_uuid_get_delete_error(
     }
 }
 
+/// Maps database errors for get and delete operations using UUID to an AinariError.
+///
+/// Same as `map_db_uuid_get_delete_error`, but for the places, which work with an `AinariError`
+/// instead of an `ErrorResponse`. A missing object is reported as invalid input here, because it
+/// was addressed by a uuid, which the caller has provided.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being accessed.
+/// * `uuid` - A reference to a Uuid object.
+/// * `err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// An AinariError object corresponding to the database error.
 pub fn map_db_uuid_get_delete_ainari_error(
     obj_type: &str,
     uuid: &Uuid,

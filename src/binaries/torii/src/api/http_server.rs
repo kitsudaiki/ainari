@@ -31,6 +31,16 @@ use crate::config;
 
 use super::routes::v1alpha::v1alpha_routes;
 
+/// Starts the http-server of the torii.
+///
+/// The server is bound to a public and an internal address, so the internal endpoints can be
+/// kept away from the public interface. Beside the endpoints themselves, it also serves the
+/// generated openapi-specification and wraps all requests into the authorization- and
+/// cors-middleware.
+///
+/// # Returns
+///
+/// `Ok(())` after the server was stopped, or the error, which made the server fail to start.
 pub async fn run_server() -> Result<(), impl Error> {
     log::debug!("initialize server");
 

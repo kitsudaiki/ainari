@@ -29,7 +29,10 @@ use ainari_clients::secret::delete_secret;
 #[api_operation(
     tag = "checkpoint",
     summary = "Delete checkpoint",
-    description = r###"Delete a checkpoint from the database and core."###,
+    description = r###"Delete a checkpoint.
+
+The metadata is removed from the database, the payload from the onsen and the
+secret, which was used to encrypt the payload, from the omamori."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

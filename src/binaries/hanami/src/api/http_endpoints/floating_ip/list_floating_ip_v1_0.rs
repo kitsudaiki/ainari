@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "floating_ip",
-    summary = "List floating_ip",
-    description = r###"List basic information of all floating_ip from the database."###,
+    summary = "List floating_ips",
+    description = r###"List basic information of all floating_ips from the database."###,
     error_code = 401,
     error_code = 500
 )]

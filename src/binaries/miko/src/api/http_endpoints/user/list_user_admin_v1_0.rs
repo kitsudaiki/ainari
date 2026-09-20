@@ -24,8 +24,10 @@ use ainari_api_structs::user_structs::*;
 
 #[api_operation(
     tag = "user",
-    summary = "List user",
-    description = r###"List basic information of all user from the database. This can only be done by an admin."###,
+    summary = "List users",
+    description = r###"List basic information of all users from the database.
+
+This can only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]

@@ -24,8 +24,9 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "auth",
     summary = "Renew Token",
-    description = r###"Renew Token"###,
-    error_code = 400,
+    description = r###"Create a new access-token for the user of the current token,
+
+in order to extend the session."###,
     error_code = 401,
     error_code = 500
 )]

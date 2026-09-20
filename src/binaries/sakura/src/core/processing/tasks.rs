@@ -36,50 +36,49 @@ pub enum TaskVariant {
     CloudHypervisorVirtualMachineCreate(CloudHypervisorVirtualMachineCreateInfo),
 }
 
-/// Metadata for tracking the progress and state of a task.
-/// Includes counters for cycles and epochs, timestamps, and completion status.
+/// Metadata for tracking the state of a task.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct TaskMeta {
+    /// True, as soon as the task was processed to its end.
     pub is_finished: bool,
 }
 
 impl TaskMeta {
-    /// Creates a new TaskMeta virtual_machine with the given parameters.
-    ///
-    /// # Arguments
-    ///
-    /// * `number_of_cycler_per_epoch` - Total number of cycles per epoch.
-    /// * `number_of_epochs` - Total number of epochs.
-    /// * `time_length` - Time length for the task in seconds.
+    /// Creates a new TaskMeta for a task, which was not started yet.
     ///
     /// # Returns
     ///
-    /// A new TaskMeta virtual_machine initialized with the given parameters.
+    /// A new TaskMeta, which is marked as unfinished.
     pub fn new() -> Self {
         Self { is_finished: false }
     }
 }
 
 /// Represents a task that can be executed by the system.
-/// Contains a unique identifier, virtual_machine identifier, task information, and metadata.
 #[derive(Debug)]
 pub struct Task {
+    /// Unique identifier of the task itself.
     pub uuid: Uuid,
+    /// Identifier of the resource, which the task acts on. It also decides, which worker-thread
+    /// processes the task, so all tasks of the same resource are serialized.
     pub resouce_uuid: Uuid,
+    /// Type of the resource, which the task acts on.
     pub resource_type: TaskResourceType,
+    /// Human-readable name of the task.
     #[allow(dead_code)]
     pub name: String,
 
+    /// The concrete work of the task together with everything it needs for it.
     pub info: TaskVariant,
+    /// State of the task while it is processed.
     pub meta: TaskMeta,
 }
 
-/// Processes a worker task according to its type.
+/// Processes a worker task.
 ///
-/// This function handles the execution of the task based on its type (Train, Process, or Backpropagate).
-/// It performs the appropriate operation on the task's block and then finalizes the task.
-/// If the task requires updating a finish counter, it does so after finalization.
+/// Runs the task and finalizes it afterwards, which updates its state in the database. The
+/// concrete work depends on the variant of the task.
 ///
 /// # Arguments
 /// * `task` - A reference to the worker task to be processed
@@ -179,6 +178,17 @@ impl Task {
     }
 }
 
+/// Handles the task, which creates the virtual machine on this host.
+///
+/// A failure is only logged here, because the task-processing must not be stopped by a single
+/// virtual machine, which could not be created.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to create
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to create the virtual machine
 async fn handle_vm_creation(
     _task_uuid: &Uuid,
     virtual_machine_uuid: &Uuid,

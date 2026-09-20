@@ -27,6 +27,19 @@ use log::LevelFilter;
 
 use core::processing::worker_handler;
 
+/// Entrypoint of the sakura.
+///
+/// Runs and supervises the virtual machines of a single host.
+///
+/// Sets up the logging, initializes the database and then hands over to the http-server,
+/// which blocks until the service is stopped.
+///
+/// The temporary directory is cleared and the worker-handler is initialized on startup, so
+/// leftovers of a previous run are removed before new tasks are processed.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let enable_debug_log = config::CONFIG.debug;

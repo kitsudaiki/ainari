@@ -29,7 +29,10 @@ use ainari_clients::floating_ip as floating_ip_clients;
 #[api_operation(
     tag = "floating_ip",
     summary = "Delete floating_ip",
-    description = r###"Delete a floating_ip from the database and core."###,
+    description = r###"Delete a floating_ip.
+
+The NAT-configuration of the address is removed from the torii first, so the
+address is never released while the torii still translates it."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

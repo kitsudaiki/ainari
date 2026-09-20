@@ -24,11 +24,9 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "virtual_machine",
-    summary = "Get number of virtual_machine of the user",
-    description = r###"Get number of virtual_machine of the user from the database."###,
-    error_code = 400,
+    summary = "Get number of virtual_machines of the user",
+    description = r###"Get number of virtual_machines of the user from the database."###,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
 pub async fn get_virtual_machine_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {

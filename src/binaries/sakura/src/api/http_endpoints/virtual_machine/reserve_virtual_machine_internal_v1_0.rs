@@ -27,10 +27,13 @@ use ainari_api_structs::virtual_machine_structs::*;
 
 #[api_operation(
     tag = "virtual_machine",
-    summary = "Create new virtual_machine",
-    description = r###"Create new virtual_machine."###,
+    summary = "Reserve new virtual_machine",
+    description = r###"Reserve a new virtual_machine on this host,
+
+so its resources are blocked, before the create-task is queued."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn reserve_virtual_machine_internal(

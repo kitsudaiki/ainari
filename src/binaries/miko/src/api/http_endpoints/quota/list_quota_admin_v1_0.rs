@@ -24,8 +24,10 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "quota",
-    summary = "List quota",
-    description = r###"List basic information of all quota from the database. This can only be done by an admin."###,
+    summary = "List quotas",
+    description = r###"List basic information of all quotas from the database.
+
+This can only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]

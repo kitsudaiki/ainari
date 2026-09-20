@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "proxy",
-    summary = "List proxy",
-    description = r###"List basic information of all proxy from the database."###,
+    summary = "List proxies",
+    description = r###"List basic information of all proxies from the database."###,
     error_code = 401,
     error_code = 500
 )]

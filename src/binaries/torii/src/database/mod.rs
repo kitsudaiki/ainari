@@ -19,6 +19,15 @@ use std::io;
 
 use ainari_common::enums;
 
+/// Creates all database-tables of the service, if they not already exist.
+///
+/// Initializes the proxy-table in order. If one of them fails, the whole
+/// initialization fails, because the service can not work with an incomplete database.
+///
+/// # Returns
+///
+/// * `Ok(())` - All tables are available.
+/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize proxy-table
     match proxy_table::init_proxy_table() {

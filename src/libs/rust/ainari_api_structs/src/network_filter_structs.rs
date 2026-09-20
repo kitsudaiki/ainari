@@ -74,6 +74,7 @@ pub struct FilterEntry {
     pub filter: RouteFilterRules,
 }
 
+/// One entry of the ip include-list of a route, as an inclusive range.
 #[derive(Debug, Clone, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct IpRangeRule {
     pub spec: String,

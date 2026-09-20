@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "host",
-    summary = "List host",
-    description = r###"List basic information of all host from the database."###,
+    summary = "List hosts",
+    description = r###"List basic information of all hosts from the database."###,
     error_code = 401,
     error_code = 500
 )]

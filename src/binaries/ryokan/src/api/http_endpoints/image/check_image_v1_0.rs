@@ -42,7 +42,7 @@ use ainari_dataset::file_encryption::decrypt_file;
 #[api_operation(
     tag = "image",
     summary = "Check image",
-    description = r###"Check two images against each other to get the accurary compared to the reference."###,
+    description = r###"Check two images against each other to get the accuracy compared to the reference."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

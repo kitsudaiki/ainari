@@ -63,6 +63,10 @@ pub struct CheckpointEntry {
     pub deleted_by: Option<String>,
 }
 
+/// Creates the checkpoint-table, if it does not already exist.
+///
+/// # Returns
+/// * `Result<(), Box<dyn Error>>` - Ok, if the table is available, else the database-error
 pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
@@ -87,6 +91,21 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Builds a new checkpoint-entry from the given values and inserts it into the database.
+///
+/// The ownership-fields and the timestamps are filled from the user-context, so all entries are
+/// created in the same way.
+///
+/// # Arguments
+/// * `checkpoint_uuid` - The UUID of the new checkpoint
+/// * `checkpoint_name` - The name of the new checkpoint
+/// * `onsen_address` - The address of the onsen, where the payload is stored
+/// * `file_path` - The path of the payload on the onsen
+/// * `secret_uuid` - The UUID of the secret, which was used to encrypt the payload
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<usize>` - The number of rows affected by the insert operation
 pub fn add_new_checkpoint(
     checkpoint_uuid: &Uuid,
     checkpoint_name: &str,
@@ -115,6 +134,13 @@ pub fn add_new_checkpoint(
     add_checkpoint(&checkpoint)
 }
 
+/// Inserts an already built checkpoint-entry into the database.
+///
+/// # Arguments
+/// * `checkpoint` - The entry to insert
+///
+/// # Returns
+/// * `QueryResult<usize>` - The number of rows affected by the insert operation
 pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
@@ -124,6 +150,18 @@ pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a checkpoint from the database.
+///
+/// Only active checkpoints are returned, so an already deleted one is reported as not found. An
+/// admin sees every checkpoint, a project-admin all checkpoints of his project and every other
+/// user only his own ones.
+///
+/// # Arguments
+/// * `checkpoint_uuid` - The UUID of the checkpoint to retrieve
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<CheckpointEntry, enums::DbError>` - The requested checkpoint or an error
 pub fn get_checkpoint(
     checkpoint_uuid: &Uuid,
     context: &UserContext,
@@ -158,6 +196,15 @@ pub fn get_checkpoint(
     }
 }
 
+/// Lists all checkpoints, which are visible for the user.
+///
+/// Uses the same visibility-rules as `get_checkpoint`.
+///
+/// # Arguments
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<Vec<CheckpointEntry>>` - All visible checkpoints or a database-error
 pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
@@ -174,6 +221,16 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntr
     query.select(CheckpointEntry::as_select()).load(&mut *conn)
 }
 
+/// Counts the active checkpoints of the requesting user.
+///
+/// In contrast to `list_checkpoints` this always counts only the own checkpoints of the user, also
+/// for an admin, because the result is used to check the quota of that user.
+///
+/// # Arguments
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `QueryResult<i64>` - The number of checkpoints or a database-error
 pub fn count_checkpoints(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::checkpoints::dsl::*;
@@ -186,6 +243,18 @@ pub fn count_checkpoints(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Deletes a checkpoint from the database.
+///
+/// The entry is not removed, but only marked as deleted together with the timestamp and the user,
+/// who deleted it, so the history stays available. The checkpoint is read first, so a user can
+/// only delete a checkpoint, which he is allowed to see.
+///
+/// # Arguments
+/// * `checkpoint_uuid` - The UUID of the checkpoint to delete
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` - Ok, if the checkpoint was marked as deleted, else an error
 pub fn delete_checkpoint(
     checkpoint_uuid: &Uuid,
     context: &UserContext,

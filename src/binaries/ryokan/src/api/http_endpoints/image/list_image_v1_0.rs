@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "image",
-    summary = "List image",
-    description = r###"List basic information of all image from the database."###,
+    summary = "List images",
+    description = r###"List basic information of all images from the database."###,
     error_code = 401,
     error_code = 500
 )]
