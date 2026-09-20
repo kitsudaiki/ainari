@@ -18,9 +18,12 @@ from .access_context import AccessContext
 
 def get_host(context: AccessContext,
              host_uuid: str) -> dict:
+    """
+    Returns information of a sakura-host, which runs the virtual machines.
+    """
     path = f"/v1alpha/host/{host_uuid}/admin"
     return ainari_request.send_get_request(context,
-                                           context.miko_address,
+                                           context.hanami_address,
                                            path,
                                            "")
 
@@ -28,7 +31,7 @@ def get_host(context: AccessContext,
 def list_hosts(context: AccessContext) -> dict:
     path = "/v1alpha/host/admin"
     return ainari_request.send_get_request(context,
-                                           context.miko_address,
+                                           context.hanami_address,
                                            path,
                                            "")
 
@@ -37,7 +40,7 @@ def delete_host(context: AccessContext,
                 host_uuid: str):
     path = f"/v1alpha/host/{host_uuid}/admin"
     ainari_request.send_delete_request(context,
-                                       context.miko_address,
+                                       context.hanami_address,
                                        path,
                                        "")
 
@@ -45,4 +48,39 @@ def delete_host(context: AccessContext,
 def delete_all_hosts(context: AccessContext):
     body = list_hosts(context)["hosts"]
     for entry in body:
-        delete_host(context, entry["id"])
+        delete_host(context, entry["uuid"])
+
+
+def get_onsen_host(context: AccessContext,
+                   host_uuid: str) -> dict:
+    """
+    Returns information of an onsen-host, which stores the images and checkpoints.
+    """
+    path = f"/v1alpha/host/{host_uuid}/admin"
+    return ainari_request.send_get_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           "")
+
+
+def list_onsen_hosts(context: AccessContext) -> dict:
+    path = "/v1alpha/host/admin"
+    return ainari_request.send_get_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           "")
+
+
+def delete_onsen_host(context: AccessContext,
+                      host_uuid: str):
+    path = f"/v1alpha/host/{host_uuid}/admin"
+    ainari_request.send_delete_request(context,
+                                       context.ryokan_adress,
+                                       path,
+                                       "")
+
+
+def delete_all_onsen_hosts(context: AccessContext):
+    body = list_onsen_hosts(context)["hosts"]
+    for entry in body:
+        delete_onsen_host(context, entry["uuid"])

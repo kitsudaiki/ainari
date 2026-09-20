@@ -25,6 +25,14 @@ def list_images(context: AccessContext) -> dict:
                                            "")
 
 
+def get_image_count(context: AccessContext) -> dict:
+    path = "/v1alpha/image/count"
+    return ainari_request.send_get_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           "")
+
+
 def get_image(context: AccessContext,
                 image_uuid: str) -> dict:
     path = f"/v1alpha/image/{image_uuid}"

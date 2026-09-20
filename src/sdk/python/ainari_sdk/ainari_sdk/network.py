@@ -16,50 +16,50 @@ from . import ainari_request
 from .access_context import AccessContext
 
 
-def set_proxy(context: AccessContext,
-              target_address: str,
-              virtual_machine_uuid: str) -> dict:
+def create_network(context: AccessContext,
+                   name: str,
+                   subnet: str) -> dict:
     """
-    Registers a proxy-port on the torii, which forwards to the sakura-host of a virtual machine.
+    Creates a new network with the given name for the given subnet in CIDR-notation.
     """
-    path = "/v1alpha/proxy/internal"
+    path = "/v1alpha/network"
     json_body = {
-        "target_address": target_address,
-        "virtual_machine_uuid": virtual_machine_uuid,
+        "name": name,
+        "subnet": subnet,
     }
     return ainari_request.send_post_request(context,
-                                            context.torii_address,
+                                            context.hanami_address,
                                             path,
                                             json_body)
 
 
-def get_proxy(context: AccessContext,
-              proxy_uuid: str) -> dict:
-    path = f"/v1alpha/proxy/{proxy_uuid}"
+def get_network(context: AccessContext,
+                network_uuid: str) -> dict:
+    path = f"/v1alpha/network/{network_uuid}"
     return ainari_request.send_get_request(context,
-                                           context.torii_address,
+                                           context.hanami_address,
                                            path,
                                            "")
 
 
-def list_proxys(context: AccessContext) -> dict:
-    path = "/v1alpha/proxy"
+def list_networks(context: AccessContext) -> dict:
+    path = "/v1alpha/network"
     return ainari_request.send_get_request(context,
-                                           context.torii_address,
+                                           context.hanami_address,
                                            path,
                                            "")
 
 
-def delete_proxy(context: AccessContext,
-                 proxy_uuid: str):
-    path = f"/v1alpha/proxy/{proxy_uuid}/internal"
+def delete_network(context: AccessContext,
+                   network_uuid: str):
+    path = f"/v1alpha/network/{network_uuid}"
     ainari_request.send_delete_request(context,
-                                       context.torii_address,
+                                       context.hanami_address,
                                        path,
                                        "")
 
 
-def delete_all_proxys(context: AccessContext):
-    body = list_proxys(context)["proxys"]
+def delete_all_networks(context: AccessContext):
+    body = list_networks(context)["networks"]
     for entry in body:
-        delete_proxy(context, entry["uuid"])
+        delete_network(context, entry["uuid"])

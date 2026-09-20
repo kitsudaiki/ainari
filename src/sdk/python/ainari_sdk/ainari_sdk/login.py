@@ -85,3 +85,37 @@ def request_context(address: str,
     context = AccessContext(token, miko_address, hanami_address,
                             ryokan_address, omamori_address, torii_address, torii_base_address)
     return context
+
+
+def renew_token(context: AccessContext) -> dict:
+    """
+    Requests a new token for the user of the given access-context. The returned token has to be set
+    in a new context, because the context of this call is not modified.
+    """
+    path = "/v1alpha/token"
+    return ainari_request.send_put_request(context,
+                                           context.miko_address,
+                                           path,
+                                           {})
+
+
+def validate_token(context: AccessContext) -> dict:
+    """
+    Checks the token of the given access-context and returns the user-context of the token.
+    """
+    path = "/v1alpha/token"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
+
+
+def get_endpoints(context: AccessContext) -> dict:
+    """
+    Returns the addresses of the components of the backend.
+    """
+    path = "/v1alpha/endpoints"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
