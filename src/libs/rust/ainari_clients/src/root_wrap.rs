@@ -23,6 +23,16 @@ use root_wrapper::neko_root_wrapper_client::NekoRootWrapperClient;
 
 use ainari_common::error::*;
 
+/// Opens a connection to the neko-root-wrapper.
+///
+/// The neko runs as separate daemon with root-privileges and is only reachable on the loopback
+/// interface, so the services themselves do not have to run privileged in order to execute the few
+/// commands, which need it.
+///
+/// # Returns
+///
+/// * `Ok(NekoRootWrapperClient)` - The connected client.
+/// * `Err(AinariError::InternalError)` - The neko could not be reached.
 pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Channel>, AinariError>
 {
     NekoRootWrapperClient::connect("http://127.0.0.1:54515")
@@ -32,6 +42,24 @@ pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Cha
         })
 }
 
+/// Runs a single command with root-privileges over the neko-root-wrapper.
+///
+/// The command and its arguments are checked against the allow-list of the neko before they are
+/// executed, so only the known-good commands can be run this way. The command is executed without
+/// a shell, so the arguments are not expanded.
+///
+/// # Arguments
+///
+/// * `client` - Connected client of the neko-root-wrapper
+/// * `cmd` - Command to execute
+/// * `args` - Arguments of the command
+///
+/// # Returns
+///
+/// * `Ok(())` - The command was executed and returned successfully.
+/// * `Err(AinariError::InternalError)` - The neko was not reachable, rejected the command or the
+///   command itself failed. The message contains stderr of the command, if it has written
+///   something, else its exit-code.
 pub async fn run_root_cmd(
     client: &mut NekoRootWrapperClient<Channel>,
     cmd: &str,

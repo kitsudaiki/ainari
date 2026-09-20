@@ -311,12 +311,12 @@ fn get_highest_floating_ip(
     Ok(highest)
 }
 
-/// Adds a meta floating_ip_addr to the database.
+/// Adds a floating_ip-entry to the database.
 ///
 /// This is a helper function that performs the actual insertion of a FloatingIpEntry into the database.
 ///
 /// # Arguments
-/// * `floating_ip_addr` - The FloatingIpEntry to be inserted
+/// * `floating_ip` - The FloatingIpEntry to be inserted
 ///
 /// # Returns
 /// A QueryResult indicating the number of rows affected

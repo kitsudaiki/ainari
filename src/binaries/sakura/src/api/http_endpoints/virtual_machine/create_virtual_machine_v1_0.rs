@@ -34,9 +34,13 @@ use ainari_clients::endpoints::get_endpoints;
 #[api_operation(
     tag = "task",
     summary = "Create new virtual_machine",
-    description = r###"Create new train-task for a virtual_machine"###,
+    description = r###"Create a new task, which creates the virtual_machine.
+
+The image and the public-key of the request are stored on the reserved
+virtual_machine, before the task is queued."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn create_virtual_machine(
@@ -97,7 +101,7 @@ pub async fn create_virtual_machine(
         // super::remove_all(&temp_dir);
     })?;
 
-    // get new created task from database to get addtional information
+    // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 

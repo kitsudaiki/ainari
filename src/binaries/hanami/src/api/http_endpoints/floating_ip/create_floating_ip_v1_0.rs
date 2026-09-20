@@ -34,9 +34,12 @@ use ainari_clients::quota::get_quota;
 #[api_operation(
     tag = "floating_ip",
     summary = "Create new floating_ip",
-    description = r###"Create new floating_ip. If no floating ip-address is requested, a free one is selected."###,
+    description = r###"Create new floating_ip.
+
+If no floating ip-address is requested, a free one is selected."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -50,7 +53,7 @@ pub async fn create_floating_ip(
 
     check_quota(&context).await?;
 
-    // add new floating_ip to datbase and reserve the requested or a free floating ip-address for it
+    // add new floating_ip to database and reserve the requested or a free floating ip-address for it
     let (floating_ip_uuid, _) = floating_ip_table::add_new_floating_ip(
         &body.network_uuid,
         &body.internal_ip,
@@ -60,7 +63,7 @@ pub async fn create_floating_ip(
     )
     .map_err(|e| map_reserve_error(e, body.floating_ip.as_ref()))?;
 
-    // get new created floating_ip from database to get addtional information
+    // get new created floating_ip from database to get additional information
     let floating_ip_entrry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("project", &floating_ip_uuid, e))?;
 

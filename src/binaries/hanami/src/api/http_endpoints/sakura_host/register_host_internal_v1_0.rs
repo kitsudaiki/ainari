@@ -29,10 +29,14 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "host",
-    summary = "Register new host",
-    description = r###"Register new host."###,
+    summary = "Register new sakura-host",
+    description = r###"Register a new sakura-host.
+
+This is called by the sakura-host itself without user-interaction, so it requires
+no token, but is protected by the internal api-key and the registration-key."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn register_host_internal(
@@ -77,7 +81,7 @@ pub async fn register_host_internal(
         let _ = meta_virtual_machine_table::force_delete_meta_virtual_machine(uuid);
     }
 
-    // get new created host from database to get addtional information
+    // get new created host from database to get additional information
     let host_data = host_table::get_host(&host_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e))?;
 

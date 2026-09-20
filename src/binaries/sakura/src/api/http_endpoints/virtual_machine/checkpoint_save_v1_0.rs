@@ -32,8 +32,10 @@ use ainari_clients::endpoints::get_endpoints;
 
 #[api_operation(
     tag = "task",
-    summary = "Create new checkpoint-task",
-    description = r###"Create new checkpoint-task for a virtual_machine"###,
+    summary = "Create new checkpoint-save-task",
+    description = r###"Create a new task,
+
+which saves the current state of a virtual_machine as new checkpoint."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -90,7 +92,7 @@ pub async fn checkpoint_save_task(
     // };
     // super::super::task::add_task(task, &task_type, &context)?;
 
-    // get new created task from database to get addtional information
+    // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 

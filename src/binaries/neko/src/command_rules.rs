@@ -17,19 +17,36 @@ use std::sync::LazyLock;
 
 use crate::regex_rules::*;
 
-// Defines how an argument position is evaluated
+/// Defines how a single argument-position of a command is evaluated.
 pub enum ArgMatcher {
+    /// The argument has to be exactly this string.
     Exact(&'static str),
+    /// The argument has to match this regex, which is used for the values, that can not be
+    /// known in advance, like interface-names or ip-addresses.
     Regex(&'static Regex),
 }
 
-// Defines a command allowlist rule
+/// One entry of the allow-list, which describes a command together with the exact number and
+/// shape of its arguments.
 pub struct CommandRule {
     pub command: &'static str,
     pub args: Vec<ArgMatcher>,
 }
 
 impl CommandRule {
+    /// Checks if a requested command is covered by this rule.
+    ///
+    /// The number of arguments has to match exactly, so no additional argument can be smuggled
+    /// into an otherwise allowed command.
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd` - Command of the request
+    /// * `args` - Arguments of the request
+    ///
+    /// # Returns
+    ///
+    /// True, if the command and all of its arguments are matched by this rule, else false.
     pub fn matches(&self, cmd: &str, args: &[String]) -> bool {
         if self.command != cmd || self.args.len() != args.len() {
             return false;

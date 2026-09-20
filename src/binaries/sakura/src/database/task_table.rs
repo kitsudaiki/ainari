@@ -118,7 +118,8 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
 ///
 /// # Arguments
 /// * `task_uuid` - Unique identifier for the task
-/// * `resource_uuid` - Identifier for the associated virtual_machine
+/// * `resource_uuid` - Identifier for the associated resource
+/// * `resource_type` - Type of the associated resource
 /// * `task_name` - Name of the task
 /// * `task_type` - Type of the task
 /// * `context` - User context containing user ID and project ID

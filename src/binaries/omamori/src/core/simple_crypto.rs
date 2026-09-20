@@ -177,7 +177,7 @@ impl CryptoModule for SimpleCrypto {
         let key_b64 = &config::CONFIG.simple_crypto.key_b64;
         let encrypted_secret = self.encrypt(plaintext, key_b64)?;
 
-        // add new secret to datbase
+        // add new secret to database
         simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
             |_| {
                 AinariError::InternalError(format!(

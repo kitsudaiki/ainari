@@ -34,10 +34,25 @@ pub struct UserContext {
     pub is_project_admin: String,
 }
 
+/// Default for the token-field, which is not part of the payload of the jwt itself, but filled
+/// in afterwards.
 fn default_token() -> String {
     "".to_owned()
 }
 
+/// Reads the payload of a jwt into a `UserContext`.
+///
+/// The signature is deliberately not checked here: that is already done by the middleware, before
+/// the request reaches an endpoint, so this only unpacks the values again.
+///
+/// # Arguments
+///
+/// * `token` - The raw jwt in its `header.payload.signature`-form
+///
+/// # Returns
+///
+/// * `Ok(UserContext)` - The decoded payload together with the token itself.
+/// * `Err(...)` - The token has not three parts, or its payload is no valid base64 or json.
 fn decode_jwt_payload(token: &str) -> Result<UserContext, Box<dyn std::error::Error>> {
     // split into parts: header.payload.signature
     let parts: Vec<&str> = token.split('.').collect();

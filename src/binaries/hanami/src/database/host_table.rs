@@ -155,7 +155,7 @@ pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
 ///
 /// # Arguments
 /// * `host_address` - Network address of the host to retrieve
-/// * `context` - User context (not currently used in the query)
+/// * `_` - User context (not currently used in the query)
 ///
 /// # Returns
 /// * Ok(HostEntry) if a matching host is found
@@ -196,7 +196,7 @@ pub fn get_host_by_address(
 ///
 /// # Arguments
 /// * `host_uuid` - Unique identifier of the host to retrieve
-/// * `context` - User context (not currently used in the query)
+/// * `_` - User context (not currently used in the query)
 ///
 /// # Returns
 /// * Ok(HostEntry) if a matching host is found
@@ -228,7 +228,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
 /// This function retrieves all hosts that have an "ACTIVE" status.
 ///
 /// # Arguments
-/// * `context` - User context (not currently used in the query)
+/// * `_` - User context (not currently used in the query)
 ///
 /// # Returns
 /// * QueryResult containing a vector of HostEntry objects

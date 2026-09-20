@@ -22,8 +22,10 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "auth",
     summary = "Validate Token",
-    description = r###"Validate Token"###,
-    error_code = 400,
+    description = r###"Validate the access-token of the request.
+
+The check itself is done by the middleware, so a successful response means that
+the token is valid, and the content of the token is returned."###,
     error_code = 401,
     error_code = 500
 )]
@@ -31,7 +33,7 @@ pub async fn validate_token(
     context: UserContext,
 ) -> Result<Json<UserTokenValidateResp>, ErrorResponse> {
     let response = UserTokenValidateResp { context };
-    // HINT(kitsudaki): Here is not validation-code, even the funktion is named this way,
+    // HINT(kitsudaki): Here is not validation-code, even the function is named this way,
     // because it provides only the endpoint itself. The token-validation will be done
     // in the middleware, like for the other endpoints
     Ok(Json(response))

@@ -20,6 +20,11 @@ use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
 
+/// Builds the `/v1alpha`-scope with all endpoints of the ryokan.
+///
+/// # Returns
+///
+/// The scope, which is registered on the http-server.
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(

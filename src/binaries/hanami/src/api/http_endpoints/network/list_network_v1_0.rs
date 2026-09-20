@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "network",
-    summary = "List network",
-    description = r###"List basic information of all network from the database."###,
+    summary = "List networks",
+    description = r###"List basic information of all networks from the database."###,
     error_code = 401,
     error_code = 500
 )]

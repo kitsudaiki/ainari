@@ -17,6 +17,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use validator::ValidateLength;
 
+/// Wrapper around a string, which must not be leaked into logs or error-messages.
+///
+/// `Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even
+/// when it is part of a bigger struct, which is logged as a whole. The content is only reachable
+/// through `reveal`, which makes every intended access visible at the call-site.
 #[derive(Deserialize, Serialize, JsonSchema, Clone)]
 pub struct Secret(String);
 
@@ -45,6 +50,14 @@ impl From<&str> for Secret {
 }
 
 impl Secret {
+    /// Gives access to the wrapped content.
+    ///
+    /// This is the only way to read a secret, so every place, which really needs the plain value,
+    /// is easy to find.
+    ///
+    /// # Returns
+    ///
+    /// The wrapped string.
     pub fn reveal(&self) -> &str {
         &self.0
     }

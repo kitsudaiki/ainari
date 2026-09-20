@@ -28,6 +28,20 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::quota::get_quota;
 
+/// Checks if the user is still allowed to create another secret.
+///
+/// The current number of secrets of the user is counted in the database and compared against the
+/// maximum, which is defined by the quota of the user in the miko.
+///
+/// # Arguments
+///
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is still below the limit.
+/// * `Err(ErrorResponse::Conflict)` - The quota of the user is already exhausted.
+/// * `Err(ErrorResponse)` - The secrets could not be counted or the quota not be read.
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of secrets of the user
     let current_number_of_secrets = secret_table::count_secrets(context)

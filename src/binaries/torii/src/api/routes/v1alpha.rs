@@ -23,6 +23,11 @@ use crate::api::http_endpoints::network_interface::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::route::*;
 
+/// Builds the `/v1alpha`-scope with all endpoints of the torii.
+///
+/// # Returns
+///
+/// The scope, which is registered on the http-server.
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(

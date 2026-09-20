@@ -20,8 +20,21 @@ use crate::database::host_table::HostEntry;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 
+/// Selects the onsen-host, on which new files are stored.
+///
+/// The host is picked randomly out of all registered hosts. This is not a real scheduling yet, so
+/// neither the free space nor the load of the hosts is taken into account.
+///
+/// # Arguments
+///
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(HostEntry)` - The selected onsen-host.
+/// * `Err(ErrorResponse::InternalError)` - The hosts could not be read or no host is registered.
 pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
-    // list all avaialble hosts
+    // list all available hosts
     let hosts = match host_table::list_hosts(context) {
         Ok(hosts) => hosts,
         Err(e) => {
@@ -36,12 +49,12 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
-    // select first host
+    // pick one of the hosts at random
     let mut rng = rand::rng();
     let selected_host = if let Some(host) = hosts.choose(&mut rng) {
         host.clone()
     } else {
-        log::error!("No hosts with list-position 0 doesn't exist.");
+        log::error!("Failed to select a host out of the list of available hosts.");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 

@@ -30,6 +30,7 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn delete_user_admin(

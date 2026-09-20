@@ -28,9 +28,14 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "image",
     summary = "Initialize new image",
-    description = r###"Initialize  new image. This can only be done by an admin."###,
+    description = r###"Initialize a new image.
+
+Prepares the database-entry and the onsen, before the files are uploaded.
+
+This is an internal call, which is protected by the internal api-key."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]

@@ -19,6 +19,11 @@ use ainari_api::endpoints::*;
 use crate::api::http_endpoints::task::*;
 use crate::api::http_endpoints::virtual_machine::*;
 
+/// Builds the `/v1alpha`-scope with all endpoints of the sakura.
+///
+/// # Returns
+///
+/// The scope, which is registered on the http-server.
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(

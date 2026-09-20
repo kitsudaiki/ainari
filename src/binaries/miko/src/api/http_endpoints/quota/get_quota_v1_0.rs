@@ -26,7 +26,6 @@ use ainari_api_structs::user_context::UserContext;
     tag = "quota",
     summary = "Get quota",
     description = r###"Get information of user-quota from the database."###,
-    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500

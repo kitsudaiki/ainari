@@ -34,7 +34,7 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    /// Creates a new Proxy virtual_machine and starts listening on the specified address.
+    /// Creates a new Proxy and starts listening on the specified address.
     ///
     /// # Arguments
     ///
@@ -43,7 +43,7 @@ impl Proxy {
     ///
     /// # Returns
     ///
-    /// A new Proxy virtual_machine with the server running in the background.
+    /// A new Proxy with the server running in the background.
     pub async fn new(public_addr: &SocketAddr, sakura_addr: &str) -> Self {
         let (shutdown_tx, shutdown_rx) = watch::channel(());
 
@@ -74,7 +74,7 @@ impl Proxy {
 }
 
 impl Drop for Proxy {
-    /// Ensures the proxy is stopped when the Proxy virtual_machine is dropped.
+    /// Ensures the proxy is stopped when the Proxy is dropped.
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }

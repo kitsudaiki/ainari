@@ -212,11 +212,15 @@ pub struct TaskImageResultLink {
     pub hexagon: String,
 }
 
+/// Common access to the hexagon-name of the different image-link-structs.
+///
+/// Leftover of the previous project-direction and currently unused.
 pub trait ImageLink {
+    /// Returns the name of the hexagon, which the image is linked to.
     fn get_hexagon_name(&self) -> String;
 }
 
-// Implement the trait for both types
+// implemented for both link-types, so they can be handled the same way
 impl ImageLink for TaskImageLink {
     fn get_hexagon_name(&self) -> String {
         self.hexagon.clone()

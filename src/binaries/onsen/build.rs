@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Build-script, which generates the grpc-server of the onsen from the shared protobuf-definition,
+/// so client and server always use the same interface.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_prost_build::compile_protos(
         "../../libs/rust/ainari_clients/src/proto/onsen_upload.proto",

@@ -1,6 +1,11 @@
 use anyhow::{Context as _, anyhow};
 use aya_build::Toolchain;
 
+/// Build-script, which compiles the eBPF-programs of the torii.
+///
+/// The `torii-ebpf`-package is located through the cargo-metadata of the workspace and built with
+/// its own toolchain, so the resulting object can be embedded into the torii-binary and loaded at
+/// runtime.
 fn main() -> anyhow::Result<()> {
     let cargo_metadata::Metadata { packages, .. } = cargo_metadata::MetadataCommand::new()
         .no_deps()

@@ -153,24 +153,14 @@ pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
     diesel::insert_into(hosts).values(host).execute(&mut *conn)
 }
 
-/// Retrieves a single host from the database by its UUID.
+/// Retrieves a host from the database by its address.
 ///
-/// This function looks up a host by its UUID and ensures it is active.
-/// It handles various error cases and converts them to appropriate DbError variants.
-///
-/// # Arguments
-///
-/// * `host_uuid` - The UUID of the host to retrieve
-/// * `context` - The user context (unused in this function but maintained for consistency)
-///
-/// # Returns
-///
-/// * `Result<HostEntry, enums::DbError>` - The requested host if found, or an error
-///   Retrieves a host by its address.
+/// Only active hosts are returned, so an already deregistered one is reported as not found.
 ///
 /// # Arguments
 ///
 /// * `host_address` - Address of the host to retrieve
+/// * `_` - The user context (unused in this function but maintained for consistency)
 ///
 /// # Returns
 ///
@@ -204,6 +194,19 @@ pub fn get_host_by_address(
     }
 }
 
+/// Retrieves an onsen-host from the database.
+///
+/// Only active hosts are returned, so an already deregistered one is reported as not found. The
+/// hosts are part of the infrastructure and not owned by a user, so no ownership-filter is applied
+/// and the user-context is only taken for consistency with the other tables.
+///
+/// # Arguments
+///
+/// * `host_uuid` - The UUID of the host to retrieve
+///
+/// # Returns
+///
+/// * `Result<HostEntry, enums::DbError>` - The requested host or an error
 pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
@@ -231,7 +234,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
 ///
 /// # Arguments
 ///
-/// * `context` - The user context (unused in this function but maintained for consistency)
+/// * `_` - The user context (unused in this function but maintained for consistency)
 ///
 /// # Returns
 ///

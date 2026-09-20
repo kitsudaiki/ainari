@@ -32,6 +32,7 @@ use ainari_common::functions::{create_ssh_key_fingerprint, is_valid_ssh_public_k
     description = r###"Upload new ssh-public-key."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn upload_public_key(
@@ -58,7 +59,7 @@ pub async fn upload_public_key(
 
     let public_key_uuid = Uuid::new_v4();
 
-    // add new public-key to datbase
+    // add new public-key to database
     public_key_table::add_new_public_key(
         &public_key_uuid,
         &body.name,
@@ -71,7 +72,7 @@ pub async fn upload_public_key(
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // get new created public-key from database to get addtional information
+    // get new created public-key from database to get additional information
     let public_key_entry = public_key_table::get_public_key(&public_key_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("public_key", &public_key_uuid, e))?;
 

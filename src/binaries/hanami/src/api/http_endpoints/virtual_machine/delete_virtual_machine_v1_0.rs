@@ -31,7 +31,10 @@ use ainari_clients::virtual_machine as virtual_machine_clients;
 #[api_operation(
     tag = "virtual_machine",
     summary = "Delete virtual_machine",
-    description = r###"Delete a virtual_machine from the database and core."###,
+    description = r###"Delete a virtual_machine.
+
+It is deleted on its sakura-host, its metadata is removed from the database and
+the proxy, which is connected to it, is deleted on the torii."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

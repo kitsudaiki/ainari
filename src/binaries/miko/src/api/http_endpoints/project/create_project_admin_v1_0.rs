@@ -30,6 +30,7 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create new project. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -51,13 +52,13 @@ pub async fn create_project_admin(
         project_table::get_project(project_id, &context),
     )?;
 
-    // add new project to datbase
+    // add new project to database
     project_table::add_new_project(project_id, &body.name, &context).map_err(|e| {
         log::error!("Failed to add project with ID '{project_id}' to database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    // get new created project from database to get addtional information
+    // get new created project from database to get additional information
     let project = project_table::get_project(project_id, &context)
         .map_err(|e| map_db_id_get_delete_error("project", project_id, e))?;
 

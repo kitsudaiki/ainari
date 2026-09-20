@@ -22,6 +22,11 @@ use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::quota::*;
 use crate::api::http_endpoints::user::*;
 
+/// Builds the `/v1alpha`-scope with all endpoints of the miko.
+///
+/// # Returns
+///
+/// The scope, which is registered on the http-server.
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
         .service(

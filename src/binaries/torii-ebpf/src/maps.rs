@@ -34,7 +34,7 @@ pub static UPLINK_MAP: HashMap<u32, ArpProxy> = HashMap::with_max_entries(16, 0)
 
 /// Global switches of the datapath, indexed by the `CONFIG_*` constants.
 ///
-/// An array map is zero-initialised, so a gateway that never writes into it
+/// An array map is zero-initialized, so a gateway that never writes into it
 /// runs with every switch off - which is the split setup.
 #[map]
 pub static GATEWAY_CONFIG: Array<u32> = Array::with_max_entries(CONFIG_ENTRIES, 0);

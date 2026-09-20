@@ -23,8 +23,8 @@ use ainari_api_structs::virtual_machine_structs::*;
 
 #[api_operation(
     tag = "virtual_machine",
-    summary = "List virtual_machine",
-    description = r###"List basic information of all virtual_machine from the database."###,
+    summary = "List virtual_machines",
+    description = r###"List basic information of all virtual_machines from the database."###,
     error_code = 401,
     error_code = 500
 )]

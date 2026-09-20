@@ -24,9 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "endpoints",
-    summary = "Get ednpoints",
+    summary = "Get endpoints",
     description = r###"Get addresses and ports of all endpoints."###,
-    error_code = 400,
     error_code = 500
 )]
 pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorResponse> {

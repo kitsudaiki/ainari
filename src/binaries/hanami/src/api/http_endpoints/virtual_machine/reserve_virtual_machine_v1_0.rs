@@ -57,10 +57,14 @@ use ainari_common::config::{Endpoint, Endpoints};
 /// * `Err(ErrorResponse)` with an appropriate error on failure
 #[api_operation(
     tag = "virtual_machine",
-    summary = "Create new virtual_machine",
-    description = r###"Create new virtual_machine."###,
+    summary = "Reserve new virtual_machine",
+    description = r###"Reserve a new virtual_machine together with its address within the given network.
+
+The image and the public-key are not set here, but by the following create-call."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn reserve_virtual_machine(
@@ -110,7 +114,7 @@ pub async fn reserve_virtual_machine(
 /// * `Ok(HostEntry)` with a randomly selected host on success
 /// * `Err(ErrorResponse)` if there is no host or the hosts can not be read from the database
 fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
-    // list all avaialble hosts
+    // list all available hosts
     let hosts = host_table::list_hosts(context).map_err(|e| {
         log::error!("Failed to get list of hosts form database: '{e}'");
         ErrorResponse::InternalError("Internal Error".to_string())

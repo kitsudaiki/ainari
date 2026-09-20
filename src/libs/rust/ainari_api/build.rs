@@ -15,6 +15,11 @@
 use chrono::Local;
 use std::process::Command;
 
+/// Build-script, which makes the version-information of the build available to the binary.
+///
+/// The tag of the current commit is used as version, or the name of the branch, if the commit is
+/// not tagged. Together with the commit-hash and the compile-timestamp it is passed to the
+/// compiler as environment-variable, so the version-endpoint can report it at runtime.
 fn main() {
     let commit_hash = run_cmd(&["rev-parse", "--short", "HEAD"]);
 
@@ -46,6 +51,16 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 }
 
+/// Runs a git-command and returns its trimmed output.
+///
+/// # Arguments
+///
+/// * `args` - Arguments for the git-call
+///
+/// # Returns
+///
+/// The output of the command, or an empty string, if git is not available or the command failed.
+/// The build must not break, only because it runs outside of a git-checkout.
 fn run_cmd(args: &[&str]) -> String {
     Command::new("git")
         .args(args)

@@ -25,8 +25,11 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "quota",
-    summary = "Get quota",
-    description = r###"Get information of a quota from the database."###,
+    summary = "Set quota",
+    description = r###"Update the quota of a specific user.
+
+Only the values, which are not 0, are applied, so single limits can be changed
+without providing all of them. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

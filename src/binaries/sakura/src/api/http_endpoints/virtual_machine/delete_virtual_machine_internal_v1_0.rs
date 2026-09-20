@@ -26,7 +26,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "virtual_machine",
     summary = "Delete virtual_machine",
-    description = r###"Delete a virtual_machine from the database and core."###,
+    description = r###"Delete a virtual_machine from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

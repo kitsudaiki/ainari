@@ -28,7 +28,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "secret",
     summary = "Delete secret",
-    description = r###"Delete a secret from the database and core."###,
+    description = r###"Delete a secret from the database and its payload from the crypto-module."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -42,7 +42,7 @@ pub async fn delete_secret(
     secret_table::delete_secret(&secret_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
 
-    // delete secrete from crypto-module
+    // delete secret from crypto-module
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
         .delete(&secret_uuid)

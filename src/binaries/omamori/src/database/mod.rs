@@ -17,6 +17,15 @@ pub mod public_key_table;
 pub mod secret_table;
 pub mod simple_crypto_table;
 
+/// Creates all database-tables of the service, if they not already exist.
+///
+/// Initializes the public-key-, secret- and crypto-tables in order. If one of them fails, the whole
+/// initialization fails, because the service can not work with an incomplete database.
+///
+/// # Returns
+///
+/// * `Ok(())` - All tables are available.
+/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize host-table
     match secret_table::init_secret_table() {

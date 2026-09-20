@@ -36,6 +36,23 @@ lazy_static::lazy_static! {
     pub static ref GATEWAY_STATE_HANDLE: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
 }
 
+/// Loads the eBPF-datapath and builds the initial state of the gateway.
+///
+/// The compiled eBPF-object is embedded into the binary, so it is loaded from there, its maps are
+/// taken over and the programs are attached to the overlay- and underlay-interface. Attaching is
+/// skipped for an interface, which does not exist yet, so the torii can also start before the
+/// interfaces are configured.
+///
+/// This is called once to fill the `GATEWAY_STATE_HANDLE`-singleton.
+///
+/// # Returns
+///
+/// The state of the gateway with all eBPF-maps, which the endpoints modify at runtime.
+///
+/// # Panics
+///
+/// Panics, if the eBPF-object or one of its maps can not be loaded, because the torii can not
+/// forward any traffic without its datapath.
 pub fn init_routing() -> GatewayState {
     let overlay_iface = &CONFIG.network.overlay_iface;
     let underlay_iface = &CONFIG.network.underlay_iface;

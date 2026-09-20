@@ -42,6 +42,8 @@ use ainari_dataset::file_encryption::encrypt_file;
     description = r###"Create new image by uploading files."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn upload_binary(

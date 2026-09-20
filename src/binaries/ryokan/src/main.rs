@@ -26,6 +26,19 @@ use ainari_common::functions::clear_directory;
 
 use log::LevelFilter;
 
+/// Entrypoint of the ryokan.
+///
+/// Manages the onsen-hosts together with the images and checkpoints stored on them.
+///
+/// Sets up the logging, initializes the database and then hands over to the http-server,
+/// which blocks until the service is stopped.
+///
+/// The temporary directory is cleared on startup, so leftovers of a previous run are removed
+/// before new uploads are handled.
+///
+/// # Returns
+///
+/// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let enable_debug_log = config::CONFIG.debug;

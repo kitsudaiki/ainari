@@ -24,8 +24,8 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "secret",
-    summary = "List secret",
-    description = r###"List basic information of all secret from the database."###,
+    summary = "List secrets",
+    description = r###"List basic information of all secrets from the database."###,
     error_code = 401,
     error_code = 500
 )]

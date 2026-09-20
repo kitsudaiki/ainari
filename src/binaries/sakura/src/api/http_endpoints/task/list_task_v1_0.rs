@@ -27,9 +27,10 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "task",
     summary = "List tasks",
-    description = r###"List all tasks of a virtual_machine"###,
+    description = r###"List all tasks of a virtual_machine."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn list_task(

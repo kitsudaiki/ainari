@@ -33,9 +33,10 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "route",
     summary = "Register new route",
-    description = r###"Register new route."###,
+    description = r###"Register a new route and program it into the eBPF maps of the datapath."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
 pub async fn register_route_internal(

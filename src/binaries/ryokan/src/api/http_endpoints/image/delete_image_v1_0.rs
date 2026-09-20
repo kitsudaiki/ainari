@@ -30,6 +30,7 @@ use ainari_clients::secret::delete_secret;
     tag = "image",
     summary = "Delete image",
     description = r###"Delete an image from the database and files from the storage."###,
+    error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500

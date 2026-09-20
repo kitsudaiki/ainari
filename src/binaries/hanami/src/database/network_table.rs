@@ -100,8 +100,7 @@ pub fn init_network_table() -> Result<(), Box<dyn Error>> {
 /// # Arguments
 /// * `network_uuid` - The unique identifier for the meta network
 /// * `network_name` - The name of the meta network
-/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this network
-/// * `proxy_uuid` - The UUID of the proxy associated with this network
+/// * `subnet` - The subnet of the network in CIDR notation
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
