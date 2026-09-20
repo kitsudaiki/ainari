@@ -23,7 +23,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
 # jwt-token
-jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+# the aws_lc_rs backend is used instead of rust_crypto, because rust_crypto pulls in the `rsa`
+# crate, which is affected by RUSTSEC-2023-0071 (Marvin timing attack) without any planned fix.
+# exactly one of `aws_lc_rs` and `rust_crypto` must be enabled, otherwise jsonwebtoken can not
+# determine a crypto-provider and panics at runtime instead of failing to compile.
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 # config-file
 toml = "1.1"
 # singleton (like used for the config-variable)

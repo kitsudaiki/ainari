@@ -1,0 +1,19 @@
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0258 (h2 unbounded empty DATA frames, low severity DoS)
+    #
+    # h2 0.3 is reached only through `awc`, which depends on it unconditionally
+    # (`optional = false`) and additionally force-enables `actix-http/http2`, so it
+    # can not be dropped by disabling the `http2` feature of actix-web. There is no
+    # patched 0.3.x release and actix-http 3.13.6 still pins `^0.3.27`, so there is
+    # currently no version to upgrade to either.
+    #
+    # The services are not exposed to this: all servers bind plaintext via `.bind()`
+    # and actix-web negotiates HTTP/2 only through TLS ALPN, which means the h2 0.3
+    # code is never reached.
+    #
+    # Removing it requires replacing `awc` in `ainari_clients` with a client on
+    # hyper/h2 0.4 (already in the tree via tonic). Remove this entry once that
+    # migration is done, or once actix-http moves to h2 0.4.
+    "RUSTSEC-2026-0258",
+]
