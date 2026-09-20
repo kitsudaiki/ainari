@@ -16,8 +16,10 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::model::*;
+use crate::api::http_endpoints::floating_ip::*;
+use crate::api::http_endpoints::network::*;
 use crate::api::http_endpoints::sakura_host::*;
+use crate::api::http_endpoints::virtual_machine::*;
 
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
@@ -29,17 +31,46 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/model")
+            scope("/virtual_machine")
                 .service(
                     resource("")
-                        .route(post().to(create_model_v1_0::create_model))
-                        .route(get().to(list_model_v1_0::list_model)),
+                        .route(post().to(reserve_virtual_machine_v1_0::reserve_virtual_machine))
+                        .route(get().to(list_virtual_machine_v1_0::list_virtual_machine)),
                 )
-                .service(resource("/count").route(get().to(get_model_count_v1_0::get_model_count)))
                 .service(
-                    resource("/{model_uuid}")
-                        .route(get().to(get_model_v1_0::get_model))
-                        .route(delete().to(delete_model_v1_0::delete_model)),
+                    resource("/count")
+                        .route(get().to(get_virtual_machine_count_v1_0::get_virtual_machine_count)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}")
+                        .route(get().to(get_virtual_machine_v1_0::get_virtual_machine))
+                        .route(delete().to(delete_virtual_machine_v1_0::delete_virtual_machine)),
+                ),
+        )
+        .service(
+            scope("/network")
+                .service(
+                    resource("")
+                        .route(post().to(create_network_v1_0::create_network))
+                        .route(get().to(list_network_v1_0::list_network)),
+                )
+                .service(
+                    resource("/{network_uuid}")
+                        .route(get().to(get_network_v1_0::get_network))
+                        .route(delete().to(delete_network_v1_0::delete_network)),
+                ),
+        )
+        .service(
+            scope("/floating_ip")
+                .service(
+                    resource("")
+                        .route(post().to(create_floating_ip_v1_0::create_floating_ip))
+                        .route(get().to(list_floating_ip_v1_0::list_floating_ip)),
+                )
+                .service(
+                    resource("/{floating_ip_uuid}")
+                        .route(get().to(get_floating_ip_v1_0::get_floating_ip))
+                        .route(delete().to(delete_floating_ip_v1_0::delete_floating_ip)),
                 ),
         )
         .service(

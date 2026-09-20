@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -20,19 +21,86 @@ use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
 
+#[cfg(feature = "diesel")]
+use diesel::{AsExpression, FromSqlRow};
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub enum TaskResourceType {
+    VirtualMachine = 0,
+    Image = 1,
+    Volume = 2,
+}
+
+impl fmt::Display for TaskResourceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            TaskResourceType::VirtualMachine => "VirtualMachine",
+            TaskResourceType::Image => "Image",
+            TaskResourceType::Volume => "Volume",
+        };
+        write!(f, "{s}")
+    }
+}
+
+impl FromStr for TaskResourceType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "VirtualMachine" => Ok(TaskResourceType::VirtualMachine),
+            "Image" => Ok(TaskResourceType::Image),
+            "Volume" => Ok(TaskResourceType::Volume),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Varchar))]
 pub enum TaskType {
-    Train = 0,
-    Request = 1,
+    VirtualMachineCreate = 0,
+    VirtualMachineDelete = 1,
     CheckpointSave = 2,
     CheckpointRestore = 3,
+}
+
+#[cfg(feature = "diesel")]
+impl diesel::deserialize::FromSql<diesel::sql_types::Varchar, diesel::sqlite::Sqlite> for TaskType {
+    fn from_sql(
+        bytes: <diesel::sqlite::Sqlite as diesel::backend::Backend>::RawValue<'_>,
+    ) -> diesel::deserialize::Result<Self> {
+        let task_type_str = <String as diesel::deserialize::FromSql<
+            diesel::sql_types::Varchar,
+            diesel::sqlite::Sqlite,
+        >>::from_sql(bytes)?;
+
+        std::str::FromStr::from_str(&task_type_str).map_err(|_| {
+            // Diesel expects errors to be boxed, so we cast a String error using .into()
+            format!("Unrecognized task type in database: {}", task_type_str).into()
+        })
+    }
+}
+
+#[cfg(feature = "diesel")]
+impl diesel::serialize::ToSql<diesel::sql_types::Varchar, diesel::sqlite::Sqlite> for TaskType {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::sqlite::Sqlite>,
+    ) -> diesel::serialize::Result {
+        let task_type_str = self.to_string();
+        out.set_value(task_type_str);
+
+        // Tell Diesel that this value is NOT null
+        Ok(diesel::serialize::IsNull::No)
+    }
 }
 
 impl fmt::Display for TaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TaskType::Train => "TrainTask",
-            TaskType::Request => "RequestTask",
+            TaskType::VirtualMachineCreate => "VirtualMachineCreateTask",
+            TaskType::VirtualMachineDelete => "VirtualMachineDeleteTask",
             TaskType::CheckpointSave => "CheckpointSaveTask",
             TaskType::CheckpointRestore => "CheckpointRestoreTask",
         };
@@ -45,8 +113,8 @@ impl FromStr for TaskType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "TrainTask" => Ok(TaskType::Train),
-            "RequestTask" => Ok(TaskType::Request),
+            "VirtualMachineCreateTask" => Ok(TaskType::VirtualMachineCreate),
+            "VirtualMachineDeleteTask" => Ok(TaskType::VirtualMachineDelete),
             "CheckpointSaveTask" => Ok(TaskType::CheckpointSave),
             "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestore),
             _ => Err(()),
@@ -55,6 +123,8 @@ impl FromStr for TaskType {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema, ApiComponent)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Varchar))]
 pub enum TaskState {
     Created = 0,
     Queued = 1,
@@ -62,6 +132,39 @@ pub enum TaskState {
     Aborted = 3,
     Finished = 4,
     Error = 5,
+}
+
+#[cfg(feature = "diesel")]
+impl diesel::deserialize::FromSql<diesel::sql_types::Varchar, diesel::sqlite::Sqlite>
+    for TaskState
+{
+    fn from_sql(
+        bytes: <diesel::sqlite::Sqlite as diesel::backend::Backend>::RawValue<'_>,
+    ) -> diesel::deserialize::Result<Self> {
+        let task_state_str = <String as diesel::deserialize::FromSql<
+            diesel::sql_types::Varchar,
+            diesel::sqlite::Sqlite,
+        >>::from_sql(bytes)?;
+
+        std::str::FromStr::from_str(&task_state_str).map_err(|_| {
+            // Diesel expects errors to be boxed, so we cast a String error using .into()
+            format!("Unrecognized task state in database: {}", task_state_str).into()
+        })
+    }
+}
+
+#[cfg(feature = "diesel")]
+impl diesel::serialize::ToSql<diesel::sql_types::Varchar, diesel::sqlite::Sqlite> for TaskState {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, diesel::sqlite::Sqlite>,
+    ) -> diesel::serialize::Result {
+        let task_state_str = self.to_string();
+        out.set_value(task_state_str);
+
+        // Tell Diesel that this value is NOT null
+        Ok(diesel::serialize::IsNull::No)
+    }
 }
 
 impl fmt::Display for TaskState {
@@ -95,63 +198,42 @@ impl FromStr for TaskState {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskDatasetLink {
-    pub dataset_uuid: Uuid,
+pub struct TaskImageLink {
+    pub image_uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
-    pub dataset_column: String,
+    pub image_column: String,
     #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskDatasetResultLink {
+pub struct TaskImageResultLink {
     #[validate(length(min = 4, max = 127))]
     pub hexagon: String,
 }
 
-pub trait DatasetLink {
+pub trait ImageLink {
     fn get_hexagon_name(&self) -> String;
 }
 
 // Implement the trait for both types
-impl DatasetLink for TaskDatasetLink {
+impl ImageLink for TaskImageLink {
     fn get_hexagon_name(&self) -> String {
         self.hexagon.clone()
     }
 }
 
-impl DatasetLink for TaskDatasetResultLink {
+impl ImageLink for TaskImageResultLink {
     fn get_hexagon_name(&self) -> String {
         self.hexagon.clone()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCreateTrainReq {
-    #[validate(length(min = 4, max = 127))]
-    pub name: String,
-    #[validate(range(min = 1, max = 1000000))]
-    pub number_of_epochs: u64,
-    #[validate(range(min = 1, max = 100000000))]
-    pub time_length: Option<u64>,
-    #[validate(range(min = 0, max = 100000000))]
-    pub forecast_length: Option<u64>,
-    #[validate(nested, length(min = 1))]
-    pub inputs: Vec<TaskDatasetLink>,
-    #[validate(nested, length(min = 1))]
-    pub outputs: Vec<TaskDatasetLink>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCreateRequestReq {
-    #[validate(length(min = 4, max = 127))]
-    pub name: String,
-    #[validate(range(min = 1, max = 100000000))]
-    pub time_length: Option<u64>,
-    #[validate(nested, length(min = 1))]
-    pub inputs: Vec<TaskDatasetLink>,
-    #[validate(nested, length(min = 1))]
-    pub results: Vec<TaskDatasetResultLink>,
+pub struct VirtualMachineCreateTaskReq {
+    pub vm_uuid: Uuid,
+    pub image_uuid: Uuid,
+    pub public_key_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -173,15 +255,11 @@ pub struct TaskResp {
     pub name: String,
     pub task_type: TaskType,
     pub state: TaskState,
-    pub total_number_of_epochs: i64,
-    pub current_epoch: i64,
-    pub total_number_of_cycles: i64,
-    pub current_cycle: i64,
-    pub queued_at: Option<String>,
-    pub started_at: Option<String>,
-    pub finished_at: Option<String>,
-    pub error_message: Option<String>,
-    pub created_at: String,
+    pub queued_at: Option<DateTime<Utc>>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub messages: Vec<String>,
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
 }
 
@@ -191,8 +269,6 @@ pub struct TaskBasicResp {
     pub name: String,
     pub task_type: TaskType,
     pub state: TaskState,
-    pub total_number_of_epochs: i64,
-    pub current_epoch: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

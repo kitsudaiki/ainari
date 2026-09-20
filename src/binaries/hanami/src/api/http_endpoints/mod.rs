@@ -12,5 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod model;
+pub mod floating_ip;
+pub mod network;
 pub mod sakura_host;
+pub mod virtual_machine;

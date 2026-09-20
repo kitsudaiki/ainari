@@ -24,105 +24,42 @@ import (
 	"fmt"
 )
 
-type TaskInput struct {
-	HexagonName        string `json:"hexagon"`
-	DatasetColumnName  string `json:"dataset_column"`
-	DatasetUuid        string `json:"dataset_uuid"`
-}
-
-type TaskResult struct {
-	HexagonName        string `json:"hexagon"`
-	DatasetColumnName  string `json:"dataset_column"`
-}
-
-func CreateTrainTask(context AccessContext, toriiPort int, name, modelUuid string, inputs, outputs []TaskInput, number_of_epochs, timeLenght int) (map[string]interface{}, error) {
+func CreateCheckpointSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-    var inputArray []interface{}
-    for _, input := range inputs {
-        inputArray = append(inputArray, input)
-    }
-
-    var outputArray []interface{}
-    for _, output := range outputs {
-        outputArray = append(outputArray, output)
-    }
-
-	path := fmt.Sprintf("v1alpha/model/%s/task/train", modelUuid)
-	jsonBody := map[string]interface{}{
-		"name":             name,
-		"number_of_epochs": number_of_epochs,
-		"inputs":           inputArray,
-		"outputs":          outputArray,
-		"time_length":      timeLenght,
-	}
-	return SendPost(context, address, path, jsonBody)
-}
-
-func CreateRequestTask(context AccessContext, toriiPort int, name, modelUuid string, inputs []TaskInput, results []TaskResult, timeLenght int) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	var inputArray []interface{}
-    for _, input := range inputs {
-        inputArray = append(inputArray, input)
-    }
-
-    var resultArray []interface{}
-    for _, result := range results {
-        resultArray = append(resultArray, result)
-    }
-
-	path := fmt.Sprintf("v1alpha/model/%s/task/request", modelUuid)
-	jsonBody := map[string]interface{}{
-		"name":         name,
-		"inputs":       inputArray,
-		"results":      resultArray,
-		"time_length":  timeLenght,
-	}
-	return SendPost(context, address, path, jsonBody)
-}
-
-func CreateCheckpointSaveTask(context AccessContext, toriiPort int, name, modelUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task/checkpoint_save", modelUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_save", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
 	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, modelUuid, checkpointUuid string) (map[string]interface{}, error) {
+func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, virtual_machineUuid, checkpointUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task/checkpoint_restore", modelUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
-		"name": name,
+		"name":            name,
 		"checkpoint_uuid": checkpointUuid,
 	}
 	return SendPost(context, address, path, jsonBody)
 }
 
-func GetTask(context AccessContext, toriiPort int, taskUuid, modelUuid string) (map[string]interface{}, error) {
+func GetTask(context AccessContext, toriiPort int, taskUuid, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task/%s", modelUuid, taskUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task/%s", virtual_machineUuid, taskUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, address, path, vars)
 }
 
-func ListTask(context AccessContext, toriiPort int, modelUuid string) (map[string]interface{}, error) {
+func ListTask(context AccessContext, toriiPort int, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task", modelUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task", virtual_machineUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, address, path, vars)
 }
 
-func DeleteTask(context AccessContext, toriiPort int, taskUuid, modelUuid string) (map[string]interface{}, error) {
+func AbortTask(context AccessContext, toriiPort int, taskUuid, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task/%s", modelUuid, taskUuid)
-	vars := map[string]interface{}{}
-	return SendDelete(context, address, path, vars)
-}
-
-func AbortTask(context AccessContext, toriiPort int, taskUuid, modelUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/model/%s/task/%s/abort", modelUuid, taskUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task/%s/abort", virtual_machineUuid, taskUuid)
 	vars := map[string]interface{}{}
 	return SendPut(context, address, path, vars)
 }

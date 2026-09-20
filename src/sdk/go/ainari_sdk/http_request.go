@@ -77,6 +77,14 @@ func SendDelete(context AccessContext, address, path string, vars map[string]int
 	return sendGenericRequest(address, context.token, "DELETE", completePath, nil, context.skipTlsVerification)
 }
 
+// SendDeleteWithBody sends a DELETE request to the specified path with the given JSON body.
+// It is used by the endpoints which describe what has to be removed in the body instead of
+// addressing it completely by the path.
+// It uses the provided AccessContext for authentication and TLS configuration.
+func SendDeleteWithBody(context AccessContext, address, path string, jsonBody map[string]interface{}) (map[string]interface{}, error) {
+	return sendGenericRequest(address, context.token, "DELETE", path, &jsonBody, context.skipTlsVerification)
+}
+
 // prepareVars constructs a query string from the given map of variables.
 // It converts each value to a string and joins them with '&' characters.
 func prepareVars(vars map[string]interface{}) string {

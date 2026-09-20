@@ -13,3 +13,7 @@ file_path = "/etc/ainari/hanami_db"
 
 [miko]
 address = "http://127.0.0.1:11417"
+
+[network]
+# range of the floating ip-addresses, which are handed out to the virtual machines
+floating_ip_cidr = "10.0.0.0/24"

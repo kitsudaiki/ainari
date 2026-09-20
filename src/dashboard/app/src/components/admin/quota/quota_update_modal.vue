@@ -23,17 +23,17 @@
 
             <div class="modal-content">
                 <div class="field-row">
-                    <label for="maxModel">Maximum Model: </label>
+                    <label for="maxInstance">Maximum Instance: </label>
                     <input
                         class="number-input"
-                        id="maxModel"
-                        v-model.number="quota.max_model"
+                        id="maxInstance"
+                        v-instance.number="quota.max_instance"
                         type="number"
                         :min="0"
-                        :class="{ invalid_input: quotaModelError }"
+                        :class="{ invalid_input: quotaInstanceError }"
                     />
                 </div>
-                <p v-if="quotaModelError" class="error-msg">
+                <p v-if="quotaInstanceError" class="error-msg">
                     Minimum quota must be a positive number
                 </p>
                 <br />
@@ -42,7 +42,7 @@
                     <input
                         class="number-input"
                         id="maxDataset"
-                        v-model.number="quota.max_dataset"
+                        v-instance.number="quota.max_dataset"
                         type="number"
                         :min="1"
                         :class="{ invalid_input: quotaDatasetError }"
@@ -57,7 +57,7 @@
                     <input
                         class="number-input"
                         id="maxCheckpoint"
-                        v-model.number="quota.max_checkpoint"
+                        v-instance.number="quota.max_checkpoint"
                         type="number"
                         :min="0"
                         :class="{ invalid_input: quotaCheckpointError }"
@@ -72,7 +72,7 @@
                     <input
                         class="number-input"
                         id="maxSecret"
-                        v-model.number="quota.max_secret"
+                        v-instance.number="quota.max_secret"
                         type="number"
                         :min="0"
                         :class="{ invalid_input: quotaSecretError }"
@@ -87,7 +87,7 @@
                     <input
                         class="number-input"
                         id="maxTaskqueue"
-                        v-model.number="quota.max_taskqueue"
+                        v-instance.number="quota.max_taskqueue"
                         type="number"
                         :min="0"
                         :class="{ invalid_input: quotaTaskqueueError }"
@@ -126,7 +126,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 interface Props {
     quota: {
         user_id: string;
-        max_model: number;
+        max_instance: number;
         max_dataset: number;
         max_checkpoint: number;
         max_secret: number;
@@ -141,7 +141,7 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const quotaModelError = ref(false);
+const quotaInstanceError = ref(false);
 const quotaDatasetError = ref(false);
 const quotaCheckpointError = ref(false);
 const quotaSecretError = ref(false);
@@ -149,20 +149,20 @@ const quotaTaskqueueError = ref(false);
 
 async function handleAccept(quota: {
     user_id: string;
-    max_model: number;
+    max_instance: number;
     max_dataset: number;
     max_checkpoint: number;
     max_secret: number;
     max_taskqueue: number;
 }) {
-    quotaModelError.value = quota.max_model < 0;
+    quotaInstanceError.value = quota.max_instance < 0;
     quotaDatasetError.value = quota.max_dataset < 0;
     quotaCheckpointError.value = quota.max_checkpoint < 0;
     quotaSecretError.value = quota.max_secret < 0;
     quotaTaskqueueError.value = quota.max_taskqueue < 0;
 
     if (
-        quotaModelError.value ||
+        quotaInstanceError.value ||
         quotaDatasetError.value ||
         quotaCheckpointError.value ||
         quotaSecretError.value ||
@@ -180,7 +180,7 @@ async function handleAccept(quota: {
         await miko_api.put(
             `/v1alpha/quota/${quota.user_id}/admin`,
             {
-                max_model: quota.max_model,
+                max_instance: quota.max_instance,
                 max_dataset: quota.max_dataset,
                 max_checkpoint: quota.max_checkpoint,
                 max_secret: quota.max_secret,

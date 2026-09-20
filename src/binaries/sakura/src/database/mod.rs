@@ -13,30 +13,30 @@
 // limitations under the License.
 
 pub mod db_handle;
-pub mod model_table;
 pub mod task_table;
+pub mod virtual_machine_table;
 
 use std::io;
 
 use ainari_common::enums;
 
-/// Initializes the database by setting up required tables and clearing existing model data.
+/// Initializes the database by setting up required tables and clearing existing virtual_machine data.
 ///
 /// This function performs several critical operations:
-/// 1. Initializes the model table in the database.
+/// 1. Initializes the virtual_machine table in the database.
 /// 2. Initializes the task table in the database.
-/// 3. Clears all existing model data from the database to ensure consistency after a restart.
+/// 3. Clears all existing virtual_machine data from the database to ensure consistency after a restart.
 ///
 /// # Returns
 ///
 /// * `Ok(())` - If all database operations complete successfully.
 /// * `Err(Box<dyn std::error::Error>)` - If any database operation fails.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize model-table
-    match model_table::init_model_table() {
-        Ok(_) => log::info!("Initialized model-database-table"),
+    // Initialize virtual_machine-table
+    match virtual_machine_table::init_virtual_machine_table() {
+        Ok(_) => log::info!("Initialized virtual_machine-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize model-database-table: {e}");
+            log::error!("Failed to initialize virtual_machine-database-table: {e}");
             return Err(e);
         }
     };
@@ -49,13 +49,13 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Clear all model from the database. This is necessary because after a restart,
-    // all models are broken and the database doesn't match the real world.
-    // To "fix" this issue, all models have to be removed from the database as well.
-    match model_table::delete_all_model() {
+    // Clear all virtual_machine from the database. This is necessary because after a restart,
+    // all virtual_machines are broken and the database doesn't match the real world.
+    // To "fix" this issue, all virtual_machines have to be removed from the database as well.
+    match virtual_machine_table::delete_all_virtual_machine() {
         Ok(_) => {}
         Err(enums::DbError::InternalError) => {
-            let msg = "Error while deleting all model from DB".to_string();
+            let msg = "Error while deleting all virtual_machine from DB".to_string();
             log::error!("{msg}");
             let error = io::Error::other(msg);
             return Err(Box::new(error));

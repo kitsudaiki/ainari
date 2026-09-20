@@ -23,7 +23,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-model="form.taskName"
+                        v-instance="form.taskName"
                         type="text"
                         placeholder="Task-Name"
                         :class="{ invalid_input: taskNameError }"
@@ -70,7 +70,7 @@
                                 <label>Input-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.model_inputs"
+                                        v-for="itemName in form.instance_inputs"
                                         :key="itemName"
                                         ref="inputItems"
                                         :itemName="itemName"
@@ -83,7 +83,7 @@
                                 <label>Output-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.model_outputs"
+                                        v-for="itemName in form.instance_outputs"
                                         :key="itemName"
                                         ref="outputItems"
                                         :itemName="itemName"
@@ -99,7 +99,7 @@
                                 <label>Input-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskIoItem
-                                        v-for="itemName in form.model_inputs"
+                                        v-for="itemName in form.instance_inputs"
                                         :key="itemName"
                                         ref="inputItems"
                                         :itemName="itemName"
@@ -112,7 +112,7 @@
                                 <label>Output-Mapping:</label>
                                 <div class="scroll-container">
                                     <TaskResultItem
-                                        v-for="itemName in form.model_outputs"
+                                        v-for="itemName in form.instance_outputs"
                                         :key="itemName"
                                         ref="resultItems"
                                         :itemName="itemName"
@@ -127,7 +127,7 @@
                         <h5>Select checkpoint:</h5>
                         <br />
                         <select
-                            v-model="selectedCheckpointUuid"
+                            v-instance="selectedCheckpointUuid"
                             class="select-dropdown"
                         >
                             <option
@@ -146,7 +146,7 @@
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(model_uuid, torii_port)"
+                        @click="handleAccept(instance_uuid, torii_port)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -173,12 +173,12 @@ import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 /**
- * @property model_uuid - Unique identifier for the model
+ * @property instance_uuid - Unique identifier for the instance
  * @property torii_port - Port number for the Torii service
  * @property icons - Object containing icon paths for UI elements
  */
 interface Props {
-    model_uuid: string;
+    instance_uuid: string;
     torii_port: number;
     icons: { acceptIcon: string; cancelIcon: string };
 }
@@ -202,18 +202,18 @@ const form = reactive({
     inputMapping: "",
     outputMapping: "",
     taskName: "",
-    model_inputs: [],
-    model_outputs: [],
+    instance_inputs: [],
+    instance_outputs: [],
     datasets: [],
 });
 
 /**
  * Handles the accept action for creating a new task
 
- * @param model_uuid - Model UUID
+ * @param instance_uuid - Instance UUID
  * @param torii_port - Torii service port
  */
-async function handleAccept(model_uuid: string, torii_port: number) {
+async function handleAccept(instance_uuid: string, torii_port: number) {
     // Validate task name length
     taskNameError.value = form.taskName.length < 4;
 
@@ -233,7 +233,7 @@ async function handleAccept(model_uuid: string, torii_port: number) {
             });
 
             const response = await sakura_api.post(
-                `/v1alpha/model/${model_uuid}/task/train`,
+                `/v1alpha/instance/${instance_uuid}/task/train`,
                 {
                     name: form.taskName,
                     number_of_epochs: 1,
@@ -259,7 +259,7 @@ async function handleAccept(model_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/model/${model_uuid}/task/request`,
+                `/v1alpha/instance/${instance_uuid}/task/request`,
                 {
                     name: form.taskName,
                     inputs: inputs,
@@ -280,7 +280,7 @@ async function handleAccept(model_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/model/${model_uuid}/task/checkpoint_save`,
+                `/v1alpha/instance/${instance_uuid}/task/checkpoint_save`,
                 {
                     name: form.taskName,
                 },
@@ -298,7 +298,7 @@ async function handleAccept(model_uuid: string, torii_port: number) {
             });
 
             await sakura_api.post(
-                `/v1alpha/model/${model_uuid}/task/checkpoint_restore`,
+                `/v1alpha/instance/${instance_uuid}/task/checkpoint_restore`,
                 {
                     name: form.taskName,
                     checkpoint_uuid: selectedCheckpointUuid.value,
@@ -396,9 +396,9 @@ async function fetchCheckpoints() {
 }
 
 /**
- * Fetches model input and output information from the Hanami service
+ * Fetches instance input and output information from the Hanami service
  */
-async function fetchModelIo() {
+async function fetchInstanceIo() {
     try {
         const authContext = getAuthContext();
 
@@ -407,18 +407,18 @@ async function fetchModelIo() {
         });
 
         const resp = await hanami_api.get(
-            `/v1alpha/model/${props.model_uuid}`,
+            `/v1alpha/instance/${props.instance_uuid}`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
 
-        form.model_inputs = resp.data.inputs;
-        form.model_outputs = resp.data.outputs;
+        form.instance_inputs = resp.data.inputs;
+        form.instance_outputs = resp.data.outputs;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load model input- and output-names",
+            "Failed to load instance input- and output-names",
         );
     }
 }
@@ -445,7 +445,7 @@ async function fetchDatasets() {
 }
 
 // Initialize component by fetching required data when mounted
-onMounted(fetchModelIo);
+onMounted(fetchInstanceIo);
 onMounted(fetchDatasets);
 onMounted(fetchCheckpoints);
 </script>

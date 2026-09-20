@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-docker build -f dockerfiles/Dockerfile_ainari_base -t kitsudaiki/ainari_base:latest .
+docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:local_test .
 
 docker build -f dockerfiles/Dockerfile_hanami    -t kitsudaiki/hanami:local_test .
 docker build -f dockerfiles/Dockerfile_miko      -t kitsudaiki/miko:local_test .

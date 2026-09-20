@@ -5,24 +5,71 @@ members = [
     "src/binaries/miko", 
     "src/binaries/ryokan", 
     "src/binaries/torii", 
+    "src/binaries/torii-ebpf", 
     "src/binaries/omamori", 
     "src/binaries/onsen", 
+    "src/binaries/neko", 
+    "src/libs/rust/torii_common", 
     "src/libs/rust/ainari_common",
-    "src/libs/rust/ainari_model_parser",
     "src/libs/rust/ainari_dataset", 
     "src/libs/rust/ainari_api", 
     "src/libs/rust/ainari_hardware", 
     "src/libs/rust/ainari_clients", 
     "src/libs/rust/ainari_api_structs"
 ]
+default-members = [
+    "src/binaries/sakura",
+    "src/binaries/hanami",
+    "src/binaries/miko",
+    "src/binaries/ryokan",
+    "src/binaries/torii",
+    "src/binaries/omamori",
+    "src/binaries/onsen",
+    "src/binaries/neko",
+    "src/libs/rust/torii_common",
+    "src/libs/rust/ainari_common",
+    "src/libs/rust/ainari_dataset",
+    "src/libs/rust/ainari_api",
+    "src/libs/rust/ainari_hardware",
+    "src/libs/rust/ainari_clients",
+    "src/libs/rust/ainari_api_structs"
+]
+resolver = "2"
+
+[workspace.dependencies]
+aya = { version = "0.14.0", default-features = false }
+aya-build = { version = "0.2.0", default-features = false }
+aya-ebpf = { version = "0.2.1", default-features = false }
+aya-log = { version = "0.3.0", default-features = false }
+aya-log-ebpf = { version = "0.2.0", default-features = false }
+
+anyhow = { version = "1", default-features = false }
+cargo_metadata = { version = "0.23.0", default-features = false }
+# `std` feature is currently required to build `clap`.
+#
+# See https://github.com/clap-rs/clap/blob/61f5ee5/clap_builder/src/lib.rs#L15.
+clap = { version = "4.5.20", default-features = false, features = ["std"] }
+env_logger = { version = "0.11.5", default-features = false }
+libc = { version = "0.2.159", default-features = false }
+log = { version = "0.4.22", default-features = false }
+tokio = { version = "1.40.0", default-features = false }
+which = { version = "6.0.0", default-features = false }
+
+[profile.release.package.torii-ebpf]
+debug = 2
+codegen-units = 1
+strip = false
+
 
 [profile.dev]
 opt-level = 0
 debug = true
 overflow-checks = true
+panic = "abort"
 
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 8
 strip = true
+panic = "abort"

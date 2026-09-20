@@ -69,7 +69,7 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification
 
-	// prepare the torii-base-address for the model-access
+	// prepare the torii-base-address for the virtual_machine-access
 	parts := strings.Split(context.ToriiAddress, ":")
 	if len(parts) >= 2 {
 		context.ToriiBaseAddress = parts[0] + ":" + parts[1]
@@ -78,4 +78,27 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 	}
 
 	return context, nil
+}
+
+// RenewToken requests a new token for the user of the current access-context. The returned token
+// has to be set in a new context, because the context of this call is not modified.
+func RenewToken(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/token"
+	jsonBody := map[string]interface{}{}
+	return SendPut(context, context.MikoAddress, path, jsonBody)
+}
+
+// ValidateToken checks the token of the current access-context and returns the user-context, which
+// belongs to the token.
+func ValidateToken(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/token"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}
+
+// GetEndpoints returns the addresses of the components of the backend.
+func GetEndpoints(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/endpoints"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
 }

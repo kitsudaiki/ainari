@@ -29,7 +29,7 @@
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(task?.uuid, model_uuid, torii_port)"
+                        @click="handleAccept(task?.uuid, instance_uuid, torii_port)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -54,7 +54,7 @@ import { getAuthContext } from "@/auth_context";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    model_uuid: string;
+    instance_uuid: string;
     torii_port: number;
     task: { uuid: string } | null;
     icons: { acceptIcon: string; cancelIcon: string };
@@ -66,7 +66,7 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(task_uuid: string, model_uuid: string, torii_port: number) {
+async function handleAccept(task_uuid: string, instance_uuid: string, torii_port: number) {
     if (!task_uuid) return;
     try {
         const authContext = getAuthContext();
@@ -74,7 +74,7 @@ async function handleAccept(task_uuid: string, model_uuid: string, torii_port: n
             baseURL: `${authContext.torii_base_address}:${torii_port}`,
         });
 
-        await sakura_api.put(`/v1alpha/model/${model_uuid}/task/${task_uuid}/abort`, {}, {
+        await sakura_api.put(`/v1alpha/instance/${instance_uuid}/task/${task_uuid}/abort`, {}, {
             headers: { Authorization: `Bearer ${authContext.token}` },
         });
 

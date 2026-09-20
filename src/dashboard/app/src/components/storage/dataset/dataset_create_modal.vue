@@ -26,7 +26,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-model="form.datasetName"
+                        v-instance="form.datasetName"
                         type="text"
                         placeholder="Dataset-Name"
                         :class="{ invalid_input: datasetNameError }"

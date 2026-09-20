@@ -1,0 +1,230 @@
+# Local setup, which runs every component of ainari as a docker-container. It is meant for
+# development and testing only.
+#
+# The topology follows the split setup of the vm_test-repo: two gateways, one at the edge of the
+# network, which serves the floating ip-addresses towards the host, and one in front of the
+# sakura-host, which owns the TAP-devices of the virtual machines.
+#
+#      [ host ]  10.0.0.1 on veth-host, injected by scripts/setup_local_stack.sh
+#                                   |
+#                                   v  veth-gw (uplink)
+#   =====================================================================
+#                     [ torii-public ]  172.30.0.10
+#     floating ip-NAT 10.0.0.x <--> 192.168.100.x (the virtual machines)
+#     proxy-ports 10042-10053 --> sakura
+#   =====================================================================
+#                                   |  underlay (eth0, 172.30.0.0/16)
+#                                   v
+#   =====================================================================
+#                      [ torii-vmm ]  172.30.0.20
+#     routes 192.168.100.x --> tap-device of the virtual machine
+#     [ sakura ] shares this network-namespace and runs cloud-hypervisor
+#   =====================================================================
+#
+# Usage:
+#   sudo ./scripts/setup_local_stack.sh
+#   python3 testing/local_stack/vm_lifecycle_test.py
+
+services:
+  miko:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_miko
+    container_name: miko
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/miko.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      # the same test-login, which the cli and the other tests use
+      - AINARI_ADMIN_ID=${AINARI_USER:-asdf}
+      - AINARI_ADMIN_NAME=${AINARI_USER:-asdf}
+      - AINARI_ADMIN_PASSPHRASE=${AINARI_PASSPHRASE:-asdfasdf}
+    volumes:
+      - ./deploy/local_stack/configs/miko.toml:/etc/ainari/miko.toml:ro
+      - ./deploy/local_stack/configs/token_key:/etc/ainari/token_key:ro
+    ports:
+      - "11417:11417"
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.2
+
+  omamori:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_omamori
+    container_name: omamori
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/omamori.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    volumes:
+      - ./deploy/local_stack/configs/omamori.toml:/etc/ainari/omamori.toml:ro
+    ports:
+      - "11421:11421"
+    depends_on:
+      - miko
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.3
+
+  ryokan:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_ryokan
+    container_name: ryokan
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/ryokan.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
+    volumes:
+      - ./deploy/local_stack/configs/ryokan.toml:/etc/ainari/ryokan.toml:ro
+    ports:
+      - "11416:11416"
+    depends_on:
+      - miko
+      - omamori
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.4
+
+  onsen:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_onsen
+    container_name: onsen
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/onsen.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
+    volumes:
+      - ./deploy/local_stack/configs/onsen.toml:/etc/ainari/onsen.toml:ro
+    depends_on:
+      - miko
+      - ryokan
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.5
+
+  hanami:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_hanami
+    container_name: hanami
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/hanami.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
+    volumes:
+      - ./deploy/local_stack/configs/hanami.toml:/etc/ainari/hanami.toml:ro
+    ports:
+      - "11418:11418"
+    depends_on:
+      - miko
+      - omamori
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.6
+
+  # gateway at the edge of the network: it serves the floating ip-addresses on the veth-pair
+  # towards the host and proxies the api of the sakura-hosts
+  torii-public:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_torii
+    container_name: torii-public
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CONFIG_FILE=/etc/ainari/torii.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      # the uplink is injected by scripts/setup_local_stack.sh, so torii waits for it and
+      # resolves the address of the host on it, before it programs its routes
+      - WAIT_FOR_IFACE=veth-gw
+      - UPLINK_NEXT_HOP=10.0.0.1
+    volumes:
+      - ./deploy/local_stack/configs/torii_public.toml:/etc/ainari/torii.toml:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+    ports:
+      - "11419:11419"
+      # proxy-ports, which make the api of the sakura-hosts reachable from the host
+      - "10042-10053:10042-10053"
+    depends_on:
+      - miko
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.10
+
+  # gateway in front of the sakura-host: it owns the TAP-devices of the virtual machines
+  torii-vmm:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_torii
+    container_name: torii-vmm
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CONFIG_FILE=/etc/ainari/torii.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - ./deploy/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+    depends_on:
+      - miko
+      - torii-public
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.20
+
+  # the host, which runs the virtual machines. It shares the network-namespace of torii-vmm, so
+  # cloud-hypervisor can attach the virtual machines to the TAP-devices of that gateway.
+  sakura:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_sakura
+      args:
+        # id of the group, which owns /dev/kvm on the host. scripts/setup_local_stack.sh reads it
+        # from the device itself.
+        KVM_GID: ${KVM_GID:-993}
+    container_name: sakura
+    restart: unless-stopped
+    # sakura runs as the user 'ainari'. It only needs CAP_NET_ADMIN, which the hypervisor-binary
+    # carries as a file-capability, to attach a virtual machine to an existing TAP-device, and
+    # the group of /dev/kvm to open the virtual machines.
+    cap_add:
+      - NET_ADMIN
+    group_add:
+      - "${KVM_GID:-993}"
+    network_mode: "service:torii-vmm"
+    environment:
+      - CONFIG_FILE=/etc/ainari/sakura.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
+    devices:
+      - "/dev/kvm:/dev/kvm"
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - ./deploy/local_stack/configs/sakura.toml:/etc/ainari/sakura.toml:ro
+    depends_on:
+      - miko
+      - hanami
+      - ryokan
+      - torii-vmm
+
+networks:
+  ainari-net:
+    driver: bridge
+    driver_opts:
+      # the overlay adds a header to every packet, so the underlay needs a bigger mtu
+      com.docker.network.driver.mtu: "1600"
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+# The setup keeps no state on purpose: every run of scripts/setup_local_stack.sh starts with
+# empty databases, so a test never sees the virtual machines of a previous run. The databases and
+# the boot-disks live in the containers and are gone with them.

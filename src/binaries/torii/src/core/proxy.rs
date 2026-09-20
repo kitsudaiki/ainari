@@ -24,24 +24,17 @@ use tokio::net::{TcpListener, TcpStream};
 /// This struct manages the proxy lifecycle, including starting and stopping the proxy server.
 /// It uses a watch channel for graceful shutdown signaling.
 pub struct Proxy {
-    /// Handle to the async task running the proxy server.
     #[allow(dead_code)]
     pub handle: Option<tokio::task::JoinHandle<()>>,
-
-    /// The public address that the proxy listens on.
     #[allow(dead_code)]
     pub public_addr: SocketAddr,
-
-    /// The target address that connections will be forwarded to.
     #[allow(dead_code)]
     pub sakura_addr: String,
-
-    /// Sender half of the watch channel for shutdown signaling.
     pub shutdown_tx: watch::Sender<()>,
 }
 
 impl Proxy {
-    /// Creates a new Proxy instance and starts listening on the specified address.
+    /// Creates a new Proxy virtual_machine and starts listening on the specified address.
     ///
     /// # Arguments
     ///
@@ -50,7 +43,7 @@ impl Proxy {
     ///
     /// # Returns
     ///
-    /// A new Proxy instance with the server running in the background.
+    /// A new Proxy virtual_machine with the server running in the background.
     pub async fn new(public_addr: &SocketAddr, sakura_addr: &str) -> Self {
         let (shutdown_tx, shutdown_rx) = watch::channel(());
 
@@ -81,7 +74,7 @@ impl Proxy {
 }
 
 impl Drop for Proxy {
-    /// Ensures the proxy is stopped when the Proxy instance is dropped.
+    /// Ensures the proxy is stopped when the Proxy virtual_machine is dropped.
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }

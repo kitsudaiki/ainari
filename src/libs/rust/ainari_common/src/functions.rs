@@ -13,9 +13,22 @@
 // limitations under the License.
 
 use super::objects::*;
+use base64::{Engine as _, engine::general_purpose};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path};
+
+/// The ssh-key-algorithms, which are accepted as public-key.
+const SSH_KEY_ALGORITHMS: [&str; 8] = [
+    "ssh-ed25519",
+    "ssh-rsa",
+    "ssh-dss",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521",
+    "sk-ssh-ed25519@openssh.com",
+    "sk-ecdsa-sha2-nistp256@openssh.com",
+];
 
 /// Computes the SHA-256 hash of the given input string and returns it as a hexadecimal string.
 ///
@@ -26,6 +39,86 @@ pub fn sha256_hash(input: &str) -> String {
     hasher.update(input);
     let result = hasher.finalize();
     hex::encode(result) // Convert hash bytes to a hexadecimal String
+}
+
+/// Decodes the key-blob of an ssh-public-key, if the given input is a valid ssh-public-key.
+///
+/// An ssh-public-key consists of the algorithm-name, the base64-encoded key-blob and an optional
+/// comment, all within a single line. The key-blob itself repeats the algorithm-name as its first
+/// entry, so both are compared against each other to reject broken and forged keys.
+///
+/// # Arguments
+///
+/// * `public_key` - The ssh-public-key in its one-line openssh-representation
+///
+/// # Returns
+///
+/// The decoded key-blob, or None, if the input is not a valid ssh-public-key.
+fn decode_ssh_public_key(public_key: &str) -> Option<Vec<u8>> {
+    // a public-key is a single line, so anything with more lines is rejected
+    if public_key.lines().count() != 1 {
+        return None;
+    }
+
+    // the comment behind the key-blob is optional and ignored here
+    let mut parts = public_key.split_whitespace();
+    let algorithm = parts.next()?;
+    let encoded_blob = parts.next()?;
+
+    if !SSH_KEY_ALGORITHMS.contains(&algorithm) {
+        return None;
+    }
+
+    let blob = general_purpose::STANDARD.decode(encoded_blob).ok()?;
+
+    // the blob begins with its algorithm-name as length-prefixed string,
+    // which has to match the algorithm in front of the blob
+    let length_bytes: [u8; 4] = blob.get(0..4)?.try_into().ok()?;
+    let name_length = u32::from_be_bytes(length_bytes) as usize;
+    let name_end = 4usize.checked_add(name_length)?;
+    if blob.get(4..name_end)? != algorithm.as_bytes() {
+        return None;
+    }
+
+    Some(blob)
+}
+
+/// Checks if the given input is a valid ssh-public-key.
+///
+/// # Arguments
+///
+/// * `public_key` - The ssh-public-key in its one-line openssh-representation
+///
+/// # Returns
+///
+/// True, if the input is a valid ssh-public-key, else false.
+pub fn is_valid_ssh_public_key(public_key: &str) -> bool {
+    decode_ssh_public_key(public_key).is_some()
+}
+
+/// Calculates the fingerprint of an ssh-public-key.
+///
+/// The fingerprint is build in the same way as `ssh-keygen -l` does it: the SHA-256 hash of the
+/// key-blob, base64-encoded without padding and prefixed with "SHA256:".
+///
+/// # Arguments
+///
+/// * `public_key` - The ssh-public-key in its one-line openssh-representation
+///
+/// # Returns
+///
+/// The fingerprint of the key, or None, if the input is not a valid ssh-public-key.
+pub fn create_ssh_key_fingerprint(public_key: &str) -> Option<String> {
+    let blob = decode_ssh_public_key(public_key)?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(&blob);
+    let hash = hasher.finalize();
+
+    Some(format!(
+        "SHA256:{}",
+        general_purpose::STANDARD_NO_PAD.encode(hash)
+    ))
 }
 
 /// Extracts the token part from a Bearer token string.
@@ -252,5 +345,64 @@ pub fn get_next_sides(side: u8) -> [u8; 5] {
         10 => [9, 3, 1, 4, 11],
         11 => [10, 7, 0, 6, 9],
         _ => panic!("Invalid side value: {side}; This should never happen!"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // a real, but throw-away ed25519-key together with the fingerprint reported by `ssh-keygen -l`
+    const ED25519_KEY: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjMONeVqsXz3KbidQwmPCY9pwZYiS/HutS6+DLhv1Cd test@ainari";
+    const ED25519_FINGERPRINT: &str = "SHA256:L7ZRuLJJOC5pGhcNx9VLHNz8wFzLGET3pK/Oynybmyk";
+
+    #[test]
+    fn test_is_valid_ssh_public_key() {
+        // a key with and without comment
+        assert!(is_valid_ssh_public_key(ED25519_KEY));
+        let without_comment = ED25519_KEY.rsplit_once(' ').unwrap().0;
+        assert!(is_valid_ssh_public_key(without_comment));
+
+        // the algorithm in front of the blob has to match the one inside of the blob
+        assert!(!is_valid_ssh_public_key(
+            &ED25519_KEY.replace("ssh-ed25519 ", "ssh-rsa ")
+        ));
+
+        // an unknown algorithm
+        assert!(!is_valid_ssh_public_key(
+            &ED25519_KEY.replace("ssh-ed25519 ", "ssh-unknown ")
+        ));
+
+        // a private-key is not a public-key
+        assert!(!is_valid_ssh_public_key(
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----"
+        ));
+
+        // broken and empty input
+        assert!(!is_valid_ssh_public_key("ssh-ed25519 not-base64!"));
+        assert!(!is_valid_ssh_public_key("ssh-ed25519"));
+        assert!(!is_valid_ssh_public_key(""));
+
+        // more than one key at once
+        assert!(!is_valid_ssh_public_key(&format!(
+            "{ED25519_KEY}\n{ED25519_KEY}"
+        )));
+    }
+
+    #[test]
+    fn test_create_ssh_key_fingerprint() {
+        assert_eq!(
+            create_ssh_key_fingerprint(ED25519_KEY),
+            Some(ED25519_FINGERPRINT.to_string())
+        );
+
+        // the comment is not part of the fingerprint
+        let without_comment = ED25519_KEY.rsplit_once(' ').unwrap().0;
+        assert_eq!(
+            create_ssh_key_fingerprint(without_comment),
+            Some(ED25519_FINGERPRINT.to_string())
+        );
+
+        assert_eq!(create_ssh_key_fingerprint("invalid"), None);
     }
 }

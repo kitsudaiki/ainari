@@ -49,7 +49,7 @@ pub async fn create_user_admin(
     check_if_id_exist_in_db("user", user_id, user_table::get_user(user_id, &context))?;
 
     // add new quota for the user to datbase
-    quota_table::add_new_quota(user_id, 10, 10, 10, 10, 10, &context).map_err(|e| {
+    quota_table::add_new_quota(user_id, 10, 10, 10, 10, 10, 10, 10, &context).map_err(|e| {
         log::error!("Failed to add quota for user with ID '{user_id}' to database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;

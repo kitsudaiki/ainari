@@ -57,7 +57,6 @@ pub async fn upload_file(
     let _remote_file_path = remote_file_path.to_owned();
     let _local_file_path = local_file_path.to_owned();
 
-    // Connect to the remote server
     let mut client = DataServiceClient::connect(onsen_address.to_owned()).await?;
 
     // Create a streaming iterator for reading the file in chunks
@@ -200,15 +199,12 @@ pub async fn delete_file(
     onsen_address: &str,
     remote_file_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Connect to the remote server
     let mut client = DataServiceClient::connect(onsen_address.to_owned()).await?;
 
-    // Create a request for the file to be deleted
     let req = DeleteRequest {
         remote_file_path: remote_file_path.to_owned(),
     };
 
-    // Send the deletion request to the server
     let response = client.delete_file(Request::new(req)).await?;
     println!("Server response: {:?}", response.into_inner().status);
 

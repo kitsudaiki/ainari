@@ -24,8 +24,6 @@ import (
 	"fmt"
 	ainarictl_common "ainarictl/common"
 	"os"
-	"strings"
-	"errors"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
 	"github.com/spf13/cobra"
@@ -33,83 +31,19 @@ import (
 
 var (
 	checkpointUuid string
-	inputData      []string
-	outputData     []string
-	timeLength     int
-	numberOfEpochs int
 )
 
-func convertTaskIO(input []string) ([]ainari_sdk.TaskInput, error) {
-	ret := []ainari_sdk.TaskInput{}
+func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
 
-	for _, val := range input {
-
-		// Check if both separator ":" are present
-		if !strings.Contains(val, ":") {
-			return ret, errors.New("Error: Required separators ':' are missing")
-		}
-
-		// Split at ":"
-		parts := strings.Split(val, ":")
-		if len(parts) != 3 {
-			return ret, errors.New("Error: Invalid format before or after ':'")
-		}
-		datasetUUID := parts[0]
-		columnName := parts[1]
-		hexagonName := parts[2]
-
-		item := ainari_sdk.TaskInput{
-			HexagonName:       hexagonName, 
-			DatasetColumnName: columnName, 
-			DatasetUuid:       datasetUUID,
-		}
-
-		ret = append(ret, item)
-	}
-
-	return ret, nil
-}
-
-func convertTaskResult(input []string) ([]ainari_sdk.TaskResult, error) {
-	ret := []ainari_sdk.TaskResult{}
-
-	for _, val := range input {
-
-		// Check if both separator ":" are present
-		if !strings.Contains(val, ":") {
-			return ret, errors.New("Error: Required separators ':' are missing")
-		}
-
-		// Split at ":"
-		parts := strings.Split(val, ":")
-		if len(parts) != 2 {
-			return ret, errors.New("Error: Invalid format before or after ':'")
-		}
-		hexagonName := parts[0]
-		columnName := parts[1]
-
-		item := ainari_sdk.TaskResult{
-			HexagonName:       hexagonName, 
-			DatasetColumnName: columnName,
-		}
-
-		ret = append(ret, item)
-	}
-
-	return ret, nil
-}
-
-func getToriiPort(context ainari_sdk.AccessContext, modelUuid string) int {
-
-	model_data, err := ainari_sdk.GetModel(context, modelUuid)
+	virtual_machine_data, err := ainari_sdk.GetVirtualMachine(context, virtual_machineUuid)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	value, ok := model_data["torii_port"]
+	value, ok := virtual_machine_data["torii_port"]
 	if !ok {
-		fmt.Println("key 'torii_port' not found in model-output")
+		fmt.Println("key 'torii_port' not found in virtual_machine-output")
 		os.Exit(1)
 	}
 
@@ -122,75 +56,9 @@ func getToriiPort(context ainari_sdk.AccessContext, modelUuid string) int {
 	return int(toriiPort)
 }
 
-var createTrainTaskCmd = &cobra.Command{
-	Use:   "train -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -o DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -e NUMBER_OF_EPOCHS CLUSTER_UUID TASK_NAME",
-	Short: "Create a new train task.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
-		taskName := args[1]
-		taskInput, err := convertTaskIO(inputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		taskOutput, err := convertTaskIO(outputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.CreateTrainTask(context, toriiPort, taskName, modelUuid, taskInput, taskOutput, numberOfEpochs, timeLength)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var createRequestTaskCmd = &cobra.Command{
-	Use:   "request -i DATASET_UUID:COLUMN_NAME:HEXAGON_NAME -r HEXAGON_NAME:COLUMN_NAME CLUSTER_UUID TASK_NAME",
-	Short: "Create a new request task.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
-		taskName := args[1]
-		taskInput, err := convertTaskIO(inputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		taskOutput, err := convertTaskResult(outputData)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.CreateRequestTask(context, toriiPort, taskName, modelUuid, taskInput, taskOutput, timeLength)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
 var createCheckpointSaveTaskCmd = &cobra.Command{
 	Use:   "checkpoint_create CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to create a checkpoint from a model.",
+	Short: "Create a new task to create a checkpoint from a virtual_machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -198,10 +66,10 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
+		virtual_machineUuid := args[0]
+		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointSaveTask(context, toriiPort, taskName, modelUuid)
+		content, err := ainari_sdk.CreateCheckpointSaveTask(context, toriiPort, taskName, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -213,7 +81,7 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 
 var createCheckpointRestoreTaskCmd = &cobra.Command{
 	Use:   "checkpoint_restore -c CHECKPOINT_UUID CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to restore a checkpoint into a model.",
+	Short: "Create a new task to restore a checkpoint into a virtual_machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -221,10 +89,10 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
+		virtual_machineUuid := args[0]
+		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, toriiPort, taskName, modelUuid, checkpointUuid)
+		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, toriiPort, taskName, virtual_machineUuid, checkpointUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -244,10 +112,10 @@ var getTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
+		virtual_machineUuid := args[0]
+		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid, modelUuid)
+		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -267,34 +135,11 @@ var listTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
-		content, err := ainari_sdk.ListTask(context, toriiPort, modelUuid)
+		virtual_machineUuid := args[0]
+		toriiPort := getToriiPort(context, virtual_machineUuid)
+		content, err := ainari_sdk.ListTask(context, toriiPort, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintList(content["tasks"].([]interface{}))
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var deleteTaskCmd = &cobra.Command{
-	Use:   "delete CLUSTER_UUID TASK_UUID",
-	Short: "Delete a specific task from the backend.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
-		taskUuid := args[1]
-		_, err = ainari_sdk.DeleteTask(context, toriiPort, taskUuid, modelUuid)
-		if err == nil {
-			fmt.Printf("successfully deleted task '%v'\n", taskUuid)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -312,10 +157,10 @@ var abortTaskCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		modelUuid := args[0]
-		toriiPort := getToriiPort(context, modelUuid)
+		virtual_machineUuid := args[0]
+		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid, modelUuid)
+		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -340,21 +185,6 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 
 	taskCmd.AddCommand(createTaskCmd)
 
-	createTaskCmd.AddCommand(createTrainTaskCmd)
-	createTrainTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "Model input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createTrainTaskCmd.Flags().StringSliceVarP(&outputData, "output", "o", []string{}, "Model outputs, which are paris of '-o <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createTrainTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
-	createTrainTaskCmd.Flags().IntVarP(&numberOfEpochs, "epochs", "e", 1, "Number of epochs for the training")
-	createTrainTaskCmd.MarkFlagRequired("input")
-	createTrainTaskCmd.MarkFlagRequired("output")
-
-	createTaskCmd.AddCommand(createRequestTaskCmd)
-	createRequestTaskCmd.Flags().StringSliceVarP(&inputData, "input", "i", []string{}, "Model input, which are paris of '-i <DATASET_UUID>:<COLUMN_NAME>:<HEXAGON_NAME>' (mandatory)")
-	createRequestTaskCmd.Flags().StringSliceVarP(&outputData, "result", "r", []string{}, "Model result, which are paris of '-r <HEXAGON_NAME>:<COLUMN_NAME>' (mandatory)")
-	createRequestTaskCmd.Flags().IntVarP(&timeLength, "time", "t", 1, "Length of a time-series for the input")
-	createRequestTaskCmd.MarkFlagRequired("input")
-	createRequestTaskCmd.MarkFlagRequired("result")
-
 	createTaskCmd.AddCommand(createCheckpointSaveTaskCmd)
 
 	createTaskCmd.AddCommand(createCheckpointRestoreTaskCmd)
@@ -364,8 +194,6 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	taskCmd.AddCommand(getTaskCmd)
 
 	taskCmd.AddCommand(listTaskCmd)
-
-	taskCmd.AddCommand(deleteTaskCmd)
 
 	taskCmd.AddCommand(abortTaskCmd)
 }

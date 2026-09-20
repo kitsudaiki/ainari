@@ -14,7 +14,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::config;
+use crate::{config, core::processing::tasks::Task};
 
 use ainari_common::constants::*;
 use ainari_hardware::cpu::*;
@@ -27,11 +27,22 @@ lazy_static::lazy_static! {
 
 /// WorkerHandler manages a collection of worker threads for parallel task processing.
 ///
-/// This struct serves as a container for multiple WorkerThread instances, allowing centralized
+/// This struct serves as a container for multiple WorkerThread virtual_machines, allowing centralized
 /// management and coordination of worker threads.
 pub struct WorkerHandler {
     /// Vector containing all worker threads managed by this handler.
     pub worker_threads: Vec<WorkerThread>,
+}
+
+pub fn add_task_to_queue(task: Task) {
+    let mut worker_handler = WORKER_HANDLER.lock().expect("mutex poisoned");
+
+    let num: u128 = task.resouce_uuid.as_u128();
+    let worker_id = num % worker_handler.worker_threads.len() as u128;
+
+    if let Some(item_ref) = worker_handler.worker_threads.get_mut(worker_id as usize) {
+        item_ref.add_task(task);
+    }
 }
 
 /// Initializes a new WorkerHandler with an appropriate number of worker threads.
@@ -40,7 +51,7 @@ pub struct WorkerHandler {
 /// configuration settings, then creates and initializes the worker threads.
 ///
 /// # Returns
-/// A new WorkerHandler instance with initialized worker threads.
+/// A new WorkerHandler virtual_machine with initialized worker threads.
 ///
 /// # Panics
 /// Panics if unable to determine the number of available CPU threads.
@@ -70,10 +81,9 @@ pub fn init_worker_handler() -> WorkerHandler {
     }
 
     // initialize new worker-threads
-    for i in 0..number_of_threads {
+    for _ in 0..number_of_threads {
         // Create a new worker thread with a unique identifier
-        let new_thread = WorkerThread::new(i);
-        worker_handler.worker_threads.push(new_thread);
+        worker_handler.worker_threads.push(WorkerThread::new());
     }
 
     log::info!("Initialized {number_of_threads} cpu-threads for the core.");

@@ -41,3 +41,10 @@ func DeleteCheckpoint(context AccessContext, checkpointUuid string) (map[string]
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.RyokanAddress, path, vars)
 }
+
+// GetCheckpointCount returns the number of checkpoints of the project.
+func GetCheckpointCount(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/checkpoint/count"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.RyokanAddress, path, vars)
+}

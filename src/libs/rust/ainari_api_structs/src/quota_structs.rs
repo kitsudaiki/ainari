@@ -19,10 +19,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct QuotaResp {
     pub user_id: String,
-    pub max_model: i32,
-    pub max_dataset: i32,
+    pub max_virtual_machine: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
+    pub max_network: i32,
+    pub max_floating_ip: i32,
     pub max_taskqueue: i32,
     pub created_at: String,
     pub created_by: String,
@@ -32,20 +34,24 @@ pub struct QuotaResp {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct QuotaSetReq {
-    pub max_model: i32,
-    pub max_dataset: i32,
+    pub max_virtual_machine: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
+    pub max_network: i32,
+    pub max_floating_ip: i32,
     pub max_taskqueue: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct QuotaBasicResp {
     pub user_id: String,
-    pub max_model: i32,
-    pub max_dataset: i32,
+    pub max_virtual_machine: i32,
+    pub max_image: i32,
     pub max_checkpoint: i32,
     pub max_secret: i32,
+    pub max_network: i32,
+    pub max_floating_ip: i32,
     pub max_taskqueue: i32,
 }
 

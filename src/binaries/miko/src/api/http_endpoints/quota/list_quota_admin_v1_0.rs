@@ -40,10 +40,12 @@ pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp
     for quota in quotas {
         let obj = QuotaBasicResp {
             user_id: quota.id,
-            max_model: quota.max_model,
-            max_dataset: quota.max_dataset,
+            max_virtual_machine: quota.max_virtual_machine,
+            max_image: quota.max_image,
             max_checkpoint: quota.max_checkpoint,
             max_secret: quota.max_secret,
+            max_network: quota.max_network,
+            max_floating_ip: quota.max_floating_ip,
             max_taskqueue: quota.max_taskqueue,
         };
 

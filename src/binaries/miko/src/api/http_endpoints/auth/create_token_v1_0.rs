@@ -63,7 +63,7 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
         .map_err(|_| ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()))?;
 
     // check passphrase
-    let salted_passphrase = format!("{}{}", &parsed.client_secret, user.salt);
+    let salted_passphrase = format!("{}{}", parsed.client_secret, user.salt);
     let pw_hash = sha256_hash(salted_passphrase.as_str());
     if pw_hash != user.pw_hash {
         return Err(ErrorResponse::Unauthorized(

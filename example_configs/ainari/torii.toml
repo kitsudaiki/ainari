@@ -17,3 +17,7 @@ address = "http://127.0.0.1:11417"
 [ports]
 min_port = 10042
 max_port = 10053
+
+[network]
+overlay_iface = "veth-gw"
+underlay_iface = "eth0"

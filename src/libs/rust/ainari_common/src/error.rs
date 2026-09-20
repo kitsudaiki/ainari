@@ -31,6 +31,12 @@ impl fmt::Display for AinariError {
     }
 }
 
+impl From<Box<dyn std::error::Error>> for AinariError {
+    fn from(error: Box<dyn std::error::Error>) -> Self {
+        AinariError::InternalError(error.to_string())
+    }
+}
+
 impl PartialEq<&str> for AinariError {
     fn eq(&self, other: &&str) -> bool {
         match self {

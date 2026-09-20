@@ -20,17 +20,14 @@ COPY src src
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 
-# also copy the git-directory, which is necessary for the version-information
-COPY .git .git
+# the version-endpoint reports this value, which is read at compile-time. The git-directory
+# itself is not copied into the image, because .dockerignore excludes it.
+ARG GIT_VERSION=unknown
+ENV GIT_VERSION=$GIT_VERSION
 
-RUN ~/.cargo/bin/cargo build --release
-RUN cp target/release/hanami /app/
+# only this component is built, the other binaries of the workspace have their own image
+RUN ~/.cargo/bin/cargo build --release -p miko
 RUN cp target/release/miko /app/
-RUN cp target/release/omamori /app/
-RUN cp target/release/onsen /app/
-RUN cp target/release/ryokan /app/
-RUN cp target/release/sakura /app/
-RUN cp target/release/torii /app/
 
 # ---------------------------------------------------
 

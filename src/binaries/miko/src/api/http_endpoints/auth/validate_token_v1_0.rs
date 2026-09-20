@@ -33,6 +33,6 @@ pub async fn validate_token(
     let response = UserTokenValidateResp { context };
     // HINT(kitsudaki): Here is not validation-code, even the funktion is named this way,
     // because it provides only the endpoint itself. The token-validation will be done
-    // in the middleway, like for the other endpoints
+    // in the middleware, like for the other endpoints
     Ok(Json(response))
 }

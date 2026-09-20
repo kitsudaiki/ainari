@@ -1,0 +1,11 @@
+# Config of onsen for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+address = "http://onsen:50051"
+
+[miko]
+address = "http://miko:11417"
+
+[storage]
+location = "/tmp/onsen"

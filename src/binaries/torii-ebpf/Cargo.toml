@@ -1,0 +1,24 @@
+[package]
+name = "torii-ebpf"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+torii_common = { path = "../../libs/rust/torii_common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+network-types = "0.0.6" 
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "torii"
+path = "src/main.rs"
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

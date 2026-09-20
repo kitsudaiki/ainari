@@ -19,9 +19,9 @@
         <span>RESOURCE-OVERVIEW</span>
     </div>
     <div class="card">
-        <div class="card-label">Models</div>
+        <div class="card-label">Instances</div>
         <div class="card-content">
-            <table class="overview-table" v-if="models.length > 0">
+            <table class="overview-table" v-if="instances.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
@@ -31,10 +31,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="model in models" :key="model.uuid">
-                        <td>{{ model.uuid }}</td>
-                        <td>{{ model.name }}</td>
-                        <td>{{torii_base_address}}:{{ model.proxy_port }}</td>
+                    <tr v-for="instance in instances" :key="instance.uuid">
+                        <td>{{ instance.uuid }}</td>
+                        <td>{{ instance.name }}</td>
+                        <td>{{torii_base_address}}:{{ instance.proxy_port }}</td>
                         <td></td>
                     </tr>
                 </tbody>
@@ -46,10 +46,10 @@
     </div>
     <div class="usage_overview">
         <div class="card gauge-chart-card">
-            <div class="card-label">Models</div>
+            <div class="card-label">Instances</div>
             <GaugeChart
-                :value="quotaMetrics.models.used"
-                :max="quotaMetrics.models.max"
+                :value="quotaMetrics.instances.used"
+                :max="quotaMetrics.instances.max"
             />
         </div>
         <div class="card gauge-chart-card">
@@ -89,8 +89,8 @@ import { getAuthContext } from "@/auth_context";
 import GaugeChart from "@/components/gauge_chart.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
-// Model management
-const models = ref<{ uuid: string; modelName: string }[]>([]);
+// Instance management
+const instances = ref<{ uuid: string; instanceName: string }[]>([]);
 const torii_base_address = ref<string>("");
 
 // Error handling
@@ -98,7 +98,7 @@ const errorPopupMsg = ref<string>("");
 
 // Quota tracking
 const quotaMetrics = reactive({
-    models: {
+    instances: {
         used: ref(0),
         max: ref(1),
     },
@@ -128,15 +128,15 @@ function createApiClient(baseURL: string | null) {
 }
 
 /**
- * Fetches the list of models of the user from Hanami API
+ * Fetches the list of instances of the user from Hanami API
  */
-async function fetchModels() {
+async function fetchInstances() {
     try {
         const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/model");
-        models.value = response.data.models;
+        const response = await hanamiApi.get("/v1alpha/instance");
+        instances.value = response.data.instances;
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load models");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load instances");
     }
 }
 
@@ -148,7 +148,7 @@ async function fetchQuotas() {
         const mikoApi = createApiClient(getAuthContext().miko_address);
         const response = await mikoApi.get("/v1alpha/quota");
 
-        quotaMetrics.models.max = response.data.max_model;
+        quotaMetrics.instances.max = response.data.max_instance;
         quotaMetrics.datasets.max = response.data.max_dataset;
         quotaMetrics.checkpoints.max = response.data.max_checkpoint;
         quotaMetrics.secrets.max = response.data.max_secret;
@@ -158,17 +158,17 @@ async function fetchQuotas() {
 }
 
 /**
- * Fetches the number of used models from Hanami API
+ * Fetches the number of used instances from Hanami API
  */
-async function fetchUsedModel() {
+async function fetchUsedInstance() {
     try {
         const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/model/count");
-        quotaMetrics.models.used = response.data.number_of_items;
+        const response = await hanamiApi.get("/v1alpha/instance/count");
+        quotaMetrics.instances.used = response.data.number_of_items;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load number of models",
+            "Failed to load number of instances",
         );
     }
 }
@@ -213,9 +213,9 @@ async function fetchUsedSecrets() {
 
 // Initialize all data fetching on component mount
 onMounted(() => {
-    fetchModels();
+    fetchInstances();
     fetchQuotas();
-    fetchUsedModel();
+    fetchUsedInstance();
     fetchUsedDatasetsAndCheckpoints();
     fetchUsedSecrets();
 });

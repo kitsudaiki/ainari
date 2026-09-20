@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![forbid(unsafe_code)]
-
 mod api;
 mod config;
 mod core;
@@ -22,6 +20,7 @@ mod database;
 use log::LevelFilter;
 
 use core::proxy_handler::*;
+use core::routing_interface::*;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,6 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler.fill_proxy_handler().await?;
     drop(proxy_handler);
+
+    let route_handler = GATEWAY_STATE_HANDLE.lock().await;
+    drop(route_handler);
 
     api::http_server::run_server().await?;
 

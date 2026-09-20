@@ -7,9 +7,8 @@ rust-version = "1.85.1"
 [dependencies]
 ainari_dataset = { path = "../../libs/rust/ainari_dataset" }
 ainari_common = { path = "../../libs/rust/ainari_common" }
-ainari_model_parser = { path = "../../libs/rust/ainari_model_parser" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
-ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
+ainari_api_structs = { path = "../../libs/rust/ainari_api_structs", features = ["diesel"] }
 ainari_hardware = { path = "../../libs/rust/ainari_hardware" }
 ainari_clients = { path = "../../libs/rust/ainari_clients" }
 # web-server
@@ -50,6 +49,8 @@ uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 byteorder = "1.5"
 bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.25"
+# hypervisor
+cloud-hypervisor-client = "0.6.0"
 
 [dev-dependencies]
 serial_test = "3"

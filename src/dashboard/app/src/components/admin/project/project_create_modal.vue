@@ -23,7 +23,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-model="form.projectId"
+                        v-instance="form.projectId"
                         type="text"
                         placeholder="Project-ID"
                         :class="{ invalid_input: projectIdError }"
@@ -35,7 +35,7 @@
                 <br />
                 <div>
                     <input
-                        v-model="form.projectName"
+                        v-instance="form.projectName"
                         type="text"
                         placeholder="Project-Name"
                         :class="{ invalid_input: projectNameError }"

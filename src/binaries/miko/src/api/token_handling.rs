@@ -32,13 +32,9 @@ use ainari_common::secret::Secret;
 /// additional custom claims specific to our application.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Claims {
-    /// Unique identifier for the user
     pub user_id: String,
-    /// Unique identifier for the project
     pub project_id: String,
-    /// Flag indicating if the user has admin privileges
     pub is_admin: String,
-    /// Flag indicating if the user has admin privileges for the specific project
     pub is_project_admin: String,
     /// Expiration time (as UTC timestamp in seconds)
     pub exp: usize,

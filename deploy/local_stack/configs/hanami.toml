@@ -1,0 +1,21 @@
+# Config of hanami for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11418
+internal_ip = "0.0.0.0"
+internal_port = 10418
+
+[database]
+file_path = "/etc/ainari/hanami_db"
+
+[miko]
+address = "http://miko:11417"
+
+[network]
+# The floating ip-addresses are served by the torii at the edge of the network. The host reaches
+# them over the veth-pair, which scripts/setup_local_stack.sh injects into that container.
+floating_ip_cidr = "10.0.0.0/24"

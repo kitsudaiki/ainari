@@ -1,0 +1,32 @@
+# Config of the torii at the edge of the network for the local docker-compose setup.
+#
+# This gateway serves the floating ip-addresses and is the only one, which the host can reach
+# directly. Its uplink 'veth-gw' is injected into the container by scripts/setup_local_stack.sh.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11419
+internal_ip = "0.0.0.0"
+internal_port = 10419
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[miko]
+address = "http://miko:11417"
+
+[ports]
+# port-range for the proxies, which make the sakura-hosts reachable from the outside
+min_port = 10042
+max_port = 10053
+
+[network]
+overlay_iface = "veth-gw"
+underlay_iface = "eth0"
+# the floating ip-addresses are served on the veth-pair towards the host
+uplink_iface = "veth-gw"
+# address of the host on that veth-pair
+uplink_next_hop = "10.0.0.1"

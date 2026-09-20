@@ -37,7 +37,16 @@ func ListProxy(context AccessContext) (map[string]interface{}, error) {
 }
 
 func DeleteProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/proxy/%s/admin", proxyId)
+	path := fmt.Sprintf("v1alpha/proxy/%s/internal", proxyId)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.ToriiAddress, path, vars)
+}
+
+func SetProxy(context AccessContext, targetAddress, virtualMachineUuid string) (map[string]interface{}, error) {
+	path := "v1alpha/proxy/internal"
+	jsonBody := map[string]interface{}{
+		"target_address":       targetAddress,
+		"virtual_machine_uuid": virtualMachineUuid,
+	}
+	return SendPost(context, context.ToriiAddress, path, jsonBody)
 }

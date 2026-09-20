@@ -16,6 +16,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::env;
 use std::fs;
+use std::net::Ipv4Addr;
 use std::process;
 
 use ainari_common::config as ainari_config;
@@ -45,6 +46,29 @@ pub struct Config {
     pub miko: ainari_config::MikoEndpoint,
     /// Port range configuration
     pub ports: Ports,
+    /// Network interfaces the eBPF datapath is attached to
+    #[serde(default)]
+    pub network: Network,
+    /// Settings for local development and testing only
+    #[serde(default)]
+    pub development: Development,
+}
+
+impl Config {
+    /// Checks that the sections of the config fit together
+    ///
+    /// # Returns
+    /// `Ok(())` if the config is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        self.network.validate()?;
+
+        // the single node setup is the edge of the network as well, so it requires an uplink
+        if self.development.single_node && self.network.uplink().is_none() {
+            return Err("'development.single_node' requires 'network.uplink_iface'".to_owned());
+        }
+
+        Ok(())
+    }
 }
 
 /// Default value for skip_tls_verification
@@ -65,7 +89,101 @@ pub struct Ports {
     pub max_port: u16,
 }
 
-/// Global singleton config instance
+/// Network interface configuration
+///
+/// Names the interfaces the eBPF programs are attached to at startup.
+#[derive(Debug, Deserialize)]
+pub struct Network {
+    /// Interface of the overlay network, `overlay_ingress` is attached to it
+    #[serde(default = "default_overlay_iface")]
+    pub overlay_iface: String,
+    /// Interface of the underlay network, `underlay_ingress` is attached to it
+    #[serde(default = "default_underlay_iface")]
+    pub underlay_iface: String,
+    /// Interface facing the outside, on which the floating IPs are served. Only the gateway at
+    /// the edge of the network has one. If it is set, `uplink_next_hop` is required as well.
+    #[serde(default)]
+    pub uplink_iface: Option<String>,
+    /// Next hop behind the uplink, which all traffic leaving the virtual network is sent to
+    #[serde(default)]
+    pub uplink_next_hop: Option<Ipv4Addr>,
+    /// Underlay-address of the gateway at the edge of the network. A gateway, which only serves
+    /// virtual machines, sends everything it has no route for to that gateway. A gateway with an
+    /// own uplink doesn't have one, because it is the edge itself.
+    #[serde(default)]
+    pub default_gateway_ip: Option<Ipv4Addr>,
+}
+
+impl Default for Network {
+    fn default() -> Self {
+        Self {
+            overlay_iface: default_overlay_iface(),
+            underlay_iface: default_underlay_iface(),
+            uplink_iface: None,
+            uplink_next_hop: None,
+            default_gateway_ip: None,
+        }
+    }
+}
+
+impl Network {
+    /// Checks that the uplink of the gateway has everything it needs
+    ///
+    /// # Returns
+    /// `Ok(())` if the section is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        let has_iface = !self.uplink_iface.as_deref().unwrap_or_default().is_empty();
+        if has_iface && self.uplink_next_hop.is_none() {
+            return Err("'network.uplink_iface' requires 'network.uplink_next_hop'".to_owned());
+        }
+        if !has_iface && self.uplink_next_hop.is_some() {
+            return Err("'network.uplink_next_hop' requires 'network.uplink_iface'".to_owned());
+        }
+        if has_iface && self.default_gateway_ip.is_some() {
+            return Err(
+                "'network.default_gateway_ip' can not be used together with 'network.uplink_iface'"
+                    .to_owned(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Returns the uplink of the gateway, if it has one
+    ///
+    /// # Returns
+    /// The name of the uplink-interface together with its next hop, or `None` for a gateway
+    /// without an uplink
+    pub fn uplink(&self) -> Option<(&str, Ipv4Addr)> {
+        let iface = self.uplink_iface.as_deref().filter(|it| !it.is_empty())?;
+        let next_hop = self.uplink_next_hop?;
+
+        Some((iface, next_hop))
+    }
+}
+
+/// Default value for overlay_iface
+fn default_overlay_iface() -> String {
+    "veth-gw".to_owned()
+}
+
+/// Default value for underlay_iface
+fn default_underlay_iface() -> String {
+    "eth0".to_owned()
+}
+
+/// Development configuration
+///
+/// Settings which are only meant for local development and testing and must
+/// not be used in a production deployment.
+#[derive(Debug, Default, Deserialize)]
+pub struct Development {
+    /// Run as single node: the uplink, the floating IPs and all VMs sit behind
+    /// this one gateway, without underlay, tunnel or IPsec
+    #[serde(default)]
+    pub single_node: bool,
+}
+
+/// Global singleton config virtual_machine
 ///
 /// This is a lazy-initialized global configuration that reads from
 /// `/etc/ainari/torii.toml` file. The configuration is loaded only once
@@ -74,17 +192,26 @@ pub struct Ports {
 /// # Panics
 /// This will panic if the configuration file cannot be read or parsed.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/torii.toml";
+    let file_path = match env::var("CONFIG_FILE") {
+        Ok(value) => value,
+        Err(_) => "/etc/ainari/torii.toml".to_owned(),
+    };
+
     log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(file_path) {
+    match fs::read_to_string(file_path.clone()) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             // Attempt to parse the TOML content into our Config struct
             match toml::from_str(&content) {
                 Ok(v) => {
+                    let config: Config = v;
+                    if let Err(e) = config.validate() {
+                        log::error!("Invalid config '{file_path}': {e}");
+                        process::exit(1);
+                    }
                     log::info!("successfully loaded config '{file_path}'");
-                    v
+                    config
                 }
                 Err(e) => {
                     log::error!("Failed to parse '{e}'");
@@ -116,3 +243,67 @@ pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNA
         process::exit(1);
     }
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load(name: &str) -> Config {
+        let path = format!(
+            "{}/../../../example_configs/ainari/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        toml::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn the_example_config_runs_without_single_node() {
+        let config = load("torii.toml");
+        assert!(!config.development.single_node);
+        assert_eq!(config.network.underlay_iface, "eth0");
+        assert!(config.network.uplink().is_none());
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn the_single_node_example_config_is_valid() {
+        let config = load("torii_single_node.toml");
+        assert!(config.development.single_node);
+        assert_eq!(
+            config.network.uplink(),
+            Some(("uplink0", Ipv4Addr::new(10, 0, 0, 1)))
+        );
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn the_public_example_config_has_an_uplink_without_single_node() {
+        let config = load("torii_public.toml");
+        assert!(!config.development.single_node);
+        assert_eq!(
+            config.network.uplink(),
+            Some(("veth-gw", Ipv4Addr::new(10, 0, 0, 1)))
+        );
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn an_uplink_requires_a_next_hop() {
+        let network = Network {
+            uplink_iface: Some("uplink0".to_owned()),
+            uplink_next_hop: None,
+            ..Default::default()
+        };
+        assert!(network.validate().is_err());
+    }
+
+    #[test]
+    fn single_node_requires_an_uplink() {
+        let config = Config {
+            development: Development { single_node: true },
+            network: Network::default(),
+            ..load("torii.toml")
+        };
+        assert!(config.validate().is_err());
+    }
+}

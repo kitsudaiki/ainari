@@ -1,0 +1,19 @@
+# Config of ryokan for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11416
+internal_ip = "0.0.0.0"
+internal_port = 10416
+
+[database]
+file_path = "/etc/ainari/ryokan_db"
+
+[miko]
+address = "http://miko:11417"
+
+[storage]
+tempfile_location = "/tmp/ryokan"

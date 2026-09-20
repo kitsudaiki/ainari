@@ -39,19 +39,14 @@ pub async fn get_endpoints(
     miko_endpoint: &ainari_config::MikoEndpoint,
     insecure_client: bool,
 ) -> Result<ainari_config::Endpoints, AinariError> {
-    // Clone the address from the endpoint configuration
     let address = miko_endpoint.address.clone();
-    // Prepare the HTTP client with the given address and security settings
     let client = prepare_client(&address, insecure_client);
-    // Construct the URL for the endpoints API
     let url = format!("{address}/v1alpha/endpoints");
 
-    // Send the GET request to the Miko service
     let response = client.get(url).send().await;
 
     match response {
         Ok(mut resp) => {
-            // Extract the response body as a string
             let body_str = match resp.body().await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
@@ -60,14 +55,9 @@ pub async fn get_endpoints(
                 }
             };
 
-            // Handle different HTTP status codes from the response
             match resp.status() {
-                StatusCode::BAD_REQUEST => {
-                    // Return an error if the request was malformed
-                    Err(AinariError::InvalidInput(body_str))
-                }
+                StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
                 StatusCode::OK => {
-                    // Deserialize the JSON response body into the EndpontsResp structure
                     let deserialized: EndpontsResp = match serde_json::from_str(&body_str) {
                         Ok(body) => body,
                         Err(e) => {
@@ -76,7 +66,6 @@ pub async fn get_endpoints(
                         }
                     };
 
-                    // Convert the deserialized response into the final configuration structure
                     let endpoints = ainari_config::Endpoints {
                         hanami: ainari_config::Endpoint {
                             public_address: deserialized.hanami.public_address,
@@ -99,14 +88,12 @@ pub async fn get_endpoints(
                     Ok(endpoints)
                 }
                 code => {
-                    // Return an error for any unexpected status code
                     let msg = format!("Error while requesting endpoints from miko: {code}");
                     Err(AinariError::InternalError(msg))
                 }
             }
         }
         Err(e) => {
-            // Return an error if the HTTP request failed
             let msg = format!("Error while requesting endpoints from miko: {e}");
             Err(AinariError::InternalError(msg))
         }

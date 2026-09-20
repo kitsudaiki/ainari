@@ -16,6 +16,17 @@ from . import ainari_request
 from .access_context import AccessContext
 
 
+def get_own_quota(context: AccessContext) -> dict:
+    """
+    Returns the quota of the user of the current access-context.
+    """
+    path = "/v1alpha/quota"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
+
+
 def get_quota(context: AccessContext,
               user_id: str) -> dict:
     path = f'/v1alpha/quota/{user_id}/admin'
@@ -35,17 +46,21 @@ def list_quotas(context: AccessContext) -> dict:
 
 def set_quota(context: AccessContext,
               user_id: str,
-              max_model: int,
-              max_dataset: int,
+              max_virtual_machine: int,
+              max_image: int,
               max_checkpoint: int,
               max_secret: int,
+              max_network: int,
+              max_floating_ip: int,
               max_taskqueue: int) -> dict:
     path = f"/v1alpha/quota/{user_id}/admin"
     json_body = {
-        "max_model": max_model,
-        "max_dataset": max_dataset,
+        "max_virtual_machine": max_virtual_machine,
+        "max_image": max_image,
         "max_checkpoint": max_checkpoint,
         "max_secret": max_secret,
+        "max_network": max_network,
+        "max_floating_ip": max_floating_ip,
         "max_taskqueue": max_taskqueue,
     }
     return ainari_request.send_put_request(context,

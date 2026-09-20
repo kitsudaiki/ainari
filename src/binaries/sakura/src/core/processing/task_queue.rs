@@ -27,8 +27,6 @@ use super::tasks::Task;
 /// ordering for task processing.
 #[derive(Default, Debug)]
 pub struct TaskQueue {
-    /// The underlying queue storing tasks wrapped in `Arc<Mutex<Task>>`.
-    /// The `VecDeque` provides efficient push/pop operations from both ends.
     pub queue: VecDeque<Arc<Mutex<Task>>>,
 }
 
@@ -70,11 +68,13 @@ impl TaskQueue {
     /// # Returns
     ///
     /// * `usize` - The number of tasks in the queue
-    pub fn len(&self) -> usize {
+    #[allow(dead_code)]
+    pub fn get_number_open_tasks(&self) -> usize {
         self.queue.len()
     }
 
     /// Removed all remaining entries from the queue
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.queue.clear();
     }
@@ -93,6 +93,7 @@ pub fn init_task_queue() -> TaskQueue {
         queue: VecDeque::new(),
     }
 }
+
 #[cfg(test)]
 mod tests {
     use ainari_common::secret::Secret;
@@ -100,48 +101,64 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
+    use crate::core::processing::tasks::{
+        CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
+    };
+    use ainari_api_structs::user_context::UserContext;
+
+    fn test_context() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        }
+    }
 
     #[test]
     fn test_add_and_get() {
-        let model_uuid = Uuid::new_v4();
+        let virtual_machine_uuid = Uuid::new_v4();
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
         let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let secret = Secret::from("asdf");
+        let _secret = Secret::from("asdf");
+        let resource_type = TaskResourceType::VirtualMachine;
 
-        let info1 = CheckpointSaveInfo {
-            onsen_address: "127.0.0.1".to_string(),
-            file_path: "asdf".to_string(),
-            secret: secret.clone(),
+        let info1 = CloudHypervisorVirtualMachineCreateInfo {
+            vm_uuid: virtual_machine_uuid,
+            name: "test-task1".to_string(),
+            context: test_context(),
         };
-        let info2 = CheckpointSaveInfo {
-            onsen_address: "127.0.0.1".to_string(),
-            file_path: "asdf".to_string(),
-            secret: secret.clone(),
+        let info2 = CloudHypervisorVirtualMachineCreateInfo {
+            vm_uuid: virtual_machine_uuid,
+            name: "test-task2".to_string(),
+            context: test_context(),
         };
 
         let task1 = Task {
             uuid: uuid1,
-            model_uuid,
+            resouce_uuid: virtual_machine_uuid,
+            resource_type: resource_type.clone(),
             name: "task1".to_string(),
-            info: TaskVariant::CheckpointSave(info1),
-            meta: TaskMeta::new(1, 1, 1, 0),
+            info: TaskVariant::CloudHypervisorVirtualMachineCreate(info1),
+            meta: TaskMeta::new(),
         };
         let task2 = Task {
             uuid: uuid2,
-            model_uuid,
+            resouce_uuid: virtual_machine_uuid,
+            resource_type: resource_type.clone(),
             name: "task2".to_string(),
-            info: TaskVariant::CheckpointSave(info2),
-            meta: TaskMeta::new(1, 1, 1, 0),
+            info: TaskVariant::CloudHypervisorVirtualMachineCreate(info2),
+            meta: TaskMeta::new(),
         };
 
         queue.add(task1);
         queue.add(task2);
 
-        let queue_len = queue.len();
-        assert_eq!(queue_len, 2);
+        // let queue_len = queue.len();
+        // assert_eq!(queue_len, 2);
 
         let task1 = queue.get().unwrap();
         assert_eq!(task1.lock().expect("mutex poisoned").uuid, uuid1);

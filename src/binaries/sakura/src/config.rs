@@ -42,6 +42,9 @@ pub struct Config {
     pub api: ainari_config::Api,
     /// Configuration for storage-related parameters.
     pub storage: Storage,
+    /// Configuration of the hypervisor, which runs the virtual machines.
+    #[serde(default)]
+    pub hypervisor: Hypervisor,
     /// Configuration for database-related parameters.
     pub database: ainari_config::Database,
     /// Configuration for Miko endpoint parameters.
@@ -61,8 +64,38 @@ fn default_insecure_clients() -> bool {
 /// Contains settings related to file storage.
 #[derive(Debug, Deserialize)]
 pub struct Storage {
-    /// Path where temporary files will be stored.
+    pub local_vm_storage_path: String,
     pub tempfile_location: String,
+}
+
+/// Configuration of the hypervisor, which runs the virtual machines.
+#[derive(Debug, Deserialize)]
+pub struct Hypervisor {
+    /// Path of the cloud-hypervisor binary
+    #[serde(default = "default_cloud_hypervisor_path")]
+    pub binary_path: String,
+    /// Path of the firmware, which boots the virtual machines
+    #[serde(default = "default_firmware_path")]
+    pub firmware_path: String,
+}
+
+impl Default for Hypervisor {
+    fn default() -> Self {
+        Self {
+            binary_path: default_cloud_hypervisor_path(),
+            firmware_path: default_firmware_path(),
+        }
+    }
+}
+
+/// Default path of the cloud-hypervisor binary
+fn default_cloud_hypervisor_path() -> String {
+    "/usr/local/bin/cloud-hypervisor".to_owned()
+}
+
+/// Default path of the firmware of the virtual machines
+fn default_firmware_path() -> String {
+    "/usr/local/share/CLOUDHV.fd".to_owned()
 }
 
 /// Configuration structure for processing parameters.
@@ -84,7 +117,7 @@ fn default_max_number_of_threads() -> usize {
     0
 }
 
-/// Global singleton config instance.
+/// Global singleton config virtual_machine.
 /// This is initialized once when first accessed and remains available throughout the program's lifetime.
 ///
 /// The configuration is loaded from a TOML file at "/etc/ainari/sakura.toml".
@@ -93,10 +126,15 @@ fn default_max_number_of_threads() -> usize {
 /// # Panics
 /// This will panic if the configuration file cannot be read or parsed.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/sakura.toml";
+    // the path of the config-file can be overwritten, which the containers of the
+    // docker-compose-setup use to mount their config to another place
+    let file_path = match env::var("CONFIG_FILE") {
+        Ok(value) => value,
+        Err(_) => "/etc/ainari/sakura.toml".to_owned(),
+    };
     log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(file_path) {
+    match fs::read_to_string(file_path.clone()) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             match toml::from_str(&content) {

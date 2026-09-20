@@ -41,7 +41,7 @@
                         <td>
                             <ProgressBar
                                 :task_uuid="task.uuid"
-                                :model_uuid="props.id"
+                                :instance_uuid="props.id"
                             />
                         </td>
                         <td>
@@ -70,7 +70,7 @@
 
         <TaskCreateModal
             v-if="showAddModal"
-            :model_uuid="props.id"
+            :instance_uuid="props.id"
             :torii_port="torii_port"
             :icons="icons"
             @accept="acceptAddModal"
@@ -79,7 +79,7 @@
 
         <TaskAbortModal
             v-if="showAbortModal"
-            :model_uuid="props.id"
+            :instance_uuid="props.id"
             :torii_port="torii_port"
             :task="taskToAbort"
             :icons="icons"
@@ -125,21 +125,21 @@ async function fetchTasks() {
             baseURL: authContext.hanami_address,
         });
 
-        // get torii-port of the model
-        const model_response = await hanami_api.get(
-            `/v1alpha/model/${props.id}`,
+        // get torii-port of the instance
+        const instance_response = await hanami_api.get(
+            `/v1alpha/instance/${props.id}`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
         );
-        torii_port = model_response.data.torii_port;
+        torii_port = instance_response.data.torii_port;
 
         const sakura_api = axios.create({
             baseURL: `${authContext.torii_base_address}:${torii_port}`,
         });
 
         const task_response = await sakura_api.get(
-            `/v1alpha/model/${props.id}/task`,
+            `/v1alpha/instance/${props.id}/task`,
             {
                 headers: { Authorization: `Bearer ${authContext.token}` },
             },
@@ -173,7 +173,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Add task modal
 //=============================================================================
-function openAddModal(model_uuid: string) {
+function openAddModal(instance_uuid: string) {
     showAddModal.value = true;
 }
 function cancelAddModal() {

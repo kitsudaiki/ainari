@@ -102,24 +102,24 @@ v1.0alpha/speed
 v1.0alpha/foreward
 - GET: admin, member
 
-v1.0alpha/model
+v1.0alpha/instance
 - POST: admin, member
 - GET : admin, member
 - DELETE: admin, member
 
-v1.0alpha/model/save
+v1.0alpha/instance/save
 - POST: admin, member
 
-v1.0alpha/model/load
+v1.0alpha/instance/load
 - POST: admin, member
 
-v1.0alpha/model/set_mode
+v1.0alpha/instance/set_mode
 - PUT: admin, member
 
-v1.0alpha/model/switch_host
+v1.0alpha/instance/switch_host
 - PUT: admin, member
 
-v1.0alpha/model/all
+v1.0alpha/instance/all
 - GET : admin, member
 
 v1.0alpha/template/upload

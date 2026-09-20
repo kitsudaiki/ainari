@@ -26,7 +26,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-model="user_id"
+                        v-instance="user_id"
                         type="text"
                         id="login_id_field"
                         placeholder="User-ID"
@@ -41,7 +41,7 @@
 
                 <div>
                     <input
-                        v-model="password"
+                        v-instance="password"
                         type="password"
                         id="login_pw_field"
                         placeholder="Password"

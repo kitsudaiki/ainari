@@ -26,23 +26,23 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
 lazy_static::lazy_static! {
-    /// Global singleton that holds a thread-safe `ProxyHandler` instance.
-    /// This allows for centralized management of all proxy instances in the application.
+    /// Global singleton that holds a thread-safe `ProxyHandler` virtual_machine.
+    /// This allows for centralized management of all proxy virtual_machines in the application.
     pub static ref PROXY_HANDLER: RwLock<ProxyHandler> = RwLock::new(init_proxy_handler());
 }
 
 // ==================================================================================================
 
-/// A handler for managing multiple proxy instances.
+/// A handler for managing multiple proxy virtual_machines.
 /// This struct maintains a collection of proxies identified by their UUIDs.
 pub struct ProxyHandler {
-    /// A map of proxy UUIDs to their corresponding `Proxy` instances.
+    /// A map of proxy UUIDs to their corresponding `Proxy` virtual_machines.
     pub proxys: HashMap<Uuid, Proxy>,
 }
 
 // ==================================================================================================
 
-/// Initializes a new, empty `ProxyHandler` instance.
+/// Initializes a new, empty `ProxyHandler` virtual_machine.
 ///
 /// # Returns
 /// A new `ProxyHandler` with an empty proxy map.

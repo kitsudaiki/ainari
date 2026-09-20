@@ -169,7 +169,11 @@ pub fn get_host_by_address(
     use self::hosts::dsl::*;
 
     let query = hosts
-        .filter(name.eq(host_address.to_string()).and(status.eq("ACTIVE")))
+        .filter(
+            address
+                .eq(host_address.to_string())
+                .and(status.eq("ACTIVE")),
+        )
         .into_boxed();
 
     match query

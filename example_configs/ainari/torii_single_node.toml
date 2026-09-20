@@ -1,0 +1,35 @@
+# Torii config for the single node setup. Only for local development and
+# testing, never use it in a production deployment.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11419
+internal_ip = "0.0.0.0"
+internal_port = 10419
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[miko]
+address = "http://127.0.0.1:11417"
+
+[ports]
+min_port = 10042
+max_port = 10053
+
+[network]
+# there is neither an overlay nor an underlay in the single node setup
+overlay_iface = "none"
+underlay_iface = "none"
+# Existing interface facing the outside, the floating IPs are served on it.
+# uplink0 and 10.0.0.1 are created by scripts/setup_single_node_uplink.sh; on a
+# real host use the physical NIC and the router behind it instead.
+uplink_iface = "uplink0"
+# next hop behind the uplink, all traffic leaving the virtual network goes there
+uplink_next_hop = "10.0.0.1"
+
+[development]
+single_node = true

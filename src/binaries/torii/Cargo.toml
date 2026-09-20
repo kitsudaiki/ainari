@@ -9,6 +9,7 @@ ainari_common = { path = "../../libs/rust/ainari_common" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 ainari_clients = { path = "../../libs/rust/ainari_clients" }
+torii_common = { path = "../../libs/rust/torii_common" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.7"
@@ -40,6 +41,22 @@ futures = "0.3"
 bytes = "1"
 uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 anyhow = "1.0"
+# eBPF
+aya = "0.12"
+aya-log = "0.2"
+
+[build-dependencies]
+anyhow = { workspace = true }
+aya-build = { workspace = true }
+cargo_metadata = { workspace = true }
+tonic-build = "0.10"
+
 
 [dev-dependencies]
 serial_test = "3"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

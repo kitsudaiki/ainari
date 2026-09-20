@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use crate::config;
 
 lazy_static::lazy_static! {
-    /// The global database connection instance.
+    /// The global database connection virtual_machine.
     ///
     /// # Safety
     /// This connection should only be accessed through proper synchronization mechanisms.

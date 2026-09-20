@@ -18,7 +18,7 @@
     <div class="name-item">
         <label>{{ itemName }}</label>
         <select
-            v-model="selectedDatasetUuid"
+            v-instance="selectedDatasetUuid"
             class="select-dropdown"
             @change="onDatasetSelected"
         >
@@ -30,7 +30,7 @@
                 {{ item.name }} [ {{ item.uuid }} ]
             </option>
         </select>
-        <select v-model="selectedColumn" class="select-dropdown">
+        <select v-instance="selectedColumn" class="select-dropdown">
             <option v-for="item in datasetColumns" :key="item" :value="item">
                 {{ item }}
             </option>

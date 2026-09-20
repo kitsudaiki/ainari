@@ -20,4 +20,11 @@ address = "http://127.0.0.1:11417"
 max_number_of_threads = 0
 
 [storage]
+local_vm_storage_path = "/etc/ainari/virtual_machines"
 tempfile_location = "/tmp/sakura"
+
+[hypervisor]
+# path of the cloud-hypervisor binary, which runs the virtual machines
+binary_path = "/usr/local/bin/cloud-hypervisor"
+# path of the firmware, which boots the virtual machines
+firmware_path = "/usr/local/share/CLOUDHV.fd"

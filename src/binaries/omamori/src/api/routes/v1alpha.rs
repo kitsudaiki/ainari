@@ -16,6 +16,7 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::public_key::*;
 use crate::api::http_endpoints::secret::*;
 
 pub fn v1alpha_routes() -> Scope {
@@ -49,6 +50,23 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{secret_uuid}/payload")
                         .route(get().to(get_secret_payload_v1_0::get_secret_with_payload)),
+                ),
+        )
+        .service(
+            scope("/public_key")
+                .service(
+                    resource("")
+                        .route(post().to(upload_public_key_v1_0::upload_public_key))
+                        .route(get().to(list_public_key_v1_0::list_public_key)),
+                )
+                .service(
+                    resource("/{public_key_uuid}")
+                        .route(get().to(get_public_key_v1_0::get_public_key))
+                        .route(delete().to(delete_public_key_v1_0::delete_public_key)),
+                )
+                .service(
+                    resource("/{public_key_uuid}/internal")
+                        .route(get().to(get_public_key_internal_v1_0::get_public_key_internal)),
                 ),
         )
 }

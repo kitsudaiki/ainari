@@ -90,9 +90,75 @@ var deleteHostCmd = &cobra.Command{
 	},
 }
 
+var getOnsenHostCmd = &cobra.Command{
+	Use:   "get HOST_UUID",
+	Short: "Get information of a specific onsen-host.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		hostUuid := args[0]
+		content, err := ainari_sdk.GetOnsenHost(context, hostUuid)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var listOnsenHostCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all onsen-host.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListOnsenHost(context)
+		if err == nil {
+			ainarictl_common.PrintList(content["hosts"].([]interface{}))
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var deleteOnsenHostCmd = &cobra.Command{
+	Use:   "delete HOST_UUID",
+	Short: "Delete a specific onsen-host from the backend.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		hostUuid := args[0]
+		_, err = ainari_sdk.DeleteOnsenHost(context, hostUuid)
+		if err == nil {
+			fmt.Printf("successfully deleted onsen-host '%v'\n", hostUuid)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
 var hostCmd = &cobra.Command{
 	Use:   "host",
-	Short: "Manage host.",
+	Short: "Manage the sakura-hosts, which run the virtual machines.",
+}
+
+var onsenHostCmd = &cobra.Command{
+	Use:   "onsen_host",
+	Short: "Manage the onsen-hosts, which store the images and checkpoints.",
 }
 
 func Init_Host_Commands(rootCmd *cobra.Command) {
@@ -103,4 +169,12 @@ func Init_Host_Commands(rootCmd *cobra.Command) {
 	hostCmd.AddCommand(listHostCmd)
 
 	hostCmd.AddCommand(deleteHostCmd)
+
+	rootCmd.AddCommand(onsenHostCmd)
+
+	onsenHostCmd.AddCommand(getOnsenHostCmd)
+
+	onsenHostCmd.AddCommand(listOnsenHostCmd)
+
+	onsenHostCmd.AddCommand(deleteOnsenHostCmd)
 }

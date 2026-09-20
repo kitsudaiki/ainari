@@ -87,6 +87,26 @@ var deleteCheckpointCmd = &cobra.Command{
 	},
 }
 
+
+var getCheckpointCountCmd = &cobra.Command{
+	Use:   "count",
+	Short: "Get the number of checkpoints of the project.",
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.GetCheckpointCount(context)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
 var checkpointCmd = &cobra.Command{
 	Use:   "checkpoint",
 	Short: "Manage checkpoint.",
@@ -100,4 +120,6 @@ func Init_Checkpoint_Commands(rootCmd *cobra.Command) {
 	checkpointCmd.AddCommand(listCheckpointCmd)
 
 	checkpointCmd.AddCommand(deleteCheckpointCmd)
+
+	checkpointCmd.AddCommand(getCheckpointCountCmd)
 }

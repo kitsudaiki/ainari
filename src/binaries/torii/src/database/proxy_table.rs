@@ -31,7 +31,7 @@ table! {
         uuid -> Varchar,
         port -> Integer,
         target_address -> Varchar,
-        model_uuid -> Varchar,
+        virtual_machine_uuid -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -51,7 +51,7 @@ table! {
 /// * `uuid` - Unique identifier for the proxy
 /// * `port` - Network port the proxy is listening on
 /// * `target_address` - Address the proxy forwards traffic to
-/// * `model_uuid` - UUID of the model this proxy is associated with
+/// * `virtual_machine_uuid` - UUID of the virtual_machine this proxy is associated with
 /// * `owner_id` - User ID of the proxy owner
 /// * `project_id` - Project ID the proxy belongs to
 /// * `status` - Current status of the proxy (ACTIVE, DELETED, etc.)
@@ -67,7 +67,7 @@ pub struct ProxyEntry {
     pub uuid: String,
     pub port: i32,
     pub target_address: String,
-    pub model_uuid: String,
+    pub virtual_machine_uuid: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -91,7 +91,7 @@ pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
         uuid VARCHAR(40) PRIMARY KEY,
         port INTEGER,
         target_address VARCHAR(256),
-        model_uuid VARCHAR(40),
+        virtual_machine_uuid VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -113,7 +113,7 @@ pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
 /// * `proxy_uuid` - Unique identifier for the new proxy
 /// * `port` - Network port the proxy will listen on
 /// * `target_address` - Address the proxy will forward traffic to
-/// * `model_uuid` - UUID of the model this proxy is associated with
+/// * `virtual_machine_uuid` - UUID of the virtual_machine this proxy is associated with
 /// * `context` - User context containing ownership and project information
 ///
 /// # Returns
@@ -122,7 +122,7 @@ pub fn add_new_proxy(
     proxy_uuid: &Uuid,
     port: u16,
     target_address: &str,
-    model_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Create a new ProxyEntry with the provided parameters and current timestamps
@@ -130,7 +130,7 @@ pub fn add_new_proxy(
         uuid: proxy_uuid.to_string().clone(),
         port: port.into(),
         target_address: target_address.to_owned(),
-        model_uuid: model_uuid.to_string().clone(),
+        virtual_machine_uuid: virtual_machine_uuid.to_string().clone(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -347,7 +347,7 @@ mod tests {
         let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
-        let model_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -363,7 +363,7 @@ mod tests {
             uuid: proxy_uuid1.to_string(),
             port: 42,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -383,7 +383,10 @@ mod tests {
                 assert_eq!(retrieved_proxy.uuid, proxy.uuid);
                 assert_eq!(retrieved_proxy.port, proxy.port);
                 assert_eq!(retrieved_proxy.target_address, proxy.target_address);
-                assert_eq!(retrieved_proxy.model_uuid, proxy.model_uuid);
+                assert_eq!(
+                    retrieved_proxy.virtual_machine_uuid,
+                    proxy.virtual_machine_uuid
+                );
                 assert_eq!(retrieved_proxy.status, proxy.status);
                 assert_eq!(retrieved_proxy.created_by, proxy.created_by);
                 assert_eq!(retrieved_proxy.updated_by, proxy.updated_by);
@@ -405,7 +408,7 @@ mod tests {
         let proxy_uuid1 = Uuid::new_v4();
         let proxy_uuid2 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
-        let model_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -421,7 +424,7 @@ mod tests {
             uuid: proxy_uuid1.to_string(),
             port: 42,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -437,7 +440,7 @@ mod tests {
             uuid: proxy_uuid2.to_string(),
             port: 43,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -466,7 +469,7 @@ mod tests {
         let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
-        let model_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -482,7 +485,7 @@ mod tests {
             uuid: proxy_uuid1.to_string(),
             port: 42,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -510,13 +513,13 @@ mod tests {
         let proxy_uuid2 = Uuid::new_v4();
         let proxy_uuid3 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
-        let model_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
 
         let proxy1 = ProxyEntry {
             uuid: proxy_uuid1.to_string(),
             port: 42,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -532,7 +535,7 @@ mod tests {
             uuid: proxy_uuid2.to_string(),
             port: 43,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -548,7 +551,7 @@ mod tests {
             uuid: proxy_uuid3.to_string(),
             port: 44,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
@@ -655,13 +658,13 @@ mod tests {
         let proxy_uuid2 = Uuid::new_v4();
         let proxy_uuid3 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
-        let model_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
 
         let proxy1 = ProxyEntry {
             uuid: proxy_uuid1.to_string(),
             port: 42,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -677,7 +680,7 @@ mod tests {
             uuid: proxy_uuid2.to_string(),
             port: 43,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -693,7 +696,7 @@ mod tests {
             uuid: proxy_uuid3.to_string(),
             port: 44,
             target_address: target_address1.clone(),
-            model_uuid: model_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

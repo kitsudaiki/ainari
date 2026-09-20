@@ -16,6 +16,23 @@ from . import ainari_request
 from .access_context import AccessContext
 
 
+def get_checkpoint(context: AccessContext,
+                   checkpoint_uuid: str) -> dict:
+    path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
+    return ainari_request.send_get_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           "")
+
+
+def get_checkpoint_count(context: AccessContext) -> dict:
+    path = "/v1alpha/checkpoint/count"
+    return ainari_request.send_get_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           "")
+
+
 def list_checkpoints(context: AccessContext) -> dict:
     path = "/v1alpha/checkpoint"
     return ainari_request.send_get_request(context,

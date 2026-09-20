@@ -41,23 +41,16 @@ pub async fn get_quota(
     user_id: &str,
     insecure_client: bool,
 ) -> Result<QuotaResp, AinariError> {
-    // Clone the endpoint address to construct the full URL
     let address = miko_endpoint.address.clone();
-
-    // Prepare the HTTP client with the specified security settings
     let client = prepare_client(&address, insecure_client);
-
-    // Construct the full URL for the quota API endpoint
     let url = format!("{address}/v1alpha/quota");
 
-    // Make the HTTP GET request with the authorization header
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .send()
         .await;
 
-    // Handle the response and parse it into a QuotaResp struct
     let resp: Result<QuotaResp, AinariError> = handle_response(response, "quota", user_id).await;
     resp
 }

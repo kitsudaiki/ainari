@@ -50,14 +50,24 @@ pub async fn register_host_internal(
         ));
     }
 
-    // add new host to database
-    let host_uuid = Uuid::new_v4();
-    host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context).map_err(
-        |e| {
-            log::error!("Failed to add host with UUID '{host_uuid}' to database with error: {e}.");
-            ErrorResponse::InternalError("Internal Error".to_string())
-        },
-    )?;
+    // an onsen-host registers itself on every start, so the entry of an already known host is
+    // reused instead of adding it a second time
+    let mut host_uuid = Uuid::new_v4();
+    match host_table::get_host_by_address(&body.host_address, &context) {
+        Ok(host_data) => {
+            host_uuid = convert_uuid(&host_data.uuid)?;
+        }
+        Err(_) => {
+            // add new host to database if address not already exist
+            host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context)
+                .map_err(|e| {
+                    log::error!(
+                        "Failed to add host with UUID '{host_uuid}' to database with error: {e}."
+                    );
+                    ErrorResponse::InternalError("Internal Error".to_string())
+                })?;
+        }
+    };
 
     // get new created host from database to get addtional information
     let host_data = host_table::get_host(&host_uuid, &context)

@@ -1,0 +1,31 @@
+# Torii config for the gateway at the edge of the network, which serves the floating IPs. It is
+# used by the local docker-compose setup, where the uplink 'veth-gw' is injected into the
+# container by scripts/setup_local_stack.sh.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11419
+internal_ip = "0.0.0.0"
+internal_port = 10419
+
+[database]
+file_path = "/etc/ainari/torii_db"
+
+[miko]
+address = "http://miko:11417"
+
+[ports]
+min_port = 10042
+max_port = 10053
+
+[network]
+# the overlay faces the virtual machines, the underlay carries the traffic to the other gateways
+overlay_iface = "veth-gw"
+underlay_iface = "eth0"
+# interface facing the host, on which the floating IPs are served
+uplink_iface = "veth-gw"
+# next hop behind the uplink, which is the address of the host on the injected veth-pair
+uplink_next_hop = "10.0.0.1"

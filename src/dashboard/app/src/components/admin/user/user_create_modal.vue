@@ -27,7 +27,7 @@
                 <div>
                     <div>
                         <input
-                            v-model="form.userId"
+                            v-instance="form.userId"
                             type="text"
                             placeholder="User-ID"
                             :class="{ invalid_input: userIdError }"
@@ -39,7 +39,7 @@
                     <br />
                     <div>
                         <input
-                            v-model="form.userName"
+                            v-instance="form.userName"
                             type="text"
                             placeholder="User-Name"
                             :class="{ invalid_input: userNameError }"
@@ -51,7 +51,7 @@
                     <br />
                     <div>
                         <input
-                            v-model="form.password"
+                            v-instance="form.password"
                             type="password"
                             placeholder="Password"
                             :class="{ invalid_input: passwordError }"
@@ -63,7 +63,7 @@
                     <br />
                     <div>
                         <input
-                            v-model="form.confirmPassword"
+                            v-instance="form.confirmPassword"
                             type="password"
                             placeholder="Confirm password"
                             :class="{ invalid_input: passwordConfirmError }"
@@ -75,7 +75,7 @@
                     <br />
                     <div>
                         <label class="checkbox-label">
-                            <input type="checkbox" v-model="form.isAdmin" />
+                            <input type="checkbox" v-instance="form.isAdmin" />
                             Is Admin
                         </label>
                     </div>

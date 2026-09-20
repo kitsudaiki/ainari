@@ -33,7 +33,7 @@ export default defineComponent({
             type: String,
             required: true,
         },
-        model_uuid: {
+        instance_uuid: {
             type: String,
             required: true,
         },
@@ -56,11 +56,11 @@ export default defineComponent({
             });
 
             // get torii port only once
-            const model_response = await hanami_api.get(
-                `/v1alpha/model/${props.model_uuid}`,
+            const instance_response = await hanami_api.get(
+                `/v1alpha/instance/${props.instance_uuid}`,
             );
 
-            const torii_port = model_response.data.torii_port;
+            const torii_port = instance_response.data.torii_port;
 
             sakura_api = axios.create({
                 baseURL: `${authContext.torii_base_address}:${torii_port}`,
@@ -71,7 +71,7 @@ export default defineComponent({
         const fetchProgress = async () => {
             try {
                 const task_response = await sakura_api.get(
-                    `/v1alpha/model/${props.model_uuid}/task/${props.task_uuid}`,
+                    `/v1alpha/instance/${props.instance_uuid}/task/${props.task_uuid}`,
                 );
 
                 // calculate current progress

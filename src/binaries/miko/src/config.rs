@@ -40,10 +40,15 @@ pub struct Auth {
 
 // Global singleton config
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/miko.toml";
+    // the path of the config-file can be overwritten, which the containers of the
+    // docker-compose-setup use to mount their config to another place
+    let file_path = match env::var("CONFIG_FILE") {
+        Ok(value) => value,
+        Err(_) => "/etc/ainari/miko.toml".to_owned(),
+    };
     log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(file_path) {
+    match fs::read_to_string(file_path.clone()) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             match toml::from_str(&content) {
