@@ -57,6 +57,9 @@ prepare-build-dependencies:
                            g++ \
                            git \
                            ssh \
+                           curl \
+                           ca-certificates \
+                           zstd \
                            pkg-config \
                            openssl \
                            libssl-dev \
@@ -66,6 +69,12 @@ prepare-build-dependencies:
                            # nvidia-cuda-toolkit \
                            nano && \
         rustup install stable --no-self-update
+    # the build-script of torii compiles the eBPF-programs of the datapath with the nightly-toolchain,
+    # which requires rust-src for "-Z build-std=core" and the bpf-linker for linking
+    RUN rustup toolchain install nightly --no-self-update --profile minimal --component rust-src
+    RUN curl -sSfLO https://github.com/aya-rs/bpf-linker/releases/latest/download/bpf-linker-x86_64-unknown-linux-musl.tar.zst && \
+        tar -xpf bpf-linker-x86_64-unknown-linux-musl.tar.zst -C /usr/local/bin && \
+        rm bpf-linker-x86_64-unknown-linux-musl.tar.zst
     # copy current code into the docker-container
     COPY . .
 

@@ -34,7 +34,7 @@ def get_image_count(context: AccessContext) -> dict:
 
 
 def get_image(context: AccessContext,
-                image_uuid: str) -> dict:
+              image_uuid: str) -> dict:
     path = f"/v1alpha/image/{image_uuid}"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
@@ -43,7 +43,7 @@ def get_image(context: AccessContext,
 
 
 def delete_image(context: AccessContext,
-                   image_uuid: str):
+                 image_uuid: str):
     path = f"/v1alpha/image/{image_uuid}"
     ainari_request.send_delete_request(context,
                                        context.ryokan_adress,
@@ -58,10 +58,10 @@ def delete_all_images(context: AccessContext):
 
 
 def check_image(context: AccessContext,
-                  image_uuid: str,
-                  image_column: str,
-                  reference_uuid: str,
-                  reference_column: str) -> dict:
+                image_uuid: str,
+                image_column: str,
+                reference_uuid: str,
+                reference_column: str) -> dict:
     path = f"/v1alpha/image/{image_uuid}/check"
     json_body = {
         "image_column": image_column,

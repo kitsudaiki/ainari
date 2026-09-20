@@ -20,11 +20,11 @@ use validator::Validate;
 
 use crate::core::routing_interface::*;
 
+use crate::config::CONFIG;
 use crate::core::models::Route;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
 use crate::core::utils::get_ifindex;
-use crate::config::CONFIG;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;

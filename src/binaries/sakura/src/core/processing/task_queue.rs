@@ -123,7 +123,7 @@ mod tests {
         let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let secret = Secret::from("asdf");
+        let _secret = Secret::from("asdf");
         let resource_type = TaskResourceType::VirtualMachine;
 
         let info1 = CloudHypervisorVirtualMachineCreateInfo {

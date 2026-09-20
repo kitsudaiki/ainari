@@ -143,11 +143,7 @@ fn check_row(
     let reference_row = get_highest_pos_row(reference_file_handle, reference_columns, row)?;
     // println!("row: {row}    image_row: {image_row}  reference_row: {reference_row}");
 
-    if image_row != reference_row {
-        return Ok(false);
-    }
-
-    Ok(true)
+    Ok(image_row == reference_row)
 }
 
 /// Finds the highest position in a row where the value is finite.

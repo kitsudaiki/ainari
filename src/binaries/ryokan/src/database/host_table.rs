@@ -166,7 +166,7 @@ pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
 /// # Returns
 ///
 /// * `Result<HostEntry, enums::DbError>` - The requested host if found, or an error
-/// Retrieves a host by its address.
+///   Retrieves a host by its address.
 ///
 /// # Arguments
 ///
