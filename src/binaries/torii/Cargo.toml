@@ -43,7 +43,7 @@ uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 anyhow = "1.0"
 # eBPF
 aya = "0.12"
-aya-log = "0.2"
+aya-log = "0.3"
 
 [build-dependencies]
 anyhow = { workspace = true }
