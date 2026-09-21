@@ -109,13 +109,16 @@ python3 -m venv .venv
 ## End-to-end test
 
 `testing/local_stack/vm_lifecycle_test.py` walks through the same steps with the python-sdk, from
-the ssh-key-pair up to the login into the virtual machine.
+the ssh-key-pair up to the login into the virtual machines. It creates two virtual machines out
+of the same image, with the same public key and within the same network, and gives every one of
+them its own floating ip-address. Which sakura-host runs which of them is decided by hanami, so
+they can end up on the same host or on different ones.
 
 ```bash
 # starts the containers and connects the host to the gateway (needs root)
 sudo ./scripts/setup_local_stack.sh
 
-# walks through the whole life-cycle of a virtual machine (as a normal user)
+# walks through the whole life-cycle of two virtual machines (as a normal user)
 .venv/bin/python testing/local_stack/vm_lifecycle_test.py
 
 # stops everything and removes the veth-pair again
@@ -129,7 +132,8 @@ passphrase `asdfasdf`, like in the other tests; both can be overwritten with `AI
 
 The test waits at its start until both sakura-hosts are registered in hanami and prints them.
 `AINARI_SAKURA_HOSTS` sets how many hosts it waits for, if the setup is run with another number
-of them.
+of them, and `AINARI_VIRTUAL_MACHINES` how many virtual machines it creates. Every one of them
+gets 2 cores and 2 GiB memory, so the two of the default need 4 GiB on the host.
 
 ## What the setup-script does as root
 

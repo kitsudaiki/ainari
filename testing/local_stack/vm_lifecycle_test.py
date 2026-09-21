@@ -15,19 +15,20 @@
 """
 End-to-end test of the local docker-compose setup.
 
-It walks through the whole life-cycle of a virtual machine with the python-sdk:
+It walks through the whole life-cycle of two virtual machines with the python-sdk:
 
     0. wait until all sakura-hosts of the setup are registered in hanami
     1. generate a ssh-key-pair and upload the public key to omamori
     2. download an ubuntu-cloud-image and upload it to ryokan
     3. create a network
-    4. reserve a virtual machine in hanami
-    5. create the reserved virtual machine on its sakura-host
-    6. give the virtual machine a floating ip-address
-    7. log into the virtual machine over ssh with the generated key
+    4. reserve the virtual machines in hanami
+    5. create the reserved virtual machines on their sakura-hosts
+    6. give every virtual machine its own floating ip-address
+    7. log into every virtual machine over ssh with the generated key
 
-Hanami picks one of the sakura-hosts for the virtual machine, so which of them really runs it
-differs from run to run.
+Both virtual machines use the same image, the same public key and the same network and differ
+only in their addresses. Hanami picks a sakura-host for every one of them, so they can land on
+the same host or on different ones, which differs from run to run.
 
 The stack has to run before this script is started:
 
@@ -61,6 +62,10 @@ PASSPHRASE = os.getenv("AINARI_PASSPHRASE", "asdfasdf")
 # the network of the virtual machine. The gateway of the virtual machines is the first address of
 # this subnet and is served by the torii, not by a real interface.
 NETWORK_SUBNET = "192.168.100.1/24"
+
+# the virtual machines, which are created by the test. They share their image, their public key
+# and their network, so they only differ in the addresses, which hanami assigns to them.
+NUMBER_OF_VIRTUAL_MACHINES = int(os.getenv("AINARI_VIRTUAL_MACHINES", "2"))
 
 NUMBER_OF_CORES = 2
 MEMORY_SIZE = 2 * 1024 * 1024 * 1024
@@ -136,6 +141,38 @@ def wait_for_sakura_hosts(context) -> list:
 
     raise TimeoutError(f"only {len(hosts)} of {NUMBER_OF_SAKURA_HOSTS} sakura-hosts registered "
                        f"themselves within {HOST_REGISTRATION_TIMEOUT}s")
+
+
+def reserve_and_create_virtual_machine(context,
+                                       name: str,
+                                       network_uuid: str,
+                                       image_uuid: str,
+                                       public_key_uuid: str) -> dict:
+    """
+    Reserves a virtual machine in hanami and starts its creation on the sakura-host, which hanami
+    selected for it. The virtual machine is not booted yet, when this returns.
+    """
+    reserved = virtual_machine.reserve_virtual_machine(context,
+                                                       name,
+                                                       NUMBER_OF_CORES,
+                                                       MEMORY_SIZE,
+                                                       network_uuid)
+    virtual_machine_data = {
+        "name": name,
+        "uuid": reserved["uuid"],
+        "internal_ip": reserved["internal_ip"],
+        "torii_port": reserved["torii_port"],
+    }
+    log(f"    {name}: {virtual_machine_data['uuid']} "
+        f"({virtual_machine_data['internal_ip']}, proxy-port {virtual_machine_data['torii_port']})")
+
+    virtual_machine.create_virtual_machine(context,
+                                           virtual_machine_data["torii_port"],
+                                           virtual_machine_data["uuid"],
+                                           image_uuid,
+                                           public_key_uuid)
+
+    return virtual_machine_data
 
 
 def wait_for_created_virtual_machine(context, virtual_machine_uuid: str) -> dict:
@@ -226,48 +263,47 @@ def main() -> int:
     network_uuid = network_data["uuid"]
     log(f"network: {network_uuid}")
 
-    # 4. reserve the virtual machine
-    log(f"reserving a virtual machine with {NUMBER_OF_CORES} cores "
-        f"and {MEMORY_SIZE // (1024 * 1024)} MiB memory")
-    reserved = virtual_machine.reserve_virtual_machine(context,
-                                                       f"local-stack-test-{test_id}",
-                                                       NUMBER_OF_CORES,
-                                                       MEMORY_SIZE,
-                                                       network_uuid)
-    virtual_machine_uuid = reserved["uuid"]
-    torii_port = reserved["torii_port"]
-    internal_ip = reserved["internal_ip"]
-    log(f"virtual machine: {virtual_machine_uuid} ({internal_ip}, proxy-port {torii_port})")
+    # 4. + 5. reserve the virtual machines and create them on their sakura-hosts
+    log(f"reserving {NUMBER_OF_VIRTUAL_MACHINES} virtual machines with {NUMBER_OF_CORES} cores "
+        f"and {MEMORY_SIZE // (1024 * 1024)} MiB memory each")
+    virtual_machines = []
+    for number in range(1, NUMBER_OF_VIRTUAL_MACHINES + 1):
+        virtual_machines.append(
+            reserve_and_create_virtual_machine(context,
+                                               f"local-stack-test-{test_id}-{number}",
+                                               network_uuid,
+                                               image_uuid,
+                                               public_key_uuid))
 
-    # 5. create the virtual machine on its sakura-host
-    log("creating the virtual machine on its sakura-host")
-    virtual_machine.create_virtual_machine(context,
-                                           torii_port,
-                                           virtual_machine_uuid,
-                                           image_uuid,
-                                           public_key_uuid)
-    virtual_machine_data = wait_for_created_virtual_machine(context, virtual_machine_uuid)
-    log(f"virtual machine is created: {virtual_machine_data['name']}")
+    # the virtual machines are installed and booted in parallel, so they are awaited together
+    log("waiting until the virtual machines are created on their sakura-hosts ...")
+    for virtual_machine_entry in virtual_machines:
+        wait_for_created_virtual_machine(context, virtual_machine_entry["uuid"])
+        log(f"    {virtual_machine_entry['name']} is created")
 
-    # 6. floating ip-address
-    log("creating a floating ip-address for the virtual machine")
-    floating_ip_data = floating_ip.create_floating_ip(context,
-                                                      f"local-stack-test-{test_id}",
-                                                      network_uuid,
-                                                      internal_ip)
-    floating_ip_address = floating_ip_data["floating_ip"]
-    log(f"floating ip: {floating_ip_address} -> {internal_ip}")
+    # 6. floating ip-addresses
+    log("creating a floating ip-address for every virtual machine")
+    for virtual_machine_entry in virtual_machines:
+        floating_ip_data = floating_ip.create_floating_ip(context,
+                                                          f"{virtual_machine_entry['name']}-fip",
+                                                          network_uuid,
+                                                          virtual_machine_entry["internal_ip"])
+        virtual_machine_entry["floating_ip"] = floating_ip_data["floating_ip"]
+        log(f"    {virtual_machine_entry['floating_ip']} "
+            f"-> {virtual_machine_entry['internal_ip']}")
 
     # 7. ssh
-    log(f"waiting for ssh on {floating_ip_address} ...")
-    output = wait_for_ssh(floating_ip_address)
-    log("ssh-access works:")
-    for line in output.splitlines():
-        log(f"    {line}")
+    for virtual_machine_entry in virtual_machines:
+        log(f"waiting for ssh on {virtual_machine_entry['floating_ip']} ...")
+        output = wait_for_ssh(virtual_machine_entry["floating_ip"])
+        log(f"ssh-access to {virtual_machine_entry['name']} works:")
+        for line in output.splitlines():
+            log(f"    {line}")
 
     log("")
     log("SUCCESS")
-    log(f"    ssh -i {SSH_KEY_PATH} {VM_USER}@{floating_ip_address}")
+    for virtual_machine_entry in virtual_machines:
+        log(f"    ssh -i {SSH_KEY_PATH} {VM_USER}@{virtual_machine_entry['floating_ip']}")
 
     return 0
 
