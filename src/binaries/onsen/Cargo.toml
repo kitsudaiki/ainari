@@ -52,4 +52,4 @@ futures-core = "0.3"
 tonic-prost-build = "0.14"
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"

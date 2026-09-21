@@ -46,4 +46,4 @@ aes-gcm = "0.10"
 aes = "0.8.4"
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"
