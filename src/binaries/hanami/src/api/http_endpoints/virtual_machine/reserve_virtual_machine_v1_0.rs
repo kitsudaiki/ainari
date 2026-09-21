@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::{Ipv4Addr, SocketAddr, ToSocketAddrs};
+use std::net::Ipv4Addr;
 
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
@@ -22,6 +22,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
+use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host};
 use crate::database::address_table;
 use crate::database::address_table::AddressEntry;
 use crate::database::host_table;
@@ -40,7 +41,7 @@ use ainari_clients::proxy as proxy_clients;
 use ainari_clients::quota::get_quota;
 use ainari_clients::route as route_clients;
 use ainari_clients::virtual_machine as virtual_machine_clients;
-use ainari_common::config::{Endpoint, Endpoints};
+use ainari_common::config::Endpoints;
 
 /// Reserves a new virtual_machine on one of the sakura-hosts
 ///
@@ -161,10 +162,16 @@ async fn prepare_selected_host(
     let network_data = network_table::get_network(&body.network_uuid, context)
         .map_err(|e| map_db_uuid_get_delete_error("network", &body.network_uuid, e))?;
 
-    // reserve internal address, MAC-address and TAP-device-name for the virtual_machine
-    let vm_address =
-        address_table::reserve_new_address(&network_data.uuid, &network_data.subnet, context)
-            .map_err(|e| map_db_register_error("mac", e))?;
+    // reserve internal address, MAC-address and TAP-device-name for the virtual_machine. The
+    // address of the selected host is stored with them, so the routes towards this
+    // virtual_machine can be created on the other hosts of its network later.
+    let vm_address = address_table::reserve_new_address(
+        &network_data.uuid,
+        &network_data.subnet,
+        &selected_host.address,
+        context,
+    )
+    .map_err(|e| map_db_register_error("mac", e))?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
@@ -216,8 +223,9 @@ async fn prepare_selected_host(
 /// The TAP-device of the virtual_machine and the route towards it are created on the torii of the
 /// sakura-host, which runs the virtual_machine later. In a setup with more than one torii, the
 /// torii, which is reachable from the outside, additionally gets a route towards the sakura-host,
-/// so the virtual_machine can be reached from outside of its host. The floating ip-address of the
-/// virtual_machine is not handled here, but by the floating_ip-endpoints.
+/// so the virtual_machine can be reached from outside of its host, and the virtual_machines of
+/// the network are connected with each other. The floating ip-address of the virtual_machine is
+/// not handled here, but by the floating_ip-endpoints.
 ///
 /// # Arguments
 /// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
@@ -274,143 +282,99 @@ async fn prepare_network(
 
     // in a single-torii setup the torii of the host is the torii, which is reachable from the
     // outside, so the traffic already ends on the TAP-device and no second route is required
-    if host_ip == external_torii_ip {
-        return Ok(());
+    if host_ip != external_torii_ip {
+        // route the traffic for the virtual_machine from the outside to the torii of its host.
+        // The target-interface is left empty, so the torii uses the interface of its own
+        // underlay.
+        create_overlay_route(&endpoints.torii, vm_address.internal_ip, host_ip, context).await?;
     }
 
-    // route the traffic for the virtual_machine from the outside to the torii of its host. The
-    // target-interface is left empty, so the torii uses the interface of its own underlay.
-    route_clients::create_route(
-        &endpoints.torii,
-        &context.token,
-        &config::INTERNAL_API_KEY,
-        &RouteReq {
-            dest_ip: vm_address.internal_ip,
-            target_iface: String::new(),
-            gateway_ip: Some(host_ip),
-            next_hop_ip: None,
-            next_hop_mac: None,
-            encrypted: false,
-        },
-        config::CONFIG.skip_tls_verification,
-    )
-    .await
-    .map_err(map_ainari_error_to_api_response)?;
+    // the virtual_machines of a network reach each other directly, without a detour over the
+    // torii at the edge of the network
+    connect_to_virtual_machines_of_network(endpoints, host_ip, vm_address, context).await?;
 
     Ok(())
 }
 
-/// Builds the endpoint of the torii, which runs on a sakura-host
+/// Connects a new virtual_machine with the virtual_machines, which already exist within the same
+/// network
 ///
-/// The torii of a sakura-host listens on the address of that host and uses the same port as the
-/// torii, which is reachable from the outside.
+/// Every virtual_machine of a network has to reach every other one of that network, so the torii
+/// of the new virtual_machine gets a route towards each of the other virtual_machines and the
+/// torii of each of those virtual_machines gets a route towards the new one. Two virtual_machines
+/// on the same host share the torii of that host, which already routes between their TAP-devices,
+/// so they are skipped here.
 ///
-/// # Arguments
-/// * `torii_endpoint` - Endpoint of the torii, which is reachable from the outside
-/// * `host_address` - Address of the sakura-host
-///
-/// # Returns
-/// * `Ok(Endpoint)` with the endpoint of the torii of the sakura-host
-/// * `Err(ErrorResponse)` if one of the two addresses has no port
-fn torii_of_host(torii_endpoint: &Endpoint, host_address: &str) -> Result<Endpoint, ErrorResponse> {
-    let torii_address = &torii_endpoint.internal_address;
-    let (scheme, rest) = split_scheme(torii_address);
-
-    let port = match rest.rsplit_once(':') {
-        Some((_, port)) => port,
-        None => {
-            log::error!("Torii-address '{torii_address}' has no port.");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    };
-
-    Ok(Endpoint {
-        internal_address: format!("{scheme}{}:{port}", address_host(host_address)),
-        public_address: torii_endpoint.public_address.clone(),
-    })
-}
-
-/// Resolves the host of an address into an ip-address
-///
-/// The addresses of the sakura-hosts are ip-addresses already, which are returned as they are.
-/// An address with a dns-name, like the configured address of a torii, is resolved by the
-/// resolver of the system.
+/// The address of the sakura-host of a virtual_machine is stored together with its internal
+/// address, so the torii, which owns the TAP-device of an older virtual_machine, can be addressed
+/// here again.
 ///
 /// # Arguments
-/// * `address` - Address to resolve, like `http://10.0.0.5:11420` or `http://sakura-1:11420`
+/// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
+/// * `new_host_ip` - Underlay-address of the sakura-host, which runs the new virtual_machine
+/// * `vm_address` - Reserved address of the new virtual_machine
+/// * `context` - User context containing authentication information
 ///
 /// # Returns
-/// * `Ok(Ipv4Addr)` with the address of the host
-/// * `Err(ErrorResponse)` if the host has no ipv4-address or can not be resolved
-async fn resolve_address(address: &str) -> Result<Ipv4Addr, ErrorResponse> {
-    let host = address_host(address).to_string();
+/// * `Ok(())` if the routes between all virtual_machines of the network are created
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+async fn connect_to_virtual_machines_of_network(
+    endpoints: &Endpoints,
+    new_host_ip: Ipv4Addr,
+    vm_address: &AddressEntry,
+    context: &UserContext,
+) -> Result<(), ErrorResponse> {
+    let addresses_of_network = address_table::list_addresses_of_network(&vm_address.network_uuid)
+        .map_err(|e| {
+        log::error!(
+            "Failed to get the addresses of network '{}' from database: '{e}'",
+            vm_address.network_uuid
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
-    // an address, which is already an ip-address, doesn't have to be resolved
-    if let Ok(ip) = host.parse::<Ipv4Addr>() {
-        return Ok(ip);
-    }
+    let new_torii = torii_of_host(&endpoints.torii, &vm_address.host_address)?;
 
-    // the resolver of the standard-library blocks, so it is not called within the async-runtime
-    let lookup_host = host.clone();
-    let resolved = actix_web::rt::task::spawn_blocking(move || {
-        (lookup_host.as_str(), 0u16)
-            .to_socket_addrs()
-            .map(|mut addrs| {
-                addrs.find_map(|addr| match addr {
-                    SocketAddr::V4(addr) => Some(*addr.ip()),
-                    SocketAddr::V6(_) => None,
-                })
-            })
-    })
-    .await;
-
-    match resolved {
-        Ok(Ok(Some(ip))) => Ok(ip),
-        Ok(Ok(None)) => {
-            log::error!("Host '{host}' of address '{address}' has no ipv4-address.");
-            Err(ErrorResponse::InternalError("Internal Error".to_string()))
+    for other_address in addresses_of_network {
+        // the address of the new virtual_machine is part of the list too
+        if other_address.uuid == vm_address.uuid {
+            continue;
         }
-        Ok(Err(e)) => {
-            log::error!("Failed to resolve host '{host}' of address '{address}': {e}");
-            Err(ErrorResponse::InternalError("Internal Error".to_string()))
+
+        // entries of a database, which was created before the host-address was stored with the
+        // addresses, can not be connected, because their torii is unknown
+        if other_address.host_address.is_empty() {
+            log::warn!(
+                "Address '{}' has no host-address, so it is not connected to the new one.",
+                other_address.uuid
+            );
+            continue;
         }
-        Err(e) => {
-            log::error!("Failed to run the resolver for host '{host}': {e}");
-            Err(ErrorResponse::InternalError("Internal Error".to_string()))
+
+        let other_host_ip = resolve_address(&other_address.host_address).await?;
+
+        // both virtual_machines run on the same host, whose torii already routes between their
+        // TAP-devices
+        if other_host_ip == new_host_ip {
+            continue;
         }
-    }
-}
 
-/// Splits the scheme from an address
-///
-/// # Arguments
-/// * `address` - Address to split, like `http://127.0.0.1:10419`
-///
-/// # Returns
-/// The scheme including the separator, like `http://`, and the rest of the address. The scheme is
-/// empty, if the address has none.
-fn split_scheme(address: &str) -> (&str, &str) {
-    match address.find("://") {
-        Some(position) => address.split_at(position + 3),
-        None => ("", address),
-    }
-}
+        let other_torii = torii_of_host(&endpoints.torii, &other_address.host_address)?;
 
-/// Reads the host of an address without its scheme, port and path
-///
-/// # Arguments
-/// * `address` - Address to read the host from, like `http://127.0.0.1:10419`
-///
-/// # Returns
-/// The host of the address, like `127.0.0.1`
-fn address_host(address: &str) -> &str {
-    let (_, rest) = split_scheme(address);
-    let host = rest.split('/').next().unwrap_or(rest);
+        // from the new virtual_machine to the older one ...
+        create_overlay_route(
+            &new_torii,
+            other_address.internal_ip,
+            other_host_ip,
+            context,
+        )
+        .await?;
 
-    match host.rsplit_once(':') {
-        Some((host, _)) => host,
-        None => host,
+        // ... and from the older virtual_machine back to the new one
+        create_overlay_route(&other_torii, vm_address.internal_ip, new_host_ip, context).await?;
     }
+
+    Ok(())
 }
 
 /// Asynchronously checks if the user's current number of meta_virtual_machines is within their quota limit.
@@ -468,60 +432,4 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
 
     // If all checks pass, return Ok indicating the quota is not exceeded
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn torii_endpoint(internal_address: &str) -> Endpoint {
-        Endpoint {
-            public_address: "http://10.0.0.254:11419".to_string(),
-            internal_address: internal_address.to_string(),
-        }
-    }
-
-    #[test]
-    fn test_address_host() {
-        assert_eq!(address_host("http://10.0.0.5:10419"), "10.0.0.5");
-        assert_eq!(address_host("https://vmm-gateway:10419"), "vmm-gateway");
-        assert_eq!(address_host("10.0.0.5:10419"), "10.0.0.5");
-        assert_eq!(address_host("http://10.0.0.5"), "10.0.0.5");
-    }
-
-    #[test]
-    fn test_torii_of_host() {
-        // the torii of the host keeps the scheme and the port of the torii of the endpoints
-        let torii = torii_endpoint("http://10.0.0.254:10419");
-        let host_torii = torii_of_host(&torii, "http://10.0.0.5:11420").unwrap();
-        assert_eq!(host_torii.internal_address, "http://10.0.0.5:10419");
-
-        // in a single-torii setup both addresses point to the same torii
-        let host_torii = torii_of_host(&torii, "http://10.0.0.254:11420").unwrap();
-        assert_eq!(host_torii.internal_address, "http://10.0.0.254:10419");
-    }
-
-    #[test]
-    fn test_torii_of_host_without_port() {
-        let torii = torii_endpoint("http://10.0.0.254");
-        assert!(torii_of_host(&torii, "http://10.0.0.5:11420").is_err());
-    }
-
-    #[actix_rt::test]
-    async fn test_resolve_address() {
-        // an address, which already contains an ip-address, is taken as it is
-        assert_eq!(
-            resolve_address("http://10.0.0.5:11420").await.unwrap(),
-            Ipv4Addr::new(10, 0, 0, 5)
-        );
-
-        // a host, which is addressed by a dns-name, is resolved
-        assert_eq!(
-            resolve_address("http://localhost:11420").await.unwrap(),
-            Ipv4Addr::LOCALHOST
-        );
-
-        // an address without a host can not be resolved
-        assert!(resolve_address("http://:11420").await.is_err());
-    }
 }

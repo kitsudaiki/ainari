@@ -59,6 +59,7 @@ table! {
         tap_name -> Varchar,
         internal_ip -> Varchar,
         network_uuid -> Varchar,
+        host_address -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -84,6 +85,11 @@ pub struct AddressEntry {
     pub internal_ip: Ipv4Addr,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub network_uuid: Uuid,
+    /// Address of the sakura-host, which runs the virtual_machine of this address, like
+    /// `http://sakura:11420`. The torii, which owns the TAP-device of the virtual_machine, is
+    /// derived from it, so the routes of a virtual_machine can be changed later, when another
+    /// virtual_machine is added to the same network.
+    pub host_address: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -113,6 +119,7 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
         tap_name VARCHAR(16),
         internal_ip VARCHAR(40),
         network_uuid VARCHAR(40),
+        host_address VARCHAR(256),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -149,6 +156,7 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
 /// * `internal_cidr` - CIDR of the network like `192.168.100.0/24`, which defines the range of the
 ///   internal IP-addresses. The network-address, the first address (gateway) and the broadcast-address
 ///   are not assigned.
+/// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -157,6 +165,7 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
 pub fn reserve_new_address(
     network_uuid: &Uuid,
     internal_cidr: &str,
+    host_address: &str,
     context: &UserContext,
 ) -> Result<AddressEntry, enums::DbError> {
     let (first_internal_ip, last_internal_ip) = match assignable_ip_range(internal_cidr) {
@@ -200,6 +209,7 @@ pub fn reserve_new_address(
         first_ip_candidate,
         last_internal_ip,
         network_uuid,
+        host_address,
         context,
     )
 }
@@ -217,6 +227,7 @@ pub fn reserve_new_address(
 /// * `first_ip_candidate` - Numeric value of the first internal IP-address to try
 /// * `last_internal_ip` - Numeric value of the last internal IP-address, which can be assigned
 /// * `network_uuid` - The UUID of the network the address belongs to
+/// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -227,6 +238,7 @@ fn reserve_address_from(
     first_ip_candidate: u32,
     last_internal_ip: u32,
     network_uuid: &Uuid,
+    host_address: &str,
     context: &UserContext,
 ) -> Result<AddressEntry, enums::DbError> {
     let mut mac_candidate = first_mac_candidate;
@@ -256,6 +268,7 @@ fn reserve_address_from(
             &new_tap_name,
             &new_internal_ip,
             network_uuid,
+            host_address,
             context,
         ) {
             Ok(address) => return Ok(address),
@@ -439,6 +452,7 @@ fn get_highest_tap_number() -> Result<Option<u32>, enums::DbError> {
 /// * `tap_name` - The name of the tap-device of the new entry
 /// * `internal_ip` - The internal IP-address assigned to the MAC-address
 /// * `network_uuid` - The UUID of the network the address belongs to
+/// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -448,6 +462,7 @@ pub fn add_new_address(
     tap_name: &str,
     internal_ip: &Ipv4Addr,
     network_uuid: &Uuid,
+    host_address: &str,
     context: &UserContext,
 ) -> QueryResult<AddressEntry> {
     let address = AddressEntry {
@@ -456,6 +471,7 @@ pub fn add_new_address(
         tap_name: tap_name.to_string(),
         internal_ip: *internal_ip,
         network_uuid: *network_uuid,
+        host_address: host_address.to_string(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -519,6 +535,45 @@ pub fn get_address(address_uuid: &Uuid) -> Result<AddressEntry, enums::DbError> 
     }
 }
 
+/// Retrieves the address of a virtual_machine by its internal IP-address within a network.
+///
+/// Only active addresses are returned, because a deleted entry doesn't belong to a running
+/// virtual_machine any more. The internal IP-address is unique within a network, so there is at
+/// most one entry. There is no permission-based filtering.
+///
+/// # Arguments
+/// * `address_network_uuid` - The UUID of the network of the virtual_machine
+/// * `address_internal_ip` - The internal IP-address of the virtual_machine
+///
+/// # Returns
+/// A Result containing the AddressEntry if found, or a DbError if not found or an error occurs
+pub fn get_address_by_internal_ip(
+    address_network_uuid: &Uuid,
+    address_internal_ip: &Ipv4Addr,
+) -> Result<AddressEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+
+    let query = addresses.filter(
+        network_uuid
+            .eq(address_network_uuid.to_string())
+            .and(internal_ip.eq(address_internal_ip.to_string()))
+            .and(status.eq("ACTIVE")),
+    );
+
+    match query
+        .select(AddressEntry::as_select())
+        .first::<AddressEntry>(&mut *conn)
+    {
+        Ok(address) => Ok(address),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Lists all addresses.
 ///
 /// This function retrieves all active addresses. There is no permission-based filtering.
@@ -532,6 +587,32 @@ pub fn list_addresses() -> QueryResult<Vec<AddressEntry>> {
 
     addresses
         .filter(status.eq("ACTIVE"))
+        .select(AddressEntry::as_select())
+        .load(&mut *conn)
+}
+
+/// Lists all active addresses within a network.
+///
+/// The entries contain the internal IP-address and the address of the sakura-host of every
+/// virtual_machine of the network, which is what the routes between them are built from. There
+/// is no permission-based filtering, because the routes of a network don't belong to a single
+/// user.
+///
+/// # Arguments
+/// * `address_network_uuid` - The UUID of the network
+///
+/// # Returns
+/// A QueryResult containing a vector of AddressEntry objects
+pub fn list_addresses_of_network(address_network_uuid: &Uuid) -> QueryResult<Vec<AddressEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+
+    addresses
+        .filter(
+            network_uuid
+                .eq(address_network_uuid.to_string())
+                .and(status.eq("ACTIVE")),
+        )
         .select(AddressEntry::as_select())
         .load(&mut *conn)
 }
@@ -664,6 +745,9 @@ mod tests {
     const FIRST_TEST_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 100, 2);
     const LAST_TEST_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 100, 254);
 
+    /// Address of the sakura-host of the test-entries, which runs their virtual_machines.
+    const TEST_HOST_ADDRESS: &str = "http://sakura:11420";
+
     const MAC_1: &str = "02:00:00:00:10:01";
     const MAC_2: &str = "02:00:00:00:10:02";
     const MAC_3: &str = "02:00:00:00:10:03";
@@ -723,6 +807,7 @@ mod tests {
             tap_name: tap_name_of(entry_mac_address),
             internal_ip: internal_ip_of(entry_mac_address),
             network_uuid: *entry_network_uuid,
+            host_address: TEST_HOST_ADDRESS.to_string(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
             status: entry_status.to_string(),
@@ -826,8 +911,15 @@ mod tests {
         hard_delete_mac_address(MAC_1);
         hard_delete_tap_name(tap_name);
 
-        let added =
-            add_new_address(MAC_1, tap_name, &INTERNAL_IP, &network_uuid1, &context).unwrap();
+        let added = add_new_address(
+            MAC_1,
+            tap_name,
+            &INTERNAL_IP,
+            &network_uuid1,
+            TEST_HOST_ADDRESS,
+            &context,
+        )
+        .unwrap();
         let uuid1 = added.uuid;
         let retrieved = expect_entry(get_address(&uuid1));
 
@@ -836,6 +928,7 @@ mod tests {
         assert_eq!(retrieved.tap_name, tap_name);
         assert_eq!(retrieved.internal_ip, INTERNAL_IP);
         assert_eq!(retrieved.network_uuid, network_uuid1);
+        assert_eq!(retrieved.host_address, TEST_HOST_ADDRESS);
         assert_eq!(retrieved.owner_id, "test-user");
         assert_eq!(retrieved.project_id, "test-project");
         assert_eq!(retrieved.status, "ACTIVE");
@@ -1067,7 +1160,12 @@ mod tests {
         let context = new_context("test-user", "test-project", false, false);
 
         // the first address of a new network gets the first internal IP-address
-        let first = expect_entry(reserve_new_address(&network_uuid1, TEST_CIDR, &context));
+        let first = expect_entry(reserve_new_address(
+            &network_uuid1,
+            TEST_CIDR,
+            TEST_HOST_ADDRESS,
+            &context,
+        ));
         assert_eq!(first.internal_ip, FIRST_TEST_IP);
         assert!(tap_name_to_number(&first.tap_name).is_some());
         let retrieved = expect_entry(get_address(&first.uuid));
@@ -1076,7 +1174,12 @@ mod tests {
         assert_eq!(retrieved.owner_id, "test-user");
 
         // the next reservation gets the next higher values
-        let second = expect_entry(reserve_new_address(&network_uuid1, TEST_CIDR, &context));
+        let second = expect_entry(reserve_new_address(
+            &network_uuid1,
+            TEST_CIDR,
+            TEST_HOST_ADDRESS,
+            &context,
+        ));
         assert_ne!(second.uuid, first.uuid);
         assert_eq!(
             mac_address_to_number(&second.mac_address),
@@ -1094,14 +1197,24 @@ mod tests {
         // deleted entries don't block their values, so the MAC-address, the tap-device name
         // and the internal IP-address are reused within a new entry
         assert!(delete_address(&second.uuid, &context).is_ok());
-        let reused = expect_entry(reserve_new_address(&network_uuid1, TEST_CIDR, &context));
+        let reused = expect_entry(reserve_new_address(
+            &network_uuid1,
+            TEST_CIDR,
+            TEST_HOST_ADDRESS,
+            &context,
+        ));
         assert_ne!(reused.uuid, second.uuid);
         assert_eq!(reused.mac_address, second.mac_address);
         assert_eq!(reused.tap_name, second.tap_name);
         assert_eq!(reused.internal_ip, second.internal_ip);
 
         // internal IP-addresses are counted per network, MAC-addresses and tap-device names globally
-        let third = expect_entry(reserve_new_address(&network_uuid2, TEST_CIDR, &context));
+        let third = expect_entry(reserve_new_address(
+            &network_uuid2,
+            TEST_CIDR,
+            TEST_HOST_ADDRESS,
+            &context,
+        ));
         assert_eq!(third.internal_ip, FIRST_TEST_IP);
         assert_eq!(
             mac_address_to_number(&third.mac_address),
@@ -1124,7 +1237,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
-        let result = reserve_new_address(&network_uuid1, "10.0.0.0/31", &context);
+        let result =
+            reserve_new_address(&network_uuid1, "10.0.0.0/31", TEST_HOST_ADDRESS, &context);
         assert!(matches!(result, Err(enums::DbError::InternalError)));
     }
 
@@ -1152,12 +1266,14 @@ mod tests {
         let first = expect_entry(reserve_new_address(
             &network_uuid1,
             "172.16.0.0/30",
+            TEST_HOST_ADDRESS,
             &context,
         ));
         assert_eq!(first.internal_ip, Ipv4Addr::new(172, 16, 0, 2));
 
         // the /30 has only one assignable address, so the next reservation fails
-        let result = reserve_new_address(&network_uuid1, "172.16.0.0/30", &context);
+        let result =
+            reserve_new_address(&network_uuid1, "172.16.0.0/30", TEST_HOST_ADDRESS, &context);
         assert!(matches!(result, Err(enums::DbError::InternalError)));
 
         hard_delete_address(&uuid1);
@@ -1376,6 +1492,7 @@ mod tests {
             ip_base,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         ));
         assert_eq!(reserved.mac_address, expected);
@@ -1424,6 +1541,7 @@ mod tests {
             ip_base,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         ));
         // only the internal IP-address was in conflict, so the other values were not increased
@@ -1481,6 +1599,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         ));
         // only the tap-device name was in conflict, so the other values were not increased
@@ -1506,6 +1625,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         );
         assert!(matches!(result, Err(enums::DbError::InternalError)));
@@ -1516,6 +1636,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         );
         assert!(matches!(result, Err(enums::DbError::InternalError)));
@@ -1526,6 +1647,7 @@ mod tests {
             u32::from(LAST_TEST_IP) + 1,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_HOST_ADDRESS,
             &context,
         );
         assert!(matches!(result, Err(enums::DbError::InternalError)));
@@ -1584,6 +1706,125 @@ mod tests {
 
         hard_delete_address(&uuid1);
         hard_delete_address(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_address_by_internal_ip() {
+        let _ = init_address_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+
+        let entry1 = new_entry(
+            &uuid1,
+            MAC_1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        // the same internal address within another network
+        let mut entry2 = new_entry(
+            &uuid2,
+            MAC_2,
+            &network_uuid2,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry2.internal_ip = internal_ip_of(MAC_1);
+
+        hard_delete_mac_address(MAC_1);
+        hard_delete_mac_address(MAC_2);
+
+        add_address(entry1).unwrap();
+        add_address(entry2).unwrap();
+
+        let found = expect_entry(get_address_by_internal_ip(
+            &network_uuid1,
+            &internal_ip_of(MAC_1),
+        ));
+        assert_eq!(found.uuid, uuid1);
+        assert_eq!(found.host_address, TEST_HOST_ADDRESS);
+
+        // an address, which is not in the network, is not found
+        assert_not_found(get_address_by_internal_ip(
+            &network_uuid1,
+            &internal_ip_of(MAC_3),
+        ));
+
+        // a deleted address doesn't belong to a running virtual_machine any more
+        let context = new_context("test-user", "test-project", false, false);
+        assert!(delete_address(&uuid1, &context).is_ok());
+        assert_not_found(get_address_by_internal_ip(
+            &network_uuid1,
+            &internal_ip_of(MAC_1),
+        ));
+
+        hard_delete_address(&uuid1);
+        hard_delete_address(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_list_addresses_of_network() {
+        let _ = init_address_table();
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let uuid3 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let network_uuid2 = Uuid::new_v4();
+
+        // the virtual_machine of the second host of the same network ...
+        let mut entry1 = new_entry(
+            &uuid1,
+            MAC_1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+        entry1.host_address = "http://sakura-2:11420".to_string();
+        // ... a deleted one, which has no routes any more ...
+        let entry2 = new_entry(
+            &uuid2,
+            MAC_2,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "DELETED",
+        );
+        // ... and one of another network, which is not connected to the first one
+        let entry3 = new_entry(
+            &uuid3,
+            MAC_3,
+            &network_uuid2,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+
+        hard_delete_mac_address(MAC_1);
+        hard_delete_mac_address(MAC_2);
+        hard_delete_mac_address(MAC_3);
+
+        add_address(entry1).unwrap();
+        add_address(entry2).unwrap();
+        add_address(entry3).unwrap();
+
+        let entries = list_addresses_of_network(&network_uuid1).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].uuid, uuid1);
+        assert_eq!(entries[0].internal_ip, internal_ip_of(MAC_1));
+        // the host-address is required to reach the torii, which owns the TAP-device of the
+        // virtual_machine of this address
+        assert_eq!(entries[0].host_address, "http://sakura-2:11420");
+
+        hard_delete_address(&uuid1);
+        hard_delete_address(&uuid2);
+        hard_delete_address(&uuid3);
     }
 
     #[test]
