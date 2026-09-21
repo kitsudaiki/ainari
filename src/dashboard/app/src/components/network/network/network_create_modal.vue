@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,38 +11,37 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal instance-create-modal">
+        <div class="modal network-create-modal">
             <div class="modal-topbar">
-                <span>Create instance</span>
+                <span>Create network</span>
             </div>
             <div class="modal-content">
                 <div>
                     <input
-                        v-instance="form.instanceName"
+                        v-model="form.name"
                         type="text"
-                        placeholder="Instance-Name"
-                        :class="{ invalid_input: instanceNameError }"
+                        placeholder="Network-Name"
+                        :class="{ invalid_input: nameError }"
                     />
-                    <p v-if="instanceNameError" class="error-msg">
-                        Instance-Name must be at least 4 characters
+                    <p v-if="nameError" class="error-msg">
+                        Network-Name must be at least 4 characters
                     </p>
                 </div>
                 <br />
                 <div>
-                    <label>Instance template:</label>
-                    <textarea
-                        id="template_input"
-                        v-instance="form.instanceTemplate"
+                    <input
+                        v-model="form.subnet"
                         type="text"
-                        :class="{ invalid_input: instanceTemplateError }"
-                    ></textarea>
-                    <p v-if="instanceTemplateError" class="error-msg">
-                        Instance-Template is not allowed to left empty
+                        placeholder="Subnet (for example 10.0.0.0/24)"
+                        :class="{ invalid_input: subnetError }"
+                    />
+                    <p v-if="subnetError" class="error-msg">
+                        Subnet must be given in CIDR-notation
                     </p>
                 </div>
             </div>
@@ -67,9 +66,8 @@
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { hanami } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -82,42 +80,35 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const instanceNameError = ref(false);
-const instanceTemplateError = ref(false);
+const nameError = ref(false);
+const subnetError = ref(false);
 
 const form = reactive({
-    instanceTemplate: "",
-    instanceName: "",
+    name: "",
+    subnet: "",
 });
 
-async function handleAccept() {
-    instanceNameError.value = form.instanceName.length < 4;
-    instanceTemplateError.value = form.instanceTemplate.length === 0;
+// IPv4-subnet in CIDR-notation, for example 10.0.0.0/24. The backend validates this
+// again, this check only avoids the obvious typos.
+const SUBNET_PATTERN = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
 
-    if (instanceNameError.value || instanceTemplateError.value) {
+async function handleAccept() {
+    nameError.value = form.name.length < 4;
+    subnetError.value = !SUBNET_PATTERN.test(form.subnet);
+
+    if (nameError.value || subnetError.value) {
         return;
     }
 
     try {
-        const authContext = getAuthContext();
-        const hanami_api = axios.create({
-            baseURL: authContext.hanami_address,
+        await hanami.createNetwork({
+            name: form.name,
+            subnet: form.subnet,
         });
-
-        await hanami_api.post(
-            "/v1alpha/instance",
-            {
-                name: form.instanceName,
-                template: form.instanceTemplate,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
 
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to create instance");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to create network");
     }
 }
 
@@ -127,12 +118,8 @@ function cancel() {
 </script>
 
 <style scoped>
-.instance-create-modal {
-    min-width: 30rem;
-}
-
-#template_input {
-    height: 18rem;
+.network-create-modal {
+    width: 30rem;
 }
 
 /* is not found when I put this in one of the css files. Don't know why... */

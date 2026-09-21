@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,60 +11,54 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal user-info-modal">
+        <div class="modal image-info-modal">
             <div class="modal-topbar">
                 <span>Info</span>
             </div>
             <div class="modal-content">
-                <table v-if="user_info">
+                <table v-if="info">
                     <tbody>
                         <tr>
-                            <td>ID</td>
-                            <td>{{ user_info.id }}</td>
+                            <td>UUID</td>
+                            <td>{{ info.uuid }}</td>
                         </tr>
                         <tr>
                             <td>Name</td>
-                            <td>{{ user_info.name }}</td>
+                            <td>{{ info.name }}</td>
                         </tr>
                         <tr>
-                            <td>Is Admin</td>
+                            <td>Number of Rows</td>
+                            <td>{{ info.number_of_rows }}</td>
+                        </tr>
+                        <tr>
+                            <td>Columns</td>
                             <td>
-                                <div class="bool-icon">
-                                    <!-- is_admin is transported as a string, so a
-                                         plain truthy-check would also match "false" -->
-                                    <img
-                                        v-if="user_info.is_admin === 'true'"
-                                        :src="icons.acceptIcon"
-                                        alt="True"
-                                    />
-                                    <img
-                                        v-else
-                                        :src="icons.cancelIcon"
-                                        alt="False"
-                                    />
-                                </div>
+                                <span v-if="info.column_names.length > 0">
+                                    {{ info.column_names.join(", ") }}
+                                </span>
+                                <span v-else>-</span>
                             </td>
                         </tr>
                         <tr>
                             <td>Created At</td>
-                            <td>{{ user_info.created_at }}</td>
+                            <td>{{ info.created_at }}</td>
                         </tr>
                         <tr>
                             <td>Created By</td>
-                            <td>{{ user_info.created_by }}</td>
+                            <td>{{ info.created_by }}</td>
                         </tr>
                         <tr>
                             <td>Updated At</td>
-                            <td>{{ user_info.updated_at }}</td>
+                            <td>{{ info.updated_at }}</td>
                         </tr>
                         <tr>
                             <td>Updated By</td>
-                            <td>{{ user_info.updated_by }}</td>
+                            <td>{{ info.updated_by }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -88,32 +82,31 @@
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
 
-import { miko } from "@/api";
-import type { UserBasicResp, UserResp } from "@/api";
+import { ryokan } from "@/api";
+import type { ImageBasicResp, ImageResp } from "@/api";
 import common from "@/common";
 import { handleAxiosError } from "@/handleAxiosError";
 
-const user_info = ref<UserResp | null>(null);
-const errorPopupMsg = ref<string>("");
-
 interface Props {
-    user: UserBasicResp | null;
+    image: ImageBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{
-    (e: "accept"): void;
     (e: "cancel"): void;
 }>();
 
-async function fetchUserInfo(userId: string) {
+const info = ref<ImageResp | null>(null);
+const errorPopupMsg = ref<string>("");
+
+async function fetchInfo(uuid: string) {
     try {
-        const data = await miko.getUser(userId);
+        const data = await ryokan.getImage(uuid);
         data.created_at = common.formatDateTime(data.created_at);
         data.updated_at = common.formatDateTime(data.updated_at);
-        user_info.value = data;
+        info.value = data;
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load user-info");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load image-info");
     }
 }
 
@@ -122,14 +115,14 @@ function cancel() {
 }
 
 onMounted(() => {
-    if (props.user) {
-        fetchUserInfo(props.user.id);
+    if (props.image) {
+        fetchInfo(props.image.uuid);
     }
 });
 </script>
 
 <style scoped>
-.user-info-modal {
+.image-info-modal {
     height: 30rem;
     width: 40rem;
 }

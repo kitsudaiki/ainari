@@ -27,7 +27,7 @@
                 <div>
                     <div>
                         <input
-                            v-instance="form.userId"
+                            v-model="form.userId"
                             type="text"
                             placeholder="User-ID"
                             :class="{ invalid_input: userIdError }"
@@ -39,7 +39,7 @@
                     <br />
                     <div>
                         <input
-                            v-instance="form.userName"
+                            v-model="form.userName"
                             type="text"
                             placeholder="User-Name"
                             :class="{ invalid_input: userNameError }"
@@ -51,7 +51,7 @@
                     <br />
                     <div>
                         <input
-                            v-instance="form.password"
+                            v-model="form.password"
                             type="password"
                             placeholder="Password"
                             :class="{ invalid_input: passwordError }"
@@ -63,7 +63,7 @@
                     <br />
                     <div>
                         <input
-                            v-instance="form.confirmPassword"
+                            v-model="form.confirmPassword"
                             type="password"
                             placeholder="Confirm password"
                             :class="{ invalid_input: passwordConfirmError }"
@@ -75,7 +75,7 @@
                     <br />
                     <div>
                         <label class="checkbox-label">
-                            <input type="checkbox" v-instance="form.isAdmin" />
+                            <input type="checkbox" v-model="form.isAdmin" />
                             Is Admin
                         </label>
                     </div>
@@ -103,9 +103,8 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -138,31 +137,21 @@ async function handleAccept() {
     userNameError.value = form.userName.length < 4;
     passwordError.value = form.password.length < 8;
 
-    if (userIdError.value || passwordError.value || passwordError.value) {
-        return;
-    }
-    if (form.password !== form.confirmPassword) {
-        passwordConfirmError.value = true;
+    if (
+        userIdError.value ||
+        userNameError.value ||
+        passwordError.value ||
+        passwordConfirmError.value
+    ) {
         return;
     }
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
+        await miko.createUser({
+            id: form.userId,
+            name: form.userName,
+            passphrase: form.password,
+            is_admin: form.isAdmin.toString(),
         });
-
-        await miko_api.post(
-            "/v1alpha/user/admin",
-            {
-                id: form.userId,
-                name: form.userName,
-                passphrase: form.password,
-                is_admin: form.isAdmin.toString(),
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
 
         emit("accept");
     } catch (err) {

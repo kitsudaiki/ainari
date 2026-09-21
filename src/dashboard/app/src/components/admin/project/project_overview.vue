@@ -78,32 +78,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { ProjectBasicResp } from "@/api";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const projects = ref<{ id: string; projectName: string }[]>([]);
+const projects = ref<ProjectBasicResp[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const projectToDelete = ref<{ id: string; projectName: string } | null>(null);
+const projectToDelete = ref<ProjectBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchProjects() {
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        const response = await miko_api.get("/v1alpha/project/admin", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        projects.value = response.data.projects;
+        projects.value = await miko.listProjects();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load projects");
     }
@@ -148,7 +140,7 @@ async function acceptAddModal() {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(project: { id: string; projectName: string }) {
+function openDeleteModal(project: ProjectBasicResp) {
     projectToDelete.value = project;
     showDeleteModal.value = true;
     openDropdown.value = null;

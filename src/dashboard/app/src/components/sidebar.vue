@@ -100,14 +100,32 @@ const menus = ref<Menu[]>([
     {
         name: "Workload",
         label: "Workload",
-        items: [{ view: "WorkloadInstance", label: "Instances" }],
+        items: [
+            { view: "WorkloadVirtualMachine", label: "Virtual Machines" },
+        ],
     },
     {
         name: "Storage",
         label: "Storage",
         items: [
-            { view: "StorageDataset", label: "Dataset" },
+            { view: "StorageImage", label: "Image" },
             { view: "StorageCheckpoint", label: "Checkpoint" },
+        ],
+    },
+    {
+        name: "Network",
+        label: "Network",
+        items: [
+            { view: "NetworkNetwork", label: "Networks" },
+            { view: "NetworkFloatingIp", label: "Floating IPs" },
+        ],
+    },
+    {
+        name: "Security",
+        label: "Security",
+        items: [
+            { view: "SecuritySecret", label: "Secrets" },
+            { view: "SecurityPublicKey", label: "Public Keys" },
         ],
     },
     {
@@ -117,6 +135,7 @@ const menus = ref<Menu[]>([
             { view: "AdminUser", label: "User" },
             { view: "AdminProject", label: "Project" },
             { view: "AdminQuota", label: "Quota" },
+            { view: "AdminHost", label: "Host" },
         ],
     },
 ]);

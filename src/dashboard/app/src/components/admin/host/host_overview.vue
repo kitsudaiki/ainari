@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,47 +11,57 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">Instances</div>
+        <div class="card-label">Hosts</div>
         <div class="card-content">
-            <!-- Add button -->
-            <button class="add-button" @click="openAddModal">+</button>
+            <!-- Hosts register themselves, so they are only grouped by their kind here -->
+            <div class="tab">
+                <button
+                    class="tablinks"
+                    :class="{ active: selectedTab === 'sakura' }"
+                    @click="selectTab('sakura')"
+                >
+                    SAKURA
+                </button>
+                <button
+                    class="tablinks"
+                    :class="{ active: selectedTab === 'onsen' }"
+                    @click="selectTab('onsen')"
+                >
+                    ONSEN
+                </button>
+            </div>
 
-            <table class="overview-table" v-if="instances.length > 0">
+            <table class="overview-table" v-if="hosts.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
-                        <th>Adress</th>
+                        <th>Address</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="instance in instances" :key="instance.uuid">
-                        <td>{{ instance.uuid }}</td>
-                        <td>{{ instance.name }}</td>
-                        <td>{{torii_base_address}}:{{ instance.proxy_port }}</td>
+                    <tr v-for="host in hosts" :key="host.uuid">
+                        <td>{{ host.uuid }}</td>
+                        <td>{{ host.name }}</td>
+                        <td>{{ host.host_address }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(instance.uuid)"
+                                @click.stop="toggleDropdown(host.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === instance.uuid"
+                                    v-if="openDropdown === host.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button
-                                        @click="switchToTasks(instance.uuid)"
-                                    >
-                                        Show tasks
-                                    </button>
-                                    <button @click="openDeleteModal(instance)">
+                                    <button @click="openDeleteModal(host)">
                                         Delete
                                     </button>
                                 </div>
@@ -61,19 +71,13 @@
                 </tbody>
             </table>
 
-            <p v-else>No instances found</p>
+            <p v-else>No {{ selectedTab }}-hosts found</p>
         </div>
 
-        <InstanceCreateModal
-            v-if="showAddModal"
-            :icons="icons"
-            @accept="acceptAddModal"
-            @cancel="cancelAddModal"
-        />
-
-        <InstanceDeleteModal
+        <HostDeleteModal
             v-if="showDeleteModal"
-            :instance="instanceToDelete"
+            :host="hostToDelete"
+            :host_kind="selectedTab"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
@@ -87,48 +91,44 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
-import InstanceCreateModal from "./instance_create_modal.vue";
-import InstanceDeleteModal from "./instance_delete_modal.vue";
+import { hanami, ryokan } from "@/api";
+import type { HostBasicResp } from "@/api";
+import HostDeleteModal from "./host_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
+/** The sakura-hosts are known by the hanami, the onsen-hosts by the ryokan. */
+type HostKind = "sakura" | "onsen";
+
 const errorPopupMsg = ref<string>("");
-const instances = ref<{ uuid: string; instanceName: string }[]>([]);
-const torii_base_address = ref<string>("");
-const showAddModal = ref(false);
+const hosts = ref<HostBasicResp[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const instanceToDelete = ref<{ uuid: string; instanceName: string } | null>(null);
+const hostToDelete = ref<HostBasicResp | null>(null);
+const selectedTab = ref<HostKind>("sakura");
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-const emit = defineEmits<{
-    (e: "change-view", view: string, instance_uuid: string): void;
-}>();
-
-function switchToTasks(instance_uuid: string) {
-    const view: string = "WorkloadTask";
-    const id: string = instance_uuid;
-    emit("change-view", { view, id });
+async function fetchHosts() {
+    try {
+        hosts.value =
+            selectedTab.value === "sakura"
+                ? await hanami.listSakuraHosts()
+                : await ryokan.listOnsenHosts();
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            `Failed to load ${selectedTab.value}-hosts`,
+        );
+    }
 }
 
-async function fetchInstances() {
-    try {
-        const authContext = getAuthContext();
-        torii_base_address.value = authContext.torii_base_address;
-
-        const hanami_api = axios.create({
-            baseURL: authContext.hanami_address,
-        });
-
-        const response = await hanami_api.get("/v1alpha/instance", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        instances.value = response.data.instances;
-    } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load instances");
-    }
+//=============================================================================
+// Tabs
+//=============================================================================
+async function selectTab(tab: HostKind) {
+    selectedTab.value = tab;
+    hosts.value = [];
+    await fetchHosts();
 }
 
 //=============================================================================
@@ -152,43 +152,27 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add instance modal
-//=============================================================================
-function openAddModal() {
-    showAddModal.value = true;
-}
-function cancelAddModal() {
-    showAddModal.value = false;
-}
-
-async function acceptAddModal() {
-    await fetchInstances();
-    cancelAddModal();
-}
-
-//=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(instance: { uuid: string; instanceName: string }) {
-    instanceToDelete.value = instance;
+function openDeleteModal(host: HostBasicResp) {
+    hostToDelete.value = host;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    instanceToDelete.value = null;
+    hostToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
-
 async function acceptDeleteModal() {
-    await fetchInstances();
+    await fetchHosts();
     cancelDeleteModal();
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchInstances);
+onMounted(fetchHosts);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);

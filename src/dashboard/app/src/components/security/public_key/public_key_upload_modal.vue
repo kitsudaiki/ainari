@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,37 +11,41 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal project-create-modal">
+        <div class="modal public-key-upload-modal">
             <div class="modal-topbar">
-                <span>Create project</span>
+                <span>Upload public key</span>
             </div>
             <div class="modal-content">
                 <div>
                     <input
-                        v-model="form.projectId"
+                        v-model="form.name"
                         type="text"
-                        placeholder="Project-ID"
-                        :class="{ invalid_input: projectIdError }"
+                        placeholder="Name"
+                        :class="{ invalid_input: nameError }"
                     />
-                    <p v-if="projectIdError" class="error-msg">
-                        Project-ID must be at least 4 characters
+                    <p v-if="nameError" class="error-msg">
+                        Name must be at least 4 characters
                     </p>
                 </div>
                 <br />
                 <div>
-                    <input
-                        v-model="form.projectName"
-                        type="text"
-                        placeholder="Project-Name"
-                        :class="{ invalid_input: projectNameError }"
-                    />
-                    <p v-if="projectNameError" class="error-msg">
-                        Project-Name must be at least 4 characters
+                    <label>Public key (openssh one-line format):</label>
+                    <textarea
+                        id="public_key_input"
+                        v-model="form.publicKey"
+                        :class="{ invalid_input: publicKeyError }"
+                    ></textarea>
+                    <p v-if="publicKeyError" class="error-msg">
+                        Public key must be a single openssh-line, for example
+                        starting with ssh-ed25519 or ssh-rsa
+                    </p>
+                    <p class="hint-msg">
+                        The fingerprint is calculated by the omamori.
                     </p>
                 </div>
             </div>
@@ -67,7 +71,7 @@
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
 
-import { miko } from "@/api";
+import { omamori } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -80,31 +84,37 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const projectIdError = ref(false);
-const projectNameError = ref(false);
+const nameError = ref(false);
+const publicKeyError = ref(false);
 
 const form = reactive({
-    projectId: "",
-    projectName: "",
+    name: "",
+    publicKey: "",
 });
 
-async function handleAccept() {
-    projectIdError.value = form.projectId.length < 4;
-    projectNameError.value = form.projectName.length < 4;
+// one-line openssh-representation, for example "ssh-ed25519 AAAA... comment". The
+// omamori validates this again, this check only avoids the obvious mistakes like
+// pasting a private key or a whole file.
+const OPENSSH_PATTERN = /^(ssh|ecdsa)-[a-z0-9@.-]+\s+[A-Za-z0-9+/=]+(\s+\S+)?$/;
 
-    if (projectIdError.value || projectNameError.value) {
+async function handleAccept() {
+    const publicKey = form.publicKey.trim();
+
+    nameError.value = form.name.length < 4;
+    publicKeyError.value = !OPENSSH_PATTERN.test(publicKey);
+
+    if (nameError.value || publicKeyError.value) {
         return;
     }
 
     try {
-        await miko.createProject({
-            id: form.projectId,
-            name: form.projectName,
-        });
-
+        await omamori.uploadPublicKey(form.name, publicKey);
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to create project");
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to upload public key",
+        );
     }
 }
 
@@ -114,8 +124,18 @@ function cancel() {
 </script>
 
 <style scoped>
-.project-create-modal {
-    width: 30rem;
+.public-key-upload-modal {
+    min-width: 34rem;
+}
+
+#public_key_input {
+    height: 8rem;
+    width: 100%;
+}
+
+.hint-msg {
+    font-size: 0.8rem;
+    opacity: 0.7;
 }
 
 /* is not found when I put this in one of the css files. Don't know why... */

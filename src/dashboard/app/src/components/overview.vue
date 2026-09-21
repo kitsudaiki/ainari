@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +11,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
@@ -19,26 +19,35 @@
         <span>RESOURCE-OVERVIEW</span>
     </div>
     <div class="card">
-        <div class="card-label">Instances</div>
+        <div class="card-label">Virtual Machines</div>
         <div class="card-content">
-            <table class="overview-table" v-if="instances.length > 0">
+            <table class="overview-table" v-if="virtualMachines.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
-                        <th>Adress</th>
+                        <th>Address</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="instance in instances" :key="instance.uuid">
-                        <td>{{ instance.uuid }}</td>
-                        <td>{{ instance.name }}</td>
-                        <td>{{torii_base_address}}:{{ instance.proxy_port }}</td>
+                    <tr
+                        v-for="virtualMachine in virtualMachines"
+                        :key="virtualMachine.uuid"
+                    >
+                        <td>{{ virtualMachine.uuid }}</td>
+                        <td>{{ virtualMachine.name }}</td>
+                        <td>
+                            {{ torii_base_address }}:{{
+                                virtualMachine.proxy_port
+                            }}
+                        </td>
                         <td></td>
                     </tr>
                 </tbody>
             </table>
+
+            <p v-else>No virtual machines found</p>
         </div>
     </div>
     <div class="divider">
@@ -46,17 +55,17 @@
     </div>
     <div class="usage_overview">
         <div class="card gauge-chart-card">
-            <div class="card-label">Instances</div>
+            <div class="card-label">Virtual Machines</div>
             <GaugeChart
-                :value="quotaMetrics.instances.used"
-                :max="quotaMetrics.instances.max"
+                :value="quotaMetrics.virtualMachines.used"
+                :max="quotaMetrics.virtualMachines.max"
             />
         </div>
         <div class="card gauge-chart-card">
-            <div class="card-label">Datasets</div>
+            <div class="card-label">Images</div>
             <GaugeChart
-                :value="quotaMetrics.datasets.used"
-                :max="quotaMetrics.datasets.max"
+                :value="quotaMetrics.images.used"
+                :max="quotaMetrics.images.max"
             />
         </div>
         <div class="card gauge-chart-card">
@@ -73,6 +82,20 @@
                 :max="quotaMetrics.secrets.max"
             />
         </div>
+        <div class="card gauge-chart-card">
+            <div class="card-label">Networks</div>
+            <GaugeChart
+                :value="quotaMetrics.networks.used"
+                :max="quotaMetrics.networks.max"
+            />
+        </div>
+        <div class="card gauge-chart-card">
+            <div class="card-label">Floating IPs</div>
+            <GaugeChart
+                :value="quotaMetrics.floatingIps.used"
+                :max="quotaMetrics.floatingIps.max"
+            />
+        </div>
     </div>
 
     <div v-if="errorPopupMsg" class="error-popup">
@@ -83,126 +106,93 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
-import axios from "axios";
 
 import { getAuthContext } from "@/auth_context";
+import { hanami, miko, omamori, ryokan } from "@/api";
+import type { VirtualMachineBasicResp } from "@/api";
 import GaugeChart from "@/components/gauge_chart.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
-// Instance management
-const instances = ref<{ uuid: string; instanceName: string }[]>([]);
-const torii_base_address = ref<string>("");
+const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
+const torii_base_address = ref<string | null>("");
 
 // Error handling
 const errorPopupMsg = ref<string>("");
 
 // Quota tracking
 const quotaMetrics = reactive({
-    instances: {
-        used: ref(0),
-        max: ref(1),
-    },
-    datasets: {
-        used: ref(0),
-        max: ref(1),
-    },
-    checkpoints: {
-        used: ref(0),
-        max: ref(1),
-    },
-    secrets: {
-        used: ref(0),
-        max: ref(1),
-    },
+    virtualMachines: { used: 0, max: 1 },
+    images: { used: 0, max: 1 },
+    checkpoints: { used: 0, max: 1 },
+    secrets: { used: 0, max: 1 },
+    networks: { used: 0, max: 1 },
+    floatingIps: { used: 0, max: 1 },
 });
 
-// API client creation helper
-function createApiClient(baseURL: string | null) {
-    const authContext = getAuthContext();
-    torii_base_address.value = authContext.torii_base_address;
-
-    return axios.create({
-        baseURL,
-        headers: { Authorization: `Bearer ${authContext.token}` },
-    });
-}
-
 /**
- * Fetches the list of instances of the user from Hanami API
+ * Fetches the list of virtual machines of the user from the hanami
  */
-async function fetchInstances() {
+async function fetchVirtualMachines() {
     try {
-        const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/instance");
-        instances.value = response.data.instances;
+        torii_base_address.value = getAuthContext().torii_base_address;
+        virtualMachines.value = await hanami.listVirtualMachines();
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load instances");
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to load virtual machines",
+        );
     }
 }
 
 /**
- * Fetches quota limits from Miko API
+ * Fetches the quota-limits of the user from the miko
  */
 async function fetchQuotas() {
     try {
-        const mikoApi = createApiClient(getAuthContext().miko_address);
-        const response = await mikoApi.get("/v1alpha/quota");
+        const quota = await miko.getOwnQuota();
 
-        quotaMetrics.instances.max = response.data.max_instance;
-        quotaMetrics.datasets.max = response.data.max_dataset;
-        quotaMetrics.checkpoints.max = response.data.max_checkpoint;
-        quotaMetrics.secrets.max = response.data.max_secret;
+        quotaMetrics.virtualMachines.max = quota.max_virtual_machine;
+        quotaMetrics.images.max = quota.max_image;
+        quotaMetrics.checkpoints.max = quota.max_checkpoint;
+        quotaMetrics.secrets.max = quota.max_secret;
+        quotaMetrics.networks.max = quota.max_network;
+        quotaMetrics.floatingIps.max = quota.max_floating_ip;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load quotas");
     }
 }
 
 /**
- * Fetches the number of used instances from Hanami API
+ * Fetches the used amount of all resources, which are covered by a quota.
+ *
+ * The hanami has no count-endpoints for networks and floating-ips, so their lists
+ * are used instead.
  */
-async function fetchUsedInstance() {
+async function fetchUsage() {
     try {
-        const hanamiApi = createApiClient(getAuthContext().hanami_address);
-        const response = await hanamiApi.get("/v1alpha/instance/count");
-        quotaMetrics.instances.used = response.data.number_of_items;
+        quotaMetrics.virtualMachines.used =
+            await hanami.getVirtualMachineCount();
+        quotaMetrics.networks.used = (await hanami.listNetworks()).length;
+        quotaMetrics.floatingIps.used = (await hanami.listFloatingIps()).length;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load number of instances",
+            "Failed to load usage of the hanami-resources",
         );
     }
-}
 
-/**
- * Fetches the number of used datasets and checkpoints from Ryokan API
- */
-async function fetchUsedDatasetsAndCheckpoints() {
     try {
-        const ryokanApi = createApiClient(getAuthContext().ryokan_address);
-
-        // Fetch dataset number
-        const respDataset = await ryokanApi.get("/v1alpha/dataset/count");
-        quotaMetrics.datasets.used = respDataset.data.number_of_items;
-
-        // Fetch checkpoint number
-        const respCheckpoint = await ryokanApi.get("/v1alpha/checkpoint/count");
-        quotaMetrics.checkpoints.used = respCheckpoint.data.number_of_items;
+        quotaMetrics.images.used = await ryokan.getImageCount();
+        quotaMetrics.checkpoints.used = await ryokan.getCheckpointCount();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load number of datasets and checkpoints",
+            "Failed to load number of images and checkpoints",
         );
     }
-}
 
-/**
- * Fetches the number of used secrets from Omamori API
- */
-async function fetchUsedSecrets() {
     try {
-        const omamoriApi = createApiClient(getAuthContext().omamori_address);
-        const response = await omamoriApi.get("/v1alpha/secret/count");
-        quotaMetrics.secrets.used = response.data.number_of_items;
+        quotaMetrics.secrets.used = await omamori.getSecretCount();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
@@ -213,11 +203,9 @@ async function fetchUsedSecrets() {
 
 // Initialize all data fetching on component mount
 onMounted(() => {
-    fetchInstances();
+    fetchVirtualMachines();
     fetchQuotas();
-    fetchUsedInstance();
-    fetchUsedDatasetsAndCheckpoints();
-    fetchUsedSecrets();
+    fetchUsage();
 });
 </script>
 

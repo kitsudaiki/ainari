@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,32 +11,39 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal dataset-create-modal">
+        <div class="modal image-create-modal">
             <!-- Modal topbar -->
             <div class="modal-topbar">
-                <span>Create dataset</span>
+                <span>Create image</span>
             </div>
 
             <!-- Modal content -->
             <div class="modal-content">
                 <div>
                     <input
-                        v-instance="form.datasetName"
+                        v-model="form.imageName"
                         type="text"
-                        placeholder="Dataset-Name"
-                        :class="{ invalid_input: datasetNameError }"
+                        placeholder="Image-Name"
+                        :class="{ invalid_input: imageNameError }"
                     />
-                    <p v-if="datasetNameError" class="error-msg">
-                        Dataset-Name must be at least 4 characters
+                    <p v-if="imageNameError" class="error-msg">
+                        Image-Name must be at least 4 characters
                     </p>
                 </div>
                 <div>
                     <div class="tab">
+                        <button
+                            class="tablinks"
+                            :class="{ active: isSelected('disk') }"
+                            @click="selectTab('disk')"
+                        >
+                            DISK
+                        </button>
                         <button
                             class="tablinks"
                             :class="{ active: isSelected('csv') }"
@@ -52,7 +59,14 @@
                             MNIST
                         </button>
                     </div>
-                    <div class="dataset-tabcontent">
+                    <div class="image-tabcontent">
+                        <div v-show="selectedTab === 'disk'">
+                            <br />
+                            <label>
+                                Boot-disk of the virtual machine:
+                                <input type="file" @change="onFile1Change" />
+                            </label>
+                        </div>
                         <div v-show="selectedTab === 'csv'">
                             <br />
                             <label>
@@ -67,6 +81,9 @@
                             </label>
                         </div>
                     </div>
+                    <p v-if="fileError" class="error-msg">
+                        All files of the selected type must be provided
+                    </p>
                 </div>
             </div>
 
@@ -91,9 +108,9 @@
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { ryokan } from "@/api";
+import type { ImageType } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -105,10 +122,11 @@ const emit = defineEmits<{
     (e: "cancel"): void;
 }>();
 const errorPopupMsg = ref<string>("");
-const datasetNameError = ref(false);
+const imageNameError = ref(false);
+const fileError = ref(false);
 
 const form = reactive({
-    datasetName: "",
+    imageName: "",
 });
 const file1 = ref<File | null>(null);
 const file2 = ref<File | null>(null);
@@ -127,75 +145,41 @@ const onFile2Change = (event: Event) => {
     }
 };
 
-async function handleAccept() {
-    datasetNameError.value = form.datasetName.length < 4;
+/**
+ * Collects the files, which the currently selected type expects. A mnist-image is
+ * built from the image-file together with the label-file, while csv and disk are
+ * single files.
+ *
+ * @returns The files in the order expected by the endpoint, or null if one is missing
+ */
+function collectFiles(): File[] | null {
+    if (selectedTab.value === "mnist") {
+        if (!file1.value || !file2.value) return null;
+        return [file1.value, file2.value];
+    }
 
-    if (datasetNameError.value) {
+    if (!file1.value) return null;
+    return [file1.value];
+}
+
+async function handleAccept() {
+    imageNameError.value = form.imageName.length < 4;
+
+    const files = collectFiles();
+    fileError.value = files === null;
+
+    if (imageNameError.value || files === null) {
         return;
     }
-    if (selectedTab.value === "mnist") {
-        if (!file1.value || !file2.value) return;
 
-        const formData = new FormData();
-        formData.append("file1", file1.value);
-        formData.append("file2", file2.value);
-
-        try {
-            const authContext = getAuthContext();
-            const ryokan_api = axios.create({
-                baseURL: authContext.ryokan_address,
-            });
-
-            const response = await ryokan_api.post(
-                `/v1alpha/dataset/mnist/${form.datasetName}`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                        Authorization: `Bearer ${authContext.token}`,
-                    },
-                },
-            );
-
-            emit("accept");
-        } catch (err) {
-            errorPopupMsg.value = handleAxiosError(
-                err,
-                "Failed to upload MNIST-file",
-            );
-        }
-    }
-
-    if (selectedTab.value === "csv") {
-        if (!file1.value) return;
-
-        const formData = new FormData();
-        formData.append("file1", file1.value);
-
-        try {
-            const authContext = getAuthContext();
-            const ryokan_api = axios.create({
-                baseURL: authContext.ryokan_address,
-            });
-
-            const response = await ryokan_api.post(
-                `/v1alpha/dataset/csv/${form.datasetName}`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                        Authorization: `Bearer ${authContext.token}`,
-                    },
-                },
-            );
-
-            emit("accept");
-        } catch (err) {
-            errorPopupMsg.value = handleAxiosError(
-                err,
-                "Failed to upload CSV-file",
-            );
-        }
+    try {
+        await ryokan.createImage(selectedTab.value, form.imageName, files);
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            `Failed to upload ${selectedTab.value.toUpperCase()}-file`,
+        );
     }
 }
 
@@ -206,23 +190,27 @@ function cancel() {
 //=============================================================================
 // Tabs
 //=============================================================================
-const selectedTab = ref<"csv" | "mnist">("csv");
+const selectedTab = ref<ImageType>("disk");
 
-function selectTab(tab: "csv" | "mnist") {
+function selectTab(tab: ImageType) {
     selectedTab.value = tab;
+    // the files of the previous type do not fit the new one
+    file1.value = null;
+    file2.value = null;
+    fileError.value = false;
 }
 
-function isSelected(tab: "csv" | "mnist") {
+function isSelected(tab: ImageType) {
     return selectedTab.value === tab;
 }
 </script>
 
 <style scoped>
-.dataset-create-modal {
+.image-create-modal {
     width: 30rem;
 }
 
-.dataset-tabcontent {
+.image-tabcontent {
     margin-top: 0.5rem;
     height: 7rem;
 }

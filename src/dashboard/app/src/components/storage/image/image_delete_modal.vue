@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,23 +11,26 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal user-delete-modal">
+        <div class="modal image-delete-modal">
             <div class="modal-topbar">
-                <span>Delete user</span>
+                <span>Delete image</span>
             </div>
             <div class="modal-content">
                 <p>Are you sure you want to delete?</p>
-                <strong>User: {{ user?.id }}</strong>
+                <strong>Image: {{ image?.uuid }}</strong>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept(user?.id)">
+                    <button
+                        class="icon-button"
+                        @click="handleAccept(image?.uuid)"
+                    >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -46,12 +49,12 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
-import { miko } from "@/api";
-import type { UserBasicResp } from "@/api";
+import { ryokan } from "@/api";
+import type { ImageBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    user: UserBasicResp | null;
+    image: ImageBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -61,14 +64,13 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(user_id: string | undefined) {
-    if (!user_id) return;
+async function handleAccept(image_uuid: string | undefined) {
+    if (!image_uuid) return;
     try {
-        await miko.deleteUser(user_id);
-
+        await ryokan.deleteImage(image_uuid);
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to delete user");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to delete image");
     }
 }
 
@@ -78,7 +80,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.user-delete-modal {
+.image-delete-modal {
     width: 30rem;
 }
 </style>

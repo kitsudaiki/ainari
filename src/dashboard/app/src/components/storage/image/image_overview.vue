@@ -1,55 +1,57 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 
-//     http://www.apache.org/licenses/LICENSE-2.0
+//         http://www.apache.org/licenses/LICENSE-2.0
 
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">User</div>
+        <div class="card-label">Images</div>
         <div class="card-content">
             <!-- Add button -->
             <button class="add-button" @click="openAddModal">+</button>
 
-            <table class="overview-table" v-if="users.length > 0">
+            <table class="overview-table" v-if="images.length > 0">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Is Admin</th>
+                        <th>UUID</th>
+                        <th>Name</th>
+                        <th>Rows</th>
+                        <th>Columns</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="user in users" :key="user.id">
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.is_admin }}</td>
+                    <tr v-for="image in images" :key="image.uuid">
+                        <td>{{ image.uuid }}</td>
+                        <td>{{ image.name }}</td>
+                        <td>{{ image.number_of_rows }}</td>
+                        <td>{{ image.number_of_columns }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(user.id)"
+                                @click.stop="toggleDropdown(image.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === user.id"
+                                    v-if="openDropdown === image.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openInfoModal(user)">
+                                    <button @click="openInfoModal(image)">
                                         Info
                                     </button>
-                                    <button @click="openDeleteModal(user)">
+                                    <button @click="openDeleteModal(image)">
                                         Delete
                                     </button>
                                 </div>
@@ -59,29 +61,29 @@
                 </tbody>
             </table>
 
-            <p v-else>No users found</p>
+            <p v-else>No images found</p>
         </div>
 
-        <UserCreateModal
+        <ImageCreateModal
             v-if="showAddModal"
             :icons="icons"
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
         />
 
-        <UserDeleteModal
+        <ImageInfoModal
+            v-if="showInfoModal"
+            :image="imageToShow"
+            :icons="icons"
+            @cancel="cancelInfoModal"
+        />
+
+        <ImageDeleteModal
             v-if="showDeleteModal"
-            :user="userToDelete"
+            :image="imageToDelete"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
-        />
-
-        <UserInfoModal
-            v-if="showInfoModal"
-            :user="userToInfo"
-            :icons="icons"
-            @cancel="cancelInfoModal"
         />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
@@ -93,37 +95,36 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
-import { miko } from "@/api";
-import type { UserBasicResp } from "@/api";
-
-import UserCreateModal from "./user_create_modal.vue";
-import UserDeleteModal from "./user_delete_modal.vue";
-import UserInfoModal from "./user_info_modal.vue";
+import { ryokan } from "@/api";
+import type { ImageBasicResp } from "@/api";
+import ImageCreateModal from "./image_create_modal.vue";
+import ImageInfoModal from "./image_info_modal.vue";
+import ImageDeleteModal from "./image_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const users = ref<UserBasicResp[]>([]);
+const images = ref<ImageBasicResp[]>([]);
 const showAddModal = ref(false);
-const showDeleteModal = ref(false);
 const showInfoModal = ref(false);
+const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const userToDelete = ref<UserBasicResp | null>(null);
-const userToInfo = ref<UserBasicResp | null>(null);
+const imageToShow = ref<ImageBasicResp | null>(null);
+const imageToDelete = ref<ImageBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchUsers() {
+async function fetchImages() {
     try {
-        users.value = await miko.listUsers();
+        images.value = await ryokan.listImages();
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load users");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load images");
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(id: string) {
-    openDropdown.value = openDropdown.value === id ? null : id;
+function toggleDropdown(uuid: string) {
+    openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -140,7 +141,7 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add user modal
+// Add image modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
@@ -148,48 +149,47 @@ function openAddModal() {
 function cancelAddModal() {
     showAddModal.value = false;
 }
-
 async function acceptAddModal() {
-    await fetchUsers();
+    await fetchImages();
     cancelAddModal();
-}
-
-//=============================================================================
-// Delete modal
-//=============================================================================
-function openDeleteModal(user: UserBasicResp) {
-    userToDelete.value = user;
-    showDeleteModal.value = true;
-    openDropdown.value = null;
-}
-function cancelDeleteModal() {
-    showDeleteModal.value = false;
-    userToDelete.value = null;
-    openDropdown.value = null; // close any open action dropdown
-}
-async function acceptDeleteModal() {
-    await fetchUsers();
-    cancelDeleteModal();
 }
 
 //=============================================================================
 // Info modal
 //=============================================================================
-function openInfoModal(user: UserBasicResp) {
-    userToInfo.value = user;
+function openInfoModal(image: ImageBasicResp) {
+    imageToShow.value = image;
     showInfoModal.value = true;
     openDropdown.value = null;
 }
 function cancelInfoModal() {
     showInfoModal.value = false;
-    userToInfo.value = null;
+    imageToShow.value = null;
+    openDropdown.value = null;
+}
+
+//=============================================================================
+// Delete modal
+//=============================================================================
+function openDeleteModal(image: ImageBasicResp) {
+    imageToDelete.value = image;
+    showDeleteModal.value = true;
+    openDropdown.value = null;
+}
+function cancelDeleteModal() {
+    showDeleteModal.value = false;
+    imageToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
+}
+async function acceptDeleteModal() {
+    await fetchImages();
+    cancelDeleteModal();
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchUsers);
+onMounted(fetchImages);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -199,3 +199,10 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+.overview-table td:nth-child(3),
+.overview-table td:nth-child(4) {
+    width: 8rem;
+}
+</style>

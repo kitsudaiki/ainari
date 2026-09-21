@@ -1,55 +1,59 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 
-//     http://www.apache.org/licenses/LICENSE-2.0
+//         http://www.apache.org/licenses/LICENSE-2.0
 
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">User</div>
+        <div class="card-label">Floating IPs</div>
         <div class="card-content">
             <!-- Add button -->
             <button class="add-button" @click="openAddModal">+</button>
 
-            <table class="overview-table" v-if="users.length > 0">
+            <table class="overview-table" v-if="floatingIps.length > 0">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Is Admin</th>
+                        <th>UUID</th>
+                        <th>Floating IP</th>
+                        <th>Internal IP</th>
+                        <th>Network</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="user in users" :key="user.id">
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.is_admin }}</td>
+                    <tr
+                        v-for="floatingIp in floatingIps"
+                        :key="floatingIp.uuid"
+                    >
+                        <td>{{ floatingIp.uuid }}</td>
+                        <td>{{ floatingIp.floating_ip }}</td>
+                        <td>{{ floatingIp.internal_ip }}</td>
+                        <td>{{ networkName(floatingIp.network_uuid) }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(user.id)"
+                                @click.stop="toggleDropdown(floatingIp.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === user.id"
+                                    v-if="openDropdown === floatingIp.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openInfoModal(user)">
-                                        Info
-                                    </button>
-                                    <button @click="openDeleteModal(user)">
+                                    <button
+                                        @click="openDeleteModal(floatingIp)"
+                                    >
                                         Delete
                                     </button>
                                 </div>
@@ -59,29 +63,22 @@
                 </tbody>
             </table>
 
-            <p v-else>No users found</p>
+            <p v-else>No floating IPs found</p>
         </div>
 
-        <UserCreateModal
+        <FloatingIpCreateModal
             v-if="showAddModal"
             :icons="icons"
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
         />
 
-        <UserDeleteModal
+        <FloatingIpDeleteModal
             v-if="showDeleteModal"
-            :user="userToDelete"
+            :floating_ip="floatingIpToDelete"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
-        />
-
-        <UserInfoModal
-            v-if="showInfoModal"
-            :user="userToInfo"
-            :icons="icons"
-            @cancel="cancelInfoModal"
         />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
@@ -93,37 +90,52 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
-import { miko } from "@/api";
-import type { UserBasicResp } from "@/api";
-
-import UserCreateModal from "./user_create_modal.vue";
-import UserDeleteModal from "./user_delete_modal.vue";
-import UserInfoModal from "./user_info_modal.vue";
+import { hanami } from "@/api";
+import type { FloatingIpBasicResp, NetworkBasicResp } from "@/api";
+import FloatingIpCreateModal from "./floating_ip_create_modal.vue";
+import FloatingIpDeleteModal from "./floating_ip_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const users = ref<UserBasicResp[]>([]);
+const floatingIps = ref<FloatingIpBasicResp[]>([]);
+const networks = ref<NetworkBasicResp[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
-const showInfoModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const userToDelete = ref<UserBasicResp | null>(null);
-const userToInfo = ref<UserBasicResp | null>(null);
+const floatingIpToDelete = ref<FloatingIpBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchUsers() {
+/**
+ * The list-endpoint only provides the uuid of the network, so the networks are
+ * loaded as well to be able to show their name.
+ */
+function networkName(network_uuid: string): string {
+    const network = networks.value.find((entry) => entry.uuid === network_uuid);
+    return network ? network.name : network_uuid;
+}
+
+async function fetchFloatingIps() {
     try {
-        users.value = await miko.listUsers();
+        floatingIps.value = await hanami.listFloatingIps();
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load users");
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to load floating IPs",
+        );
+    }
+
+    try {
+        networks.value = await hanami.listNetworks();
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load networks");
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(id: string) {
-    openDropdown.value = openDropdown.value === id ? null : id;
+function toggleDropdown(uuid: string) {
+    openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -140,7 +152,7 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add user modal
+// Add floating-ip modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
@@ -148,48 +160,33 @@ function openAddModal() {
 function cancelAddModal() {
     showAddModal.value = false;
 }
-
 async function acceptAddModal() {
-    await fetchUsers();
+    await fetchFloatingIps();
     cancelAddModal();
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(user: UserBasicResp) {
-    userToDelete.value = user;
+function openDeleteModal(floatingIp: FloatingIpBasicResp) {
+    floatingIpToDelete.value = floatingIp;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    userToDelete.value = null;
+    floatingIpToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    await fetchUsers();
+    await fetchFloatingIps();
     cancelDeleteModal();
-}
-
-//=============================================================================
-// Info modal
-//=============================================================================
-function openInfoModal(user: UserBasicResp) {
-    userToInfo.value = user;
-    showInfoModal.value = true;
-    openDropdown.value = null;
-}
-function cancelInfoModal() {
-    showInfoModal.value = false;
-    userToInfo.value = null;
-    openDropdown.value = null; // close any open action dropdown
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchUsers);
+onMounted(fetchFloatingIps);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -199,3 +196,10 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+.overview-table td:nth-child(2),
+.overview-table td:nth-child(3) {
+    width: 12rem;
+}
+</style>

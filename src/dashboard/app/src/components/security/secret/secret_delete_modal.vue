@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,25 +11,25 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal instance-delete-modal">
+        <div class="modal secret-delete-modal">
             <div class="modal-topbar">
-                <span>Delete instance</span>
+                <span>Delete secret</span>
             </div>
             <div class="modal-content">
                 <p>Are you sure you want to delete?</p>
-                <strong>Instance: {{ instance?.uuid }}</strong>
+                <strong>Secret: {{ secret?.name }}</strong>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(instance?.uuid)"
+                        @click="handleAccept(secret?.uuid)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -48,13 +48,13 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { omamori } from "@/api";
+import type { SecretBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    instance: { uuid: string; name: string } | null;
+    secret: SecretBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,21 +64,13 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(instance_uuid: string) {
-    if (!instance_uuid) return;
+async function handleAccept(secret_uuid: string | undefined) {
+    if (!secret_uuid) return;
     try {
-        const authContext = getAuthContext();
-        const hanami_api = axios.create({
-            baseURL: authContext.hanami_address,
-        });
-
-        await hanami_api.delete(`/v1alpha/instance/${instance_uuid}`, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-
+        await omamori.deleteSecret(secret_uuid);
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to delete instance");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to delete secret");
     }
 }
 
@@ -88,7 +80,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.instance-delete-modal {
+.secret-delete-modal {
     width: 30rem;
 }
 </style>

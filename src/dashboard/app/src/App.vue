@@ -83,9 +83,14 @@ import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
+import AdminHost from "@/components/admin/host/host_overview.vue";
 import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
-import StorageDataset from "@/components/storage/dataset/dataset_overview.vue";
-import WorkloadInstance from "@/components/workload/instance/instance_overview.vue";
+import StorageImage from "@/components/storage/image/image_overview.vue";
+import NetworkNetwork from "@/components/network/network/network_overview.vue";
+import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
+import SecuritySecret from "@/components/security/secret/secret_overview.vue";
+import SecurityPublicKey from "@/components/security/public_key/public_key_overview.vue";
+import WorkloadVirtualMachine from "@/components/workload/virtual_machine/virtual_machine_overview.vue";
 import WorkloadTask from "@/components/workload/task/task_overview.vue";
 import { getAuthContext } from "@/auth_context";
 
@@ -118,9 +123,14 @@ const components = {
     AdminUser,
     AdminProject,
     AdminQuota,
+    AdminHost,
     StorageCheckpoint,
-    StorageDataset,
-    WorkloadInstance,
+    StorageImage,
+    NetworkNetwork,
+    NetworkFloatingIp,
+    SecuritySecret,
+    SecurityPublicKey,
+    WorkloadVirtualMachine,
     WorkloadTask,
 };
 

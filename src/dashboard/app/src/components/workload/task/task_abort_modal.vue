@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,12 +11,12 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal task-delete-modal">
+        <div class="modal task-abort-modal">
             <div class="modal-topbar">
                 <span>Abort task</span>
             </div>
@@ -27,10 +27,7 @@
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button
-                        class="icon-button"
-                        @click="handleAccept(task?.uuid, instance_uuid, torii_port)"
-                    >
+                    <button class="icon-button" @click="handleAccept">
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -48,39 +45,36 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { sakura } from "@/api";
+import type { TaskBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    instance_uuid: string;
+    virtual_machine_uuid: string | null;
     torii_port: number;
-    task: { uuid: string } | null;
+    task: TaskBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
-defineProps<Props>();
+const props = defineProps<Props>();
 const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(task_uuid: string, instance_uuid: string, torii_port: number) {
-    if (!task_uuid) return;
+async function handleAccept() {
+    if (!props.task || !props.virtual_machine_uuid) return;
     try {
-        const authContext = getAuthContext();
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
-
-        await sakura_api.put(`/v1alpha/instance/${instance_uuid}/task/${task_uuid}/abort`, {}, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
+        await sakura.abortTask(
+            props.torii_port,
+            props.virtual_machine_uuid,
+            props.task.uuid,
+        );
 
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to delete task");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to abort task");
     }
 }
 
@@ -90,7 +84,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.task-delete-modal {
+.task-abort-modal {
     width: 30rem;
 }
 </style>

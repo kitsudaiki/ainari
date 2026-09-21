@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,96 +11,39 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal quota-create-modal">
+        <div class="modal quota-update-modal">
             <div class="modal-topbar">
-                <span>Update quota of user: {{ quota.user_id }}</span>
+                <span>Update quota of user: {{ quota?.user_id }}</span>
             </div>
 
             <div class="modal-content">
-                <div class="field-row">
-                    <label for="maxInstance">Maximum Instance: </label>
-                    <input
-                        class="number-input"
-                        id="maxInstance"
-                        v-instance.number="quota.max_instance"
-                        type="number"
-                        :min="0"
-                        :class="{ invalid_input: quotaInstanceError }"
-                    />
-                </div>
-                <p v-if="quotaInstanceError" class="error-msg">
-                    Minimum quota must be a positive number
-                </p>
-                <br />
-                <div class="field-row">
-                    <label for="maxDataset">Maximum Datasets: </label>
-                    <input
-                        class="number-input"
-                        id="maxDataset"
-                        v-instance.number="quota.max_dataset"
-                        type="number"
-                        :min="1"
-                        :class="{ invalid_input: quotaDatasetError }"
-                    />
-                </div>
-                <p v-if="quotaDatasetError" class="error-msg">
-                    Maximum quota must be a positive number
-                </p>
-                <br />
-                <div class="field-row">
-                    <label for="maxCheckpoint">Maximum Checkpoints: </label>
-                    <input
-                        class="number-input"
-                        id="maxCheckpoint"
-                        v-instance.number="quota.max_checkpoint"
-                        type="number"
-                        :min="0"
-                        :class="{ invalid_input: quotaCheckpointError }"
-                    />
-                </div>
-                <p v-if="quotaCheckpointError" class="error-msg">
-                    Maximum quota must be a positive number
-                </p>
-                <br />
-                <div class="field-row">
-                    <label for="maxSecret">Maximum Secrets: </label>
-                    <input
-                        class="number-input"
-                        id="maxSecret"
-                        v-instance.number="quota.max_secret"
-                        type="number"
-                        :min="0"
-                        :class="{ invalid_input: quotaSecretError }"
-                    />
-                </div>
-                <p v-if="quotaSecretError" class="error-msg">
-                    Maximum quota must be a positive number
-                </p>
-                <br />
-                <div class="field-row">
-                    <label for="maxTaskqueue">Maximum Taskqueue: </label>
-                    <input
-                        class="number-input"
-                        id="maxTaskqueue"
-                        v-instance.number="quota.max_taskqueue"
-                        type="number"
-                        :min="0"
-                        :class="{ invalid_input: quotaTaskqueueError }"
-                    />
-                </div>
-                <p v-if="quotaTaskqueueError" class="error-msg">
-                    Maximum quota must be a positive number
-                </p>
+                <template v-for="field in fields" :key="field.key">
+                    <div class="field-row">
+                        <label :for="field.key">{{ field.label }}: </label>
+                        <input
+                            class="number-input"
+                            :id="field.key"
+                            v-model.number="values[field.key]"
+                            type="number"
+                            :min="0"
+                            :class="{ invalid_input: errors[field.key] }"
+                        />
+                    </div>
+                    <p v-if="errors[field.key]" class="error-msg">
+                        Maximum quota must be a positive number
+                    </p>
+                    <br />
+                </template>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept(quota)">
+                    <button class="icon-button" @click="handleAccept">
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -118,79 +61,71 @@
 
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { QuotaBasicResp, QuotaSetReq } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    quota: {
-        user_id: string;
-        max_instance: number;
-        max_dataset: number;
-        max_checkpoint: number;
-        max_secret: number;
-        max_taskqueue: number;
-    } | null;
+    quota: QuotaBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
-defineProps<Props>();
+const props = defineProps<Props>();
 const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
 
 const errorPopupMsg = ref<string>("");
-const quotaInstanceError = ref(false);
-const quotaDatasetError = ref(false);
-const quotaCheckpointError = ref(false);
-const quotaSecretError = ref(false);
-const quotaTaskqueueError = ref(false);
 
-async function handleAccept(quota: {
-    user_id: string;
-    max_instance: number;
-    max_dataset: number;
-    max_checkpoint: number;
-    max_secret: number;
-    max_taskqueue: number;
-}) {
-    quotaInstanceError.value = quota.max_instance < 0;
-    quotaDatasetError.value = quota.max_dataset < 0;
-    quotaCheckpointError.value = quota.max_checkpoint < 0;
-    quotaSecretError.value = quota.max_secret < 0;
-    quotaTaskqueueError.value = quota.max_taskqueue < 0;
+// all fields of `QuotaSetReq`, so that adding a new quota-field on the server-side
+// only needs one more entry here
+const fields: { key: keyof QuotaSetReq; label: string }[] = [
+    { key: "max_virtual_machine", label: "Maximum Virtual Machines" },
+    { key: "max_image", label: "Maximum Images" },
+    { key: "max_checkpoint", label: "Maximum Checkpoints" },
+    { key: "max_secret", label: "Maximum Secrets" },
+    { key: "max_network", label: "Maximum Networks" },
+    { key: "max_floating_ip", label: "Maximum Floating IPs" },
+    { key: "max_taskqueue", label: "Maximum Taskqueue" },
+];
 
-    if (
-        quotaInstanceError.value ||
-        quotaDatasetError.value ||
-        quotaCheckpointError.value ||
-        quotaSecretError.value ||
-        quotaTaskqueueError.value
-    ) {
+// the values are edited on a copy, so that a cancel leaves the table untouched
+const values = reactive<QuotaSetReq>({
+    max_virtual_machine: props.quota?.max_virtual_machine ?? 0,
+    max_image: props.quota?.max_image ?? 0,
+    max_checkpoint: props.quota?.max_checkpoint ?? 0,
+    max_secret: props.quota?.max_secret ?? 0,
+    max_network: props.quota?.max_network ?? 0,
+    max_floating_ip: props.quota?.max_floating_ip ?? 0,
+    max_taskqueue: props.quota?.max_taskqueue ?? 0,
+});
+
+const errors = reactive<Record<keyof QuotaSetReq, boolean>>({
+    max_virtual_machine: false,
+    max_image: false,
+    max_checkpoint: false,
+    max_secret: false,
+    max_network: false,
+    max_floating_ip: false,
+    max_taskqueue: false,
+});
+
+async function handleAccept() {
+    if (!props.quota) return;
+
+    let hasError = false;
+    for (const field of fields) {
+        errors[field.key] = values[field.key] < 0;
+        hasError = hasError || errors[field.key];
+    }
+
+    if (hasError) {
         return;
     }
 
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        await miko_api.put(
-            `/v1alpha/quota/${quota.user_id}/admin`,
-            {
-                max_instance: quota.max_instance,
-                max_dataset: quota.max_dataset,
-                max_checkpoint: quota.max_checkpoint,
-                max_secret: quota.max_secret,
-                max_taskqueue: quota.max_taskqueue,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-
+        await miko.setQuota(props.quota.user_id, { ...values });
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to update quota");
@@ -203,19 +138,13 @@ function cancel() {
 </script>
 
 <style scoped>
-.quota-create-modal {
+.quota-update-modal {
     width: 40rem;
 }
 
 /* is not found when I put this in one of the css files. Don't know why... */
 .invalid_input {
     border-bottom: 2px solid #ff4d4f;
-}
-
-.number-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* centers the whole block */
 }
 
 .field-row {

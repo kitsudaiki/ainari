@@ -1,55 +1,53 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 
-//     http://www.apache.org/licenses/LICENSE-2.0
+//         http://www.apache.org/licenses/LICENSE-2.0
 
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">User</div>
+        <div class="card-label">Secrets</div>
         <div class="card-content">
             <!-- Add button -->
             <button class="add-button" @click="openAddModal">+</button>
 
-            <table class="overview-table" v-if="users.length > 0">
+            <table class="overview-table" v-if="secrets.length > 0">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Is Admin</th>
+                        <th>UUID</th>
+                        <th>Name</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="user in users" :key="user.id">
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.is_admin }}</td>
+                    <tr v-for="secret in secrets" :key="secret.uuid">
+                        <td>{{ secret.uuid }}</td>
+                        <td>{{ secret.name }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(user.id)"
+                                @click.stop="toggleDropdown(secret.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === user.id"
+                                    v-if="openDropdown === secret.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openInfoModal(user)">
-                                        Info
+                                    <button @click="openPayloadModal(secret)">
+                                        Show payload
                                     </button>
-                                    <button @click="openDeleteModal(user)">
+                                    <button @click="openDeleteModal(secret)">
                                         Delete
                                     </button>
                                 </div>
@@ -59,29 +57,29 @@
                 </tbody>
             </table>
 
-            <p v-else>No users found</p>
+            <p v-else>No secrets found</p>
         </div>
 
-        <UserCreateModal
+        <SecretCreateModal
             v-if="showAddModal"
             :icons="icons"
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
         />
 
-        <UserDeleteModal
+        <SecretPayloadModal
+            v-if="showPayloadModal"
+            :secret="secretToShow"
+            :icons="icons"
+            @cancel="cancelPayloadModal"
+        />
+
+        <SecretDeleteModal
             v-if="showDeleteModal"
-            :user="userToDelete"
+            :secret="secretToDelete"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
-        />
-
-        <UserInfoModal
-            v-if="showInfoModal"
-            :user="userToInfo"
-            :icons="icons"
-            @cancel="cancelInfoModal"
         />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
@@ -93,37 +91,36 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
-import { miko } from "@/api";
-import type { UserBasicResp } from "@/api";
-
-import UserCreateModal from "./user_create_modal.vue";
-import UserDeleteModal from "./user_delete_modal.vue";
-import UserInfoModal from "./user_info_modal.vue";
+import { omamori } from "@/api";
+import type { SecretBasicResp } from "@/api";
+import SecretCreateModal from "./secret_create_modal.vue";
+import SecretPayloadModal from "./secret_payload_modal.vue";
+import SecretDeleteModal from "./secret_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const users = ref<UserBasicResp[]>([]);
+const secrets = ref<SecretBasicResp[]>([]);
 const showAddModal = ref(false);
+const showPayloadModal = ref(false);
 const showDeleteModal = ref(false);
-const showInfoModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const userToDelete = ref<UserBasicResp | null>(null);
-const userToInfo = ref<UserBasicResp | null>(null);
+const secretToShow = ref<SecretBasicResp | null>(null);
+const secretToDelete = ref<SecretBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchUsers() {
+async function fetchSecrets() {
     try {
-        users.value = await miko.listUsers();
+        secrets.value = await omamori.listSecrets();
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load users");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load secrets");
     }
 }
 
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(id: string) {
-    openDropdown.value = openDropdown.value === id ? null : id;
+function toggleDropdown(uuid: string) {
+    openDropdown.value = openDropdown.value === uuid ? null : uuid;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -140,7 +137,7 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add user modal
+// Add secret modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
@@ -148,48 +145,47 @@ function openAddModal() {
 function cancelAddModal() {
     showAddModal.value = false;
 }
-
 async function acceptAddModal() {
-    await fetchUsers();
+    await fetchSecrets();
     cancelAddModal();
+}
+
+//=============================================================================
+// Payload modal
+//=============================================================================
+function openPayloadModal(secret: SecretBasicResp) {
+    secretToShow.value = secret;
+    showPayloadModal.value = true;
+    openDropdown.value = null;
+}
+function cancelPayloadModal() {
+    showPayloadModal.value = false;
+    secretToShow.value = null;
+    openDropdown.value = null;
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(user: UserBasicResp) {
-    userToDelete.value = user;
+function openDeleteModal(secret: SecretBasicResp) {
+    secretToDelete.value = secret;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    userToDelete.value = null;
+    secretToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    await fetchUsers();
+    await fetchSecrets();
     cancelDeleteModal();
-}
-
-//=============================================================================
-// Info modal
-//=============================================================================
-function openInfoModal(user: UserBasicResp) {
-    userToInfo.value = user;
-    showInfoModal.value = true;
-    openDropdown.value = null;
-}
-function cancelInfoModal() {
-    showInfoModal.value = false;
-    userToInfo.value = null;
-    openDropdown.value = null; // close any open action dropdown
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchUsers);
+onMounted(fetchSecrets);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -199,3 +195,11 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+/* Columns 2 through n-1 share remaining space equally */
+th:not(:first-child):not(:last-child),
+td:not(:first-child):not(:last-child) {
+    width: 40%;
+}
+</style>

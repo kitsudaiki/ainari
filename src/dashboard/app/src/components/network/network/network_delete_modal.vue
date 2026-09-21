@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,25 +11,25 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal dataset-delete-modal">
+        <div class="modal network-delete-modal">
             <div class="modal-topbar">
-                <span>Delete dataset</span>
+                <span>Delete network</span>
             </div>
             <div class="modal-content">
                 <p>Are you sure you want to delete?</p>
-                <strong>Dataset: {{ dataset?.uuid }}</strong>
+                <strong>Network: {{ network?.uuid }}</strong>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(dataset?.uuid)"
+                        @click="handleAccept(network?.uuid)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -48,13 +48,13 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { hanami } from "@/api";
+import type { NetworkBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    dataset: { id: number; name: string } | null;
+    network: NetworkBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,21 +64,13 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(dataset_uuid: string) {
-    if (!dataset_uuid) return;
+async function handleAccept(network_uuid: string | undefined) {
+    if (!network_uuid) return;
     try {
-        const authContext = getAuthContext();
-        const ryokan_api = axios.create({
-            baseURL: authContext.ryokan_address,
-        });
-
-        await ryokan_api.delete(`/v1alpha/dataset/${dataset_uuid}`, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-
+        await hanami.deleteNetwork(network_uuid);
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to delete dataset");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to delete network");
     }
 }
 
@@ -88,7 +80,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.dataset-delete-modal {
+.network-delete-modal {
     width: 30rem;
 }
 </style>
