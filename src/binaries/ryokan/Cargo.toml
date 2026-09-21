@@ -47,4 +47,4 @@ bytemuck = "1.25"
 csv = "1.4"
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"

@@ -41,4 +41,4 @@ bytes = "1"
 uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"
