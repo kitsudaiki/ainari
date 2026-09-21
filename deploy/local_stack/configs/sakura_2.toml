@@ -1,14 +1,13 @@
-# Config of sakura for the local docker-compose setup.
+# Config of the second sakura-host for the local docker-compose setup.
 #
-# Sakura shares the network-namespace of the torii in front of it, so its api is reachable at the
-# address of that container. 'sakura' is an alias of that container in the dns of docker, so the
-# host is registered in hanami under its own name and not under the name of its gateway. Hanami
-# uses this address to talk to sakura and to find the torii, which owns the TAP-devices of the
-# virtual machines of this host.
+# It is the config of the first host with another address: 'sakura-2' is the alias of the torii,
+# whose network-namespace this host shares, in the dns of docker. Hanami uses this address to
+# talk to sakura, to tell the two hosts apart and to find the torii, which owns the TAP-devices
+# of the virtual machines of this host.
 debug = true
 log_path = "/var/log"
 skip_tls_verification = true
-address = "http://sakura:11420"
+address = "http://sakura-2:11420"
 
 [api]
 public_ip = "0.0.0.0"

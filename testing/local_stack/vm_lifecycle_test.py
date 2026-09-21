@@ -17,6 +17,7 @@ End-to-end test of the local docker-compose setup.
 
 It walks through the whole life-cycle of a virtual machine with the python-sdk:
 
+    0. wait until all sakura-hosts of the setup are registered in hanami
     1. generate a ssh-key-pair and upload the public key to omamori
     2. download an ubuntu-cloud-image and upload it to ryokan
     3. create a network
@@ -24,6 +25,9 @@ It walks through the whole life-cycle of a virtual machine with the python-sdk:
     5. create the reserved virtual machine on its sakura-host
     6. give the virtual machine a floating ip-address
     7. log into the virtual machine over ssh with the generated key
+
+Hanami picks one of the sakura-hosts for the virtual machine, so which of them really runs it
+differs from run to run.
 
 The stack has to run before this script is started:
 
@@ -42,6 +46,7 @@ REPO_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.insert(0, os.path.join(REPO_DIR, "src", "sdk", "python", "ainari_sdk"))
 
 from ainari_sdk import floating_ip   # noqa: E402
+from ainari_sdk import host          # noqa: E402
 from ainari_sdk import image         # noqa: E402
 from ainari_sdk import login         # noqa: E402
 from ainari_sdk import network       # noqa: E402
@@ -68,6 +73,11 @@ VM_USER = "ubuntu"
 WORK_DIR = os.path.join(REPO_DIR, "temporary_files", "local_stack_test")
 IMAGE_PATH = os.path.join(WORK_DIR, "noble-server-cloudimg-amd64.img")
 SSH_KEY_PATH = os.path.join(WORK_DIR, "id_ed25519")
+
+# number of sakura-hosts of the docker-compose setup. Every one of them registers itself in
+# hanami, when it starts, and a host, which is not registered yet, can not get a virtual machine.
+NUMBER_OF_SAKURA_HOSTS = int(os.getenv("AINARI_SAKURA_HOSTS", "2"))
+HOST_REGISTRATION_TIMEOUT = 300
 
 # a virtual machine needs a while to boot, before it answers on ssh
 VM_CREATE_TIMEOUT = 600
@@ -107,6 +117,25 @@ def download_cloud_image():
     log(f"downloading {IMAGE_URL} ...")
     urllib.request.urlretrieve(IMAGE_URL, IMAGE_PATH)
     log(f"downloaded {os.path.getsize(IMAGE_PATH)} bytes")
+
+
+def wait_for_sakura_hosts(context) -> list:
+    """
+    Waits until all sakura-hosts of the setup are registered in hanami and returns them.
+
+    A sakura, which is started before hanami, fails its registration and is restarted by docker,
+    so the hosts are not there immediately after the stack is up.
+    """
+    end_time = time.time() + HOST_REGISTRATION_TIMEOUT
+    hosts = []
+    while time.time() < end_time:
+        hosts = host.list_hosts(context)["hosts"]
+        if len(hosts) >= NUMBER_OF_SAKURA_HOSTS:
+            return hosts
+        time.sleep(2.0)
+
+    raise TimeoutError(f"only {len(hosts)} of {NUMBER_OF_SAKURA_HOSTS} sakura-hosts registered "
+                       f"themselves within {HOST_REGISTRATION_TIMEOUT}s")
 
 
 def wait_for_created_virtual_machine(context, virtual_machine_uuid: str) -> dict:
@@ -169,6 +198,11 @@ def main() -> int:
                                     USER_ID,
                                     PASSPHRASE,
                                     verify_connection=False)
+
+    # 0. sakura-hosts
+    log(f"waiting for the {NUMBER_OF_SAKURA_HOSTS} sakura-host(s) of the setup")
+    for host_data in wait_for_sakura_hosts(context):
+        log(f"    sakura-host '{host_data['name']}' at {host_data['host_address']}")
 
     # 1. ssh-key-pair
     log("generating ssh-key-pair and uploading the public key to omamori")
