@@ -109,7 +109,7 @@ const progressOffset = computed(() => {
 }
 
 .gauge-bg {
-    stroke: rgba(0, 0, 0, 0.1);
+    stroke: rgba(255, 255, 255, 0.08);
 }
 
 .gauge-progress {
@@ -121,6 +121,6 @@ const progressOffset = computed(() => {
     fill: var(--color-text);
     font-family: var(--text-font-family);
     font-size: 2rem;
-    font-weight: bold;
+    font-weight: 600;
 }
 </style>

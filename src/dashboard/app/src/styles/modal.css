@@ -15,17 +15,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* dark title-bar with the striped texture of the section-headers */
 .modal-topbar {
-    background-color: var(--color-tile);
-    box-shadow: var(--box-shadow-header);
+    position: relative;
+    flex-shrink: 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--color-bar) 40%,
+            rgba(22, 24, 27, 0.4) 100%
+        ),
+        var(--hex-pattern),
+        var(--glass-bg-strong);
+    border-bottom: 1px solid var(--color-border);
     color: var(--color-text);
 
-    font-weight: bold;
-    text-align: center;
-    font-size: 1.5rem;
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    font-size: 1.35rem;
+    letter-spacing: 0.03em;
+    text-align: left;
 
-    height: 4rem;
-    padding: 1rem;
+    padding: 0.8rem 1.5rem 0.8rem 2.1rem;
+}
+
+.modal-topbar::before {
+    content: "";
+    position: absolute;
+    left: 1.1rem;
+    top: 50%;
+    width: 0.3rem;
+    height: 1.4rem;
+    transform: translateY(-50%);
+    background: var(--color-highlight);
 }
 
 .modal-content {
@@ -36,17 +59,18 @@ limitations under the License.
     gap: 1rem;
     padding: 1.5rem;
 
-    height: auto;
-    min-height: auto;
-    overflow: visible;
+    /* grow with the content, but scroll if the modal hits its max-height */
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .modal-bottombar {
-    box-shadow: var(--box-shadow-footer);
-    background-color: var(--color-tile);
+    background-color: var(--glass-bg-strong);
+    border-top: 1px solid var(--color-border-soft);
 
-    padding: 1rem;
-    /* min-height: 4.5rem; */
+    padding: 0.6rem 1rem;
+    flex-shrink: 0;
 
     display: flex;
     flex-direction: column;
@@ -58,14 +82,18 @@ limitations under the License.
     padding: 0.2rem;
     background-color: var(--color-tile);
     color: var(--color-text);
-    border: none;
+    border: 1px solid var(--color-border-soft);
     font-size: 1.1rem;
     cursor: pointer;
 }
 
+/* Only a translucent tint of the highlight-color, because the white icons are images,
+whose color can't be switched automatically like the text-color. The tint on the
+dark bar stays dark enough for white icons with any highlight-color. */
 .modal-bottombar button:hover {
-    color: invert(var(--color-text));
-    background: var(--color-highlight);
+    color: var(--color-text);
+    background: var(--color-highlight-tint);
+    border-color: var(--color-highlight);
 }
 
 .modal-overlay {
@@ -75,7 +103,7 @@ limitations under the License.
     width: 100%;
     height: 100%;
     backdrop-filter: blur(8px);
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.45);
     display: flex;
     justify-content: center;
     z-index: 1000;
@@ -83,16 +111,39 @@ limitations under the License.
 }
 
 .modal {
-    background-color: var(--color-background);
-    box-shadow: var(--box-shadow-header);
+    /* the blur itself comes from the backdrop-filter of the overlay */
+    background: var(--glass-sheen), rgba(38, 41, 46, 0.78);
+    border: 1px solid var(--color-border);
+    box-shadow:
+        var(--glass-edge),
+        0 0.6rem 2rem rgba(0, 0, 0, 0.6);
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+
+    /* height follows the content, limited by the size of the window */
+    height: auto;
+    max-height: 90vh;
 }
 
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 5rem;
+    gap: 1rem;
+    width: 100%;
+}
+
+.modal-actions .icon-button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.4rem;
+}
+
+.modal-actions .icon-button img {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+.modal-actions .icon-button:hover {
+    transform: none;
 }

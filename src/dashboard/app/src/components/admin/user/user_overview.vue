@@ -92,9 +92,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { UserBasicResp } from "@/api";
 
 import UserCreateModal from "./user_create_modal.vue";
 import UserDeleteModal from "./user_delete_modal.vue";
@@ -102,26 +102,18 @@ import UserInfoModal from "./user_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const users = ref<{ id: string; userName: string }[]>([]);
+const users = ref<UserBasicResp[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const showInfoModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const userToDelete = ref<{ id: string; userName: string } | null>(null);
-const userToInfo = ref<{ id: string; userName: string } | null>(null);
+const userToDelete = ref<UserBasicResp | null>(null);
+const userToInfo = ref<UserBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchUsers() {
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        const response = await miko_api.get("/v1alpha/user/admin", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        users.value = response.data.users;
+        users.value = await miko.listUsers();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load users");
     }
@@ -165,7 +157,7 @@ async function acceptAddModal() {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(user: { id: string; userName: string }) {
+function openDeleteModal(user: UserBasicResp) {
     userToDelete.value = user;
     showDeleteModal.value = true;
     openDropdown.value = null;
@@ -183,7 +175,7 @@ async function acceptDeleteModal() {
 //=============================================================================
 // Info modal
 //=============================================================================
-function openInfoModal(user: { id: string; userName: string }) {
+function openInfoModal(user: UserBasicResp) {
     userToInfo.value = user;
     showInfoModal.value = true;
     openDropdown.value = null;

@@ -75,33 +75,23 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { ryokan } from "@/api";
+import type { CheckpointBasicResp } from "@/api";
 
 import CheckpointDeleteModal from "./checkpoint_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const checkpoints = ref<{ uuid: string; checkpointName: string }[]>([]);
+const checkpoints = ref<CheckpointBasicResp[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const checkpointToDelete = ref<{ uuid: string; checkpointName: string } | null>(
-    null,
-);
+const checkpointToDelete = ref<CheckpointBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchCheckpoints() {
     try {
-        const authContext = getAuthContext();
-        const ryokan_api = axios.create({
-            baseURL: authContext.ryokan_address,
-        });
-
-        const response = await ryokan_api.get("/v1alpha/checkpoint", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        checkpoints.value = response.data.checkpoints;
+        checkpoints.value = await ryokan.listCheckpoints();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
@@ -133,7 +123,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(checkpoint: { id: string; checkpointName: string }) {
+function openDeleteModal(checkpoint: CheckpointBasicResp) {
     checkpointToDelete.value = checkpoint;
     showDeleteModal.value = true;
     openDropdown.value = null;

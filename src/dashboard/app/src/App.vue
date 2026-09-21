@@ -21,10 +21,6 @@
                 src="./assets/background_pattern.svg"
                 class="logo-icon top-left"
             /> -->
-            <img
-                src="./assets/background_pattern2.svg"
-                class="logo-icon bottom-right"
-            />
         </div>
         <!-- blur overlay -->
         <div class="overlay"></div>
@@ -83,9 +79,14 @@ import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
+import AdminHost from "@/components/admin/host/host_overview.vue";
 import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
-import StorageDataset from "@/components/storage/dataset/dataset_overview.vue";
-import WorkloadInstance from "@/components/workload/instance/instance_overview.vue";
+import StorageImage from "@/components/storage/image/image_overview.vue";
+import NetworkNetwork from "@/components/network/network/network_overview.vue";
+import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
+import SecuritySecret from "@/components/security/secret/secret_overview.vue";
+import SecurityPublicKey from "@/components/security/public_key/public_key_overview.vue";
+import WorkloadVirtualMachine from "@/components/workload/virtual_machine/virtual_machine_overview.vue";
 import WorkloadTask from "@/components/workload/task/task_overview.vue";
 import { getAuthContext } from "@/auth_context";
 
@@ -118,9 +119,14 @@ const components = {
     AdminUser,
     AdminProject,
     AdminQuota,
+    AdminHost,
     StorageCheckpoint,
-    StorageDataset,
-    WorkloadInstance,
+    StorageImage,
+    NetworkNetwork,
+    NetworkFloatingIp,
+    SecuritySecret,
+    SecurityPublicKey,
+    WorkloadVirtualMachine,
     WorkloadTask,
 };
 
@@ -227,7 +233,12 @@ onUnmounted(() => {
 }
 
 .background {
-    background-color: var(--color-background);
+    /* very light gradient from the top-left to the bottom-right corner */
+    background: linear-gradient(
+        to bottom right,
+        #24272a 0%,
+        var(--color-background) 100%
+    );
     /* background-picture
     background: url("./src/assets/background.jpg") no-repeat
         center center fixed; */
@@ -266,7 +277,7 @@ onUnmounted(() => {
     height: auto;
     filter: invert(1);
     position: absolute;
-    opacity: 0.025;
+    opacity: 0.07;
 }
 
 .top-left {
@@ -274,12 +285,5 @@ onUnmounted(() => {
 
     top: 0;
     left: 0;
-}
-
-.bottom-right {
-    width: 28vw;
-
-    bottom: 0;
-    right: 0;
 }
 </style>

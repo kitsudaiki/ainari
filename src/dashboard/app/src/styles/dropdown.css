@@ -20,6 +20,7 @@ limitations under the License.
     display: inline-block; /* make sure it doesn’t stretch */
     cursor: pointer;
     width: 2rem;
+    text-align: center;
 }
 
 .table-dropdown button {
@@ -30,19 +31,15 @@ limitations under the License.
     width: 100%;
 }
 
-.table-dropdown button:hover {
-    background: var(--color-tile);
-}
-
 .table-dropdown-menu {
     position: absolute;
     top: 100%;
     right: 0; /* align dropdown menu to the right of the button */
-    background: var(--color-tile);
-    border: 1px solid #ccc;
-    padding: 0.25rem 0;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    background: var(--glass-sheen), var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-border);
+    padding: 0.25rem;
     box-shadow: var(--box-shadow-header);
     z-index: 10;
     min-width: 10rem;
@@ -51,17 +48,19 @@ limitations under the License.
 .table-dropdown-menu button {
     display: block;
     width: 100%;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.6rem;
     border: none;
     background: none;
     cursor: pointer;
     text-align: left;
     font-size: 0.9rem;
+    font-family: var(--text-font-family);
 }
 
 .table-dropdown-menu button:hover {
-    background: var(--color-tile);
-    color: var(--color-text);
+    background: var(--color-highlight);
+    color: var(--color-on-highlight);
+    filter: none;
 }
 
 .select-dropdown {
@@ -70,34 +69,31 @@ limitations under the License.
     width: 100%;
     cursor: pointer;
     font-size: 0.9rem;
+    font-family: var(--text-font-family);
     color: var(--color-text);
-    box-shadow: var(--box-shadow);
-    background: var(--color-tile);
+    background-color: var(--color-bar);
+    border: 1px solid var(--color-border-soft);
     padding: 0.4rem 2rem 0.4rem 0.6rem; /* add space for arrow */
     appearance: none; /* remove default arrow */
     -webkit-appearance: none;
     -moz-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%23b0b4b8' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
     background-repeat: no-repeat;
     background-position: right 0.6rem center;
     background-size: 1rem;
 }
 
-.select-dropdown :hover {
-    background: var(--color-hover, #eee);
+.select-dropdown:hover {
+    border-color: var(--color-border);
 }
 
-.select-dropdown :focus {
+.select-dropdown:focus {
     outline: none;
-    border-color: var(--color-higlight-field);
-    box-shadow: var(--box-shadow);
+    border-color: var(--color-highlight);
 }
 
 .select-dropdown option {
     padding: 0.25rem 0.5rem;
     cursor: pointer;
-}
-
-.select-dropdown option:hover {
-    background: var(--color-tile);
+    background: var(--color-bar);
 }

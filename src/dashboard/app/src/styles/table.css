@@ -27,13 +27,145 @@ table {
 
 table tr {
     height: 38px;
-    border-bottom: 1px solid var(--color-text);
+    border-bottom: 1px solid var(--color-border-soft);
+}
+
+/* header like the underlined labels of a settings-menu */
+table thead tr {
+    border-bottom: 1px solid var(--color-border);
+}
+
+table thead th {
+    font-family: var(--title-font-family);
+    color: var(--color-text-light);
+    font-size: 0.8rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/*=================================================
+Overview-tables: every row is a framed tile of its own, styled like the
+entries of the sidebar, with a small action-button at the end
+=================================================*/
+
+.overview-table {
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+}
+
+.overview-table thead tr {
+    border: none;
+}
+
+.overview-table thead th {
+    padding-bottom: 0;
+}
+
+/* the sheen is set on the row, so it spans the whole row instead of repeating in
+every cell. The cells above are transparent enough to let it shine through. */
+.overview-table tbody tr {
+    height: 3rem;
+    border: none;
+    background: var(--glass-sheen);
+}
+
+.overview-table tbody td {
+    background: rgba(42, 44, 48, 0.6);
+    color: var(--color-text);
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    font-size: 1.05rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    /* bright top-edge, like the glass-edge of the sidebar-entries */
+    box-shadow: var(--glass-edge);
+    /* only the box-shadow is animated: a changing background would fade in from
+    transparent, which flashes the dark card */
+    transition: box-shadow 150ms;
+}
+
+.overview-table tbody td:first-child {
+    border-left: 1px solid var(--color-border);
+    padding-left: 1rem;
+}
+
+.overview-table tbody td:last-child {
+    border-right: 1px solid var(--color-border);
+    padding-right: 0.5rem;
+}
+
+/* the action-button looks like a sub-entry of the sidebar */
+.overview-table tbody .table-dropdown {
+    /* block instead of inline-block, so it isn't aligned to the text-baseline, but
+    centered by the cell. margin-left keeps it at the right end. */
+    display: block;
+    margin-left: auto;
+    width: 2.2rem;
+    height: 2.2rem;
+    background: rgba(22, 24, 27, 0.6);
+    color: var(--color-text);
+    border: 1px solid var(--color-border-soft);
+    /* the "⋮" of the text is hidden and drawn by the pseudo-element below instead,
+    because the position of the glyph depends on the font and is never exactly centered */
+    font-size: 0;
+    transition:
+        background-color 150ms,
+        border-color 150ms;
+}
+
+/* the three dots: one in the center and two more by box-shadow above and below */
+.overview-table tbody .table-dropdown::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    /* the dots follow the text-color, so the hover only has to change the color */
+    background: currentColor;
+    box-shadow:
+        0 -7px 0 currentColor,
+        0 7px 0 currentColor;
+    transform: translate(-50%, -50%);
+}
+
+.overview-table tbody .table-dropdown:hover {
+    background-color: var(--color-highlight);
+    color: var(--color-on-highlight);
+    border-color: var(--color-border);
+}
+
+/* the dropdown-menu should not inherit the centered text of the button */
+.overview-table tbody .table-dropdown-menu {
+    line-height: 1.5;
+    font-size: 1rem;
+}
+
+/* hover like in the sidebar: brighter tile with a white frame. No filter is used
+for this, because it would put the dropdown-menu below the following rows. */
+.overview-table tbody tr:hover td {
+    background: rgba(58, 61, 66, 0.7);
+    border-color: var(--color-text);
+}
+
+.overview-table tbody tr:hover td:first-child {
+    box-shadow:
+        var(--glass-edge),
+        inset 0.3rem 0 0 var(--color-highlight);
 }
 
 /* make first column mono-space, because it contains the UUID, which is easier to read this way */
 .overview-table td:nth-child(1) {
     font-family: Dejavu Sans Mono;
+    font-size: 0.85rem;
     width: 25rem;
+}
+
+.overview-table tbody td:nth-child(1) {
+    color: var(--color-text-light);
 }
 
 table tr th {

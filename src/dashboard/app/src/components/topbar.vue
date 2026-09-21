@@ -84,8 +84,19 @@ function stringToHslColor(str: string): string {
 <style scoped>
 .topbar {
     color: var(--color-text);
-    background-color: var(--color-tile);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(22, 24, 27, 0.85) 30%,
+            rgba(22, 24, 27, 0.35) 100%
+        ),
+        var(--hex-pattern),
+        rgba(22, 24, 27, 0.4);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--color-border);
     box-shadow: var(--box-shadow-header);
+    z-index: 1;
 
     height: 4.2rem;
     width: 100%;
@@ -114,14 +125,22 @@ function stringToHslColor(str: string): string {
     height: 36px;
     /* border-radius: 50%; */
     /* border: 2px solid white; */
-    background-color: var(--color-text);
-    color: var(--color-tile);
+    background-color: var(--color-selected);
+    color: var(--color-text-dark);
+    border: 1px solid var(--color-border);
+    box-shadow: inset 0 -0.2rem 0 var(--color-highlight);
 
     display: flex;
     align-items: center;
     justify-content: center;
 
     font-size: 24px;
+    line-height: 1;
+    /* Centers the capital letter in the light area above the accent-bar:
+    0.1em, because the capitals of Barlow (cap-height 0.7em, ascent 1.0em,
+    descent 0.2em) sit 0.05em below the middle of the text-box, and 0.2rem for the
+    accent-bar at the bottom. Padding shifts the flex-center by half its size. */
+    padding-bottom: calc(0.1em + 0.2rem);
     user-select: none;
 }
 
@@ -130,11 +149,13 @@ function stringToHslColor(str: string): string {
     top: 100%;
     right: 0;
 
-    background: var(--color-tile);
+    background: var(--glass-sheen), var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: var(--box-shadow-header);
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-border);
 
-    padding: 0.5rem;
+    padding: 0.25rem;
     display: flex;
     flex-direction: column;
     min-width: 120px;
@@ -150,6 +171,8 @@ function stringToHslColor(str: string): string {
 }
 
 .topbar-dropdown button:hover {
-    background: var(--color-tile);
+    background: var(--color-highlight);
+    color: var(--color-on-highlight);
+    filter: none;
 }
 </style>

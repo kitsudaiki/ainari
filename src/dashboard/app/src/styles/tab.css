@@ -15,36 +15,48 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* segmented bar, where the selected segment is filled with the highlight-color */
 .tab {
     overflow: hidden;
-    background-color: var(--color-tile);
+    display: flex;
+    background-color: rgba(58, 61, 66, 0.6);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-border-soft);
     box-shadow: var(--box-shadow-header);
-    padding-left: 1rem;
-    padding-right: 1rem;
     margin-top: 0.5rem;
 }
 
 .tab button {
+    flex: 1;
     background-color: inherit;
-    float: left;
     border: none;
+    border-right: 1px solid var(--color-border-soft);
     outline: none;
     cursor: pointer;
-    padding: 14px 16px;
-    transition: 0.3s;
-    font-family: var(--text-font-family);
-    color: white;
-    font-size: large;
+    padding: 0.6rem 1rem;
+    transition: background-color 0.2s;
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    color: var(--color-text);
     font-size: 1rem;
+}
+
+.tab button:last-child {
+    border-right: none;
 }
 
 /* Change background color of buttons on hover */
 .tab button:hover {
-    background-color: var(--color-background);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Create an active/current tablink class */
 .tab button.active {
-    background-color: var(--color-text-light);
-    color: black;
+    background: linear-gradient(
+        180deg,
+        var(--color-highlight-light) 0%,
+        var(--color-highlight) 100%
+    );
+    color: var(--color-on-highlight);
 }

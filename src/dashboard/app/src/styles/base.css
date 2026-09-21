@@ -16,23 +16,62 @@ limitations under the License.
 */
 
 :root {
-    --color-background: #2a2f33;
-    --color-tile: #3b3f42;
-    --color-higlight-field: #45494d;
+    --color-background: #1d1f22;
+    --color-bar: #16181b; /* dark bars, like topbar and section-headers */
+    --color-tile: #2a2c30;
+    --color-higlight-field: #3a3d42;
 
-    --color-shadow: #2020208e;
-    --color-text: #ffffff;
-    --color-text-light: #8e9396;
-    --color-highlight: #ffc7f2;
-    /*--color-highlight: #D16A5E;  EA9A90   E58A7F */
+    --color-shadow: #0000008c;
+    --color-text: #f2f2f2;
+    --color-text-light: #9a9ea3;
+    --color-text-dark: #1b1c1f; /* text on light surfaces */
+    /* The highlight-color is the only value, which has to be changed to change the
+    accent of the whole dashboard. All other highlight-values are derived from it. */
+    --color-highlight: #0e98dc;
 
-    --text-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --color-highlight-glow: rgb(from var(--color-highlight) r g b / 0.45);
+    --color-highlight-tint: rgb(from var(--color-highlight) r g b / 0.35);
+    --color-highlight-light: oklch(from var(--color-highlight) calc(l + 0.06) c h);
+    /* Text on top of the highlight-color: white for dark and black for light
+    highlight-colors. The lightness "l" of oklch is between 0 and 1. Below the
+    threshold of 0.7 the clamp results in 1 (white), above it in 0 (black). */
+    --color-on-highlight: oklch(
+        from var(--color-highlight) clamp(0, (0.7 - l) * 1000, 1) 0 0
+    );
+    --color-selected: #e2e3e5; /* light surface of selected menu-entries */
+
+    --color-border: rgba(255, 255, 255, 0.6);
+    --color-border-soft: rgba(255, 255, 255, 0.14);
+
+    /* frosted glass for panels, which lie above the background */
+    --glass-bg: rgba(38, 41, 46, 0.55);
+    --glass-bg-strong: rgba(22, 24, 27, 0.72);
+    --glass-blur: blur(14px) saturate(140%);
+    --glass-sheen: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.09) 0%,
+        rgba(255, 255, 255, 0.02) 35%,
+        rgba(255, 255, 255, 0) 60%
+    );
+    --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+    /* honeycomb-lines, like in the background-pattern, used as texture in the bars.
+    One tile contains a full hexagon (side-length 11) plus the line to its right
+    neighbours, so the tiles fit seamlessly together. */
+    --hex-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='33' height='19.053' viewBox='0 0 33 19.053'%3E%3Cpath d='M0 9.526 L5.5 0 H16.5 L22 9.526 L16.5 19.053 H5.5 Z M22 9.526 H33' fill='none' stroke='rgba(255,255,255,0.13)' stroke-width='1'/%3E%3C/svg%3E")
+        0 0 / 33px 19.053px repeat;
+
+    --text-font-family: "Barlow", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    /* narrower variant for titles, menus, tabs and table-headers */
+    --title-font-family:
+        "Barlow Semi Condensed", "Barlow", "Helvetica Neue", Helvetica, Arial,
+        sans-serif;
     --text-font-size: 1rem;
 
-    --box-shadow: 0 0.5rem 0.5rem var(--color-shadow);
-    --box-shadow-footer: 0 -0.5rem 0.5rem var(--color-shadow);
-    --box-shadow-header: 0 0.5rem 0.5rem var(--color-shadow);
-    --box-shadow-sidebar: 0.25rem 0 0.5rem var(--color-shadow);
+    --box-shadow: 0 0.3rem 0.6rem var(--color-shadow);
+    --box-shadow-footer: 0 -0.3rem 0.6rem var(--color-shadow);
+    --box-shadow-header: 0 0.3rem 0.6rem var(--color-shadow);
+    --box-shadow-sidebar: 0.25rem 0 0.6rem var(--color-shadow);
 }
 
 /*=================================================
@@ -45,6 +84,8 @@ Generic objects
     outline: 0;
     border: 0;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-text-light) transparent;
 }
 
 body {
@@ -56,10 +97,19 @@ body {
     user-select: none;
     overflow-x: hidden;
     line-height: 1.5;
+    letter-spacing: 0.01em;
 
     /* scalse entire page */
     /*transform: scale(1.4);
     transform-origin: 0 0; */
+}
+
+/* form-elements don't inherit the font of the page by default */
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
 }
 
 a {
@@ -80,10 +130,12 @@ button:active {
 
 h1 {
     font-size: 2rem;
+    font-weight: 600;
     color: var(--color-text);
 }
 
 h2 {
+    font-weight: 600;
     color: var(--color-text);
 }
 
@@ -149,7 +201,10 @@ input::file-selector-button {
     width: 10rem;
     height: 2rem;
     margin-bottom: 0.5rem;
-    border: thin solid grey;
+    border: 1px solid var(--color-border);
+    background: var(--color-tile);
+    color: var(--color-text);
+    cursor: pointer;
 }
 
 textarea {
@@ -170,4 +225,16 @@ label {
 
 select {
     margin-bottom: 0.5rem;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    border-color: var(--color-highlight);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-text-light);
 }
