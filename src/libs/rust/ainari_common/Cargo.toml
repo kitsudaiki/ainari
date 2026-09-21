@@ -19,7 +19,7 @@ base64 = "0.22"
 serde = { version = "1", features = ["derive", "serde_derive", "alloc"] }
 serde_json = "1"
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
-validator = { version = "0.20", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 
 # database-traits
 diesel = { version = "2.3", features = ["sqlite"]}
