@@ -17,7 +17,7 @@ actix-rt = "2.10"
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 apistos = { version = "0.6", features = ["extras"] }
-validator = { version = "0.20", features = ["derive"] }
+validator = { version = "0.21", features = ["derive"] }
 # serialize
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -27,7 +27,7 @@ serde_urlencoded = "0.7"
 # crate, which is affected by RUSTSEC-2023-0071 (Marvin timing attack) without any planned fix.
 # exactly one of `aws_lc_rs` and `rust_crypto` must be enabled, otherwise jsonwebtoken can not
 # determine a crypto-provider and panics at runtime instead of failing to compile.
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
 # config-file
 toml = "1.1"
 # singleton (like used for the config-variable)
@@ -45,4 +45,4 @@ futures = "0.3"
 uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"

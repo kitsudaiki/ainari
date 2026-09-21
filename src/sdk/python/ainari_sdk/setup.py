@@ -34,7 +34,7 @@ setup(
     packages=['ainari_sdk'],
     install_requires=['jsonschema==4.26.0',
                       'requests==2.34.2',
-                      'simplejson==4.1.1',
+                      'simplejson==4.1.2',
                       'requests_toolbelt==1.0.0'],
     # cmdclass={
     #     'install': GenerateProtobufMessages,
