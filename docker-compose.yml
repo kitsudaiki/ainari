@@ -1,9 +1,11 @@
 # Local setup, which runs every component of ainari as a docker-container. It is meant for
 # development and testing only.
 #
-# The topology follows the split setup of the vm_test-repo: two gateways, one at the edge of the
-# network, which serves the floating ip-addresses towards the host, and one in front of the
-# sakura-host, which owns the TAP-devices of the virtual machines.
+# The topology follows the split setup of the vm_test-repo: one gateway at the edge of the
+# network, which serves the floating ip-addresses towards the host, and one gateway in front of
+# every sakura-host, which owns the TAP-devices of the virtual machines of that host. There are
+# two sakura-hosts, so a virtual machine can land on either of them and the traffic between the
+# hosts really crosses the edge-gateway.
 #
 #      [ host ]  10.0.0.1 on veth-host, injected by scripts/setup_local_stack.sh
 #                                   |
@@ -11,15 +13,25 @@
 #   =====================================================================
 #                     [ torii-public ]  172.30.0.10
 #     floating ip-NAT 10.0.0.x <--> 192.168.100.x (the virtual machines)
-#     proxy-ports 10042-10053 --> sakura
+#     proxy-ports 10042-10053 --> the sakura-hosts
+#     routes 192.168.100.x --> the torii of the host of that address
 #   =====================================================================
 #                                   |  underlay (eth0, 172.30.0.0/16)
-#                                   v
-#   =====================================================================
-#                      [ torii-vmm ]  172.30.0.20
-#     routes 192.168.100.x --> tap-device of the virtual machine
-#     [ sakura ] shares this network-namespace and runs cloud-hypervisor
-#   =====================================================================
+#                  +----------------+----------------+
+#                  v                                 v
+#   ================================   ================================
+#      [ torii-vmm ]  172.30.0.20        [ torii-vmm-2 ]  172.30.0.21
+#     routes 192.168.100.x --> the      the same for the virtual
+#     tap-device of the virtual         machines of the second host
+#     machine
+#     [ sakura ] shares this            [ sakura-2 ] shares this
+#     network-namespace and runs        network-namespace and runs
+#     cloud-hypervisor                  cloud-hypervisor
+#   ================================   ================================
+#
+# Hanami picks one of the two sakura-hosts for every new virtual machine, so which host runs a
+# virtual machine is not fixed. Both hosts share the subnet of a network: the edge-gateway routes
+# every address to the torii of the host, which really runs that virtual machine.
 #
 # Usage:
 #   sudo ./scripts/setup_local_stack.sh
@@ -157,7 +169,8 @@ services:
       ainari-net:
         ipv4_address: 172.30.0.10
 
-  # gateway in front of the sakura-host: it owns the TAP-devices of the virtual machines
+  # gateway in front of the first sakura-host: it owns the TAP-devices of the virtual machines
+  # of that host
   torii-vmm:
     build:
       context: .
@@ -171,6 +184,8 @@ services:
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
+      # every gateway in front of a sakura-host uses the same config: they differ only in their
+      # address on the underlay, which they get from docker
       - ./deploy/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
     depends_on:
@@ -179,9 +194,15 @@ services:
     networks:
       ainari-net:
         ipv4_address: 172.30.0.20
+        # The sakura-host in this network-namespace has no network of its own, so it has no
+        # name in the dns of docker. This alias gives it one: it is the address, which sakura
+        # registers in hanami, and hanami derives the address of this gateway from it again.
+        aliases:
+          - sakura
 
-  # the host, which runs the virtual machines. It shares the network-namespace of torii-vmm, so
-  # cloud-hypervisor can attach the virtual machines to the TAP-devices of that gateway.
+  # the first host, which runs the virtual machines. It shares the network-namespace of
+  # torii-vmm, so cloud-hypervisor can attach the virtual machines to the TAP-devices of that
+  # gateway.
   sakura:
     build:
       context: .
@@ -214,6 +235,64 @@ services:
       - hanami
       - ryokan
       - torii-vmm
+
+  # gateway in front of the second sakura-host, with the same role and the same config as
+  # torii-vmm, only on another address of the underlay
+  torii-vmm-2:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_torii
+    container_name: torii-vmm-2
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - CONFIG_FILE=/etc/ainari/torii.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - ./deploy/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+    depends_on:
+      - miko
+      - torii-public
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.21
+        aliases:
+          - sakura-2
+
+  # the second host, which runs the virtual machines. It is the same as sakura, but registers
+  # itself in hanami as 'sakura-2', the alias of its own gateway, so hanami can tell the two
+  # hosts apart and finds the torii, which owns the TAP-devices of the virtual machines of this
+  # host.
+  sakura-2:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_sakura
+      args:
+        KVM_GID: ${KVM_GID:-993}
+    container_name: sakura-2
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    group_add:
+      - "${KVM_GID:-993}"
+    network_mode: "service:torii-vmm-2"
+    environment:
+      - CONFIG_FILE=/etc/ainari/sakura.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
+    devices:
+      - "/dev/kvm:/dev/kvm"
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - ./deploy/local_stack/configs/sakura_2.toml:/etc/ainari/sakura.toml:ro
+    depends_on:
+      - miko
+      - hanami
+      - ryokan
+      - torii-vmm-2
 
 networks:
   ainari-net:

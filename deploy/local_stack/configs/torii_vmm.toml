@@ -1,7 +1,11 @@
-# Config of the torii in front of the sakura-host for the local docker-compose setup.
+# Config of the toriis in front of the sakura-hosts for the local docker-compose setup.
 #
-# This gateway owns the TAP-devices of the virtual machines. It has no uplink, so everything,
-# which is not addressed to one of its virtual machines, goes to the torii at the edge.
+# These gateways own the TAP-devices of the virtual machines of their host. They have no uplink,
+# so everything, which is not addressed to one of their own virtual machines, goes to the torii
+# at the edge - also the traffic towards a virtual machine on the other sakura-host.
+#
+# Both gateways share this config: they differ only in their address on the underlay, which they
+# get from docker, and in the sakura, which shares their network-namespace.
 debug = true
 log_path = "/var/log"
 skip_tls_verification = true
