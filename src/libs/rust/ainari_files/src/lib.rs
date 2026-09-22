@@ -14,5 +14,4 @@
 
 #![forbid(unsafe_code)]
 
-pub mod dataset_io;
 pub mod file_encryption;

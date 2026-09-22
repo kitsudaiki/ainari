@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use data::data_service_server::{DataService, DataServiceServer};
-use data::{
-    DataChunk, DataResponse, DeleteRequest, DownloadRequest, ImageDimensionRequest,
-    ImageDimensionResponse,
-};
+use data::{DataChunk, DataResponse, DeleteRequest, DownloadRequest};
 use tonic::{Code, Request, Response, Status, transport::Server};
 
 use async_stream::try_stream;
@@ -31,7 +28,6 @@ use crate::config;
 
 use ainari_common::constants::CHUNK_SIZE;
 use ainari_common::functions::is_safe_subpath;
-use ainari_dataset::dataset_io::read_data_set_file;
 
 pub mod data {
     tonic::include_proto!("data");
@@ -260,51 +256,6 @@ impl DataService for OnsenServer {
 
         Ok(Response::new(DataResponse {
             status: format!("Deleted file: {:?}", target_path),
-        }))
-    }
-
-    /// Handles requests for image dimensions.
-    ///
-    /// This method reads the image file and returns the number of rows and columns.
-    /// The file path is constructed from the provided remote_file_path and the
-    /// configured storage location.
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - A tonic Request containing an ImageDimensionRequest.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<Response<ImageDimensionResponse>, Status>` - The response containing the image
-    ///   dimensions or an error status.
-    async fn get_image_dimension(
-        &self,
-        request: Request<ImageDimensionRequest>,
-    ) -> Result<Response<ImageDimensionResponse>, Status> {
-        let req = request.into_inner();
-
-        let target_path = format!(
-            "{}/{}",
-            config::CONFIG.storage.location,
-            req.remote_file_path
-        );
-        let file_handle = match read_data_set_file(&target_path) {
-            Ok(file_handle) => file_handle,
-            Err(_) => {
-                return Err(Status::internal(format!(
-                    "provided remote-path is invalid: {:?}",
-                    req.remote_file_path
-                )));
-            }
-        };
-
-        let number_of_rows = file_handle.get_number_of_rows();
-        let number_of_columns = file_handle.header.columns.len() as u64;
-
-        Ok(Response::new(ImageDimensionResponse {
-            status: format!("Deleted file: {:?}", target_path),
-            number_of_rows: number_of_rows as i64,
-            number_of_columns: number_of_columns as i64,
         }))
     }
 }

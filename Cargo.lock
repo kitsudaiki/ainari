@@ -403,14 +403,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ainari_dataset"
+name = "ainari_files"
 version = "0.1.0"
 dependencies = [
  "ainari_common",
  "base64 0.23.1",
- "bincode",
- "bytemuck",
- "byteorder",
  "hex",
  "openssl",
  "serde",
@@ -2881,7 +2878,7 @@ dependencies = [
  "ainari_api_structs",
  "ainari_clients",
  "ainari_common",
- "ainari_dataset",
+ "ainari_files",
  "async-stream",
  "bincode",
  "bytemuck",
@@ -3560,11 +3557,10 @@ dependencies = [
  "ainari_api_structs",
  "ainari_clients",
  "ainari_common",
- "ainari_dataset",
+ "ainari_files",
  "apistos",
  "apistos-schemars",
  "bincode",
- "bytemuck",
  "bytes",
  "chrono",
  "diesel",
@@ -3603,7 +3599,7 @@ dependencies = [
  "ainari_api_structs",
  "ainari_clients",
  "ainari_common",
- "ainari_dataset",
+ "ainari_files",
  "ainari_hardware",
  "apistos",
  "apistos-schemars",

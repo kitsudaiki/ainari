@@ -30,13 +30,10 @@ import (
 )
 
 var (
-	columnName         string
-	rowOffset          int
-	numberOfRows       int
-	inputFilePath      string
-	referenceImageUuid string
-	imageColumn        string
-	referenceColumn    string
+	columnName    string
+	rowOffset     int
+	numberOfRows  int
+	inputFilePath string
 )
 
 var createDiskImageCmd = &cobra.Command{
@@ -51,27 +48,6 @@ var createDiskImageCmd = &cobra.Command{
 		}
 		imageName := args[0]
 		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var checkImageCmd = &cobra.Command{
-	Use:   "check -c IMAGE_COLUMN -r REFERENCE_IMAGE_UUID -R REFERENCE_COLUMN IMAGE_UUID",
-	Short: "Check a column of an image against a column of a reference-image.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		imageUuid := args[0]
-		content, err := ainari_sdk.CheckImage(context, imageUuid, imageColumn, referenceImageUuid, referenceColumn)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -201,14 +177,6 @@ func Init_Image_Commands(rootCmd *cobra.Command) {
 	createImageCmd.AddCommand(createDiskImageCmd)
 	createDiskImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to the disk-image-file (mandatory)")
 	createDiskImageCmd.MarkFlagRequired("input")
-
-	imageCmd.AddCommand(checkImageCmd)
-	checkImageCmd.Flags().StringVarP(&imageColumn, "column", "c", "", "Name of the column of the image to check (mandatory)")
-	checkImageCmd.Flags().StringVarP(&referenceImageUuid, "reference", "r", "", "UUID of the image, which works as reference (mandatory)")
-	checkImageCmd.Flags().StringVarP(&referenceColumn, "reference_column", "R", "", "Name of the column of the reference-image (mandatory)")
-	checkImageCmd.MarkFlagRequired("column")
-	checkImageCmd.MarkFlagRequired("reference")
-	checkImageCmd.MarkFlagRequired("reference_column")
 
 	imageCmd.AddCommand(downloadImageContentCmd)
 	downloadImageContentCmd.Flags().StringVarP(&columnName, "column", "c", "", "Name of column to download (mandatory)")

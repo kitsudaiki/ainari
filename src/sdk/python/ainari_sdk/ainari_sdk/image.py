@@ -57,24 +57,6 @@ def delete_all_images(context: AccessContext):
         delete_image(context, entry["uuid"])
 
 
-def check_image(context: AccessContext,
-                image_uuid: str,
-                image_column: str,
-                reference_uuid: str,
-                reference_column: str) -> dict:
-    path = f"/v1alpha/image/{image_uuid}/check"
-    json_body = {
-        "image_column": image_column,
-        "reference_uuid": reference_uuid,
-        "reference_column": reference_column,
-    }
-
-    return ainari_request.send_put_request(context,
-                                           context.ryokan_adress,
-                                           path,
-                                           json_body)
-
-
 def upload_disk_file(context: AccessContext,
                      name: str,
                      input_file_path: str) -> dict:

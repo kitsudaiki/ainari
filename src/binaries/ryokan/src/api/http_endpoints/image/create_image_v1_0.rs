@@ -31,7 +31,7 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_dataset::file_encryption::encrypt_file;
+use ainari_files::file_encryption::encrypt_file;
 
 #[api_operation(
     tag = "image",
