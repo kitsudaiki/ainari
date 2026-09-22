@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use aes_gcm::aead::{Aead, KeyInit, generic_array::GenericArray};
+use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -64,17 +64,17 @@ impl SimpleCrypto {
     fn encrypt(&self, plaintext: &Secret, key_b64: &Secret) -> Result<String, AinariError> {
         let key_bytes = decode_base64_key(key_b64)?;
 
-        let key = GenericArray::from_slice(&key_bytes);
-        let cipher = Aes256Gcm::new(key);
+        let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+            .map_err(|_| AinariError::InvalidInput("Invalid key length".to_string()))?;
 
         // generate random nonce
         let mut nonce_bytes = [0u8; NONCE_SIZE];
         let _ = rand::rng().try_fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
 
         // encrypt
         let ciphertext = cipher
-            .encrypt(nonce, plaintext.reveal().as_bytes())
+            .encrypt(&nonce, plaintext.reveal().as_bytes())
             .map_err(|_| AinariError::InvalidInput("Failed to encrypt plaintext".to_string()))?;
 
         // output: nonce + ciphertext, base64 encoded
@@ -98,7 +98,8 @@ impl SimpleCrypto {
     /// * AinariError::InvalidInput - If the input is invalid or decryption fails
     fn decrypt(&self, encrypted_secret_b64: &str, key_b64: &Secret) -> Result<Secret, AinariError> {
         let key_bytes = decode_base64_key(key_b64)?;
-        let key = GenericArray::from_slice(&key_bytes);
+        let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+            .map_err(|_| AinariError::InvalidInput("Invalid key length".to_string()))?;
 
         let encrypted_secret_bytes =
             STANDARD
@@ -116,11 +117,11 @@ impl SimpleCrypto {
         }
 
         let (nonce_bytes, ciphertext) = encrypted_secret_bytes.split_at(NONCE_SIZE);
-        let cipher = Aes256Gcm::new(key);
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let nonce = Nonce::try_from(nonce_bytes)
+            .map_err(|_| AinariError::InvalidInput("Invalid nonce length".to_string()))?;
 
         let plaintext_bytes = cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(&nonce, ciphertext)
             .map_err(|_| AinariError::InvalidInput("Failed to decrypt secret".to_string()))?;
 
         let plaintext = String::from_utf8(plaintext_bytes).map_err(|_| {
