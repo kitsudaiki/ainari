@@ -35,12 +35,13 @@ pub async fn list_route_internal(
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut routes: Vec<Route> = st.routes.values().cloned().collect();
-    routes.sort_by_key(|route| route.dest_ip);
+    routes.sort_by_key(|route| (route.vni, route.dest_ip));
 
     let mut resp = RouteListResp::default();
     for route in routes {
         let converted_route = RouteResp {
             uuid: route.uuid,
+            vni: route.vni,
             dest_ip: route.dest_ip,
             target_iface: route.target_iface,
             gateway_ip: route.gateway_ip,

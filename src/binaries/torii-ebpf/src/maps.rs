@@ -1,9 +1,17 @@
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::{Array, HashMap};
-use torii_common::{ArpProxy, CONFIG_ENTRIES, CONFIG_UPLINK_MODE, RouteFilter, RouteTarget};
+use torii_common::{
+    ArpProxy, CONFIG_ENTRIES, CONFIG_UPLINK_MODE, FipTarget, IfaceConfig, RouteFilter, RouteKey,
+    RouteTarget, VNI_DEFAULT,
+};
 
+/// Routes of every tenant, keyed by `(vni, destination)`.
+///
+/// The tenant is part of the key because the destination alone stopped being
+/// unique the moment two VMs of different tenants were allowed onto the same
+/// gateway with the same address.
 #[map]
-pub static ROUTE_MAP: HashMap<u32, RouteTarget> = HashMap::with_max_entries(1024, 0);
+pub static ROUTE_MAP: HashMap<RouteKey, RouteTarget> = HashMap::with_max_entries(1024, 0);
 
 /// Interfaces (by ifindex) on which this gateway answers ARP requests itself.
 ///
@@ -15,15 +23,33 @@ pub static ARP_PROXY_MAP: HashMap<u32, ArpProxy> = HashMap::with_max_entries(102
 ///
 /// A route without an entry in this map is unfiltered. The key is the route key
 /// a packet was matched to - not the address of the packet - so the filter of
-/// the default route never leaks onto a destination that has a route of its own.
+/// the default route never leaks onto a destination that has a route of its own,
+/// and the filter of one tenant never applies to another.
 #[map]
-pub static FILTER_MAP: HashMap<u32, RouteFilter> = HashMap::with_max_entries(1024, 0);
+pub static FILTER_MAP: HashMap<RouteKey, RouteFilter> = HashMap::with_max_entries(1024, 0);
 
+/// Tenant and behaviour of every interface the overlay program is attached to.
+///
+/// This is the only place a packet entering from a VM can get its tenant from -
+/// it is a property of the port it arrived on, never of anything the VM writes
+/// into the packet.
 #[map]
-pub static FIP_DNAT_MAP: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
+pub static IFACE_MAP: HashMap<u32, IfaceConfig> = HashMap::with_max_entries(1024, 0);
 
+/// Floating IP to VM, keyed by the floating IP alone.
+///
+/// Floating IPs are unique across all tenants, so no VNI is needed to find one.
+/// The tenant of the VM behind it travels in the value and becomes the tenant of
+/// the packet.
 #[map]
-pub static FIP_SNAT_MAP: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
+pub static FIP_DNAT_MAP: HashMap<u32, FipTarget> = HashMap::with_max_entries(1024, 0);
+
+/// VM to floating IP, keyed by `(vni, internal address)`.
+///
+/// The reverse direction of `FIP_DNAT_MAP` needs the tenant in the key: the
+/// internal address is exactly the thing that may repeat across tenants.
+#[map]
+pub static FIP_SNAT_MAP: HashMap<RouteKey, u32> = HashMap::with_max_entries(1024, 0);
 
 /// Uplink interfaces (by ifindex) of the single gateway setup.
 ///
@@ -39,13 +65,31 @@ pub static UPLINK_MAP: HashMap<u32, ArpProxy> = HashMap::with_max_entries(16, 0)
 #[map]
 pub static GATEWAY_CONFIG: Array<u32> = Array::with_max_entries(CONFIG_ENTRIES, 0);
 
-/// Queries the routing map for a target IP address.
+/// Queries the routing map for a destination inside one tenant.
 ///
-/// This function attempts to find an exact match for the given IP address in the
-/// `ROUTE_MAP`. If a specific route does not exist, it falls back to the default
-/// route (0.0.0.0).
+/// This function attempts to find an exact match for the given address in the
+/// tenant the packet belongs to. If a specific route does not exist, it falls
+/// back to the default route (`0.0.0.0`) of that same tenant, and finally to the
+/// default route of the shared tenant.
+///
+/// Only the *default* route of the shared tenant is ever borrowed, never one of
+/// its specific destinations. That route is the way out of the virtual network -
+/// it is what the uplink of the edge gateway is programmed as at startup, from
+/// the config, which knows nothing about tenants. Falling back to it therefore
+/// lets a tenant reach the outside without letting it reach anything that lives
+/// inside another tenant: an address of another tenant has no entry under the
+/// shared tenant at all.
+///
+/// The route is borrowed, the packet is not: it keeps the tenant it came from.
+/// A default route of the shared tenant is an encapsulating one on every gateway
+/// that is not the edge itself, and the edge is where the floating IP of the
+/// sender is put back in front of its internal address - a translation that is
+/// keyed by `(vni, internal address)`. Stamping the shared tenant into the VXLAN
+/// header here would hand the edge a packet whose sender it can no longer
+/// resolve, so the target is handed back with the tenant of the packet.
 ///
 /// # Arguments
+/// * `vni` - The tenant the packet belongs to
 /// * `ip` - The destination IPv4 address represented as a `u32`
 ///
 /// # Returns
@@ -54,30 +98,45 @@ pub static GATEWAY_CONFIG: Array<u32> = Array::with_max_entries(CONFIG_ENTRIES, 
 /// packet filter of the route is stored under, so it has to travel with the
 /// target.
 #[inline(always)]
-pub fn lookup_route(ip: u32) -> Option<(u32, RouteTarget)> {
-    if let Some(target) = unsafe { ROUTE_MAP.get(ip) } {
-        return Some((ip, *target));
+pub fn lookup_route(vni: u32, ip: u32) -> Option<(RouteKey, RouteTarget)> {
+    let key = RouteKey::new(vni, ip);
+    if let Some(target) = unsafe { ROUTE_MAP.get(key) } {
+        return Some((key, *target));
     }
-    // Fallback to default route (0.0.0.0)
-    if let Some(target) = unsafe { ROUTE_MAP.get(0) } {
-        return Some((0, *target));
+    // Fallback to the default route (0.0.0.0) of this tenant
+    let fallback = RouteKey::default_route(vni);
+    if let Some(target) = unsafe { ROUTE_MAP.get(fallback) } {
+        return Some((fallback, *target));
+    }
+    // ... and finally to the way out of the virtual network, which the shared
+    // tenant owns.
+    if vni != VNI_DEFAULT {
+        let shared = RouteKey::default_route(VNI_DEFAULT);
+        if let Some(target) = unsafe { ROUTE_MAP.get(shared) } {
+            // The way out is shared, the packet is not: it travels on in its own
+            // tenant, so the gateway at the other end can still tell whose it is.
+            let mut borrowed = *target;
+            borrowed.vni = vni;
+            return Some((shared, borrowed));
+        }
     }
     None
 }
 
-/// Queries the routing map for a target IP address without the default fallback.
+/// Queries the routing map for a destination without the default fallback.
 ///
 /// Used by the ARP responder, which must be able to distinguish "we know an
 /// explicit route for this address" from "the default route would swallow it".
 ///
 /// # Arguments
+/// * `vni` - The tenant the request arrived in
 /// * `ip` - The destination IPv4 address represented as a `u32`
 ///
 /// # Returns
 /// An `Option<RouteTarget>` containing the exact routing entry, or `None`.
 #[inline(always)]
-pub fn lookup_route_exact(ip: u32) -> Option<RouteTarget> {
-    unsafe { ROUTE_MAP.get(ip) }.copied()
+pub fn lookup_route_exact(vni: u32, ip: u32) -> Option<RouteTarget> {
+    unsafe { ROUTE_MAP.get(RouteKey::new(vni, ip)) }.copied()
 }
 
 /// Looks up the ARP responder configuration of an ingress interface.
@@ -93,17 +152,36 @@ pub fn lookup_arp_proxy(ifindex: u32) -> Option<ArpProxy> {
     unsafe { ARP_PROXY_MAP.get(ifindex) }.copied()
 }
 
+/// Resolves the tenant and the behaviour of an ingress interface.
+///
+/// An interface the control plane never registered is treated as a port of the
+/// default tenant that performs floating IP translation, which is byte for byte
+/// how the datapath behaved before tenants existed.
+///
+/// # Arguments
+/// * `ifindex` - The kernel interface index the packet was received on
+///
+/// # Returns
+/// The `IfaceConfig` of the interface, or the unregistered default
+#[inline(always)]
+pub fn lookup_iface(ifindex: u32) -> IfaceConfig {
+    match unsafe { IFACE_MAP.get(ifindex) } {
+        Some(cfg) => *cfg,
+        None => IfaceConfig::unregistered(),
+    }
+}
+
 /// Looks up the packet filter attached to a route.
 ///
 /// # Arguments
-/// * `route_key` - The key the route was matched under, as returned by
-///   [`lookup_route`]
+/// * `route_key` - The `(vni, destination)` key the route was matched under, as
+///   returned by [`lookup_route`]
 ///
 /// # Returns
 /// A reference to the `RouteFilter` of the route, or `None` when the route is
 /// unfiltered and therefore carries everything.
 #[inline(always)]
-pub fn lookup_filter(route_key: u32) -> Option<&'static RouteFilter> {
+pub fn lookup_filter(route_key: RouteKey) -> Option<&'static RouteFilter> {
     unsafe { FILTER_MAP.get(route_key) }
 }
 

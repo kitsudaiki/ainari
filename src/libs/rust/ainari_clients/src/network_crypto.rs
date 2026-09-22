@@ -38,6 +38,7 @@ traffic, so a rotation never has a gap in which traffic would leave unprotected.
 - `local_ip`: Address of the local virtual_machine of the connection
 - `remote_ip`: Address of the remote virtual_machine of the connection
 - `peer_gateway_ip`: Address of the gateway, which handles the remote virtual_machine
+- `vni`: Tenant the two virtual_machine-addresses are valid in
 - `spi`: Security-Parameter-Index, which identifies the security-association of the key
 - `key`: The key-material of the security-association
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
@@ -54,6 +55,7 @@ pub async fn create_crypto_key(
     local_ip: &Ipv4Addr,
     remote_ip: &Ipv4Addr,
     peer_gateway_ip: &Ipv4Addr,
+    vni: u32,
     spi: u32,
     key: &Secret,
     insecure_client: bool,
@@ -67,6 +69,7 @@ pub async fn create_crypto_key(
         local_ip: *local_ip,
         remote_ip: *remote_ip,
         peer_gateway_ip: *peer_gateway_ip,
+        vni,
         spi,
         key: key.clone(),
     };
@@ -187,6 +190,7 @@ pub async fn toggle_crypto(
     internal_api_key: &Secret,
     local_ip: &Ipv4Addr,
     remote_ip: &Ipv4Addr,
+    vni: u32,
     peer_gateway_ip: Option<Ipv4Addr>,
     enabled: bool,
     insecure_client: bool,
@@ -198,6 +202,7 @@ pub async fn toggle_crypto(
     let body = CryptoToggleReq {
         local_ip: *local_ip,
         remote_ip: *remote_ip,
+        vni,
         peer_gateway_ip,
         enabled,
     };

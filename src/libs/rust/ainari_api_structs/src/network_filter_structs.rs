@@ -37,6 +37,7 @@ pub struct FilterPortReq {
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterResp {
     pub route_uuid: Uuid,
+    pub vni: u32,
     pub dest_ip: Ipv4Addr,
     pub filter: RouteFilterRules,
 }
@@ -70,6 +71,7 @@ impl RouteFilterRules {
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterEntry {
     pub route_uuid: Uuid,
+    pub vni: u32,
     pub dest_ip: Ipv4Addr,
     pub filter: RouteFilterRules,
 }

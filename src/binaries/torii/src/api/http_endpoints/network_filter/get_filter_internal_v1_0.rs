@@ -39,7 +39,7 @@ pub async fn get_filter_internal(
     let route_uuid = route_uuid.into_inner();
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
-    let (dest_ip, _) = match route_filter_key(&st, &route_uuid) {
+    let (vni, dest_ip, _) = match route_filter_key(&st, &route_uuid) {
         Some(key) => key,
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
@@ -59,6 +59,7 @@ pub async fn get_filter_internal(
 
     let resp = FilterResp {
         route_uuid,
+        vni,
         dest_ip,
         filter: rules,
     };

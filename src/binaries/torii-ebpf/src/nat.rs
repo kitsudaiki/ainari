@@ -5,6 +5,7 @@ use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::icmp::IcmpHdr;
 use network_types::ip::IpProto;
+use torii_common::RouteKey;
 
 /// Applies Destination Network Address Translation (DNAT) to incoming traffic.
 ///
@@ -13,14 +14,29 @@ use network_types::ip::IpProto;
 /// to ensure the packet remains valid through the rest of the network stack. Handles both
 /// IPv4 payloads and ARP resolution requests.
 ///
+/// Resolving a floating IP is also what decides the tenant of the packet. A
+/// floating IP is unique across the whole setup, so it names one VM of one
+/// tenant, and the packet continues in that tenant. This only ever happens on a
+/// port that carries `IFACE_FLAG_FIP` - the caller does not even offer the
+/// translation on a tenant port, otherwise a VM could step into another tenant
+/// by addressing its floating IP.
+///
 /// # Arguments
 /// * `ctx` - The XDP packet context (must be mutable to rewrite headers)
 /// * `eth_type` - The parsed protocol type of the inner payload
+/// * `vni` - The tenant of the ingress interface, used when no floating IP matches
+/// * `translate` - Whether floating IP translation runs on this interface at all
 ///
 /// # Returns
-/// An `Option<u32>` containing the translated internal destination IP, or the original if unmapped
+/// An `Option` with the tenant and the translated destination the packet should
+/// be routed in, or `None` when the packet carries no usable address
 #[inline(always)]
-pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
+pub fn apply_dnat(
+    ctx: &XdpContext,
+    eth_type: EtherType,
+    vni: u32,
+    translate: bool,
+) -> Option<(u32, u32)> {
     // -----------------------------------------------------------------------
     // IPv4 PACKET PROCESSING
     // -----------------------------------------------------------------------
@@ -33,9 +49,20 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
 
             // Extract the original destination IP (in big-endian/network byte order).
             let mut dst_val = u32::from_be(ipv4.dst_addr);
+            let mut packet_vni = vni;
 
             // Check if this destination IP is a known Floating IP (FIP) requiring translation.
-            if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(dst_val) } {
+            let mapped = if translate {
+                unsafe { FIP_DNAT_MAP.get(dst_val) }
+            } else {
+                None
+            };
+            if let Some(&target) = mapped {
+                let internal_ip = target.ip;
+
+                // 0. The floating IP named the tenant of the VM behind it.
+                packet_vni = target.vni;
+
                 // 1. Rewrite the Layer 3 Destination Address
                 ipv4.dst_addr = u32::to_be(internal_ip);
 
@@ -84,7 +111,7 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
                 // Update our tracking variable to the new internal IP for the caller.
                 dst_val = internal_ip;
             }
-            return Some(dst_val);
+            return Some((packet_vni, dst_val));
         }
     }
     // -----------------------------------------------------------------------
@@ -97,15 +124,22 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
 
         // Extract the Target Protocol Address (TPA) - the IP being asked about.
         let mut tpa_val = u32::from_be(arp.tpa);
+        let mut packet_vni = vni;
 
         // If the ARP request is looking for a Floating IP, rewrite it so the
         // internal VM actually recognizes it and responds.
-        if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(tpa_val) } {
-            arp.tpa = u32::to_be(internal_ip);
+        let mapped = if translate {
+            unsafe { FIP_DNAT_MAP.get(tpa_val) }
+        } else {
+            None
+        };
+        if let Some(&target) = mapped {
+            arp.tpa = u32::to_be(target.ip);
             unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
-            tpa_val = internal_ip;
+            tpa_val = target.ip;
+            packet_vni = target.vni;
         }
-        return Some(tpa_val);
+        return Some((packet_vni, tpa_val));
     }
     None
 }
@@ -116,14 +150,20 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
 /// public Floating IP. Similar to `apply_dnat`, it comprehensively rewrites Layer 3 and
 /// Layer 4 checksums to prevent packet drop by intermediate firewalls or the receiver.
 ///
+/// The lookup is keyed by the tenant the packet belongs to together with its
+/// source address, because the internal address on its own is exactly the thing
+/// that may repeat across tenants. The floating IP that comes out is unique
+/// again, which is what makes the shared uplink work.
+///
 /// # Arguments
 /// * `ctx` - The XDP packet context
 /// * `eth_type` - The parsed protocol type of the packet
+/// * `vni` - The tenant the packet belongs to
 ///
 /// # Returns
 /// An `Option<u32>` containing the true packet destination IP (unaltered), or None if invalid
 #[inline(always)]
-pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
+pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32> {
     // We will track the destination IP so the routing logic knows where to send this later.
     let mut dest_ip = None;
 
@@ -141,7 +181,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
             let src_val = u32::from_be(inner_ip.src_addr);
 
             // Check if this source IP should be masked behind a Floating IP (FIP).
-            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(src_val) } {
+            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(RouteKey::new(vni, src_val)) } {
                 // 1. Rewrite the Layer 3 Source Address (Masking)
                 inner_ip.src_addr = u32::to_be(fip);
 
@@ -194,7 +234,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
 
         // If an internal VM is sending an ARP reply/request, mask its internal IP
         // with the public Floating IP so the external network accepts it.
-        if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(spa_val) } {
+        if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(RouteKey::new(vni, spa_val)) } {
             arp.spa = u32::to_be(fip);
             unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
         }

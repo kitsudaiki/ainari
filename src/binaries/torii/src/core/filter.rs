@@ -10,11 +10,13 @@ use std::net::Ipv4Addr;
 
 use uuid::Uuid;
 
-use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, IpRange, PortRange, RouteFilter};
+use torii_common::{
+    FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, IpRange, PortRange, RouteFilter, RouteKey,
+};
 
 use ainari_api_structs::network_filter_structs::*;
 
-use crate::core::models::RouteFilterPod;
+use crate::core::models::{RouteFilterPod, RouteKeyPod};
 use crate::core::state::GatewayState;
 
 /// Translates the textual rules of a route into the struct the datapath reads.
@@ -62,19 +64,23 @@ pub fn build_route_filter(rules: &RouteFilterRules) -> Result<RouteFilter, Strin
 /// Resolves a route UUID to its destination address and its eBPF map key.
 ///
 /// Every filter operation addresses a route by its UUID, while both eBPF maps
-/// are keyed by the destination address of that route - this is the one place
-/// that translation happens.
+/// are keyed by the `(vni, destination)` pair of that route - this is the one
+/// place that translation happens.
 ///
 /// # Arguments
 /// * `st` - The locked gateway state
 /// * `route_uuid` - The UUID of the route, taken from the URL
 ///
 /// # Returns
-/// An `Option` with the destination address and the map key of the route, or
-/// `None` when no such route exists
-pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(Ipv4Addr, u32)> {
+/// An `Option` with the tenant, the destination address and the map key of the
+/// route, or `None` when no such route exists
+pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(u32, Ipv4Addr, RouteKey)> {
     let route = st.routes.get(route_uuid)?;
-    Some((route.dest_ip, u32::from(route.dest_ip)))
+    Some((
+        route.vni,
+        route.dest_ip,
+        RouteKey::new(route.vni, u32::from(route.dest_ip)),
+    ))
 }
 
 /// Commits a new set of include-lists for one route.
@@ -88,7 +94,7 @@ pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(Ipv4Add
 /// # Arguments
 /// * `st` - The locked gateway state
 /// * `route_uuid` - The UUID of the route the filter belongs to
-/// * `dest_key` - The eBPF map key of that route
+/// * `dest_key` - The `(vni, destination)` eBPF map key of that route
 /// * `rules` - The include-lists the route should have from now on
 ///
 /// # Returns
@@ -97,18 +103,18 @@ pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(Ipv4Add
 pub fn apply_filter(
     st: &mut GatewayState,
     route_uuid: Uuid,
-    dest_key: u32,
+    dest_key: RouteKey,
     rules: RouteFilterRules,
 ) -> Result<(), String> {
     if rules.is_empty() {
-        let _ = st.filter_map.remove(&dest_key);
+        let _ = st.filter_map.remove(&RouteKeyPod(dest_key));
         st.filters.remove(&route_uuid);
         return Ok(());
     }
 
     let filter = build_route_filter(&rules)?;
     st.filter_map
-        .insert(dest_key, RouteFilterPod(filter), 0)
+        .insert(RouteKeyPod(dest_key), RouteFilterPod(filter), 0)
         .map_err(|_| "eBPF Map error (filter)".to_string())?;
     st.filters.insert(route_uuid, rules);
     Ok(())

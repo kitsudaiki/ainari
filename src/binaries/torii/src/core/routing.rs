@@ -1,7 +1,7 @@
 //! Translation of route requests into the targets consumed by the eBPF maps.
 //!
 //! This is where the decision is made how a destination is reached: through the
-//! L2-in-UDP overlay, by handing the packet to the kernel for IPsec, or by
+//! VXLAN overlay, by handing the packet to the kernel for IPsec, or by
 //! delivering it locally on a TAP or the veth uplink.
 
 use std::collections::HashMap;
@@ -9,14 +9,66 @@ use std::net::Ipv4Addr;
 
 use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL, RouteTarget};
 
+use uuid::Uuid;
+
 use crate::config::CONFIG;
 use crate::core::crypto::install_block_policies;
 use crate::core::models::TapInfo;
+use crate::core::state::GatewayState;
 use crate::core::utils::{
-    get_arp_mac, get_ifindex, get_local_ip, get_mac_address, parse_mac, run_ip,
+    get_arp_mac, get_ifindex, get_local_ip, get_mac_address, parse_mac, run_ip, with_table,
 };
 
 use ainari_api_structs::route_structs::*;
+
+/// Checks that a route may be created in the tenant it names.
+///
+/// Two things are verified: a local route must not point at a TAP of another
+/// tenant, and an encrypted route must not collide with an encrypted route of
+/// another tenant. The second one is a limitation of the kernel rather than of
+/// this datapath - xfrm selectors are plain address pairs with no room for a
+/// tenant - so instead of silently overwriting the policies of the first tenant
+/// the second one is refused.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `req` - The route request being processed
+/// * `skip` - UUID of the route being updated, so it does not collide with itself
+///
+/// # Returns
+/// `Ok(())` when the route is safe to program, otherwise a message for the client
+pub fn check_route_tenant(
+    st: &GatewayState,
+    req: &RouteReq,
+    skip: Option<Uuid>,
+) -> Result<(), String> {
+    if req.gateway_ip.is_none()
+        && let Some(tap) = st.taps.get(&req.target_iface)
+        && tap.vni != req.vni
+    {
+        return Err(format!(
+            "{} belongs to tenant {}, a route in tenant {} must not deliver into it",
+            req.target_iface, tap.vni, req.vni
+        ));
+    }
+
+    if req.encrypted
+        && let Some(other) = st.routes.values().find(|route| {
+            Some(route.uuid) != skip
+                && route.encrypted
+                && route.dest_ip == req.dest_ip
+                && route.vni != req.vni
+        })
+    {
+        return Err(format!(
+            "{} is already reached over IPsec in tenant {}. The kernel's xfrm selectors carry no \
+             tenant, so the same address cannot be protected in tenant {} as well",
+            req.dest_ip, other.vni, req.vni
+        ));
+    }
+
+    Ok(())
+}
 
 /// Determines the link layer next hop a locally delivered packet is addressed to.
 ///
@@ -68,6 +120,12 @@ pub fn resolve_next_hop_mac(req: &RouteReq, taps: &HashMap<String, TapInfo>) -> 
 /// of the outgoing interface and of its next hop, which is what keeps the TAP
 /// devices free of any IP configuration.
 ///
+/// The tenant of the request is carried into the target. On a tunnel route it
+/// ends up in the VXLAN header of every encapsulated packet, which is the only
+/// thing that tells the receiving gateway which of its tenants the inner address
+/// belongs to. On a kernel route it selects the routing table the destination is
+/// programmed into.
+///
 /// # Arguments
 /// * `req` - The route request to translate
 /// * `taps` - Snapshot of the TAP devices managed by this gateway
@@ -106,16 +164,39 @@ pub fn build_route_target(
                 );
             }
         };
+        // The kernel has no VNI, so the destination goes into the routing table of
+        // its tenant. Traffic reaches that table through the `ip rule` the TAP of
+        // the sending VM installed.
         let dest = format!("{}/32", req.dest_ip);
-        run_ip(&[
+        let gateway_ip_str = gateway_ip.to_string();
+        let table = CONFIG.network.tenant_table(req.vni);
+        let mut args = vec![
             "route",
             "replace",
-            &dest,
+            dest.as_str(),
             "via",
-            &gateway_ip.to_string(),
+            gateway_ip_str.as_str(),
             "dev",
-            &req.target_iface,
-        ])?;
+            req.target_iface.as_str(),
+        ];
+        with_table(&mut args, &table);
+        run_ip(&args)?;
+
+        // The ESP packet built by the xfrm stack is addressed to the peer gateway
+        // and needs a route of its own. In the main table the underlay subnet
+        // route already covers it; a tenant table holds nothing but what is put
+        // there, so the peer is stated explicitly.
+        let peer = format!("{}/32", gateway_ip_str);
+        let mut peer_args = vec![
+            "route",
+            "replace",
+            peer.as_str(),
+            "dev",
+            req.target_iface.as_str(),
+        ];
+        with_table(&mut peer_args, &table);
+        run_ip(&peer_args)?;
+
         install_block_policies(req.dest_ip)?;
     } else if let Some(gateway_ip) = req.gateway_ip {
         action = ROUTE_ACTION_ENCAP;
@@ -150,6 +231,7 @@ pub fn build_route_target(
     Ok(RouteTarget {
         action,
         ifindex,
+        vni: req.vni,
         encap_dst_ip,
         encap_dst_mac,
         _pad1: [0; 2],

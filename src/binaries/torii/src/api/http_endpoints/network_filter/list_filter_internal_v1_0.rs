@@ -43,12 +43,13 @@ pub async fn list_filter_internal(
             let route = st.routes.get(route_uuid)?;
             Some(FilterEntry {
                 route_uuid: *route_uuid,
+                vni: route.vni,
                 dest_ip: route.dest_ip,
                 filter: rules.clone(),
             })
         })
         .collect();
-    filters.sort_by_key(|entry| entry.dest_ip);
+    filters.sort_by_key(|entry| (entry.vni, entry.dest_ip));
 
     Ok(Json(FilterListResponse { filters }))
 }

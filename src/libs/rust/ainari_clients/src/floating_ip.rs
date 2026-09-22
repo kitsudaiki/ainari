@@ -38,6 +38,7 @@ address reachable from the outside.
 - `network_uuid`: UUID of the network the floating-ip belongs to
 - `floating_ip`: The external address, which is mapped to the internal address
 - `internal_ip`: The private address behind the floating-ip
+- `vni`: Tenant the internal address belongs to
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
 
 # Returns
@@ -52,6 +53,7 @@ pub async fn create_floating_ip(
     network_uuid: &Uuid,
     floating_ip: &Ipv4Addr,
     internal_ip: &Ipv4Addr,
+    vni: u32,
     insecure_client: bool,
 ) -> Result<FloatingIpInternalResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
@@ -63,6 +65,7 @@ pub async fn create_floating_ip(
         network_uuid: *network_uuid,
         floating_ip: *floating_ip,
         internal_ip: *internal_ip,
+        vni,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 

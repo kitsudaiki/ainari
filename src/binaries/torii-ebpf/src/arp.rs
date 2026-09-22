@@ -30,6 +30,10 @@ const ARP_OP_REPLY: u16 = 2;
 /// removes every IP address from the host side of the link and makes it
 /// possible to run several VMs of the *same* subnet on one host.
 ///
+/// The route probe below is made inside the tenant of the ingress interface, so
+/// two VMs that carry the very same address in different tenants each get the
+/// answer that belongs to their own side of the map.
+///
 /// Requests that must not be answered are ignored so the VM can still boot and
 /// defend its own address:
 /// * ARP probes (`spa == 0`) and gratuitous announcements (`spa == tpa`), which
@@ -45,12 +49,13 @@ const ARP_OP_REPLY: u16 = 2;
 /// # Arguments
 /// * `ctx` - The XDP context of the received packet
 /// * `eth_type` - The already parsed EtherType of the frame
+/// * `vni` - The tenant of the interface the request arrived on
 ///
 /// # Returns
 /// `Some(XDP_TX)` when a reply was generated in place, otherwise `None` so the
 /// caller continues with the regular routing pipeline.
 #[inline(always)]
-pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
+pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32> {
     if eth_type != EtherType::Arp {
         return None;
     }
@@ -94,7 +99,7 @@ pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> 
         if proxy.vm_ip != 0 && tpa == proxy.vm_ip {
             return None;
         }
-        if let Some(route) = lookup_route_exact(tpa)
+        if let Some(route) = lookup_route_exact(vni, tpa)
             && route.action == ROUTE_ACTION_LOCAL
             && route.ifindex == ingress
         {

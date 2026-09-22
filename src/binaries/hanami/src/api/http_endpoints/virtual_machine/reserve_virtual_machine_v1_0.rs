@@ -164,7 +164,9 @@ async fn prepare_selected_host(
 
     // reserve internal address, MAC-address and TAP-device-name for the virtual_machine. The
     // address of the selected host is stored with them, so the routes towards this
-    // virtual_machine can be created on the other hosts of its network later.
+    // virtual_machine can be created on the other hosts of its network later. The tenant of the
+    // network is stored with them as well: it is what keeps two networks, which use the same
+    // subnet, apart in the datapath of the torii.
     let vm_address = address_table::reserve_new_address(
         &network_data.uuid,
         &network_data.subnet,
@@ -221,7 +223,9 @@ async fn prepare_selected_host(
 /// Prepares the network of a new virtual_machine on the gateways
 ///
 /// The TAP-device of the virtual_machine and the route towards it are created on the torii of the
-/// sakura-host, which runs the virtual_machine later. In a setup with more than one torii, the
+/// sakura-host, which runs the virtual_machine later. Both carry the tenant of the network, so the
+/// torii can tell this virtual_machine apart from one of another network with the very same
+/// address. In a setup with more than one torii, the
 /// torii, which is reachable from the outside, additionally gets a route towards the sakura-host,
 /// so the virtual_machine can be reached from outside of its host, and the virtual_machines of
 /// the network are connected with each other. The floating ip-address of the virtual_machine is
@@ -250,6 +254,7 @@ async fn prepare_network(
         &context.token,
         &config::INTERNAL_API_KEY,
         &vm_address.tap_name,
+        vm_address.vni,
         Some(vm_address.mac_address.clone()),
         Some(vm_address.internal_ip),
         config::CONFIG.skip_tls_verification,
@@ -265,6 +270,7 @@ async fn prepare_network(
         &RouteReq {
             dest_ip: vm_address.internal_ip,
             target_iface: vm_address.tap_name.clone(),
+            vni: vm_address.vni,
             gateway_ip: None,
             next_hop_ip: None,
             next_hop_mac: None,
@@ -286,7 +292,14 @@ async fn prepare_network(
         // route the traffic for the virtual_machine from the outside to the torii of its host.
         // The target-interface is left empty, so the torii uses the interface of its own
         // underlay.
-        create_overlay_route(&endpoints.torii, vm_address.internal_ip, host_ip, context).await?;
+        create_overlay_route(
+            &endpoints.torii,
+            vm_address.internal_ip,
+            host_ip,
+            vm_address.vni,
+            context,
+        )
+        .await?;
     }
 
     // the virtual_machines of a network reach each other directly, without a detour over the
@@ -366,12 +379,20 @@ async fn connect_to_virtual_machines_of_network(
             &new_torii,
             other_address.internal_ip,
             other_host_ip,
+            other_address.vni,
             context,
         )
         .await?;
 
         // ... and from the older virtual_machine back to the new one
-        create_overlay_route(&other_torii, vm_address.internal_ip, new_host_ip, context).await?;
+        create_overlay_route(
+            &other_torii,
+            vm_address.internal_ip,
+            new_host_ip,
+            vm_address.vni,
+            context,
+        )
+        .await?;
     }
 
     Ok(())

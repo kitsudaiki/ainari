@@ -18,6 +18,7 @@ use diesel::deserialize::{self, FromSql, FromSqlRow};
 use diesel::expression::AsExpression;
 use diesel::prelude::*;
 use diesel::serialize::{self, Output, ToSql};
+use diesel::sql_types::Integer;
 use diesel::sql_types::Nullable;
 use diesel::sql_types::Varchar;
 use serde::{Deserialize, Serialize};
@@ -271,6 +272,45 @@ impl TryFrom<DbVecString> for Vec<String> {
 }
 
 //===================================================================================================
+
+/// Bridge-type to store a VXLAN-VNI in an `Integer`-column.
+///
+/// A VNI is 24 bit wide, so it fits into the signed 32 bit integer SQLite offers without ever
+/// becoming negative. The value is kept as a `u32` everywhere else, because that is what the
+/// API and the eBPF-maps use.
+#[derive(Debug, Clone, Copy, PartialEq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = Integer)]
+pub struct DbVni(i32);
+
+impl<DB: Backend> ToSql<Integer, DB> for DbVni
+where
+    i32: ToSql<Integer, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB: Backend> FromSql<Integer, DB> for DbVni
+where
+    i32: FromSql<Integer, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        Ok(DbVni(i32::from_sql(bytes)?))
+    }
+}
+
+impl From<u32> for DbVni {
+    fn from(vni: u32) -> Self {
+        DbVni(vni as i32)
+    }
+}
+
+impl From<DbVni> for u32 {
+    fn from(db_vni: DbVni) -> Self {
+        db_vni.0 as u32
+    }
+}
 
 /// Bridge-type to store an `Ipv4Addr` in a `Varchar`-column.
 ///

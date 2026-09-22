@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ainari_common = { path = "../ainari_common" }
+torii_common = { path = "../torii_common" }
 # web-server
 actix-web = "4"
 futures-util = "0.3"

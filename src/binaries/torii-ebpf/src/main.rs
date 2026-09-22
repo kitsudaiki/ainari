@@ -21,7 +21,7 @@ use decap::{is_tunnel_packet, process_tunnel_packet};
 use encap::encap_and_redirect;
 use filter::filter_allows;
 use forward::redirect_local;
-use maps::{is_floating_ip, is_uplink, lookup_route, uplink_mode};
+use maps::{is_floating_ip, is_uplink, lookup_iface, lookup_route, uplink_mode};
 use nat::{apply_dnat, apply_snat, destination_ip};
 use utils::ptr_at;
 
@@ -29,8 +29,16 @@ use utils::ptr_at;
 ///
 /// This XDP program evaluates traffic entering through virtual overlay interfaces (like TAP
 /// devices). It translates destination IP addresses via DNAT if required, checks the central
-/// `ROUTE_MAP`, and either redirects the packet locally or encapsulates it in a UDP tunnel
+/// `ROUTE_MAP`, and either redirects the packet locally or encapsulates it in a VXLAN tunnel
 /// to transit the underlay network.
+///
+/// The tenant of the packet is taken from the interface it arrived on, never
+/// from anything inside the packet. That is what lets two VMs on this host carry
+/// the very same address: they sit on different ports, so their packets are
+/// looked up in different halves of the routing map. The one exception is a port
+/// marked as a floating IP port, where the globally unique floating IP names the
+/// tenant instead - which is how traffic from the outside world finds its way
+/// into a tenant in the first place.
 ///
 /// ARP requests coming from a VM are terminated right here: the TAP devices carry
 /// no IP address, so the program answers them itself instead of relying on the
@@ -70,8 +78,11 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
     let uplink_mode = uplink_mode();
     let from_uplink = uplink_mode && is_uplink(ctx.ingress_ifindex() as u32);
 
+    // The tenant of this packet is a property of the port it came in on.
+    let iface = lookup_iface(ctx.ingress_ifindex() as u32);
+
     // Answer ARP requests locally on every interface served by the responder.
-    if let Some(action) = handle_arp_request(&ctx, eth_type) {
+    if let Some(action) = handle_arp_request(&ctx, eth_type, iface.vni) {
         return action;
     }
 
@@ -88,18 +99,18 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
         }
     }
 
-    // Apply DNAT if necessary. Returns the true Target IP (or original IP if no DNAT).
-    // The single gateway setup translates only what enters through the uplink,
-    // so a VM reaches the floating IP of another VM through the outside, just
-    // like in the split setup, and both of them see consistent addresses.
-    let dest_ip = if !uplink_mode || from_uplink {
-        apply_dnat(&ctx, eth_type)
-    } else {
-        destination_ip(&ctx, eth_type)
-    };
+    // Apply DNAT if necessary. Returns the tenant and the true Target IP (or the
+    // port's tenant and the original IP if no DNAT applies).
+    //
+    // The translation runs on the ports that face the outside world and nowhere
+    // else: in the single gateway setup that is the uplink, in the split setup
+    // every interface the control plane did not claim for a tenant. A TAP is
+    // never one of them, so a VM reaches the floating IP of another VM through
+    // the outside instead of stepping into its tenant here.
+    let translate = (!uplink_mode || from_uplink) && iface.does_fip();
 
-    if let Some(dest_ip) = dest_ip
-        && let Some((route_key, target)) = lookup_route(dest_ip)
+    if let Some((vni, dest_ip)) = apply_dnat(&ctx, eth_type, iface.vni, translate)
+        && let Some((route_key, target)) = lookup_route(vni, dest_ip)
     {
         // The filter belongs to the route, so it guards every way out of it -
         // the overlay, the kernel path of an encrypted destination and the
@@ -118,7 +129,7 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
             // virtual network, so the VM is masked behind its floating IP. This
             // happens after the filter, which therefore still sees the VM.
             if uplink_mode && is_uplink(target.ifindex) {
-                apply_snat(&ctx, eth_type);
+                apply_snat(&ctx, eth_type, vni);
             }
             return redirect_local(&ctx, &target);
         }
@@ -130,9 +141,13 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
 /// Processes incoming packets on the physical underlay interface.
 ///
 /// This XDP program attaches to the primary host interface (e.g., `eth0`). Its
-/// role is to identify encapsulated traffic (UDP port 5555) destined for our virtual
-/// network, unwrap it, and route the internal payload to the appropriate TAP interface.
+/// role is to identify encapsulated VXLAN traffic destined for our virtual network,
+/// unwrap it, and route the internal payload to the appropriate TAP interface.
 /// Normal traffic is passed through unaffected.
+///
+/// The tenant of an arriving packet is read out of its VXLAN header before the
+/// outer headers are stripped. Without it the inner address would be ambiguous
+/// whenever two local VMs share it.
 ///
 /// # Arguments
 /// * `ctx` - The eBPF XDP Context containing raw packet data and metadata

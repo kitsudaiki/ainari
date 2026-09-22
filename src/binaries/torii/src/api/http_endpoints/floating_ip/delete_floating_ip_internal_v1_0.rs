@@ -16,11 +16,13 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
+use crate::core::models::RouteKeyPod;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use torii_common::RouteKey;
 
 #[api_operation(
     tag = "floating_ip",
@@ -42,13 +44,16 @@ pub async fn delete_floating_ip_internal(
 
     let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
-    let internal_ip = match state.floating_ips.remove(&floating_ip) {
-        Some(internal_ip) => internal_ip,
+    let entry = match state.floating_ips.remove(&floating_ip) {
+        Some(entry) => entry,
         None => return Err(ErrorResponse::NotFound("Floating IP not found".to_string())),
     };
 
     let _ = state.fip_dnat_map.remove(&u32::from(floating_ip));
-    let _ = state.fip_snat_map.remove(&u32::from(internal_ip));
+    let _ = state.fip_snat_map.remove(&RouteKeyPod(RouteKey::new(
+        entry.vni,
+        u32::from(entry.internal_ip),
+    )));
 
     Ok(NoContent)
 }

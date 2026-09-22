@@ -116,6 +116,7 @@ pub async fn resolve_address(address: &str) -> Result<Ipv4Addr, ErrorResponse> {
 /// * `torii` - Endpoint of the torii, which gets the route
 /// * `dest_ip` - Internal address of the virtual_machine, which the route leads to
 /// * `gateway_ip` - Underlay-address of the sakura-host, which runs that virtual_machine
+/// * `vni` - Tenant of the network, which the destination belongs to
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -125,6 +126,7 @@ pub async fn create_overlay_route(
     torii: &Endpoint,
     dest_ip: Ipv4Addr,
     gateway_ip: Ipv4Addr,
+    vni: u32,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     route_clients::create_route(
@@ -134,6 +136,7 @@ pub async fn create_overlay_route(
         &RouteReq {
             dest_ip,
             target_iface: String::new(),
+            vni,
             gateway_ip: Some(gateway_ip),
             next_hop_ip: None,
             next_hop_mac: None,
@@ -147,15 +150,17 @@ pub async fn create_overlay_route(
     Ok(())
 }
 
-/// Deletes all routes of a torii, which lead to an address
+/// Deletes all routes of a torii, which lead to an address within one tenant
 ///
 /// The routes are addressed by their uuid, which is not stored in hanami, so the routes of the
 /// torii are listed and the ones towards the address are deleted. A torii without such a route
-/// is left as it is.
+/// is left as it is. The tenant is part of the comparison, because the very same address may be
+/// routed in another tenant as well, and that route belongs to a different network.
 ///
 /// # Arguments
 /// * `torii` - Endpoint of the torii, whose routes are deleted
 /// * `dest_ip` - Internal address of the virtual_machine, whose routes are deleted
+/// * `vni` - Tenant of the network, which the address belongs to
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -164,6 +169,7 @@ pub async fn create_overlay_route(
 pub async fn delete_routes_to(
     torii: &Endpoint,
     dest_ip: Ipv4Addr,
+    vni: u32,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     let routes = route_clients::list_route(
@@ -176,7 +182,7 @@ pub async fn delete_routes_to(
     .map_err(map_ainari_error_to_api_response)?;
 
     for route in routes.routes {
-        if route.dest_ip != dest_ip {
+        if route.dest_ip != dest_ip || route.vni != vni {
             continue;
         }
 

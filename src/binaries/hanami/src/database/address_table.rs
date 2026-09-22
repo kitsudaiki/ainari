@@ -26,6 +26,7 @@ use crate::database::{assignable_ip_range, db_handle};
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
+use torii_common::VNI_MAX;
 
 /// Prefix of all generated MAC-addresses. The `02` marks them as locally administered
 /// unicast addresses, so they can not collide with vendor-assigned addresses.
@@ -59,6 +60,7 @@ table! {
         tap_name -> Varchar,
         internal_ip -> Varchar,
         network_uuid -> Varchar,
+        vni -> Integer,
         host_address -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -85,6 +87,13 @@ pub struct AddressEntry {
     pub internal_ip: Ipv4Addr,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub network_uuid: Uuid,
+    /// Tenant of the address. Every address of one network shares it, because the
+    /// virtual_machines of a network have to reach each other, and it is what separates two
+    /// networks, which use the same subnet: the torii keys its routes, its packet-filters and
+    /// its floating-ip translations by `(vni, address)`. `0` is the shared tenant and belongs
+    /// to entries, which were written before the tenants existed.
+    #[diesel(serialize_as = DbVni, deserialize_as = DbVni)]
+    pub vni: u32,
     /// Address of the sakura-host, which runs the virtual_machine of this address, like
     /// `http://sakura:11420`. The torii, which owns the TAP-device of the virtual_machine, is
     /// derived from it, so the routes of a virtual_machine can be changed later, when another
@@ -119,6 +128,7 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
         tap_name VARCHAR(16),
         internal_ip VARCHAR(40),
         network_uuid VARCHAR(40),
+        vni INTEGER NOT NULL DEFAULT 0,
         host_address VARCHAR(256),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
@@ -139,7 +149,80 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
         ON addresses (network_uuid, internal_ip) WHERE status = 'ACTIVE';",
     )?;
 
+    // A database, which was created before the tenants existed, has no vni-column yet, and
+    // SQLite has no `ADD COLUMN IF NOT EXISTS`. The error of the second run is therefore the
+    // expected outcome and ignored: it only says the column is already there.
+    let _ = conn.batch_execute("ALTER TABLE addresses ADD COLUMN vni INTEGER NOT NULL DEFAULT 0;");
+
     Ok(())
+}
+
+/// Gets the tenant, which the addresses of a network live in.
+///
+/// All addresses of a network share one VNI, so the first entry of the network answers the
+/// question. Deleted entries are taken into account on purpose: a network keeps its tenant,
+/// also while none of its virtual_machines is alive, so an address, which is added later, lands
+/// in the same tenant as the floating ip-addresses, which are still registered for it.
+///
+/// # Arguments
+/// * `address_network_uuid` - The UUID of the network
+///
+/// # Returns
+/// A Result containing the VNI of the network, or None if the network never had an address
+pub fn get_vni_of_network(address_network_uuid: &Uuid) -> Result<Option<u32>, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+
+    addresses
+        .filter(network_uuid.eq(address_network_uuid.to_string()))
+        .select(vni)
+        .first::<i32>(&mut *conn)
+        .optional()
+        .map(|found| found.map(|found| found as u32))
+        .map_err(|e| {
+            log::error!("Database-error: {e:?}");
+            enums::DbError::InternalError
+        })
+}
+
+/// Picks the tenant of a network, assigning a new one if the network has none yet.
+///
+/// Tenants are handed out per network and start at 1, because `VNI_DEFAULT` (0) is the shared
+/// tenant of the uplink and of everything, which was never placed into a tenant of its own.
+/// A new tenant is the highest one currently in use increased by one; a tenant of a deleted
+/// network is not reused, so no route, which is still lying around somewhere, can be
+/// mistaken for a route of the new network.
+///
+/// # Arguments
+/// * `address_network_uuid` - The UUID of the network, which the address belongs to
+///
+/// # Returns
+/// A Result containing the VNI the address has to be created in, or a DbError
+fn vni_for_network(address_network_uuid: &Uuid) -> Result<u32, enums::DbError> {
+    if let Some(existing) = get_vni_of_network(address_network_uuid)? {
+        return Ok(existing);
+    }
+
+    let highest = {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::addresses::dsl::*;
+
+        addresses
+            .select(diesel::dsl::max(vni))
+            .first::<Option<i32>>(&mut *conn)
+            .map_err(|e| {
+                log::error!("Database-error: {e:?}");
+                enums::DbError::InternalError
+            })?
+    };
+
+    let next = highest.unwrap_or(0) as u32 + 1;
+    if next > VNI_MAX {
+        log::error!("No free VNI left below the 24 bit limit of a VXLAN-header");
+        return Err(enums::DbError::InternalError);
+    }
+
+    Ok(next)
 }
 
 /// Reserves a new MAC-address, a new tap-device name and a new internal IP-address by adding a new entry.
@@ -203,12 +286,17 @@ pub fn reserve_new_address(
         None => first_internal_ip,
     };
 
+    // every address of a network lives in the same tenant, so the first address of a network
+    // is the one, which opens it
+    let vni = vni_for_network(network_uuid)?;
+
     reserve_address_from(
         first_mac_candidate,
         first_tap_candidate,
         first_ip_candidate,
         last_internal_ip,
         network_uuid,
+        vni,
         host_address,
         context,
     )
@@ -227,17 +315,20 @@ pub fn reserve_new_address(
 /// * `first_ip_candidate` - Numeric value of the first internal IP-address to try
 /// * `last_internal_ip` - Numeric value of the last internal IP-address, which can be assigned
 /// * `network_uuid` - The UUID of the network the address belongs to
+/// * `vni` - Tenant of the network, which the new address is created in
 /// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
 /// A Result containing the new entry with the reserved values, or a DbError if the reservation failed
+#[allow(clippy::too_many_arguments)]
 fn reserve_address_from(
     first_mac_candidate: u64,
     first_tap_candidate: u32,
     first_ip_candidate: u32,
     last_internal_ip: u32,
     network_uuid: &Uuid,
+    vni: u32,
     host_address: &str,
     context: &UserContext,
 ) -> Result<AddressEntry, enums::DbError> {
@@ -268,6 +359,7 @@ fn reserve_address_from(
             &new_tap_name,
             &new_internal_ip,
             network_uuid,
+            vni,
             host_address,
             context,
         ) {
@@ -452,16 +544,19 @@ fn get_highest_tap_number() -> Result<Option<u32>, enums::DbError> {
 /// * `tap_name` - The name of the tap-device of the new entry
 /// * `internal_ip` - The internal IP-address assigned to the MAC-address
 /// * `network_uuid` - The UUID of the network the address belongs to
+/// * `vni` - Tenant of the network, which the new address belongs to
 /// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
 /// A QueryResult containing the new entry
+#[allow(clippy::too_many_arguments)]
 pub fn add_new_address(
     mac_address: &str,
     tap_name: &str,
     internal_ip: &Ipv4Addr,
     network_uuid: &Uuid,
+    vni: u32,
     host_address: &str,
     context: &UserContext,
 ) -> QueryResult<AddressEntry> {
@@ -471,6 +566,7 @@ pub fn add_new_address(
         tap_name: tap_name.to_string(),
         internal_ip: *internal_ip,
         network_uuid: *network_uuid,
+        vni,
         host_address: host_address.to_string(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -748,6 +844,9 @@ mod tests {
     /// Address of the sakura-host of the test-entries, which runs their virtual_machines.
     const TEST_HOST_ADDRESS: &str = "http://sakura:11420";
 
+    /// Tenant the entries of the tests live in.
+    const TEST_VNI: u32 = 1;
+
     const MAC_1: &str = "02:00:00:00:10:01";
     const MAC_2: &str = "02:00:00:00:10:02";
     const MAC_3: &str = "02:00:00:00:10:03";
@@ -807,6 +906,7 @@ mod tests {
             tap_name: tap_name_of(entry_mac_address),
             internal_ip: internal_ip_of(entry_mac_address),
             network_uuid: *entry_network_uuid,
+            vni: TEST_VNI,
             host_address: TEST_HOST_ADDRESS.to_string(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
@@ -916,6 +1016,7 @@ mod tests {
             tap_name,
             &INTERNAL_IP,
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         )
@@ -1492,6 +1593,7 @@ mod tests {
             ip_base,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         ));
@@ -1541,6 +1643,7 @@ mod tests {
             ip_base,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         ));
@@ -1599,6 +1702,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         ));
@@ -1625,6 +1729,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         );
@@ -1636,6 +1741,7 @@ mod tests {
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         );
@@ -1647,6 +1753,7 @@ mod tests {
             u32::from(LAST_TEST_IP) + 1,
             u32::from(LAST_TEST_IP),
             &network_uuid1,
+            TEST_VNI,
             TEST_HOST_ADDRESS,
             &context,
         );

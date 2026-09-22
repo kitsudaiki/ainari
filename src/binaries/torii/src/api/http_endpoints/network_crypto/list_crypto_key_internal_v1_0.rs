@@ -38,12 +38,13 @@ pub async fn list_crypto_key_internal(
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut crypto_keys: Vec<CryptoKey> = st.crypto_keys.values().cloned().collect();
-    crypto_keys.sort_by_key(|key| (key.direction, key.spi));
+    crypto_keys.sort_by_key(|key| (key.vni, key.direction, key.spi));
 
     let mut resp = CryptoKeyListResp::default();
     for crypto_key in crypto_keys {
         let converted_crypto_key = CryptoKeyResp {
             direction: crypto_key.direction,
+            vni: crypto_key.vni,
             local_ip: crypto_key.local_ip,
             remote_ip: crypto_key.remote_ip,
             peer_gateway_ip: crypto_key.peer_gateway_ip,

@@ -21,7 +21,7 @@ use crate::config::CONFIG;
 use crate::core::crypto::{apply_connection_policies, install_sa, normalize_key};
 use crate::core::models::{Connection, CryptoKey};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::utils::get_local_ip;
+use crate::core::utils::{get_local_ip, validate_vni};
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -43,9 +43,14 @@ its SPI, which makes it the key used for new packets, so a rotation never has a
 gap in which traffic would leave unprotected. `ingress` creates an inbound SA and
 the matching in/fwd policies; any number of inbound keys can be held for the same
 connection at the same time - the SPI in the ESP header of an incoming packet
-decides which one is used."###,
+decides which one is used.
+
+`vni` names the tenant of the two VM-addresses. The kernel's xfrm selectors know
+nothing about tenants, so a second tenant that wants to protect the very same
+address-pair is refused instead of silently overwriting the first one."###,
     error_code = 400,
     error_code = 401,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn register_crypto_key_internal(
@@ -55,6 +60,7 @@ pub async fn register_crypto_key_internal(
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+    validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
     let key = normalize_key(&body.key).map_err(ErrorResponse::BadRequest)?;
 
@@ -69,14 +75,28 @@ pub async fn register_crypto_key_internal(
     let spi = format!("0x{:08x}", body.spi);
     let local_sel = format!("{}/32", body.local_ip);
     let remote_sel = format!("{}/32", body.remote_ip);
-    let conn_id = format!("{}->{}", body.local_ip, body.remote_ip);
+    let conn_id = format!("{}:{}->{}", body.vni, body.local_ip, body.remote_ip);
 
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
+
+    // The kernel's xfrm selectors are plain address pairs. Protecting the same
+    // pair in a second tenant would silently rewrite the policies of the first
+    // one, so it is refused instead - the datapath is tenant aware, the xfrm
+    // stack underneath it is not.
+    if let Some(other) = st.connections.values().find(|conn| {
+        conn.vni != body.vni && conn.local_ip == body.local_ip && conn.remote_ip == body.remote_ip
+    }) {
+        return Err(ErrorResponse::Conflict(format!(
+            "{} -> {} is already protected in tenant {}; the kernel's xfrm selectors carry no tenant",
+            body.local_ip, body.remote_ip, other.vni
+        )));
+    }
 
     // Remember the connection this key belongs to. A connection is protected as
     // soon as it exists; the toggle endpoint can switch that off again without
     // touching the keys.
     let mut conn = st.connections.get(&conn_id).cloned().unwrap_or(Connection {
+        vni: body.vni,
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
         peer_gateway_ip: body.peer_gateway_ip,
@@ -128,6 +148,7 @@ pub async fn register_crypto_key_internal(
 
     let entry = CryptoKey {
         direction: body.direction,
+        vni: body.vni,
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
         peer_gateway_ip: body.peer_gateway_ip,
@@ -136,17 +157,19 @@ pub async fn register_crypto_key_internal(
     st.crypto_keys.insert((body.direction, body.spi), entry);
 
     log::debug!(
-        "Installed {} key spi 0x{:08x} for {} <-> {} via {} ({})",
+        "Installed {} key spi 0x{:08x} for {} <-> {} (tenant {}) via {} ({})",
         body.direction,
         body.spi,
         body.local_ip,
         body.remote_ip,
+        body.vni,
         body.peer_gateway_ip,
         encryption_state
     );
 
     let resp = CryptoKeyResp {
         direction: body.direction,
+        vni: body.vni,
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
         peer_gateway_ip: body.peer_gateway_ip,
