@@ -22,6 +22,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::common_structs::default_vni;
+
 /// The direction a crypto-key protects, which is what separates an outbound
 /// Security Association from an inbound one.
 ///
@@ -79,6 +81,11 @@ pub struct CryptoKeyReq {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,
+    /// Tenant the two VM-addresses are valid in. The kernel's xfrm selectors know
+    /// nothing about tenants, so a second tenant that wants to protect the very
+    /// same address-pair is refused instead of silently overwriting the first one.
+    #[serde(default = "default_vni")]
+    pub vni: u32,
     pub spi: u32,
     pub key: Secret,
 }
@@ -99,6 +106,7 @@ pub struct CryptoKeyListResp {
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct CryptoKeyResp {
     pub direction: CryptoDirection,
+    pub vni: u32,
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,
@@ -109,6 +117,8 @@ pub struct CryptoKeyResp {
 pub struct CryptoToggleReq {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
+    #[serde(default = "default_vni")]
+    pub vni: u32,
     #[serde(default)]
     pub peer_gateway_ip: Option<Ipv4Addr>,
     pub enabled: bool,
@@ -118,6 +128,7 @@ pub struct CryptoToggleReq {
 pub struct CryptoToggleResp {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
+    pub vni: u32,
     #[serde(default)]
     pub peer_gateway_ip: Option<Ipv4Addr>,
     pub enabled: bool,
@@ -130,6 +141,7 @@ pub struct ConnectionListResp {
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ConnectionResp {
+    pub vni: u32,
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,

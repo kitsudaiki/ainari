@@ -175,7 +175,7 @@ async fn cleanup_network(
              the network are deleted.",
             address.uuid
         );
-        return delete_routes_to(&endpoints.torii, internal_ip, context).await;
+        return delete_routes_to(&endpoints.torii, internal_ip, address.vni, context).await;
     }
 
     let remaining_addresses =
@@ -199,7 +199,7 @@ async fn cleanup_network(
 
     // the torii at the edge of the network routes the address of the virtual_machine towards its
     // host, so it has to forget it too
-    delete_routes_to(&endpoints.torii, internal_ip, context).await?;
+    delete_routes_to(&endpoints.torii, internal_ip, address.vni, context).await?;
 
     for host_address in &host_addresses {
         let torii = torii_of_host(&endpoints.torii, host_address)?;
@@ -210,7 +210,7 @@ async fn cleanup_network(
             continue;
         }
 
-        delete_routes_to(&torii, internal_ip, context).await?;
+        delete_routes_to(&torii, internal_ip, address.vni, context).await?;
     }
 
     // the torii of the host keeps its routes towards the other virtual_machines of the network,
@@ -233,7 +233,13 @@ async fn cleanup_network(
     // the routes, which led from the deleted virtual_machine to the other virtual_machines of
     // its network, are not used by anything on this host any more
     for other_address in &remaining_addresses {
-        delete_routes_to(&host_torii, other_address.internal_ip, context).await?;
+        delete_routes_to(
+            &host_torii,
+            other_address.internal_ip,
+            other_address.vni,
+            context,
+        )
+        .await?;
     }
 
     Ok(())

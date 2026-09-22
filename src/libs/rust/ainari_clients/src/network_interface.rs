@@ -34,11 +34,15 @@ This function assigns an address to the given interface and brings it up or down
 - `iface_name`: Name of the interface to configure
 - `ip_cidr`: Address of the interface in CIDR notation, or `None` to leave it unaddressed
 - `up`: Whether the interface should be brought up
+- `vni`: Tenant the interface belongs to
+- `fip_port`: Whether the floating-ips are translated on this interface. Only a port, which
+  faces the outside world, may be one.
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
 
 # Returns
 A `Result` containing the resulting `IfaceConfigResp` or an `AinariError` if the operation fails.
 */
+#[allow(clippy::too_many_arguments)]
 pub async fn config_interface(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
@@ -46,6 +50,8 @@ pub async fn config_interface(
     iface_name: &str,
     ip_cidr: Option<String>,
     up: bool,
+    vni: u32,
+    fip_port: bool,
     insecure_client: bool,
 ) -> Result<IfaceConfigResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
@@ -56,6 +62,8 @@ pub async fn config_interface(
         iface_name: iface_name.to_owned(),
         ip_cidr,
         up,
+        vni,
+        fip_port,
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
@@ -83,6 +91,7 @@ the virtual_machine can be routed and filtered by the gateway.
 - `token`: Authentication token for accessing the API
 - `internal_api_key`: Internal API key for privileged operations
 - `tap_name`: Name of the TAP-device to register
+- `vni`: Tenant the TAP-device and everything behind it belongs to
 - `vm_mac`: MAC-address of the virtual_machine behind the TAP-device, if it is already known
 - `vm_ip`: Address of the virtual_machine behind the TAP-device, if it is already known
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
@@ -90,11 +99,13 @@ the virtual_machine can be routed and filtered by the gateway.
 # Returns
 A `Result` containing the resulting `TapResp` or an `AinariError` if the operation fails.
 */
+#[allow(clippy::too_many_arguments)]
 pub async fn register_tap(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
     tap_name: &str,
+    vni: u32,
     vm_mac: Option<String>,
     vm_ip: Option<Ipv4Addr>,
     insecure_client: bool,
@@ -105,6 +116,7 @@ pub async fn register_tap(
 
     let body = TapReq {
         tap_name: tap_name.to_owned(),
+        vni,
         vm_mac,
         vm_ip,
     };

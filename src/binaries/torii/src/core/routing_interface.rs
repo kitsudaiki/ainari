@@ -22,10 +22,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use torii_common::{ArpProxy, CONFIG_UPLINK_MODE};
+use torii_common::{
+    ArpProxy, CONFIG_UPLINK_MODE, IFACE_FLAG_FIP, IfaceConfig, RouteKey, VNI_DEFAULT,
+};
 
 use crate::config::CONFIG;
-use crate::core::models::{ArpProxyPod, Route, RouteFilterPod, RouteTargetPod};
+use crate::core::models::{
+    ArpProxyPod, FipTargetPod, IfaceConfigPod, Route, RouteFilterPod, RouteKeyPod, RouteTargetPod,
+};
 use crate::core::routing::build_route_target;
 use crate::core::state::GatewayState;
 use crate::core::utils::{enable_forwarding, get_ifindex, get_mac_address};
@@ -63,15 +67,21 @@ pub fn init_routing() -> GatewayState {
 
     let mut bpf = Bpf::load(include_bytes_aligned!(concat!(env!("OUT_DIR"), "/torii"))).unwrap();
 
+    // Both forwarding maps are keyed by (vni, destination): one entry per tenant
+    // per address, which is what allows the same address in several tenants.
     let route_map_data = bpf.take_map("ROUTE_MAP").expect("Missing ROUTE_MAP");
-    let route_map: AyaHashMap<_, u32, RouteTargetPod> =
+    let route_map: AyaHashMap<_, RouteKeyPod, RouteTargetPod> =
         AyaHashMap::try_from(route_map_data).unwrap();
 
+    // Floating IPs are unique across tenants, so only the reverse direction needs
+    // the tenant in its key.
     let fip_dnat_map_data = bpf.take_map("FIP_DNAT_MAP").expect("Missing FIP_DNAT_MAP");
-    let fip_dnat_map: AyaHashMap<_, u32, u32> = AyaHashMap::try_from(fip_dnat_map_data).unwrap();
+    let fip_dnat_map: AyaHashMap<_, u32, FipTargetPod> =
+        AyaHashMap::try_from(fip_dnat_map_data).unwrap();
 
     let fip_snat_map_data = bpf.take_map("FIP_SNAT_MAP").expect("Missing FIP_SNAT_MAP");
-    let fip_snat_map: AyaHashMap<_, u32, u32> = AyaHashMap::try_from(fip_snat_map_data).unwrap();
+    let fip_snat_map: AyaHashMap<_, RouteKeyPod, u32> =
+        AyaHashMap::try_from(fip_snat_map_data).unwrap();
 
     let arp_proxy_map_data = bpf
         .take_map("ARP_PROXY_MAP")
@@ -79,8 +89,12 @@ pub fn init_routing() -> GatewayState {
     let arp_proxy_map: AyaHashMap<_, u32, ArpProxyPod> =
         AyaHashMap::try_from(arp_proxy_map_data).unwrap();
 
+    let iface_map_data = bpf.take_map("IFACE_MAP").expect("Missing IFACE_MAP");
+    let iface_map: AyaHashMap<_, u32, IfaceConfigPod> =
+        AyaHashMap::try_from(iface_map_data).unwrap();
+
     let filter_map_data = bpf.take_map("FILTER_MAP").expect("Missing FILTER_MAP");
-    let filter_map: AyaHashMap<_, u32, RouteFilterPod> =
+    let filter_map: AyaHashMap<_, RouteKeyPod, RouteFilterPod> =
         AyaHashMap::try_from(filter_map_data).unwrap();
 
     // STATIC eBPF ATTACHMENT (Safely skips if interface doesn't exist yet)
@@ -125,6 +139,7 @@ pub fn init_routing() -> GatewayState {
         fip_dnat_map,
         fip_snat_map,
         arp_proxy_map,
+        iface_map,
         bpf, // Retain Bpf context for dynamic API attachments
     };
 
@@ -171,21 +186,25 @@ fn setup_default_route(
     let req = RouteReq {
         dest_ip: Ipv4Addr::UNSPECIFIED,
         target_iface: underlay_iface.to_owned(),
+        vni: VNI_DEFAULT,
         gateway_ip: Some(gateway_ip),
         next_hop_ip: None,
         next_hop_mac: None,
         encrypted: false,
     };
     let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
-    state
-        .route_map
-        .insert(u32::from(Ipv4Addr::UNSPECIFIED), RouteTargetPod(target), 0)?;
+    state.route_map.insert(
+        RouteKeyPod(RouteKey::default_route(req.vni)),
+        RouteTargetPod(target),
+        0,
+    )?;
 
     let route_uuid = Uuid::new_v4();
     state.routes.insert(
         route_uuid,
         Route {
             uuid: route_uuid,
+            vni: req.vni,
             dest_ip: Ipv4Addr::UNSPECIFIED,
             target_iface: req.target_iface,
             gateway_ip: req.gateway_ip,
@@ -246,6 +265,18 @@ fn setup_uplink(
     };
     uplinks.insert(ifindex, ArpProxyPod(uplink), 0)?;
 
+    // The uplink is the one port that faces the outside world, so it is where a
+    // floating IP is allowed to name the tenant of a packet. It belongs to the
+    // shared tenant itself: everything behind it is outside the virtual network.
+    state.iface_map.insert(
+        ifindex,
+        IfaceConfigPod(IfaceConfig {
+            vni: VNI_DEFAULT,
+            flags: IFACE_FLAG_FIP,
+        }),
+        0,
+    )?;
+
     let mut config: Array<_, u32> = Array::try_from(
         state
             .bpf
@@ -258,21 +289,25 @@ fn setup_uplink(
         let req = RouteReq {
             dest_ip,
             target_iface: uplink_iface.to_owned(),
+            vni: VNI_DEFAULT,
             gateway_ip: None,
             next_hop_ip: Some(next_hop),
             next_hop_mac: None,
             encrypted: false,
         };
         let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
-        state
-            .route_map
-            .insert(u32::from(dest_ip), RouteTargetPod(target), 0)?;
+        state.route_map.insert(
+            RouteKeyPod(RouteKey::new(req.vni, u32::from(dest_ip))),
+            RouteTargetPod(target),
+            0,
+        )?;
 
         let route_uuid = Uuid::new_v4();
         state.routes.insert(
             route_uuid,
             Route {
                 uuid: route_uuid,
+                vni: req.vni,
                 dest_ip,
                 target_iface: req.target_iface,
                 gateway_ip: None,

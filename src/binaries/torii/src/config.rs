@@ -112,6 +112,12 @@ pub struct Network {
     /// own uplink doesn't have one, because it is the edge itself.
     #[serde(default)]
     pub default_gateway_ip: Option<Ipv4Addr>,
+    /// First kernel routing-table a tenant is given. Traffic, which leaves the eBPF-datapath
+    /// towards the kernel (the IPsec-protected destinations), carries no VNI anymore, so every
+    /// tenant gets a routing-table of its own, numbered `tenant_table_base + vni`. The default
+    /// keeps those tables far away from the well known `local`, `main` and `default` ones.
+    #[serde(default = "default_tenant_table_base")]
+    pub tenant_table_base: u32,
 }
 
 impl Default for Network {
@@ -122,6 +128,7 @@ impl Default for Network {
             uplink_iface: None,
             uplink_next_hop: None,
             default_gateway_ip: None,
+            tenant_table_base: default_tenant_table_base(),
         }
     }
 }
@@ -159,6 +166,29 @@ impl Network {
 
         Some((iface, next_hop))
     }
+
+    /// Names the kernel routing-table the routes of a tenant are programmed into.
+    ///
+    /// The shared tenant keeps using `main`, so a setup, which never mentions a VNI, produces
+    /// exactly the same kernel-state it did before tenants existed.
+    ///
+    /// # Arguments
+    /// * `vni` - The tenant whose routing-table is wanted
+    ///
+    /// # Returns
+    /// `None` for the shared tenant, otherwise the table-number as a string ready to be handed
+    /// to `ip`
+    pub fn tenant_table(&self, vni: u32) -> Option<String> {
+        if vni == torii_common::VNI_DEFAULT {
+            return None;
+        }
+        Some((self.tenant_table_base + vni).to_string())
+    }
+}
+
+/// Default value for tenant_table_base
+fn default_tenant_table_base() -> u32 {
+    100
 }
 
 /// Default value for overlay_iface
@@ -295,6 +325,13 @@ mod tests {
             ..Default::default()
         };
         assert!(network.validate().is_err());
+    }
+
+    #[test]
+    fn the_shared_tenant_uses_the_main_table() {
+        let network = Network::default();
+        assert_eq!(network.tenant_table(0), None);
+        assert_eq!(network.tenant_table(1).as_deref(), Some("101"));
     }
 
     #[test]

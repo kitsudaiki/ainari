@@ -352,6 +352,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "torii_common",
  "uuid",
  "validator",
 ]
@@ -2041,6 +2042,7 @@ dependencies = [
  "serial_test",
  "tokio",
  "toml",
+ "torii_common",
  "uuid",
  "validator",
 ]

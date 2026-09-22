@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::common_structs::default_vni;
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct FloatingIpCreateReq {
     pub name: String,
@@ -43,12 +45,19 @@ pub struct FloatingIpResp {
     pub updated_by: String,
 }
 
+/// Request to make one internal address reachable under a floating IP.
+///
+/// The floating IP is unique across the whole setup; `vni` says which tenant the
+/// internal address it points at belongs to. Resolving a floating IP is what
+/// moves a packet from the shared uplink into that tenant.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct FloatingIpInternalCreateReq {
     pub name: String,
     pub network_uuid: Uuid,
     pub floating_ip: Ipv4Addr,
     pub internal_ip: Ipv4Addr,
+    #[serde(default = "default_vni")]
+    pub vni: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -58,6 +67,7 @@ pub struct FloatingIpInternalResp {
     pub network_uuid: Uuid,
     pub floating_ip: Ipv4Addr,
     pub internal_ip: Ipv4Addr,
+    pub vni: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

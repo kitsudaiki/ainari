@@ -71,8 +71,8 @@ pub async fn delete_crypto_key_internal(
     .map_err(|e| map_internal_error(&format!("delete crypto-key with spi '{spi_hex}'"), e))?;
 
     println!(
-        "Removed {} key spi {} for {} <-> {}",
-        entry.direction, spi_hex, entry.local_ip, entry.remote_ip
+        "Removed {} key spi {} for {} <-> {} in tenant {}",
+        entry.direction, spi_hex, entry.local_ip, entry.remote_ip, entry.vni
     );
 
     Ok(NoContent)

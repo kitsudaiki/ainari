@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
+use torii_common::RouteKey;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -22,9 +23,9 @@ use crate::core::routing_interface::*;
 
 use crate::config::CONFIG;
 use crate::core::models::Route;
-use crate::core::models::RouteTargetPod;
-use crate::core::routing::build_route_target;
-use crate::core::utils::get_ifindex;
+use crate::core::models::{RouteKeyPod, RouteTargetPod};
+use crate::core::routing::{build_route_target, check_route_tenant};
+use crate::core::utils::{get_ifindex, validate_vni};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -33,7 +34,11 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "route",
     summary = "Register new route",
-    description = r###"Register a new route and program it into the eBPF maps of the datapath."###,
+    description = r###"Register a new route and program it into the eBPF maps of the datapath.
+
+The route is stored under `(vni, dest_ip)`, so the same destination may exist
+once per tenant. A request without a `vni` lands in tenant 0, which is the shared
+tenant every setup that does not care about isolation runs in."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -46,6 +51,7 @@ pub async fn register_route_internal(
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+    validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
     // a caller, which doesn't know the interfaces of this gateway, can leave the target-interface
     // empty to address the underlay of this gateway
@@ -54,7 +60,7 @@ pub async fn register_route_internal(
         body.target_iface = CONFIG.network.underlay_iface.clone();
     }
 
-    let ip_u32 = u32::from(body.dest_ip);
+    let route_key = RouteKey::new(body.vni, u32::from(body.dest_ip));
 
     if get_ifindex(&body.target_iface) == 0 {
         return Err(ErrorResponse::NotFound(format!(
@@ -66,6 +72,12 @@ pub async fn register_route_internal(
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
     let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
+
+    {
+        let st = GATEWAY_STATE_HANDLE.lock().await;
+        check_route_tenant(&st, &body, None).map_err(ErrorResponse::Conflict)?;
+    }
+
     let target = match build_route_target(&body, &taps) {
         Ok(target) => target,
         Err(_err) => return Err(ErrorResponse::BadRequest("Invalid Input".to_string())),
@@ -76,6 +88,7 @@ pub async fn register_route_internal(
 
     let route = Route {
         uuid: route_uuid,
+        vni: body.vni,
         dest_ip: body.dest_ip,
         target_iface: body.target_iface.clone(),
         gateway_ip: body.gateway_ip,
@@ -87,7 +100,7 @@ pub async fn register_route_internal(
     st.routes.insert(route_uuid, route.clone());
     if st
         .route_map
-        .insert(ip_u32, RouteTargetPod(target), 0)
+        .insert(RouteKeyPod(route_key), RouteTargetPod(target), 0)
         .is_err()
     {
         log::error!("eBPF Map error");
@@ -96,6 +109,7 @@ pub async fn register_route_internal(
 
     let route = RouteResp {
         uuid: route_uuid,
+        vni: body.vni,
         dest_ip: body.dest_ip,
         target_iface: body.target_iface.clone(),
         gateway_ip: body.gateway_ip,

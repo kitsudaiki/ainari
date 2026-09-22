@@ -32,3 +32,18 @@ pub struct ReadyResp {
 pub struct Count {
     pub number_of_items: u64,
 }
+
+/// Serde default for every `vni` field of the API: the shared tenant.
+///
+/// A payload that never mentions a tenant describes exactly the setup it
+/// described before tenants existed, so leaving the field out has to keep
+/// working everywhere it appears.
+///
+/// # Arguments
+/// None
+///
+/// # Returns
+/// `VNI_DEFAULT`, i.e. 0
+pub fn default_vni() -> u32 {
+    torii_common::VNI_DEFAULT
+}

@@ -20,7 +20,7 @@ use crate::config::CONFIG;
 use crate::core::crypto::apply_connection_policies;
 use crate::core::models::Connection;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::utils::get_local_ip;
+use crate::core::utils::{get_local_ip, validate_vni};
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -51,6 +51,7 @@ pub async fn toggle_crypto_internal(
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+    validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
     let local_gateway_ip = match get_local_ip(&CONFIG.network.underlay_iface) {
         Some(ip) => ip,
@@ -60,7 +61,7 @@ pub async fn toggle_crypto_internal(
         }
     };
 
-    let conn_id = format!("{}->{}", body.local_ip, body.remote_ip);
+    let conn_id = format!("{}:{}->{}", body.vni, body.local_ip, body.remote_ip);
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
     // A connection this gateway holds a key for is already known. For an unknown
@@ -78,6 +79,7 @@ pub async fn toggle_crypto_internal(
                 }
             };
             Connection {
+                vni: body.vni,
                 local_ip: body.local_ip,
                 remote_ip: body.remote_ip,
                 peer_gateway_ip: peer,
@@ -98,19 +100,21 @@ pub async fn toggle_crypto_internal(
     let keys_held = st
         .crypto_keys
         .values()
-        .filter(|key| key.local_ip == conn.local_ip && key.remote_ip == conn.remote_ip)
+        .filter(|key| {
+            key.vni == conn.vni && key.local_ip == conn.local_ip && key.remote_ip == conn.remote_ip
+        })
         .count();
     st.connections.insert(conn_id, conn);
 
     let message = if body.enabled {
         format!(
-            "Encryption enabled for {} -> {} ({} key(s) available)",
-            body.local_ip, body.remote_ip, keys_held
+            "Encryption enabled for {} -> {} in tenant {} ({} key(s) available)",
+            body.local_ip, body.remote_ip, body.vni, keys_held
         )
     } else {
         format!(
-            "Encryption disabled for {} -> {}; {} key(s) stay installed but unused",
-            body.local_ip, body.remote_ip, keys_held
+            "Encryption disabled for {} -> {} in tenant {}; {} key(s) stay installed but unused",
+            body.local_ip, body.remote_ip, body.vni, keys_held
         )
     };
     log::debug!("{}", message);
@@ -118,6 +122,7 @@ pub async fn toggle_crypto_internal(
     let resp = CryptoToggleResp {
         local_ip: body.local_ip,
         remote_ip: body.remote_ip,
+        vni: body.vni,
         peer_gateway_ip: body.peer_gateway_ip,
         enabled: body.enabled,
     };

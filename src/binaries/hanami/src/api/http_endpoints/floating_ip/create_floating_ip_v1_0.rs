@@ -19,6 +19,7 @@ use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::config;
+use crate::database::address_table;
 use crate::database::floating_ip_table;
 use crate::database::floating_ip_table::FloatingIpEntry;
 use crate::database::floating_ip_table::FloatingIpReserveError;
@@ -30,6 +31,7 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::floating_ip as floating_ip_clients;
 use ainari_clients::quota::get_quota;
+use torii_common::VNI_DEFAULT;
 
 #[api_operation(
     tag = "floating_ip",
@@ -91,6 +93,10 @@ pub async fn create_floating_ip(
 /// network. If the registration fails, the reserved address is released again, so it is not
 /// blocked by an entry, which the torii doesn't know.
 ///
+/// The tenant of the internal address travels with the registration. A floating ip-address is
+/// unique across all networks, so it is what tells the torii, which tenant an arriving packet
+/// belongs to - and the internal address behind it is only meaningful within that tenant.
+///
 /// # Arguments
 /// * `floating_ip_entry` - Reserved floating ip-address with its internal address
 /// * `name` - Name of the floating ip-address
@@ -110,6 +116,26 @@ async fn register_floating_ip(
             .await
             .map_err(map_ainari_error_to_api_response)?;
 
+        // the tenant is stored with the address of the virtual_machine, so the floating
+        // ip-address is registered in exactly the tenant, which its internal address lives in
+        let vni = match address_table::get_address_by_internal_ip(
+            &floating_ip_entry.network_uuid,
+            &floating_ip_entry.internal_ip_addr,
+        ) {
+            Ok(address) => address.vni,
+            Err(_) => {
+                // nothing holds this address yet, so there is no tenant to join. The shared one
+                // is what a setup without tenants uses anyway.
+                log::warn!(
+                    "No address-entry for '{}' in network '{}', so its floating ip-address is \
+                     registered in the shared tenant.",
+                    floating_ip_entry.internal_ip_addr,
+                    floating_ip_entry.network_uuid
+                );
+                VNI_DEFAULT
+            }
+        };
+
         floating_ip_clients::create_floating_ip(
             &endpoints.torii,
             &context.token,
@@ -118,6 +144,7 @@ async fn register_floating_ip(
             &floating_ip_entry.network_uuid,
             &floating_ip_entry.floating_ip_addr,
             &floating_ip_entry.internal_ip_addr,
+            vni,
             config::CONFIG.skip_tls_verification,
         )
         .await

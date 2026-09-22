@@ -2,7 +2,7 @@
 
 /// Route action: deliver the packet out of a local interface.
 pub const ROUTE_ACTION_LOCAL: u32 = 0;
-/// Route action: wrap the packet into the L2-in-UDP overlay and send it to a
+/// Route action: wrap the packet into the VXLAN overlay and send it to a
 /// remote gateway over the underlay network.
 pub const ROUTE_ACTION_ENCAP: u32 = 1;
 /// Route action: hand the packet to the local kernel network stack.
@@ -12,6 +12,26 @@ pub const ROUTE_ACTION_ENCAP: u32 = 1;
 /// forwarding path where the ESP transformation is applied. The eBPF overlay is
 /// bypassed for those destinations - the kernel builds the tunnel instead.
 pub const ROUTE_ACTION_KERNEL: u32 = 2;
+
+/// The tenant every address lives in unless something says otherwise.
+///
+/// VNI 0 is the shared, untenanted space: it is what an interface that was
+/// never registered belongs to, what the uplink towards the outside world uses
+/// and what a setup that does not care about tenants ends up running in
+/// entirely. Isolated tenants start at 1.
+pub const VNI_DEFAULT: u32 = 0;
+
+/// Largest VNI that still fits into the 24 bit field of a VXLAN header.
+pub const VNI_MAX: u32 = 0x00ff_ffff;
+
+/// UDP port the overlay tunnel is carried on.
+pub const OVERLAY_PORT: u16 = 5555;
+
+/// Bytes the overlay adds to a frame: Ethernet + IPv4 + UDP + VXLAN.
+///
+/// This is what the underlay MTU has to accommodate on top of the MTU the VMs
+/// are configured with.
+pub const OVERLAY_OVERHEAD: usize = 14 + 20 + 8 + 8;
 
 /// Index of the uplink mode switch inside the `GATEWAY_CONFIG` array map.
 ///
@@ -25,11 +45,53 @@ pub const CONFIG_UPLINK_MODE: u32 = 0;
 /// Number of entries of the `GATEWAY_CONFIG` array map.
 pub const CONFIG_ENTRIES: u32 = 1;
 
+/// Key of `ROUTE_MAP`, `FILTER_MAP` and `FIP_SNAT_MAP`: an address inside a tenant.
+///
+/// A plain destination address is not enough to decide where a packet goes as
+/// soon as two VMs on the same gateway may carry the same address. The tenant
+/// the packet belongs to is therefore part of every lookup, and the two halves
+/// together are what a route, a filter and a floating IP are stored under.
+///
+/// Both fields are in host byte order.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct RouteKey {
+    pub vni: u32,
+    pub dst: u32,
+}
+
+impl RouteKey {
+    /// Builds a key from a tenant and an address.
+    ///
+    /// # Arguments
+    /// * `vni` - The tenant the address is valid in
+    /// * `dst` - The IPv4 address in host byte order
+    ///
+    /// # Returns
+    /// The `RouteKey` the eBPF maps are indexed with
+    #[inline(always)]
+    pub const fn new(vni: u32, dst: u32) -> Self {
+        Self { vni, dst }
+    }
+
+    /// Builds the key of the default route of a tenant.
+    ///
+    /// # Arguments
+    /// * `vni` - The tenant whose default route is wanted
+    ///
+    /// # Returns
+    /// The key `0.0.0.0` is stored under inside that tenant
+    #[inline(always)]
+    pub const fn default_route(vni: u32) -> Self {
+        Self { vni, dst: 0 }
+    }
+}
+
 /// Target descriptor used inside eBPF maps for routing logic.
 ///
 /// This C-compatible struct provides the eBPF application with routing
 /// directives. Depending on `action`, it directs the router to either
-/// forward a packet locally (out of `ifindex`) or to perform UDP tunnel
+/// forward a packet locally (out of `ifindex`) or to perform VXLAN
 /// encapsulation using the provided Underlay IP and MAC addresses.
 ///
 /// For local forwarding (`action == 0`) the router behaves like a real L3 hop:
@@ -37,11 +99,16 @@ pub const CONFIG_ENTRIES: u32 = 1;
 /// redirect. This is what allows the TAP devices to stay completely
 /// unnumbered (no IP, no subnet) while still delivering frames with the
 /// link-layer addresses the receiving VM (or the host) actually accepts.
+///
+/// `vni` is the tenant the packet belongs to. For an encapsulated route it is
+/// written into the VXLAN header, which is what lets the receiving gateway put
+/// the packet back into the right tenant before it looks up anything.
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct RouteTarget {
     pub action: u32,  // 0 = Local Interface, 1 = Encapsulate & Send, 2 = Kernel (IPsec)
     pub ifindex: u32, // Local interface index to redirect out of (e.g., eth0)
+    pub vni: u32,     // Tenant of the route; goes into the VXLAN header on encap
     pub encap_dst_ip: u32, // Target Gateway Underlay IP
     pub encap_dst_mac: [u8; 6],
     pub _pad1: [u8; 2],
@@ -61,8 +128,9 @@ pub struct RouteTarget {
 /// XDP program answers them itself (proxy ARP) using `mac` - the MAC of the TAP
 /// device the VM is attached to. Because every TAP is a point-to-point link
 /// towards exactly one VM, answering with a single MAC for every queried
-/// address is unambiguous and lets several VMs of the *same* subnet live on the
-/// same host without any address collision on the host side.
+/// address is unambiguous and lets several VMs of the *same* subnet - and, with
+/// tenants, of the *same address* - live on the same host without any collision
+/// on the host side.
 ///
 /// The same struct describes an uplink in the single gateway setup: there `mac`
 /// is the MAC of the uplink, handed out for the floating IPs, and `vm_ip` is
@@ -73,6 +141,75 @@ pub struct ArpProxy {
     pub mac: [u8; 6], // MAC handed out in the ARP replies (the TAP's own MAC)
     pub _pad: [u8; 2],
     pub vm_ip: u32, // IP of the attached VM; never answered (0 = unknown)
+}
+
+/// `IfaceConfig` flag: floating IP translation happens on this interface.
+///
+/// Only a port that faces the outside world carries it. A floating IP is the
+/// globally unique name of a VM, so the mapping is also what tells the datapath
+/// which tenant an arriving packet belongs to - and that must not be possible
+/// from inside a tenant, or a VM could reach another tenant by addressing its
+/// floating IP.
+pub const IFACE_FLAG_FIP: u32 = 1 << 0;
+
+/// Per-interface configuration of the overlay datapath.
+///
+/// Every interface the `overlay_ingress` program is attached to belongs to
+/// exactly one tenant, and that is where the VNI of a packet coming out of a VM
+/// is taken from - the VM never gets to name its own tenant. An interface that
+/// was never registered behaves like a port of the default tenant with floating
+/// IP translation enabled, which is exactly how the datapath worked before
+/// tenants existed.
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct IfaceConfig {
+    pub vni: u32,
+    pub flags: u32,
+}
+
+impl IfaceConfig {
+    /// Configuration assumed for an interface the control plane never registered.
+    ///
+    /// # Arguments
+    /// None
+    ///
+    /// # Returns
+    /// The default tenant with floating IP translation switched on
+    #[inline(always)]
+    pub const fn unregistered() -> Self {
+        Self {
+            vni: VNI_DEFAULT,
+            flags: IFACE_FLAG_FIP,
+        }
+    }
+
+    /// Reports whether floating IP translation runs on this interface.
+    ///
+    /// # Arguments
+    /// None
+    ///
+    /// # Returns
+    /// `true` when the interface carries `IFACE_FLAG_FIP`
+    #[inline(always)]
+    pub const fn does_fip(&self) -> bool {
+        self.flags & IFACE_FLAG_FIP != 0
+    }
+}
+
+/// Value of `FIP_DNAT_MAP`: the VM a floating IP stands for.
+///
+/// Floating IPs are unique across the whole setup - they are the addresses the
+/// outside world uses - so the map is keyed by the floating IP alone. The
+/// tenant travels in the value instead, because resolving a floating IP is
+/// precisely the step that moves a packet from the shared uplink into the
+/// tenant of the VM behind it.
+///
+/// Both fields are in host byte order.
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct FipTarget {
+    pub vni: u32,
+    pub ip: u32,
 }
 
 /// Maximum number of IP ranges one route filter can hold.

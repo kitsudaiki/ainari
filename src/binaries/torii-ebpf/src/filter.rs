@@ -1,7 +1,7 @@
 use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::ip::IpProto;
-use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, RouteFilter};
+use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, RouteFilter, RouteKey};
 
 use crate::headers::{Ipv4Hdr, TcpHdr, UdpHdr};
 use crate::maps::lookup_filter;
@@ -132,12 +132,12 @@ fn read_ports(
 /// # Arguments
 /// * `ctx` - The XDP context of the packet
 /// * `eth_type` - The already parsed EtherType of the frame
-/// * `route_key` - The key the route was matched under
+/// * `route_key` - The `(vni, destination)` key the route was matched under
 ///
 /// # Returns
 /// `true` when the packet may be forwarded, `false` when it has to be dropped
 #[inline(always)]
-pub fn filter_allows(ctx: &XdpContext, eth_type: EtherType, route_key: u32) -> bool {
+pub fn filter_allows(ctx: &XdpContext, eth_type: EtherType, route_key: RouteKey) -> bool {
     if eth_type != EtherType::Ipv4 {
         return true;
     }

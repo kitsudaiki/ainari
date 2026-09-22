@@ -39,11 +39,12 @@ pub async fn list_connection_internal(
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
     let mut connections: Vec<Connection> = st.connections.values().cloned().collect();
-    connections.sort_by_key(|conn| (conn.local_ip, conn.remote_ip));
+    connections.sort_by_key(|conn| (conn.vni, conn.local_ip, conn.remote_ip));
 
     let mut resp = ConnectionListResp::default();
     for connection in connections {
         let converted_route = ConnectionResp {
+            vni: connection.vni,
             local_ip: connection.local_ip,
             remote_ip: connection.remote_ip,
             peer_gateway_ip: connection.peer_gateway_ip,

@@ -1,26 +1,37 @@
-use crate::headers::{Ipv4Hdr, UdpHdr};
+use crate::headers::{Ipv4Hdr, UdpHdr, VxlanHdr};
 use crate::utils::{ipv4_checksum, ptr_at_mut};
 use aya_ebpf::bindings::xdp_action;
 use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::ip::IpProto;
-use torii_common::RouteTarget;
+use torii_common::{OVERLAY_OVERHEAD, OVERLAY_PORT, RouteTarget};
 
-/// Encapsulates a local packet in a UDP tunnel and forwards it over the underlay network.
+/// The overhead the overlay claims has to be exactly the headers it writes,
+/// otherwise encapsulation and decapsulation would disagree about where the
+/// inner frame starts.
+const _: () = assert!(OVERLAY_OVERHEAD == EthHdr::LEN + Ipv4Hdr::LEN + UdpHdr::LEN + VxlanHdr::LEN);
+
+/// Encapsulates a local packet in a VXLAN tunnel and forwards it over the underlay network.
 ///
-/// Expands the packet buffer head by 42 bytes to accommodate the new Ethernet, IPv4, and UDP
-/// headers. It constructs these headers using the target's underlay IP/MAC addresses
-/// specified in the `RouteTarget` and recalculates checksums before issuing an XDP redirect.
+/// Expands the packet buffer head by [`OVERLAY_OVERHEAD`] bytes to accommodate the new
+/// Ethernet, IPv4, UDP and VXLAN headers. It constructs these headers using the target's
+/// underlay IP/MAC addresses specified in the `RouteTarget` and recalculates checksums
+/// before issuing an XDP redirect.
+///
+/// The VXLAN header carries the tenant of the route. That is the whole point of
+/// the outer headers here: the receiving gateway has no other way to tell which
+/// of its tenants an inner address belongs to, because the very same address may
+/// exist in several of them.
 ///
 /// # Arguments
 /// * `ctx` - The XDP context for the packet being processed
-/// * `target` - The routing instruction containing the underlay configuration (IPs and MACs)
+/// * `target` - The routing instruction containing the underlay configuration (IPs, MACs, VNI)
 ///
 /// # Returns
 /// An eBPF `xdp_action` code, predominantly `XDP_REDIRECT` on success or `XDP_DROP` on failure
 #[inline(always)]
 pub fn encap_and_redirect(ctx: &XdpContext, target: &RouteTarget) -> u32 {
-    if unsafe { aya_ebpf::helpers::bpf_xdp_adjust_head(ctx.ctx, -42) } != 0 {
+    if unsafe { aya_ebpf::helpers::bpf_xdp_adjust_head(ctx.ctx, -(OVERLAY_OVERHEAD as i32)) } != 0 {
         return xdp_action::XDP_DROP;
     }
 
@@ -35,6 +46,10 @@ pub fn encap_and_redirect(ctx: &XdpContext, target: &RouteTarget) -> u32 {
         Err(_) => return xdp_action::XDP_DROP,
     };
     let new_udphdr = match ptr_at_mut::<UdpHdr>(ctx, EthHdr::LEN + Ipv4Hdr::LEN) {
+        Ok(h) => h,
+        Err(_) => return xdp_action::XDP_DROP,
+    };
+    let new_vxlanhdr = match ptr_at_mut::<VxlanHdr>(ctx, EthHdr::LEN + Ipv4Hdr::LEN + UdpHdr::LEN) {
         Ok(h) => h,
         Err(_) => return xdp_action::XDP_DROP,
     };
@@ -61,12 +76,16 @@ pub fn encap_and_redirect(ctx: &XdpContext, target: &RouteTarget) -> u32 {
     unsafe { core::ptr::write_unaligned(new_ipv4hdr, ip_hdr) };
 
     let udp_hdr = UdpHdr {
-        source: u16::to_be(5555),
-        dest: u16::to_be(5555),
+        source: u16::to_be(OVERLAY_PORT),
+        dest: u16::to_be(OVERLAY_PORT),
         len: u16::to_be(pkt_len - EthHdr::LEN as u16 - Ipv4Hdr::LEN as u16),
         check: 0,
     };
     unsafe { core::ptr::write_unaligned(new_udphdr, udp_hdr) };
+
+    // The tenant the inner frame belongs to, so the far side can look it up in
+    // the right half of its routing map.
+    unsafe { core::ptr::write_unaligned(new_vxlanhdr, VxlanHdr::new(target.vni)) };
 
     unsafe { aya_ebpf::helpers::bpf_redirect(target.ifindex, 0) as u32 }
 }

@@ -224,9 +224,142 @@ pub fn parse_mac(mac: &str) -> Option<[u8; 6]> {
     Some(out)
 }
 
+/// Rejects a VNI, which would not survive the 24 bit field of a VXLAN header.
+///
+/// Everything else about a tenant is implicit - a tenant exists as soon as something is
+/// registered in it - so this is the only validation a VNI ever needs.
+///
+/// # Arguments
+/// * `vni` - The tenant taken from a request-payload
+///
+/// # Returns
+/// `Ok(())` for a usable tenant, otherwise a message naming the limit
+pub fn validate_vni(vni: u32) -> Result<(), String> {
+    if vni > torii_common::VNI_MAX {
+        return Err(format!(
+            "vni {} is larger than the 24 bit VXLAN limit {}",
+            vni,
+            torii_common::VNI_MAX
+        ));
+    }
+    Ok(())
+}
+
+/// Priority of the rule, which sends the traffic of an interface into the table of its tenant.
+const RULE_PRIO_TABLE: &str = "1000";
+
+/// Priority of the rule, which stops the lookup when the table of the tenant has no answer.
+const RULE_PRIO_GUARD: &str = "1001";
+
+/// Appends `table <id>` to an `ip route` argument-vector, when the tenant has one.
+///
+/// # Arguments
+/// * `args` - The argument-vector, which is being built
+/// * `table` - The table-name returned by `Network::tenant_table`
+///
+/// # Returns
+/// None. The vector is extended in place.
+pub fn with_table<'a>(args: &mut Vec<&'a str>, table: &'a Option<String>) {
+    if let Some(table) = table.as_deref() {
+        args.extend_from_slice(&["table", table]);
+    }
+}
+
+/// Points everything arriving on one interface at the routing-table of its tenant.
+///
+/// This is the kernel side counterpart of the VNI: a packet, which XDP handed up for IPsec
+/// processing, has lost every trace of its tenant by then, and the only thing left to recognise
+/// it by is the interface it came in on.
+///
+/// Two rules are written, not one. A plain table-rule falls through to the next rule, when its
+/// table has no matching route, and the next rule is eventually `main` - which is the table of
+/// the shared tenant. A tenant, which does not know a destination, would therefore quietly borrow
+/// the route of tenant 0, so a second rule right behind the first one ends the lookup instead.
+///
+/// The rules are removed first, because `ip rule` has no replace-operation and would happily
+/// install the same rule twice.
+///
+/// # Arguments
+/// * `iface` - The interface the rules select on
+/// * `table` - The table-name returned by `Network::tenant_table`
+///
+/// # Returns
+/// `Ok(())` when both rules are in place, or the error reported by `ip`
+pub fn bind_iface_to_table(iface: &str, table: &Option<String>) -> Result<(), String> {
+    let Some(table) = table.as_deref() else {
+        return Ok(());
+    };
+    unbind_iface_from_table(iface, &Some(table.to_owned()));
+    run_ip(&[
+        "rule",
+        "add",
+        "iif",
+        iface,
+        "table",
+        table,
+        "priority",
+        RULE_PRIO_TABLE,
+    ])?;
+    run_ip(&[
+        "rule",
+        "add",
+        "iif",
+        iface,
+        "unreachable",
+        "priority",
+        RULE_PRIO_GUARD,
+    ])
+}
+
+/// Drops the policy-routing rules of an interface again.
+///
+/// # Arguments
+/// * `iface` - The interface the rules select on
+/// * `table` - The table-name returned by `Network::tenant_table`
+///
+/// # Returns
+/// None. Errors are ignored: the rules may already be gone.
+pub fn unbind_iface_from_table(iface: &str, table: &Option<String>) {
+    if let Some(table) = table.as_deref() {
+        let _ = run_ip(&[
+            "rule",
+            "del",
+            "iif",
+            iface,
+            "table",
+            table,
+            "priority",
+            RULE_PRIO_TABLE,
+        ]);
+        let _ = run_ip(&[
+            "rule",
+            "del",
+            "iif",
+            iface,
+            "unreachable",
+            "priority",
+            RULE_PRIO_GUARD,
+        ]);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_table_is_only_appended_for_a_real_tenant() {
+        let mut args = vec!["route", "replace", "10.0.0.1/32"];
+        with_table(&mut args, &None);
+        assert_eq!(args, vec!["route", "replace", "10.0.0.1/32"]);
+
+        let table = Some("101".to_owned());
+        with_table(&mut args, &table);
+        assert_eq!(
+            args,
+            vec!["route", "replace", "10.0.0.1/32", "table", "101"]
+        );
+    }
 
     #[test]
     fn secrets_are_masked_in_error_messages() {

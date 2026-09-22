@@ -19,9 +19,18 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::common_structs::default_vni;
+
+/// Request to create a TAP device and attach a VM to it.
+///
+/// `vni` places the port into a tenant. Everything the VM behind it sends takes
+/// its tenant from this registration and from nowhere else, which is what lets
+/// two VMs with the *same address* live on one host.
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TapReq {
     pub tap_name: String,
+    #[serde(default = "default_vni")]
+    pub vni: u32,
     #[serde(default)]
     pub vm_mac: Option<String>,
     #[serde(default)]
@@ -33,13 +42,26 @@ pub struct TapResp {
     pub success: bool,
     pub message: String,
     pub tap_name: String,
+    pub vni: u32,
 }
 
+/// Request to configure an already existing interface.
+///
+/// Besides the address and the link state this is also where a port is placed
+/// into a tenant. `fip_port` marks the interface that faces the outside world:
+/// only there does the datapath translate floating IPs, and only there may a
+/// floating IP decide which tenant a packet belongs to. Marking a TAP as a
+/// floating IP port would let the VM behind it reach every other tenant by
+/// addressing a floating IP, so the two settings exclude each other in practice.
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct IfaceConfigReq {
     pub iface_name: String,
     pub ip_cidr: Option<String>,
     pub up: bool,
+    #[serde(default = "default_vni")]
+    pub vni: u32,
+    #[serde(default)]
+    pub fip_port: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
@@ -47,4 +69,6 @@ pub struct IfaceConfigResp {
     pub iface_name: String,
     pub ip_cidr: Option<String>,
     pub up: bool,
+    pub vni: u32,
+    pub fip_port: bool,
 }

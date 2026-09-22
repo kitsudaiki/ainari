@@ -20,10 +20,20 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::common_structs::default_vni;
+
+/// Request to create or update one route.
+///
+/// `vni` names the tenant `dest_ip` is valid in. Two routes may carry the same
+/// destination as long as their tenants differ - that is the entire point of the
+/// field, and what allows two VMs with the same address to be hosted side by
+/// side. Leaving it out puts the route into the shared tenant 0.
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct RouteReq {
     pub dest_ip: Ipv4Addr,
     pub target_iface: String,
+    #[serde(default = "default_vni")]
+    pub vni: u32,
     #[serde(default)]
     pub gateway_ip: Option<Ipv4Addr>,
     #[serde(default)]
@@ -42,6 +52,7 @@ pub struct RouteListResp {
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct RouteResp {
     pub uuid: Uuid,
+    pub vni: u32,
     pub dest_ip: Ipv4Addr,
     pub target_iface: String,
     pub gateway_ip: Option<Ipv4Addr>,
