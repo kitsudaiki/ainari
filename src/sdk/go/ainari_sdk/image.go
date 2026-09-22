@@ -35,18 +35,6 @@ func CreateDiskImage(context AccessContext, imageName, filePath string) (map[str
 	return UploadFiles(context, path, files)
 }
 
-func CreateMnistImage(context AccessContext, imageName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/mnist/%s", imageName)
-	files := []string{imageFilePath, labelFilePath}
-	return UploadFiles(context, path, files)
-}
-
-func CreateCsvImage(context AccessContext, imageName, filePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/csv/%s", imageName)
-	files := []string{filePath}
-	return UploadFiles(context, path, files)
-}
-
 func GetImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}

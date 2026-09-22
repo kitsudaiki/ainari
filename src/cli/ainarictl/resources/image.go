@@ -34,32 +34,10 @@ var (
 	rowOffset          int
 	numberOfRows       int
 	inputFilePath      string
-	labelFilePath      string
 	referenceImageUuid string
 	imageColumn        string
 	referenceColumn    string
 )
-
-var createMnistImageCmd = &cobra.Command{
-	Use:   "mnist -i INPUT_FILE_PATH -l LABEL_FILE_PATH IMAGE_NAME",
-	Short: "Upload new mnist image.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		imageName := args[0]
-		content, err := ainari_sdk.CreateMnistImage(context, imageName, inputFilePath, labelFilePath)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
 
 var createDiskImageCmd = &cobra.Command{
 	Use:   "disk -i INPUT_FILE_PATH IMAGE_NAME",
@@ -73,27 +51,6 @@ var createDiskImageCmd = &cobra.Command{
 		}
 		imageName := args[0]
 		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-var createCsvImageCmd = &cobra.Command{
-	Use:   "csv -i INPUT_FILE_PATH IMAGE_NAME",
-	Short: "Upload new csv image.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		imageName := args[0]
-		content, err := ainari_sdk.CreateCsvImage(context, imageName, inputFilePath)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -241,19 +198,9 @@ func Init_Image_Commands(rootCmd *cobra.Command) {
 
 	imageCmd.AddCommand(createImageCmd)
 
-	createImageCmd.AddCommand(createMnistImageCmd)
-	createMnistImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	createMnistImageCmd.Flags().StringVarP(&labelFilePath, "label", "l", "", "Path to file with label-data (mandatory)")
-	createMnistImageCmd.MarkFlagRequired("input")
-	createMnistImageCmd.MarkFlagRequired("label")
-
 	createImageCmd.AddCommand(createDiskImageCmd)
 	createDiskImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to the disk-image-file (mandatory)")
 	createDiskImageCmd.MarkFlagRequired("input")
-
-	createImageCmd.AddCommand(createCsvImageCmd)
-	createCsvImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to file with input-data (mandatory)")
-	createCsvImageCmd.MarkFlagRequired("input")
 
 	imageCmd.AddCommand(checkImageCmd)
 	checkImageCmd.Flags().StringVarP(&imageColumn, "column", "c", "", "Name of the column of the image to check (mandatory)")

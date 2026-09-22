@@ -18,7 +18,6 @@ use std::fs;
 
 mod api;
 mod config;
-mod core;
 mod database;
 mod onsen_functions;
 

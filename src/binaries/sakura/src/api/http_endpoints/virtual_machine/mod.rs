@@ -20,23 +20,16 @@ pub mod get_virtual_machine_internal_v1_0;
 pub mod list_virtual_machine_internal_v1_0;
 pub mod reserve_virtual_machine_internal_v1_0;
 
-use std::fs;
 use uuid::Uuid;
 
 use crate::config;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::image::*;
-use ainari_clients::onsen_file_transfer::*;
 use ainari_clients::secret::get_secret_payload;
-use ainari_common::config::Endpoint;
 use ainari_common::secret::Secret;
-use ainari_dataset::dataset_io::{DataSetFileReadHandle, read_data_set_file};
-use ainari_dataset::file_encryption::decrypt_file;
 
 /// Retrieves a secret from the secret service.
 ///
@@ -65,99 +58,6 @@ async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret,
     .map_err(map_ainari_error_to_api_response)?;
 
     Ok(Secret::from(secret_payload.secret_payload))
-}
-
-/// Handles the input data for a task, downloading, decrypting, and preparing it.
-///
-/// This asynchronous function manages the entire input data pipeline:
-/// 1. Gets image information
-/// 2. Downloads the encrypted image
-/// 3. Decrypts the image
-/// 4. Prepares the image for processing
-///
-/// # Arguments
-/// * `input` - The task input to handle
-/// * `endpoint` - The endpoint to use for image operations
-/// * `temp_dir` - The temporary directory for file operations
-/// * `context` - The user context for authentication
-/// * `number_of_cycles` - The number of cycles to potentially adjust
-///
-/// # Returns
-/// * `Result<DataSetFileReadHandle, ErrorResponse>` - The prepared image handle
-#[allow(dead_code)]
-async fn handle_input(
-    input: &TaskImageLink,
-    endpoint: &Endpoint,
-    temp_dir: &String,
-    context: &UserContext,
-    number_of_cycles: &mut u64,
-) -> Result<DataSetFileReadHandle, ErrorResponse> {
-    // get image information
-    let image_resp = get_image(
-        endpoint,
-        &context.token,
-        &config::INTERNAL_API_KEY,
-        &input.image_uuid,
-        config::CONFIG.skip_tls_verification,
-    )
-    .await
-    .map_err(map_ainari_error_to_api_response)?;
-
-    // check if requested column even exist in the image
-    if !image_resp.column_names.contains(&input.image_column) {
-        let msg = format!(
-            "Image-column with name '{}' doesn't exist in image with UUID '{}'",
-            input.image_column, input.image_uuid
-        );
-        return Err(ErrorResponse::BadRequest(msg));
-    }
-
-    // create temp-file-paths
-    let local_file_path = format!("{}/{}", temp_dir, image_resp.uuid);
-    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
-
-    download_file(
-        &image_resp.onsen_address,
-        &image_resp.file_path,
-        &local_encrypted_file_path,
-    )
-    .await
-    .map_err(|e| {
-        let _ = fs::remove_file(&local_encrypted_file_path);
-        log::error!("Failed to download image-file from onsen: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
-
-    // decrypt image
-    let secret = get_secret(&image_resp.secret_uuid, context).await?;
-    decrypt_file(&local_encrypted_file_path, &local_file_path, &secret)
-        .await
-        .map_err(|e| {
-            let _ = fs::remove_file(&local_encrypted_file_path);
-            let _ = fs::remove_file(&local_file_path);
-            map_ainari_error_to_api_response(e)
-        })?;
-
-    // delete encrypted file again
-    let _ = fs::remove_file(&local_encrypted_file_path);
-
-    let mut file_handle = read_data_set_file(&local_file_path).map_err(|e| {
-        log::error!(
-            "Failed to read image-file '{}' with error: {e}",
-            image_resp.file_path
-        );
-        let _ = fs::remove_file(&local_encrypted_file_path);
-        let _ = fs::remove_file(&local_file_path);
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
-
-    let number_of_rows = file_handle.get_number_of_rows();
-    if *number_of_cycles > number_of_rows {
-        *number_of_cycles = number_of_rows;
-    }
-    file_handle.selected_column = input.image_column.clone();
-
-    Ok(file_handle)
 }
 
 /// Removes all files and directories in the specified target directory.

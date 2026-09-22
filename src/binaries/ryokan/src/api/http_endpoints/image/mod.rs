@@ -31,7 +31,6 @@ use ainari_clients::quota::get_quota;
 
 /// Validates that the provided image type is one of the supported types.
 ///
-/// This function checks if the given `image_type` is either "mnist" or "csv".
 /// If the type is not in the supported list, it returns an `ErrorResponse::BadRequest`
 /// with a descriptive message. Otherwise, it returns `Ok(())` indicating the type is valid.
 ///
@@ -41,12 +40,12 @@ use ainari_clients::quota::get_quota;
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the image type is valid ("mnist" or "csv").
+/// * `Ok(())` - If the image type is valid ("disk").
 /// * `Err(ErrorResponse::BadRequest)` - If the image type is not in the supported list.
 ///
 fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
-    if !["mnist", "csv", "disk"].contains(&image_type.as_str()) {
-        let msg = format!("Type '{image_type}' is not in list [ mnist, csv, disk ]");
+    if !["disk"].contains(&image_type.as_str()) {
+        let msg = format!("Type '{image_type}' is not in list [ disk ]");
         return Err(ErrorResponse::BadRequest(msg.to_string()));
     }
 

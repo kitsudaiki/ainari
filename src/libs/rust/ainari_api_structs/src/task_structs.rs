@@ -198,42 +198,6 @@ impl FromStr for TaskState {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskImageLink {
-    pub image_uuid: Uuid,
-    #[validate(length(min = 4, max = 127))]
-    pub image_column: String,
-    #[validate(length(min = 4, max = 127))]
-    pub hexagon: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskImageResultLink {
-    #[validate(length(min = 4, max = 127))]
-    pub hexagon: String,
-}
-
-/// Common access to the hexagon-name of the different image-link-structs.
-///
-/// Leftover of the previous project-direction and currently unused.
-pub trait ImageLink {
-    /// Returns the name of the hexagon, which the image is linked to.
-    fn get_hexagon_name(&self) -> String;
-}
-
-// implemented for both link-types, so they can be handled the same way
-impl ImageLink for TaskImageLink {
-    fn get_hexagon_name(&self) -> String {
-        self.hexagon.clone()
-    }
-}
-
-impl ImageLink for TaskImageResultLink {
-    fn get_hexagon_name(&self) -> String {
-        self.hexagon.clone()
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineCreateTaskReq {
     pub vm_uuid: Uuid,
     pub image_uuid: Uuid,

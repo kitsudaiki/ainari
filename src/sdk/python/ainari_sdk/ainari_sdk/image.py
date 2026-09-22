@@ -89,28 +89,3 @@ def upload_disk_file(context: AccessContext,
                                        context.ryokan_adress,
                                        path,
                                        files)
-
-
-def upload_mnist_files(context: AccessContext,
-                       name: str,
-                       input_file_path: str,
-                       label_file_path: str) -> dict:
-    path = f"/v1alpha/image/mnist/{name}"
-    files = [input_file_path, label_file_path]
-
-    return ainari_request.upload_files(context,
-                                       context.ryokan_adress,
-                                       path,
-                                       files)
-
-
-def upload_csv_files(context: AccessContext,
-                     name: str,
-                     input_file_path: str) -> dict:
-    path = f"/v1alpha/image/csv/{name}"
-    files = [input_file_path]
-
-    return ainari_request.upload_files(context,
-                                       context.ryokan_adress,
-                                       path,
-                                       files)
