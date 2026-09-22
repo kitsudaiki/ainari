@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use aya::maps::{Array, HashMap as AyaHashMap};
-use aya::programs::{Xdp, XdpFlags};
-use aya::{Bpf, include_bytes_aligned};
+use aya::programs::{Xdp, XdpMode};
+use aya::{Ebpf, include_bytes_aligned};
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::process;
@@ -65,7 +65,7 @@ pub fn init_routing() -> GatewayState {
     // datapath, which requires forwarding to be enabled in this namespace.
     enable_forwarding("/proc/sys/net/ipv4/ip_forward");
 
-    let mut bpf = Bpf::load(include_bytes_aligned!(concat!(env!("OUT_DIR"), "/torii"))).unwrap();
+    let mut bpf = Ebpf::load(include_bytes_aligned!(concat!(env!("OUT_DIR"), "/torii"))).unwrap();
 
     // Both forwarding maps are keyed by (vni, destination): one entry per tenant
     // per address, which is what allows the same address in several tenants.
@@ -105,7 +105,7 @@ pub fn init_routing() -> GatewayState {
         .unwrap();
     overlay.load().unwrap();
     if get_ifindex(overlay_iface) > 0 {
-        overlay.attach(overlay_iface, XdpFlags::SKB_MODE).unwrap();
+        overlay.attach(overlay_iface, XdpMode::Skb).unwrap();
         println!("Attached overlay_ingress to {}", overlay_iface);
     } else {
         println!(
@@ -121,7 +121,7 @@ pub fn init_routing() -> GatewayState {
         .unwrap();
     underlay.load().unwrap();
     if get_ifindex(underlay_iface) > 0 {
-        underlay.attach(underlay_iface, XdpFlags::SKB_MODE).unwrap();
+        underlay.attach(underlay_iface, XdpMode::Skb).unwrap();
         println!("Attached underlay_ingress to {}", underlay_iface);
     } else {
         println!("Warning: Underlay interface {} not found.", underlay_iface);
@@ -140,7 +140,7 @@ pub fn init_routing() -> GatewayState {
         fip_snat_map,
         arp_proxy_map,
         iface_map,
-        bpf, // Retain Bpf context for dynamic API attachments
+        bpf, // Retain Ebpf context for dynamic API attachments
     };
 
     // UPLINK: the gateway at the edge of the network serves the floating IPs and sends
@@ -253,7 +253,7 @@ fn setup_uplink(
             .program_mut("overlay_ingress")
             .expect("Missing overlay_ingress")
             .try_into()?;
-        overlay.attach(uplink_iface, XdpFlags::SKB_MODE)?;
+        overlay.attach(uplink_iface, XdpMode::Skb)?;
     }
 
     let mut uplinks: AyaHashMap<_, u32, ArpProxyPod> =

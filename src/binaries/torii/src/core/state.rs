@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use aya::Bpf;
+use aya::Ebpf;
 use aya::maps::{HashMap as AyaHashMap, MapData};
 use uuid::Uuid;
 
@@ -36,5 +36,5 @@ pub struct GatewayState {
     pub iface_map: AyaHashMap<MapData, u32, IfaceConfigPod>,
     // Kept in state both to attach programs to TAP devices created later on and
     // because dropping it would detach the running XDP programs.
-    pub bpf: Bpf,
+    pub bpf: Ebpf,
 }
