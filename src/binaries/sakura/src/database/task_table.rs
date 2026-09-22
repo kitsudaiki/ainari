@@ -175,33 +175,21 @@ fn add_task(task: TaskEntry) -> QueryResult<usize> {
 
 /// Retrieves a specific task from the database.
 ///
-/// This function fetches a task by its UUID and virtual_machine UUID, applying appropriate access control
+/// This function fetches a task by its UUID, applying appropriate access control
 /// based on the user's permissions in the provided context.
 ///
 /// # Arguments
 /// * `task_uuid` - UUID of the task to retrieve
-/// * `virtual_machine_uuid_in` - UUID of the associated virtual_machine
 /// * `context` - User context containing user ID, project ID, and admin status
 ///
 /// # Returns
 /// * `Result<TaskEntry, enums::DbError>` - The requested task or an error if not found or other error occurs
-pub fn get_task(
-    task_uuid: &Uuid,
-    virtual_machine_uuid_in: &Uuid,
-    context: &UserContext,
-) -> Result<TaskEntry, enums::DbError> {
+pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<TaskEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     // Start building the query with the required filters
-    let mut query = tasks
-        // HINT (kitsudaiki): Had to rename the function-parameter resource_uuid to virtual_machine_uuid_in to have a different name,
-        // because here in this filter, it results in conflicts in case both sides of the eq are named the same
-        .filter(
-            uuid.eq(task_uuid.to_string())
-                .and(resource_uuid.eq(virtual_machine_uuid_in.to_string())),
-        )
-        .into_boxed();
+    let mut query = tasks.filter(uuid.eq(task_uuid.to_string())).into_boxed();
 
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -225,28 +213,22 @@ pub fn get_task(
     }
 }
 
-/// Lists all tasks associated with a specific virtual_machine in the database.
+/// Lists all tasks in the database.
 ///
-/// This function retrieves all tasks for a given virtual_machine UUID, applying appropriate access control
+/// This function retrieves all tasks, applying appropriate access control
 /// based on the user's permissions in the provided context.
 ///
 /// # Arguments
-/// * `virtual_machine_uuid_in` - UUID of the virtual_machine to list tasks for
 /// * `context` - User context containing user ID, project ID, and admin status
 ///
 /// # Returns
 /// * `QueryResult<Vec<TaskEntry>>` - Vector of task entries or an error if one occurs
-pub fn list_tasks(
-    virtual_machine_uuid_in: &Uuid,
-    context: &UserContext,
-) -> QueryResult<Vec<TaskEntry>> {
+pub fn list_tasks(context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
-    // Start building the query with the required filters
-    let mut query = tasks
-        .filter(resource_uuid.eq(virtual_machine_uuid_in.to_string()))
-        .into_boxed();
+    // Start building the query, which is only restricted by the access control
+    let mut query = tasks.into_boxed();
 
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -258,38 +240,6 @@ pub fn list_tasks(
 
     // Execute the query and return the results
     query.select(TaskEntry::as_select()).load(&mut *conn)
-}
-
-/// Updates the progress of a task in the database.
-///
-/// This function updates the current epoch and cycle counters for a specific task.
-///
-/// # Arguments
-/// * `task_uuid` - UUID of the task to update
-/// * `epoch` - New value for current_epoch
-/// * `cycle` - New value for current_cycle
-///
-/// # Returns
-/// * `Result<(), ()>` - Ok(()) if successful, Err(()) if the task was not found or another error occurred
-#[allow(dead_code)]
-pub fn update_task_progress(_task_uuid: &Uuid, _epoch: &i64, _cycle: &i64) -> Result<(), ()> {
-    // let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    // use self::tasks::dsl::*;
-
-    // // Update the task's progress fields
-    // match diesel::update(tasks.filter(uuid.eq(task_uuid.to_string())))
-    //     .set((current_epoch.eq(epoch), current_cycle.eq(cycle)))
-    //     .execute(&mut *conn)
-    // {
-    //     Ok(_) => Ok(()),
-    //     Err(diesel::result::Error::NotFound) => Err(()),
-    //     Err(e) => {
-    //         log::error!("Database-error: {e:?}");
-    //         Err(())
-    //     }
-    // }
-
-    Ok(())
 }
 
 /// Updates the state of a task in the database.
@@ -462,7 +412,7 @@ mod tests {
         hard_delete_task(&uuid1);
 
         add_task(task.clone()).unwrap();
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.uuid, task.uuid);
             assert_eq!(retrieved_task.name, task.name);
             assert_eq!(retrieved_task.created_by, task.created_by);
@@ -531,7 +481,7 @@ mod tests {
 
         add_task(task1).unwrap();
         add_task(task2).unwrap();
-        let tasks = list_tasks(&resource_uuid, &context).unwrap();
+        let tasks = list_tasks(&context).unwrap();
         assert_eq!(tasks.len(), 2);
         hard_delete_task(&uuid1);
         hard_delete_task(&uuid2);
@@ -617,7 +567,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&resource_uuid, &context).unwrap();
+        let tasks = list_tasks(&context).unwrap();
         assert_eq!(tasks.len(), 1);
 
         // list-test project-admin
@@ -628,7 +578,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let tasks = list_tasks(&resource_uuid, &context).unwrap();
+        let tasks = list_tasks(&context).unwrap();
         assert_eq!(tasks.len(), 2);
 
         // list-test admin
@@ -639,7 +589,7 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&resource_uuid, &context).unwrap();
+        let tasks = list_tasks(&context).unwrap();
         assert_eq!(tasks.len(), 3);
 
         // get-test normal user
@@ -650,7 +600,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        match get_task(&uuid1, &resource_uuid, &context) {
+        match get_task(&uuid1, &context) {
             Ok(retrieved_task) => {
                 assert_eq!(retrieved_task.uuid, uuid1);
             }
@@ -667,7 +617,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if get_task(&uuid3, &resource_uuid, &context).is_ok() {
+        if get_task(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -718,7 +668,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Created);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Created);
             assert_eq!(retrieved_task.queued_at, None);
             assert_eq!(retrieved_task.started_at, None);
@@ -728,7 +678,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Queued);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Queued);
             assert_ne!(retrieved_task.queued_at, None);
             assert_eq!(retrieved_task.started_at, None);
@@ -738,7 +688,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Active);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Active);
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
@@ -748,7 +698,7 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Aborted);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Aborted);
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
@@ -758,63 +708,13 @@ mod tests {
 
         let _ = update_task_state(&uuid1, &TaskState::Finished);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.task_state, TaskState::Finished);
             assert_ne!(retrieved_task.queued_at, None);
             assert_ne!(retrieved_task.started_at, None);
             assert_ne!(retrieved_task.aborted_at, None);
             assert_ne!(retrieved_task.finished_at, None);
         };
-
-        hard_delete_task(&uuid1);
-    }
-
-    #[test]
-    #[serial]
-    fn test_update_task_progress() {
-        init_task_table().unwrap();
-        let uuid1 = Uuid::new_v4();
-        let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::VirtualMachine;
-
-        let project_id = "test-project".to_string();
-        let owner_id = "test-user".to_string();
-        let _context = UserContext {
-            token: "".to_string(),
-            user_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
-        };
-
-        let task = TaskEntry {
-            uuid: uuid1,
-            name: "Alice".to_string(),
-            resource_uuid,
-            resource_type: resource_type.to_string(),
-            task_type: TaskType::VirtualMachineCreate,
-            task_state: TaskState::Created,
-            queued_at: None,
-            started_at: None,
-            aborted_at: None,
-            finished_at: None,
-            messages: Vec::new(),
-            owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-        };
-
-        hard_delete_task(&uuid1);
-
-        add_task(task).unwrap();
-
-        update_task_progress(&uuid1, &123, &42).unwrap();
-
-        // if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
-        //     assert_eq!(retrieved_task.current_cycle, 42);
-        //     assert_eq!(retrieved_task.current_epoch, 123);
-        // };
 
         hard_delete_task(&uuid1);
     }
@@ -860,11 +760,9 @@ mod tests {
 
         add_task(task).unwrap();
 
-        update_task_progress(&uuid1, &123, &42).unwrap();
-
         let _ = add_message_to_task(&uuid1, &error_msg);
 
-        if let Ok(retrieved_task) = get_task(&uuid1, &resource_uuid, &context) {
+        if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.messages, vec![error_msg]);
         };
 

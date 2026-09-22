@@ -43,23 +43,26 @@ func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, vir
 	return SendPost(context, address, path, jsonBody)
 }
 
-func GetTask(context AccessContext, toriiPort int, taskUuid, virtual_machineUuid string) (map[string]interface{}, error) {
+// GetTask reads a single task. The tasks are not bound to a virtual machine anymore, but the
+// torii-port still selects the sakura-host, which holds the task.
+func GetTask(context AccessContext, toriiPort int, taskUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task/%s", virtual_machineUuid, taskUuid)
+	path := fmt.Sprintf("v1alpha/task/%s", taskUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, address, path, vars)
 }
 
-func ListTask(context AccessContext, toriiPort int, virtual_machineUuid string) (map[string]interface{}, error) {
+// ListTask lists all tasks of the sakura-host behind the given torii-port.
+func ListTask(context AccessContext, toriiPort int) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task", virtual_machineUuid)
+	path := "v1alpha/task"
 	vars := map[string]interface{}{}
 	return SendGet(context, address, path, vars)
 }
 
-func AbortTask(context AccessContext, toriiPort int, taskUuid, virtual_machineUuid string) (map[string]interface{}, error) {
+func AbortTask(context AccessContext, toriiPort int, taskUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/task/%s/abort", virtual_machineUuid, taskUuid)
+	path := fmt.Sprintf("v1alpha/task/%s/abort", taskUuid)
 	vars := map[string]interface{}{}
 	return SendPut(context, address, path, vars)
 }

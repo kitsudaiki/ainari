@@ -18,7 +18,6 @@ use apistos::api_operation;
 use uuid::Uuid;
 
 use crate::database::task_table;
-use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -28,23 +27,19 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "task",
     summary = "Get task",
-    description = r###"Get information of a task of a virtual_machine from the database."###,
+    description = r###"Get information of a task from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn get_task(
-    uuids: Path<(Uuid, Uuid)>,
+    task_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<TaskResp>, ErrorResponse> {
-    let (virtual_machine_uuid, task_uuid) = uuids.into_inner();
+    let task_uuid = task_uuid.into_inner();
 
-    // check if virtual_machine exist
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
-
-    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

@@ -52,10 +52,13 @@ def create_checkpoint_restore_task(context: AccessContext,
 
 def get_task(context: AccessContext,
              torii_port: int,
-             task_uuid: str,
-             virtual_machine_uuid: str) -> dict:
+             task_uuid: str) -> dict:
+    """
+    The tasks are not bound to a virtual machine anymore, but the torii-port still selects the
+    sakura-host, which holds the task.
+    """
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/task/{task_uuid}"
+    path = f"/v1alpha/task/{task_uuid}"
     return ainari_request.send_get_request(context,
                                            address,
                                            path,
@@ -63,10 +66,12 @@ def get_task(context: AccessContext,
 
 
 def list_tasks(context: AccessContext,
-               torii_port: int,
-               virtual_machine_uuid: str) -> dict:
+               torii_port: int) -> dict:
+    """
+    Lists all tasks of the sakura-host behind the given torii-port.
+    """
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/task"
+    path = "/v1alpha/task"
     return ainari_request.send_get_request(context,
                                            address,
                                            path,
@@ -75,10 +80,9 @@ def list_tasks(context: AccessContext,
 
 def abort_task(context: AccessContext,
                torii_port: int,
-               task_uuid: str,
-               virtual_machine_uuid: str):
+               task_uuid: str):
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/task/{task_uuid}/abort"
+    path = f"/v1alpha/task/{task_uuid}/abort"
     ainari_request.send_put_request(context,
                                     address,
                                     path,
@@ -88,11 +92,10 @@ def abort_task(context: AccessContext,
 def wait_for_task_finished(context: AccessContext,
                            torii_port: int,
                            task_uuid: str,
-                           virtual_machine_uuid: str,
                            time_interval: float = 1.0):
     finished = False
     while not finished:
-        result = get_task(context, torii_port, task_uuid, virtual_machine_uuid)
+        result = get_task(context, torii_port, task_uuid)
         finished = result["state"] == "FINISHED"
         # in case that the task is already finished, an unnecessary sleep should be avoided
         if finished:
