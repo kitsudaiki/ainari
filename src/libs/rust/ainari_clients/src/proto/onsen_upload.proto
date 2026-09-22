@@ -24,8 +24,6 @@ service DataService {
   rpc DownloadFile(DownloadRequest) returns (stream DataChunk);
 
   rpc DeleteFile(DeleteRequest) returns (DataResponse);
-
-  rpc GetImageDimension(ImageDimensionRequest) returns (ImageDimensionResponse);
 }
 
 message DataChunk {
@@ -44,17 +42,6 @@ message DeleteRequest {
   string remote_file_path = 1;
 }
 
-message ImageDimensionRequest {
-  string remote_file_path = 1;
-}
-
-
 message DataResponse {
   string status = 1;
-}
-
-message ImageDimensionResponse {
-  string status = 1;
-  int64 number_of_rows = 2;
-  int64 number_of_columns = 3;
 }

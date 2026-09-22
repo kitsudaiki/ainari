@@ -34,7 +34,7 @@ it easier for a new person to understand the code.
 │   │   │   ├── ainari_clients
 │   │   │   ├── ainari_model_parser
 │   │   │   ├── ainari_common
-│   │   │   ├── ainari_dataset
+│   │   │   ├── ainari_files
 │   │   │   └── ainari_hardware
 │   │   └── protobuf
 │   │
@@ -105,7 +105,7 @@ it easier for a new person to understand the code.
 
                 Common rust-functions used in the project.
 
-            - **ainari_dataset**
+            - **ainari_files**
 
                 Contains functions to read and write dataset-files.
 

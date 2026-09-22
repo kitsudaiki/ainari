@@ -90,7 +90,7 @@ pub async fn checkpoint_restore_task(
     // super::super::task::add_task(task, &task_type, &context)?;
 
     // get new created task from database to get additional information
-    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

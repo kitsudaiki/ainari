@@ -35,18 +35,6 @@ func CreateDiskImage(context AccessContext, imageName, filePath string) (map[str
 	return UploadFiles(context, path, files)
 }
 
-func CreateMnistImage(context AccessContext, imageName, imageFilePath, labelFilePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/mnist/%s", imageName)
-	files := []string{imageFilePath, labelFilePath}
-	return UploadFiles(context, path, files)
-}
-
-func CreateCsvImage(context AccessContext, imageName, filePath string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/csv/%s", imageName)
-	files := []string{filePath}
-	return UploadFiles(context, path, files)
-}
-
 func GetImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
@@ -63,18 +51,6 @@ func DeleteImage(context AccessContext, imageUuid string,) (map[string]interface
 	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.RyokanAddress, path, vars)
-}
-
-// CheckImage compares a column of an image with a column of a reference-image and returns the
-// accuracy of the comparison.
-func CheckImage(context AccessContext, imageUuid, imageColumn, referenceImageUuid, referenceColumn string,) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/%s/check", imageUuid)
-	jsonBody := map[string]interface{}{
-		"image_column":     imageColumn,
-		"reference_uuid":   referenceImageUuid,
-		"reference_column": referenceColumn,
-	}
-	return SendPut(context, context.RyokanAddress, path, jsonBody)
 }
 
 // GetImageCount returns the number of images of the project.

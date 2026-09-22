@@ -67,17 +67,3 @@ pub struct ImageBasicResp {
 pub struct ImageListResp {
     pub images: Vec<ImageBasicResp>,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct ImageCheckReq {
-    #[validate(length(min = 4, max = 127))]
-    pub image_column: String,
-    pub reference_uuid: Uuid,
-    #[validate(length(min = 4, max = 127))]
-    pub reference_column: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct ImageCheckResp {
-    pub accuracy: f32,
-}

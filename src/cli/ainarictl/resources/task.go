@@ -103,8 +103,10 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 }
 
 var getTaskCmd = &cobra.Command{
+	// the task itself is not bound to a virtual machine anymore, but the virtual machine is still
+	// required here to address the sakura-host, which holds the task
 	Use:   "get CLUSTER_UUID TASK_UUID",
-	Short: "Get information of a specific task.",
+	Short: "Get information of a specific task of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -115,7 +117,7 @@ var getTaskCmd = &cobra.Command{
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid, virtual_machineUuid)
+		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -126,8 +128,10 @@ var getTaskCmd = &cobra.Command{
 }
 
 var listTaskCmd = &cobra.Command{
+	// the tasks are not listed per virtual machine anymore, but the virtual machine is still
+	// required here to address the sakura-host, whose tasks are listed
 	Use:   "list CLUSTER_UUID",
-	Short: "List all task.",
+	Short: "List all tasks of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -137,7 +141,7 @@ var listTaskCmd = &cobra.Command{
 		}
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
-		content, err := ainari_sdk.ListTask(context, toriiPort, virtual_machineUuid)
+		content, err := ainari_sdk.ListTask(context, toriiPort)
 		if err == nil {
 			ainarictl_common.PrintList(content["tasks"].([]interface{}))
 		} else {
@@ -148,8 +152,10 @@ var listTaskCmd = &cobra.Command{
 }
 
 var abortTaskCmd = &cobra.Command{
+	// the task itself is not bound to a virtual machine anymore, but the virtual machine is still
+	// required here to address the sakura-host, which holds the task
 	Use:   "abort CLUSTER_UUID TASK_UUID",
-	Short: "Abort a specific task.",
+	Short: "Abort a specific task of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -160,7 +166,7 @@ var abortTaskCmd = &cobra.Command{
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid, virtual_machineUuid)
+		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

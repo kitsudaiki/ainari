@@ -36,7 +36,7 @@ use ainari_clients::secret::get_secret_payload;
 use ainari_common::config::Endpoints;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
-use ainari_dataset::file_encryption::decrypt_file;
+use ainari_files::file_encryption::decrypt_file;
 
 use crate::config;
 use crate::database::virtual_machine_table;

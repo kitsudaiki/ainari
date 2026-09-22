@@ -24,7 +24,6 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::config;
-use crate::core::converter::{load_csv_file, load_mnist_images};
 use crate::database::image_table;
 use crate::onsen_functions::select_onsen;
 
@@ -32,9 +31,7 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::error::AinariError;
-use ainari_dataset::dataset_io::read_data_set_file;
-use ainari_dataset::file_encryption::encrypt_file;
+use ainari_files::file_encryption::encrypt_file;
 
 #[api_operation(
     tag = "image",
@@ -58,7 +55,6 @@ pub async fn upload_binary(
         config::CONFIG.storage.tempfile_location,
         image_uuid
     );
-    let converted_result_path = format!("{target_dir_path}/converted_result");
     let encrypted_result_path = format!("{target_dir_path}/encrypted_result");
     let upload_file_path_str: String = format!("images/{image_uuid}");
 
@@ -76,21 +72,9 @@ pub async fn upload_binary(
 
         // a disk-image is the boot-disk of a virtual_machine, which is stored as it is. There is
         // nothing to convert and it has no rows and columns like the data-sets.
-        let (source_path, number_of_rows, column_names) = if image_type == "disk" {
-            (get_disk_image_path(&temp_file_paths)?, 0, Vec::new())
-        } else {
-            convert_uploaded_files(
-                &image_uuid,
-                &name,
-                &image_type,
-                &converted_result_path,
-                &temp_file_paths,
-            )
-            .await?;
-
-            let (number_of_rows, column_names) = get_image_dimension(&converted_result_path)?;
-            (converted_result_path.clone(), number_of_rows, column_names)
-        };
+        let source_path = get_disk_image_path(&temp_file_paths)?;
+        let number_of_rows: u64 = 0;
+        let column_names: Vec<String> = Vec::new();
 
         let (secret_uuid, secret) = super::super::generate_new_key(&image_uuid, &context).await?;
 
@@ -268,108 +252,4 @@ async fn write_payload_into_file(
     }
 
     Ok(temp_file_paths)
-}
-
-/// Converts uploaded files to the expected format based on image type.
-///
-/// Handles different image types (currently MNIST and CSV) and performs
-/// the appropriate conversion to a standard format for processing.
-///
-/// # Arguments
-///
-/// * `image_uuid` - Unique identifier for the image
-/// * `name` - Name of the image
-/// * `image_type` - Type of image ("mnist" or "csv"). A disk-image is not converted at all.
-/// * `target_filepath` - Path to the output converted file
-/// * `temp_file_paths` - Paths to temporary files containing uploaded data
-///
-/// # Returns
-///
-/// A `Result` indicating success or failure
-async fn convert_uploaded_files(
-    image_uuid: &Uuid,
-    name: &str,
-    image_type: &String,
-    target_filepath: &str,
-    temp_file_paths: &[PathBuf],
-) -> Result<(), ErrorResponse> {
-    // process mnist-image
-    if image_type == "mnist" {
-        let path_len = temp_file_paths.len();
-        if temp_file_paths.len() != 2 {
-            return Err(ErrorResponse::BadRequest(format!(
-                "MNIST-image expect 2 uploaded files, but there were {path_len} files found."
-            )));
-        }
-        match load_mnist_images(
-            &temp_file_paths[0],
-            &temp_file_paths[1],
-            target_filepath,
-            *image_uuid,
-            name,
-            None,
-        ) {
-            Ok(()) => {}
-            Err(e) => match e.downcast_ref::<AinariError>() {
-                Some(AinariError::InvalidInput(e)) => {
-                    let msg = e.to_string();
-                    return Err(ErrorResponse::BadRequest(msg));
-                }
-                _ => {
-                    log::error!("Failed to load mnist-images with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-                }
-            },
-        };
-    } else if image_type == "csv" {
-        let path_len = temp_file_paths.len();
-        if temp_file_paths.len() != 1 {
-            return Err(ErrorResponse::BadRequest(format!(
-                "CSV-image expect 1 uploaded files, but there were {path_len} files found."
-            )));
-        }
-        match load_csv_file(&temp_file_paths[0], target_filepath, *image_uuid, name) {
-            Ok(()) => {}
-            Err(e) => match e.downcast_ref::<AinariError>() {
-                Some(AinariError::InvalidInput(e)) => {
-                    let msg = e.to_string();
-                    return Err(ErrorResponse::BadRequest(msg));
-                }
-                _ => {
-                    log::error!("Failed to load csv-data with error: '{e}'");
-                    return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-                }
-            },
-        };
-    }
-
-    Ok(())
-}
-
-/// Retrieves the dimensions of an image file.
-///
-/// Extracts the number of rows and column names from an image file.
-///
-/// # Arguments
-///
-/// * `target_path` - Path to the image file
-///
-/// # Returns
-///
-/// A `Result` containing a tuple of (number_of_rows, column_names) on success,
-/// or an `ErrorResponse` on failure
-fn get_image_dimension(target_path: &String) -> Result<(u64, Vec<String>), ErrorResponse> {
-    let file_handle = read_data_set_file(target_path).map_err(|e| {
-        log::error!("Failed to read image dimensions from file '{target_path}' with error: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
-
-    let number_of_rows = file_handle.get_number_of_rows();
-
-    let mut column_names: Vec<String> = Vec::new();
-    for col in file_handle.header.columns {
-        column_names.push(col.0);
-    }
-
-    Ok((number_of_rows, column_names))
 }

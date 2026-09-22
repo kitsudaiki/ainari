@@ -12,4 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod converter;
+#![forbid(unsafe_code)]
+
+pub mod file_encryption;

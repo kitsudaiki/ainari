@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::{Json, Path};
+use actix_web::web::Json;
 use apistos::api_operation;
-use uuid::Uuid;
 
 use crate::database::task_table;
-use crate::database::virtual_machine_table;
 
-use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -27,21 +24,14 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "task",
     summary = "List tasks",
-    description = r###"List all tasks of a virtual_machine."###,
+    description = r###"List all tasks."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn list_task(
-    virtual_machine_uuid: Path<Uuid>,
-    context: UserContext,
-) -> Result<Json<TaskListResp>, ErrorResponse> {
-    // check if virtual_machine exist
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
-
-    let tasks = match task_table::list_tasks(&virtual_machine_uuid, &context) {
+pub async fn list_task(context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
+    let tasks = match task_table::list_tasks(&context) {
         Ok(tasks) => tasks,
         Err(e) => {
             log::error!("Failed to get list of tasks form database: '{e}'");

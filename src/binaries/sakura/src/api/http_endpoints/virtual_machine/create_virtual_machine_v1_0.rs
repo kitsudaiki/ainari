@@ -102,7 +102,7 @@ pub async fn create_virtual_machine(
     })?;
 
     // get new created task from database to get additional information
-    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::web::{Scope, delete, get, post, put, resource, scope};
+use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
@@ -44,9 +44,6 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{image_uuid}")
                         .route(get().to(get_image_v1_0::get_image))
                         .route(delete().to(delete_image_v1_0::delete_image)),
-                )
-                .service(
-                    resource("/{image_uuid}/check").route(put().to(check_image_v1_0::check_image)),
                 )
                 .service(
                     resource("/{image_uuid}/internal")

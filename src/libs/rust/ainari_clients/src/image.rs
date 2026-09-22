@@ -56,7 +56,7 @@ pub async fn init_image_in_ryokan(
     let body = ImageInitReq {
         uuid: *image_uuid,
         name: name.to_owned(),
-        image_type: "csv".to_string(), // Note: Hardcoded image type - consider making this configurable
+        image_type: "disk".to_string(),
         number_of_rows: dimension.0,
         column_names: dimension.1,
     };
