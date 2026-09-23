@@ -15,7 +15,7 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use aya::programs::{Xdp, XdpFlags};
+use aya::programs::{Xdp, XdpMode};
 use std::net::Ipv4Addr;
 use validator::Validate;
 
@@ -225,7 +225,7 @@ pub async fn register_tap_internal(
             let overlay_prog: Result<&mut Xdp, _> = program.try_into();
 
             if let Ok(overlay) = overlay_prog {
-                if let Err(e) = overlay.attach(name, XdpFlags::SKB_MODE) {
+                if let Err(e) = overlay.attach(name, XdpMode::Skb) {
                     println!(
                         "Note: eBPF attach on {} failed (maybe already attached?): {}",
                         name, e
