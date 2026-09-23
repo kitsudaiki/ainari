@@ -33,6 +33,7 @@ table! {
         is_created -> Bool,
         number_of_cores -> Integer,
         memory_size -> BigInt,
+        disk_size -> BigInt,
         image_uuid -> Varchar,
         public_key_uuid -> Varchar,
         network_uuid -> Varchar,
@@ -63,6 +64,7 @@ pub struct VirtualMachineEntry {
     pub is_created: bool,
     pub number_of_cores: i32,
     pub memory_size: i64,
+    pub disk_size: i64,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub image_uuid: Uuid,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
@@ -123,6 +125,16 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
     );",
     )?;
 
+    // added separately, so it is also added to tables of older versions. Virtual_machines of
+    // older versions got a fixed disk-size of 5 GiB, so this is used as default.
+    match conn.batch_execute(
+        "ALTER TABLE virtual_machines ADD COLUMN disk_size BIGINT NOT NULL DEFAULT 5;",
+    ) {
+        Ok(()) => {}
+        Err(e) if e.to_string().contains("duplicate column name") => {}
+        Err(e) => return Err(e.into()),
+    }
+
     Ok(())
 }
 
@@ -137,6 +149,8 @@ pub struct NewVirtualMachine {
     pub number_of_cores: i32,
     /// Amount of memory in bytes of the new virtual_machine
     pub memory_size: i64,
+    /// Size of the disk in GiB of the new virtual_machine
+    pub disk_size: i64,
     /// Unique identifier of the image of the new virtual_machine
     pub image_uuid: Uuid,
     /// Unique identifier of the public-key of the new virtual_machine
@@ -175,6 +189,7 @@ pub fn add_new_virtual_machine(
         is_created: false,
         number_of_cores: new_virtual_machine.number_of_cores,
         memory_size: new_virtual_machine.memory_size,
+        disk_size: new_virtual_machine.disk_size,
         image_uuid: new_virtual_machine.image_uuid,
         public_key_uuid: new_virtual_machine.public_key_uuid,
         network_uuid: new_virtual_machine.network_uuid,
@@ -501,6 +516,7 @@ mod tests {
             is_created: false,
             number_of_cores: 2,
             memory_size: 4096,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -538,6 +554,10 @@ mod tests {
                 assert_eq!(
                     retrieved_virtual_machine.memory_size,
                     virtual_machine.memory_size
+                );
+                assert_eq!(
+                    retrieved_virtual_machine.disk_size,
+                    virtual_machine.disk_size
                 );
                 assert_eq!(
                     retrieved_virtual_machine.image_uuid,
@@ -622,6 +642,7 @@ mod tests {
             is_created: false,
             number_of_cores: 2,
             memory_size: 4096,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -647,6 +668,7 @@ mod tests {
             is_created: false,
             number_of_cores: 2,
             memory_size: 4096,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -699,6 +721,7 @@ mod tests {
             is_created: false,
             number_of_cores: 2,
             memory_size: 4096,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -740,6 +763,7 @@ mod tests {
             is_created: false,
             number_of_cores: 1,
             memory_size: 1024,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -765,6 +789,7 @@ mod tests {
             is_created: false,
             number_of_cores: 1,
             memory_size: 1024,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),
@@ -790,6 +815,7 @@ mod tests {
             is_created: false,
             number_of_cores: 1,
             memory_size: 1024,
+            disk_size: 10,
             image_uuid: Uuid::new_v4(),
             public_key_uuid: Uuid::new_v4(),
             network_uuid: Uuid::new_v4(),

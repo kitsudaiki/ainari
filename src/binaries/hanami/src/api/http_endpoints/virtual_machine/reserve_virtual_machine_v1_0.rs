@@ -235,6 +235,7 @@ async fn prepare_selected_host(
         &body.network_uuid,
         body.number_of_cores,
         memory_size_bytes,
+        body.disk_size,
         &vm_address.internal_ip,
         &vm_address.tap_name,
         &vm_address.mac_address,
@@ -257,6 +258,9 @@ async fn prepare_selected_host(
 
     // the proxy-port is the port, where the virtual_machine and its sakura-host are reachable
     virtual_machine_resp.torii_port = proxy_resp.port;
+
+    // sakura provides the memory in bytes, but the api of hanami uses MiB
+    virtual_machine_resp.memory_size /= 1024 * 1024;
 
     Ok((virtual_machine_resp, proxy_resp.uuid))
 }

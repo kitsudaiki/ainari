@@ -160,7 +160,10 @@ export interface VirtualMachineResp {
     name: string;
     is_created: boolean;
     number_of_cores: number;
+    /** memory in MiB */
     memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
     image_uuid: string;
     network_uuid: string;
     internal_ip: string;

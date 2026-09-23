@@ -42,7 +42,11 @@ pub struct VirtualMachineInternalCreateReq {
     pub name: String,
     pub network_uuid: Uuid,
     pub number_of_cores: i32,
+    /// memory of the virtual_machine in bytes
     pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    #[validate(range(min = 1))]
+    pub disk_size: i64,
     pub internal_ip: Ipv4Addr,
     pub tap_name: String,
     pub mac_address: String,
@@ -54,7 +58,10 @@ pub struct VirtualMachineResp {
     pub name: String,
     pub is_created: bool,
     pub number_of_cores: i32,
+    /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
     pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    pub disk_size: i64,
     pub image_uuid: Uuid,
     pub network_uuid: Uuid,
     pub internal_ip: Ipv4Addr,
