@@ -314,6 +314,19 @@ export interface HostBasicResp {
     host_address: string;
 }
 
+/**
+ * Mirror of `host_structs::SakuraHostBasicResp`. The memory is given in MiB and the
+ * disk-space in GiB.
+ */
+export interface SakuraHostBasicResp extends HostBasicResp {
+    number_of_cores: number;
+    used_number_of_cores: number;
+    memory_size: number;
+    amount_of_used_memory: number;
+    disk_space: number;
+    amount_of_used_disk_space: number;
+}
+
 /** Mirror of `host_structs::HostResp`. */
 export interface HostResp extends HostBasicResp {
     created_at: string;

@@ -43,6 +43,11 @@ limitations under the License.
     --color-border: rgba(255, 255, 255, 0.6);
     --color-border-soft: rgba(255, 255, 255, 0.14);
 
+    /* usage-levels of resources */
+    --color-usage-ok: #4caf50;
+    --color-usage-warning: #e6b800;
+    --color-usage-critical: #e53935;
+
     /* frosted glass for panels, which lie above the background */
     --glass-bg: rgba(38, 41, 46, 0.55);
     --glass-bg-strong: rgba(22, 24, 27, 0.72);

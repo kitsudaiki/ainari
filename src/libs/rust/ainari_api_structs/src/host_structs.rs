@@ -75,3 +75,27 @@ pub struct HostBasicResp {
 pub struct HostListResp {
     pub hosts: Vec<HostBasicResp>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct SakuraHostBasicResp {
+    pub uuid: Uuid,
+    pub name: String,
+    pub host_address: String,
+    /// number of cpu-threads of the host
+    pub number_of_cores: u64,
+    /// number of cpu-threads, which are allocated by virtual-machines
+    pub used_number_of_cores: u64,
+    /// total memory of the host in MiB
+    pub memory_size: u64,
+    /// memory in MiB, which is allocated by virtual-machines
+    pub amount_of_used_memory: u64,
+    /// total size of the disk, which holds the virtual-machines, in GiB
+    pub disk_space: u64,
+    /// disk-space in GiB, which is allocated by virtual-machines
+    pub amount_of_used_disk_space: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct SakuraHostListResp {
+    pub hosts: Vec<SakuraHostBasicResp>,
+}
