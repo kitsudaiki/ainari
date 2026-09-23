@@ -23,6 +23,15 @@ max_number_of_threads = 0
 local_vm_storage_path = "/etc/ainari/virtual_machines"
 tempfile_location = "/tmp/sakura"
 
+[host]
+# resources, which are reserved for the host itself and are not available for virtual machines
+# number of cpu-threads
+reserved_cores = 2
+# memory in MiB
+reserved_memory = 4096
+# disk-space in GiB
+reserved_disk = 20
+
 [hypervisor]
 # path of the cloud-hypervisor binary, which runs the virtual machines
 binary_path = "/usr/local/bin/cloud-hypervisor"

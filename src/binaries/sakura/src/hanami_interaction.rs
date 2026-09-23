@@ -82,6 +82,18 @@ pub fn register_host() -> Result<(), AinariError> {
         "read hardware: cpu-threads: {number_of_cores}, memory: {memory_size} MiB, disk: {disk_space} GiB"
     );
 
+    // only the resources, which are not reserved for the host itself, are available for
+    // virtual machines
+    let host_config = &config::CONFIG.host;
+    let number_of_cores =
+        subtract_reserved("cpu-threads", number_of_cores, host_config.reserved_cores);
+    let memory_size = subtract_reserved("memory", memory_size, host_config.reserved_memory);
+    let disk_space = subtract_reserved("disk-space", disk_space, host_config.reserved_disk);
+
+    log::debug!(
+        "available for virtual machines: cpu-threads: {number_of_cores}, memory: {memory_size} MiB, disk: {disk_space} GiB"
+    );
+
     // Retrieve list of deleted virtual_machines from the database
     let deleted_virtual_machines = match virtual_machine_table::list_deleted_virtual_machines() {
         Ok(virtual_machines) => virtual_machines,
@@ -117,4 +129,39 @@ pub fn register_host() -> Result<(), AinariError> {
     })?;
 
     Ok(())
+}
+
+/// Subtracts the reserved amount of a resource from the total amount of the host.
+///
+/// If more is reserved than the host has, nothing is left for virtual machines, so 0 is returned
+/// and a warning is logged.
+///
+/// # Arguments
+/// * `name` - Name of the resource for the log-message
+/// * `total` - Total amount of the resource of the host
+/// * `reserved` - Amount of the resource, which is reserved for the host
+///
+/// # Returns
+/// The amount of the resource, which is available for virtual machines.
+fn subtract_reserved(name: &str, total: u64, reserved: u64) -> u64 {
+    if reserved > total {
+        log::warn!(
+            "Reserved {name} ({reserved}) is bigger than the {name} of the host ({total}), \
+             so no {name} is available for virtual machines."
+        );
+    }
+    total.saturating_sub(reserved)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_subtract_reserved() {
+        assert_eq!(subtract_reserved("cores", 16, 2), 14);
+        assert_eq!(subtract_reserved("cores", 16, 0), 16);
+        assert_eq!(subtract_reserved("cores", 16, 16), 0);
+        assert_eq!(subtract_reserved("cores", 16, 20), 0);
+    }
 }

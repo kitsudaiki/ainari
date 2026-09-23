@@ -36,7 +36,11 @@
                 </button>
             </div>
 
-            <table class="overview-table" v-if="hosts.length > 0">
+            <table
+                class="overview-table"
+                :class="{ 'with-resources': selectedTab === 'sakura' }"
+                v-if="hosts.length > 0"
+            >
                 <thead>
                     <tr>
                         <th>UUID</th>
@@ -233,7 +237,15 @@ td:not(:first-child):not(:last-child):not(.resource-column) {
     width: 30%;
 }
 
-.resource-column {
-    width: 10rem;
+/* with the resource-columns, name and address only get a small part of the space,
+so the usage-bars have enough space to be readable */
+.with-resources th:not(:first-child):not(:last-child):not(.resource-column),
+.with-resources td:not(:first-child):not(:last-child):not(.resource-column) {
+    width: 10%;
+}
+
+.with-resources .resource-column {
+    width: 20%;
+    min-width: 12rem;
 }
 </style>

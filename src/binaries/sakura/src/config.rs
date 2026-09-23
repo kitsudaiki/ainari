@@ -45,6 +45,9 @@ pub struct Config {
     /// Configuration of the hypervisor, which runs the virtual machines.
     #[serde(default)]
     pub hypervisor: Hypervisor,
+    /// Resources of the host, which are not available for virtual machines.
+    #[serde(default)]
+    pub host: Host,
     /// Configuration for database-related parameters.
     pub database: ainari_config::Database,
     /// Configuration for Miko endpoint parameters.
@@ -66,6 +69,22 @@ fn default_insecure_clients() -> bool {
 pub struct Storage {
     pub local_vm_storage_path: String,
     pub tempfile_location: String,
+}
+
+/// Resources of the host, which are reserved for the host itself, for example for the
+/// operating-system and the services of ainari. They are subtracted from the resources of the
+/// host, before these are reported to hanami, so no virtual machines are scheduled on them.
+#[derive(Debug, Deserialize, Default)]
+pub struct Host {
+    /// Number of cpu-threads, which are reserved for the host
+    #[serde(default)]
+    pub reserved_cores: u64,
+    /// Memory in MiB, which is reserved for the host
+    #[serde(default)]
+    pub reserved_memory: u64,
+    /// Disk-space in GiB, which is reserved for the host
+    #[serde(default)]
+    pub reserved_disk: u64,
 }
 
 /// Configuration of the hypervisor, which runs the virtual machines.
@@ -183,3 +202,45 @@ pub static SAKURA_REGISTRATION_KEY: Lazy<Secret> =
             process::exit(1);
         }
     });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXAMPLE_CONFIG: &str = include_str!("../../../../example_configs/ainari/sakura.toml");
+
+    /// Removes the `[host]`-section from the example-config.
+    fn example_config_without_host_section() -> String {
+        let start = EXAMPLE_CONFIG.find("[host]").unwrap();
+        let end = EXAMPLE_CONFIG.find("[hypervisor]").unwrap();
+        format!("{}{}", &EXAMPLE_CONFIG[..start], &EXAMPLE_CONFIG[end..])
+    }
+
+    #[test]
+    fn test_host_section_is_read() {
+        let config: Config = toml::from_str(EXAMPLE_CONFIG).unwrap();
+        assert_eq!(config.host.reserved_cores, 2);
+        assert_eq!(config.host.reserved_memory, 4096);
+        assert_eq!(config.host.reserved_disk, 20);
+    }
+
+    #[test]
+    fn test_missing_host_section_defaults_to_0() {
+        let config: Config = toml::from_str(&example_config_without_host_section()).unwrap();
+        assert_eq!(config.host.reserved_cores, 0);
+        assert_eq!(config.host.reserved_memory, 0);
+        assert_eq!(config.host.reserved_disk, 0);
+    }
+
+    #[test]
+    fn test_missing_host_values_default_to_0() {
+        let content = format!(
+            "{}\n[host]\nreserved_memory = 1024\n",
+            example_config_without_host_section()
+        );
+        let config: Config = toml::from_str(&content).unwrap();
+        assert_eq!(config.host.reserved_cores, 0);
+        assert_eq!(config.host.reserved_memory, 1024);
+        assert_eq!(config.host.reserved_disk, 0);
+    }
+}

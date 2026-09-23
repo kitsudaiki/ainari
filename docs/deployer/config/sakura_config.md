@@ -44,6 +44,18 @@
 | ------------------- | ------ | --------------- | ----------------------------------------------- |
 | `tempfile_location` | string | `"/tmp/sakura"` | Directory where temporary files will be stored. |
 
+### `host` Configuration
+
+Resources, which are reserved for the host itself, for example for the operating-system. They are
+subtracted from the resources of the host, before these are reported to hanami, so they are not
+available for virtual machines. The whole section is optional.
+
+| Parameter         | Type    | Default | Description                                  |
+| ----------------- | ------- | ------- | -------------------------------------------- |
+| `reserved_cores`  | integer | `0`     | Number of cpu-threads reserved for the host. |
+| `reserved_memory` | integer | `0`     | Memory in MiB reserved for the host.         |
+| `reserved_disk`   | integer | `0`     | Disk-space in GiB reserved for the host.     |
+
 ## Example
 
 !!! info
