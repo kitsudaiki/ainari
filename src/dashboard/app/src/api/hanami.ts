@@ -19,11 +19,11 @@ import type {
     FloatingIpBasicResp,
     FloatingIpCreateReq,
     FloatingIpResp,
-    HostBasicResp,
     HostResp,
     NetworkBasicResp,
     NetworkCreateReq,
     NetworkResp,
+    SakuraHostBasicResp,
     VirtualMachineBasicResp,
     VirtualMachineCreateReq,
     VirtualMachineResp,
@@ -131,7 +131,7 @@ export async function deleteFloatingIp(uuid: string): Promise<void> {
 //=============================================================================
 
 /** `GET /v1alpha/host/admin` */
-export async function listSakuraHosts(): Promise<HostBasicResp[]> {
+export async function listSakuraHosts(): Promise<SakuraHostBasicResp[]> {
     const resp = await hanamiClient().get("/v1alpha/host/admin");
     return resp.data.hosts;
 }

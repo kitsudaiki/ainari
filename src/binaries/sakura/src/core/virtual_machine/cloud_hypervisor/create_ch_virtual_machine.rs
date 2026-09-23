@@ -126,6 +126,7 @@ pub async fn create_ch_virtual_machine(
         &virtual_machine_data.image_uuid,
         &temp_dir,
         &vm_dir,
+        virtual_machine_data.disk_size,
         context,
     )
     .await?;
@@ -380,6 +381,7 @@ async fn get_secret(
 /// * `image_uuid` - Unique identifier of the image to download
 /// * `temp_dir` - Directory for the intermediate encrypted and decrypted image-files
 /// * `target_dir` - Directory where the converted boot-disk is written to
+/// * `disk_size` - Size in GiB, by which the boot-disk is increased
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -390,6 +392,7 @@ async fn download_and_convert_image(
     image_uuid: &Uuid,
     temp_dir: &str,
     target_dir: &str,
+    disk_size: i64,
     context: &UserContext,
 ) -> Result<String, AinariError> {
     // get image information
@@ -433,7 +436,7 @@ async fn download_and_convert_image(
     }
 
     // convert image into raw boot-disk and delete decrypted file again
-    let convert_result = convert_image(&local_file_path, &local_converted_file_path);
+    let convert_result = convert_image(&local_file_path, &local_converted_file_path, disk_size);
     let _ = fs::remove_file(&local_file_path);
     if let Err(e) = convert_result {
         let _ = fs::remove_file(&local_converted_file_path);
@@ -443,16 +446,17 @@ async fn download_and_convert_image(
     Ok(local_converted_file_path)
 }
 
-/// Converts a qcow2-image into a raw-image and increases its size by 5GB
+/// Converts a qcow2-image into a raw-image and increases its size by the given disk-size
 ///
 /// # Arguments
 /// * `input_path` - Path of the qcow2-image
 /// * `output_path` - Path of the new raw-image
+/// * `disk_size` - Size in GiB, by which the raw-image is increased
 ///
 /// # Returns
 /// * `Ok(())` on success
 /// * `Err(AinariError)` with an appropriate error on failure
-fn convert_image(input_path: &str, output_path: &str) -> Result<(), AinariError> {
+fn convert_image(input_path: &str, output_path: &str, disk_size: i64) -> Result<(), AinariError> {
     run_command(
         "qemu-img",
         &[
@@ -465,7 +469,10 @@ fn convert_image(input_path: &str, output_path: &str) -> Result<(), AinariError>
             output_path,
         ],
     )?;
-    run_command("qemu-img", &["resize", output_path, "+5G"])
+    run_command(
+        "qemu-img",
+        &["resize", output_path, &format!("+{disk_size}G")],
+    )
 }
 
 /// Runs an external command and waits until it is finished

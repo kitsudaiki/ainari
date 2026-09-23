@@ -55,7 +55,7 @@
                     <input
                         class="number-input"
                         id="memorySize"
-                        v-model.number="memorySizeMib"
+                        v-model.number="form.memory_size"
                         type="number"
                         :min="1"
                         :disabled="reservedVirtualMachine !== null"
@@ -64,6 +64,22 @@
                 </div>
                 <p v-if="memoryError" class="error-msg">
                     Memory size must be at least 1 MiB
+                </p>
+                <br />
+                <div class="field-row">
+                    <label for="diskSize">Disk size (GiB): </label>
+                    <input
+                        class="number-input"
+                        id="diskSize"
+                        v-model.number="form.disk_size"
+                        type="number"
+                        :min="1"
+                        :disabled="reservedVirtualMachine !== null"
+                        :class="{ invalid_input: diskError }"
+                    />
+                </div>
+                <p v-if="diskError" class="error-msg">
+                    Disk size must be at least 1 GiB
                 </p>
                 <br />
                 <div class="field-row">
@@ -188,6 +204,7 @@ const errorPopupMsg = ref<string>("");
 const nameError = ref(false);
 const coresError = ref(false);
 const memoryError = ref(false);
+const diskError = ref(false);
 const networkError = ref(false);
 const imageError = ref(false);
 const publicKeyError = ref(false);
@@ -198,13 +215,13 @@ const publicKeys = ref<PublicKeyBasicResp[]>([]);
 const selectedImageUuid = ref<string>("");
 const selectedPublicKeyUuid = ref<string>("");
 
-// The api expects the memory-size in bytes, while the input is in MiB, because that
-// is the unit a user actually wants to type in.
-const memorySizeMib = ref(1024);
-
 const form = reactive({
     name: "",
     number_of_cores: 1,
+    // in MiB
+    memory_size: 1024,
+    // in GiB
+    disk_size: 10,
     network_uuid: "",
 });
 
@@ -238,7 +255,8 @@ async function fetchSelectableResources() {
 async function handleAccept() {
     nameError.value = form.name.length < 4;
     coresError.value = form.number_of_cores < 1;
-    memoryError.value = memorySizeMib.value < 1;
+    memoryError.value = form.memory_size < 1;
+    diskError.value = form.disk_size < 1;
     networkError.value = form.network_uuid === "";
     imageError.value = selectedImageUuid.value === "";
     publicKeyError.value = selectedPublicKeyUuid.value === "";
@@ -247,6 +265,7 @@ async function handleAccept() {
         nameError.value ||
         coresError.value ||
         memoryError.value ||
+        diskError.value ||
         networkError.value ||
         imageError.value ||
         publicKeyError.value
@@ -260,7 +279,8 @@ async function handleAccept() {
             reservedVirtualMachine.value = await hanami.reserveVirtualMachine({
                 name: form.name,
                 number_of_cores: form.number_of_cores,
-                memory_size: memorySizeMib.value * 1024 * 1024,
+                memory_size: form.memory_size,
+                disk_size: form.disk_size,
                 network_uuid: form.network_uuid,
             });
             emit("reserved");

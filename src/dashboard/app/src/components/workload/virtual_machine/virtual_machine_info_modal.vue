@@ -54,7 +54,11 @@
                         </tr>
                         <tr>
                             <td>Memory Size</td>
-                            <td>{{ memorySize }}</td>
+                            <td>{{ info.memory_size }} MiB</td>
+                        </tr>
+                        <tr>
+                            <td>Disk Size</td>
+                            <td>{{ info.disk_size }} GiB</td>
                         </tr>
                         <tr>
                             <td>Image-UUID</td>
@@ -108,7 +112,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 
 import { hanami } from "@/api";
 import type { VirtualMachineBasicResp, VirtualMachineResp } from "@/api";
@@ -126,13 +130,6 @@ const emit = defineEmits<{
 
 const info = ref<VirtualMachineResp | null>(null);
 const errorPopupMsg = ref<string>("");
-
-// the api provides the memory-size in bytes, which is hard to read for bigger machines
-const memorySize = computed(() => {
-    if (!info.value) return "";
-    const mib = info.value.memory_size / (1024 * 1024);
-    return `${mib} MiB`;
-});
 
 async function fetchInfo(uuid: string) {
     try {

@@ -140,7 +140,10 @@ export interface QuotaResp extends QuotaBasicResp {
 export interface VirtualMachineCreateReq {
     name: string;
     number_of_cores: number;
+    /** memory in MiB */
     memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
     network_uuid: string;
 }
 
@@ -149,6 +152,11 @@ export interface VirtualMachineBasicResp {
     uuid: string;
     name: string;
     proxy_port: number;
+    number_of_cores: number;
+    /** memory in MiB */
+    memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
 }
 
 /** Mirror of `virtual_machine_structs::VirtualMachineResp`. */
@@ -157,7 +165,10 @@ export interface VirtualMachineResp {
     name: string;
     is_created: boolean;
     number_of_cores: number;
+    /** memory in MiB */
     memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
     image_uuid: string;
     network_uuid: string;
     internal_ip: string;
@@ -306,6 +317,19 @@ export interface HostBasicResp {
     uuid: string;
     name: string;
     host_address: string;
+}
+
+/**
+ * Mirror of `host_structs::SakuraHostBasicResp`. The memory is given in MiB and the
+ * disk-space in GiB.
+ */
+export interface SakuraHostBasicResp extends HostBasicResp {
+    number_of_cores: number;
+    used_number_of_cores: number;
+    memory_size: number;
+    amount_of_used_memory: number;
+    disk_space: number;
+    amount_of_used_disk_space: number;
 }
 
 /** Mirror of `host_structs::HostResp`. */

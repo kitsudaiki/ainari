@@ -68,7 +68,8 @@ NETWORK_SUBNET = "192.168.100.1/24"
 NUMBER_OF_VIRTUAL_MACHINES = int(os.getenv("AINARI_VIRTUAL_MACHINES", "2"))
 
 NUMBER_OF_CORES = 2
-MEMORY_SIZE = 2 * 1024 * 1024 * 1024
+MEMORY_SIZE = 2 * 1024  # MiB
+DISK_SIZE = 10  # GiB
 
 # ubuntu-cloud-image, which becomes the boot-disk of the virtual machine
 IMAGE_URL = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
@@ -156,6 +157,7 @@ def reserve_and_create_virtual_machine(context,
                                                        name,
                                                        NUMBER_OF_CORES,
                                                        MEMORY_SIZE,
+                                                       DISK_SIZE,
                                                        network_uuid)
     virtual_machine_data = {
         "name": name,
@@ -265,7 +267,7 @@ def main() -> int:
 
     # 4. + 5. reserve the virtual machines and create them on their sakura-hosts
     log(f"reserving {NUMBER_OF_VIRTUAL_MACHINES} virtual machines with {NUMBER_OF_CORES} cores "
-        f"and {MEMORY_SIZE // (1024 * 1024)} MiB memory each")
+        f"and {MEMORY_SIZE} MiB memory each")
     virtual_machines = []
     for number in range(1, NUMBER_OF_VIRTUAL_MACHINES + 1):
         virtual_machines.append(

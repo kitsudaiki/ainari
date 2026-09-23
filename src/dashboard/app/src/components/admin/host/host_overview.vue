@@ -36,12 +36,21 @@
                 </button>
             </div>
 
-            <table class="overview-table" v-if="hosts.length > 0">
+            <table
+                class="overview-table"
+                :class="{ 'with-resources': selectedTab === 'sakura' }"
+                v-if="hosts.length > 0"
+            >
                 <thead>
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
                         <th>Address</th>
+                        <template v-if="selectedTab === 'sakura'">
+                            <th class="resource-column">Cores</th>
+                            <th class="resource-column">Memory</th>
+                            <th class="resource-column">Disk</th>
+                        </template>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -50,6 +59,28 @@
                         <td>{{ host.uuid }}</td>
                         <td>{{ host.name }}</td>
                         <td>{{ host.host_address }}</td>
+                        <template v-if="isSakuraHost(host)">
+                            <td class="resource-column">
+                                <UsageBar
+                                    :used="host.used_number_of_cores"
+                                    :total="host.number_of_cores"
+                                />
+                            </td>
+                            <td class="resource-column">
+                                <UsageBar
+                                    :used="mibToGib(host.amount_of_used_memory)"
+                                    :total="mibToGib(host.memory_size)"
+                                    unit="GiB"
+                                />
+                            </td>
+                            <td class="resource-column">
+                                <UsageBar
+                                    :used="host.amount_of_used_disk_space"
+                                    :total="host.disk_space"
+                                    unit="GiB"
+                                />
+                            </td>
+                        </template>
                         <td>
                             <!-- Dropdown menu -->
                             <div
@@ -93,15 +124,17 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { hanami, ryokan } from "@/api";
-import type { HostBasicResp } from "@/api";
+import type { HostBasicResp, SakuraHostBasicResp } from "@/api";
 import HostDeleteModal from "./host_delete_modal.vue";
+import UsageBar from "@/components/usage_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 /** The sakura-hosts are known by the hanami, the onsen-hosts by the ryokan. */
 type HostKind = "sakura" | "onsen";
 
 const errorPopupMsg = ref<string>("");
-const hosts = ref<HostBasicResp[]>([]);
+// only the sakura-hosts provide their resources
+const hosts = ref<(HostBasicResp | SakuraHostBasicResp)[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const hostToDelete = ref<HostBasicResp | null>(null);
@@ -120,6 +153,20 @@ async function fetchHosts() {
             `Failed to load ${selectedTab.value}-hosts`,
         );
     }
+}
+
+//=============================================================================
+// Resources
+//=============================================================================
+function isSakuraHost(
+    host: HostBasicResp | SakuraHostBasicResp,
+): host is SakuraHostBasicResp {
+    return "number_of_cores" in host;
+}
+
+/** The memory is provided in MiB, but GiB with one decimal is easier to read. */
+function mibToGib(mib: number): number {
+    return Math.round((mib / 1024) * 10) / 10;
 }
 
 //=============================================================================
@@ -184,9 +231,21 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Columns 2 through n-1 share remaining space equally */
-th:not(:first-child):not(:last-child),
-td:not(:first-child):not(:last-child) {
+/* Columns 2 through n-1 share remaining space equally, except the resource-columns */
+th:not(:first-child):not(:last-child):not(.resource-column),
+td:not(:first-child):not(:last-child):not(.resource-column) {
     width: 30%;
+}
+
+/* with the resource-columns, name and address only get a small part of the space,
+so the usage-bars have enough space to be readable */
+.with-resources th:not(:first-child):not(:last-child):not(.resource-column),
+.with-resources td:not(:first-child):not(:last-child):not(.resource-column) {
+    width: 10%;
+}
+
+.with-resources .resource-column {
+    width: 20%;
+    min-width: 12rem;
 }
 </style>

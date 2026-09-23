@@ -20,6 +20,7 @@ use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
+use crate::database::host_table::HostResources;
 use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
@@ -40,12 +41,23 @@ no token, but is protected by the internal api-key and the registration-key."###
     error_code = 500
 )]
 pub async fn register_host_internal(
-    body: Json<HostCreateReq>,
+    body: Json<SakuraHostCreateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<HostResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+
+    // the database stores signed 64-bit integers, so the values must fit into an i64
+    let to_db_value = |field: &str, value: u64| {
+        i64::try_from(value)
+            .map_err(|_| ErrorResponse::BadRequest(format!("Invalid input: {field} is too large")))
+    };
+    let resources = HostResources {
+        number_of_cores: to_db_value("number_of_cores", body.number_of_cores)?,
+        memory_size: to_db_value("memory_size", body.memory_size)?,
+        disk_space: to_db_value("disk_space", body.disk_space)?,
+    };
 
     let mut host_uuid = Uuid::new_v4();
 
@@ -60,16 +72,29 @@ pub async fn register_host_internal(
     match host_table::get_host_by_address(&body.host_address, &context) {
         Ok(host_data) => {
             host_uuid = convert_uuid(&host_data.uuid)?;
+
+            // update the resources of the already registered host, because the
+            // hardware could have changed since the last registration
+            host_table::update_host_resources(&host_uuid, &resources, &context).map_err(|_| {
+                log::error!("Failed to update resources of host with UUID '{host_uuid}'.");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
         }
         Err(_) => {
             // add new host to database if address not already exist
-            host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context)
-                .map_err(|e| {
-                    log::error!(
-                        "Failed to add host with UUID '{host_uuid}' to database with error: {e}."
-                    );
-                    ErrorResponse::InternalError("Internal Error".to_string())
-                })?;
+            host_table::add_new_host(
+                &host_uuid,
+                &body.name,
+                &body.host_address,
+                &resources,
+                &context,
+            )
+            .map_err(|e| {
+                log::error!(
+                    "Failed to add host with UUID '{host_uuid}' to database with error: {e}."
+                );
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
         }
     };
 

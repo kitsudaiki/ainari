@@ -28,7 +28,9 @@ use ainari_clients::proxy as proxy_clients;
 #[api_operation(
     tag = "virtual_machine",
     summary = "List virtual_machines",
-    description = r###"List basic information of all virtual_machines from the database."###,
+    description = r###"List basic information of all virtual_machines from the database.
+
+The memory is given in MiB and the disk-size in GiB."###,
     error_code = 401,
     error_code = 500
 )]
@@ -66,10 +68,19 @@ pub async fn list_virtual_machine(
         .map_err(map_ainari_error_to_api_response)?;
 
         // add single object to the reponse-list
+        // the number of cores comes from an i32 at the reservation, so it always fits
+        let number_of_cores = i32::try_from(virtual_machine.number_of_cores).map_err(|_| {
+            log::error!("Invalid number of cores of virtual_machine with UUID '{uuid}'.");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
+
         let obj = VirtualMachineBasicResp {
             uuid,
             name: virtual_machine.name.clone(),
             proxy_port: proxy_resp.port,
+            number_of_cores,
+            memory_size: virtual_machine.memory_size,
+            disk_size: virtual_machine.disk_size,
         };
 
         resp.virtual_machines.push(obj);

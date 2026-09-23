@@ -25,24 +25,36 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "host",
     summary = "List hosts",
-    description = r###"List basic information of all hosts from the database."###,
+    description = r###"List basic information of all hosts from the database.
+
+This contains the resources of each host and how much of them is allocated by virtual-machines.
+The memory is given in MiB and the disk-space in GiB."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
+pub async fn list_host_admin(
+    context: UserContext,
+) -> Result<Json<SakuraHostListResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
     let hosts = host_table::list_hosts(&context).map_err(|e| map_db_list_error("hosts", e))?;
 
-    let mut resp = HostListResp { hosts: Vec::new() };
+    let mut resp = SakuraHostListResp { hosts: Vec::new() };
 
     for host in hosts {
         let uuid = convert_uuid(&host.uuid)?;
 
-        let obj = HostBasicResp {
+        // the database only contains non-negative values, because of its CHECK-constraints
+        let obj = SakuraHostBasicResp {
             uuid,
             name: host.name.clone(),
             host_address: host.address.clone(),
+            number_of_cores: host.number_of_cores.max(0) as u64,
+            used_number_of_cores: host.used_number_of_cores.max(0) as u64,
+            memory_size: host.memory_size.max(0) as u64,
+            amount_of_used_memory: host.amount_of_used_memory.max(0) as u64,
+            disk_space: host.disk_space.max(0) as u64,
+            amount_of_used_disk_space: host.amount_of_used_disk_space.max(0) as u64,
         };
 
         resp.hosts.push(obj);

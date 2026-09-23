@@ -34,6 +34,7 @@ use crate::{handle_empty_response, handle_response};
 /// * `network_uuid` - Uuid of the network, which the virtual_machine is attached to.
 /// * `number_of_cores` - Number of cpu-cores to assign to the virtual_machine.
 /// * `memory_size` - Amount of memory in bytes to assign to the virtual_machine.
+/// * `disk_size` - Size of the disk in GiB of the virtual_machine.
 /// * `internal_ip` - Internal address, which is assigned to the virtual_machine.
 /// * `tap_name` - Name of the TAP-device, which is attached to the virtual_machine.
 /// * `mac_address` - MAC-address of the network-interface of the virtual_machine.
@@ -51,6 +52,7 @@ pub async fn create_virtual_machine(
     network_uuid: &Uuid,
     number_of_cores: i32,
     memory_size: i64,
+    disk_size: i64,
     internal_ip: &Ipv4Addr,
     tap_name: &String,
     mac_address: &str,
@@ -64,6 +66,7 @@ pub async fn create_virtual_machine(
         network_uuid: *network_uuid,
         number_of_cores,
         memory_size,
+        disk_size,
         internal_ip: *internal_ip,
         tap_name: tap_name.to_owned(),
         mac_address: mac_address.to_owned(),

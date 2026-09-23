@@ -20,16 +20,20 @@ def reserve_virtual_machine(context: AccessContext,
                             name: str,
                             number_of_cores: int,
                             memory_size: int,
+                            disk_size: int,
                             network_uuid: str) -> dict:
     """
     Reserves a new virtual machine on one of the sakura-hosts. The image and the public-key are
     not deployed here, but by the task of create_virtual_machine.
+
+    The memory_size is given in MiB and the disk_size in GiB.
     """
     path = "/v1alpha/virtual_machine"
     json_body = {
         "name": name,
         "number_of_cores": number_of_cores,
         "memory_size": memory_size,
+        "disk_size": disk_size,
         "network_uuid": network_uuid,
     }
     return ainari_request.send_post_request(context,
