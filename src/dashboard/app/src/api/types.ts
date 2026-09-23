@@ -152,6 +152,11 @@ export interface VirtualMachineBasicResp {
     uuid: string;
     name: string;
     proxy_port: number;
+    number_of_cores: number;
+    /** memory in MiB */
+    memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
 }
 
 /** Mirror of `virtual_machine_structs::VirtualMachineResp`. */

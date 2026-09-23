@@ -116,6 +116,7 @@ pub async fn reserve_virtual_machine(
         &body.name,
         &sakura_uuid,
         &proxy_uuid,
+        &allocated_resources,
         &context,
     )
     .map_err(|e| {

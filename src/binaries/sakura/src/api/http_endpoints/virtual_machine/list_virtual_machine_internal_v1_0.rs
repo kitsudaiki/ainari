@@ -48,6 +48,9 @@ pub async fn list_virtual_machine_internal(
             uuid: virtual_machine.uuid,
             name: virtual_machine.name,
             proxy_port: 0,
+            number_of_cores: virtual_machine.number_of_cores,
+            memory_size: virtual_machine.memory_size,
+            disk_size: virtual_machine.disk_size,
         };
 
         resp.virtual_machines.push(obj);

@@ -77,6 +77,11 @@ pub struct VirtualMachineBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub proxy_port: u16,
+    pub number_of_cores: i32,
+    /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
+    pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    pub disk_size: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

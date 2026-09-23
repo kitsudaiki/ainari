@@ -20,6 +20,7 @@ use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
+use crate::database::host_table::HostResources;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -40,6 +41,9 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
+        number_of_cores -> BigInt,
+        memory_size -> BigInt,
+        disk_size -> BigInt,
     }
 }
 
@@ -61,6 +65,12 @@ pub struct MetaVirtualMachineEntry {
     pub updated_by: String,
     pub deleted_at: Option<String>,
     pub deleted_by: Option<String>,
+    /// Number of cpu-cores of the virtual_machine
+    pub number_of_cores: i64,
+    /// Memory of the virtual_machine in MiB
+    pub memory_size: i64,
+    /// Size of the disk of the virtual_machine in GiB
+    pub disk_size: i64,
 }
 
 /// Initializes the meta_virtual_machines table in the database if it doesn't exist.
@@ -87,6 +97,19 @@ pub fn init_meta_virtual_machine_table() -> Result<(), Box<dyn Error>> {
     );",
     )?;
 
+    // add the resource-columns separately, so they are also added to tables of older versions.
+    // The resources of virtual_machines of older versions are unknown, so they are 0.
+    for column in ["number_of_cores", "memory_size", "disk_size"] {
+        let sql = format!(
+            "ALTER TABLE meta_virtual_machines ADD COLUMN {column} BIGINT NOT NULL DEFAULT 0 CHECK ({column} >= 0);"
+        );
+        match conn.batch_execute(&sql) {
+            Ok(()) => {}
+            Err(e) if e.to_string().contains("duplicate column name") => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+
     Ok(())
 }
 
@@ -100,6 +123,7 @@ pub fn init_meta_virtual_machine_table() -> Result<(), Box<dyn Error>> {
 /// * `virtual_machine_name` - The name of the meta virtual_machine
 /// * `sakura_host_uuid` - The UUID of the Sakura host associated with this virtual_machine
 /// * `proxy_uuid` - The UUID of the proxy associated with this virtual_machine
+/// * `resources` - Cores, memory in MiB and disk-size in GiB of the virtual_machine
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -109,6 +133,7 @@ pub fn add_new_meta_virtual_machine(
     virtual_machine_name: &str,
     sakura_host_uuid: &Uuid,
     proxy_uuid: &Uuid,
+    resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let meta_virtual_machine = MetaVirtualMachineEntry {
@@ -125,6 +150,9 @@ pub fn add_new_meta_virtual_machine(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
+        number_of_cores: resources.number_of_cores,
+        memory_size: resources.memory_size,
+        disk_size: resources.disk_space,
     };
 
     add_meta_virtual_machine(&meta_virtual_machine)
@@ -402,6 +430,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         hard_delete_meta_virtual_machine(&uuid1);
@@ -413,6 +444,9 @@ mod tests {
                     retrieved_meta_virtual_machine.uuid,
                     meta_virtual_machine.uuid
                 );
+                assert_eq!(retrieved_meta_virtual_machine.number_of_cores, 2);
+                assert_eq!(retrieved_meta_virtual_machine.memory_size, 2048);
+                assert_eq!(retrieved_meta_virtual_machine.disk_size, 10);
                 assert_eq!(
                     retrieved_meta_virtual_machine.proxy_uuid,
                     meta_virtual_machine.proxy_uuid
@@ -492,6 +526,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
@@ -508,6 +545,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         hard_delete_meta_virtual_machine(&uuid1);
@@ -554,6 +594,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         hard_delete_meta_virtual_machine(&uuid1);
@@ -599,6 +642,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
@@ -615,6 +661,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         let meta_virtual_machine3 = MetaVirtualMachineEntry {
@@ -631,6 +680,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         hard_delete_meta_virtual_machine(&uuid1);
@@ -674,6 +726,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
@@ -690,6 +745,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         let meta_virtual_machine3 = MetaVirtualMachineEntry {
@@ -706,6 +764,9 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
         };
 
         hard_delete_meta_virtual_machine(&uuid1);

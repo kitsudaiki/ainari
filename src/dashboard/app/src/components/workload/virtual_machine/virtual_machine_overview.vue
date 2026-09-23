@@ -29,7 +29,10 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
-                        <th>Address</th>
+                        <th class="address-column">Address</th>
+                        <th class="resource-column">Cores</th>
+                        <th class="resource-column">Memory</th>
+                        <th class="resource-column">Disk</th>
                         <th class="state-column">State</th>
                         <th>Actions</th>
                     </tr>
@@ -41,10 +44,19 @@
                     >
                         <td>{{ virtualMachine.uuid }}</td>
                         <td>{{ virtualMachine.name }}</td>
-                        <td>
+                        <td class="address-column">
                             {{ torii_base_address }}:{{
                                 virtualMachine.proxy_port
                             }}
+                        </td>
+                        <td class="resource-column">
+                            {{ formatResource(virtualMachine.number_of_cores) }}
+                        </td>
+                        <td class="resource-column">
+                            {{ formatMemory(virtualMachine.memory_size) }}
+                        </td>
+                        <td class="resource-column">
+                            {{ formatResource(virtualMachine.disk_size, "GiB") }}
                         </td>
                         <td class="state-column">
                             <span
@@ -170,6 +182,21 @@ const emit = defineEmits<{
 
 function switchToTasks(virtual_machine_uuid: string) {
     emit("change-view", { view: "WorkloadTask", id: virtual_machine_uuid });
+}
+
+//=============================================================================
+// Resources
+//=============================================================================
+// Virtual machines of older versions have no stored resources, which is signaled by 0.
+function formatResource(value: number, unit: string = ""): string {
+    if (value <= 0) return "–";
+    return unit ? `${value} ${unit}` : `${value}`;
+}
+
+/** The memory is provided in MiB, but bigger values are easier to read in GiB. */
+function formatMemory(mib: number): string {
+    if (mib < 1024) return formatResource(mib, "MiB");
+    return `${Math.round((mib / 1024) * 10) / 10} GiB`;
 }
 
 async function fetchVirtualMachines() {
@@ -336,10 +363,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* the uuid has always the same length, so it is not wrapped */
+td:first-child {
+    white-space: nowrap;
+}
+
 /* Columns 2 through n-2 share remaining space equally */
-th:not(:first-child):not(.state-column):not(:last-child),
-td:not(:first-child):not(.state-column):not(:last-child) {
+th:not(:first-child):not(.state-column):not(.resource-column):not(.address-column):not(:last-child),
+td:not(:first-child):not(.state-column):not(.resource-column):not(.address-column):not(:last-child) {
     width: 30%;
+}
+
+.address-column {
+    width: 15%;
+}
+
+.resource-column {
+    width: 10%;
+    min-width: 7rem;
+    white-space: nowrap;
+    text-align: right;
 }
 
 /* only as wide as the header, with the light in the center */
