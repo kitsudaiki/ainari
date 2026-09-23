@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
 use sysinfo::System;
 use tokio::runtime::Builder;
 use tokio::task::LocalSet;
@@ -23,13 +24,16 @@ use ainari_api_structs::host_structs::UuidList;
 use ainari_clients::endpoints::*;
 use ainari_clients::host::register_sakura_host;
 use ainari_common::error::AinariError;
+use ainari_hardware::cpu::get_number_of_cpu_threads;
+use ainari_hardware::disk::get_total_disk_space;
+use ainari_hardware::memory::get_total_memory_amount;
 
 /// Registers the current host with the Ainari system.
 ///
 /// This function:
 /// 1. Creates a Tokio runtime for asynchronous operations
 /// 2. Retrieves system endpoints from Miko
-/// 3. Gathers information about the host system
+/// 3. Gathers information about the host system (name, cpu-threads, memory and disk-space)
 /// 4. Collects UUIDs of deleted virtual_machines from the database
 /// 5. Registers the host with Hanami using the collected information
 ///
@@ -62,6 +66,22 @@ pub fn register_host() -> Result<(), AinariError> {
 
     log::debug!("read host-name: {host_name}");
 
+    // Get the hardware-resources of the host
+    let number_of_cores = get_number_of_cpu_threads().map_err(|e| {
+        log::error!("Failed to read number of cpu-threads: '{e}'");
+        AinariError::InternalError("Internal Error".to_string())
+    })? as u64;
+    let memory_size = get_total_memory_amount() / (1024 * 1024);
+    let storage_path = &config::CONFIG.storage.local_vm_storage_path;
+    let disk_space = get_total_disk_space(Path::new(storage_path)).map_err(|e| {
+        log::error!("Failed to read disk-space for path '{storage_path}': '{e}'");
+        AinariError::InternalError("Internal Error".to_string())
+    })? / (1024 * 1024 * 1024);
+
+    log::debug!(
+        "read hardware: cpu-threads: {number_of_cores}, memory: {memory_size} MiB, disk: {disk_space} GiB"
+    );
+
     // Retrieve list of deleted virtual_machines from the database
     let deleted_virtual_machines = match virtual_machine_table::list_deleted_virtual_machines() {
         Ok(virtual_machines) => virtual_machines,
@@ -88,6 +108,9 @@ pub fn register_host() -> Result<(), AinariError> {
             &config::CONFIG.address,
             resp,
             &config::SAKURA_REGISTRATION_KEY,
+            number_of_cores,
+            memory_size,
+            disk_space,
             config::CONFIG.skip_tls_verification,
         )
         .await

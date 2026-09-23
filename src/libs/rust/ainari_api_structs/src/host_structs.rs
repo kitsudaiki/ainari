@@ -31,6 +31,23 @@ pub struct HostCreateReq {
     pub registration_key: Secret,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct SakuraHostCreateReq {
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+    #[validate(length(min = 4, max = 127))]
+    pub host_address: String,
+    pub deleted_uuids: UuidList,
+    #[validate(length(min = 4, max = 127))]
+    pub registration_key: Secret,
+    /// number of cpu-threads of the host
+    pub number_of_cores: u64,
+    /// total memory of the host in MiB
+    pub memory_size: u64,
+    /// total size of the disk, which holds the virtual-machines, in GiB
+    pub disk_space: u64,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Default)]
 pub struct UuidList {
     pub list: Vec<Uuid>,

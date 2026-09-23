@@ -36,6 +36,12 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
+        number_of_cores -> BigInt,
+        used_number_of_cores -> BigInt,
+        memory_size -> BigInt,
+        amount_of_used_memory -> BigInt,
+        disk_space -> BigInt,
+        amount_of_used_disk_space -> BigInt,
     }
 }
 
@@ -66,11 +72,45 @@ pub struct HostEntry {
     pub deleted_at: Option<String>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
+    /// Number of cpu-threads of the host
+    pub number_of_cores: i64,
+    /// Number of cpu-threads, which are already in use
+    pub used_number_of_cores: i64,
+    /// Total memory of the host in MiB
+    pub memory_size: i64,
+    /// Amount of memory in MiB, which is already in use
+    pub amount_of_used_memory: i64,
+    /// Total size of the disk for the virtual-machines in GiB
+    pub disk_space: i64,
+    /// Amount of disk-space in GiB, which is already in use
+    pub amount_of_used_disk_space: i64,
 }
+
+/// Hardware-resources of a host, which are reported by the host itself at registration.
+#[derive(Debug, PartialEq, Clone)]
+pub struct HostResources {
+    /// Number of cpu-threads of the host
+    pub number_of_cores: i64,
+    /// Total memory of the host in MiB
+    pub memory_size: i64,
+    /// Total size of the disk for the virtual-machines in GiB
+    pub disk_space: i64,
+}
+
+/// Resource-columns of the hosts table. All of them are non-negative integers.
+const RESOURCE_COLUMNS: [&str; 6] = [
+    "number_of_cores",
+    "used_number_of_cores",
+    "memory_size",
+    "amount_of_used_memory",
+    "disk_space",
+    "amount_of_used_disk_space",
+];
 
 /// Initializes the hosts table in the database if it doesn't already exist.
 ///
-/// This function creates the table with all necessary columns and constraints.
+/// This function creates the table with all necessary columns and constraints and adds
+/// the resource-columns, if they are missing in an already existing table.
 /// It should be called during application startup to ensure the table exists.
 ///
 /// # Returns
@@ -93,19 +133,32 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
     );",
     )?;
 
+    // add the resource-columns separately, so they are also added to tables of older versions
+    for column in RESOURCE_COLUMNS {
+        let sql = format!(
+            "ALTER TABLE hosts ADD COLUMN {column} BIGINT NOT NULL DEFAULT 0 CHECK ({column} >= 0);"
+        );
+        match conn.batch_execute(&sql) {
+            Ok(()) => {}
+            Err(e) if e.to_string().contains("duplicate column name") => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+
     Ok(())
 }
 
 /// Adds a new host to the database with default values.
 ///
-/// This function creates a new HostEntry with the provided UUID, name, and address,
-/// sets the status to "ACTIVE", and uses the current timestamp and user context
-/// for creation and update information.
+/// This function creates a new HostEntry with the provided UUID, name, address and
+/// hardware-resources, sets the status to "ACTIVE", sets the used resources to 0 and uses
+/// the current timestamp and user context for creation and update information.
 ///
 /// # Arguments
 /// * `host_uuid` - Unique identifier for the new host
 /// * `host_name` - Human-readable name for the host
 /// * `host_address` - Network address of the host
+/// * `resources` - Hardware-resources of the host
 /// * `context` - User context containing information about the user performing the action
 ///
 /// # Returns
@@ -114,6 +167,7 @@ pub fn add_new_host(
     host_uuid: &Uuid,
     host_name: &str,
     host_address: &str,
+    resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
     let host = HostEntry {
@@ -127,9 +181,55 @@ pub fn add_new_host(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
+        number_of_cores: resources.number_of_cores,
+        used_number_of_cores: 0,
+        memory_size: resources.memory_size,
+        amount_of_used_memory: 0,
+        disk_space: resources.disk_space,
+        amount_of_used_disk_space: 0,
     };
 
     add_host(&host)
+}
+
+/// Updates the hardware-resources of an existing host.
+///
+/// This is used, when an already registered host registers itself again, because
+/// its hardware could have changed in the meantime.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host to update
+/// * `resources` - New hardware-resources of the host
+/// * `context` - User context containing information about the user performing the action
+///
+/// # Returns
+/// * Ok(()) if the host was successfully updated
+/// * DbError::NotFound if the host doesn't exist or is not active
+/// * DbError::InternalError if there was an error executing the query
+pub fn update_host_resources(
+    host_uuid: &Uuid,
+    resources: &HostResources,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
+        .set((
+            number_of_cores.eq(resources.number_of_cores),
+            memory_size.eq(resources.memory_size),
+            disk_space.eq(resources.disk_space),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
 }
 
 /// Adds a host to the database.
@@ -345,6 +445,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -359,6 +465,12 @@ mod tests {
                 assert_eq!(retrieved_host.updated_by, host.updated_by);
                 assert_eq!(retrieved_host.deleted_at, host.deleted_at);
                 assert_eq!(retrieved_host.deleted_by, host.deleted_by);
+                assert_eq!(retrieved_host.number_of_cores, host.number_of_cores);
+                assert_eq!(retrieved_host.memory_size, host.memory_size);
+                assert_eq!(retrieved_host.disk_space, host.disk_space);
+                assert_eq!(retrieved_host.used_number_of_cores, 0);
+                assert_eq!(retrieved_host.amount_of_used_memory, 0);
+                assert_eq!(retrieved_host.amount_of_used_disk_space, 0);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -366,6 +478,72 @@ mod tests {
         };
 
         hard_delete_host(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_host_and_update_resources() {
+        let _ = init_host_table();
+        let uuid1 = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        };
+
+        hard_delete_host(&uuid1);
+
+        let resources = HostResources {
+            number_of_cores: 8,
+            memory_size: 16384,
+            disk_space: 512,
+        };
+        add_new_host(
+            &uuid1,
+            "Alice",
+            "http://127.0.0.1:11420",
+            &resources,
+            &context,
+        )
+        .unwrap();
+
+        let Ok(retrieved_host) = get_host(&uuid1, &context) else {
+            panic!("host not found");
+        };
+        assert_eq!(retrieved_host.number_of_cores, 8);
+        assert_eq!(retrieved_host.memory_size, 16384);
+        assert_eq!(retrieved_host.disk_space, 512);
+        assert_eq!(retrieved_host.used_number_of_cores, 0);
+        assert_eq!(retrieved_host.amount_of_used_memory, 0);
+        assert_eq!(retrieved_host.amount_of_used_disk_space, 0);
+
+        let new_resources = HostResources {
+            number_of_cores: 32,
+            memory_size: 65536,
+            disk_space: 2048,
+        };
+        assert!(update_host_resources(&uuid1, &new_resources, &context).is_ok());
+
+        let Ok(retrieved_host) = get_host(&uuid1, &context) else {
+            panic!("host not found");
+        };
+        assert_eq!(retrieved_host.number_of_cores, 32);
+        assert_eq!(retrieved_host.memory_size, 65536);
+        assert_eq!(retrieved_host.disk_space, 2048);
+
+        // negative values are rejected by the database
+        let invalid_resources = HostResources {
+            number_of_cores: -1,
+            memory_size: 0,
+            disk_space: 0,
+        };
+        assert!(update_host_resources(&uuid1, &invalid_resources, &context).is_err());
+
+        hard_delete_host(&uuid1);
+        assert!(update_host_resources(&uuid1, &new_resources, &context).is_err());
     }
 
     #[test]
@@ -396,6 +574,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         let host2 = HostEntry {
@@ -409,6 +593,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -449,6 +639,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -478,6 +674,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         let host2 = HostEntry {
@@ -491,6 +693,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         let host3 = HostEntry {
@@ -504,6 +712,12 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);

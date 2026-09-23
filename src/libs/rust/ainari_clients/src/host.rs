@@ -34,11 +34,15 @@ use crate::prepare_client;
 /// * `sakura_address` - The address of the Sakura host
 /// * `deleted_uuids` - List of UUIDs that have been deleted and need to be tracked
 /// * `registration_key` - The registration key for the host
+/// * `number_of_cores` - Number of CPU threads of the Sakura host
+/// * `memory_size` - Total memory of the Sakura host in MiB
+/// * `disk_space` - Total size of the disk for the virtual machines in GiB
 /// * `insecure_client` - Whether to create an insecure client (bypasses TLS verification)
 ///
 /// # Returns
 ///
 /// A `Result` containing either the `HostResp` from the server or an `AinariError` if the request fails.
+#[allow(clippy::too_many_arguments)]
 pub async fn register_sakura_host(
     hanami_endpoint: &ainari_config::Endpoint,
     internal_api_key: &Secret,
@@ -46,17 +50,23 @@ pub async fn register_sakura_host(
     sakura_address: &str,
     deleted_uuids: UuidList,
     registration_key: &Secret,
+    number_of_cores: u64,
+    memory_size: u64,
+    disk_space: u64,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
     let address = hanami_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/host/internal");
 
-    let body = HostCreateReq {
+    let body = SakuraHostCreateReq {
         name: name.to_owned(),
         host_address: sakura_address.to_owned(),
         deleted_uuids,
         registration_key: Secret::from(registration_key.reveal()),
+        number_of_cores,
+        memory_size,
+        disk_space,
     };
 
     let json_str = serde_json::to_string(&body).unwrap();
