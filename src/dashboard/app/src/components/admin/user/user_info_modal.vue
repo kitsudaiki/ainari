@@ -21,7 +21,7 @@
                 <span>Info</span>
             </div>
             <div class="modal-content">
-                <table>
+                <table v-if="user_info">
                     <tbody>
                         <tr>
                             <td>ID</td>
@@ -35,8 +35,10 @@
                             <td>Is Admin</td>
                             <td>
                                 <div class="bool-icon">
+                                    <!-- is_admin is transported as a string, so a
+                                         plain truthy-check would also match "false" -->
                                     <img
-                                        v-if="user_info.is_admin"
+                                        v-if="user_info.is_admin === 'true'"
                                         :src="icons.acceptIcon"
                                         alt="True"
                                     />
@@ -85,17 +87,17 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { UserBasicResp, UserResp } from "@/api";
 import common from "@/common";
 import { handleAxiosError } from "@/handleAxiosError";
 
-const user_info = ref<{}[]>([]);
+const user_info = ref<UserResp | null>(null);
 const errorPopupMsg = ref<string>("");
 
 interface Props {
-    user: { id: number; name: string } | null;
+    user: UserBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 const props = defineProps<Props>();
@@ -106,21 +108,10 @@ const emit = defineEmits<{
 
 async function fetchUserInfo(userId: string) {
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        const response = await miko_api.get(`/v1alpha/user/${userId}/admin`, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        user_info.value = response.data;
-        user_info.value.created_at = common.formatDateTime(
-            user_info.value.created_at,
-        );
-        user_info.value.updated_at = common.formatDateTime(
-            user_info.value.updated_at,
-        );
+        const data = await miko.getUser(userId);
+        data.created_at = common.formatDateTime(data.created_at);
+        data.updated_at = common.formatDateTime(data.updated_at);
+        user_info.value = data;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load user-info");
     }
@@ -131,13 +122,14 @@ function cancel() {
 }
 
 onMounted(() => {
-    fetchUserInfo(props.user.id);
+    if (props.user) {
+        fetchUserInfo(props.user.id);
+    }
 });
 </script>
 
 <style scoped>
 .user-info-modal {
-    height: 30rem;
     width: 40rem;
 }
 </style>

@@ -26,7 +26,10 @@
                             :aria-expanded="isOpen(menu.name)"
                             @click="toggleDropdown(menu.name)"
                         >
-                            <span>{{ menu.label }}</span>
+                            <span class="entry-label">
+                                <i :class="['pi', menu.icon]"></i>
+                                {{ menu.label }}
+                            </span>
                             <span
                                 class="caret"
                                 :class="{ open: isOpen(menu.name) }"
@@ -48,7 +51,10 @@
                                 :class="{ active: activeLocal === item.view }"
                                 @click="select(item.view)"
                             >
-                                {{ item.label }}
+                                <span class="entry-label">
+                                    <i :class="['pi', item.icon]"></i>
+                                    {{ item.label }}
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -60,7 +66,10 @@
                         :class="{ active: activeLocal === menu.name }"
                         @click="select(menu.name, { closeDropdowns: true })"
                     >
-                        {{ menu.label }}
+                        <span class="entry-label">
+                            <i :class="['pi', menu.icon]"></i>
+                            {{ menu.label }}
+                        </span>
                     </button>
                 </template>
             </div>
@@ -71,8 +80,9 @@
 <script setup lang="ts">
 import { ref, reactive, watch, nextTick, onMounted, computed } from "vue";
 
-type MenuItem = { view: string; label: string };
-type Menu = { name: string; label: string; items?: MenuItem[] };
+// icon is the class of a primeicons-icon, like "pi-home"
+type MenuItem = { view: string; label: string; icon: string };
+type Menu = { name: string; label: string; icon: string; items?: MenuItem[] };
 
 interface Props {
     activeView?: string;
@@ -96,27 +106,59 @@ const visibleMenus = computed(() =>
 
 // Definitions of all items and subitems of the sidebar
 const menus = ref<Menu[]>([
-    { name: "Overview", label: "Overview" },
+    { name: "Overview", label: "Overview", icon: "pi-home" },
     {
         name: "Workload",
         label: "Workload",
-        items: [{ view: "WorkloadInstance", label: "Instances" }],
+        icon: "pi-bolt",
+        items: [
+            {
+                view: "WorkloadVirtualMachine",
+                label: "Virtual Machines",
+                icon: "pi-desktop",
+            },
+        ],
     },
     {
         name: "Storage",
         label: "Storage",
+        icon: "pi-database",
         items: [
-            { view: "StorageDataset", label: "Dataset" },
-            { view: "StorageCheckpoint", label: "Checkpoint" },
+            { view: "StorageImage", label: "Image", icon: "pi-image" },
+            { view: "StorageCheckpoint", label: "Checkpoint", icon: "pi-save" },
+        ],
+    },
+    {
+        name: "Network",
+        label: "Network",
+        icon: "pi-sitemap",
+        items: [
+            { view: "NetworkNetwork", label: "Networks", icon: "pi-share-alt" },
+            {
+                view: "NetworkFloatingIp",
+                label: "Floating IPs",
+                icon: "pi-globe",
+            },
+        ],
+    },
+    {
+        name: "Security",
+        label: "Security",
+        icon: "pi-shield",
+        items: [
+            { view: "SecuritySecret", label: "Secrets", icon: "pi-lock" },
+            { view: "SecurityPublicKey", label: "Public Keys", icon: "pi-key" },
         ],
     },
     {
         name: "Admin",
         label: "Admin",
+        icon: "pi-cog",
         items: [
-            { view: "AdminUser", label: "User" },
-            { view: "AdminProject", label: "Project" },
-            { view: "AdminQuota", label: "Quota" },
+            { view: "AdminUser", label: "User", icon: "pi-user" },
+            { view: "AdminProject", label: "Project", icon: "pi-briefcase" },
+            { view: "AdminQuota", label: "Quota", icon: "pi-chart-pie" },
+            { view: "AdminHost", label: "Host", icon: "pi-server" },
         ],
     },
 ]);
@@ -266,20 +308,22 @@ watch(
 <style scoped>
 aside {
     height: 100vh;
-    width: 13rem;
-    margin-top: 1.5rem;
+    width: 14rem;
+    padding: 1rem 0.75rem;
+    background: var(--glass-sheen), rgba(22, 24, 27, 0.45);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-right: 1px solid var(--color-border-soft);
     box-shadow: var(--box-shadow-sidebar);
-    background: var(--color-tile);
 }
 
 aside .sidebar {
     display: flex;
     flex-direction: column;
-    position: relative;
-    top: 0.5rem;
-    padding: 0.25rem 0;
+    gap: 0.5rem;
 }
 
+/* every entry is a framed tile, like the buttons of a game-menu */
 aside .sidebar button.sidebar-btn {
     display: flex;
     align-items: center;
@@ -287,13 +331,41 @@ aside .sidebar button.sidebar-btn {
     position: relative;
     height: 3rem;
     padding: 0 1rem;
-    background-color: var(--color-tile);
-    border: none;
+    background: var(--glass-sheen), rgba(42, 44, 48, 0.6);
+    border: 1px solid var(--color-border);
+    box-shadow:
+        var(--glass-edge),
+        var(--box-shadow);
     cursor: pointer;
     width: 100%;
     text-align: left;
     font: inherit;
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
     color: var(--color-text);
+    transition:
+        background-color 150ms,
+        color 150ms,
+        border-color 150ms;
+}
+
+/* icon and text of an entry */
+.entry-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.entry-label .pi {
+    width: 1.2rem;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+aside .sidebar button.sidebar_dropdown_entry .pi {
+    font-size: 0.95rem;
 }
 
 .caret {
@@ -304,53 +376,51 @@ aside .sidebar button.sidebar-btn {
 }
 
 .sidebar_drop_content {
-    background-color: var(--color-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-left: 0.75rem;
     overflow: hidden;
     transition: max-height 0.35s ease;
     max-height: 0;
 }
 
-aside .sidebar button.sidebar-btn {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    height: 3rem;
-    padding: 0 1rem;
-    background-color: var(--color-tile);
-    border: none;
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    font: inherit;
-    color: var(--color-text);
+/* first sub-entry gets a bit space to its parent */
+.sidebar_drop_content > :first-child {
+    margin-top: 0.3rem;
 }
 
-/* highlight for both normal entries and dropdown parents */
+/* selected entry becomes a light tile with dark text and an accent-bar */
 aside .sidebar button.active {
-    background-color: var(--color-highlight);
-    color: invert(var(--color-text));
+    background: var(--color-selected);
+    color: var(--color-text-dark);
+    box-shadow: inset 0.3rem 0 0 var(--color-highlight);
 }
 
-/* Subentries styled the same as top-level entries */
+/* sub-entries are smaller and without frame */
 aside .sidebar button.sidebar_dropdown_entry {
-    padding-left: 2rem;
     justify-content: flex-start;
-    height: 2.5rem;
-    background-color: var(--color-tile);
+    height: 2.7rem;
+    /* without this, the flex-container shrinks the entries to their text, while it is
+    collapsed, and the opened height is then measured with these shrunk entries */
+    flex-shrink: 0;
+    font-size: 0.95rem;
+    background: rgba(42, 44, 48, 0.4);
+    border-color: var(--color-border-soft);
+    box-shadow: none;
     color: var(--color-text);
 }
 
-/* highlight for subentries */
+/* selected sub-entry is filled with the highlight-color */
 aside .sidebar button.sidebar_dropdown_entry.active {
-    background-color: var(--color-highlight);
-    color: invert(var(--color-text));
+    background: var(--color-highlight);
+    border-color: var(--color-border);
+    color: var(--color-on-highlight);
 }
-.sidebar-btn:hover,
-.sidebar_dropdown_entry:hover {
-    background-color: var(--color-highlight);
-    color: invert(var(--color-text));
-    transition: all 150ms;
+
+aside .sidebar button.sidebar-btn:hover {
+    border-color: var(--color-text);
+    filter: brightness(115%);
 }
 
 .sidebar-btn:focus,

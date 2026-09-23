@@ -48,13 +48,13 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { ProjectBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    project: { id: number; name: string } | null;
+    project: ProjectBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,17 +64,10 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(project_id: string) {
+async function handleAccept(project_id: string | undefined) {
     if (!project_id) return;
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        await miko_api.delete(`/v1alpha/project/${project_id}/admin`, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
+        await miko.deleteProject(project_id);
 
         emit("accept");
     } catch (err) {

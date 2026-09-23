@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,44 +11,42 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">Dataset</div>
+        <div class="card-label">Networks</div>
         <div class="card-content">
             <!-- Add button -->
             <button class="add-button" @click="openAddModal">+</button>
 
-            <table class="overview-table" v-if="datasets.length > 0">
+            <table class="overview-table" v-if="networks.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
-                        <th>Number of Rows</th>
-                        <th>Number of Columns</th>
+                        <th>Subnet</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="dataset in datasets" :key="dataset.uuid">
-                        <td>{{ dataset.uuid }}</td>
-                        <td>{{ dataset.name }}</td>
-                        <td>{{ dataset.number_of_rows }}</td>
-                        <td>{{ dataset.number_of_columns }}</td>
+                    <tr v-for="network in networks" :key="network.uuid">
+                        <td>{{ network.uuid }}</td>
+                        <td>{{ network.name }}</td>
+                        <td>{{ network.subnet }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(dataset.uuid)"
+                                @click.stop="toggleDropdown(network.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === dataset.uuid"
+                                    v-if="openDropdown === network.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openDeleteModal(dataset)">
+                                    <button @click="openDeleteModal(network)">
                                         Delete
                                     </button>
                                 </div>
@@ -58,19 +56,19 @@
                 </tbody>
             </table>
 
-            <p v-else>No datasets found</p>
+            <p v-else>No networks found</p>
         </div>
 
-        <DatasetCreateModal
+        <NetworkCreateModal
             v-if="showAddModal"
             :icons="icons"
             @accept="acceptAddModal"
             @cancel="cancelAddModal"
         />
 
-        <DatasetDeleteModal
+        <NetworkDeleteModal
             v-if="showDeleteModal"
-            :dataset="datasetToDelete"
+            :network="networkToDelete"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
@@ -84,36 +82,26 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
-import DatasetCreateModal from "./dataset_create_modal.vue";
-import DatasetDeleteModal from "./dataset_delete_modal.vue";
+import { hanami } from "@/api";
+import type { NetworkBasicResp } from "@/api";
+import NetworkCreateModal from "./network_create_modal.vue";
+import NetworkDeleteModal from "./network_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const datasets = ref<{ uuid: string; datasetName: string; email: string }[]>(
-    [],
-);
+const networks = ref<NetworkBasicResp[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const datasetToDelete = ref<{ uuid: string; datasetName: string } | null>(null);
+const networkToDelete = ref<NetworkBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchDatasets() {
+async function fetchNetworks() {
     try {
-        const authContext = getAuthContext();
-        const ryokan_api = axios.create({
-            baseURL: authContext.ryokan_address,
-        });
-
-        const response = await ryokan_api.get("/v1alpha/dataset", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        datasets.value = response.data.datasets;
+        networks.value = await hanami.listNetworks();
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(err, "Failed to load datasets");
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load networks");
     }
 }
 
@@ -138,7 +126,7 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add dataset modal
+// Add network modal
 //=============================================================================
 function openAddModal() {
     showAddModal.value = true;
@@ -146,34 +134,33 @@ function openAddModal() {
 function cancelAddModal() {
     showAddModal.value = false;
 }
-
 async function acceptAddModal() {
-    await fetchDatasets();
+    await fetchNetworks();
     cancelAddModal();
 }
 
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(dataset: { id: string; datasetName: string }) {
-    datasetToDelete.value = dataset;
+function openDeleteModal(network: NetworkBasicResp) {
+    networkToDelete.value = network;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    datasetToDelete.value = null;
+    networkToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    await fetchDatasets();
+    await fetchNetworks();
     cancelDeleteModal();
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchDatasets);
+onMounted(fetchNetworks);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
@@ -182,14 +169,12 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
-
-//=============================================================================
 </script>
 
 <style scoped>
 /* Columns 2 through n-1 share remaining space equally */
 th:not(:first-child):not(:last-child),
 td:not(:first-child):not(:last-child) {
-    width: 20%;
+    width: 30%;
 }
 </style>

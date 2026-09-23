@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,17 +11,20 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
     <div class="card">
-        <div class="card-label">Task</div>
+        <div class="card-label">Tasks</div>
         <div class="card-content">
-            <!-- Add button -->
-            <button class="add-button" @click="openAddModal(props.id)">
-                +
-            </button>
+            <!-- Checkpoint actions, which both create a new task -->
+            <div class="task-actions">
+                <button @click="showSaveModal = true">Save checkpoint</button>
+                <button @click="showRestoreModal = true">
+                    Restore checkpoint
+                </button>
+            </div>
 
             <table class="overview-table" v-if="tasks.length > 0">
                 <thead>
@@ -29,7 +32,7 @@
                         <th>UUID</th>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Progress</th>
+                        <th>State</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -39,10 +42,12 @@
                         <td>{{ task.name }}</td>
                         <td>{{ task.task_type }}</td>
                         <td>
-                            <ProgressBar
-                                :task_uuid="task.uuid"
-                                :instance_uuid="props.id"
-                            />
+                            <span
+                                class="state-badge"
+                                :class="stateClass(task.state)"
+                            >
+                                {{ task.state }}
+                            </span>
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -55,7 +60,13 @@
                                     v-if="openDropdown === task.uuid"
                                     class="table-dropdown-menu"
                                 >
-                                    <button @click="openAbortModal(task)">
+                                    <button @click="openInfoModal(task)">
+                                        Info
+                                    </button>
+                                    <button
+                                        v-if="isAbortable(task.state)"
+                                        @click="openAbortModal(task)"
+                                    >
                                         Abort
                                     </button>
                                 </div>
@@ -68,23 +79,41 @@
             <p v-else>No tasks found</p>
         </div>
 
-        <TaskCreateModal
-            v-if="showAddModal"
-            :instance_uuid="props.id"
+        <TaskInfoModal
+            v-if="showInfoModal"
+            :virtual_machine_uuid="props.id"
             :torii_port="torii_port"
+            :task="taskToShow"
             :icons="icons"
-            @accept="acceptAddModal"
-            @cancel="cancelAddModal"
+            @cancel="cancelInfoModal"
         />
 
         <TaskAbortModal
             v-if="showAbortModal"
-            :instance_uuid="props.id"
+            :virtual_machine_uuid="props.id"
             :torii_port="torii_port"
             :task="taskToAbort"
             :icons="icons"
             @accept="acceptAbortModal"
             @cancel="cancelAbortModal"
+        />
+
+        <CheckpointSaveModal
+            v-if="showSaveModal"
+            :virtual_machine_uuid="props.id"
+            :torii_port="torii_port"
+            :icons="icons"
+            @accept="acceptCheckpointModal"
+            @cancel="showSaveModal = false"
+        />
+
+        <CheckpointRestoreModal
+            v-if="showRestoreModal"
+            :virtual_machine_uuid="props.id"
+            :torii_port="torii_port"
+            :icons="icons"
+            @accept="acceptCheckpointModal"
+            @cancel="showRestoreModal = false"
         />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
@@ -95,13 +124,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import "primevue/resources/themes/saga-blue/theme.css";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
-import TaskCreateModal from "./task_create_modal.vue";
+import { hanami, sakura } from "@/api";
+import type { TaskBasicResp, TaskState } from "@/api";
+import TaskInfoModal from "./task_info_modal.vue";
 import TaskAbortModal from "./task_abort_modal.vue";
-import ProgressBar from "./progress_bar.vue";
+import CheckpointSaveModal from "./checkpoint_save_modal.vue";
+import CheckpointRestoreModal from "./checkpoint_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const props = defineProps<{
@@ -109,42 +138,54 @@ const props = defineProps<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const tasks = ref<{ uuid: string; taskName: string }[]>([]);
-const showAddModal = ref(false);
+const tasks = ref<TaskBasicResp[]>([]);
 const openDropdown = ref<string | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
-const taskToAbort = ref<{ uuid: string } | null>(null);
+const taskToShow = ref<TaskBasicResp | null>(null);
+const taskToAbort = ref<TaskBasicResp | null>(null);
+const showInfoModal = ref(false);
 const showAbortModal = ref(false);
+const showSaveModal = ref(false);
+const showRestoreModal = ref(false);
 
-var torii_port = 0;
+// the torii-port of the virtual-machine, which is needed to reach its sakura
+const torii_port = ref<number>(0);
+
+// tasks change their state in the background, so the list is polled
+let refreshInterval: number | undefined;
+
+/** States, in which a task can still be aborted. */
+function isAbortable(state: TaskState): boolean {
+    return state === "Created" || state === "Queued" || state === "Active";
+}
+
+/** Maps the state of a task to the css-class, which colors its badge. */
+function stateClass(state: TaskState): string {
+    switch (state) {
+        case "Finished":
+            return "state-finished";
+        case "Active":
+            return "state-active";
+        case "Error":
+        case "Aborted":
+            return "state-failed";
+        default:
+            return "state-pending";
+    }
+}
 
 async function fetchTasks() {
+    if (!props.id) return;
+
     try {
-        const authContext = getAuthContext();
-        const hanami_api = axios.create({
-            baseURL: authContext.hanami_address,
-        });
+        // the sakura is only reachable through the torii, so the port of the
+        // virtual-machine has to be resolved first
+        if (torii_port.value === 0) {
+            const virtualMachine = await hanami.getVirtualMachine(props.id);
+            torii_port.value = virtualMachine.torii_port;
+        }
 
-        // get torii-port of the instance
-        const instance_response = await hanami_api.get(
-            `/v1alpha/instance/${props.id}`,
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-        torii_port = instance_response.data.torii_port;
-
-        const sakura_api = axios.create({
-            baseURL: `${authContext.torii_base_address}:${torii_port}`,
-        });
-
-        const task_response = await sakura_api.get(
-            `/v1alpha/instance/${props.id}/task`,
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
-        tasks.value = task_response.data.tasks;
+        tasks.value = await sakura.listTasks(torii_port.value, props.id);
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load tasks");
     }
@@ -171,24 +212,23 @@ function handleClickOutside(event: MouseEvent) {
 }
 
 //=============================================================================
-// Add task modal
+// Info modal
 //=============================================================================
-function openAddModal(instance_uuid: string) {
-    showAddModal.value = true;
+function openInfoModal(task: TaskBasicResp) {
+    taskToShow.value = task;
+    showInfoModal.value = true;
+    openDropdown.value = null;
 }
-function cancelAddModal() {
-    showAddModal.value = false;
-}
-
-async function acceptAddModal() {
-    await fetchTasks();
-    cancelAddModal();
+function cancelInfoModal() {
+    showInfoModal.value = false;
+    taskToShow.value = null;
+    openDropdown.value = null;
 }
 
 //=============================================================================
 // Abort modal
 //=============================================================================
-function openAbortModal(task: { uuid: string }) {
+function openAbortModal(task: TaskBasicResp) {
     taskToAbort.value = task;
     showAbortModal.value = true;
     openDropdown.value = null;
@@ -205,24 +245,63 @@ async function acceptAbortModal() {
 }
 
 //=============================================================================
+// Checkpoint modals
+//=============================================================================
+async function acceptCheckpointModal() {
+    showSaveModal.value = false;
+    showRestoreModal.value = false;
+    await fetchTasks();
+}
+
+//=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchTasks);
+onMounted(async () => {
+    await fetchTasks();
+    refreshInterval = window.setInterval(fetchTasks, 2000);
+});
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
 });
 
 onBeforeUnmount(() => {
+    if (refreshInterval) clearInterval(refreshInterval);
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
 
 <style scoped>
+.task-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
 .overview-table td:nth-child(2) {
     width: 15rem;
 }
 .overview-table td:nth-child(3) {
     width: 10rem;
+}
+
+.state-badge {
+    padding: 0.1rem 0.5rem;
+    font-size: 0.85rem;
+    color: black;
+}
+
+.state-finished {
+    background-color: #52c41a;
+}
+.state-active {
+    background-color: var(--color-highlight);
+    color: var(--color-on-highlight);
+}
+.state-failed {
+    background-color: #ff4d4f;
+}
+.state-pending {
+    background-color: #d9d9d9;
 }
 </style>

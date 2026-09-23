@@ -16,6 +16,16 @@ import { createApp } from "vue";
 import App from "@/App.vue";
 import { loadConfig } from "@/config";
 
+// Fonts are bundled with the dashboard, so it doesn't depend on any external font-server
+import "@fontsource/barlow/400.css";
+import "@fontsource/barlow/500.css";
+import "@fontsource/barlow/600.css";
+import "@fontsource/barlow-semi-condensed/400.css";
+import "@fontsource/barlow-semi-condensed/500.css";
+
+// icon-font, used for example by the sidebar
+import "primeicons/primeicons.css";
+
 async function bootstrap() {
     await loadConfig();
 

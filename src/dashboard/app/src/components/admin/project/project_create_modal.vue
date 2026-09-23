@@ -23,7 +23,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-instance="form.projectId"
+                        v-model="form.projectId"
                         type="text"
                         placeholder="Project-ID"
                         :class="{ invalid_input: projectIdError }"
@@ -35,7 +35,7 @@
                 <br />
                 <div>
                     <input
-                        v-instance="form.projectName"
+                        v-model="form.projectName"
                         type="text"
                         placeholder="Project-Name"
                         :class="{ invalid_input: projectNameError }"
@@ -65,10 +65,9 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive } from "vue";
-import axios from "axios";
+import { ref, reactive } from "vue";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -90,29 +89,18 @@ const form = reactive({
 });
 
 async function handleAccept() {
-    projectIdError.value = form.userId.length < 4;
-    projectNameError.value = form.userName.length < 4;
+    projectIdError.value = form.projectId.length < 4;
+    projectNameError.value = form.projectName.length < 4;
 
     if (projectIdError.value || projectNameError.value) {
         return;
     }
 
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
+        await miko.createProject({
+            id: form.projectId,
+            name: form.projectName,
         });
-
-        await miko_api.post(
-            "/v1alpha/project/admin",
-            {
-                id: form.projectId,
-                name: form.projectName,
-            },
-            {
-                headers: { Authorization: `Bearer ${authContext.token}` },
-            },
-        );
 
         emit("accept");
     } catch (err) {

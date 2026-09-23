@@ -16,11 +16,16 @@ limitations under the License.
 */
 
 @layer primevue {
+    .p-progressbar {
+        border-radius: 0;
+        background: var(--color-bar);
+        border: 1px solid var(--color-border-soft);
+    }
     .p-progressbar .p-progressbar-value {
-        color: black;
+        color: var(--color-on-highlight);
         background: var(--color-highlight);
     }
     .p-progressbar .p-progressbar-label {
-        color: black;
+        color: var(--color-on-highlight);
     }
 }

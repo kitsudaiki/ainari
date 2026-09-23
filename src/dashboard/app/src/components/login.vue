@@ -26,7 +26,7 @@
             <div class="modal-content">
                 <div>
                     <input
-                        v-instance="user_id"
+                        v-model="user_id"
                         type="text"
                         id="login_id_field"
                         placeholder="User-ID"
@@ -41,7 +41,7 @@
 
                 <div>
                     <input
-                        v-instance="password"
+                        v-model="password"
                         type="password"
                         id="login_pw_field"
                         placeholder="Password"
@@ -157,7 +157,8 @@ async function login() {
 .login-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 1);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;

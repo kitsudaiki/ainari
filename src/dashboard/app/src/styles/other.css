@@ -25,7 +25,6 @@ limitations under the License.
     color: #000;
     border: 1px solid #ff4d4d;
     padding: 0.5rem 0.75rem;
-    border-radius: 4px;
     margin-top: 0.5rem;
     width: 100%;
     text-align: center;
@@ -67,7 +66,7 @@ limitations under the License.
     cursor: pointer;
 
     font-size: 1rem;
-    font-weight: bold;
+    font-weight: 600;
 
     color: #333;
 }
@@ -88,6 +87,7 @@ limitations under the License.
 }
 
 .checkbox-label {
+    accent-color: var(--color-highlight);
     margin-top: 1rem;
     color: var(--color-text);
     font-size: 0.9rem;

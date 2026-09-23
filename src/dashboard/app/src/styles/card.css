@@ -19,35 +19,74 @@ limitations under the License.
     position: relative;
     box-shadow: var(--box-shadow-header);
     padding: 1.3rem;
-    background: var(--color-tile);
+    padding-top: 0;
+    background: transparent;
+    border: 1px solid var(--color-border-soft);
     max-height: calc(
         100vh - 2rem
     ); /* 2rem padding from top/bottom of viewport */
 
     margin: 0.5rem; /* space around the whole overview */
-    margin-top: 1.5rem;
-    margin-bottom: 2.5rem;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
     margin-right: 1rem;
     margin-left: 1rem;
 }
 
-.card-label {
+/* The glass is drawn by a pseudo-element behind the card instead of the card itself,
+because a backdrop-filter on the card would turn it into the containing block of its
+fixed children and so trap the modals and error-popups inside the card. */
+.card::before {
+    content: "";
     position: absolute;
-    top: -1rem;
-    left: 1rem;
-    background-color: var(--color-text);
-    color: invert(var(--color-text));
-    font-size: 1rem;
-    padding: 0.3rem 3rem;
-    /* font-weight: bold; */
-    box-shadow: var(--box-shadow-header);
-    font-family: var(--text-font-family);
+    inset: 0;
+    z-index: -1;
+    background: var(--glass-sheen), var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-edge);
+    pointer-events: none;
+}
+
+/* section-header: dark bar with a striped texture, which fades in to the right */
+.card-label {
+    position: relative;
+    margin: 0 -1.3rem;
+    padding: 0.45rem 1.3rem 0.45rem 1.8rem;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--color-bar) 35%,
+            rgba(22, 24, 27, 0.35) 100%
+        ),
+        var(--hex-pattern),
+        var(--glass-bg-strong);
+    border-bottom: 1px solid var(--color-border-soft);
+
+    color: var(--color-text);
+    font-size: 1.15rem;
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+/* small accent-marker in front of the section-name */
+.card-label::before {
+    content: "";
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    width: 0.3rem;
+    height: 1.1rem;
+    transform: translateY(-50%);
+    background: var(--color-highlight);
 }
 
 .card-content {
     color: var(--color-text);
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
     position: relative;
 }
 

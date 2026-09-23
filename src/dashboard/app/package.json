@@ -11,7 +11,9 @@
     "vue": "^3.5.0",
     "axios": "^1.6.0",
     "primevue": "^3.17.0",
-    "primeicons": "^6.0.1"
+    "primeicons": "^6.0.1",
+    "@fontsource/barlow": "^5.0.0",
+    "@fontsource/barlow-semi-condensed": "^5.0.0"
   },
   "devDependencies": {
     "typescript": "^5.3.0",

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 // Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,7 +11,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. 
+// limitations under the License.
 -->
 
 <template>
@@ -22,10 +22,12 @@
                 <thead>
                     <tr>
                         <th>User-ID</th>
-                        <th>Max Instances</th>
-                        <th>Max Datasets</th>
+                        <th>Max Virtual Machines</th>
+                        <th>Max Images</th>
                         <th>Max Checkpoints</th>
                         <th>Max Secrets</th>
+                        <th>Max Networks</th>
+                        <th>Max Floating IPs</th>
                         <th>Max Task-Queue</th>
                         <th>Actions</th>
                     </tr>
@@ -33,10 +35,12 @@
                 <tbody>
                     <tr v-for="quota in quotas" :key="quota.user_id">
                         <td>{{ quota.user_id }}</td>
-                        <td>{{ quota.max_instance }}</td>
-                        <td>{{ quota.max_dataset }}</td>
+                        <td>{{ quota.max_virtual_machine }}</td>
+                        <td>{{ quota.max_image }}</td>
                         <td>{{ quota.max_checkpoint }}</td>
                         <td>{{ quota.max_secret }}</td>
+                        <td>{{ quota.max_network }}</td>
+                        <td>{{ quota.max_floating_ip }}</td>
                         <td>{{ quota.max_taskqueue }}</td>
                         <td>
                             <!-- Dropdown menu -->
@@ -78,37 +82,22 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { miko } from "@/api";
+import type { QuotaBasicResp } from "@/api";
 import QuotaUpdateModal from "./quota_update_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const quotas = ref<{ user_id: string }[]>([]);
+const quotas = ref<QuotaBasicResp[]>([]);
 const showUpdateModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const quotaToUpdate = ref<{
-    user_id: string;
-    max_instance: number;
-    max_dataset: number;
-    max_checkpoint: number;
-    max_secret: number;
-    max_taskqueue: number;
-} | null>(null);
+const quotaToUpdate = ref<QuotaBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchQuotas() {
     try {
-        const authContext = getAuthContext();
-        const miko_api = axios.create({
-            baseURL: authContext.miko_address,
-        });
-
-        const response = await miko_api.get("/v1alpha/quota/admin", {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
-        quotas.value = response.data.quotas;
+        quotas.value = await miko.listQuotas();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load quotas");
     }
@@ -137,14 +126,7 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Update modal
 //=============================================================================
-function openUpdateModal(quota: {
-    user_id: string;
-    max_instance: number;
-    max_dataset: number;
-    max_checkpoint: number;
-    max_secret: number;
-    max_taskqueue: number;
-}) {
+function openUpdateModal(quota: QuotaBasicResp) {
     quotaToUpdate.value = quota;
     showUpdateModal.value = true;
     openDropdown.value = null;
@@ -179,6 +161,6 @@ onBeforeUnmount(() => {
 /* Columns 2 through n-1 share remaining space equally */
 th:not(:first-child):not(:last-child),
 td:not(:first-child):not(:last-child) {
-    width: 15%;
+    width: 11%;
 }
 </style>

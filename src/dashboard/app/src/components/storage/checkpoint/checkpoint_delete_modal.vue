@@ -48,13 +48,13 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import axios from "axios";
 
-import { getAuthContext } from "@/auth_context";
+import { ryokan } from "@/api";
+import type { CheckpointBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    checkpoint: { uuid: string; name: string } | null;
+    checkpoint: CheckpointBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,17 +64,10 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(checkpoint_uuid: string) {
+async function handleAccept(checkpoint_uuid: string | undefined) {
     if (!checkpoint_uuid) return;
     try {
-        const authContext = getAuthContext();
-        const ryokan_api = axios.create({
-            baseURL: authContext.ryokan_address,
-        });
-
-        await ryokan_api.delete(`/v1alpha/checkpoint/${checkpoint_uuid}`, {
-            headers: { Authorization: `Bearer ${authContext.token}` },
-        });
+        await ryokan.deleteCheckpoint(checkpoint_uuid);
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
