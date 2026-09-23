@@ -25,12 +25,14 @@ import (
 )
 
 // ReserveVirtualMachine reserves a new virtual machine on one of the sakura-hosts. The image and
-// the public-key are not deployed here, but by the task of CreateVirtualMachine.
-func ReserveVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, networkUuid string) (map[string]interface{}, error) {
+// the public-key are not deployed here, but by the task of CreateVirtualMachine. The memorySize
+// is given in MiB and the diskSize in GiB.
+func ReserveVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, diskSize int64, networkUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
 		"number_of_cores": numberOfCores,
 		"memory_size":     memorySize,
+		"disk_size":       diskSize,
 		"name":            name,
 		"network_uuid":    networkUuid,
 	}

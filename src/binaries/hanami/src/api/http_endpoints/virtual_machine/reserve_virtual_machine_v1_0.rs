@@ -17,7 +17,6 @@ use std::net::Ipv4Addr;
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use rand::prelude::IndexedRandom;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -26,7 +25,7 @@ use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host}
 use crate::database::address_table;
 use crate::database::address_table::AddressEntry;
 use crate::database::host_table;
-use crate::database::host_table::HostEntry;
+use crate::database::host_table::{HostEntry, HostResources};
 use crate::database::meta_virtual_machine_table;
 use crate::database::network_table;
 
@@ -42,6 +41,7 @@ use ainari_clients::quota::get_quota;
 use ainari_clients::route as route_clients;
 use ainari_clients::virtual_machine as virtual_machine_clients;
 use ainari_common::config::Endpoints;
+use ainari_common::enums::DbError;
 
 /// Reserves a new virtual_machine on one of the sakura-hosts
 ///
@@ -61,7 +61,9 @@ use ainari_common::config::Endpoints;
     summary = "Reserve new virtual_machine",
     description = r###"Reserve a new virtual_machine together with its address within the given network.
 
-The image and the public-key are not set here, but by the following create-call."###,
+The virtual_machine is placed on a random sakura-host, which has enough free cores, memory and
+disk-space for it. The image and the public-key are not set here, but by the following
+create-call."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -76,16 +78,36 @@ pub async fn reserve_virtual_machine(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
+    // the sakura-host expects the memory in bytes
+    let memory_size_bytes = body.memory_size.checked_mul(1024 * 1024).ok_or_else(|| {
+        ErrorResponse::BadRequest("Invalid input: memory_size is too large".to_string())
+    })?;
+
     check_quota(&context).await?;
 
     // TODO: add check if network-, image- and public-key-uuid exist
 
-    let selected_host = select_host(&context)?;
-    let (virtual_machine_resp, proxy_uuid) =
-        prepare_selected_host(&selected_host, &body, &context).await?;
+    let (selected_host, allocated_resources) = select_host(
+        body.number_of_cores,
+        body.memory_size,
+        body.disk_size,
+        &context,
+    )?;
 
     // parse uuid-string
     let sakura_uuid = convert_uuid(&selected_host.uuid)?;
+
+    // give the allocated resources back to the host, if the virtual_machine can not be reserved
+    let (virtual_machine_resp, proxy_uuid) =
+        match prepare_selected_host(&selected_host, &body, memory_size_bytes, &context).await {
+            Ok(result) => result,
+            Err(e) => {
+                if host_table::release_host_resources(&sakura_uuid, &allocated_resources).is_err() {
+                    log::error!("Failed to release resources of host with UUID '{sakura_uuid}'.");
+                }
+                return Err(e);
+            }
+        };
 
     // add new virtual_machine to database
     let virtual_machine_uuid = virtual_machine_resp.uuid;
@@ -106,37 +128,54 @@ pub async fn reserve_virtual_machine(
     Ok(CreatedJson(virtual_machine_resp))
 }
 
-/// Selects the sakura-host, which runs the new virtual_machine
+/// Selects the sakura-host, which runs the new virtual_machine, and allocates the resources of
+/// the new virtual_machine on it
+///
+/// Only hosts, which have enough free cores, memory and disk-space for the new virtual_machine,
+/// are considered and a random one of them is selected. The check and the allocation happen
+/// atomically within the database, so parallel requests can not over-allocate a host.
 ///
 /// # Arguments
+/// * `number_of_cores` - Requested number of cores of the new virtual_machine
+/// * `memory_size` - Requested memory of the new virtual_machine in MiB
+/// * `disk_size` - Requested disk-size of the new virtual_machine in GiB
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
-/// * `Ok(HostEntry)` with a randomly selected host on success
-/// * `Err(ErrorResponse)` if there is no host or the hosts can not be read from the database
-fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
-    // list all available hosts
-    let hosts = host_table::list_hosts(context).map_err(|e| {
-        log::error!("Failed to get list of hosts form database: '{e}'");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
-
-    // check that there is at least one host
-    if hosts.is_empty() {
-        log::error!("No hosts to schedule new virtual_machine.");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-    }
-
-    // select first host
-    let mut rng = rand::rng();
-    let selected_host = if let Some(host) = hosts.choose(&mut rng) {
-        host
-    } else {
-        log::error!("No hosts with list-position 0 doesn't exist.");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+/// * `Ok((HostEntry, HostResources))` with the selected host and the resources allocated on it
+/// * `Err(ErrorResponse)` if there is no host with enough free resources or the hosts can not
+///   be read from the database
+fn select_host(
+    number_of_cores: i32,
+    memory_size: i64,
+    disk_size: i64,
+    context: &UserContext,
+) -> Result<(HostEntry, HostResources), ErrorResponse> {
+    let requested = HostResources {
+        number_of_cores: i64::from(number_of_cores),
+        memory_size,
+        disk_space: disk_size,
     };
 
-    Ok(selected_host.clone())
+    match host_table::allocate_host_resources(&requested, context) {
+        Ok(host) => Ok((host, requested)),
+        Err(DbError::NotFound) => {
+            log::error!(
+                "No host with enough free resources for new virtual_machine: \
+                 cores: {}, memory: {} MiB, disk: {} GiB.",
+                requested.number_of_cores,
+                requested.memory_size,
+                requested.disk_space
+            );
+            Err(ErrorResponse::Conflict(
+                "No host with enough free resources for the virtual_machine.".to_string(),
+            ))
+        }
+        Err(DbError::InternalError) => {
+            log::error!("Failed to select host for new virtual_machine from database.");
+            Err(ErrorResponse::InternalError("Internal Error".to_string()))
+        }
+    }
 }
 
 /// Prepares everything, which the new virtual_machine requires on the selected sakura-host
@@ -148,6 +187,7 @@ fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
 /// # Arguments
 /// * `selected_host` - Sakura-host, which runs the new virtual_machine
 /// * `body` - Values of the new virtual_machine
+/// * `memory_size_bytes` - Memory of the new virtual_machine in bytes, as expected by sakura
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -156,6 +196,7 @@ fn select_host(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
 async fn prepare_selected_host(
     selected_host: &HostEntry,
     body: &Json<VirtualMachineCreateReq>,
+    memory_size_bytes: i64,
     context: &UserContext,
 ) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
     // get the network of the virtual_machine to reserve an address within its subnet
@@ -193,7 +234,7 @@ async fn prepare_selected_host(
         &body.name,
         &body.network_uuid,
         body.number_of_cores,
-        body.memory_size,
+        memory_size_bytes,
         &vm_address.internal_ip,
         &vm_address.tap_name,
         &vm_address.mac_address,

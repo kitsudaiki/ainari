@@ -25,8 +25,14 @@ use validator::Validate;
 pub struct VirtualMachineCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
+    #[validate(range(min = 1))]
     pub number_of_cores: i32,
+    /// memory of the virtual_machine in MiB
+    #[validate(range(min = 1))]
     pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    #[validate(range(min = 1))]
+    pub disk_size: i64,
     pub network_uuid: Uuid,
 }
 

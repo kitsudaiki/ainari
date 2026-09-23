@@ -140,7 +140,10 @@ export interface QuotaResp extends QuotaBasicResp {
 export interface VirtualMachineCreateReq {
     name: string;
     number_of_cores: number;
+    /** memory in MiB */
     memory_size: number;
+    /** disk-size in GiB */
+    disk_size: number;
     network_uuid: string;
 }
 

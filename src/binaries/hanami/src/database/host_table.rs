@@ -15,6 +15,7 @@
 use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
+use rand::prelude::IndexedRandom;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -376,6 +377,113 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
+/// Selects a random active host, which has enough free resources for the requested values,
+/// and allocates the requested resources on this host.
+///
+/// A host is suitable, if for cores, memory and disk the total value minus the used value
+/// is greater or equal to the requested value. The used values of the selected host are
+/// increased by the requested values.
+///
+/// The check and the allocation run while the database-connection is locked and within one
+/// immediate transaction, so no other request can allocate the same resources in between.
+///
+/// # Arguments
+/// * `requested` - Resources, which are requested by the new virtual-machine
+/// * `_` - User context (not currently used in the query)
+///
+/// # Returns
+/// * Ok(HostEntry) with the selected host and its updated used values
+/// * DbError::NotFound if no host has enough free resources
+/// * DbError::InternalError if there was an error executing the queries
+pub fn allocate_host_resources(
+    requested: &HostResources,
+    _: &UserContext,
+) -> Result<HostEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let result = conn.immediate_transaction::<_, diesel::result::Error, _>(|conn| {
+        let suitable_hosts = hosts
+            .filter(status.eq("ACTIVE"))
+            .filter((number_of_cores - used_number_of_cores).ge(requested.number_of_cores))
+            .filter((memory_size - amount_of_used_memory).ge(requested.memory_size))
+            .filter((disk_space - amount_of_used_disk_space).ge(requested.disk_space))
+            .select(HostEntry::as_select())
+            .load::<HostEntry>(conn)?;
+
+        let selected_host = suitable_hosts
+            .choose(&mut rand::rng())
+            .ok_or(diesel::result::Error::NotFound)?;
+
+        diesel::update(hosts.filter(uuid.eq(&selected_host.uuid)))
+            .set((
+                used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
+                amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
+                amount_of_used_disk_space.eq(amount_of_used_disk_space + requested.disk_space),
+            ))
+            .execute(conn)?;
+
+        hosts
+            .filter(uuid.eq(&selected_host.uuid))
+            .select(HostEntry::as_select())
+            .first::<HostEntry>(conn)
+    });
+
+    match result {
+        Ok(host) => Ok(host),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Releases resources, which were allocated on a host by `allocate_host_resources`.
+///
+/// The used values of the host are decreased by the given values, but never below 0.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host
+/// * `released` - Resources to release on the host
+///
+/// # Returns
+/// * Ok(()) if the resources were successfully released
+/// * DbError::NotFound if the host doesn't exist
+/// * DbError::InternalError if there was an error executing the query
+pub fn release_host_resources(
+    host_uuid: &Uuid,
+    released: &HostResources,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+    use diesel::dsl::sql;
+    use diesel::sql_types::BigInt;
+
+    // MAX(x, 0) keeps the values valid for the CHECK-constraints of the table
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
+        .set((
+            used_number_of_cores.eq(sql::<BigInt>("MAX(used_number_of_cores - ")
+                .bind::<BigInt, _>(released.number_of_cores)
+                .sql(", 0)")),
+            amount_of_used_memory.eq(sql::<BigInt>("MAX(amount_of_used_memory - ")
+                .bind::<BigInt, _>(released.memory_size)
+                .sql(", 0)")),
+            amount_of_used_disk_space.eq(sql::<BigInt>("MAX(amount_of_used_disk_space - ")
+                .bind::<BigInt, _>(released.disk_space)
+                .sql(", 0)")),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Deletes all active hosts by marking them as "DELETED".
 ///
 /// This function updates all hosts with an "ACTIVE" status to "DELETED"
@@ -544,6 +652,168 @@ mod tests {
 
         hard_delete_host(&uuid1);
         assert!(update_host_resources(&uuid1, &new_resources, &context).is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_allocate_and_release_host_resources() {
+        let _ = init_host_table();
+        let uuid1 = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        };
+
+        hard_delete_host(&uuid1);
+
+        // the values are that large, that no other host of the test-database can be selected
+        let resources = HostResources {
+            number_of_cores: 1_000_000,
+            memory_size: 1_000_000_000,
+            disk_space: 1_000_000_000,
+        };
+        add_new_host(
+            &uuid1,
+            "Alice",
+            "http://127.0.0.1:11420",
+            &resources,
+            &context,
+        )
+        .unwrap();
+
+        let requested = HostResources {
+            number_of_cores: 600_000,
+            memory_size: 600_000_000,
+            disk_space: 600_000_000,
+        };
+
+        // first allocation fits
+        let Ok(host) = allocate_host_resources(&requested, &context) else {
+            panic!("no host selected");
+        };
+        assert_eq!(host.uuid, uuid1.to_string());
+        assert_eq!(host.used_number_of_cores, 600_000);
+        assert_eq!(host.amount_of_used_memory, 600_000_000);
+        assert_eq!(host.amount_of_used_disk_space, 600_000_000);
+
+        // second allocation doesn't fit anymore and changes nothing
+        assert!(matches!(
+            allocate_host_resources(&requested, &context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        // a single exhausted resource is enough to exclude the host
+        let only_disk = HostResources {
+            number_of_cores: 1,
+            memory_size: 1,
+            disk_space: 400_000_001,
+        };
+        assert!(allocate_host_resources(&only_disk, &context).is_err());
+
+        // the remaining resources fit exactly
+        let remaining = HostResources {
+            number_of_cores: 400_000,
+            memory_size: 400_000_000,
+            disk_space: 400_000_000,
+        };
+        let Ok(host) = allocate_host_resources(&remaining, &context) else {
+            panic!("no host selected");
+        };
+        assert_eq!(host.used_number_of_cores, 1_000_000);
+        assert_eq!(host.amount_of_used_memory, 1_000_000_000);
+        assert_eq!(host.amount_of_used_disk_space, 1_000_000_000);
+
+        // release the first allocation, so it fits again
+        assert!(release_host_resources(&uuid1, &requested).is_ok());
+        let Ok(host) = get_host(&uuid1, &context) else {
+            panic!("host not found");
+        };
+        assert_eq!(host.used_number_of_cores, 400_000);
+        assert_eq!(host.amount_of_used_memory, 400_000_000);
+        assert_eq!(host.amount_of_used_disk_space, 400_000_000);
+        assert!(allocate_host_resources(&requested, &context).is_ok());
+
+        // releasing more than allocated stops at 0
+        assert!(release_host_resources(&uuid1, &resources).is_ok());
+        assert!(release_host_resources(&uuid1, &resources).is_ok());
+        let Ok(host) = get_host(&uuid1, &context) else {
+            panic!("host not found");
+        };
+        assert_eq!(host.used_number_of_cores, 0);
+        assert_eq!(host.amount_of_used_memory, 0);
+        assert_eq!(host.amount_of_used_disk_space, 0);
+
+        // deleted hosts are not selected
+        let _ = delete_host_admin(&uuid1, &context);
+        assert!(allocate_host_resources(&requested, &context).is_err());
+
+        hard_delete_host(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_allocate_host_resources_parallel() {
+        let _ = init_host_table();
+        let uuid1 = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        };
+
+        hard_delete_host(&uuid1);
+
+        // space for exactly 10 allocations of the requested size
+        let resources = HostResources {
+            number_of_cores: 2_000_000,
+            memory_size: 2_000_000_000,
+            disk_space: 2_000_000_000,
+        };
+        add_new_host(
+            &uuid1,
+            "Alice",
+            "http://127.0.0.1:11420",
+            &resources,
+            &context,
+        )
+        .unwrap();
+
+        let requested = HostResources {
+            number_of_cores: 200_000,
+            memory_size: 200_000_000,
+            disk_space: 200_000_000,
+        };
+
+        // 32 parallel requests, where only 10 are allowed to succeed
+        let handles: Vec<_> = (0..32)
+            .map(|_| {
+                let requested = requested.clone();
+                let context = context.clone();
+                std::thread::spawn(move || allocate_host_resources(&requested, &context).is_ok())
+            })
+            .collect();
+        let successful = handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .filter(|ok| *ok)
+            .count();
+        assert_eq!(successful, 10);
+
+        let Ok(host) = get_host(&uuid1, &context) else {
+            panic!("host not found");
+        };
+        assert_eq!(host.used_number_of_cores, 2_000_000);
+        assert_eq!(host.amount_of_used_memory, 2_000_000_000);
+        assert_eq!(host.amount_of_used_disk_space, 2_000_000_000);
+
+        hard_delete_host(&uuid1);
     }
 
     #[test]
