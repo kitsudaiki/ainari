@@ -232,7 +232,7 @@ export interface FloatingIpResp extends FloatingIpBasicResp {
 //=============================================================================
 
 /** Image-types accepted by the upload-endpoint of the ryokan. */
-export type ImageType = "csv" | "mnist" | "disk";
+export type ImageType = "disk";
 
 /** Mirror of `image_structs::ImageBasicResp`. */
 export interface ImageBasicResp {

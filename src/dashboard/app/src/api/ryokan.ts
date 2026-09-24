@@ -31,10 +31,9 @@ import type {
  * `POST /v1alpha/image/{type}/{name}`
  *
  * Uploads the files of a new image. The number of files depends on the type:
- * `csv` and `disk` expect a single file, `mnist` expects the image-file together
- * with the label-file.
+ * `disk` expects a single file.
  *
- * @param imageType - One of `csv`, `mnist` or `disk`
+ * @param imageType - Type of the image, currently only `disk`
  * @param name - Name of the new image
  * @param files - Files to upload, in the order expected by the type
  */
