@@ -164,7 +164,7 @@ var deleteVirtualMachineCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Printf("successfully deleted virtual machine '%v'\n", virtual_machineUuid)
+		fmt.Printf("deletion of virtual machine '%v' started\n", virtual_machineUuid)
 	},
 }
 

@@ -14,6 +14,7 @@
 
 use std::net::Ipv4Addr;
 
+use awc::http::StatusCode;
 use uuid::Uuid;
 
 use ainari_api_structs::virtual_machine_structs::*;
@@ -195,4 +196,56 @@ pub async fn delete_virtual_machine(
         &virtual_machine_uuid.to_string(),
     )
     .await
+}
+
+/// Checks, if a specific virtual_machine was deleted on its sakura-host.
+///
+/// A virtual_machine counts as deleted, as soon as the sakura-host doesn't know it anymore and
+/// answers with `404 Not Found`.
+///
+/// # Arguments
+///
+/// * `sakura_address` - The base URL of the Ainari Sakura service.
+/// * `token` - Authentication token for the API.
+/// * `internal_api_key` - Internal API key for authorization.
+/// * `virtual_machine_uuid` - UUID of the virtual_machine to check.
+/// * `insecure_client` - Whether to use an insecure client (no TLS verification).
+///
+/// # Returns
+///
+/// A `Result` containing `true` if the virtual_machine is deleted and `false` if it still
+/// exists, or an `AinariError` on failure.
+pub async fn is_virtual_machine_deleted(
+    sakura_address: &String,
+    token: &String,
+    internal_api_key: &Secret,
+    virtual_machine_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<bool, AinariError> {
+    let client = prepare_client(sakura_address, insecure_client);
+    let url = format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await
+        .map_err(|e| {
+            AinariError::InternalError(format!(
+                "Error while getting virtual_machine with uuid '{virtual_machine_uuid}' : {e}"
+            ))
+        })?;
+
+    match response.status() {
+        StatusCode::NOT_FOUND => Ok(true),
+        StatusCode::OK => Ok(false),
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+            Err(AinariError::Unauthorized("Invalid token".to_string()))
+        }
+        code => Err(AinariError::InternalError(format!(
+            "Error while getting virtual_machine with uuid '{virtual_machine_uuid}'. \
+             Got response-code: {code}"
+        ))),
+    }
 }

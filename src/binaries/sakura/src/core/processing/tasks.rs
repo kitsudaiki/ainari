@@ -19,11 +19,18 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
 use crate::database::task_table;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
+    pub vm_uuid: Uuid,
+    pub name: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineDeleteInfo {
     pub vm_uuid: Uuid,
     pub name: String,
     pub context: UserContext,
@@ -34,11 +41,11 @@ pub struct CloudHypervisorVirtualMachineCreateInfo {
 #[derive(Debug)]
 pub enum TaskVariant {
     CloudHypervisorVirtualMachineCreate(CloudHypervisorVirtualMachineCreateInfo),
+    CloudHypervisorVirtualMachineDelete(CloudHypervisorVirtualMachineDeleteInfo),
 }
 
 /// Metadata for tracking the state of a task.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct TaskMeta {
     /// True, as soon as the task was processed to its end.
     pub is_finished: bool,
@@ -112,6 +119,10 @@ impl Task {
         match &mut self.info {
             TaskVariant::CloudHypervisorVirtualMachineCreate(task_info) => {
                 handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
+                Ok(())
+            }
+            TaskVariant::CloudHypervisorVirtualMachineDelete(task_info) => {
+                handle_vm_deletion(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
                 Ok(())
             }
         }
@@ -198,6 +209,28 @@ async fn handle_vm_creation(
     match create_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
         Ok(_) => (),
         Err(e) => log::error!("fail: {:?}", e),
+    }
+}
+
+/// Handles the task, which deletes the virtual machine completely from this host.
+///
+/// A failure is only logged here, because the task-processing must not be stopped by a single
+/// virtual machine, which could not be deleted.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to delete
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to delete the virtual machine
+async fn handle_vm_deletion(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachineDeleteInfo,
+) {
+    if let Err(e) = delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
+        log::error!("Failed to delete VM {virtual_machine_uuid}: {e}");
     }
 }
 

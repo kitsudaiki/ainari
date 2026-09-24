@@ -20,9 +20,10 @@ use apistos::api_operation;
 use uuid::Uuid;
 
 use crate::config;
+use crate::core::delete_watcher::spawn_delete_watcher;
 use crate::core::routing::{delete_routes_to, torii_of_host};
 use crate::database::address_table;
-use crate::database::host_table;
+use crate::database::host_table::{self, HostResources};
 use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
@@ -38,7 +39,8 @@ use ainari_common::config::Endpoints;
     summary = "Delete virtual_machine",
     description = r###"Delete a virtual_machine.
 
-It is deleted on its sakura-host, its metadata is removed from the database, the
+It is deleted on its sakura-host in the background. A watcher releases its cores, memory and
+disk-space on the host, as soon as the sakura-host has finished the deletion. Its metadata is removed from the database, the
 proxy, which is connected to it, is deleted on the torii and the routes from and
 to the virtual_machine are removed from the gateways of its network."###,
     error_code = 400,
@@ -68,7 +70,7 @@ pub async fn delete_virtual_machine(
 
     // read the virtual_machine from its host, before it is deleted there, because its network
     // and its internal address are the only way to find the entry of the address-table, which
-    // belongs to it
+    // belongs to it, and its size is required to release its resources on the host again
     let virtual_machine = virtual_machine_clients::get_virtual_machine(
         &host_data.address,
         &context.token,
@@ -78,6 +80,22 @@ pub async fn delete_virtual_machine(
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
+
+    // sakura reports the memory in bytes, but the hosts-table counts it in MiB
+    let resources = HostResources {
+        number_of_cores: i64::from(virtual_machine.number_of_cores),
+        memory_size: virtual_machine.memory_size / (1024 * 1024),
+        disk_space: virtual_machine.disk_size,
+    };
+
+    // sakura deletes the virtual_machine within a task in the background, so the resources are
+    // released by a watcher, as soon as the virtual_machine is really gone
+    spawn_delete_watcher(
+        *virtual_machine_uuid,
+        sakura_uuid,
+        resources,
+        context.clone(),
+    );
 
     // send request to sakura to delete the virtual_machine
     virtual_machine_clients::delete_virtual_machine(

@@ -30,6 +30,12 @@ table! {
         uuid -> Varchar,
         name -> Varchar,
         address -> Varchar,
+        number_of_cores -> BigInt,
+        used_number_of_cores -> BigInt,
+        memory_size -> BigInt,
+        amount_of_used_memory -> BigInt,
+        disk_space -> BigInt,
+        amount_of_used_disk_space -> BigInt,
         status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
@@ -37,12 +43,6 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
-        number_of_cores -> BigInt,
-        used_number_of_cores -> BigInt,
-        memory_size -> BigInt,
-        amount_of_used_memory -> BigInt,
-        disk_space -> BigInt,
-        amount_of_used_disk_space -> BigInt,
     }
 }
 
@@ -59,6 +59,18 @@ pub struct HostEntry {
     pub name: String,
     /// Network address of the host
     pub address: String,
+    /// Number of cpu-threads of the host
+    pub number_of_cores: i64,
+    /// Number of cpu-threads, which are already in use
+    pub used_number_of_cores: i64,
+    /// Total memory of the host in MiB
+    pub memory_size: i64,
+    /// Amount of memory in MiB, which is already in use
+    pub amount_of_used_memory: i64,
+    /// Total size of the disk for the virtual-machines in GiB
+    pub disk_space: i64,
+    /// Amount of disk-space in GiB, which is already in use
+    pub amount_of_used_disk_space: i64,
     /// Current status of the host (ACTIVE, DELETED, etc.)
     pub status: String,
     /// Timestamp when the host was created
@@ -73,18 +85,6 @@ pub struct HostEntry {
     pub deleted_at: Option<String>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
-    /// Number of cpu-threads of the host
-    pub number_of_cores: i64,
-    /// Number of cpu-threads, which are already in use
-    pub used_number_of_cores: i64,
-    /// Total memory of the host in MiB
-    pub memory_size: i64,
-    /// Amount of memory in MiB, which is already in use
-    pub amount_of_used_memory: i64,
-    /// Total size of the disk for the virtual-machines in GiB
-    pub disk_space: i64,
-    /// Amount of disk-space in GiB, which is already in use
-    pub amount_of_used_disk_space: i64,
 }
 
 /// Hardware-resources of a host, which are reported by the host itself at registration.
@@ -124,6 +124,12 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         address VARCHAR(256),
+        number_of_cores BIGINT NOT NULL DEFAULT 0 CHECK (number_of_cores >= 0),
+        used_number_of_cores BIGINT NOT NULL DEFAULT 0 CHECK (used_number_of_cores >= 0),
+        memory_size BIGINT NOT NULL DEFAULT 0 CHECK (memory_size >= 0),
+        amount_of_used_memory BIGINT NOT NULL DEFAULT 0 CHECK (amount_of_used_memory >= 0),
+        disk_space BIGINT NOT NULL DEFAULT 0 CHECK (disk_space >= 0),
+        amount_of_used_disk_space BIGINT NOT NULL DEFAULT 0 CHECK (amount_of_used_disk_space >= 0),
         status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
@@ -134,7 +140,8 @@ pub fn init_host_table() -> Result<(), Box<dyn Error>> {
     );",
     )?;
 
-    // add the resource-columns separately, so they are also added to tables of older versions
+    // tables of older versions were created without the resource-columns, so they are added
+    // there at the end of the table, because sqlite can not insert columns in between
     for column in RESOURCE_COLUMNS {
         let sql = format!(
             "ALTER TABLE hosts ADD COLUMN {column} BIGINT NOT NULL DEFAULT 0 CHECK ({column} >= 0);"
@@ -175,6 +182,12 @@ pub fn add_new_host(
         uuid: host_uuid.to_string().clone(),
         name: host_name.to_owned(),
         address: host_address.to_owned(),
+        number_of_cores: resources.number_of_cores,
+        used_number_of_cores: 0,
+        memory_size: resources.memory_size,
+        amount_of_used_memory: 0,
+        disk_space: resources.disk_space,
+        amount_of_used_disk_space: 0,
         status: "ACTIVE".to_string(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
@@ -182,12 +195,6 @@ pub fn add_new_host(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
-        number_of_cores: resources.number_of_cores,
-        used_number_of_cores: 0,
-        memory_size: resources.memory_size,
-        amount_of_used_memory: 0,
-        disk_space: resources.disk_space,
-        amount_of_used_disk_space: 0,
     };
 
     add_host(&host)
@@ -546,6 +553,12 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -553,12 +566,6 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -837,6 +844,12 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -844,18 +857,18 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         let host2 = HostEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "DELETED".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -863,12 +876,6 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -902,6 +909,12 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -909,12 +922,6 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
@@ -937,6 +944,12 @@ mod tests {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -944,18 +957,18 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         let host2 = HostEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -963,18 +976,18 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         let host3 = HostEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
+            number_of_cores: 16,
+            used_number_of_cores: 0,
+            memory_size: 32768,
+            amount_of_used_memory: 0,
+            disk_space: 1024,
+            amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -982,12 +995,6 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
-            number_of_cores: 16,
-            used_number_of_cores: 0,
-            memory_size: 32768,
-            amount_of_used_memory: 0,
-            disk_space: 1024,
-            amount_of_used_disk_space: 0,
         };
 
         hard_delete_host(&uuid1);
