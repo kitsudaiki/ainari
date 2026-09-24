@@ -49,7 +49,7 @@ aya-log = "0.3"
 anyhow = { workspace = true }
 aya-build = { workspace = true }
 cargo_metadata = { workspace = true }
-tonic-build = "0.10"
+tonic-build = "0.14"
 
 
 [dev-dependencies]
