@@ -38,7 +38,6 @@ func init() {
 	ainari_resources.Init_Common_Commands(rootCmd)
 	ainari_resources.Init_User_Commands(rootCmd)
 	ainari_resources.Init_Project_Commands(rootCmd)
-	ainari_resources.Init_Snapshot_Commands(rootCmd)
 	ainari_resources.Init_Task_Commands(rootCmd)
 	ainari_resources.Init_VirtualMachine_Commands(rootCmd)
 	ainari_resources.Init_Image_Commands(rootCmd)

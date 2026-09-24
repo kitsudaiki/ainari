@@ -21,8 +21,8 @@ use uuid::Uuid;
 use ainari_api::common_functions::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::image::get_image;
 use ainari_clients::onsen_file_transfer::upload_file;
-use ainari_clients::snapshot::get_snapshot;
 use ainari_common::error::AinariError;
 use ainari_files::file_encryption::encrypt_file;
 
@@ -33,15 +33,15 @@ use crate::database::virtual_machine_table;
 
 /// Creates a snapshot of the root-disk of a cloud-hypervisor virtual_machine
 ///
-/// The snapshot must already be registered in ryokan, which also generated the secret for it in
-/// omamori. The root-disk is copied into a compressed qcow2-image in the temp-directory, while
+/// The snapshot must already be registered in ryokan as image, which is marked as snapshot.
+/// Ryokan also generated the secret for it in omamori. The root-disk is copied into a compressed qcow2-image in the temp-directory, while
 /// the virtual_machine is paused, so the disk doesn't change during the copy. Afterwards the
 /// image is encrypted with the secret of the snapshot and uploaded into the onsen, which was
 /// selected by ryokan.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
-/// * `snapshot_uuid` - Unique identifier of the snapshot, which was registered in ryokan
+/// * `image_uuid` - Unique identifier of the image, which was registered in ryokan as snapshot
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -49,7 +49,7 @@ use crate::database::virtual_machine_table;
 /// * `Err(AinariError)` with an appropriate error on failure
 pub async fn save_ch_virtual_machine(
     uuid: &Uuid,
-    snapshot_uuid: &Uuid,
+    image_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), AinariError> {
     let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
@@ -61,30 +61,30 @@ pub async fn save_ch_virtual_machine(
     let endpoints =
         get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
 
-    // get storage-location and secret of the snapshot, which were prepared by ryokan
-    let snapshot_resp = get_snapshot(
+    // get storage-location and secret of the image, which were prepared by ryokan
+    let image_resp = get_image(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        snapshot_uuid,
+        image_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await?;
-    let secret = get_secret(&endpoints, &snapshot_resp.secret_uuid, context).await?;
+    let secret = get_secret(&endpoints, &image_resp.secret_uuid, context).await?;
 
-    log::info!("Start snapshot {snapshot_uuid} of VM {uuid}");
+    log::info!("Start snapshot-image {image_uuid} of VM {uuid}");
 
-    let temp_dir = snapshot_temp_directory(snapshot_uuid);
+    let temp_dir = snapshot_temp_directory(image_uuid);
     create_directory(&temp_dir).await?;
-    let local_file_path = format!("{temp_dir}/{snapshot_uuid}");
+    let local_file_path = format!("{temp_dir}/{image_uuid}");
     let local_encrypted_file_path = format!("{local_file_path}_encrypted");
 
     let result = async {
         copy_root_disk(uuid, &root_disk_path, &local_file_path).await?;
         encrypt_file(&local_file_path, &local_encrypted_file_path, &secret).await?;
         upload_file(
-            &snapshot_resp.onsen_address,
-            &snapshot_resp.file_path,
+            &image_resp.onsen_address,
+            &image_resp.file_path,
             &local_encrypted_file_path,
         )
         .await
@@ -100,7 +100,7 @@ pub async fn save_ch_virtual_machine(
     });
     result?;
 
-    log::info!("Snapshot {snapshot_uuid} of VM {uuid} uploaded");
+    log::info!("Snapshot-image {image_uuid} of VM {uuid} uploaded");
 
     Ok(())
 }

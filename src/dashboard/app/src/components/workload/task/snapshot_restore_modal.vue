@@ -89,7 +89,7 @@
 import { ref, onMounted } from "vue";
 
 import { ryokan, sakura } from "@/api";
-import type { SnapshotBasicResp } from "@/api";
+import type { ImageBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -107,12 +107,16 @@ const errorPopupMsg = ref<string>("");
 const nameError = ref(false);
 const snapshotError = ref(false);
 const name = ref<string>("");
-const snapshots = ref<SnapshotBasicResp[]>([]);
+const snapshots = ref<ImageBasicResp[]>([]);
 const selectedSnapshotUuid = ref<string>("");
 
 async function fetchSnapshots() {
     try {
-        snapshots.value = await ryokan.listSnapshots();
+        // snapshots are images, but only the images, which are marked as snapshot, can be
+        // restored
+        snapshots.value = (await ryokan.listImages()).filter(
+            (image) => image.is_snapshot,
+        );
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
@@ -135,7 +139,7 @@ async function handleAccept() {
             props.virtual_machine_uuid,
             {
                 name: name.value,
-                snapshot_uuid: selectedSnapshotUuid.value,
+                image_uuid: selectedSnapshotUuid.value,
             },
         );
 

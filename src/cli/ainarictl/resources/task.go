@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	snapshotUuid string
+	snapshotImageUuid string
 )
 
 func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
@@ -58,7 +58,7 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 
 var createSnapshotSaveTaskCmd = &cobra.Command{
 	Use:   "snapshot_create VIRTUAL_MACHINE_UUID SNAPSHOT_NAME",
-	Short: "Create a new task to save the root-disk of a virtual_machine as new snapshot.",
+	Short: "Create a new task to save the root-disk of a virtual_machine as new snapshot-image.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -80,11 +80,12 @@ var createSnapshotSaveTaskCmd = &cobra.Command{
 }
 
 var createSnapshotRestoreTaskCmd = &cobra.Command{
-	Use:   "snapshot_restore -s SNAPSHOT_UUID VIRTUAL_MACHINE_UUID TASK_NAME",
+	Use:   "snapshot_restore -i IMAGE_UUID VIRTUAL_MACHINE_UUID TASK_NAME",
 	Short: "Create a new task to reset the root-disk of a virtual_machine to a snapshot.",
 	Long: `Create a new task to reset the root-disk of a virtual_machine to a snapshot.
 
-The virtual_machine is shut down, while its root-disk is replaced, and booted again afterwards.`,
+Only images, which are marked as snapshot, can be restored. The virtual_machine is shut down,
+while its root-disk is replaced, and booted again afterwards.`,
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -95,7 +96,7 @@ The virtual_machine is shut down, while its root-disk is replaced, and booted ag
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, taskName, virtual_machineUuid, snapshotUuid)
+		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, taskName, virtual_machineUuid, snapshotImageUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -197,8 +198,8 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createTaskCmd.AddCommand(createSnapshotSaveTaskCmd)
 
 	createTaskCmd.AddCommand(createSnapshotRestoreTaskCmd)
-	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotUuid, "snapshot_uuid", "s", "", "Snapshot UUID (mandatory)")
-	createSnapshotRestoreTaskCmd.MarkFlagRequired("snapshot_uuid")
+	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotImageUuid, "image_uuid", "i", "", "UUID of the image, which must be a snapshot (mandatory)")
+	createSnapshotRestoreTaskCmd.MarkFlagRequired("image_uuid")
 
 	taskCmd.AddCommand(getTaskCmd)
 

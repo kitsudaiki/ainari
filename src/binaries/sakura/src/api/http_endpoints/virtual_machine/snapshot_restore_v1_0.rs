@@ -30,13 +30,15 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::snapshot::*;
+use ainari_clients::image::get_image;
 
 #[api_operation(
     tag = "task",
     summary = "Create new snapshot-restore-task",
     description = r###"Create a new task, which resets the root-disk of an existing virtual_machine to
 the state of a snapshot.
+
+Only images, which are marked as snapshot, can be restored.
 
 The virtual_machine is shut down, while its root-disk is replaced, and booted again afterwards."###,
     error_code = 400,
@@ -66,25 +68,32 @@ pub async fn snapshot_restore_task(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // check if the snapshot exist, so an invalid snapshot is rejected before the task is queued
-    let snapshot_resp = get_snapshot(
+    // check if the image exist and is a snapshot, so an invalid image is rejected before the
+    // task is queued
+    let image_resp = get_image(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &body.snapshot_uuid,
+        &body.image_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
+    if !image_resp.is_snapshot {
+        return Err(ErrorResponse::BadRequest(format!(
+            "Image {} is not a snapshot and can not be restored.",
+            image_resp.uuid
+        )));
+    }
 
     // prepare task-info
     let task_name = format!(
-        "Restore snapshot {} into virtual machine with UUID {}",
-        snapshot_resp.uuid, virtual_machine_data.uuid
+        "Restore snapshot-image {} into virtual machine with UUID {}",
+        image_resp.uuid, virtual_machine_data.uuid
     );
     let info = CloudHypervisorVirtualMachineRestoreInfo {
         vm_uuid: virtual_machine_data.uuid,
-        snapshot_uuid: snapshot_resp.uuid,
+        image_uuid: image_resp.uuid,
         name: task_name.clone(),
         context: context.clone(),
     };

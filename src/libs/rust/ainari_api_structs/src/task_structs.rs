@@ -214,7 +214,8 @@ pub struct TaskSnapshotSaveReq {
 pub struct TaskSnapshotRestoreReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
-    pub snapshot_uuid: Uuid,
+    /// Image, which must be a snapshot, to reset the root-disk of the virtual_machine to
+    pub image_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

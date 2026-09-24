@@ -52,6 +52,7 @@ pub async fn get_image(
         name: image_data.name,
         number_of_rows: image_data.number_of_rows as u64,
         column_names,
+        is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,
         updated_by: image_data.updated_by,

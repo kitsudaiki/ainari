@@ -45,6 +45,10 @@
                             </td>
                         </tr>
                         <tr>
+                            <td>Snapshot</td>
+                            <td>{{ info.is_snapshot ? "Yes" : "No" }}</td>
+                        </tr>
+                        <tr>
                             <td>Created At</td>
                             <td>{{ info.created_at }}</td>
                         </tr>

@@ -14,7 +14,6 @@
 
 pub mod image;
 pub mod onsen_host;
-pub mod snapshot;
 
 use uuid::Uuid;
 

@@ -36,6 +36,7 @@ table! {
         number_of_rows -> BigInt,
         number_of_columns -> BigInt,
         column_names -> Text,
+        is_snapshot -> Bool,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -68,6 +69,8 @@ pub struct ImageEntry {
     pub number_of_columns: i64,
     /// JSON string containing the names of all columns in the image
     pub column_names: String,
+    /// True, if the image is a snapshot of the root-disk of a virtual_machine
+    pub is_snapshot: bool,
     /// ID of the user who owns this image
     pub owner_id: String,
     /// ID of the project this image belongs to
@@ -104,6 +107,7 @@ pub fn init_image_table() -> Result<(), Box<dyn Error>> {
         number_of_rows BIGINT,
         number_of_columns BIGINT,
         column_names TEXT,
+        is_snapshot BOOLEAN NOT NULL DEFAULT FALSE,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -115,6 +119,16 @@ pub fn init_image_table() -> Result<(), Box<dyn Error>> {
         deleted_by VARCHAR(256)
     );",
     )?;
+
+    // added separately, so it is also added to tables of older versions. Snapshots were stored
+    // in their own table in older versions, so all existing images are no snapshots.
+    match conn
+        .batch_execute("ALTER TABLE images ADD COLUMN is_snapshot BOOLEAN NOT NULL DEFAULT FALSE;")
+    {
+        Ok(()) => {}
+        Err(e) if e.to_string().contains("duplicate column name") => {}
+        Err(e) => return Err(e.into()),
+    }
 
     Ok(())
 }
@@ -131,10 +145,12 @@ pub fn init_image_table() -> Result<(), Box<dyn Error>> {
 /// * `file_path` - The path to the file containing the image
 /// * `secret_uuid` - The secret UUID for authentication
 /// * `dimension` - A tuple containing the number of rows and column names
+/// * `is_snapshot` - True, if the image is a snapshot of the root-disk of a virtual_machine
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
+#[allow(clippy::too_many_arguments)]
 pub fn add_new_image(
     image_uuid: &Uuid,
     image_name: &str,
@@ -142,6 +158,7 @@ pub fn add_new_image(
     file_path: &str,
     secret_uuid: &Uuid,
     dimension: &(i64, Vec<String>),
+    is_snapshot: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Serialize the column names vector to a JSON string
@@ -165,6 +182,7 @@ pub fn add_new_image(
         number_of_rows: dimension.0,
         number_of_columns: dimension.1.len() as i64,
         column_names: column_names_str,
+        is_snapshot,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -369,6 +387,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names,
+            is_snapshot: true,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -390,6 +409,7 @@ mod tests {
             assert_eq!(retrieved_image.secret_uuid, image.secret_uuid);
             assert_eq!(retrieved_image.number_of_rows, image.number_of_rows);
             assert_eq!(retrieved_image.number_of_columns, image.number_of_columns);
+            assert_eq!(retrieved_image.is_snapshot, image.is_snapshot);
             assert_eq!(retrieved_image.status, image.status);
             assert_eq!(retrieved_image.created_by, image.created_by);
             assert_eq!(retrieved_image.updated_by, image.updated_by);
@@ -431,6 +451,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -451,6 +472,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -503,6 +525,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -555,6 +578,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -575,6 +599,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -595,6 +620,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -644,6 +670,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -664,6 +691,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -684,6 +712,7 @@ mod tests {
             number_of_rows,
             number_of_columns,
             column_names: column_names.clone(),
+            is_snapshot: false,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

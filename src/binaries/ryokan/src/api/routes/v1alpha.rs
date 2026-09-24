@@ -18,7 +18,6 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
-use crate::api::http_endpoints::snapshot::*;
 
 /// Builds the `/v1alpha`-scope with all endpoints of the ryokan.
 ///
@@ -52,26 +51,6 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(list_image_v1_0::list_image)))
                 .service(
                     resource("/{type}/{name}").route(post().to(create_image_v1_0::upload_binary)),
-                ),
-        )
-        .service(
-            scope("/snapshot")
-                .service(
-                    resource("/internal")
-                        .route(post().to(init_snapshot_internal_v1_0::init_snapshot)),
-                )
-                .service(
-                    resource("/count").route(get().to(get_snapshot_count_v1_0::get_snapshot_count)),
-                )
-                .service(resource("").route(get().to(list_snapshot_v1_0::list_snapshot)))
-                .service(
-                    resource("/{snapshot_uuid}")
-                        .route(get().to(get_snapshot_v1_0::get_snapshot))
-                        .route(delete().to(delete_snapshot_v1_0::delete_snapshot)),
-                )
-                .service(
-                    resource("/{snapshot_uuid}/internal")
-                        .route(get().to(get_snapshot_internal_v1_0::get_snapshot_internal)),
                 ),
         )
         .service(

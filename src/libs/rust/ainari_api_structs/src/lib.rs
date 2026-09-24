@@ -31,7 +31,6 @@ pub mod public_key_structs;
 pub mod quota_structs;
 pub mod route_structs;
 pub mod secret_structs;
-pub mod snapshot_structs;
 pub mod task_structs;
 pub mod user_context;
 pub mod user_structs;

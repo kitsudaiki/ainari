@@ -35,11 +35,13 @@ use crate::prepare_client;
 /// * `image_uuid` - The unique identifier for the image
 /// * `name` - The human-readable name for the image
 /// * `dimension` - A tuple containing the number of rows and column names for the image
+/// * `is_snapshot` - True, if the image is a snapshot of the root-disk of a virtual_machine
 /// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
 ///
 /// # Returns
 ///
 /// A `Result` containing the image response if successful, or an `AinariError` if the operation fails.
+#[allow(clippy::too_many_arguments)]
 pub async fn init_image_in_ryokan(
     ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
@@ -47,6 +49,7 @@ pub async fn init_image_in_ryokan(
     image_uuid: &Uuid,
     name: &str,
     dimension: (u64, Vec<String>),
+    is_snapshot: bool,
     insecure_client: bool,
 ) -> Result<ImageInternalResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
@@ -59,6 +62,7 @@ pub async fn init_image_in_ryokan(
         image_type: "disk".to_string(),
         number_of_rows: dimension.0,
         column_names: dimension.1,
+        is_snapshot,
     };
 
     let json_str = serde_json::to_string(&body).unwrap();

@@ -101,6 +101,15 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         deleted_by VARCHAR(64)
     );",
     )?;
+
+    // snapshots were called checkpoints in older versions, so the column of their quota is
+    // renamed in tables of these versions
+    match conn.batch_execute("ALTER TABLE quotas RENAME COLUMN max_checkpoint TO max_snapshot;") {
+        Ok(()) => {}
+        Err(e) if e.to_string().contains("no such column") => {}
+        Err(e) => return Err(e.into()),
+    }
+
     // release lock on the connection to avoid dead-lock
     drop(conn);
 

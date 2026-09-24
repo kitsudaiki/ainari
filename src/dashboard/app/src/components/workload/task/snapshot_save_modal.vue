@@ -23,8 +23,9 @@
             <div class="modal-content">
                 <p>
                     Creates a task, which stores the current state of the
-                    root-disk of the virtual machine as a new snapshot. The
-                    virtual machine is paused, while its root-disk is copied.
+                    root-disk of the virtual machine as a new image, which is
+                    marked as snapshot. The virtual machine is paused, while its
+                    root-disk is copied.
                 </p>
                 <br />
                 <div>

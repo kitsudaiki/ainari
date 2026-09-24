@@ -125,7 +125,6 @@ const menus = ref<Menu[]>([
         icon: "pi-database",
         items: [
             { view: "StorageImage", label: "Image", icon: "pi-image" },
-            { view: "StorageSnapshot", label: "Snapshot", icon: "pi-save" },
         ],
     },
     {

@@ -30,7 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     summary = "Initialize new image",
     description = r###"Initialize a new image.
 
-Prepares the database-entry and the onsen, before the files are uploaded.
+Prepares the database-entry and the onsen, before the files are uploaded. Sakura uses this to
+store the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`.
 
 This is an internal call, which is protected by the internal api-key."###,
     error_code = 400,
@@ -65,6 +66,7 @@ pub async fn init_image(
         &file_path_str,
         &secret_uuid,
         &dimension,
+        body.is_snapshot,
         &context,
     )
     .map_err(|e| {
@@ -83,6 +85,7 @@ pub async fn init_image(
         file_path: image_data.file_path,
         number_of_rows: image_data.number_of_rows as u64,
         column_names: body.column_names.clone(),
+        is_snapshot: image_data.is_snapshot,
         secret_uuid,
         created_by: image_data.created_by,
         created_at: image_data.created_at,

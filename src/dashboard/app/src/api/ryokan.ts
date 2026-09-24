@@ -16,8 +16,6 @@
 
 import { ryokanClient } from "./client";
 import type {
-    SnapshotBasicResp,
-    SnapshotResp,
     HostBasicResp,
     HostResp,
     ImageBasicResp,
@@ -78,33 +76,6 @@ export async function deleteImage(uuid: string): Promise<void> {
 /** `GET /v1alpha/image/count` */
 export async function getImageCount(): Promise<number> {
     const resp = await ryokanClient().get("/v1alpha/image/count");
-    return resp.data.number_of_items;
-}
-
-//=============================================================================
-// snapshot
-//=============================================================================
-
-/** `GET /v1alpha/snapshot` */
-export async function listSnapshots(): Promise<SnapshotBasicResp[]> {
-    const resp = await ryokanClient().get("/v1alpha/snapshot");
-    return resp.data.snapshots;
-}
-
-/** `GET /v1alpha/snapshot/{snapshot_uuid}` */
-export async function getSnapshot(uuid: string): Promise<SnapshotResp> {
-    const resp = await ryokanClient().get(`/v1alpha/snapshot/${uuid}`);
-    return resp.data;
-}
-
-/** `DELETE /v1alpha/snapshot/{snapshot_uuid}` */
-export async function deleteSnapshot(uuid: string): Promise<void> {
-    await ryokanClient().delete(`/v1alpha/snapshot/${uuid}`);
-}
-
-/** `GET /v1alpha/snapshot/count` */
-export async function getSnapshotCount(): Promise<number> {
-    const resp = await ryokanClient().get("/v1alpha/snapshot/count");
     return resp.data.number_of_items;
 }
 

@@ -58,13 +58,13 @@ pub fn vm_temp_directory(vm_uuid: &Uuid) -> String {
 /// restored
 ///
 /// # Arguments
-/// * `snapshot_uuid` - Unique identifier of the snapshot
+/// * `uuid` - Unique identifier of the snapshot-operation
 ///
 /// # Returns
 /// * `String` with the path of the temp-directory
-pub fn snapshot_temp_directory(snapshot_uuid: &Uuid) -> String {
+pub fn snapshot_temp_directory(uuid: &Uuid) -> String {
     format!(
-        "{}/snapshot_{snapshot_uuid}",
+        "{}/snapshot_{uuid}",
         config::CONFIG.storage.tempfile_location
     )
 }

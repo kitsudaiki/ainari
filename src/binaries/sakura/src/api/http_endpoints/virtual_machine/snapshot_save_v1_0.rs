@@ -30,18 +30,20 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::snapshot::*;
+use ainari_clients::image::init_image_in_ryokan;
 
 #[api_operation(
     tag = "task",
     summary = "Create new snapshot-save-task",
     description = r###"Create a new task, which saves the root-disk of a virtual_machine as new snapshot.
 
-The snapshot is registered in ryokan, before the task is queued, so the quota of the user is
-checked immediately. The task encrypts the root-disk and uploads it into the onsen."###,
+The snapshot is registered in ryokan as image, which is marked as snapshot, before the task is
+queued, so the image-quota of the user is checked immediately. The task encrypts the root-disk
+and uploads it into the onsen."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn snapshot_save_task(
@@ -66,14 +68,17 @@ pub async fn snapshot_save_task(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    // register the snapshot in ryokan, which also generates the secret for its encryption
-    let snapshot_uuid = Uuid::new_v4();
-    init_snapshot(
+    // register the snapshot in ryokan as image, which also generates the secret for its
+    // encryption. A disk-image has no rows and columns like the data-sets.
+    let image_uuid = Uuid::new_v4();
+    init_image_in_ryokan(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &snapshot_uuid,
+        &image_uuid,
         &body.name,
+        (0, Vec::new()),
+        true,
         config::CONFIG.skip_tls_verification,
     )
     .await
@@ -81,12 +86,12 @@ pub async fn snapshot_save_task(
 
     // prepare task-info
     let task_name = format!(
-        "Create snapshot {snapshot_uuid} of virtual machine with UUID {}",
+        "Create snapshot-image {image_uuid} of virtual machine with UUID {}",
         virtual_machine_data.uuid
     );
     let info = CloudHypervisorVirtualMachineSnapshotInfo {
         vm_uuid: virtual_machine_data.uuid,
-        snapshot_uuid,
+        image_uuid,
         name: task_name.clone(),
         context: context.clone(),
     };

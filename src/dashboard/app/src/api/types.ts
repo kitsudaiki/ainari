@@ -230,7 +230,7 @@ export interface FloatingIpResp extends FloatingIpBasicResp {
 }
 
 //=============================================================================
-// image / snapshot (ryokan)
+// image (ryokan)
 //=============================================================================
 
 /** Image-types accepted by the upload-endpoint of the ryokan. */
@@ -242,6 +242,8 @@ export interface ImageBasicResp {
     name: string;
     number_of_rows: number;
     number_of_columns: number;
+    /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
+    is_snapshot: boolean;
 }
 
 /** Mirror of `image_structs::ImageResp`. */
@@ -250,20 +252,8 @@ export interface ImageResp {
     name: string;
     number_of_rows: number;
     column_names: string[];
-    created_at: string;
-    created_by: string;
-    updated_at: string;
-    updated_by: string;
-}
-
-/** Mirror of `snapshot_structs::SnapshotBasicResp`. */
-export interface SnapshotBasicResp {
-    uuid: string;
-    name: string;
-}
-
-/** Mirror of `snapshot_structs::SnapshotResp`. */
-export interface SnapshotResp extends SnapshotBasicResp {
+    /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
+    is_snapshot: boolean;
     created_at: string;
     created_by: string;
     updated_at: string;
@@ -393,5 +383,6 @@ export interface TaskSnapshotSaveReq {
 /** Mirror of `task_structs::TaskSnapshotRestoreReq`. */
 export interface TaskSnapshotRestoreReq {
     name: string;
-    snapshot_uuid: string;
+    /** Image, which must be a snapshot. */
+    image_uuid: string;
 }

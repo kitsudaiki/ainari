@@ -41,8 +41,8 @@ pub struct CloudHypervisorVirtualMachineDeleteInfo {
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineSnapshotInfo {
     pub vm_uuid: Uuid,
-    /// Snapshot, which was already registered in ryokan and gets the root-disk as content
-    pub snapshot_uuid: Uuid,
+    /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
+    pub image_uuid: Uuid,
     pub name: String,
     pub context: UserContext,
 }
@@ -50,8 +50,8 @@ pub struct CloudHypervisorVirtualMachineSnapshotInfo {
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineRestoreInfo {
     pub vm_uuid: Uuid,
-    /// Snapshot, which replaces the root-disk of the virtual_machine
-    pub snapshot_uuid: Uuid,
+    /// Image, which is a snapshot and replaces the root-disk of the virtual_machine
+    pub image_uuid: Uuid,
     pub name: String,
     pub context: UserContext,
 }
@@ -163,7 +163,6 @@ impl Task {
     /// For request tasks, it encrypts and uploads the results.
     /// For training tasks, it cleans up temporary files.
     pub async fn finalize_task(&mut self) -> Result<(), AinariError> {
-
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
 
         Ok(())
@@ -244,14 +243,14 @@ async fn handle_vm_snapshot(
 ) {
     if let Err(e) = save_ch_virtual_machine(
         virtual_machine_uuid,
-        &task_info.snapshot_uuid,
+        &task_info.image_uuid,
         &task_info.context,
     )
     .await
     {
         log::error!(
             "Failed to create snapshot {} of VM {virtual_machine_uuid}: {e}",
-            task_info.snapshot_uuid
+            task_info.image_uuid
         );
     }
 }
@@ -275,14 +274,14 @@ async fn handle_vm_restore(
 ) {
     if let Err(e) = restore_ch_virtual_machine(
         virtual_machine_uuid,
-        &task_info.snapshot_uuid,
+        &task_info.image_uuid,
         &task_info.context,
     )
     .await
     {
         log::error!(
             "Failed to restore snapshot {} into VM {virtual_machine_uuid}: {e}",
-            task_info.snapshot_uuid
+            task_info.image_uuid
         );
     }
 }
