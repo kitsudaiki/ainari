@@ -134,16 +134,6 @@ pub fn split_bearer_token(token: &str) -> Option<&str> {
     }
 }
 
-/// Creates a SHA-256 hash of the input string and returns it as a formatted hexadecimal string.
-///
-/// Similar to `sha256_hash`, but uses a different formatting approach for the result.
-pub fn create_sha256_hash(input: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(input);
-    let result = hasher.finalize();
-    format!("{:x}", result)
-}
-
 /// Checks if a given path is a safe subpath.
 ///
 /// A safe subpath is one that doesn't contain parent directory references ("..") or

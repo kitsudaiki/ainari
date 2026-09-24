@@ -113,7 +113,7 @@ pub fn handle_arp_request(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Op
     let mut eth = unsafe { core::ptr::read_unaligned(eth_ptr) };
     eth.dst_addr = eth.src_addr;
     eth.src_addr = proxy.mac;
-    eth.ether_type = EtherType::Arp;
+    eth.ether_type = EtherType::Arp as u16;
     unsafe { core::ptr::write_unaligned(eth_ptr, eth) };
 
     let mut reply = arp;

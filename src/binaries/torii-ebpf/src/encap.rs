@@ -57,7 +57,7 @@ pub fn encap_and_redirect(ctx: &XdpContext, target: &RouteTarget) -> u32 {
     let mut eth = unsafe { core::ptr::read_unaligned(new_ethhdr) };
     eth.src_addr = target.encap_src_mac;
     eth.dst_addr = target.encap_dst_mac;
-    eth.ether_type = EtherType::Ipv4;
+    eth.ether_type = EtherType::Ipv4 as u16;
     unsafe { core::ptr::write_unaligned(new_ethhdr, eth) };
 
     let mut ip_hdr = Ipv4Hdr {

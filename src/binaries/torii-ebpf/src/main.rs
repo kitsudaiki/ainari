@@ -73,7 +73,10 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
         Err(_) => return xdp_action::XDP_PASS,
     };
 
-    let eth_type = unsafe { core::ptr::read_unaligned(ethhdr).ether_type };
+    let eth_type = match unsafe { core::ptr::read_unaligned(ethhdr).ether_type() } {
+        Ok(eth_type) => eth_type,
+        Err(_) => return xdp_action::XDP_PASS,
+    };
 
     let uplink_mode = uplink_mode();
     let from_uplink = uplink_mode && is_uplink(ctx.ingress_ifindex() as u32);

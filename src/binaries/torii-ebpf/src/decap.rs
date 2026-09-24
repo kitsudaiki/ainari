@@ -27,7 +27,7 @@ pub fn is_tunnel_packet(ctx: &XdpContext) -> bool {
         Err(_) => return false,
     };
 
-    if unsafe { core::ptr::read_unaligned(ethhdr).ether_type } != EtherType::Ipv4 {
+    if unsafe { core::ptr::read_unaligned(ethhdr).ether_type } != EtherType::Ipv4 as u16 {
         return false;
     }
 
@@ -122,7 +122,10 @@ pub fn process_tunnel_packet(ctx: &XdpContext) -> u32 {
         Err(_) => return xdp_action::XDP_DROP,
     };
 
-    let eth_type = unsafe { core::ptr::read_unaligned(inner_eth).ether_type };
+    let eth_type = match unsafe { core::ptr::read_unaligned(inner_eth).ether_type() } {
+        Ok(eth_type) => eth_type,
+        Err(_) => return xdp_action::XDP_DROP,
+    };
 
     let uplink_mode = uplink_mode();
 
