@@ -59,6 +59,11 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 var createSnapshotSaveTaskCmd = &cobra.Command{
 	Use:   "snapshot_create VIRTUAL_MACHINE_UUID SNAPSHOT_NAME",
 	Short: "Create a new task to save the root-disk of a virtual_machine as new snapshot-image.",
+	Long: `Create a new task to save the root-disk of a virtual_machine as new snapshot-image.
+
+The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly
+before, can still be in the memory of the virtual_machine and is then missing in the snapshot.
+Run 'sync' inside the virtual_machine right before creating the snapshot.`,
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()

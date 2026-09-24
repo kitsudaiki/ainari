@@ -26,32 +26,40 @@ use crate::database::task_table;
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
+    #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
 }
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineDeleteInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
+    #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
 }
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineSnapshotInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
     /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
     pub image_uuid: Uuid,
+    #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
 }
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineRestoreInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
     /// Image, which is a snapshot and replaces the root-disk of the virtual_machine
     pub image_uuid: Uuid,
+    #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
 }
@@ -108,7 +116,9 @@ pub struct Task {
 /// Processes a worker task.
 ///
 /// Runs the task and finalizes it afterwards, which updates its state in the database. The
-/// concrete work depends on the variant of the task.
+/// concrete work depends on the variant of the task. A failed task is marked as error and gets
+/// the error as message, so the failure is visible to the user. It doesn't stop the processing of
+/// the following tasks.
 ///
 /// # Arguments
 /// * `task` - A reference to the worker task to be processed
@@ -116,9 +126,16 @@ pub struct Task {
 /// # Returns
 /// * `Result<(), AinariError>` - Ok(()) if processing succeeds, Err(AinariError) if an error occurs
 pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
-    task.start_task().await?;
-
-    let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
+    match task.start_task().await {
+        Ok(()) => {
+            let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
+        }
+        Err(e) => {
+            log::error!("Task {} ({}) failed: {e}", task.uuid, task.description);
+            let _ = task_table::add_message_to_task(&task.uuid, &e.to_string());
+            let _ = task_table::update_task_state(&task.uuid, &TaskState::Error);
+        }
+    }
 
     Ok(())
 }
@@ -141,20 +158,16 @@ impl Task {
 
         match &mut self.info {
             TaskVariant::CloudHypervisorVirtualMachineCreate(task_info) => {
-                handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
             TaskVariant::CloudHypervisorVirtualMachineDelete(task_info) => {
-                handle_vm_deletion(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_deletion(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
             TaskVariant::CloudHypervisorVirtualMachineSnapshot(task_info) => {
-                handle_vm_snapshot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_snapshot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
             TaskVariant::CloudHypervisorVirtualMachineRestore(task_info) => {
-                handle_vm_restore(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_restore(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
         }
     }
@@ -172,8 +185,7 @@ impl Task {
 
 /// Handles the task, which creates the virtual machine on this host.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// virtual machine, which could not be created.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -186,17 +198,15 @@ async fn handle_vm_creation(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
-) {
-    match create_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
-        Ok(_) => (),
-        Err(e) => log::error!("fail: {:?}", e),
-    }
+) -> Result<(), AinariError> {
+    create_ch_virtual_machine(virtual_machine_uuid, &task_info.context)
+        .await
+        .map(|_| ())
 }
 
 /// Handles the task, which deletes the virtual machine completely from this host.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// virtual machine, which could not be deleted.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -209,16 +219,13 @@ async fn handle_vm_deletion(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineDeleteInfo,
-) {
-    if let Err(e) = delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
-        log::error!("Failed to delete VM {virtual_machine_uuid}: {e}");
-    }
+) -> Result<(), AinariError> {
+    delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
 }
 
 /// Handles the task, which saves the root-disk of the virtual_machine as snapshot.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// snapshot, which could not be created.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -231,25 +238,18 @@ async fn handle_vm_snapshot(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineSnapshotInfo,
-) {
-    if let Err(e) = save_ch_virtual_machine(
+) -> Result<(), AinariError> {
+    save_ch_virtual_machine(
         virtual_machine_uuid,
         &task_info.image_uuid,
         &task_info.context,
     )
     .await
-    {
-        log::error!(
-            "Failed to create snapshot {} of VM {virtual_machine_uuid}: {e}",
-            task_info.image_uuid
-        );
-    }
 }
 
 /// Handles the task, which resets the root-disk of the virtual_machine to a snapshot.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// snapshot, which could not be restored.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -262,19 +262,13 @@ async fn handle_vm_restore(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineRestoreInfo,
-) {
-    if let Err(e) = restore_ch_virtual_machine(
+) -> Result<(), AinariError> {
+    restore_ch_virtual_machine(
         virtual_machine_uuid,
         &task_info.image_uuid,
         &task_info.context,
     )
     .await
-    {
-        log::error!(
-            "Failed to restore snapshot {} into VM {virtual_machine_uuid}: {e}",
-            task_info.image_uuid
-        );
-    }
 }
 
 /// Removes a directory and all its contents from the filesystem.

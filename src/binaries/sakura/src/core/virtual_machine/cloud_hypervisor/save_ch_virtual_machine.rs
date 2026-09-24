@@ -34,10 +34,16 @@ use crate::database::virtual_machine_table;
 /// Creates a snapshot of the root-disk of a cloud-hypervisor virtual_machine
 ///
 /// The snapshot must already be registered in ryokan as image, which is marked as snapshot.
-/// Ryokan also generated the secret for it in omamori. The root-disk is copied into a compressed qcow2-image in the temp-directory, while
-/// the virtual_machine is paused, so the disk doesn't change during the copy. Afterwards the
-/// image is encrypted with the secret of the snapshot and uploaded into the onsen, which was
-/// selected by ryokan.
+/// Ryokan also generated the secret for it in omamori. The root-disk is copied into a qcow2-image
+/// in the temp-directory, while the virtual_machine is paused, so the disk doesn't change during
+/// the copy. Afterwards the image is encrypted with the secret of the snapshot and uploaded into
+/// the onsen, which was selected by ryokan.
+///
+/// The snapshot is only crash-consistent: pausing doesn't flush the page-cache of the guest, so
+/// data, which the guest didn't write to the disk yet, is missing in the snapshot (e.g. empty
+/// files, which were created shortly before). A clean shutdown or a guest-agent would avoid this,
+/// but it was decided to keep the virtual_machine running and to tell the user to run `sync`
+/// inside the virtual_machine before the snapshot instead.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
@@ -138,15 +144,23 @@ async fn copy_root_disk(
 
     // qcow2 skips the unused parts of the raw-disk, so the snapshot is much smaller. It is not
     // compressed, because this would keep the virtual_machine paused for much longer.
+    // cloud-hypervisor holds a lock on the whole root-disk as long as its process runs, also while
+    // the virtual_machine is paused. qemu-img would fail to lock the disk for reading, even with
+    // `-U`, so the locking of qemu-img is disabled for the root-disk. This is safe, because the
+    // paused virtual_machine doesn't write to the disk during the copy. Commas are the separator
+    // of the image-options, so they are escaped in the path.
+    let source_opts = format!(
+        "driver=raw,file.driver=file,file.filename={},file.locking=off",
+        root_disk_path.replace(',', ",,")
+    );
     let convert_result = run_command(
         "qemu-img",
         &[
             "convert",
-            "-f",
-            "raw",
+            "--image-opts",
+            &source_opts,
             "-O",
             "qcow2",
-            root_disk_path,
             target_path,
         ],
     );

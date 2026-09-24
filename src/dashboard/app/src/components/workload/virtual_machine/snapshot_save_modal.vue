@@ -28,6 +28,13 @@
                     root-disk is copied.
                 </p>
                 <br />
+                <p>
+                    Data, which was written shortly before, can still be in the
+                    memory of the virtual machine and is then missing in the
+                    snapshot. Run <code>sync</code> inside the virtual machine
+                    right before saving the snapshot.
+                </p>
+                <br />
                 <div>
                     <input
                         v-model="name"

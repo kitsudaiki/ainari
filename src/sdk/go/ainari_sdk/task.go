@@ -24,6 +24,9 @@ import (
 	"fmt"
 )
 
+// CreateSnapshotSaveTask saves the root-disk of a virtual machine as new snapshot-image. The virtual
+// machine is only paused during the copy, so data, which is still in its memory, is missing in the
+// snapshot. Run `sync` inside the virtual machine right before creating the snapshot.
 func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_save", virtual_machineUuid)

@@ -22,6 +22,11 @@ def create_snapshot_save_task(context: AccessContext,
                               torii_port: int,
                               virtual_machine_uuid: str,
                               name: str) -> dict:
+    """
+    Saves the root-disk of a virtual machine as new snapshot-image. The virtual machine is only
+    paused during the copy, so data, which is still in its memory, is missing in the snapshot.
+    Run `sync` inside the virtual machine right before creating the snapshot.
+    """
     address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save"
     json_body = {

@@ -39,7 +39,11 @@ use ainari_clients::image::init_image_in_ryokan;
 
 The snapshot is registered in ryokan as image, which is marked as snapshot, before the task is
 queued, so the image-quota of the user is checked immediately. The task encrypts the root-disk
-and uploads it into the onsen."###,
+and uploads it into the onsen.
+
+The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly
+before, can still be in the memory of the virtual_machine and is then missing in the snapshot.
+Run `sync` inside the virtual_machine right before creating the snapshot."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

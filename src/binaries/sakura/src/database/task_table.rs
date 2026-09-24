@@ -153,7 +153,7 @@ pub fn add_new_task(
         messages: Vec::new(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-                created_by: context.user_id.clone(),
+        created_by: context.user_id.clone(),
     };
 
     // Insert the task into the database
@@ -277,10 +277,14 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
 
         // Handle different states with appropriate updates
         match new_state {
-            TaskState::Created | TaskState::Error => {
-                // No database update required for these states
+            TaskState::Created => {
+                // No database update required for this state
                 Ok(0)
             }
+            // a failed task ended too, so it also gets the time of its end
+            TaskState::Error => diesel::update(target)
+                .set((task_state.eq(state_str), finished_at.eq(now)))
+                .execute(transaction_conn),
             TaskState::Queued => diesel::update(target)
                 .set((task_state.eq(state_str), queued_at.eq(now)))
                 .execute(transaction_conn),
@@ -308,7 +312,6 @@ pub fn update_task_state(task_uuid: &Uuid, new_state: &TaskState) -> Result<(), 
 }
 
 /// Appends a new message to the task's messages list.
-#[allow(dead_code)]
 pub fn add_message_to_task(task_uuid: &Uuid, new_message: &str) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
