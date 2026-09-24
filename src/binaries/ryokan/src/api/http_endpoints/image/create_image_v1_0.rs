@@ -70,11 +70,9 @@ pub async fn upload_binary(
     let result = {
         let temp_file_paths = write_payload_into_file(payload, &target_dir_path).await?;
 
-        // a disk-image is the boot-disk of a virtual_machine, which is stored as it is. There is
-        // nothing to convert and it has no rows and columns like the data-sets.
+        // a disk-image is the boot-disk of a virtual_machine, which is stored as it is, so there
+        // is nothing to convert
         let source_path = get_disk_image_path(&temp_file_paths)?;
-        let number_of_rows: u64 = 0;
-        let column_names: Vec<String> = Vec::new();
 
         let (secret_uuid, secret) = super::super::generate_new_key(&image_uuid, &context).await?;
 
@@ -89,22 +87,20 @@ pub async fn upload_binary(
         )
         .await?;
 
-        Ok((number_of_rows, column_names, secret_uuid))
+        Ok(secret_uuid)
     };
 
     // remove temporary directory again
     super::remove_all(&target_dir_path);
 
-    let (number_of_rows, column_names, secret_uuid) = result?;
+    let secret_uuid = result?;
 
-    let dimension = (number_of_rows as i64, column_names.clone());
     image_table::add_new_image(
         &image_uuid,
         &name,
         &selected_onsen.address,
         &upload_file_path_str,
         &secret_uuid,
-        &dimension,
         false,
         &context,
     )
@@ -119,8 +115,6 @@ pub async fn upload_binary(
     let resp = ImageResp {
         uuid: image_uuid,
         name: image_data.name,
-        number_of_rows: image_data.number_of_rows as u64,
-        column_names,
         is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,

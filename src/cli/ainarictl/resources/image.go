@@ -30,9 +30,6 @@ import (
 )
 
 var (
-	columnName    string
-	rowOffset     int
-	numberOfRows  int
 	inputFilePath string
 )
 
@@ -117,29 +114,6 @@ var deleteImageCmd = &cobra.Command{
 	},
 }
 
-var downloadImageContentCmd = &cobra.Command{
-	Use:   "content -c COLUMN_NAME -o ROW_OFFSET -n NUMBER_OF_ROWS IMAGE_UUID",
-	Short: "Download content of a specific image.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		imageUuid := args[0]
-		content, err := ainari_sdk.DownloadImageContent(context, imageUuid, columnName, numberOfRows, rowOffset)
-		if err == nil {
-			data := content["data"].([]interface{})
-			ainarictl_common.PrintValueList(data, rowOffset)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
-
 var getImageCountCmd = &cobra.Command{
 	Use:   "count",
 	Short: "Get the number of images of the project.",
@@ -177,13 +151,6 @@ func Init_Image_Commands(rootCmd *cobra.Command) {
 	createImageCmd.AddCommand(createDiskImageCmd)
 	createDiskImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to the disk-image-file (mandatory)")
 	createDiskImageCmd.MarkFlagRequired("input")
-
-	imageCmd.AddCommand(downloadImageContentCmd)
-	downloadImageContentCmd.Flags().StringVarP(&columnName, "column", "c", "", "Name of column to download (mandatory)")
-	downloadImageContentCmd.Flags().IntVarP(&rowOffset, "offset", "o", 0, "Number of rows to offset (mandatory)")
-	downloadImageContentCmd.Flags().IntVarP(&numberOfRows, "rows", "n", 1, "Number of rows to download (mandatory)")
-	downloadImageContentCmd.MarkFlagRequired("column")
-	downloadImageContentCmd.MarkFlagRequired("rows")
 
 	imageCmd.AddCommand(getImageCmd)
 

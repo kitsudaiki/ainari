@@ -16,7 +16,6 @@ use chrono::Utc;
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind;
 use std::error::Error;
 use uuid::Uuid;
 
@@ -33,9 +32,6 @@ table! {
         onsen_address -> Varchar,
         file_path -> Text,
         secret_uuid -> Varchar,
-        number_of_rows -> BigInt,
-        number_of_columns -> BigInt,
-        column_names -> Text,
         is_snapshot -> Bool,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -63,12 +59,6 @@ pub struct ImageEntry {
     pub file_path: String,
     /// Secret UUID used for authentication with the image
     pub secret_uuid: String,
-    /// Number of rows in the image
-    pub number_of_rows: i64,
-    /// Number of columns in the image
-    pub number_of_columns: i64,
-    /// JSON string containing the names of all columns in the image
-    pub column_names: String,
     /// True, if the image is a snapshot of the root-disk of a virtual_machine
     pub is_snapshot: bool,
     /// ID of the user who owns this image
@@ -104,9 +94,6 @@ pub fn init_image_table() -> Result<(), Box<dyn Error>> {
         onsen_address VARCHAR(256),
         file_path TEXT,
         secret_uuid VARCHAR(40),
-        number_of_rows BIGINT,
-        number_of_columns BIGINT,
-        column_names TEXT,
         is_snapshot BOOLEAN NOT NULL DEFAULT FALSE,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
@@ -144,34 +131,20 @@ pub fn init_image_table() -> Result<(), Box<dyn Error>> {
 /// * `onsen_address` - The address of the Onsen service
 /// * `file_path` - The path to the file containing the image
 /// * `secret_uuid` - The secret UUID for authentication
-/// * `dimension` - A tuple containing the number of rows and column names
 /// * `is_snapshot` - True, if the image is a snapshot of the root-disk of a virtual_machine
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-#[allow(clippy::too_many_arguments)]
 pub fn add_new_image(
     image_uuid: &Uuid,
     image_name: &str,
     onsen_address: &str,
     file_path: &str,
     secret_uuid: &Uuid,
-    dimension: &(i64, Vec<String>),
     is_snapshot: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    // Serialize the column names vector to a JSON string
-    let column_names_str = match serde_json::to_string(&dimension.1) {
-        Ok(column_names_str) => column_names_str,
-        Err(e) => {
-            return Err(diesel::result::Error::DatabaseError(
-                DatabaseErrorKind::SerializationFailure,
-                Box::new(format!("Failed to serialize column_names with error: {e}")),
-            ));
-        }
-    };
-
     // Create a new ImageEntry with the provided parameters
     let image = ImageEntry {
         uuid: image_uuid.to_string().clone(),
@@ -179,9 +152,6 @@ pub fn add_new_image(
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
         secret_uuid: secret_uuid.to_string().clone(),
-        number_of_rows: dimension.0,
-        number_of_columns: dimension.1.len() as i64,
-        column_names: column_names_str,
         is_snapshot,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
@@ -364,8 +334,6 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
-        let number_of_rows = 42;
-        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -376,7 +344,6 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let column_names = "[\"input\", \"output\"]".to_string();
 
         let image = ImageEntry {
             uuid: uuid1.to_string(),
@@ -384,9 +351,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names,
             is_snapshot: true,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -407,8 +371,6 @@ mod tests {
             assert_eq!(retrieved_image.name, image.name);
             assert_eq!(retrieved_image.file_path, image.file_path);
             assert_eq!(retrieved_image.secret_uuid, image.secret_uuid);
-            assert_eq!(retrieved_image.number_of_rows, image.number_of_rows);
-            assert_eq!(retrieved_image.number_of_columns, image.number_of_columns);
             assert_eq!(retrieved_image.is_snapshot, image.is_snapshot);
             assert_eq!(retrieved_image.status, image.status);
             assert_eq!(retrieved_image.created_by, image.created_by);
@@ -428,8 +390,6 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
-        let number_of_rows = 42;
-        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -440,7 +400,6 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let column_names = "[\"input\", \"output\"]".to_string();
 
         let image1 = ImageEntry {
             uuid: uuid1.to_string(),
@@ -448,9 +407,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -469,9 +425,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -502,8 +455,6 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
-        let number_of_rows = 42;
-        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -514,7 +465,6 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let column_names = "[\"input\", \"output\"]".to_string();
 
         let image = ImageEntry {
             uuid: uuid1.to_string(),
@@ -522,9 +472,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -555,8 +502,6 @@ mod tests {
         let name = "test-image".to_string();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
-        let number_of_rows = 42;
-        let number_of_columns = 43;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -567,7 +512,6 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let column_names = "[\"input\", \"output\"]".to_string();
 
         let image1 = ImageEntry {
             uuid: uuid1.to_string(),
@@ -575,9 +519,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -596,9 +537,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -617,9 +555,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
@@ -657,9 +592,6 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
-        let number_of_rows = 42;
-        let number_of_columns = 43;
-        let column_names = "[\"input\", \"output\"]".to_string();
 
         let image1 = ImageEntry {
             uuid: uuid1.to_string(),
@@ -667,9 +599,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -688,9 +617,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
@@ -709,9 +635,6 @@ mod tests {
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
             secret_uuid: secret_uuid.to_string(),
-            number_of_rows,
-            number_of_columns,
-            column_names: column_names.clone(),
             is_snapshot: false,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),

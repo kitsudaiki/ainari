@@ -39,8 +39,6 @@ pub async fn list_image(context: UserContext) -> Result<Json<ImageListResp>, Err
         let obj = ImageBasicResp {
             uuid,
             name: image.name.clone(),
-            number_of_rows: image.number_of_rows as u64,
-            number_of_columns: image.number_of_columns as u64,
             is_snapshot: image.is_snapshot,
         };
 

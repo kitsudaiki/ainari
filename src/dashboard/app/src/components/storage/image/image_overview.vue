@@ -26,8 +26,6 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
-                        <th>Rows</th>
-                        <th>Columns</th>
                         <th>Snapshot</th>
                         <th>Actions</th>
                     </tr>
@@ -36,8 +34,6 @@
                     <tr v-for="image in images" :key="image.uuid">
                         <td>{{ image.uuid }}</td>
                         <td>{{ image.name }}</td>
-                        <td>{{ image.number_of_rows }}</td>
-                        <td>{{ image.number_of_columns }}</td>
                         <td>{{ image.is_snapshot ? "Yes" : "No" }}</td>
                         <td>
                             <!-- Dropdown menu -->

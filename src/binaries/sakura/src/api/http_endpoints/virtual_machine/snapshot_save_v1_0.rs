@@ -69,7 +69,7 @@ pub async fn snapshot_save_task(
         .map_err(map_ainari_error_to_api_response)?;
 
     // register the snapshot in ryokan as image, which also generates the secret for its
-    // encryption. A disk-image has no rows and columns like the data-sets.
+    // encryption
     let image_uuid = Uuid::new_v4();
     init_image_in_ryokan(
         &endpoints.ryokan,
@@ -77,7 +77,6 @@ pub async fn snapshot_save_task(
         &config::INTERNAL_API_KEY,
         &image_uuid,
         &body.name,
-        (0, Vec::new()),
         true,
         config::CONFIG.skip_tls_verification,
     )

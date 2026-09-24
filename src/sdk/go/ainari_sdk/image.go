@@ -59,14 +59,3 @@ func GetImageCount(context AccessContext) (map[string]interface{}, error) {
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
-
-func DownloadImageContent(context AccessContext, imageUuid, columnName string, numberOfRows, rowOffset int,) (map[string]interface{}, error) {
-	path := "v1alpha/image/content"
-	vars := map[string]interface{}{
-		"uuid":           imageUuid,
-		"column_name":    columnName,
-		"number_of_rows": numberOfRows,
-		"row_offset":     rowOffset,
-	}
-	return SendGet(context, context.RyokanAddress, path, vars)
-}

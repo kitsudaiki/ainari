@@ -240,8 +240,6 @@ export type ImageType = "csv" | "mnist" | "disk";
 export interface ImageBasicResp {
     uuid: string;
     name: string;
-    number_of_rows: number;
-    number_of_columns: number;
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
 }
@@ -250,8 +248,6 @@ export interface ImageBasicResp {
 export interface ImageResp {
     uuid: string;
     name: string;
-    number_of_rows: number;
-    column_names: string[];
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
     created_at: string;

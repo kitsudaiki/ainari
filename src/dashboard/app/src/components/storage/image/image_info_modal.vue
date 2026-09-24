@@ -32,19 +32,6 @@
                             <td>{{ info.name }}</td>
                         </tr>
                         <tr>
-                            <td>Number of Rows</td>
-                            <td>{{ info.number_of_rows }}</td>
-                        </tr>
-                        <tr>
-                            <td>Columns</td>
-                            <td>
-                                <span v-if="info.column_names.length > 0">
-                                    {{ info.column_names.join(", ") }}
-                                </span>
-                                <span v-else>-</span>
-                            </td>
-                        </tr>
-                        <tr>
                             <td>Snapshot</td>
                             <td>{{ info.is_snapshot ? "Yes" : "No" }}</td>
                         </tr>
