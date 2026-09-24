@@ -74,7 +74,7 @@ version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5118a26dee7e34e894f7e85aa0ee5080ae4c18bf03c0e30d49a80e418f00a53"
 dependencies = [
- "actix-multipart-derive",
+ "actix-multipart-derive 0.7.0",
  "actix-utils",
  "actix-web",
  "derive_more 0.99.20",
@@ -94,6 +94,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-multipart"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d0034dce074729c15d94c7e971012c9d6bb6e901c5505eb75e9b388933c4721"
+dependencies = [
+ "actix-multipart-derive 0.8.1",
+ "actix-utils",
+ "actix-web",
+ "derive_more 2.1.1",
+ "futures-core",
+ "futures-util",
+ "httparse",
+ "local-waker",
+ "log",
+ "memchr",
+ "mime",
+ "rand 0.10.3",
+ "serde",
+ "serde_json",
+ "serde_plain",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "actix-multipart-derive"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -104,6 +129,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "actix-multipart-derive"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69112d423cd092e024d7a5473b7862b0e5d95247728a5b414545c0251f9df5a7"
+dependencies = [
+ "bytesize",
+ "darling 0.24.1",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -495,9 +533,9 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "apistos"
-version = "0.6.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a7fe97b020711607b9228918cc0f84889d916c5c33323d0cb94a9808c142326"
+checksum = "8bb35cb2f9678590e8666ebad56868c3304054bce02da8eac35ab2715395d39d"
 dependencies = [
  "actix-service",
  "actix-web",
@@ -518,11 +556,11 @@ dependencies = [
 
 [[package]]
 name = "apistos-core"
-version = "0.6.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ac4d95f8a694956ed6209646f40a24ba4ac74ed25a7da14c274c582ac4d746b"
+checksum = "42b3848a5f8a537e13eb8647cafab56f1c8f484f8a2ac44e07daee97ce2152f6"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.8.4",
  "actix-web",
  "apistos-models",
  "apistos-schemars",
@@ -536,9 +574,9 @@ dependencies = [
 
 [[package]]
 name = "apistos-gen"
-version = "0.6.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558ab28c459f823618a673989a2eb9118e5ce0858f50df9bcf5f20c61d168d0a"
+checksum = "6f606316f01c12aa563c1512c640e23e26060053966bb932615a28e6f15a9387"
 dependencies = [
  "actix-web",
  "convert_case 0.8.0",
@@ -550,9 +588,9 @@ dependencies = [
 
 [[package]]
 name = "apistos-models"
-version = "0.6.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ceb7134009a4b192caa865a25526f45f509fcc0cb6c7829b4caa4797556b8d12"
+checksum = "a7d82bb6a3bde002dafb13f9a073f57edfb6b78dec23ba6cd96268f1a79a4b01"
 dependencies = [
  "apistos-schemars",
  "indexmap 2.14.2",
@@ -562,9 +600,9 @@ dependencies = [
 
 [[package]]
 name = "apistos-plugins"
-version = "0.6.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "143d60edf2b3f2522d29d6b02f1e208b59f70e3be3a18a436aef296da816d19a"
+checksum = "c668cc1a4d124b125d5b125718f4b229f0f81d439f8ba87d67b189d0e96976fa"
 dependencies = [
  "actix-web",
 ]
@@ -1074,6 +1112,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "bytesize"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7354288c522e7e980fafd2075d63d1285794c3a6a16cdd492f189ea406e5f18b"
+
+[[package]]
 name = "bytestring"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1383,6 +1427,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed17f5901b6630b993ca003def43f2f8ef4014fc13b047b57aad617ff32bc2ec"
+dependencies = [
+ "darling_core 0.24.1",
+ "darling_macro 0.24.1",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1424,6 +1478,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6837e2cf7485aaae18f86181d2f0e9a7ed297a025e220aeabf63fdebd3a2ddff"
+dependencies = [
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1454,6 +1521,17 @@ dependencies = [
  "darling_core 0.23.0",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ac7135c3ef02b2f7833bbeb1be5ba7f966dcde8a87c6b87f65a778d71a02785"
+dependencies = [
+ "darling_core 0.24.1",
+ "quote",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -1956,7 +2034,7 @@ dependencies = [
 name = "hanami"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
@@ -2550,7 +2628,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 name = "miko"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
@@ -2767,7 +2845,7 @@ dependencies = [
 name = "omamori"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "aes",
@@ -2816,7 +2894,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 name = "onsen"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
@@ -3488,7 +3566,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 name = "ryokan"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
@@ -3530,7 +3608,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 name = "sakura"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
@@ -4219,7 +4297,7 @@ dependencies = [
 name = "torii"
 version = "0.9.0"
 dependencies = [
- "actix-multipart",
+ "actix-multipart 0.7.2",
  "actix-rt",
  "actix-web",
  "ainari_api",
