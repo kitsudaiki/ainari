@@ -12,7 +12,7 @@ ainari_clients = { path = "../../libs/rust/ainari_clients" }
 torii_common = { path = "../../libs/rust/torii_common" }
 # web-server
 actix-web = "4"
-actix-multipart = "0.7"
+actix-multipart = "0.8"
 futures-util = "0.3"
 tokio = { version = "1", features = ["full"] }
 actix-rt = "2.11"
