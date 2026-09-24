@@ -38,6 +38,7 @@ use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 
+use super::{vm_directory, vm_serial_log_path, vm_socket_path, vm_temp_directory};
 use crate::config;
 use crate::database::virtual_machine_table;
 
@@ -51,42 +52,6 @@ pub struct VmHandle {
     /// Process-id of the cloud-hypervisor process
     pub pid: u32,
 }
-
-// async fn create_tap_device(name: &str, ip_cidr: Option<&str>) -> Result<(), AinariError> {
-//     let mut neko_client = init_neko_root_wrapper_client().await?;
-
-//     // create tap-device
-//     run_root_cmd(
-//         &mut neko_client,
-//         "ip",
-//         &["tuntap", "add", "mode", "tap", name],
-//     )
-//     .await
-//     .map_err(|e| AinariError::InternalError(format!("Failed to create TAP: {}", e)))?;
-
-//     // bring tap-device up
-//     run_root_cmd(&mut neko_client, "ip", &["link", "set", name, "up"])
-//         .await
-//         .map_err(|e| AinariError::InternalError(format!("Failed to bring TAP up: {}", e)))?;
-
-//     // disable offloading
-//     run_root_cmd(
-//         &mut neko_client,
-//         "ethtool",
-//         &["-K", name, "tx", "off", "rx", "off"],
-//     )
-//     .await
-//     .map_err(|e| AinariError::InternalError(format!("Failed to disable offloading: {}", e)))?;
-
-//     // assign IP CIDR to tap-device
-//     if let Some(ip) = ip_cidr {
-//         run_root_cmd(&mut neko_client, "ip", &["addr", "add", ip, "dev", name])
-//             .await
-//             .map_err(|e| AinariError::InternalError(format!("Failed to assign IP: {}", e)))?;
-//     }
-
-//     Ok(())
-// }
 
 /// Creates and boots a new cloud-hypervisor virtual_machine based on its database-entry
 ///
@@ -140,7 +105,7 @@ pub async fn create_ch_virtual_machine(
     log::info!("Start creation of VM {uuid}");
 
     // start cloud-hypervisor process, which is controlled via its API-socket
-    let socket_path = format!("/tmp/cloud-hypervisor-{uuid}.sock");
+    let socket_path = vm_socket_path(uuid);
     let _ = fs::remove_file(&socket_path);
     let mut child = Command::new(&config::CONFIG.hypervisor.binary_path)
         .arg("--api-socket")
@@ -173,7 +138,7 @@ pub async fn create_ch_virtual_machine(
         }),
         serial: Some(SerialConfig {
             mode: ConsoleMode::File,
-            file: Some(format!("/tmp/{uuid}-serial.log")),
+            file: Some(vm_serial_log_path(uuid)),
             ..Default::default()
         }),
         // No checksum offloading: the gateways rewrite addresses with
@@ -262,13 +227,10 @@ pub async fn create_ch_virtual_machine(
 /// * `Ok((String, String))` with the paths of the vm-directory and the temp-directory on success
 /// * `Err(AinariError)` with an appropriate error on failure
 async fn prepare_directories(vm_uuid: &Uuid) -> Result<(String, String), AinariError> {
-    let vm_dir = format!(
-        "{}/vm_{vm_uuid}",
-        config::CONFIG.storage.local_vm_storage_path
-    );
+    let vm_dir = vm_directory(vm_uuid);
     create_directory(&vm_dir).await?;
 
-    let temp_dir = format!("{}/vm_{vm_uuid}", config::CONFIG.storage.tempfile_location);
+    let temp_dir = vm_temp_directory(vm_uuid);
     create_directory(&temp_dir).await?;
 
     Ok((vm_dir, temp_dir))
@@ -497,36 +459,3 @@ fn run_command(program: &str, args: &[&str]) -> Result<(), AinariError> {
         )))
     }
 }
-
-// pub async fn delete_vm(handle: &VmHandle) -> HttpResponse {
-//     let client = socket_based_api_client(&handle.socket_path);
-
-//     // 1. Attempt graceful shutdown via the cloud-hypervisor API
-//     // Note: Method names depend on your specific OpenAPI client version.
-//     // It might be `shutdown_vm()`, `power_button()`, or `delete_vm()`.
-//     match client.shutdown_vm().await {
-//         Ok(_) => {
-//             println!("Gracefully shut down VM: {}", handle.tap_name);
-//         }
-//         Err(e) => {
-//             eprintln!("API shutdown failed for {}: {:?}. Forcing kill...", handle.tap_name, e);
-
-//             // 2. Fallback: Force kill the process if the API is unresponsive
-//             if let Some(pid) = handle.pid {
-//                 unsafe {
-//                     // Requires `libc` crate: Sends SIGKILL to the process
-//                     libc::kill(pid as i32, libc::SIGKILL);
-//                 }
-//             }
-//         }
-//     }
-
-//     // 3. Clean up the socket file
-//     let _ = std::fs::remove_file(&handle.socket_path);
-
-//     // 4. (Optional) Clean up the serial log file
-//     let serial_log = format!("/tmp/{}-serial.log", handle.tap_name);
-//     let _ = std::fs::remove_file(&serial_log);
-
-//     HttpResponse::Ok().body(format!("VM {} deleted", handle.tap_name))
-// }

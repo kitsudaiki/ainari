@@ -38,7 +38,7 @@ diesel = { version = "2.3", features = ["sqlite", "uuid"] }
 # threading
 core_affinity = "0.8.3"
 # read some hardware-information
-sysinfo = "0.39.6"
+sysinfo = "0.38.4"
 # common stuff
 rand = "0.10.1"
 lazy_static = "1.4"
