@@ -48,20 +48,16 @@ def set_quota(context: AccessContext,
               user_id: str,
               max_virtual_machine: int,
               max_image: int,
-              max_snapshot: int,
               max_secret: int,
               max_network: int,
-              max_floating_ip: int,
-              max_taskqueue: int) -> dict:
+              max_floating_ip: int) -> dict:
     path = f"/v1alpha/quota/{user_id}/admin"
     json_body = {
         "max_virtual_machine": max_virtual_machine,
         "max_image": max_image,
-        "max_snapshot": max_snapshot,
         "max_secret": max_secret,
         "max_network": max_network,
         "max_floating_ip": max_floating_ip,
-        "max_taskqueue": max_taskqueue,
     }
     return ainari_request.send_put_request(context,
                                            context.miko_address,

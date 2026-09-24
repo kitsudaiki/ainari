@@ -54,9 +54,6 @@ pub async fn set_quota_admin(
     if body.max_image != 0 {
         current_quota.max_image = body.max_image;
     }
-    if body.max_snapshot != 0 {
-        current_quota.max_snapshot = body.max_snapshot;
-    }
     if body.max_secret != 0 {
         current_quota.max_secret = body.max_secret;
     }
@@ -66,20 +63,15 @@ pub async fn set_quota_admin(
     if body.max_floating_ip != 0 {
         current_quota.max_floating_ip = body.max_floating_ip;
     }
-    if body.max_taskqueue != 0 {
-        current_quota.max_taskqueue = body.max_taskqueue;
-    }
 
     // update values in database
     quota_table::set_quota(
         &quota_id,
         current_quota.max_virtual_machine,
         current_quota.max_image,
-        current_quota.max_snapshot,
         current_quota.max_secret,
         current_quota.max_network,
         current_quota.max_floating_ip,
-        current_quota.max_taskqueue,
         &context,
     )
     .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
@@ -92,11 +84,9 @@ pub async fn set_quota_admin(
         user_id: quota.id,
         max_virtual_machine: quota.max_virtual_machine,
         max_image: quota.max_image,
-        max_snapshot: quota.max_snapshot,
         max_secret: quota.max_secret,
         max_network: quota.max_network,
         max_floating_ip: quota.max_floating_ip,
-        max_taskqueue: quota.max_taskqueue,
         created_by: quota.created_by,
         created_at: quota.created_at,
         updated_by: quota.updated_by,

@@ -32,11 +32,9 @@ table! {
         id -> Varchar,
         max_virtual_machine -> Integer,
         max_image -> Integer,
-        max_snapshot -> Integer,
         max_secret -> Integer,
         max_network -> Integer,
         max_floating_ip -> Integer,
-        max_taskqueue -> Integer,
         status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
@@ -58,11 +56,9 @@ pub struct QuotaEntry {
     pub id: String,
     pub max_virtual_machine: i32,
     pub max_image: i32,
-    pub max_snapshot: i32,
     pub max_secret: i32,
     pub max_network: i32,
     pub max_floating_ip: i32,
-    pub max_taskqueue: i32,
     pub status: String,
     pub created_at: String,
     pub created_by: String,
@@ -87,11 +83,9 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         id VARCHAR(256),
         max_virtual_machine INTEGER,
         max_image INTEGER,
-        max_snapshot INTEGER,
         max_secret INTEGER,
         max_network INTEGER,
         max_floating_ip INTEGER,
-        max_taskqueue INTEGER,
         status VARCHAR(8),
         created_at VARCHAR(64),
         created_by VARCHAR(256),
@@ -101,14 +95,6 @@ pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
         deleted_by VARCHAR(64)
     );",
     )?;
-
-    // snapshots were called checkpoints in older versions, so the column of their quota is
-    // renamed in tables of these versions
-    match conn.batch_execute("ALTER TABLE quotas RENAME COLUMN max_checkpoint TO max_snapshot;") {
-        Ok(()) => {}
-        Err(e) if e.to_string().contains("no such column") => {}
-        Err(e) => return Err(e.into()),
-    }
 
     // release lock on the connection to avoid dead-lock
     drop(conn);
@@ -149,7 +135,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    add_new_quota(&admin_id, 10, 10, 10, 10, 10, 10, 10, &fake_admin_context)?;
+    add_new_quota(&admin_id, 10, 10, 10, 10, 10, &fake_admin_context)?;
 
     Ok(())
 }
@@ -163,26 +149,21 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 /// * `user_id` - The ID of the user to create the quota for
 /// * `max_virtual_machine` - Maximum number of virtual_machines allowed
 /// * `max_image` - Maximum number of images allowed
-/// * `max_snapshot` - Maximum number of snapshots allowed
 /// * `max_secret` - Maximum number of secrets allowed
 /// * `max_network` - Maximum number of networks allowed
 /// * `max_floating_ip` - Maximum number of floating ip-addresses allowed
-/// * `max_taskqueue` - Maximum number of task queues allowed
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// - `Ok(usize)` with the number of rows affected if successful
 /// - An error if the user is not an admin, if the quota already exists, or if the insertion fails
-#[allow(clippy::too_many_arguments)]
 pub fn add_new_quota(
     user_id: &String,
     max_virtual_machine: i32,
     max_image: i32,
-    max_snapshot: i32,
     max_secret: i32,
     max_network: i32,
     max_floating_ip: i32,
-    max_taskqueue: i32,
     context: &UserContext,
 ) -> QueryResult<usize> {
     if context.is_admin != true.to_string() {
@@ -205,11 +186,9 @@ pub fn add_new_quota(
         id: user_id.clone(),
         max_virtual_machine,
         max_image,
-        max_snapshot,
         max_secret,
         max_network,
         max_floating_ip,
-        max_taskqueue,
         status: "ACTIVE".to_string(),
         created_at: Utc::now().to_rfc3339(),
         created_by: context.user_id.clone(),
@@ -306,27 +285,22 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// * `user_id` - The ID of the user to update the quota for
 /// * `new_max_virtual_machine` - New maximum number of virtual_machines allowed
 /// * `new_max_image` - New maximum number of images allowed
-/// * `new_max_snapshot` - New maximum number of snapshots allowed
 /// * `new_max_secret` - New maximum number of secrets allowed
 /// * `max_new_network` - New maximum number of networks allowed
 /// * `max_new_floating_ip` - New maximum number of floating ip-addresses allowed
-/// * `new_max_taskqueue` - New maximum number of task queues allowed
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// - `Ok(())` if the quota was updated successfully
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
-#[allow(clippy::too_many_arguments)]
 pub fn set_quota(
     user_id: &String,
     new_max_virtual_machine: i32,
     new_max_image: i32,
-    new_max_snapshot: i32,
     new_max_secret: i32,
     max_new_network: i32,
     max_new_floating_ip: i32,
-    new_max_taskqueue: i32,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
     if context.is_admin != true.to_string() {
@@ -340,11 +314,9 @@ pub fn set_quota(
         .set((
             max_virtual_machine.eq(new_max_virtual_machine),
             max_image.eq(new_max_image),
-            max_snapshot.eq(new_max_snapshot),
             max_secret.eq(new_max_secret),
             max_network.eq(max_new_network),
             max_floating_ip.eq(max_new_floating_ip),
-            max_taskqueue.eq(new_max_taskqueue),
         ))
         .execute(&mut *conn)
     {
@@ -437,11 +409,9 @@ mod tests {
             id: owner_id.clone(),
             max_virtual_machine: 42,
             max_image: 43,
-            max_snapshot: 44,
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            max_taskqueue: 46,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -461,9 +431,7 @@ mod tests {
                 quota.max_virtual_machine
             );
             assert_eq!(retrieved_quota.max_image, quota.max_image);
-            assert_eq!(retrieved_quota.max_snapshot, quota.max_snapshot);
             assert_eq!(retrieved_quota.max_secret, quota.max_secret);
-            assert_eq!(retrieved_quota.max_taskqueue, quota.max_taskqueue);
             assert_eq!(retrieved_quota.status, quota.status);
             assert_eq!(retrieved_quota.created_by, quota.created_by);
             assert_eq!(retrieved_quota.updated_by, quota.updated_by);
@@ -492,11 +460,9 @@ mod tests {
             id: owner_id.clone(),
             max_virtual_machine: 42,
             max_image: 43,
-            max_snapshot: 44,
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            max_taskqueue: 46,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -512,11 +478,9 @@ mod tests {
 
         let new_max_virtual_machine = 52;
         let new_max_image = 53;
-        let new_max_snapshot = 54;
         let new_max_secret = 55;
         let new_max_network = 57;
         let new_max_floating_ip = 58;
-        let new_max_taskqueue = 56;
 
         // set new quota
         assert!(
@@ -524,11 +488,9 @@ mod tests {
                 &owner_id,
                 new_max_virtual_machine,
                 new_max_image,
-                new_max_snapshot,
                 new_max_secret,
                 new_max_network,
                 new_max_floating_ip,
-                new_max_taskqueue,
                 &context
             )
             .is_ok()
@@ -538,11 +500,9 @@ mod tests {
             assert_eq!(retrieved_quota.id, quota.id);
             assert_eq!(retrieved_quota.max_virtual_machine, new_max_virtual_machine);
             assert_eq!(retrieved_quota.max_image, new_max_image);
-            assert_eq!(retrieved_quota.max_snapshot, new_max_snapshot);
             assert_eq!(retrieved_quota.max_secret, new_max_secret);
             assert_eq!(retrieved_quota.max_network, new_max_network);
             assert_eq!(retrieved_quota.max_floating_ip, new_max_floating_ip);
-            assert_eq!(retrieved_quota.max_taskqueue, new_max_taskqueue);
             assert_eq!(retrieved_quota.status, quota.status);
             assert_eq!(retrieved_quota.created_by, quota.created_by);
             assert_eq!(retrieved_quota.updated_by, quota.updated_by);
@@ -572,11 +532,9 @@ mod tests {
             id: owner_id1.clone(),
             max_virtual_machine: 42,
             max_image: 43,
-            max_snapshot: 44,
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            max_taskqueue: 46,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -590,11 +548,9 @@ mod tests {
             id: owner_id2.clone(),
             max_virtual_machine: 42,
             max_image: 43,
-            max_snapshot: 44,
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            max_taskqueue: 46,
             status: "DELETED".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),
@@ -635,11 +591,9 @@ mod tests {
             id: owner_id.clone(),
             max_virtual_machine: 42,
             max_image: 43,
-            max_snapshot: 44,
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            max_taskqueue: 46,
             status: "ACTIVE".to_string(),
             created_at: "2025-03-31".to_string(),
             created_by: "admin".to_string(),

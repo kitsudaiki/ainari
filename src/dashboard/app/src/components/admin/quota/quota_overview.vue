@@ -24,11 +24,9 @@
                         <th>User-ID</th>
                         <th>Max Virtual Machines</th>
                         <th>Max Images</th>
-                        <th>Max Snapshots</th>
                         <th>Max Secrets</th>
                         <th>Max Networks</th>
                         <th>Max Floating IPs</th>
-                        <th>Max Task-Queue</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -37,11 +35,9 @@
                         <td>{{ quota.user_id }}</td>
                         <td>{{ quota.max_virtual_machine }}</td>
                         <td>{{ quota.max_image }}</td>
-                        <td>{{ quota.max_snapshot }}</td>
                         <td>{{ quota.max_secret }}</td>
                         <td>{{ quota.max_network }}</td>
                         <td>{{ quota.max_floating_ip }}</td>
-                        <td>{{ quota.max_taskqueue }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div

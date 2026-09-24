@@ -112,11 +112,9 @@ export interface ProjectCreateReq {
 export interface QuotaSetReq {
     max_virtual_machine: number;
     max_image: number;
-    max_snapshot: number;
     max_secret: number;
     max_network: number;
     max_floating_ip: number;
-    max_taskqueue: number;
 }
 
 /** Mirror of `quota_structs::QuotaBasicResp`. */

@@ -21,11 +21,9 @@ pub struct QuotaResp {
     pub user_id: String,
     pub max_virtual_machine: i32,
     pub max_image: i32,
-    pub max_snapshot: i32,
     pub max_secret: i32,
     pub max_network: i32,
     pub max_floating_ip: i32,
-    pub max_taskqueue: i32,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -36,11 +34,9 @@ pub struct QuotaResp {
 pub struct QuotaSetReq {
     pub max_virtual_machine: i32,
     pub max_image: i32,
-    pub max_snapshot: i32,
     pub max_secret: i32,
     pub max_network: i32,
     pub max_floating_ip: i32,
-    pub max_taskqueue: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -48,11 +44,9 @@ pub struct QuotaBasicResp {
     pub user_id: String,
     pub max_virtual_machine: i32,
     pub max_image: i32,
-    pub max_snapshot: i32,
     pub max_secret: i32,
     pub max_network: i32,
     pub max_floating_ip: i32,
-    pub max_taskqueue: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
