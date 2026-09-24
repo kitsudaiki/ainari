@@ -1,5 +1,7 @@
 pub mod create_ch_virtual_machine;
 pub mod delete_ch_virtual_machine;
+pub mod restore_ch_virtual_machine;
+pub mod save_ch_virtual_machine;
 
 use uuid::Uuid;
 
@@ -50,4 +52,19 @@ pub fn vm_directory(vm_uuid: &Uuid) -> String {
 /// * `String` with the path of the temp-directory
 pub fn vm_temp_directory(vm_uuid: &Uuid) -> String {
     format!("{}/vm_{vm_uuid}", config::CONFIG.storage.tempfile_location)
+}
+
+/// Directory for the temporary files, while a snapshot of a virtual_machine is created or
+/// restored
+///
+/// # Arguments
+/// * `snapshot_uuid` - Unique identifier of the snapshot
+///
+/// # Returns
+/// * `String` with the path of the temp-directory
+pub fn snapshot_temp_directory(snapshot_uuid: &Uuid) -> String {
+    format!(
+        "{}/snapshot_{snapshot_uuid}",
+        config::CONFIG.storage.tempfile_location
+    )
 }

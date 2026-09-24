@@ -18,8 +18,10 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::http_endpoints::virtual_machine::get_secret;
 use crate::config;
+use crate::core::processing::tasks::{
+    CloudHypervisorVirtualMachineSnapshotInfo, Task, TaskMeta, TaskVariant,
+};
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
 
@@ -33,9 +35,10 @@ use ainari_clients::snapshot::*;
 #[api_operation(
     tag = "task",
     summary = "Create new snapshot-save-task",
-    description = r###"Create a new task,
+    description = r###"Create a new task, which saves the root-disk of a virtual_machine as new snapshot.
 
-which saves the current state of a virtual_machine as new snapshot."###,
+The snapshot is registered in ryokan, before the task is queued, so the quota of the user is
+checked immediately. The task encrypts the root-disk and uploads it into the onsen."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -51,46 +54,55 @@ pub async fn snapshot_save_task(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let _task_type = TaskType::SnapshotSave;
+    let task_type = TaskType::SnapshotSave;
 
     // check if virtual_machine exist
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    let virtual_machine_data =
+        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
+            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
+        )?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    let snapshot_create_resp = init_snapshot(
+    // register the snapshot in ryokan, which also generates the secret for its encryption
+    let snapshot_uuid = Uuid::new_v4();
+    init_snapshot(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &task_uuid,
+        &snapshot_uuid,
         &body.name,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let _secret = get_secret(&snapshot_create_resp.secret_uuid, &context).await?;
-
     // prepare task-info
-    // let info = SnapshotSaveInfo {
-    //     onsen_address: snapshot_create_resp.onsen_address,
-    //     file_path: snapshot_create_resp.file_path,
-    //     secret,
-    // };
+    let task_name = format!(
+        "Create snapshot {snapshot_uuid} of virtual machine with UUID {}",
+        virtual_machine_data.uuid
+    );
+    let info = CloudHypervisorVirtualMachineSnapshotInfo {
+        vm_uuid: virtual_machine_data.uuid,
+        snapshot_uuid,
+        name: task_name.clone(),
+        context: context.clone(),
+    };
 
-    // // create new task
-    // let task = Task {
-    //     uuid: task_uuid,
-    //     resouce_uuid: virtual_machine_uuid.clone(),
-    //     resource_type: TaskResourceType::VirtualMachine,
-    //     name: body.name.clone(),
-    //     info: TaskVariant::SnapshotSave(info),
-    //     meta: TaskMeta::new(1, 1, 1, 0),
-    // };
-    // super::super::task::add_task(task, &task_type, &context)?;
+    // create new task, which is processed by the same worker-thread as all other tasks of the
+    // virtual_machine, so the snapshot can not overtake its creation
+    let task = Task {
+        uuid: task_uuid,
+        resouce_uuid: *virtual_machine_uuid,
+        resource_type: TaskResourceType::VirtualMachine,
+        name: task_name,
+        info: TaskVariant::CloudHypervisorVirtualMachineSnapshot(info),
+        meta: TaskMeta::new(),
+    };
+    super::super::task::add_task(task, &task_type, &context)
+        .inspect_err(|e| log::error!("Creating a snapshot-task failed with error: {e}"))?;
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)

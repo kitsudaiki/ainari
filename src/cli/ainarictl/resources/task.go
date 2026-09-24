@@ -57,8 +57,8 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 }
 
 var createSnapshotSaveTaskCmd = &cobra.Command{
-	Use:   "snapshot_create CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to create a snapshot from a virtual_machine.",
+	Use:   "snapshot_create VIRTUAL_MACHINE_UUID SNAPSHOT_NAME",
+	Short: "Create a new task to save the root-disk of a virtual_machine as new snapshot.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -68,8 +68,8 @@ var createSnapshotSaveTaskCmd = &cobra.Command{
 		}
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
-		taskName := args[1]
-		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, taskName, virtual_machineUuid)
+		snapshotName := args[1]
+		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, snapshotName, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -80,8 +80,11 @@ var createSnapshotSaveTaskCmd = &cobra.Command{
 }
 
 var createSnapshotRestoreTaskCmd = &cobra.Command{
-	Use:   "snapshot_restore -c SNAPSHOT_UUID CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to restore a snapshot into a virtual_machine.",
+	Use:   "snapshot_restore -s SNAPSHOT_UUID VIRTUAL_MACHINE_UUID TASK_NAME",
+	Short: "Create a new task to reset the root-disk of a virtual_machine to a snapshot.",
+	Long: `Create a new task to reset the root-disk of a virtual_machine to a snapshot.
+
+The virtual_machine is shut down, while its root-disk is replaced, and booted again afterwards.`,
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -105,7 +108,7 @@ var createSnapshotRestoreTaskCmd = &cobra.Command{
 var getTaskCmd = &cobra.Command{
 	// the task itself is not bound to a virtual machine anymore, but the virtual machine is still
 	// required here to address the sakura-host, which holds the task
-	Use:   "get CLUSTER_UUID TASK_UUID",
+	Use:   "get VIRTUAL_MACHINE_UUID TASK_UUID",
 	Short: "Get information of a specific task of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -130,7 +133,7 @@ var getTaskCmd = &cobra.Command{
 var listTaskCmd = &cobra.Command{
 	// the tasks are not listed per virtual machine anymore, but the virtual machine is still
 	// required here to address the sakura-host, whose tasks are listed
-	Use:   "list CLUSTER_UUID",
+	Use:   "list VIRTUAL_MACHINE_UUID",
 	Short: "List all tasks of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -154,7 +157,7 @@ var listTaskCmd = &cobra.Command{
 var abortTaskCmd = &cobra.Command{
 	// the task itself is not bound to a virtual machine anymore, but the virtual machine is still
 	// required here to address the sakura-host, which holds the task
-	Use:   "abort CLUSTER_UUID TASK_UUID",
+	Use:   "abort VIRTUAL_MACHINE_UUID TASK_UUID",
 	Short: "Abort a specific task of the sakura-host of a virtual machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -194,7 +197,7 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	createTaskCmd.AddCommand(createSnapshotSaveTaskCmd)
 
 	createTaskCmd.AddCommand(createSnapshotRestoreTaskCmd)
-	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotUuid, "snapshot_uuid", "c", "", "Snapshot UUID UUID (mandatory)")
+	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotUuid, "snapshot_uuid", "s", "", "Snapshot UUID (mandatory)")
 	createSnapshotRestoreTaskCmd.MarkFlagRequired("snapshot_uuid")
 
 	taskCmd.AddCommand(getTaskCmd)

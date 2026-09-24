@@ -18,8 +18,10 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::http_endpoints::virtual_machine::get_secret;
 use crate::config;
+use crate::core::processing::tasks::{
+    CloudHypervisorVirtualMachineRestoreInfo, Task, TaskMeta, TaskVariant,
+};
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
 
@@ -33,7 +35,10 @@ use ainari_clients::snapshot::*;
 #[api_operation(
     tag = "task",
     summary = "Create new snapshot-restore-task",
-    description = r###"Create a new task, which restores a virtual_machine from one of its snapshots."###,
+    description = r###"Create a new task, which resets the root-disk of an existing virtual_machine to
+the state of a snapshot.
+
+The virtual_machine is shut down, while its root-disk is replaced, and booted again afterwards."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -49,16 +54,19 @@ pub async fn snapshot_restore_task(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let _task_type = TaskType::SnapshotRestore;
+    let task_type = TaskType::SnapshotRestore;
 
     // check if virtual_machine exist
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    let virtual_machine_data =
+        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
+            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
+        )?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
+    // check if the snapshot exist, so an invalid snapshot is rejected before the task is queued
     let snapshot_resp = get_snapshot(
         &endpoints.ryokan,
         &context.token,
@@ -69,25 +77,30 @@ pub async fn snapshot_restore_task(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let _secret = get_secret(&snapshot_resp.secret_uuid, &context).await?;
+    // prepare task-info
+    let task_name = format!(
+        "Restore snapshot {} into virtual machine with UUID {}",
+        snapshot_resp.uuid, virtual_machine_data.uuid
+    );
+    let info = CloudHypervisorVirtualMachineRestoreInfo {
+        vm_uuid: virtual_machine_data.uuid,
+        snapshot_uuid: snapshot_resp.uuid,
+        name: task_name.clone(),
+        context: context.clone(),
+    };
 
-    // // prepare task-info
-    // let info = SnapshotRestoreInfo {
-    //     onsen_address: snapshot_resp.onsen_address,
-    //     file_path: snapshot_resp.file_path,
-    //     secret,
-    // };
-
-    // // create new task
-    // let task = Task {
-    //     uuid: task_uuid,
-    //     resouce_uuid: virtual_machine_uuid.clone(),
-    //     resource_type: TaskResourceType::VirtualMachine,
-    //     name: body.name.clone(),
-    //     info: TaskVariant::SnapshotRestore(info),
-    //     meta: TaskMeta::new(1, 1, 1, 0),
-    // };
-    // super::super::task::add_task(task, &task_type, &context)?;
+    // create new task, which is processed by the same worker-thread as all other tasks of the
+    // virtual_machine, so the restore can not overtake its creation
+    let task = Task {
+        uuid: task_uuid,
+        resouce_uuid: *virtual_machine_uuid,
+        resource_type: TaskResourceType::VirtualMachine,
+        name: task_name,
+        info: TaskVariant::CloudHypervisorVirtualMachineRestore(info),
+        meta: TaskMeta::new(),
+    };
+    super::super::task::add_task(task, &task_type, &context)
+        .inspect_err(|e| log::error!("Creating a restore-task failed with error: {e}"))?;
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)

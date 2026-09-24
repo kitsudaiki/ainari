@@ -22,8 +22,11 @@
             </div>
             <div class="modal-content">
                 <p>
-                    Creates a task, which restores the virtual machine from an
-                    existing snapshot.
+                    Creates a task, which resets the root-disk of the virtual
+                    machine to the state of an existing snapshot. The virtual
+                    machine is shut down, while its root-disk is replaced, and
+                    booted again afterwards. All changes since the snapshot are
+                    lost.
                 </p>
                 <br />
                 <div>

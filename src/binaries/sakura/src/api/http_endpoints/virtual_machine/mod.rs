@@ -20,46 +20,6 @@ pub mod reserve_virtual_machine_internal_v1_0;
 pub mod snapshot_restore_v1_0;
 pub mod snapshot_save_v1_0;
 
-use uuid::Uuid;
-
-use crate::config;
-
-use ainari_api::common_functions::*;
-use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::user_context::UserContext;
-use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::secret::get_secret_payload;
-use ainari_common::secret::Secret;
-
-/// Retrieves a secret from the secret service.
-///
-/// This asynchronous function fetches secret payload information from the
-/// secret service using the provided UUID and user context.
-///
-/// # Arguments
-/// * `secret_uuid` - The UUID of the secret to retrieve
-/// * `context` - The user context for authentication
-///
-/// # Returns
-/// * `Result<Secret, ErrorResponse>` - The retrieved secret or an error
-async fn get_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<Secret, ErrorResponse> {
-    let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
-        .await
-        .map_err(map_ainari_error_to_api_response)?;
-
-    let secret_payload = get_secret_payload(
-        &endpoints.omamori,
-        &context.token,
-        secret_uuid,
-        config::CONFIG.skip_tls_verification,
-    )
-    .await
-    .map_err(map_ainari_error_to_api_response)?;
-
-    Ok(Secret::from(secret_payload.secret_payload))
-}
-
 /// Removes all files and directories in the specified target directory.
 ///
 /// This function performs a complete cleanup of the specified directory,

@@ -320,7 +320,7 @@ ssh_authorized_keys:
 /// # Returns
 /// * `Ok(Secret)` with the secret on success
 /// * `Err(AinariError)` with an appropriate error on failure
-async fn get_secret(
+pub(super) async fn get_secret(
     endpoints: &Endpoints,
     secret_uuid: &Uuid,
     context: &UserContext,
@@ -446,7 +446,7 @@ fn convert_image(input_path: &str, output_path: &str, disk_size: i64) -> Result<
 /// # Returns
 /// * `Ok(())` if the command was successful
 /// * `Err(AinariError)` if the command could not be started or failed
-fn run_command(program: &str, args: &[&str]) -> Result<(), AinariError> {
+pub(super) fn run_command(program: &str, args: &[&str]) -> Result<(), AinariError> {
     let status = Command::new(program).args(args).status().map_err(|e| {
         AinariError::InternalError(format!("Failed to execute {program} process: {e}"))
     })?;

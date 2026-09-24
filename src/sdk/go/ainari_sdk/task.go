@@ -37,7 +37,7 @@ func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, name, virtu
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
-		"name":            name,
+		"name":          name,
 		"snapshot_uuid": snapshotUuid,
 	}
 	return SendPost(context, address, path, jsonBody)
