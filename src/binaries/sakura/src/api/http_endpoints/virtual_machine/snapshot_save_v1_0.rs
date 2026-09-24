@@ -27,22 +27,22 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::checkpoint::*;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::snapshot::*;
 
 #[api_operation(
     tag = "task",
-    summary = "Create new checkpoint-save-task",
+    summary = "Create new snapshot-save-task",
     description = r###"Create a new task,
 
-which saves the current state of a virtual_machine as new checkpoint."###,
+which saves the current state of a virtual_machine as new snapshot."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn checkpoint_save_task(
-    body: Json<TaskCheckpointSaveReq>,
+pub async fn snapshot_save_task(
+    body: Json<TaskSnapshotSaveReq>,
     virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
@@ -51,7 +51,7 @@ pub async fn checkpoint_save_task(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let _task_type = TaskType::CheckpointSave;
+    let _task_type = TaskType::SnapshotSave;
 
     // check if virtual_machine exist
     virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
@@ -61,7 +61,7 @@ pub async fn checkpoint_save_task(
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    let checkpoint_create_resp = init_checkpoint(
+    let snapshot_create_resp = init_snapshot(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
@@ -72,12 +72,12 @@ pub async fn checkpoint_save_task(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let _secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
+    let _secret = get_secret(&snapshot_create_resp.secret_uuid, &context).await?;
 
     // prepare task-info
-    // let info = CheckpointSaveInfo {
-    //     onsen_address: checkpoint_create_resp.onsen_address,
-    //     file_path: checkpoint_create_resp.file_path,
+    // let info = SnapshotSaveInfo {
+    //     onsen_address: snapshot_create_resp.onsen_address,
+    //     file_path: snapshot_create_resp.file_path,
     //     secret,
     // };
 
@@ -87,7 +87,7 @@ pub async fn checkpoint_save_task(
     //     resouce_uuid: virtual_machine_uuid.clone(),
     //     resource_type: TaskResourceType::VirtualMachine,
     //     name: body.name.clone(),
-    //     info: TaskVariant::CheckpointSave(info),
+    //     info: TaskVariant::SnapshotSave(info),
     //     meta: TaskMeta::new(1, 1, 1, 0),
     // };
     // super::super::task::add_task(task, &task_type, &context)?;

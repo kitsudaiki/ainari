@@ -19,14 +19,14 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CheckpointCreateReq {
+pub struct SnapshotCreateReq {
     pub uuid: Uuid,
     #[validate(length(min = 4, max = 127))]
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointResp {
+pub struct SnapshotResp {
     pub uuid: Uuid,
     pub name: String,
     pub created_at: String,
@@ -36,7 +36,7 @@ pub struct CheckpointResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointInternalResp {
+pub struct SnapshotInternalResp {
     pub uuid: Uuid,
     pub name: String,
     pub onsen_address: String,
@@ -49,12 +49,12 @@ pub struct CheckpointInternalResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointBasicResp {
+pub struct SnapshotBasicResp {
     pub uuid: Uuid,
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct CheckpointListResp {
-    pub checkpoints: Vec<CheckpointBasicResp>,
+pub struct SnapshotListResp {
+    pub snapshots: Vec<SnapshotBasicResp>,
 }

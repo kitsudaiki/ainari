@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod auth;
-pub mod checkpoint;
 pub mod endpoints;
 pub mod floating_ip;
 pub mod host;
@@ -28,6 +27,7 @@ pub mod quota;
 pub mod root_wrap;
 pub mod route;
 pub mod secret;
+pub mod snapshot;
 pub mod virtual_machine;
 
 use actix_web::dev::{Decompress, Payload};

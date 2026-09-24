@@ -16,8 +16,8 @@
 
 import { ryokanClient } from "./client";
 import type {
-    CheckpointBasicResp,
-    CheckpointResp,
+    SnapshotBasicResp,
+    SnapshotResp,
     HostBasicResp,
     HostResp,
     ImageBasicResp,
@@ -82,29 +82,29 @@ export async function getImageCount(): Promise<number> {
 }
 
 //=============================================================================
-// checkpoint
+// snapshot
 //=============================================================================
 
-/** `GET /v1alpha/checkpoint` */
-export async function listCheckpoints(): Promise<CheckpointBasicResp[]> {
-    const resp = await ryokanClient().get("/v1alpha/checkpoint");
-    return resp.data.checkpoints;
+/** `GET /v1alpha/snapshot` */
+export async function listSnapshots(): Promise<SnapshotBasicResp[]> {
+    const resp = await ryokanClient().get("/v1alpha/snapshot");
+    return resp.data.snapshots;
 }
 
-/** `GET /v1alpha/checkpoint/{checkpoint_uuid}` */
-export async function getCheckpoint(uuid: string): Promise<CheckpointResp> {
-    const resp = await ryokanClient().get(`/v1alpha/checkpoint/${uuid}`);
+/** `GET /v1alpha/snapshot/{snapshot_uuid}` */
+export async function getSnapshot(uuid: string): Promise<SnapshotResp> {
+    const resp = await ryokanClient().get(`/v1alpha/snapshot/${uuid}`);
     return resp.data;
 }
 
-/** `DELETE /v1alpha/checkpoint/{checkpoint_uuid}` */
-export async function deleteCheckpoint(uuid: string): Promise<void> {
-    await ryokanClient().delete(`/v1alpha/checkpoint/${uuid}`);
+/** `DELETE /v1alpha/snapshot/{snapshot_uuid}` */
+export async function deleteSnapshot(uuid: string): Promise<void> {
+    await ryokanClient().delete(`/v1alpha/snapshot/${uuid}`);
 }
 
-/** `GET /v1alpha/checkpoint/count` */
-export async function getCheckpointCount(): Promise<number> {
-    const resp = await ryokanClient().get("/v1alpha/checkpoint/count");
+/** `GET /v1alpha/snapshot/count` */
+export async function getSnapshotCount(): Promise<number> {
+    const resp = await ryokanClient().get("/v1alpha/snapshot/count");
     return resp.data.number_of_items;
 }
 

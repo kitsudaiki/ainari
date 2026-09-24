@@ -62,12 +62,12 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(create_virtual_machine_v1_0::create_virtual_machine)),
                 )
                 .service(
-                    resource("/{virtual_machine_uuid}/checkpoint_save")
-                        .route(post().to(checkpoint_save_v1_0::checkpoint_save_task)),
+                    resource("/{virtual_machine_uuid}/snapshot_save")
+                        .route(post().to(snapshot_save_v1_0::snapshot_save_task)),
                 )
                 .service(
-                    resource("/{virtual_machine_uuid}/checkpoint_restore")
-                        .route(post().to(checkpoint_restore_v1_0::checkpoint_restore_task)),
+                    resource("/{virtual_machine_uuid}/snapshot_restore")
+                        .route(post().to(snapshot_restore_v1_0::snapshot_restore_task)),
                 ),
         )
         .service(

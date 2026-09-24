@@ -24,21 +24,21 @@ import (
 	"fmt"
 )
 
-func CreateCheckpointSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
+func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_save", virtual_machineUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_save", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
 	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, virtual_machineUuid, checkpointUuid string) (map[string]interface{}, error) {
+func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, name, virtual_machineUuid, snapshotUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_restore", virtual_machineUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"name":            name,
-		"checkpoint_uuid": checkpointUuid,
+		"snapshot_uuid": snapshotUuid,
 	}
 	return SendPost(context, address, path, jsonBody)
 }

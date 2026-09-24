@@ -18,11 +18,11 @@
     <div class="card">
         <div class="card-label">Tasks</div>
         <div class="card-content">
-            <!-- Checkpoint actions, which both create a new task -->
+            <!-- Snapshot actions, which both create a new task -->
             <div class="task-actions">
-                <button @click="showSaveModal = true">Save checkpoint</button>
+                <button @click="showSaveModal = true">Save snapshot</button>
                 <button @click="showRestoreModal = true">
-                    Restore checkpoint
+                    Restore snapshot
                 </button>
             </div>
 
@@ -98,21 +98,21 @@
             @cancel="cancelAbortModal"
         />
 
-        <CheckpointSaveModal
+        <SnapshotSaveModal
             v-if="showSaveModal"
             :virtual_machine_uuid="props.id"
             :torii_port="torii_port"
             :icons="icons"
-            @accept="acceptCheckpointModal"
+            @accept="acceptSnapshotModal"
             @cancel="showSaveModal = false"
         />
 
-        <CheckpointRestoreModal
+        <SnapshotRestoreModal
             v-if="showRestoreModal"
             :virtual_machine_uuid="props.id"
             :torii_port="torii_port"
             :icons="icons"
-            @accept="acceptCheckpointModal"
+            @accept="acceptSnapshotModal"
             @cancel="showRestoreModal = false"
         />
     </div>
@@ -129,8 +129,8 @@ import { hanami, sakura } from "@/api";
 import type { TaskBasicResp, TaskState } from "@/api";
 import TaskInfoModal from "./task_info_modal.vue";
 import TaskAbortModal from "./task_abort_modal.vue";
-import CheckpointSaveModal from "./checkpoint_save_modal.vue";
-import CheckpointRestoreModal from "./checkpoint_restore_modal.vue";
+import SnapshotSaveModal from "./snapshot_save_modal.vue";
+import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const props = defineProps<{
@@ -245,9 +245,9 @@ async function acceptAbortModal() {
 }
 
 //=============================================================================
-// Checkpoint modals
+// Snapshot modals
 //=============================================================================
-async function acceptCheckpointModal() {
+async function acceptSnapshotModal() {
     showSaveModal.value = false;
     showRestoreModal.value = false;
     await fetchTasks();

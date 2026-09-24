@@ -60,13 +60,13 @@ v1.0alpha/dataset
 v1.0alpha/dataset/all
 - GET: admin, member
 
-v1.0alpha/checkpoint
+v1.0alpha/snapshot
 - POST: admin, member
 - PUT: admin, member
 - GET: admin, member
 - DELETE: admin, member
 
-v1.0alpha/checkpoint/all
+v1.0alpha/snapshot/all
 - GET: admin, member
 
 v1.0alpha/request_result

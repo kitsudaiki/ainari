@@ -26,7 +26,7 @@ use ainari_common::enums;
 
 // Define the schema
 table! {
-    checkpoints (uuid) {
+    snapshots (uuid) {
         uuid -> Varchar,
         name -> Varchar,
         onsen_address -> Varchar,
@@ -45,8 +45,8 @@ table! {
 }
 
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
-#[diesel(table_name = checkpoints)]
-pub struct CheckpointEntry {
+#[diesel(table_name = snapshots)]
+pub struct SnapshotEntry {
     pub uuid: String,
     pub name: String,
     pub onsen_address: String,
@@ -63,14 +63,14 @@ pub struct CheckpointEntry {
     pub deleted_by: Option<String>,
 }
 
-/// Creates the checkpoint-table, if it does not already exist.
+/// Creates the snapshot-table, if it does not already exist.
 ///
 /// # Returns
 /// * `Result<(), Box<dyn Error>>` - Ok, if the table is available, else the database-error
-pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
+pub fn init_snapshot_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS checkpoints (
+        "CREATE TABLE IF NOT EXISTS snapshots (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         onsen_address VARCHAR(256),
@@ -91,14 +91,14 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Builds a new checkpoint-entry from the given values and inserts it into the database.
+/// Builds a new snapshot-entry from the given values and inserts it into the database.
 ///
 /// The ownership-fields and the timestamps are filled from the user-context, so all entries are
 /// created in the same way.
 ///
 /// # Arguments
-/// * `checkpoint_uuid` - The UUID of the new checkpoint
-/// * `checkpoint_name` - The name of the new checkpoint
+/// * `snapshot_uuid` - The UUID of the new snapshot
+/// * `snapshot_name` - The name of the new snapshot
 /// * `onsen_address` - The address of the onsen, where the payload is stored
 /// * `file_path` - The path of the payload on the onsen
 /// * `secret_uuid` - The UUID of the secret, which was used to encrypt the payload
@@ -106,17 +106,17 @@ pub fn init_checkpoint_table() -> Result<(), Box<dyn Error>> {
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-pub fn add_new_checkpoint(
-    checkpoint_uuid: &Uuid,
-    checkpoint_name: &str,
+pub fn add_new_snapshot(
+    snapshot_uuid: &Uuid,
+    snapshot_name: &str,
     onsen_address: &str,
     file_path: &str,
     secret_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    let checkpoint = CheckpointEntry {
-        uuid: checkpoint_uuid.to_string().clone(),
-        name: checkpoint_name.to_owned(),
+    let snapshot = SnapshotEntry {
+        uuid: snapshot_uuid.to_string().clone(),
+        name: snapshot_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
         secret_uuid: secret_uuid.to_string().clone(),
@@ -131,49 +131,46 @@ pub fn add_new_checkpoint(
         deleted_by: None,
     };
 
-    add_checkpoint(&checkpoint)
+    add_snapshot(&snapshot)
 }
 
-/// Inserts an already built checkpoint-entry into the database.
+/// Inserts an already built snapshot-entry into the database.
 ///
 /// # Arguments
-/// * `checkpoint` - The entry to insert
+/// * `snapshot` - The entry to insert
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-pub fn add_checkpoint(checkpoint: &CheckpointEntry) -> QueryResult<usize> {
+pub fn add_snapshot(snapshot: &SnapshotEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::checkpoints::dsl::*;
+    use self::snapshots::dsl::*;
 
-    diesel::insert_into(checkpoints)
-        .values(checkpoint)
+    diesel::insert_into(snapshots)
+        .values(snapshot)
         .execute(&mut *conn)
 }
 
-/// Retrieves a checkpoint from the database.
+/// Retrieves a snapshot from the database.
 ///
-/// Only active checkpoints are returned, so an already deleted one is reported as not found. An
-/// admin sees every checkpoint, a project-admin all checkpoints of his project and every other
+/// Only active snapshots are returned, so an already deleted one is reported as not found. An
+/// admin sees every snapshot, a project-admin all snapshots of his project and every other
 /// user only his own ones.
 ///
 /// # Arguments
-/// * `checkpoint_uuid` - The UUID of the checkpoint to retrieve
+/// * `snapshot_uuid` - The UUID of the snapshot to retrieve
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `Result<CheckpointEntry, enums::DbError>` - The requested checkpoint or an error
-pub fn get_checkpoint(
-    checkpoint_uuid: &Uuid,
+/// * `Result<SnapshotEntry, enums::DbError>` - The requested snapshot or an error
+pub fn get_snapshot(
+    snapshot_uuid: &Uuid,
     context: &UserContext,
-) -> Result<CheckpointEntry, enums::DbError> {
+) -> Result<SnapshotEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::checkpoints::dsl::*;
+    use self::snapshots::dsl::*;
 
-    let mut query = checkpoints
-        .filter(
-            uuid.eq(checkpoint_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+    let mut query = snapshots
+        .filter(uuid.eq(snapshot_uuid.to_string()).and(status.eq("ACTIVE")))
         .into_boxed();
 
     if context.is_admin != true.to_string() {
@@ -184,10 +181,10 @@ pub fn get_checkpoint(
     }
 
     match query
-        .select(CheckpointEntry::as_select())
-        .first::<CheckpointEntry>(&mut *conn)
+        .select(SnapshotEntry::as_select())
+        .first::<SnapshotEntry>(&mut *conn)
     {
-        Ok(checkpoint) => Ok(checkpoint),
+        Ok(snapshot) => Ok(snapshot),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
             log::error!("Database-error: {e:?}");
@@ -196,20 +193,20 @@ pub fn get_checkpoint(
     }
 }
 
-/// Lists all checkpoints, which are visible for the user.
+/// Lists all snapshots, which are visible for the user.
 ///
-/// Uses the same visibility-rules as `get_checkpoint`.
+/// Uses the same visibility-rules as `get_snapshot`.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `QueryResult<Vec<CheckpointEntry>>` - All visible checkpoints or a database-error
-pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntry>> {
+/// * `QueryResult<Vec<SnapshotEntry>>` - All visible snapshots or a database-error
+pub fn list_snapshots(context: &UserContext) -> QueryResult<Vec<SnapshotEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::checkpoints::dsl::*;
+    use self::snapshots::dsl::*;
 
-    let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = snapshots.filter(status.eq("ACTIVE")).into_boxed();
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -218,24 +215,24 @@ pub fn list_checkpoints(context: &UserContext) -> QueryResult<Vec<CheckpointEntr
         }
     }
 
-    query.select(CheckpointEntry::as_select()).load(&mut *conn)
+    query.select(SnapshotEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the active checkpoints of the requesting user.
+/// Counts the active snapshots of the requesting user.
 ///
-/// In contrast to `list_checkpoints` this always counts only the own checkpoints of the user, also
+/// In contrast to `list_snapshots` this always counts only the own snapshots of the user, also
 /// for an admin, because the result is used to check the quota of that user.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `QueryResult<i64>` - The number of checkpoints or a database-error
-pub fn count_checkpoints(context: &UserContext) -> QueryResult<i64> {
+/// * `QueryResult<i64>` - The number of snapshots or a database-error
+pub fn count_snapshots(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::checkpoints::dsl::*;
+    use self::snapshots::dsl::*;
 
-    let mut query = checkpoints.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = snapshots.filter(status.eq("ACTIVE")).into_boxed();
 
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
@@ -243,28 +240,25 @@ pub fn count_checkpoints(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Deletes a checkpoint from the database.
+/// Deletes a snapshot from the database.
 ///
 /// The entry is not removed, but only marked as deleted together with the timestamp and the user,
-/// who deleted it, so the history stays available. The checkpoint is read first, so a user can
-/// only delete a checkpoint, which he is allowed to see.
+/// who deleted it, so the history stays available. The snapshot is read first, so a user can
+/// only delete a snapshot, which he is allowed to see.
 ///
 /// # Arguments
-/// * `checkpoint_uuid` - The UUID of the checkpoint to delete
+/// * `snapshot_uuid` - The UUID of the snapshot to delete
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// * `Result<(), enums::DbError>` - Ok, if the checkpoint was marked as deleted, else an error
-pub fn delete_checkpoint(
-    checkpoint_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<(), enums::DbError> {
-    get_checkpoint(checkpoint_uuid, context)?;
+/// * `Result<(), enums::DbError>` - Ok, if the snapshot was marked as deleted, else an error
+pub fn delete_snapshot(snapshot_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    get_snapshot(snapshot_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::checkpoints::dsl::*;
+    use self::snapshots::dsl::*;
 
-    match diesel::update(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
+    match diesel::update(snapshots.filter(uuid.eq(snapshot_uuid.to_string())))
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
@@ -286,17 +280,17 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    fn hard_delete_checkpoint(checkpoint_uuid: &Uuid) {
-        use self::checkpoints::dsl::*;
+    fn hard_delete_snapshot(snapshot_uuid: &Uuid) {
+        use self::snapshots::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        let _ = diesel::delete(checkpoints.filter(uuid.eq(checkpoint_uuid.to_string())))
+        let _ = diesel::delete(snapshots.filter(uuid.eq(snapshot_uuid.to_string())))
             .execute(&mut *conn);
     }
 
     #[test]
     #[serial]
-    fn test_add_get_checkpoint() {
-        let _ = init_checkpoint_table();
+    fn test_add_get_snapshot() {
+        let _ = init_snapshot_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -311,7 +305,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let checkpoint = CheckpointEntry {
+        let snapshot = SnapshotEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -328,27 +322,27 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_checkpoint(&uuid1);
+        hard_delete_snapshot(&uuid1);
 
-        add_checkpoint(&checkpoint).unwrap();
-        if let Ok(retrieved_checkpoint) = get_checkpoint(&uuid1, &context) {
-            assert_eq!(retrieved_checkpoint.uuid, checkpoint.uuid);
-            assert_eq!(retrieved_checkpoint.name, checkpoint.name);
-            assert_eq!(retrieved_checkpoint.file_path, checkpoint.file_path);
-            assert_eq!(retrieved_checkpoint.status, checkpoint.status);
-            assert_eq!(retrieved_checkpoint.created_by, checkpoint.created_by);
-            assert_eq!(retrieved_checkpoint.updated_by, checkpoint.updated_by);
-            assert_eq!(retrieved_checkpoint.deleted_at, checkpoint.deleted_at);
-            assert_eq!(retrieved_checkpoint.deleted_by, checkpoint.deleted_by);
+        add_snapshot(&snapshot).unwrap();
+        if let Ok(retrieved_snapshot) = get_snapshot(&uuid1, &context) {
+            assert_eq!(retrieved_snapshot.uuid, snapshot.uuid);
+            assert_eq!(retrieved_snapshot.name, snapshot.name);
+            assert_eq!(retrieved_snapshot.file_path, snapshot.file_path);
+            assert_eq!(retrieved_snapshot.status, snapshot.status);
+            assert_eq!(retrieved_snapshot.created_by, snapshot.created_by);
+            assert_eq!(retrieved_snapshot.updated_by, snapshot.updated_by);
+            assert_eq!(retrieved_snapshot.deleted_at, snapshot.deleted_at);
+            assert_eq!(retrieved_snapshot.deleted_by, snapshot.deleted_by);
         };
 
-        hard_delete_checkpoint(&uuid1);
+        hard_delete_snapshot(&uuid1);
     }
 
     #[test]
     #[serial]
-    fn test_list_checkpoints() {
-        let _ = init_checkpoint_table();
+    fn test_list_snapshots() {
+        let _ = init_snapshot_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
@@ -364,7 +358,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let checkpoint1 = CheckpointEntry {
+        let snapshot1 = SnapshotEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -381,7 +375,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let checkpoint2 = CheckpointEntry {
+        let snapshot2 = SnapshotEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
@@ -398,21 +392,21 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
 
-        add_checkpoint(&checkpoint1).unwrap();
-        add_checkpoint(&checkpoint2).unwrap();
-        let checkpoints = list_checkpoints(&context).unwrap();
-        assert_eq!(checkpoints.len(), 1);
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
+        add_snapshot(&snapshot1).unwrap();
+        add_snapshot(&snapshot2).unwrap();
+        let snapshots = list_snapshots(&context).unwrap();
+        assert_eq!(snapshots.len(), 1);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
     }
 
     #[test]
     #[serial]
-    fn test_delete_checkpoint() {
-        let _ = init_checkpoint_table();
+    fn test_delete_snapshot() {
+        let _ = init_snapshot_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -427,7 +421,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let checkpoint = CheckpointEntry {
+        let snapshot = SnapshotEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -444,22 +438,22 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_checkpoint(&uuid1);
+        hard_delete_snapshot(&uuid1);
 
-        add_checkpoint(&checkpoint).unwrap();
-        let _ = delete_checkpoint(&uuid1, &context);
-        let result = get_checkpoint(&uuid1, &context);
+        add_snapshot(&snapshot).unwrap();
+        let _ = delete_snapshot(&uuid1, &context);
+        let result = get_snapshot(&uuid1, &context);
         assert!(result.is_err());
     }
 
     #[test]
     #[serial]
-    fn test_count_checkpoints() {
-        let _ = init_checkpoint_table();
+    fn test_count_snapshots() {
+        let _ = init_snapshot_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let name = "test-checkpoint".to_string();
+        let name = "test-snapshot".to_string();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
 
@@ -473,7 +467,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let checkpoint1 = CheckpointEntry {
+        let snapshot1 = SnapshotEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -490,7 +484,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let checkpoint2 = CheckpointEntry {
+        let snapshot2 = SnapshotEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -507,7 +501,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let checkpoint3 = CheckpointEntry {
+        let snapshot3 = SnapshotEntry {
             uuid: uuid3.to_string(),
             name: name.clone(),
             onsen_address: onsen_address.clone(),
@@ -524,33 +518,33 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
-        hard_delete_checkpoint(&uuid3);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
+        hard_delete_snapshot(&uuid3);
 
-        add_checkpoint(&checkpoint1).unwrap();
-        add_checkpoint(&checkpoint2).unwrap();
-        add_checkpoint(&checkpoint3).unwrap();
+        add_snapshot(&snapshot1).unwrap();
+        add_snapshot(&snapshot2).unwrap();
+        add_snapshot(&snapshot3).unwrap();
 
-        let number = count_checkpoints(&context).unwrap();
+        let number = count_snapshots(&context).unwrap();
         assert_eq!(number, 3);
 
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
-        hard_delete_checkpoint(&uuid3);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
+        hard_delete_snapshot(&uuid3);
     }
 
     #[test]
     #[serial]
-    fn test_checkpoints_permissions() {
-        let _ = init_checkpoint_table();
+    fn test_snapshots_permissions() {
+        let _ = init_snapshot_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
 
-        let checkpoint1 = CheckpointEntry {
+        let snapshot1 = SnapshotEntry {
             uuid: uuid1.to_string(),
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
@@ -567,7 +561,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let checkpoint2 = CheckpointEntry {
+        let snapshot2 = SnapshotEntry {
             uuid: uuid2.to_string(),
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
@@ -584,7 +578,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let checkpoint3 = CheckpointEntry {
+        let snapshot3 = SnapshotEntry {
             uuid: uuid3.to_string(),
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
@@ -601,13 +595,13 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
-        hard_delete_checkpoint(&uuid3);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
+        hard_delete_snapshot(&uuid3);
 
-        add_checkpoint(&checkpoint1).unwrap();
-        add_checkpoint(&checkpoint2).unwrap();
-        add_checkpoint(&checkpoint3).unwrap();
+        add_snapshot(&snapshot1).unwrap();
+        add_snapshot(&snapshot2).unwrap();
+        add_snapshot(&snapshot3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -617,8 +611,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let checkpoints = list_checkpoints(&context).unwrap();
-        assert_eq!(checkpoints.len(), 1);
+        let snapshots = list_snapshots(&context).unwrap();
+        assert_eq!(snapshots.len(), 1);
 
         // list-test project-admin
         let context = UserContext {
@@ -628,8 +622,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let checkpoints = list_checkpoints(&context).unwrap();
-        assert_eq!(checkpoints.len(), 2);
+        let snapshots = list_snapshots(&context).unwrap();
+        assert_eq!(snapshots.len(), 2);
 
         // list-test admin
         let context = UserContext {
@@ -639,8 +633,8 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let checkpoints = list_checkpoints(&context).unwrap();
-        assert_eq!(checkpoints.len(), 3);
+        let snapshots = list_snapshots(&context).unwrap();
+        assert_eq!(snapshots.len(), 3);
 
         // get-test normal user
         let context = UserContext {
@@ -650,9 +644,9 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        match get_checkpoint(&uuid1, &context) {
-            Ok(retrieved_checkpoint) => {
-                assert_eq!(retrieved_checkpoint.uuid, uuid1.to_string());
+        match get_snapshot(&uuid1, &context) {
+            Ok(retrieved_snapshot) => {
+                assert_eq!(retrieved_snapshot.uuid, uuid1.to_string());
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -667,7 +661,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if get_checkpoint(&uuid3, &context).is_ok() {
+        if get_snapshot(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -679,12 +673,12 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if delete_checkpoint(&uuid3, &context).is_ok() {
+        if delete_snapshot(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
-        hard_delete_checkpoint(&uuid1);
-        hard_delete_checkpoint(&uuid2);
-        hard_delete_checkpoint(&uuid3);
+        hard_delete_snapshot(&uuid1);
+        hard_delete_snapshot(&uuid2);
+        hard_delete_snapshot(&uuid3);
     }
 }

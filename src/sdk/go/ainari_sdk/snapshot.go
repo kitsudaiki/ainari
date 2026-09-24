@@ -24,27 +24,27 @@ import (
 	"fmt"
 )
 
-func GetCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
+func GetSnapshot(context AccessContext, snapshotUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/snapshot/%s", snapshotUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func ListCheckpoint(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/checkpoint"
+func ListSnapshot(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/snapshot"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func DeleteCheckpoint(context AccessContext, checkpointUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/checkpoint/%s", checkpointUuid)
+func DeleteSnapshot(context AccessContext, snapshotUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/snapshot/%s", snapshotUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.RyokanAddress, path, vars)
 }
 
-// GetCheckpointCount returns the number of checkpoints of the project.
-func GetCheckpointCount(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/checkpoint/count"
+// GetSnapshotCount returns the number of snapshots of the project.
+func GetSnapshotCount(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/snapshot/count"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
 }

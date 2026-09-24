@@ -17,36 +17,36 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::checkpoint_table;
+use crate::database::snapshot_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::checkpoint_structs::*;
+use ainari_api_structs::snapshot_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "checkpoint",
-    summary = "Get checkpoint",
-    description = r###"Get information of a checkpoint from the database."###,
+    tag = "snapshot",
+    summary = "Get snapshot",
+    description = r###"Get information of a snapshot from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_checkpoint(
-    checkpoint_uuid: Path<Uuid>,
+pub async fn get_snapshot(
+    snapshot_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<CheckpointResp>, ErrorResponse> {
-    let checkpoint = checkpoint_table::get_checkpoint(&checkpoint_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("checkpoint", &checkpoint_uuid, e))?;
+) -> Result<Json<SnapshotResp>, ErrorResponse> {
+    let snapshot = snapshot_table::get_snapshot(&snapshot_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("snapshot", &snapshot_uuid, e))?;
 
-    let resp = CheckpointResp {
-        uuid: *checkpoint_uuid,
-        name: checkpoint.name,
-        created_by: checkpoint.created_by,
-        created_at: checkpoint.created_at,
-        updated_by: checkpoint.updated_by,
-        updated_at: checkpoint.updated_at,
+    let resp = SnapshotResp {
+        uuid: *snapshot_uuid,
+        name: snapshot.name,
+        created_by: snapshot.created_by,
+        created_at: snapshot.created_at,
+        updated_by: snapshot.updated_by,
+        updated_at: snapshot.updated_at,
     };
 
     Ok(Json(resp))

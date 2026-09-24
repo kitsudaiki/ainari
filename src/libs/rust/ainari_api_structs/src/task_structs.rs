@@ -61,8 +61,8 @@ impl FromStr for TaskResourceType {
 pub enum TaskType {
     VirtualMachineCreate = 0,
     VirtualMachineDelete = 1,
-    CheckpointSave = 2,
-    CheckpointRestore = 3,
+    SnapshotSave = 2,
+    SnapshotRestore = 3,
 }
 
 #[cfg(feature = "diesel")]
@@ -101,8 +101,8 @@ impl fmt::Display for TaskType {
         let s = match self {
             TaskType::VirtualMachineCreate => "VirtualMachineCreateTask",
             TaskType::VirtualMachineDelete => "VirtualMachineDeleteTask",
-            TaskType::CheckpointSave => "CheckpointSaveTask",
-            TaskType::CheckpointRestore => "CheckpointRestoreTask",
+            TaskType::SnapshotSave => "SnapshotSaveTask",
+            TaskType::SnapshotRestore => "SnapshotRestoreTask",
         };
         write!(f, "{s}")
     }
@@ -115,8 +115,8 @@ impl FromStr for TaskType {
         match s {
             "VirtualMachineCreateTask" => Ok(TaskType::VirtualMachineCreate),
             "VirtualMachineDeleteTask" => Ok(TaskType::VirtualMachineDelete),
-            "CheckpointSaveTask" => Ok(TaskType::CheckpointSave),
-            "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestore),
+            "SnapshotSaveTask" => Ok(TaskType::SnapshotSave),
+            "SnapshotRestoreTask" => Ok(TaskType::SnapshotRestore),
             _ => Err(()),
         }
     }
@@ -205,16 +205,16 @@ pub struct VirtualMachineCreateTaskReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCheckpointSaveReq {
+pub struct TaskSnapshotSaveReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCheckpointRestoreReq {
+pub struct TaskSnapshotRestoreReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
-    pub checkpoint_uuid: Uuid,
+    pub snapshot_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

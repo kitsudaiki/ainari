@@ -17,40 +17,40 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::checkpoint_table;
+use crate::database::snapshot_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::checkpoint_structs::*;
+use ainari_api_structs::snapshot_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "checkpoint",
-    summary = "Get checkpoint (internal)",
-    description = r###"Get information of a checkpoint from the database with additional information."###,
+    tag = "snapshot",
+    summary = "Get snapshot (internal)",
+    description = r###"Get information of a snapshot from the database with additional information."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_checkpoint_internal(
-    checkpoint_uuid: Path<Uuid>,
+pub async fn get_snapshot_internal(
+    snapshot_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<CheckpointInternalResp>, ErrorResponse> {
-    let checkpoint = checkpoint_table::get_checkpoint(&checkpoint_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("checkpoint", &checkpoint_uuid, e))?;
+) -> Result<Json<SnapshotInternalResp>, ErrorResponse> {
+    let snapshot = snapshot_table::get_snapshot(&snapshot_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("snapshot", &snapshot_uuid, e))?;
 
-    let secret_uuid = convert_uuid(&checkpoint.secret_uuid)?;
-    let resp = CheckpointInternalResp {
-        uuid: *checkpoint_uuid,
-        name: checkpoint.name,
-        onsen_address: checkpoint.onsen_address,
-        file_path: checkpoint.file_path,
+    let secret_uuid = convert_uuid(&snapshot.secret_uuid)?;
+    let resp = SnapshotInternalResp {
+        uuid: *snapshot_uuid,
+        name: snapshot.name,
+        onsen_address: snapshot.onsen_address,
+        file_path: snapshot.file_path,
         secret_uuid,
-        created_by: checkpoint.created_by,
-        created_at: checkpoint.created_at,
-        updated_by: checkpoint.updated_by,
-        updated_at: checkpoint.updated_at,
+        created_by: snapshot.created_by,
+        created_at: snapshot.created_at,
+        updated_by: snapshot.updated_by,
+        updated_at: snapshot.updated_at,
     };
 
     Ok(Json(resp))

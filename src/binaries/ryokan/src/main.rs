@@ -27,7 +27,7 @@ use log::LevelFilter;
 
 /// Entrypoint of the ryokan.
 ///
-/// Manages the onsen-hosts together with the images and checkpoints stored on them.
+/// Manages the onsen-hosts together with the images and snapshots stored on them.
 ///
 /// Sets up the logging, initializes the database and then hands over to the http-server,
 /// which blocks until the service is stopped.

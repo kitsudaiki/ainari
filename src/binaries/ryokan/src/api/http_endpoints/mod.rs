@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod checkpoint;
 pub mod image;
 pub mod onsen_host;
+pub mod snapshot;
 
 use uuid::Uuid;
 

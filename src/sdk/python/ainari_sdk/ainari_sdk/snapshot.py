@@ -16,41 +16,41 @@ from . import ainari_request
 from .access_context import AccessContext
 
 
-def get_checkpoint(context: AccessContext,
-                   checkpoint_uuid: str) -> dict:
-    path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
+def get_snapshot(context: AccessContext,
+                 snapshot_uuid: str) -> dict:
+    path = f"/v1alpha/snapshot/{snapshot_uuid}"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
                                            path,
                                            "")
 
 
-def get_checkpoint_count(context: AccessContext) -> dict:
-    path = "/v1alpha/checkpoint/count"
+def get_snapshot_count(context: AccessContext) -> dict:
+    path = "/v1alpha/snapshot/count"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
                                            path,
                                            "")
 
 
-def list_checkpoints(context: AccessContext) -> dict:
-    path = "/v1alpha/checkpoint"
+def list_snapshots(context: AccessContext) -> dict:
+    path = "/v1alpha/snapshot"
     return ainari_request.send_get_request(context,
                                            context.ryokan_adress,
                                            path,
                                            "")
 
 
-def delete_checkpoint(context: AccessContext,
-                      checkpoint_uuid: str):
-    path = f"/v1alpha/checkpoint/{checkpoint_uuid}"
+def delete_snapshot(context: AccessContext,
+                    snapshot_uuid: str):
+    path = f"/v1alpha/snapshot/{snapshot_uuid}"
     ainari_request.send_delete_request(context,
                                        context.ryokan_adress,
                                        path,
                                        "")
 
 
-def delete_all_checkpoints(context: AccessContext):
-    body = list_checkpoints(context)["checkpoints"]
+def delete_all_snapshots(context: AccessContext):
+    body = list_snapshots(context)["snapshots"]
     for entry in body:
-        delete_checkpoint(context, entry["uuid"])
+        delete_snapshot(context, entry["uuid"])

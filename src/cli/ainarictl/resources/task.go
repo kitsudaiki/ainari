@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	checkpointUuid string
+	snapshotUuid string
 )
 
 func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
@@ -56,9 +56,9 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 	return int(toriiPort)
 }
 
-var createCheckpointSaveTaskCmd = &cobra.Command{
-	Use:   "checkpoint_create CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to create a checkpoint from a virtual_machine.",
+var createSnapshotSaveTaskCmd = &cobra.Command{
+	Use:   "snapshot_create CLUSTER_UUID TASK_NAME",
+	Short: "Create a new task to create a snapshot from a virtual_machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -69,7 +69,7 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointSaveTask(context, toriiPort, taskName, virtual_machineUuid)
+		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, taskName, virtual_machineUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -79,9 +79,9 @@ var createCheckpointSaveTaskCmd = &cobra.Command{
 	},
 }
 
-var createCheckpointRestoreTaskCmd = &cobra.Command{
-	Use:   "checkpoint_restore -c CHECKPOINT_UUID CLUSTER_UUID TASK_NAME",
-	Short: "Create a new task to restore a checkpoint into a virtual_machine.",
+var createSnapshotRestoreTaskCmd = &cobra.Command{
+	Use:   "snapshot_restore -c SNAPSHOT_UUID CLUSTER_UUID TASK_NAME",
+	Short: "Create a new task to restore a snapshot into a virtual_machine.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -92,7 +92,7 @@ var createCheckpointRestoreTaskCmd = &cobra.Command{
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		taskName := args[1]
-		content, err := ainari_sdk.CreateCheckpointRestoreTask(context, toriiPort, taskName, virtual_machineUuid, checkpointUuid)
+		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, taskName, virtual_machineUuid, snapshotUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -191,11 +191,11 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 
 	taskCmd.AddCommand(createTaskCmd)
 
-	createTaskCmd.AddCommand(createCheckpointSaveTaskCmd)
+	createTaskCmd.AddCommand(createSnapshotSaveTaskCmd)
 
-	createTaskCmd.AddCommand(createCheckpointRestoreTaskCmd)
-	createCheckpointRestoreTaskCmd.Flags().StringVarP(&checkpointUuid, "checkpoint_uuid", "c", "", "Checkpoint UUID UUID (mandatory)")
-	createCheckpointRestoreTaskCmd.MarkFlagRequired("checkpoint_uuid")
+	createTaskCmd.AddCommand(createSnapshotRestoreTaskCmd)
+	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotUuid, "snapshot_uuid", "c", "", "Snapshot UUID UUID (mandatory)")
+	createSnapshotRestoreTaskCmd.MarkFlagRequired("snapshot_uuid")
 
 	taskCmd.AddCommand(getTaskCmd)
 

@@ -29,9 +29,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var getCheckpointCmd = &cobra.Command{
-	Use:   "get CHECKPOINT_UUID",
-	Short: "Get information of a specific checkpoint.",
+var getSnapshotCmd = &cobra.Command{
+	Use:   "get SNAPSHOT_UUID",
+	Short: "Get information of a specific snapshot.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -39,8 +39,8 @@ var getCheckpointCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		checkpointUuid := args[0]
-		content, err := ainari_sdk.GetCheckpoint(context, checkpointUuid)
+		snapshotUuid := args[0]
+		content, err := ainari_sdk.GetSnapshot(context, snapshotUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -49,27 +49,27 @@ var getCheckpointCmd = &cobra.Command{
 	},
 }
 
-var listCheckpointCmd = &cobra.Command{
+var listSnapshotCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all checkpoint.",
+	Short: "List all snapshot.",
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.ListCheckpoint(context)
+		content, err := ainari_sdk.ListSnapshot(context)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		ainarictl_common.PrintList(content["checkpoints"].([]interface{}))
+		ainarictl_common.PrintList(content["snapshots"].([]interface{}))
 	},
 }
 
-var deleteCheckpointCmd = &cobra.Command{
-	Use:   "delete CHECKPOINT_UUID",
-	Short: "Delete a specific checkpoint from the backend.",
+var deleteSnapshotCmd = &cobra.Command{
+	Use:   "delete SNAPSHOT_UUID",
+	Short: "Delete a specific snapshot from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -77,27 +77,27 @@ var deleteCheckpointCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		checkpointUuid := args[0]
-		_, err = ainari_sdk.DeleteCheckpoint(context, checkpointUuid)
+		snapshotUuid := args[0]
+		_, err = ainari_sdk.DeleteSnapshot(context, snapshotUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Printf("successfully deleted checkpoint '%v'\n", checkpointUuid)
+		fmt.Printf("successfully deleted snapshot '%v'\n", snapshotUuid)
 	},
 }
 
 
-var getCheckpointCountCmd = &cobra.Command{
+var getSnapshotCountCmd = &cobra.Command{
 	Use:   "count",
-	Short: "Get the number of checkpoints of the project.",
+	Short: "Get the number of snapshots of the project.",
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.GetCheckpointCount(context)
+		content, err := ainari_sdk.GetSnapshotCount(context)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -107,19 +107,19 @@ var getCheckpointCountCmd = &cobra.Command{
 	},
 }
 
-var checkpointCmd = &cobra.Command{
-	Use:   "checkpoint",
-	Short: "Manage checkpoint.",
+var snapshotCmd = &cobra.Command{
+	Use:   "snapshot",
+	Short: "Manage snapshot.",
 }
 
-func Init_Checkpoint_Commands(rootCmd *cobra.Command) {
-	rootCmd.AddCommand(checkpointCmd)
+func Init_Snapshot_Commands(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(snapshotCmd)
 
-	checkpointCmd.AddCommand(getCheckpointCmd)
+	snapshotCmd.AddCommand(getSnapshotCmd)
 
-	checkpointCmd.AddCommand(listCheckpointCmd)
+	snapshotCmd.AddCommand(listSnapshotCmd)
 
-	checkpointCmd.AddCommand(deleteCheckpointCmd)
+	snapshotCmd.AddCommand(deleteSnapshotCmd)
 
-	checkpointCmd.AddCommand(getCheckpointCountCmd)
+	snapshotCmd.AddCommand(getSnapshotCountCmd)
 }

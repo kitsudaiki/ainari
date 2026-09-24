@@ -36,7 +36,7 @@ var (
 	virtual_machineNetworkUuid   string
 	virtual_machineImageUuid     string
 	virtual_machinePublicKeyUuid string
-	checkpointName               string
+	snapshotName               string
 	virtual_machineMode          string
 )
 

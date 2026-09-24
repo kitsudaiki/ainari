@@ -54,7 +54,7 @@ def delete_all_hosts(context: AccessContext):
 def get_onsen_host(context: AccessContext,
                    host_uuid: str) -> dict:
     """
-    Returns information of an onsen-host, which stores the images and checkpoints.
+    Returns information of an onsen-host, which stores the images and snapshots.
     """
     path = f"/v1alpha/host/{host_uuid}/admin"
     return ainari_request.send_get_request(context,

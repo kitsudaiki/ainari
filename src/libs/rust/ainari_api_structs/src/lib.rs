@@ -15,7 +15,6 @@
 #![forbid(unsafe_code)]
 
 pub mod auth_structs;
-pub mod checkpoint_structs;
 pub mod common_structs;
 pub mod endpoints_structs;
 pub mod file_structs;
@@ -32,6 +31,7 @@ pub mod public_key_structs;
 pub mod quota_structs;
 pub mod route_structs;
 pub mod secret_structs;
+pub mod snapshot_structs;
 pub mod task_structs;
 pub mod user_context;
 pub mod user_structs;

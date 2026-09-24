@@ -33,7 +33,7 @@ import (
 var (
     maxVirtualMachine int
     maxImage          int
-    maxCheckpoint     int
+    maxSnapshot     int
     maxSecret         int
     maxNetwork        int
     maxFloatingIp     int
@@ -52,7 +52,7 @@ var setQuotaCmd = &cobra.Command{
 		}
 		userId := args[0]
 
-		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxCheckpoint, maxSecret, maxNetwork, maxFloatingIp, maxTaskqueue)
+		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxSnapshot, maxSecret, maxNetwork, maxFloatingIp, maxTaskqueue)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -129,7 +129,7 @@ func Init_Quota_Commands(rootCmd *cobra.Command) {
 	quotaCmd.AddCommand(setQuotaCmd)
 	setQuotaCmd.Flags().IntVar(&maxVirtualMachine, "max_virtual_machine", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxImage, "max_image", 0, "Set quota as admin")
-	setQuotaCmd.Flags().IntVar(&maxCheckpoint, "max_checkpoint", 0, "Set quota as admin")
+	setQuotaCmd.Flags().IntVar(&maxSnapshot, "max_snapshot", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxSecret, "max_secret", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxNetwork, "max_network", 0, "Set quota as admin")
 	setQuotaCmd.Flags().IntVar(&maxFloatingIp, "max_floating_ip", 0, "Set quota as admin")

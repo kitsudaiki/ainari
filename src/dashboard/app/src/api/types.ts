@@ -112,7 +112,7 @@ export interface ProjectCreateReq {
 export interface QuotaSetReq {
     max_virtual_machine: number;
     max_image: number;
-    max_checkpoint: number;
+    max_snapshot: number;
     max_secret: number;
     max_network: number;
     max_floating_ip: number;
@@ -230,7 +230,7 @@ export interface FloatingIpResp extends FloatingIpBasicResp {
 }
 
 //=============================================================================
-// image / checkpoint (ryokan)
+// image / snapshot (ryokan)
 //=============================================================================
 
 /** Image-types accepted by the upload-endpoint of the ryokan. */
@@ -256,14 +256,14 @@ export interface ImageResp {
     updated_by: string;
 }
 
-/** Mirror of `checkpoint_structs::CheckpointBasicResp`. */
-export interface CheckpointBasicResp {
+/** Mirror of `snapshot_structs::SnapshotBasicResp`. */
+export interface SnapshotBasicResp {
     uuid: string;
     name: string;
 }
 
-/** Mirror of `checkpoint_structs::CheckpointResp`. */
-export interface CheckpointResp extends CheckpointBasicResp {
+/** Mirror of `snapshot_structs::SnapshotResp`. */
+export interface SnapshotResp extends SnapshotBasicResp {
     created_at: string;
     created_by: string;
     updated_at: string;
@@ -348,8 +348,8 @@ export interface HostResp extends HostBasicResp {
 export type TaskType =
     | "VirtualMachineCreate"
     | "VirtualMachineDelete"
-    | "CheckpointSave"
-    | "CheckpointRestore";
+    | "SnapshotSave"
+    | "SnapshotRestore";
 
 /** Mirror of `task_structs::TaskState`. */
 export type TaskState =
@@ -385,13 +385,13 @@ export interface VirtualMachineCreateTaskReq {
     public_key_uuid: string;
 }
 
-/** Mirror of `task_structs::TaskCheckpointSaveReq`. */
-export interface TaskCheckpointSaveReq {
+/** Mirror of `task_structs::TaskSnapshotSaveReq`. */
+export interface TaskSnapshotSaveReq {
     name: string;
 }
 
-/** Mirror of `task_structs::TaskCheckpointRestoreReq`. */
-export interface TaskCheckpointRestoreReq {
+/** Mirror of `task_structs::TaskSnapshotRestoreReq`. */
+export interface TaskSnapshotRestoreReq {
     name: string;
-    checkpoint_uuid: string;
+    snapshot_uuid: string;
 }

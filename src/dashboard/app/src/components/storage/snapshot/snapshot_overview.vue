@@ -16,9 +16,9 @@
 
 <template>
     <div class="card">
-        <div class="card-label">Checkpoint</div>
+        <div class="card-label">Snapshot</div>
         <div class="card-content">
-            <table class="overview-table" v-if="checkpoints.length > 0">
+            <table class="overview-table" v-if="snapshots.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
@@ -28,24 +28,24 @@
                 </thead>
                 <tbody>
                     <tr
-                        v-for="checkpoint in checkpoints"
-                        :key="checkpoint.uuid"
+                        v-for="snapshot in snapshots"
+                        :key="snapshot.uuid"
                     >
-                        <td>{{ checkpoint.uuid }}</td>
-                        <td>{{ checkpoint.name }}</td>
+                        <td>{{ snapshot.uuid }}</td>
+                        <td>{{ snapshot.name }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(checkpoint.uuid)"
+                                @click.stop="toggleDropdown(snapshot.uuid)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === checkpoint.uuid"
+                                    v-if="openDropdown === snapshot.uuid"
                                     class="table-dropdown-menu"
                                 >
                                     <button
-                                        @click="openDeleteModal(checkpoint)"
+                                        @click="openDeleteModal(snapshot)"
                                     >
                                         Delete
                                     </button>
@@ -56,12 +56,12 @@
                 </tbody>
             </table>
 
-            <p v-else>No checkpoints found</p>
+            <p v-else>No snapshots found</p>
         </div>
 
-        <CheckpointDeleteModal
+        <SnapshotDeleteModal
             v-if="showDeleteModal"
-            :checkpoint="checkpointToDelete"
+            :snapshot="snapshotToDelete"
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
@@ -77,25 +77,25 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { ryokan } from "@/api";
-import type { CheckpointBasicResp } from "@/api";
+import type { SnapshotBasicResp } from "@/api";
 
-import CheckpointDeleteModal from "./checkpoint_delete_modal.vue";
+import SnapshotDeleteModal from "./snapshot_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
-const checkpoints = ref<CheckpointBasicResp[]>([]);
+const snapshots = ref<SnapshotBasicResp[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
-const checkpointToDelete = ref<CheckpointBasicResp | null>(null);
+const snapshotToDelete = ref<SnapshotBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
-async function fetchCheckpoints() {
+async function fetchSnapshots() {
     try {
-        checkpoints.value = await ryokan.listCheckpoints();
+        snapshots.value = await ryokan.listSnapshots();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load checkpoints",
+            "Failed to load snapshots",
         );
     }
 }
@@ -123,25 +123,25 @@ function handleClickOutside(event: MouseEvent) {
 //=============================================================================
 // Delete modal
 //=============================================================================
-function openDeleteModal(checkpoint: CheckpointBasicResp) {
-    checkpointToDelete.value = checkpoint;
+function openDeleteModal(snapshot: SnapshotBasicResp) {
+    snapshotToDelete.value = snapshot;
     showDeleteModal.value = true;
     openDropdown.value = null;
 }
 function cancelDeleteModal() {
     showDeleteModal.value = false;
-    checkpointToDelete.value = null;
+    snapshotToDelete.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 async function acceptDeleteModal() {
-    await fetchCheckpoints();
+    await fetchSnapshots();
     cancelDeleteModal();
 }
 
 //=============================================================================
 // Listener
 //=============================================================================
-onMounted(fetchCheckpoints);
+onMounted(fetchSnapshots);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);

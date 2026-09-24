@@ -18,12 +18,12 @@ from .access_context import AccessContext
 import time
 
 
-def create_checkpoint_save_task(context: AccessContext,
-                                torii_port: int,
-                                virtual_machine_uuid: str,
-                                name: str) -> dict:
+def create_snapshot_save_task(context: AccessContext,
+                              torii_port: int,
+                              virtual_machine_uuid: str,
+                              name: str) -> dict:
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_save"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save"
     json_body = {
         "name": name,
     }
@@ -33,16 +33,16 @@ def create_checkpoint_save_task(context: AccessContext,
                                             json_body)
 
 
-def create_checkpoint_restore_task(context: AccessContext,
-                                   torii_port: int,
-                                   virtual_machine_uuid: str,
-                                   name: str,
-                                   checkpoint_uuid: str) -> dict:
+def create_snapshot_restore_task(context: AccessContext,
+                                 torii_port: int,
+                                 virtual_machine_uuid: str,
+                                 name: str,
+                                 snapshot_uuid: str) -> dict:
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_restore"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore"
     json_body = {
         "name": name,
-        "checkpoint_uuid": checkpoint_uuid,
+        "snapshot_uuid": snapshot_uuid,
     }
     return ainari_request.send_post_request(context,
                                             address,

@@ -16,20 +16,20 @@
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal checkpoint-delete-modal">
+        <div class="modal snapshot-delete-modal">
             <div class="modal-topbar">
-                <span>Delete checkpoint</span>
+                <span>Delete snapshot</span>
             </div>
             <div class="modal-content">
                 <p>Are you sure you want to delete?</p>
-                <strong>Checkpoint: {{ checkpoint?.uuid }}</strong>
+                <strong>Snapshot: {{ snapshot?.uuid }}</strong>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
                     <button
                         class="icon-button"
-                        @click="handleAccept(checkpoint?.uuid)"
+                        @click="handleAccept(snapshot?.uuid)"
                     >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
@@ -50,11 +50,11 @@
 import { ref } from "vue";
 
 import { ryokan } from "@/api";
-import type { CheckpointBasicResp } from "@/api";
+import type { SnapshotBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
-    checkpoint: CheckpointBasicResp | null;
+    snapshot: SnapshotBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -64,15 +64,15 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-async function handleAccept(checkpoint_uuid: string | undefined) {
-    if (!checkpoint_uuid) return;
+async function handleAccept(snapshot_uuid: string | undefined) {
+    if (!snapshot_uuid) return;
     try {
-        await ryokan.deleteCheckpoint(checkpoint_uuid);
+        await ryokan.deleteSnapshot(snapshot_uuid);
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to delete checkpoint",
+            "Failed to delete snapshot",
         );
     }
 }
@@ -83,7 +83,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.checkpoint-delete-modal {
+.snapshot-delete-modal {
     width: 30rem;
 }
 </style>

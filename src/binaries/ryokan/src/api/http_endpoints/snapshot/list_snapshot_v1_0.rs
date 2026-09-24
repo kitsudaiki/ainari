@@ -15,38 +15,36 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::checkpoint_table;
+use crate::database::snapshot_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::checkpoint_structs::*;
+use ainari_api_structs::snapshot_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "checkpoint",
-    summary = "List checkpoints",
-    description = r###"List basic information of all checkpoints from the database."###,
+    tag = "snapshot",
+    summary = "List snapshots",
+    description = r###"List basic information of all snapshots from the database."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_checkpoint(
-    context: UserContext,
-) -> Result<Json<CheckpointListResp>, ErrorResponse> {
-    let checkpoints = checkpoint_table::list_checkpoints(&context)
-        .map_err(|e| map_db_list_error("checkpoints", e))?;
+pub async fn list_snapshot(context: UserContext) -> Result<Json<SnapshotListResp>, ErrorResponse> {
+    let snapshots =
+        snapshot_table::list_snapshots(&context).map_err(|e| map_db_list_error("snapshots", e))?;
 
-    let mut resp = CheckpointListResp {
-        checkpoints: Vec::new(),
+    let mut resp = SnapshotListResp {
+        snapshots: Vec::new(),
     };
 
-    for checkpoint in checkpoints {
-        let uuid = convert_uuid(&checkpoint.uuid)?;
-        let obj = CheckpointBasicResp {
+    for snapshot in snapshots {
+        let uuid = convert_uuid(&snapshot.uuid)?;
+        let obj = SnapshotBasicResp {
             uuid,
-            name: checkpoint.name.clone(),
+            name: snapshot.name.clone(),
         };
 
-        resp.checkpoints.push(obj);
+        resp.snapshots.push(obj);
     }
 
     Ok(Json(resp))

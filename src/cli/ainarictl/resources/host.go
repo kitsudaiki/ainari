@@ -158,7 +158,7 @@ var hostCmd = &cobra.Command{
 
 var onsenHostCmd = &cobra.Command{
 	Use:   "onsen_host",
-	Short: "Manage the onsen-hosts, which store the images and checkpoints.",
+	Short: "Manage the onsen-hosts, which store the images and snapshots.",
 }
 
 func Init_Host_Commands(rootCmd *cobra.Command) {

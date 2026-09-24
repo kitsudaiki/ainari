@@ -234,9 +234,9 @@ async fn handle_vm_deletion(
     }
 }
 
-// /// Handles the task of saving a virtual_machine checkpoint.
+// /// Handles the task of saving a virtual_machine snapshot.
 // ///
-// /// This function creates a checkpoint of the virtual_machine, encrypts it, and uploads it to the specified
+// /// This function creates a snapshot of the virtual_machine, encrypts it, and uploads it to the specified
 // /// storage location. It manages temporary files and updates the task state in the database.
 // ///
 // /// # Arguments
@@ -244,12 +244,12 @@ async fn handle_vm_deletion(
 // /// * `task_uuid` - Unique identifier for the task
 // /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
 // /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-// /// * `task_info` - Mutable reference to checkpoint save information containing storage details
-// fn handle_checkpoint_save_task(
+// /// * `task_info` - Mutable reference to snapshot save information containing storage details
+// fn handle_snapshot_save_task(
 //     task_uuid: &Uuid,
 //     virtual_machine_uuid: &Uuid,
 //     _: &mut TaskMeta,
-//     task_info: &mut CheckpointSaveInfo,
+//     task_info: &mut SnapshotSaveInfo,
 // ) {
 //     // create file-paths for temporary files
 //     let local_temp_file_path = format!(
@@ -261,7 +261,7 @@ async fn handle_vm_deletion(
 
 //     {
 //         // let virtual_machine_handler = MODEL_HANDLER.read().expect("mutex poisoned");
-//         // match virtual_machine_handler.create_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
+//         // match virtual_machine_handler.create_snapshot(virtual_machine_uuid, &local_temp_file_path) {
 //         //     Ok(()) => {}
 //         //     Err(_) => {
 //         //         let _ = fs::remove_file(&local_temp_file_path);
@@ -311,21 +311,21 @@ async fn handle_vm_deletion(
 //     let _ = fs::remove_file(&local_encrypted_temp_file_path);
 // }
 
-// /// Handles the task of restoring a virtual_machine from a checkpoint.
+// /// Handles the task of restoring a virtual_machine from a snapshot.
 // ///
-// /// This function downloads an encrypted checkpoint file, decrypts it, and restores the virtual_machine from
-// /// the checkpoint. It manages temporary files and updates the task state in the database.
+// /// This function downloads an encrypted snapshot file, decrypts it, and restores the virtual_machine from
+// /// the snapshot. It manages temporary files and updates the task state in the database.
 // ///
 // /// # Arguments
 // ///
 // /// * `task_uuid` - Unique identifier for the task
 // /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
 // /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-// /// * `task_info` - Mutable reference to checkpoint restore information containing storage details
-// fn handle_checkpoint_restore_task(
+// /// * `task_info` - Mutable reference to snapshot restore information containing storage details
+// fn handle_snapshot_restore_task(
 //     task_uuid: &Uuid,
 //     _: &mut TaskMeta,
-//     task_info: &mut CheckpointRestoreInfo,
+//     task_info: &mut SnapshotRestoreInfo,
 // ) {
 //     // create file-paths for temporary files
 //     let local_temp_file_path = format!(
@@ -364,16 +364,16 @@ async fn handle_vm_deletion(
 //         match download_resp {
 //             Ok(()) => {}
 //             Err(e) => {
-//                 log::error!("Error in checkpoint-restore-task: {e}");
+//                 log::error!("Error in snapshot-restore-task: {e}");
 //                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
 //                 let _ = task_table::update_task_progress(task_uuid, &1, &1);
 //                 return;
 //             }
 //         }
 
-//         // // restore virtual_machine from the downloaded and decrypted checkpoint-file
+//         // // restore virtual_machine from the downloaded and decrypted snapshot-file
 //         // let mut virtual_machine_handler = MODEL_HANDLER.write().expect("mutex poisoned");
-//         // match virtual_machine_handler.restore_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
+//         // match virtual_machine_handler.restore_snapshot(virtual_machine_uuid, &local_temp_file_path) {
 //         //     Ok(()) => {}
 //         //     Err(_) => {
 //         //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
@@ -382,7 +382,7 @@ async fn handle_vm_deletion(
 //         //     }
 //         // }
 
-//         // delete temporary checkpoint-file
+//         // delete temporary snapshot-file
 //         let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
 //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
 //     }
