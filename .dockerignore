@@ -1,2 +1,20 @@
 .git
 target
+
+# local files, which are not required by any image. Every file here would otherwise be sent to
+# docker with every build and would invalidate the cache of the images, which copy the whole
+# directory.
+temporary_files
+ainari_env
+.venv
+.vagrant
+.vscode
+.claude
+deploy
+testing
+**/__pycache__
+**/*.egg-info
+
+# the dashboard installs and builds its dependencies inside the image
+src/dashboard/app/node_modules
+src/dashboard/app/dist

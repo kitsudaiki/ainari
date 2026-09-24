@@ -46,9 +46,17 @@ fn main() {
     println!("cargo:rustc-env=GIT_VERSION={}", final_version);
     println!("cargo:rustc-env=COMMIT_HASH={}", commit_hash);
     println!("cargo:rustc-env=COMPILE_TIMESTAMP={}", timestamp);
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs/");
     println!("cargo:rerun-if-changed=build.rs");
+
+    // The git-directory is located at the root of the repository and not in the directory of
+    // this package, so its absolute path is requested from git. A path, which doesn't exist,
+    // would let cargo run this script and recompile every dependent package with every build.
+    // Outside of a git-checkout, like inside of the docker-builds, there is nothing to watch.
+    let git_dir = run_cmd(&["rev-parse", "--absolute-git-dir"]);
+    if !git_dir.is_empty() {
+        println!("cargo:rerun-if-changed={git_dir}/HEAD");
+        println!("cargo:rerun-if-changed={git_dir}/refs/");
+    }
 }
 
 /// Runs a git-command and returns its trimmed output.

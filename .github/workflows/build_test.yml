@@ -436,22 +436,22 @@ jobs:
       fail-fast: false
       matrix:        
         builds:
-          - { component: "hanami",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"             }
-          - { component: "hanami",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"             }
-          - { component: "miko",        platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"               }
-          - { component: "miko",        platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"               }
-          - { component: "ryokan",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"             }
-          - { component: "ryokan",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"             }
-          - { component: "sakura",      platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"             }
-          - { component: "sakura",      platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"             }
-          - { component: "torii",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"              }
-          - { component: "torii",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"              }
-          - { component: "omamori",     platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori"            }
-          - { component: "omamori",     platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori"            }
-          - { component: "onsen",       platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"              }
-          - { component: "onsen",       platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"              }
-          - { component: "dashboard",   platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_dashboard"   }
-          - { component: "dashboard",   platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_dashboard"   }
+          - { component: "hanami",      file: "Dockerfile_services", target: "hanami", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/hanami"             }
+          - { component: "hanami",      file: "Dockerfile_services", target: "hanami", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/hanami"             }
+          - { component: "miko",        file: "Dockerfile_services", target: "miko", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/miko"               }
+          - { component: "miko",        file: "Dockerfile_services", target: "miko", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/miko"               }
+          - { component: "ryokan",      file: "Dockerfile_services", target: "ryokan", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ryokan"             }
+          - { component: "ryokan",      file: "Dockerfile_services", target: "ryokan", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ryokan"             }
+          - { component: "sakura",      file: "Dockerfile_services", target: "sakura", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/sakura"             }
+          - { component: "sakura",      file: "Dockerfile_services", target: "sakura", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/sakura"             }
+          - { component: "torii",       file: "Dockerfile_torii", target: "", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/torii"              }
+          - { component: "torii",       file: "Dockerfile_torii", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"              }
+          - { component: "omamori",     file: "Dockerfile_services", target: "omamori", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori"            }
+          - { component: "omamori",     file: "Dockerfile_services", target: "omamori", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori"            }
+          - { component: "onsen",       file: "Dockerfile_services", target: "onsen", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"              }
+          - { component: "onsen",       file: "Dockerfile_services", target: "onsen", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"              }
+          - { component: "dashboard",   file: "Dockerfile_dashboard", target: "", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_dashboard"   }
+          - { component: "dashboard",   file: "Dockerfile_dashboard", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_dashboard"   }
     runs-on: ${{ matrix.builds.runner }}
     steps:
       -
@@ -499,7 +499,12 @@ jobs:
         uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
         with:
           context: ./ainari
-          file: ./ainari/dockerfiles/Dockerfile_${{ matrix.builds.component }}
+          file: ./ainari/dockerfiles/${{ matrix.builds.file }}
+          # the rust-components share one Dockerfile, which has a target for every component.
+          # Every image is built on its own runner, so only its own component is compiled.
+          target: ${{ matrix.builds.target }}
+          build-args: |
+            ${{ matrix.builds.target != '' && format('BINARIES={0}', matrix.builds.target) || '' }}
           platforms: ${{ matrix.builds.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ matrix.builds.regitry }},push-by-digest=true,name-canonical=true,push=true

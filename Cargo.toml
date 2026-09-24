@@ -73,3 +73,12 @@ lto = "fat"
 codegen-units = 8
 strip = true
 panic = "abort"
+
+# Faster variant of the release-profile for the local docker-compose-setup, which is rebuilt very
+# often. It skips the link-time-optimization and compiles incrementally, so the binaries are a bit
+# bigger and slower, but much faster to build.
+[profile.local]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true

@@ -39,9 +39,13 @@
 
 services:
   miko:
+    image: ainari/miko:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_miko
+      dockerfile: dockerfiles/Dockerfile_services
+      target: miko
+      args:
+        CARGO_PROFILE: local
     container_name: miko
     restart: unless-stopped
     environment:
@@ -61,9 +65,13 @@ services:
         ipv4_address: 172.30.0.2
 
   omamori:
+    image: ainari/omamori:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_omamori
+      dockerfile: dockerfiles/Dockerfile_services
+      target: omamori
+      args:
+        CARGO_PROFILE: local
     container_name: omamori
     restart: unless-stopped
     environment:
@@ -80,9 +88,13 @@ services:
         ipv4_address: 172.30.0.3
 
   ryokan:
+    image: ainari/ryokan:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_ryokan
+      dockerfile: dockerfiles/Dockerfile_services
+      target: ryokan
+      args:
+        CARGO_PROFILE: local
     container_name: ryokan
     restart: unless-stopped
     environment:
@@ -101,9 +113,13 @@ services:
         ipv4_address: 172.30.0.4
 
   onsen:
+    image: ainari/onsen:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_onsen
+      dockerfile: dockerfiles/Dockerfile_services
+      target: onsen
+      args:
+        CARGO_PROFILE: local
     container_name: onsen
     restart: unless-stopped
     environment:
@@ -120,9 +136,13 @@ services:
         ipv4_address: 172.30.0.5
 
   hanami:
+    image: ainari/hanami:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_hanami
+      dockerfile: dockerfiles/Dockerfile_services
+      target: hanami
+      args:
+        CARGO_PROFILE: local
     container_name: hanami
     restart: unless-stopped
     environment:
@@ -143,9 +163,12 @@ services:
   # gateway at the edge of the network: it serves the floating ip-addresses on the veth-pair
   # towards the host and proxies the api of the sakura-hosts
   torii-public:
+    image: ainari/torii:local
     build:
       context: .
       dockerfile: dockerfiles/Dockerfile_torii
+      args:
+        CARGO_PROFILE: local
     container_name: torii-public
     restart: unless-stopped
     privileged: true
@@ -172,9 +195,9 @@ services:
   # gateway in front of the first sakura-host: it owns the TAP-devices of the virtual machines
   # of that host
   torii-vmm:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile_torii
+    # the image is built once by torii-public
+    image: ainari/torii:local
+    pull_policy: never
     container_name: torii-vmm
     restart: unless-stopped
     privileged: true
@@ -204,10 +227,13 @@ services:
   # torii-vmm, so cloud-hypervisor can attach the virtual machines to the TAP-devices of that
   # gateway.
   sakura:
+    image: ainari/sakura:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_sakura
+      dockerfile: dockerfiles/Dockerfile_services
+      target: sakura
       args:
+        CARGO_PROFILE: local
         # id of the group, which owns /dev/kvm on the host. scripts/setup_local_stack.sh reads it
         # from the device itself.
         KVM_GID: ${KVM_GID:-993}
@@ -239,9 +265,9 @@ services:
   # gateway in front of the second sakura-host, with the same role and the same config as
   # torii-vmm, only on another address of the underlay
   torii-vmm-2:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile_torii
+    # the image is built once by torii-public
+    image: ainari/torii:local
+    pull_policy: never
     container_name: torii-vmm-2
     restart: unless-stopped
     privileged: true
@@ -267,11 +293,9 @@ services:
   # hosts apart and finds the torii, which owns the TAP-devices of the virtual machines of this
   # host.
   sakura-2:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile_sakura
-      args:
-        KVM_GID: ${KVM_GID:-993}
+    # the image is built once by sakura
+    image: ainari/sakura:local
+    pull_policy: never
     container_name: sakura-2
     restart: unless-stopped
     cap_add:

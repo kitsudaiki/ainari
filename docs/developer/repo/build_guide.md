@@ -36,13 +36,26 @@
 
 ## Build sakura as docker-image
 
-Run `docker build -f dockerfiles/Dockerfile_<COMPONENT> -t <DOCKER_IMAGE_NAME> .`
+All rust-components except the torii are built from one Dockerfile, which compiles them together
+and has one target per component:
+
+Run `docker build -f dockerfiles/Dockerfile_services --target <COMPONENT> -t <DOCKER_IMAGE_NAME> .`
 
 !!! example
 
     ```bash
-    docker build -f dockerfiles/Dockerfile_sakura -t sakura:test .
+    docker build -f dockerfiles/Dockerfile_services --target sakura -t sakura:test .
     ```
+
+The torii needs another toolchain for its eBPF-programs, so it has its own Dockerfile:
+
+```bash
+docker build -f dockerfiles/Dockerfile_torii -t torii:test .
+```
+
+Both Dockerfiles take the build-argument `CARGO_PROFILE`, which defaults to `release`. The local
+docker-compose-setup uses `--build-arg CARGO_PROFILE=local`, which skips the link-time-optimization
+and is much faster to build.
 
 ## Build CLI-client
 
