@@ -45,7 +45,7 @@ pub fn add_task(
         &task.uuid,
         &task.resouce_uuid,
         &task.resource_type,
-        &task.name,
+        &task.description,
         task_type,
         context,
     )

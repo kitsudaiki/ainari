@@ -28,8 +28,8 @@
                             <td>{{ info.uuid }}</td>
                         </tr>
                         <tr>
-                            <td>Name</td>
-                            <td>{{ info.name }}</td>
+                            <td>Description</td>
+                            <td>{{ info.description }}</td>
                         </tr>
                         <tr>
                             <td>Type</td>
@@ -50,10 +50,6 @@
                         <tr>
                             <td>Finished At</td>
                             <td>{{ formatted(info.finished_at) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Created At</td>
-                            <td>{{ formatted(info.created_at) }}</td>
                         </tr>
                         <tr>
                             <td>Created By</td>
@@ -153,6 +149,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .task-info-modal {
     width: 40rem;
+}
+
+/* the labels in the left column stay in one line */
+.modal-content td:first-child {
+    width: 9rem;
+    white-space: nowrap;
 }
 
 .message-list {

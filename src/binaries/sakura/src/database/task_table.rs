@@ -29,7 +29,7 @@ use ainari_common::objects::*;
 table! {
     tasks (uuid) {
         uuid -> Varchar,
-        name -> Varchar,
+        description -> Varchar,
         resource_uuid -> Varchar,
         resource_type -> Varchar,
         task_type -> Varchar,
@@ -41,7 +41,6 @@ table! {
         messages -> Text,
         owner_id -> Varchar,
         project_id -> Varchar,
-        created_at -> Varchar,
         created_by -> Varchar,
     }
 }
@@ -55,7 +54,7 @@ table! {
 pub struct TaskEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
-    pub name: String,
+    pub description: String,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub resource_uuid: Uuid,
     pub resource_type: String,
@@ -73,8 +72,6 @@ pub struct TaskEntry {
     pub messages: Vec<String>,
     pub owner_id: String,
     pub project_id: String,
-    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
-    pub created_at: DateTime<Utc>,
     pub created_by: String,
 }
 
@@ -91,7 +88,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS tasks (
         uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
+        description VARCHAR(256),
         resource_uuid VARCHAR(40),
         resource_type VARCHAR(32),
         task_type VARCHAR(32),
@@ -103,10 +100,17 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
         messages TEXT,
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
-        created_at VARCHAR(64),
         created_by VARCHAR(256)
     );",
     )?;
+
+    // renamed separately, so it is also renamed in tables of older versions. In new tables the
+    // old column doesn't exist, so the error for the missing column is ignored.
+    match conn.batch_execute("ALTER TABLE tasks RENAME COLUMN name TO description;") {
+        Ok(()) => {}
+        Err(e) if e.to_string().contains("no such column") => {}
+        Err(e) => return Err(e.into()),
+    }
 
     Ok(())
 }
@@ -120,7 +124,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
 /// * `task_uuid` - Unique identifier for the task
 /// * `resource_uuid` - Identifier for the associated resource
 /// * `resource_type` - Type of the associated resource
-/// * `task_name` - Name of the task
+/// * `task_description` - Human-readable description of the task
 /// * `task_type` - Type of the task
 /// * `context` - User context containing user ID and project ID
 ///
@@ -130,14 +134,14 @@ pub fn add_new_task(
     task_uuid: &Uuid,
     resource_uuid: &Uuid,
     resource_type: &TaskResourceType,
-    task_name: &str,
+    task_description: &str,
     task_type: &TaskType,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // Create a new TaskEntry with the provided parameters
     let task = TaskEntry {
         uuid: *task_uuid,
-        name: task_name.to_owned(),
+        description: task_description.to_owned(),
         resource_uuid: *resource_uuid,
         resource_type: resource_type.to_string().clone(),
         task_type: task_type.clone(),
@@ -149,8 +153,7 @@ pub fn add_new_task(
         messages: Vec::new(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        created_at: Utc::now(),
-        created_by: context.user_id.clone(),
+                created_by: context.user_id.clone(),
     };
 
     // Insert the task into the database
@@ -220,10 +223,14 @@ pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<TaskEntry, en
 ///
 /// # Arguments
 /// * `context` - User context containing user ID, project ID, and admin status
+/// * `filter_resource_uuid` - If set, only the tasks of this resource are listed
 ///
 /// # Returns
 /// * `QueryResult<Vec<TaskEntry>>` - Vector of task entries or an error if one occurs
-pub fn list_tasks(context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
+pub fn list_tasks(
+    context: &UserContext,
+    filter_resource_uuid: Option<&Uuid>,
+) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
@@ -236,6 +243,10 @@ pub fn list_tasks(context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
         if context.is_project_admin != true.to_string() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
+    }
+
+    if let Some(filter_uuid) = filter_resource_uuid {
+        query = query.filter(resource_uuid.eq(filter_uuid.to_string()));
     }
 
     // Execute the query and return the results
@@ -393,7 +404,7 @@ mod tests {
 
         let task = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -405,7 +416,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
@@ -414,7 +424,7 @@ mod tests {
         add_task(task.clone()).unwrap();
         if let Ok(retrieved_task) = get_task(&uuid1, &context) {
             assert_eq!(retrieved_task.uuid, task.uuid);
-            assert_eq!(retrieved_task.name, task.name);
+            assert_eq!(retrieved_task.description, task.description);
             assert_eq!(retrieved_task.created_by, task.created_by);
         };
 
@@ -428,6 +438,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
+        let other_resource_uuid = Uuid::new_v4();
         let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
@@ -442,7 +453,7 @@ mod tests {
 
         let task1 = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -454,14 +465,13 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
         let task2 = TaskEntry {
             uuid: uuid2,
-            name: "Bob".to_string(),
-            resource_uuid,
+            description: "Bob".to_string(),
+            resource_uuid: other_resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
@@ -472,7 +482,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
@@ -481,8 +490,16 @@ mod tests {
 
         add_task(task1).unwrap();
         add_task(task2).unwrap();
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 2);
+
+        // only the tasks of the requested resource
+        let tasks = list_tasks(&context, Some(&resource_uuid)).unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].uuid, uuid1);
+        let tasks = list_tasks(&context, Some(&Uuid::new_v4())).unwrap();
+        assert_eq!(tasks.len(), 0);
+
         hard_delete_task(&uuid1);
         hard_delete_task(&uuid2);
     }
@@ -499,7 +516,7 @@ mod tests {
 
         let task1 = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -511,13 +528,12 @@ mod tests {
             messages: Vec::new(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
         let task2 = TaskEntry {
             uuid: uuid2,
-            name: "Bob".to_string(),
+            description: "Bob".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -529,13 +545,12 @@ mod tests {
             messages: Vec::new(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
         let task3 = TaskEntry {
             uuid: uuid3,
-            name: "Poi".to_string(),
+            description: "Poi".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -547,7 +562,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
@@ -567,7 +581,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 1);
 
         // list-test project-admin
@@ -578,7 +592,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 2);
 
         // list-test admin
@@ -589,7 +603,7 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let tasks = list_tasks(&context).unwrap();
+        let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 3);
 
         // get-test normal user
@@ -646,7 +660,7 @@ mod tests {
 
         let task = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -658,7 +672,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
@@ -740,7 +753,7 @@ mod tests {
 
         let task = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -752,7 +765,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 
@@ -782,7 +794,7 @@ mod tests {
 
         let task = TaskEntry {
             uuid: uuid1,
-            name: "Alice".to_string(),
+            description: "Alice".to_string(),
             resource_uuid,
             resource_type: resource_type.to_string(),
             task_type: TaskType::VirtualMachineCreate,
@@ -794,7 +806,6 @@ mod tests {
             messages: Vec::new(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            created_at: Utc::now(),
             created_by: "admin".to_string(),
         };
 

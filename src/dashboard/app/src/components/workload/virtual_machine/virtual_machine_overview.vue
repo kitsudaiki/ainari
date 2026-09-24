@@ -99,6 +99,22 @@
                                         Show tasks
                                     </button>
                                     <button
+                                        @click="
+                                            openSnapshotSaveModal(virtualMachine)
+                                        "
+                                    >
+                                        Save snapshot
+                                    </button>
+                                    <button
+                                        @click="
+                                            openSnapshotRestoreModal(
+                                                virtualMachine,
+                                            )
+                                        "
+                                    >
+                                        Restore from snapshot
+                                    </button>
+                                    <button
                                         @click="openDeleteModal(virtualMachine)"
                                     >
                                         Delete
@@ -135,6 +151,24 @@
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
         />
+
+        <SnapshotSaveModal
+            v-if="showSnapshotSaveModal"
+            :virtual_machine_uuid="snapshotVirtualMachineUuid"
+            :torii_port="snapshotToriiPort"
+            :icons="icons"
+            @accept="closeSnapshotModals"
+            @cancel="closeSnapshotModals"
+        />
+
+        <SnapshotRestoreModal
+            v-if="showSnapshotRestoreModal"
+            :virtual_machine_uuid="snapshotVirtualMachineUuid"
+            :torii_port="snapshotToriiPort"
+            :icons="icons"
+            @accept="closeSnapshotModals"
+            @cancel="closeSnapshotModals"
+        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -151,6 +185,8 @@ import type { VirtualMachineBasicResp } from "@/api";
 import VirtualMachineCreateModal from "./virtual_machine_create_modal.vue";
 import VirtualMachineInfoModal from "./virtual_machine_info_modal.vue";
 import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
+import SnapshotSaveModal from "./snapshot_save_modal.vue";
+import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 const errorPopupMsg = ref<string>("");
@@ -162,6 +198,11 @@ const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const virtualMachineToShow = ref<VirtualMachineBasicResp | null>(null);
 const virtualMachineToDelete = ref<VirtualMachineBasicResp | null>(null);
+const showSnapshotSaveModal = ref(false);
+const showSnapshotRestoreModal = ref(false);
+const snapshotVirtualMachineUuid = ref<string | null>(null);
+// the torii-port of the virtual-machine, which is needed to reach its sakura
+const snapshotToriiPort = ref<number>(0);
 
 // State of each virtual machine, shown as traffic-light in the table
 type VmState = "unknown" | "created" | "reserved" | "error";
@@ -344,6 +385,49 @@ async function acceptDeleteModal() {
 }
 
 //=============================================================================
+// Snapshot modals, which both create a new task on the virtual machine
+//=============================================================================
+/**
+ * The sakura is only reachable through the torii, so the port of the
+ * virtual-machine has to be resolved, before a snapshot modal can be shown.
+ */
+async function prepareSnapshotModal(
+    virtualMachine: VirtualMachineBasicResp,
+): Promise<boolean> {
+    openDropdown.value = null;
+    try {
+        const resp = await hanami.getVirtualMachine(virtualMachine.uuid);
+        snapshotToriiPort.value = resp.torii_port;
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to load virtual machine",
+        );
+        return false;
+    }
+    snapshotVirtualMachineUuid.value = virtualMachine.uuid;
+    return true;
+}
+async function openSnapshotSaveModal(virtualMachine: VirtualMachineBasicResp) {
+    if (await prepareSnapshotModal(virtualMachine)) {
+        showSnapshotSaveModal.value = true;
+    }
+}
+async function openSnapshotRestoreModal(
+    virtualMachine: VirtualMachineBasicResp,
+) {
+    if (await prepareSnapshotModal(virtualMachine)) {
+        showSnapshotRestoreModal.value = true;
+    }
+}
+function closeSnapshotModals() {
+    showSnapshotSaveModal.value = false;
+    showSnapshotRestoreModal.value = false;
+    snapshotVirtualMachineUuid.value = null;
+    snapshotToriiPort.value = 0;
+}
+
+//=============================================================================
 // Listener
 //=============================================================================
 onMounted(fetchVirtualMachines);
@@ -374,6 +458,11 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
     width: 30%;
 }
 
+/* wider than the default, so "Restore from snapshot" fits in one line */
+.table-dropdown-menu {
+    min-width: 13rem;
+}
+
 .address-column {
     width: 15%;
 }
@@ -390,6 +479,8 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
     width: 1%;
     white-space: nowrap;
     text-align: center;
+    /* more space between the disk and the state */
+    padding-left: 2rem;
 }
 
 /* block instead of inline-block, so it isn't aligned to the text-baseline, but

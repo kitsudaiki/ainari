@@ -44,7 +44,7 @@ pub async fn get_task(
 
     let resp = TaskResp {
         uuid: task_uuid,
-        name: task_data.name,
+        description: task_data.description,
         task_type: task_data.task_type,
         state: task_data.task_state,
         queued_at: task_data.queued_at,
@@ -52,7 +52,6 @@ pub async fn get_task(
         finished_at: task_data.finished_at,
         messages: task_data.messages,
         created_by: task_data.created_by,
-        created_at: task_data.created_at,
     };
 
     Ok(Json(resp))

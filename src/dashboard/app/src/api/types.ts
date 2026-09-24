@@ -347,18 +347,17 @@ export type TaskState =
 /** Mirror of `task_structs::TaskBasicResp`. */
 export interface TaskBasicResp {
     uuid: string;
-    name: string;
+    description: string;
     task_type: TaskType;
     state: TaskState;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
 }
 
 /** Mirror of `task_structs::TaskResp`. */
 export interface TaskResp extends TaskBasicResp {
-    queued_at: string | null;
-    started_at: string | null;
-    finished_at: string | null;
     messages: string[];
-    created_at: string;
     created_by: string;
 }
 
@@ -376,7 +375,6 @@ export interface TaskSnapshotSaveReq {
 
 /** Mirror of `task_structs::TaskSnapshotRestoreReq`. */
 export interface TaskSnapshotRestoreReq {
-    name: string;
     /** Image, which must be a snapshot. */
     image_uuid: string;
 }

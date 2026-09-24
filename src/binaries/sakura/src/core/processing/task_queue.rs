@@ -128,12 +128,12 @@ mod tests {
 
         let info1 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
-            name: "test-task1".to_string(),
+            description: "test-task1".to_string(),
             context: test_context(),
         };
         let info2 = CloudHypervisorVirtualMachineCreateInfo {
             vm_uuid: virtual_machine_uuid,
-            name: "test-task2".to_string(),
+            description: "test-task2".to_string(),
             context: test_context(),
         };
 
@@ -141,7 +141,7 @@ mod tests {
             uuid: uuid1,
             resouce_uuid: virtual_machine_uuid,
             resource_type: resource_type.clone(),
-            name: "task1".to_string(),
+            description: "task1".to_string(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info1),
             meta: TaskMeta::new(),
         };
@@ -149,7 +149,7 @@ mod tests {
             uuid: uuid2,
             resouce_uuid: virtual_machine_uuid,
             resource_type: resource_type.clone(),
-            name: "task2".to_string(),
+            description: "task2".to_string(),
             info: TaskVariant::CloudHypervisorVirtualMachineCreate(info2),
             meta: TaskMeta::new(),
         };

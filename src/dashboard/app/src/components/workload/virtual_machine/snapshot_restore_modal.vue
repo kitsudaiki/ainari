@@ -29,18 +29,6 @@
                     lost.
                 </p>
                 <br />
-                <div>
-                    <input
-                        v-model="name"
-                        type="text"
-                        placeholder="Task-Name"
-                        :class="{ invalid_input: nameError }"
-                    />
-                    <p v-if="nameError" class="error-msg">
-                        Task-Name must be at least 4 characters
-                    </p>
-                </div>
-                <br />
                 <div class="field-row">
                     <label for="snapshot">Snapshot: </label>
                     <select
@@ -104,9 +92,7 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const nameError = ref(false);
 const snapshotError = ref(false);
-const name = ref<string>("");
 const snapshots = ref<ImageBasicResp[]>([]);
 const selectedSnapshotUuid = ref<string>("");
 
@@ -126,10 +112,9 @@ async function fetchSnapshots() {
 }
 
 async function handleAccept() {
-    nameError.value = name.value.length < 4;
     snapshotError.value = selectedSnapshotUuid.value === "";
 
-    if (nameError.value || snapshotError.value || !props.virtual_machine_uuid) {
+    if (snapshotError.value || !props.virtual_machine_uuid) {
         return;
     }
 
@@ -137,10 +122,7 @@ async function handleAccept() {
         await sakura.createSnapshotRestoreTask(
             props.torii_port,
             props.virtual_machine_uuid,
-            {
-                name: name.value,
-                image_uuid: selectedSnapshotUuid.value,
-            },
+            { image_uuid: selectedSnapshotUuid.value },
         );
 
         emit("accept");

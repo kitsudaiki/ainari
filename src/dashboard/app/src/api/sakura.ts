@@ -60,12 +60,18 @@ function taskPath(virtualMachineUuid: string, taskUuid: string): string {
 // task
 //=============================================================================
 
-/** `GET /v1alpha/task` - all tasks of the virtual-machine behind the given torii-port. */
+/**
+ * `GET /v1alpha/task?resource_uuid=...` - all tasks of the virtual-machine. The sakura behind
+ * the torii-port holds the tasks of all virtual-machines of its host, so they are filtered by
+ * the uuid of the virtual-machine.
+ */
 export async function listTasks(
     toriiPort: number,
     virtualMachineUuid: string,
 ): Promise<TaskBasicResp[]> {
-    const resp = await sakuraClient(toriiPort).get(taskListPath(virtualMachineUuid));
+    const resp = await sakuraClient(toriiPort).get(taskListPath(virtualMachineUuid), {
+        params: { resource_uuid: virtualMachineUuid },
+    });
     return resp.data.tasks;
 }
 

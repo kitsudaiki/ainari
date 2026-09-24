@@ -27,14 +27,14 @@ use crate::database::task_table;
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
     pub vm_uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub context: UserContext,
 }
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineDeleteInfo {
     pub vm_uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub context: UserContext,
 }
 
@@ -43,7 +43,7 @@ pub struct CloudHypervisorVirtualMachineSnapshotInfo {
     pub vm_uuid: Uuid,
     /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
     pub image_uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub context: UserContext,
 }
 
@@ -52,7 +52,7 @@ pub struct CloudHypervisorVirtualMachineRestoreInfo {
     pub vm_uuid: Uuid,
     /// Image, which is a snapshot and replaces the root-disk of the virtual_machine
     pub image_uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub context: UserContext,
 }
 
@@ -95,9 +95,9 @@ pub struct Task {
     pub resouce_uuid: Uuid,
     /// Type of the resource, which the task acts on.
     pub resource_type: TaskResourceType,
-    /// Human-readable name of the task.
+    /// Human-readable description of the task.
     #[allow(dead_code)]
-    pub name: String,
+    pub description: String,
 
     /// The concrete work of the task together with everything it needs for it.
     pub info: TaskVariant,
@@ -118,7 +118,7 @@ pub struct Task {
 pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
     task.start_task().await?;
 
-    task.finalize_task().await?;
+    let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
 
     Ok(())
 }
@@ -157,15 +157,6 @@ impl Task {
                 Ok(())
             }
         }
-    }
-
-    /// Finalizes the task, performing cleanup and updating the task state.
-    /// For request tasks, it encrypts and uploads the results.
-    /// For training tasks, it cleans up temporary files.
-    pub async fn finalize_task(&mut self) -> Result<(), AinariError> {
-        let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
-
-        Ok(())
     }
 
     /// Checks if the task has been completed.

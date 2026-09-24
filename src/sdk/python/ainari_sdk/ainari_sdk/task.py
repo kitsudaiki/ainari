@@ -36,7 +36,6 @@ def create_snapshot_save_task(context: AccessContext,
 def create_snapshot_restore_task(context: AccessContext,
                                  torii_port: int,
                                  virtual_machine_uuid: str,
-                                 name: str,
                                  image_uuid: str) -> dict:
     """
     Resets the root-disk of a virtual machine to an image, which must be a snapshot.
@@ -44,7 +43,6 @@ def create_snapshot_restore_task(context: AccessContext,
     address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore"
     json_body = {
-        "name": name,
         "image_uuid": image_uuid,
     }
     return ainari_request.send_post_request(context,

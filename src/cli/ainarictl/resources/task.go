@@ -80,13 +80,13 @@ var createSnapshotSaveTaskCmd = &cobra.Command{
 }
 
 var createSnapshotRestoreTaskCmd = &cobra.Command{
-	Use:   "snapshot_restore -i IMAGE_UUID VIRTUAL_MACHINE_UUID TASK_NAME",
+	Use:   "snapshot_restore -i IMAGE_UUID VIRTUAL_MACHINE_UUID",
 	Short: "Create a new task to reset the root-disk of a virtual_machine to a snapshot.",
 	Long: `Create a new task to reset the root-disk of a virtual_machine to a snapshot.
 
 Only images, which are marked as snapshot, can be restored. The virtual_machine is shut down,
 while its root-disk is replaced, and booted again afterwards.`,
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
@@ -95,8 +95,7 @@ while its root-disk is replaced, and booted again afterwards.`,
 		}
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
-		taskName := args[1]
-		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, taskName, virtual_machineUuid, snapshotImageUuid)
+		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, virtual_machineUuid, snapshotImageUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

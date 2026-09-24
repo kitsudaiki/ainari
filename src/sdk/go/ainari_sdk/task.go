@@ -35,11 +35,10 @@ func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_
 
 // CreateSnapshotRestoreTask resets the root-disk of a virtual machine to an image, which must be a
 // snapshot.
-func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, name, virtual_machineUuid, imageUuid string) (map[string]interface{}, error) {
+func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, virtual_machineUuid, imageUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
-		"name":       name,
 		"image_uuid": imageUuid,
 	}
 	return SendPost(context, address, path, jsonBody)
