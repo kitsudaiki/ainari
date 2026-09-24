@@ -42,7 +42,7 @@ func DeleteHost(context AccessContext, hostId string) (map[string]interface{}, e
 	return SendDelete(context, context.HanamiAddress, path, vars)
 }
 
-// GetOnsenHost returns information of a specific onsen-host, which stores images and checkpoints.
+// GetOnsenHost returns information of a specific onsen-host, which stores images and snapshots.
 func GetOnsenHost(context AccessContext, hostId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/host/%s/admin", hostId)
 	vars := map[string]interface{}{}

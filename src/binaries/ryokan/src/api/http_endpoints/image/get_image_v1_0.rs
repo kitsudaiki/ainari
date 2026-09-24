@@ -40,18 +40,10 @@ pub async fn get_image(
     let image_data = image_table::get_image(&image_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
 
-    // deserialize name-lists
-    let column_names: Vec<String> =
-        serde_json::from_str(&image_data.column_names).map_err(|e| {
-            log::error!("Failed to deserialize column_names: '{e}'");
-            ErrorResponse::InternalError("Internal Error".to_string())
-        })?;
-
     let resp = ImageResp {
         uuid: *image_uuid,
         name: image_data.name,
-        number_of_rows: image_data.number_of_rows as u64,
-        column_names,
+        is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,
         updated_by: image_data.updated_by,

@@ -21,8 +21,8 @@
 import { sakuraClient } from "./client";
 import type {
     TaskBasicResp,
-    TaskCheckpointRestoreReq,
-    TaskCheckpointSaveReq,
+    TaskSnapshotRestoreReq,
+    TaskSnapshotSaveReq,
     TaskResp,
     VirtualMachineCreateTaskReq,
 } from "./types";
@@ -60,12 +60,18 @@ function taskPath(virtualMachineUuid: string, taskUuid: string): string {
 // task
 //=============================================================================
 
-/** `GET /v1alpha/task` - all tasks of the virtual-machine behind the given torii-port. */
+/**
+ * `GET /v1alpha/task?resource_uuid=...` - all tasks of the virtual-machine. The sakura behind
+ * the torii-port holds the tasks of all virtual-machines of its host, so they are filtered by
+ * the uuid of the virtual-machine.
+ */
 export async function listTasks(
     toriiPort: number,
     virtualMachineUuid: string,
 ): Promise<TaskBasicResp[]> {
-    const resp = await sakuraClient(toriiPort).get(taskListPath(virtualMachineUuid));
+    const resp = await sakuraClient(toriiPort).get(taskListPath(virtualMachineUuid), {
+        params: { resource_uuid: virtualMachineUuid },
+    });
     return resp.data.tasks;
 }
 
@@ -116,27 +122,27 @@ export async function createVirtualMachine(
     return resp.data;
 }
 
-/** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_save` */
-export async function createCheckpointSaveTask(
+/** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save` */
+export async function createSnapshotSaveTask(
     toriiPort: number,
     virtualMachineUuid: string,
-    body: TaskCheckpointSaveReq,
+    body: TaskSnapshotSaveReq,
 ): Promise<TaskResp> {
     const resp = await sakuraClient(toriiPort).post(
-        `/v1alpha/virtual_machine/${virtualMachineUuid}/checkpoint_save`,
+        `/v1alpha/virtual_machine/${virtualMachineUuid}/snapshot_save`,
         body,
     );
     return resp.data;
 }
 
-/** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_restore` */
-export async function createCheckpointRestoreTask(
+/** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore` */
+export async function createSnapshotRestoreTask(
     toriiPort: number,
     virtualMachineUuid: string,
-    body: TaskCheckpointRestoreReq,
+    body: TaskSnapshotRestoreReq,
 ): Promise<TaskResp> {
     const resp = await sakuraClient(toriiPort).post(
-        `/v1alpha/virtual_machine/${virtualMachineUuid}/checkpoint_restore`,
+        `/v1alpha/virtual_machine/${virtualMachineUuid}/snapshot_restore`,
         body,
     );
     return resp.data;

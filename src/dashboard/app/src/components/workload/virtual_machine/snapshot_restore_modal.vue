@@ -16,51 +16,42 @@
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal checkpoint-restore-modal">
+        <div class="modal snapshot-restore-modal">
             <div class="modal-topbar">
-                <span>Restore checkpoint</span>
+                <span>Restore snapshot</span>
             </div>
             <div class="modal-content">
                 <p>
-                    Creates a task, which restores the virtual machine from an
-                    existing checkpoint.
+                    Creates a task, which resets the root-disk of the virtual
+                    machine to the state of an existing snapshot. The virtual
+                    machine is shut down, while its root-disk is replaced, and
+                    booted again afterwards. All changes since the snapshot are
+                    lost.
                 </p>
                 <br />
-                <div>
-                    <input
-                        v-model="name"
-                        type="text"
-                        placeholder="Task-Name"
-                        :class="{ invalid_input: nameError }"
-                    />
-                    <p v-if="nameError" class="error-msg">
-                        Task-Name must be at least 4 characters
-                    </p>
-                </div>
-                <br />
                 <div class="field-row">
-                    <label for="checkpoint">Checkpoint: </label>
+                    <label for="snapshot">Snapshot: </label>
                     <select
-                        id="checkpoint"
-                        v-model="selectedCheckpointUuid"
+                        id="snapshot"
+                        v-model="selectedSnapshotUuid"
                         class="select-dropdown"
-                        :class="{ invalid_input: checkpointError }"
+                        :class="{ invalid_input: snapshotError }"
                     >
-                        <option value="" disabled>Select a checkpoint</option>
+                        <option value="" disabled>Select a snapshot</option>
                         <option
-                            v-for="checkpoint in checkpoints"
-                            :key="checkpoint.uuid"
-                            :value="checkpoint.uuid"
+                            v-for="snapshot in snapshots"
+                            :key="snapshot.uuid"
+                            :value="snapshot.uuid"
                         >
-                            {{ checkpoint.name }}
+                            {{ snapshot.name }}
                         </option>
                     </select>
                 </div>
-                <p v-if="checkpointError" class="error-msg">
-                    <template v-if="checkpoints.length === 0">
-                        No checkpoints available.
+                <p v-if="snapshotError" class="error-msg">
+                    <template v-if="snapshots.length === 0">
+                        No snapshots available.
                     </template>
-                    <template v-else>A checkpoint must be selected</template>
+                    <template v-else>A snapshot must be selected</template>
                 </p>
             </div>
 
@@ -86,7 +77,7 @@
 import { ref, onMounted } from "vue";
 
 import { ryokan, sakura } from "@/api";
-import type { CheckpointBasicResp } from "@/api";
+import type { ImageBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -101,46 +92,44 @@ const emit = defineEmits<{
 }>();
 
 const errorPopupMsg = ref<string>("");
-const nameError = ref(false);
-const checkpointError = ref(false);
-const name = ref<string>("");
-const checkpoints = ref<CheckpointBasicResp[]>([]);
-const selectedCheckpointUuid = ref<string>("");
+const snapshotError = ref(false);
+const snapshots = ref<ImageBasicResp[]>([]);
+const selectedSnapshotUuid = ref<string>("");
 
-async function fetchCheckpoints() {
+async function fetchSnapshots() {
     try {
-        checkpoints.value = await ryokan.listCheckpoints();
+        // snapshots are images, but only the images, which are marked as snapshot, can be
+        // restored
+        snapshots.value = (await ryokan.listImages()).filter(
+            (image) => image.is_snapshot,
+        );
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load checkpoints",
+            "Failed to load snapshots",
         );
     }
 }
 
 async function handleAccept() {
-    nameError.value = name.value.length < 4;
-    checkpointError.value = selectedCheckpointUuid.value === "";
+    snapshotError.value = selectedSnapshotUuid.value === "";
 
-    if (nameError.value || checkpointError.value || !props.virtual_machine_uuid) {
+    if (snapshotError.value || !props.virtual_machine_uuid) {
         return;
     }
 
     try {
-        await sakura.createCheckpointRestoreTask(
+        await sakura.createSnapshotRestoreTask(
             props.torii_port,
             props.virtual_machine_uuid,
-            {
-                name: name.value,
-                checkpoint_uuid: selectedCheckpointUuid.value,
-            },
+            { image_uuid: selectedSnapshotUuid.value },
         );
 
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to create checkpoint-restore-task",
+            "Failed to create snapshot-restore-task",
         );
     }
 }
@@ -149,11 +138,11 @@ function cancel() {
     emit("cancel");
 }
 
-onMounted(fetchCheckpoints);
+onMounted(fetchSnapshots);
 </script>
 
 <style scoped>
-.checkpoint-restore-modal {
+.snapshot-restore-modal {
     width: 32rem;
 }
 

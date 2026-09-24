@@ -23,7 +23,7 @@ use std::fs;
 
 /// Entrypoint of the onsen.
 ///
-/// Storage-pool, which holds the payloads of the images and checkpoints. It provides no REST-api
+/// Storage-pool, which holds the payloads of the images and snapshots. It provides no REST-api
 /// and is not reachable from the internet; the ryokan and the sakura talk to it over grpc.
 ///
 /// Creates the storage-directory, registers this host on the ryokan and then hands over to the

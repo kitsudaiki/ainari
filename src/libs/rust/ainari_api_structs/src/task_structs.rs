@@ -61,8 +61,8 @@ impl FromStr for TaskResourceType {
 pub enum TaskType {
     VirtualMachineCreate = 0,
     VirtualMachineDelete = 1,
-    CheckpointSave = 2,
-    CheckpointRestore = 3,
+    SnapshotSave = 2,
+    SnapshotRestore = 3,
 }
 
 #[cfg(feature = "diesel")]
@@ -101,8 +101,8 @@ impl fmt::Display for TaskType {
         let s = match self {
             TaskType::VirtualMachineCreate => "VirtualMachineCreateTask",
             TaskType::VirtualMachineDelete => "VirtualMachineDeleteTask",
-            TaskType::CheckpointSave => "CheckpointSaveTask",
-            TaskType::CheckpointRestore => "CheckpointRestoreTask",
+            TaskType::SnapshotSave => "SnapshotSaveTask",
+            TaskType::SnapshotRestore => "SnapshotRestoreTask",
         };
         write!(f, "{s}")
     }
@@ -115,8 +115,8 @@ impl FromStr for TaskType {
         match s {
             "VirtualMachineCreateTask" => Ok(TaskType::VirtualMachineCreate),
             "VirtualMachineDeleteTask" => Ok(TaskType::VirtualMachineDelete),
-            "CheckpointSaveTask" => Ok(TaskType::CheckpointSave),
-            "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestore),
+            "SnapshotSaveTask" => Ok(TaskType::SnapshotSave),
+            "SnapshotRestoreTask" => Ok(TaskType::SnapshotRestore),
             _ => Err(()),
         }
     }
@@ -205,38 +205,46 @@ pub struct VirtualMachineCreateTaskReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCheckpointSaveReq {
+pub struct TaskSnapshotSaveReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct TaskCheckpointRestoreReq {
-    #[validate(length(min = 4, max = 127))]
-    pub name: String,
-    pub checkpoint_uuid: Uuid,
+pub struct TaskSnapshotRestoreReq {
+    /// Image, which must be a snapshot, to reset the root-disk of the virtual_machine to
+    pub image_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskResp {
     pub uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub task_type: TaskType,
     pub state: TaskState,
     pub queued_at: Option<DateTime<Utc>>,
     pub started_at: Option<DateTime<Utc>>,
     pub finished_at: Option<DateTime<Utc>>,
     pub messages: Vec<String>,
-    pub created_at: DateTime<Utc>,
     pub created_by: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskBasicResp {
     pub uuid: Uuid,
-    pub name: String,
+    pub description: String,
     pub task_type: TaskType,
     pub state: TaskState,
+    pub queued_at: Option<DateTime<Utc>>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct TaskListQuery {
+    /// Resource, like a virtual_machine, to list only its tasks. Without it, all tasks of the
+    /// sakura-host are listed.
+    pub resource_uuid: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

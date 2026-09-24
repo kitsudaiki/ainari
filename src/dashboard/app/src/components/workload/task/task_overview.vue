@@ -18,28 +18,23 @@
     <div class="card">
         <div class="card-label">Tasks</div>
         <div class="card-content">
-            <!-- Checkpoint actions, which both create a new task -->
-            <div class="task-actions">
-                <button @click="showSaveModal = true">Save checkpoint</button>
-                <button @click="showRestoreModal = true">
-                    Restore checkpoint
-                </button>
-            </div>
-
             <table class="overview-table" v-if="tasks.length > 0">
                 <thead>
                     <tr>
                         <th>UUID</th>
-                        <th>Name</th>
+                        <th>Description</th>
                         <th>Type</th>
                         <th>State</th>
+                        <th>Queued At</th>
+                        <th>Started At</th>
+                        <th>Finished At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="task in tasks" :key="task.uuid">
                         <td>{{ task.uuid }}</td>
-                        <td>{{ task.name }}</td>
+                        <td>{{ task.description }}</td>
                         <td>{{ task.task_type }}</td>
                         <td>
                             <span
@@ -48,6 +43,15 @@
                             >
                                 {{ task.state }}
                             </span>
+                        </td>
+                        <td class="time-column">
+                            {{ formatted(task.queued_at) }}
+                        </td>
+                        <td class="time-column">
+                            {{ formatted(task.started_at) }}
+                        </td>
+                        <td class="time-column">
+                            {{ formatted(task.finished_at) }}
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -97,24 +101,6 @@
             @accept="acceptAbortModal"
             @cancel="cancelAbortModal"
         />
-
-        <CheckpointSaveModal
-            v-if="showSaveModal"
-            :virtual_machine_uuid="props.id"
-            :torii_port="torii_port"
-            :icons="icons"
-            @accept="acceptCheckpointModal"
-            @cancel="showSaveModal = false"
-        />
-
-        <CheckpointRestoreModal
-            v-if="showRestoreModal"
-            :virtual_machine_uuid="props.id"
-            :torii_port="torii_port"
-            :icons="icons"
-            @accept="acceptCheckpointModal"
-            @cancel="showRestoreModal = false"
-        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -129,9 +115,8 @@ import { hanami, sakura } from "@/api";
 import type { TaskBasicResp, TaskState } from "@/api";
 import TaskInfoModal from "./task_info_modal.vue";
 import TaskAbortModal from "./task_abort_modal.vue";
-import CheckpointSaveModal from "./checkpoint_save_modal.vue";
-import CheckpointRestoreModal from "./checkpoint_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import common from "@/common";
 
 const props = defineProps<{
     id: string | null;
@@ -145,8 +130,6 @@ const taskToShow = ref<TaskBasicResp | null>(null);
 const taskToAbort = ref<TaskBasicResp | null>(null);
 const showInfoModal = ref(false);
 const showAbortModal = ref(false);
-const showSaveModal = ref(false);
-const showRestoreModal = ref(false);
 
 // the torii-port of the virtual-machine, which is needed to reach its sakura
 const torii_port = ref<number>(0);
@@ -172,6 +155,11 @@ function stateClass(state: TaskState): string {
         default:
             return "state-pending";
     }
+}
+
+function formatted(timestamp: string | null): string {
+    if (!timestamp) return "-";
+    return common.formatDateTime(timestamp);
 }
 
 async function fetchTasks() {
@@ -245,15 +233,6 @@ async function acceptAbortModal() {
 }
 
 //=============================================================================
-// Checkpoint modals
-//=============================================================================
-async function acceptCheckpointModal() {
-    showSaveModal.value = false;
-    showRestoreModal.value = false;
-    await fetchTasks();
-}
-
-//=============================================================================
 // Listener
 //=============================================================================
 onMounted(async () => {
@@ -272,17 +251,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.task-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
 .overview-table td:nth-child(2) {
-    width: 15rem;
+    width: 40rem;
 }
 .overview-table td:nth-child(3) {
     width: 10rem;
+}
+/* more space between the type and the state */
+.overview-table th:nth-child(4),
+.overview-table td:nth-child(4) {
+    padding-left: 2rem;
+}
+
+/* only as wide as the timestamps, so the description gets the remaining space */
+.overview-table td.time-column {
+    width: 1%;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 .state-badge {

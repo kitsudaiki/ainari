@@ -41,14 +41,21 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ca
 RUN cargo binstall -y bpf-linker
 
 WORKDIR /build
-COPY . .
+
+# only the workspace is copied, so a change of the docs or the scripts doesn't rebuild the torii
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY src src
+
+# cargo-profile of the build. The local docker-compose-setup uses the faster 'local'-profile.
+ARG CARGO_PROFILE=release
 
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
     --mount=type=cache,target=/build/target,id=ainari-torii-target,sharing=locked \
-    cargo build --release -p torii && \
+    cargo build --profile "$CARGO_PROFILE" -p torii && \
     mkdir -p /out && \
-    cp /build/target/release/torii /out/
+    cp "/build/target/$CARGO_PROFILE/torii" /out/
 
 # ==========================================
 # STAGE 2: Minimal Runtime

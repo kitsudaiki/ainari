@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod auth;
-pub mod checkpoint;
 pub mod endpoints;
 pub mod floating_ip;
 pub mod host;

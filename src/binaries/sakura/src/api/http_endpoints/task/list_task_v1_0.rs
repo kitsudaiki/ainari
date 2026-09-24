@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Json;
+use actix_web::web::{Json, Query};
 use apistos::api_operation;
 
 use crate::database::task_table;
@@ -24,14 +24,18 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "task",
     summary = "List tasks",
-    description = r###"List all tasks."###,
+    description = r###"List all tasks. With the query-parameter `resource_uuid`, only the tasks of
+this resource, like a virtual_machine, are listed."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn list_task(context: UserContext) -> Result<Json<TaskListResp>, ErrorResponse> {
-    let tasks = match task_table::list_tasks(&context) {
+pub async fn list_task(
+    query: Query<TaskListQuery>,
+    context: UserContext,
+) -> Result<Json<TaskListResp>, ErrorResponse> {
+    let tasks = match task_table::list_tasks(&context, query.resource_uuid.as_ref()) {
         Ok(tasks) => tasks,
         Err(e) => {
             log::error!("Failed to get list of tasks form database: '{e}'");
@@ -44,9 +48,12 @@ pub async fn list_task(context: UserContext) -> Result<Json<TaskListResp>, Error
     for task in tasks {
         let obj = TaskBasicResp {
             uuid: task.uuid,
-            name: task.name,
+            description: task.description,
             task_type: task.task_type,
             state: task.task_state,
+            queued_at: task.queued_at,
+            started_at: task.started_at,
+            finished_at: task.finished_at,
         };
 
         resp.tasks.push(obj);

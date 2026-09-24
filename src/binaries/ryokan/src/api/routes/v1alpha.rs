@@ -16,7 +16,6 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::checkpoint::*;
 use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
 
@@ -52,27 +51,6 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(list_image_v1_0::list_image)))
                 .service(
                     resource("/{type}/{name}").route(post().to(create_image_v1_0::upload_binary)),
-                ),
-        )
-        .service(
-            scope("/checkpoint")
-                .service(
-                    resource("/internal")
-                        .route(post().to(init_checkpoint_internal_v1_0::init_checkpoint)),
-                )
-                .service(
-                    resource("/count")
-                        .route(get().to(get_checkpoint_count_v1_0::get_checkpoint_count)),
-                )
-                .service(resource("").route(get().to(list_checkpoint_v1_0::list_checkpoint)))
-                .service(
-                    resource("/{checkpoint_uuid}")
-                        .route(get().to(get_checkpoint_v1_0::get_checkpoint))
-                        .route(delete().to(delete_checkpoint_v1_0::delete_checkpoint)),
-                )
-                .service(
-                    resource("/{checkpoint_uuid}/internal")
-                        .route(get().to(get_checkpoint_internal_v1_0::get_checkpoint_internal)),
                 ),
         )
         .service(

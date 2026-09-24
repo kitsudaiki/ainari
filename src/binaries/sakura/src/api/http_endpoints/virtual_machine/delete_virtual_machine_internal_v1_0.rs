@@ -54,13 +54,13 @@ pub async fn delete_virtual_machine_internal(
     let task_type = TaskType::VirtualMachineDelete;
 
     // prepare task-info
-    let task_name = format!(
+    let task_description = format!(
         "Delete virtual machine with UUID {}",
         virtual_machine_data.uuid
     );
     let info = CloudHypervisorVirtualMachineDeleteInfo {
         vm_uuid: virtual_machine_data.uuid,
-        name: task_name.clone(),
+        description: task_description.clone(),
         context: context.clone(),
     };
 
@@ -70,7 +70,7 @@ pub async fn delete_virtual_machine_internal(
         uuid: task_uuid,
         resouce_uuid: *virtual_machine_uuid,
         resource_type: TaskResourceType::VirtualMachine,
-        name: task_name,
+        description: task_description,
         info: TaskVariant::CloudHypervisorVirtualMachineDelete(info),
         meta: TaskMeta::new(),
     };

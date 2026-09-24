@@ -1,0 +1,292 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Images of all rust-components except the torii, which needs another toolchain for its
+# eBPF-programs. All binaries are compiled together in one builder-stage, so the dependencies of
+# the workspace are only compiled once, and every component has its own runtime-stage, which is
+# selected with the target of the build:
+#
+#   docker build -f dockerfiles/Dockerfile_services --target miko -t kitsudaiki/miko:local_test .
+#
+# To build a single image faster, the builder can be restricted to its component:
+#
+#   docker build -f dockerfiles/Dockerfile_services --target miko --build-arg BINARIES=miko ...
+
+# ==========================================
+# builder of all components
+# ==========================================
+FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174de145301194e78ef505553111ac46107 AS builder
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY src src
+
+# the version-endpoint reports this value, which is read at compile-time. The git-directory
+# itself is not copied into the image, because .dockerignore excludes it.
+ARG GIT_VERSION=unknown
+ENV GIT_VERSION=$GIT_VERSION
+
+# cargo-profile of the build. The local docker-compose-setup uses the faster 'local'-profile.
+ARG CARGO_PROFILE=release
+
+# Components, which are compiled. All of them are compiled by default, so the images of all
+# components share this stage. A build of a single image, like in the CI, where every image is
+# built on its own runner, can restrict it to the component of that image.
+ARG BINARIES="miko omamori ryokan onsen hanami sakura"
+
+# The registry and the target-directory are cache-mounts, so they survive between builds and only
+# the changed crates are compiled again. The target-directory is not part of the image, so the
+# binaries have to be copied out of it within the same step.
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=ainari-services-target,sharing=locked \
+    packages="" && \
+    for bin in $BINARIES; do packages="$packages -p $bin"; done && \
+    ~/.cargo/bin/cargo build --profile "$CARGO_PROFILE" $packages && \
+    mkdir -p /out && \
+    for bin in $BINARIES; do \
+        cp "target/$CARGO_PROFILE/$bin" /out/; \
+    done
+
+# ==========================================
+# hypervisor of sakura
+# ==========================================
+# Downloaded in its own stage, so a change of the source-code doesn't download it again.
+FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174de145301194e78ef505553111ac46107 AS hypervisor
+
+# the hypervisor, which runs the virtual machines, and the firmware, which boots them
+ARG CLOUD_HYPERVISOR_VERSION=v53.0
+RUN mkdir -p /out && \
+    curl -fSLo /out/cloud-hypervisor \
+        https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/${CLOUD_HYPERVISOR_VERSION}/cloud-hypervisor-static && \
+    chmod +x /out/cloud-hypervisor
+RUN curl -fSLo /out/CLOUDHV.fd \
+        https://github.com/cloud-hypervisor/edk2/releases/latest/download/CLOUDHV.fd
+
+# ==========================================
+# miko
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS miko
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+COPY --from=builder /out/miko /usr/bin/miko
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/miko && \
+    chmod +x /usr/bin/miko
+
+USER ainari
+CMD [ "miko" ]
+
+# ==========================================
+# omamori
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS omamori
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+COPY --from=builder /out/omamori /usr/bin/omamori
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/omamori && \
+    chmod +x /usr/bin/omamori
+
+USER ainari
+CMD [ "omamori" ]
+
+# ==========================================
+# hanami
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS hanami
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+COPY --from=builder /out/hanami /usr/bin/hanami
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/hanami && \
+    chmod +x /usr/bin/hanami
+
+USER ainari
+CMD [ "hanami" ]
+
+# ==========================================
+# ryokan
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS ryokan
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openssl \
+                       curl \
+                       libsqlite3-0 \
+                       wireguard-tools \
+                       iptables-persistent \
+                       iproute2 \
+                       sudo && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# horrible dirty workaround to prevent the error
+# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
+# when starting wireguard inside the pod. Didn't found a better solution so far...
+RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+
+# Create ainari user and set up directories
+RUN useradd -m ainari
+
+# Allow the user to creage the wireguard-connection
+RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
+
+COPY --from=builder /out/ryokan /home/ainari/ryokan
+COPY dockerfiles/files/start_ryokan.sh /home/ainari/start_ryokan.sh
+RUN mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /home/ainari/ryokan && \
+    chown ainari:ainari /home/ainari/start_ryokan.sh && \
+    chmod +x /home/ainari/start_ryokan.sh
+
+USER ainari
+WORKDIR /home/ainari
+
+CMD ["/home/ainari/start_ryokan.sh"]
+
+# ==========================================
+# onsen
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS onsen
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openssl \
+                       libsqlite3-0 \
+                       wireguard-tools \
+                       iptables-persistent \
+                       iproute2 \
+                       sudo && \
+    apt-get clean autoclean && \
+    apt-get autoremove --yes
+
+# horrible dirty workaround to prevent the error
+# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
+# when starting wireguard inside the pod. Didn't found a better solution so far...
+RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+
+# Create ainari user and set up directories
+RUN useradd -m ainari
+
+# Allow the user to creage the wireguard-connection
+RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
+
+COPY --from=builder /out/onsen /home/ainari/onsen
+COPY dockerfiles/files/start_onsen.sh /home/ainari/start_onsen.sh
+RUN mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /home/ainari/onsen && \
+    chown ainari:ainari /home/ainari/start_onsen.sh && \
+    chmod +x /home/ainari/start_onsen.sh
+
+USER ainari
+WORKDIR /home/ainari
+
+CMD ["/home/ainari/start_onsen.sh"]
+
+# ==========================================
+# sakura
+# ==========================================
+FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS sakura
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# qemu-utils provides qemu-img, which converts a downloaded image into the boot-disk of a virtual
+# machine. cloud-image-utils provides cloud-localds, which builds the cloud-init seed-image.
+# libcap2-bin provides setcap, which is only used while building this image.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openssl \
+                       curl \
+                       libsqlite3-0 \
+                       qemu-utils \
+                       cloud-image-utils \
+                       libcap2-bin \
+                       wireguard-tools \
+                       iptables-persistent \
+                       iproute2 \
+                       sudo && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+# horrible dirty workaround to prevent the error
+# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
+# when starting wireguard inside the pod. Didn't found a better solution so far...
+RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+
+# Create ainari user and set up directories
+RUN useradd -m ainari
+
+# Allow the user to creage the wireguard-connection
+RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
+
+# The virtual machines are opened through /dev/kvm, which belongs to the group 'kvm' on the host.
+# The id of that group differs between hosts, so it can be overwritten at build-time and the
+# container gets the id of the host additionally over 'group_add' in the docker-compose-file.
+ARG KVM_GID=993
+RUN groupadd -g ${KVM_GID} kvm || groupmod -g ${KVM_GID} kvm && \
+    usermod -aG kvm ainari
+
+COPY --from=builder /out/sakura /home/ainari/sakura
+COPY dockerfiles/files/start_sakura.sh /home/ainari/start_sakura.sh
+RUN mkdir -p /etc/ainari/virtual_machines && \
+    chown -R ainari:ainari /etc/ainari && \
+    chown ainari:ainari /home/ainari/sakura && \
+    chown ainari:ainari /home/ainari/start_sakura.sh && \
+    chmod +x /home/ainari/sakura /home/ainari/start_sakura.sh
+
+# the hypervisor and its firmware. The paths are the defaults of the '[hypervisor]'-section of
+# the config of sakura.
+COPY --from=hypervisor /out/cloud-hypervisor /usr/local/bin/cloud-hypervisor
+COPY --from=hypervisor /out/CLOUDHV.fd /usr/local/share/CLOUDHV.fd
+
+# Attaching a virtual machine to an existing TAP-device is the only privileged operation of this
+# container. The capability is given to the hypervisor-binary itself, so neither sakura nor the
+# container need to run as root. The container still has to carry CAP_NET_ADMIN in its bounding
+# set, which the docker-compose-file does with 'cap_add'.
+RUN setcap cap_net_admin+ep /usr/local/bin/cloud-hypervisor
+
+USER ainari
+WORKDIR /home/ainari
+
+CMD ["/home/ainari/start_sakura.sh"]

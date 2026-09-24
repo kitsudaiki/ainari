@@ -16,8 +16,6 @@
 
 import { ryokanClient } from "./client";
 import type {
-    CheckpointBasicResp,
-    CheckpointResp,
     HostBasicResp,
     HostResp,
     ImageBasicResp,
@@ -33,10 +31,9 @@ import type {
  * `POST /v1alpha/image/{type}/{name}`
  *
  * Uploads the files of a new image. The number of files depends on the type:
- * `csv` and `disk` expect a single file, `mnist` expects the image-file together
- * with the label-file.
+ * `disk` expects a single file.
  *
- * @param imageType - One of `csv`, `mnist` or `disk`
+ * @param imageType - Type of the image, currently only `disk`
  * @param name - Name of the new image
  * @param files - Files to upload, in the order expected by the type
  */
@@ -78,33 +75,6 @@ export async function deleteImage(uuid: string): Promise<void> {
 /** `GET /v1alpha/image/count` */
 export async function getImageCount(): Promise<number> {
     const resp = await ryokanClient().get("/v1alpha/image/count");
-    return resp.data.number_of_items;
-}
-
-//=============================================================================
-// checkpoint
-//=============================================================================
-
-/** `GET /v1alpha/checkpoint` */
-export async function listCheckpoints(): Promise<CheckpointBasicResp[]> {
-    const resp = await ryokanClient().get("/v1alpha/checkpoint");
-    return resp.data.checkpoints;
-}
-
-/** `GET /v1alpha/checkpoint/{checkpoint_uuid}` */
-export async function getCheckpoint(uuid: string): Promise<CheckpointResp> {
-    const resp = await ryokanClient().get(`/v1alpha/checkpoint/${uuid}`);
-    return resp.data;
-}
-
-/** `DELETE /v1alpha/checkpoint/{checkpoint_uuid}` */
-export async function deleteCheckpoint(uuid: string): Promise<void> {
-    await ryokanClient().delete(`/v1alpha/checkpoint/${uuid}`);
-}
-
-/** `GET /v1alpha/checkpoint/count` */
-export async function getCheckpointCount(): Promise<number> {
-    const resp = await ryokanClient().get("/v1alpha/checkpoint/count");
     return resp.data.number_of_items;
 }
 

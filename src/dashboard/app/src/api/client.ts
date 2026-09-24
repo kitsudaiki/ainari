@@ -43,7 +43,7 @@ export function hanamiClient(): AxiosInstance {
     return createClient(getAuthContext().hanami_address);
 }
 
-/** Client for the ryokan, which handles images and checkpoints. */
+/** Client for the ryokan, which handles images. */
 export function ryokanClient(): AxiosInstance {
     return createClient(getAuthContext().ryokan_address);
 }

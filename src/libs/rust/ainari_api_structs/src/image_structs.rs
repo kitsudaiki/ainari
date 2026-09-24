@@ -24,8 +24,9 @@ pub struct ImageInitReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
     pub image_type: String,
-    pub number_of_rows: u64,
-    pub column_names: Vec<String>,
+    /// True, if the image is a snapshot of the root-disk of a virtual_machine
+    #[serde(default)]
+    pub is_snapshot: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -34,8 +35,7 @@ pub struct ImageInternalResp {
     pub name: String,
     pub onsen_address: String,
     pub file_path: String,
-    pub number_of_rows: u64,
-    pub column_names: Vec<String>,
+    pub is_snapshot: bool,
     pub secret_uuid: Uuid,
     pub created_at: String,
     pub created_by: String,
@@ -47,8 +47,7 @@ pub struct ImageInternalResp {
 pub struct ImageResp {
     pub uuid: Uuid,
     pub name: String,
-    pub number_of_rows: u64,
-    pub column_names: Vec<String>,
+    pub is_snapshot: bool,
     pub created_at: String,
     pub created_by: String,
     pub updated_at: String,
@@ -59,8 +58,7 @@ pub struct ImageResp {
 pub struct ImageBasicResp {
     pub uuid: Uuid,
     pub name: String,
-    pub number_of_rows: u64,
-    pub number_of_columns: u64,
+    pub is_snapshot: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

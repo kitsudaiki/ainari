@@ -16,12 +16,12 @@
 
 docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:local_test .
 
-docker build -f dockerfiles/Dockerfile_hanami    -t kitsudaiki/hanami:local_test .
-docker build -f dockerfiles/Dockerfile_miko      -t kitsudaiki/miko:local_test .
-docker build -f dockerfiles/Dockerfile_omamori   -t kitsudaiki/omamori:local_test .
-docker build -f dockerfiles/Dockerfile_onsen     -t kitsudaiki/onsen:local_test .
-docker build -f dockerfiles/Dockerfile_ryokan    -t kitsudaiki/ryokan:local_test .
-docker build -f dockerfiles/Dockerfile_sakura    -t kitsudaiki/sakura:local_test .
+docker build -f dockerfiles/Dockerfile_services --target hanami  -t kitsudaiki/hanami:local_test .
+docker build -f dockerfiles/Dockerfile_services --target miko    -t kitsudaiki/miko:local_test .
+docker build -f dockerfiles/Dockerfile_services --target omamori -t kitsudaiki/omamori:local_test .
+docker build -f dockerfiles/Dockerfile_services --target onsen   -t kitsudaiki/onsen:local_test .
+docker build -f dockerfiles/Dockerfile_services --target ryokan  -t kitsudaiki/ryokan:local_test .
+docker build -f dockerfiles/Dockerfile_services --target sakura  -t kitsudaiki/sakura:local_test .
 docker build -f dockerfiles/Dockerfile_torii     -t kitsudaiki/torii:local_test .
 docker build -f dockerfiles/Dockerfile_dashboard -t kitsudaiki/ainari_dashboard:local_test .
 

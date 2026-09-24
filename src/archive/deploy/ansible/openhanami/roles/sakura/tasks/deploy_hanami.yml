@@ -6,9 +6,9 @@
     state: directory
     mode: "0777"
 
-- name: Create checkpoint-directory
+- name: Create snapshot-directory
   file:
-    path: "{{ ainari_checkpoint_location }}"
+    path: "{{ ainari_snapshot_location }}"
     state: directory
     mode: "0777"
 

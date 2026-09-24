@@ -16,25 +16,34 @@
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal checkpoint-save-modal">
+        <div class="modal snapshot-save-modal">
             <div class="modal-topbar">
-                <span>Save checkpoint</span>
+                <span>Save snapshot</span>
             </div>
             <div class="modal-content">
                 <p>
                     Creates a task, which stores the current state of the
-                    virtual machine as a new checkpoint.
+                    root-disk of the virtual machine as a new image, which is
+                    marked as snapshot. The virtual machine is paused, while its
+                    root-disk is copied.
+                </p>
+                <br />
+                <p>
+                    Data, which was written shortly before, can still be in the
+                    memory of the virtual machine and is then missing in the
+                    snapshot. Run <code>sync</code> inside the virtual machine
+                    right before saving the snapshot.
                 </p>
                 <br />
                 <div>
                     <input
                         v-model="name"
                         type="text"
-                        placeholder="Checkpoint-Name"
+                        placeholder="Snapshot-Name"
                         :class="{ invalid_input: nameError }"
                     />
                     <p v-if="nameError" class="error-msg">
-                        Checkpoint-Name must be at least 4 characters
+                        Snapshot-Name must be at least 4 characters
                     </p>
                 </div>
             </div>
@@ -85,7 +94,7 @@ async function handleAccept() {
     }
 
     try {
-        await sakura.createCheckpointSaveTask(
+        await sakura.createSnapshotSaveTask(
             props.torii_port,
             props.virtual_machine_uuid,
             { name: name.value },
@@ -95,7 +104,7 @@ async function handleAccept() {
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to create checkpoint-save-task",
+            "Failed to create snapshot-save-task",
         );
     }
 }
@@ -106,7 +115,7 @@ function cancel() {
 </script>
 
 <style scoped>
-.checkpoint-save-modal {
+.snapshot-save-modal {
     width: 30rem;
 }
 

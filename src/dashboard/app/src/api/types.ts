@@ -112,11 +112,9 @@ export interface ProjectCreateReq {
 export interface QuotaSetReq {
     max_virtual_machine: number;
     max_image: number;
-    max_checkpoint: number;
     max_secret: number;
     max_network: number;
     max_floating_ip: number;
-    max_taskqueue: number;
 }
 
 /** Mirror of `quota_structs::QuotaBasicResp`. */
@@ -230,40 +228,26 @@ export interface FloatingIpResp extends FloatingIpBasicResp {
 }
 
 //=============================================================================
-// image / checkpoint (ryokan)
+// image (ryokan)
 //=============================================================================
 
 /** Image-types accepted by the upload-endpoint of the ryokan. */
-export type ImageType = "csv" | "mnist" | "disk";
+export type ImageType = "disk";
 
 /** Mirror of `image_structs::ImageBasicResp`. */
 export interface ImageBasicResp {
     uuid: string;
     name: string;
-    number_of_rows: number;
-    number_of_columns: number;
+    /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
+    is_snapshot: boolean;
 }
 
 /** Mirror of `image_structs::ImageResp`. */
 export interface ImageResp {
     uuid: string;
     name: string;
-    number_of_rows: number;
-    column_names: string[];
-    created_at: string;
-    created_by: string;
-    updated_at: string;
-    updated_by: string;
-}
-
-/** Mirror of `checkpoint_structs::CheckpointBasicResp`. */
-export interface CheckpointBasicResp {
-    uuid: string;
-    name: string;
-}
-
-/** Mirror of `checkpoint_structs::CheckpointResp`. */
-export interface CheckpointResp extends CheckpointBasicResp {
+    /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
+    is_snapshot: boolean;
     created_at: string;
     created_by: string;
     updated_at: string;
@@ -348,8 +332,8 @@ export interface HostResp extends HostBasicResp {
 export type TaskType =
     | "VirtualMachineCreate"
     | "VirtualMachineDelete"
-    | "CheckpointSave"
-    | "CheckpointRestore";
+    | "SnapshotSave"
+    | "SnapshotRestore";
 
 /** Mirror of `task_structs::TaskState`. */
 export type TaskState =
@@ -363,18 +347,17 @@ export type TaskState =
 /** Mirror of `task_structs::TaskBasicResp`. */
 export interface TaskBasicResp {
     uuid: string;
-    name: string;
+    description: string;
     task_type: TaskType;
     state: TaskState;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
 }
 
 /** Mirror of `task_structs::TaskResp`. */
 export interface TaskResp extends TaskBasicResp {
-    queued_at: string | null;
-    started_at: string | null;
-    finished_at: string | null;
     messages: string[];
-    created_at: string;
     created_by: string;
 }
 
@@ -385,13 +368,13 @@ export interface VirtualMachineCreateTaskReq {
     public_key_uuid: string;
 }
 
-/** Mirror of `task_structs::TaskCheckpointSaveReq`. */
-export interface TaskCheckpointSaveReq {
+/** Mirror of `task_structs::TaskSnapshotSaveReq`. */
+export interface TaskSnapshotSaveReq {
     name: string;
 }
 
-/** Mirror of `task_structs::TaskCheckpointRestoreReq`. */
-export interface TaskCheckpointRestoreReq {
-    name: string;
-    checkpoint_uuid: string;
+/** Mirror of `task_structs::TaskSnapshotRestoreReq`. */
+export interface TaskSnapshotRestoreReq {
+    /** Image, which must be a snapshot. */
+    image_uuid: string;
 }

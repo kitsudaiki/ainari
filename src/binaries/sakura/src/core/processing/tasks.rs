@@ -20,28 +20,59 @@ use ainari_common::error::AinariError;
 
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::restore_ch_virtual_machine::restore_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::save_ch_virtual_machine::save_ch_virtual_machine;
 use crate::database::task_table;
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
-    pub name: String,
+    #[allow(dead_code)]
+    pub description: String,
     pub context: UserContext,
 }
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineDeleteInfo {
+    #[allow(dead_code)]
     pub vm_uuid: Uuid,
-    pub name: String,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineSnapshotInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
+    pub image_uuid: Uuid,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineRestoreInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    /// Image, which is a snapshot and replaces the root-disk of the virtual_machine
+    pub image_uuid: Uuid,
+    #[allow(dead_code)]
+    pub description: String,
     pub context: UserContext,
 }
 
 /// An enumeration of different task variants that a Task can have.
 /// Each variant contains different information relevant to that type of task.
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum TaskVariant {
     CloudHypervisorVirtualMachineCreate(CloudHypervisorVirtualMachineCreateInfo),
     CloudHypervisorVirtualMachineDelete(CloudHypervisorVirtualMachineDeleteInfo),
+    CloudHypervisorVirtualMachineSnapshot(CloudHypervisorVirtualMachineSnapshotInfo),
+    CloudHypervisorVirtualMachineRestore(CloudHypervisorVirtualMachineRestoreInfo),
 }
 
 /// Metadata for tracking the state of a task.
@@ -72,9 +103,9 @@ pub struct Task {
     pub resouce_uuid: Uuid,
     /// Type of the resource, which the task acts on.
     pub resource_type: TaskResourceType,
-    /// Human-readable name of the task.
+    /// Human-readable description of the task.
     #[allow(dead_code)]
-    pub name: String,
+    pub description: String,
 
     /// The concrete work of the task together with everything it needs for it.
     pub info: TaskVariant,
@@ -85,7 +116,9 @@ pub struct Task {
 /// Processes a worker task.
 ///
 /// Runs the task and finalizes it afterwards, which updates its state in the database. The
-/// concrete work depends on the variant of the task.
+/// concrete work depends on the variant of the task. A failed task is marked as error and gets
+/// the error as message, so the failure is visible to the user. It doesn't stop the processing of
+/// the following tasks.
 ///
 /// # Arguments
 /// * `task` - A reference to the worker task to be processed
@@ -93,9 +126,16 @@ pub struct Task {
 /// # Returns
 /// * `Result<(), AinariError>` - Ok(()) if processing succeeds, Err(AinariError) if an error occurs
 pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
-    task.start_task().await?;
-
-    task.finalize_task().await?;
+    match task.start_task().await {
+        Ok(()) => {
+            let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
+        }
+        Err(e) => {
+            log::error!("Task {} ({}) failed: {e}", task.uuid, task.description);
+            let _ = task_table::add_message_to_task(&task.uuid, &e.to_string());
+            let _ = task_table::update_task_state(&task.uuid, &TaskState::Error);
+        }
+    }
 
     Ok(())
 }
@@ -118,64 +158,18 @@ impl Task {
 
         match &mut self.info {
             TaskVariant::CloudHypervisorVirtualMachineCreate(task_info) => {
-                handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
             TaskVariant::CloudHypervisorVirtualMachineDelete(task_info) => {
-                handle_vm_deletion(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
-                Ok(())
+                handle_vm_deletion(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineSnapshot(task_info) => {
+                handle_vm_snapshot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineRestore(task_info) => {
+                handle_vm_restore(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
         }
-    }
-
-    /// Finalizes the task, performing cleanup and updating the task state.
-    /// For request tasks, it encrypts and uploads the results.
-    /// For training tasks, it cleans up temporary files.
-    pub async fn finalize_task(&mut self) -> Result<(), AinariError> {
-        // if let TaskVariant::Request(task_info) = &mut self.info {
-        //     let rt = Builder::new_current_thread()
-        //         .enable_all() // I/O & timers
-        //         .build()
-        //         .expect("failed to build runtime");
-
-        //     // LocalSet allows spawn_local to work
-        //     let local = LocalSet::new();
-        //     let upload_resp = local.block_on(&rt, async {
-        //         encrypt_file(
-        //             &task_info.results.link.local_file_path,
-        //             &task_info.results.link.local_encrypted_file_path,
-        //             &task_info.output_secret,
-        //         )
-        //         .await?;
-        //         upload_file(
-        //             &task_info.results.link.onsen_address,
-        //             &task_info.results.link.remote_file_path,
-        //             &task_info.results.link.local_encrypted_file_path,
-        //         )
-        //         .await
-        //     });
-
-        //     // delete temp-files
-        //     remove_dir_all(&task_info.temp_dir);
-
-        //     // handle result
-        //     match upload_resp {
-        //         Ok(()) => {}
-        //         Err(_) => {
-        //             let _ = task_table::update_task_state(&self.uuid, &TaskState::Error);
-        //             let _ = task_table::update_task_progress(
-        //                 &self.uuid,
-        //                 &(self.meta.number_of_epochs as i64),
-        //                 &(self.meta.number_of_cycles as i64),
-        //             );
-        //             return;
-        //         }
-        //     }
-        // }
-
-        let _ = task_table::update_task_state(&self.uuid, &TaskState::Finished);
-
-        Ok(())
     }
 
     /// Checks if the task has been completed.
@@ -191,8 +185,7 @@ impl Task {
 
 /// Handles the task, which creates the virtual machine on this host.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// virtual machine, which could not be created.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -205,17 +198,15 @@ async fn handle_vm_creation(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
-) {
-    match create_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
-        Ok(_) => (),
-        Err(e) => log::error!("fail: {:?}", e),
-    }
+) -> Result<(), AinariError> {
+    create_ch_virtual_machine(virtual_machine_uuid, &task_info.context)
+        .await
+        .map(|_| ())
 }
 
 /// Handles the task, which deletes the virtual machine completely from this host.
 ///
-/// A failure is only logged here, because the task-processing must not be stopped by a single
-/// virtual machine, which could not be deleted.
+/// A failure is returned, so the task is marked as failed.
 ///
 /// # Arguments
 ///
@@ -228,169 +219,57 @@ async fn handle_vm_deletion(
     virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineDeleteInfo,
-) {
-    if let Err(e) = delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await {
-        log::error!("Failed to delete VM {virtual_machine_uuid}: {e}");
-    }
+) -> Result<(), AinariError> {
+    delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
 }
 
-// /// Handles the task of saving a virtual_machine checkpoint.
-// ///
-// /// This function creates a checkpoint of the virtual_machine, encrypts it, and uploads it to the specified
-// /// storage location. It manages temporary files and updates the task state in the database.
-// ///
-// /// # Arguments
-// ///
-// /// * `task_uuid` - Unique identifier for the task
-// /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
-// /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-// /// * `task_info` - Mutable reference to checkpoint save information containing storage details
-// fn handle_checkpoint_save_task(
-//     task_uuid: &Uuid,
-//     virtual_machine_uuid: &Uuid,
-//     _: &mut TaskMeta,
-//     task_info: &mut CheckpointSaveInfo,
-// ) {
-//     // create file-paths for temporary files
-//     let local_temp_file_path = format!(
-//         "{}/{}",
-//         config::CONFIG.storage.tempfile_location,
-//         virtual_machine_uuid
-//     );
-//     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
+/// Handles the task, which saves the root-disk of the virtual_machine as snapshot.
+///
+/// A failure is returned, so the task is marked as failed.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to save
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to create the snapshot
+async fn handle_vm_snapshot(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachineSnapshotInfo,
+) -> Result<(), AinariError> {
+    save_ch_virtual_machine(
+        virtual_machine_uuid,
+        &task_info.image_uuid,
+        &task_info.context,
+    )
+    .await
+}
 
-//     {
-//         // let virtual_machine_handler = MODEL_HANDLER.read().expect("mutex poisoned");
-//         // match virtual_machine_handler.create_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
-//         //     Ok(()) => {}
-//         //     Err(_) => {
-//         //         let _ = fs::remove_file(&local_temp_file_path);
-//         //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-//         //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//         //         return;
-//         //     }
-//         // }
-
-//         // Create a single-threaded runtime
-//         let rt = Builder::new_current_thread()
-//             .enable_all() // I/O & timers
-//             .build()
-//             .expect("failed to build runtime");
-
-//         // LocalSet allows spawn_local to work
-//         let local = LocalSet::new();
-//         let upload_resp = local.block_on(&rt, async {
-//             encrypt_file(
-//                 &local_temp_file_path,
-//                 &local_encrypted_temp_file_path,
-//                 &task_info.secret,
-//             )
-//             .await?;
-//             upload_file(
-//                 &task_info.onsen_address,
-//                 &task_info.file_path,
-//                 &local_encrypted_temp_file_path,
-//             )
-//             .await
-//         });
-
-//         match upload_resp {
-//             Ok(()) => {}
-//             Err(_) => {
-//                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-//                 let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//                 return;
-//             }
-//         }
-
-//         let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-//         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//     }
-
-//     let _ = fs::remove_file(&local_temp_file_path);
-//     let _ = fs::remove_file(&local_encrypted_temp_file_path);
-// }
-
-// /// Handles the task of restoring a virtual_machine from a checkpoint.
-// ///
-// /// This function downloads an encrypted checkpoint file, decrypts it, and restores the virtual_machine from
-// /// the checkpoint. It manages temporary files and updates the task state in the database.
-// ///
-// /// # Arguments
-// ///
-// /// * `task_uuid` - Unique identifier for the task
-// /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
-// /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-// /// * `task_info` - Mutable reference to checkpoint restore information containing storage details
-// fn handle_checkpoint_restore_task(
-//     task_uuid: &Uuid,
-//     _: &mut TaskMeta,
-//     task_info: &mut CheckpointRestoreInfo,
-// ) {
-//     // create file-paths for temporary files
-//     let local_temp_file_path = format!(
-//         "{}/{}",
-//         config::CONFIG.storage.tempfile_location,
-//         Uuid::new_v4()
-//     );
-//     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
-
-//     {
-//         // Create a single-threaded runtime
-//         let rt = Builder::new_current_thread()
-//             .enable_all() // I/O & timers
-//             .build()
-//             .expect("failed to build runtime");
-
-//         // LocalSet allows spawn_local to work
-//         let local = LocalSet::new();
-//         let download_resp = local.block_on(&rt, async {
-//             let resp = download_file(
-//                 &task_info.onsen_address,
-//                 &task_info.file_path,
-//                 &local_encrypted_temp_file_path,
-//             )
-//             .await;
-//             decrypt_file(
-//                 &local_encrypted_temp_file_path,
-//                 &local_temp_file_path,
-//                 &task_info.secret,
-//             )
-//             .await?;
-
-//             resp
-//         });
-
-//         match download_resp {
-//             Ok(()) => {}
-//             Err(e) => {
-//                 log::error!("Error in checkpoint-restore-task: {e}");
-//                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-//                 let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//                 return;
-//             }
-//         }
-
-//         // // restore virtual_machine from the downloaded and decrypted checkpoint-file
-//         // let mut virtual_machine_handler = MODEL_HANDLER.write().expect("mutex poisoned");
-//         // match virtual_machine_handler.restore_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
-//         //     Ok(()) => {}
-//         //     Err(_) => {
-//         //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-//         //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//         //         return;
-//         //     }
-//         // }
-
-//         // delete temporary checkpoint-file
-//         let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-//         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-//     }
-
-//     // cleanup temp-files
-//     let _ = fs::remove_file(&local_temp_file_path);
-//     let _ = fs::remove_file(&local_encrypted_temp_file_path);
-// }
+/// Handles the task, which resets the root-disk of the virtual_machine to a snapshot.
+///
+/// A failure is returned, so the task is marked as failed.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to reset
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to restore the snapshot
+async fn handle_vm_restore(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachineRestoreInfo,
+) -> Result<(), AinariError> {
+    restore_ch_virtual_machine(
+        virtual_machine_uuid,
+        &task_info.image_uuid,
+        &task_info.context,
+    )
+    .await
+}
 
 /// Removes a directory and all its contents from the filesystem.
 ///

@@ -24,21 +24,25 @@ import (
 	"fmt"
 )
 
-func CreateCheckpointSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
+// CreateSnapshotSaveTask saves the root-disk of a virtual machine as new snapshot-image. The virtual
+// machine is only paused during the copy, so data, which is still in its memory, is missing in the
+// snapshot. Run `sync` inside the virtual machine right before creating the snapshot.
+func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_save", virtual_machineUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_save", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
 	}
 	return SendPost(context, address, path, jsonBody)
 }
 
-func CreateCheckpointRestoreTask(context AccessContext, toriiPort int, name, virtual_machineUuid, checkpointUuid string) (map[string]interface{}, error) {
+// CreateSnapshotRestoreTask resets the root-disk of a virtual machine to an image, which must be a
+// snapshot.
+func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, virtual_machineUuid, imageUuid string) (map[string]interface{}, error) {
 	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
-	path := fmt.Sprintf("v1alpha/virtual_machine/%s/checkpoint_restore", virtual_machineUuid)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
-		"name":            name,
-		"checkpoint_uuid": checkpointUuid,
+		"image_uuid": imageUuid,
 	}
 	return SendPost(context, address, path, jsonBody)
 }

@@ -71,13 +71,13 @@ pub async fn create_virtual_machine(
         )?;
 
     // prepare task-info
-    let task_name = format!(
+    let task_description = format!(
         "Create virtual machine with UUID {}",
         virtual_machine_data.uuid
     );
     let info = CloudHypervisorVirtualMachineCreateInfo {
         vm_uuid: virtual_machine_data.uuid,
-        name: task_name.clone(),
+        description: task_description.clone(),
         context: context.clone(),
     };
 
@@ -90,7 +90,7 @@ pub async fn create_virtual_machine(
         uuid: task_uuid,
         resouce_uuid: *virtual_machine_uuid,
         resource_type: TaskResourceType::VirtualMachine,
-        name: task_name.clone(),
+        description: task_description.clone(),
         info: TaskVariant::CloudHypervisorVirtualMachineCreate(info),
         meta: TaskMeta::new(),
     };
@@ -107,7 +107,7 @@ pub async fn create_virtual_machine(
 
     let resp = TaskResp {
         uuid: task_uuid,
-        name: task_data.name,
+        description: task_data.description,
         task_type: task_data.task_type,
         state: task_data.task_state,
         queued_at: task_data.queued_at,
@@ -115,7 +115,6 @@ pub async fn create_virtual_machine(
         finished_at: task_data.finished_at,
         messages: task_data.messages,
         created_by: task_data.created_by,
-        created_at: task_data.created_at,
     };
 
     Ok(CreatedJson(resp))

@@ -18,12 +18,17 @@ from .access_context import AccessContext
 import time
 
 
-def create_checkpoint_save_task(context: AccessContext,
-                                torii_port: int,
-                                virtual_machine_uuid: str,
-                                name: str) -> dict:
+def create_snapshot_save_task(context: AccessContext,
+                              torii_port: int,
+                              virtual_machine_uuid: str,
+                              name: str) -> dict:
+    """
+    Saves the root-disk of a virtual machine as new snapshot-image. The virtual machine is only
+    paused during the copy, so data, which is still in its memory, is missing in the snapshot.
+    Run `sync` inside the virtual machine right before creating the snapshot.
+    """
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_save"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save"
     json_body = {
         "name": name,
     }
@@ -33,16 +38,17 @@ def create_checkpoint_save_task(context: AccessContext,
                                             json_body)
 
 
-def create_checkpoint_restore_task(context: AccessContext,
-                                   torii_port: int,
-                                   virtual_machine_uuid: str,
-                                   name: str,
-                                   checkpoint_uuid: str) -> dict:
+def create_snapshot_restore_task(context: AccessContext,
+                                 torii_port: int,
+                                 virtual_machine_uuid: str,
+                                 image_uuid: str) -> dict:
+    """
+    Resets the root-disk of a virtual machine to an image, which must be a snapshot.
+    """
     address = f"{context.torii_base_address}:{torii_port}"
-    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/checkpoint_restore"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore"
     json_body = {
-        "name": name,
-        "checkpoint_uuid": checkpoint_uuid,
+        "image_uuid": image_uuid,
     }
     return ainari_request.send_post_request(context,
                                             address,

@@ -83,32 +83,26 @@ const errorPopupMsg = ref<string>("");
 const fields: { key: keyof QuotaSetReq; label: string }[] = [
     { key: "max_virtual_machine", label: "Maximum Virtual Machines" },
     { key: "max_image", label: "Maximum Images" },
-    { key: "max_checkpoint", label: "Maximum Checkpoints" },
     { key: "max_secret", label: "Maximum Secrets" },
     { key: "max_network", label: "Maximum Networks" },
     { key: "max_floating_ip", label: "Maximum Floating IPs" },
-    { key: "max_taskqueue", label: "Maximum Taskqueue" },
 ];
 
 // the values are edited on a copy, so that a cancel leaves the table untouched
 const values = reactive<QuotaSetReq>({
     max_virtual_machine: props.quota?.max_virtual_machine ?? 0,
     max_image: props.quota?.max_image ?? 0,
-    max_checkpoint: props.quota?.max_checkpoint ?? 0,
     max_secret: props.quota?.max_secret ?? 0,
     max_network: props.quota?.max_network ?? 0,
     max_floating_ip: props.quota?.max_floating_ip ?? 0,
-    max_taskqueue: props.quota?.max_taskqueue ?? 0,
 });
 
 const errors = reactive<Record<keyof QuotaSetReq, boolean>>({
     max_virtual_machine: false,
     max_image: false,
-    max_checkpoint: false,
     max_secret: false,
     max_network: false,
     max_floating_ip: false,
-    max_taskqueue: false,
 });
 
 async function handleAccept() {

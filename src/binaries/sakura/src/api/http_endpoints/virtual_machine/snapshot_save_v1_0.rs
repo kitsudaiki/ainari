@@ -18,8 +18,10 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::http_endpoints::virtual_machine::get_secret;
 use crate::config;
+use crate::core::processing::tasks::{
+    CloudHypervisorVirtualMachineSnapshotInfo, Task, TaskMeta, TaskVariant,
+};
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
 
@@ -27,22 +29,29 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::checkpoint::*;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::image::init_image_in_ryokan;
 
 #[api_operation(
     tag = "task",
-    summary = "Create new checkpoint-save-task",
-    description = r###"Create a new task,
+    summary = "Create new snapshot-save-task",
+    description = r###"Create a new task, which saves the root-disk of a virtual_machine as new snapshot.
 
-which saves the current state of a virtual_machine as new checkpoint."###,
+The snapshot is registered in ryokan as image, which is marked as snapshot, before the task is
+queued, so the image-quota of the user is checked immediately. The task encrypts the root-disk
+and uploads it into the onsen.
+
+The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly
+before, can still be in the memory of the virtual_machine and is then missing in the snapshot.
+Run `sync` inside the virtual_machine right before creating the snapshot."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
-pub async fn checkpoint_save_task(
-    body: Json<TaskCheckpointSaveReq>,
+pub async fn snapshot_save_task(
+    body: Json<TaskSnapshotSaveReq>,
     virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
@@ -51,46 +60,57 @@ pub async fn checkpoint_save_task(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let _task_type = TaskType::CheckpointSave;
+    let task_type = TaskType::SnapshotSave;
 
     // check if virtual_machine exist
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    let virtual_machine_data =
+        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
+            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
+        )?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
 
-    let checkpoint_create_resp = init_checkpoint(
+    // register the snapshot in ryokan as image, which also generates the secret for its
+    // encryption
+    let image_uuid = Uuid::new_v4();
+    init_image_in_ryokan(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &task_uuid,
+        &image_uuid,
         &body.name,
+        true,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let _secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
-
     // prepare task-info
-    // let info = CheckpointSaveInfo {
-    //     onsen_address: checkpoint_create_resp.onsen_address,
-    //     file_path: checkpoint_create_resp.file_path,
-    //     secret,
-    // };
+    let task_description = format!(
+        "Create snapshot-image {image_uuid} of virtual machine with UUID {}",
+        virtual_machine_data.uuid
+    );
+    let info = CloudHypervisorVirtualMachineSnapshotInfo {
+        vm_uuid: virtual_machine_data.uuid,
+        image_uuid,
+        description: task_description.clone(),
+        context: context.clone(),
+    };
 
-    // // create new task
-    // let task = Task {
-    //     uuid: task_uuid,
-    //     resouce_uuid: virtual_machine_uuid.clone(),
-    //     resource_type: TaskResourceType::VirtualMachine,
-    //     name: body.name.clone(),
-    //     info: TaskVariant::CheckpointSave(info),
-    //     meta: TaskMeta::new(1, 1, 1, 0),
-    // };
-    // super::super::task::add_task(task, &task_type, &context)?;
+    // create new task, which is processed by the same worker-thread as all other tasks of the
+    // virtual_machine, so the snapshot can not overtake its creation
+    let task = Task {
+        uuid: task_uuid,
+        resouce_uuid: *virtual_machine_uuid,
+        resource_type: TaskResourceType::VirtualMachine,
+        description: task_description,
+        info: TaskVariant::CloudHypervisorVirtualMachineSnapshot(info),
+        meta: TaskMeta::new(),
+    };
+    super::super::task::add_task(task, &task_type, &context)
+        .inspect_err(|e| log::error!("Creating a snapshot-task failed with error: {e}"))?;
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)
@@ -98,7 +118,7 @@ pub async fn checkpoint_save_task(
 
     let resp = TaskResp {
         uuid: task_uuid,
-        name: task_data.name,
+        description: task_data.description,
         task_type: task_data.task_type,
         state: task_data.task_state,
         queued_at: task_data.queued_at,
@@ -106,7 +126,6 @@ pub async fn checkpoint_save_task(
         finished_at: task_data.finished_at,
         messages: task_data.messages,
         created_by: task_data.created_by,
-        created_at: task_data.created_at,
     };
 
     Ok(CreatedJson(resp))

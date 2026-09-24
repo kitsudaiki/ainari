@@ -34,13 +34,6 @@
             />
         </div>
         <div class="card gauge-chart-card">
-            <div class="card-label">Checkpoints</div>
-            <GaugeChart
-                :value="quotaMetrics.checkpoints.used"
-                :max="quotaMetrics.checkpoints.max"
-            />
-        </div>
-        <div class="card gauge-chart-card">
             <div class="card-label">Secrets</div>
             <GaugeChart
                 :value="quotaMetrics.secrets.used"
@@ -124,7 +117,6 @@ const errorPopupMsg = ref<string>("");
 const quotaMetrics = reactive({
     virtualMachines: { used: 0, max: 1 },
     images: { used: 0, max: 1 },
-    checkpoints: { used: 0, max: 1 },
     secrets: { used: 0, max: 1 },
     networks: { used: 0, max: 1 },
     floatingIps: { used: 0, max: 1 },
@@ -154,7 +146,6 @@ async function fetchQuotas() {
 
         quotaMetrics.virtualMachines.max = quota.max_virtual_machine;
         quotaMetrics.images.max = quota.max_image;
-        quotaMetrics.checkpoints.max = quota.max_checkpoint;
         quotaMetrics.secrets.max = quota.max_secret;
         quotaMetrics.networks.max = quota.max_network;
         quotaMetrics.floatingIps.max = quota.max_floating_ip;
@@ -183,12 +174,12 @@ async function fetchUsage() {
     }
 
     try {
+        // snapshots are images, so they are covered by the image-quota
         quotaMetrics.images.used = await ryokan.getImageCount();
-        quotaMetrics.checkpoints.used = await ryokan.getCheckpointCount();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to load number of images and checkpoints",
+            "Failed to load number of images",
         );
     }
 

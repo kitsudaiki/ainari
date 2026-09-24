@@ -80,7 +80,6 @@ import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import AdminHost from "@/components/admin/host/host_overview.vue";
-import StorageCheckpoint from "@/components/storage/checkpoint/checkpoint_overview.vue";
 import StorageImage from "@/components/storage/image/image_overview.vue";
 import NetworkNetwork from "@/components/network/network/network_overview.vue";
 import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
@@ -120,7 +119,6 @@ const components = {
     AdminProject,
     AdminQuota,
     AdminHost,
-    StorageCheckpoint,
     StorageImage,
     NetworkNetwork,
     NetworkFloatingIp,

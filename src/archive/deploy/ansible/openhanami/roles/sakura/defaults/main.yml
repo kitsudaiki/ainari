@@ -6,7 +6,7 @@ ainari_listen_address: "0.0.0.0"
 ainari_log_dir: "/var/log/sakura"
 
 ainari_dataset_location: "/etc/ainari/datasets"
-ainari_checkpoint_location: "/etc/ainari/checkpoints"
+ainari_snapshot_location: "/etc/ainari/snapshots"
 ainari_tempfile_location: "/etc/ainari/tempfiles"
 
 ainari_use_of_free_memory: 0.5

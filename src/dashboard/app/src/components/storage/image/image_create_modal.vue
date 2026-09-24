@@ -44,20 +44,6 @@
                         >
                             DISK
                         </button>
-                        <button
-                            class="tablinks"
-                            :class="{ active: isSelected('csv') }"
-                            @click="selectTab('csv')"
-                        >
-                            CSV
-                        </button>
-                        <button
-                            class="tablinks"
-                            :class="{ active: isSelected('mnist') }"
-                            @click="selectTab('mnist')"
-                        >
-                            MNIST
-                        </button>
                     </div>
                     <div class="image-tabcontent">
                         <div v-show="selectedTab === 'disk'">
@@ -65,19 +51,6 @@
                             <label>
                                 Boot-disk of the virtual machine:
                                 <input type="file" @change="onFile1Change" />
-                            </label>
-                        </div>
-                        <div v-show="selectedTab === 'csv'">
-                            <br />
-                            <label>
-                                <input type="file" @change="onFile1Change" />
-                            </label>
-                        </div>
-                        <div v-show="selectedTab === 'mnist'">
-                            <br />
-                            <label>
-                                <input type="file" @change="onFile1Change" />
-                                <input type="file" @change="onFile2Change" />
                             </label>
                         </div>
                     </div>
@@ -129,7 +102,6 @@ const form = reactive({
     imageName: "",
 });
 const file1 = ref<File | null>(null);
-const file2 = ref<File | null>(null);
 
 const onFile1Change = (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -138,26 +110,13 @@ const onFile1Change = (event: Event) => {
     }
 };
 
-const onFile2Change = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files.length > 0) {
-        file2.value = target.files[0];
-    }
-};
-
 /**
- * Collects the files, which the currently selected type expects. A mnist-image is
- * built from the image-file together with the label-file, while csv and disk are
- * single files.
+ * Collects the files, which the currently selected type expects. A disk-image is a
+ * single file.
  *
  * @returns The files in the order expected by the endpoint, or null if one is missing
  */
 function collectFiles(): File[] | null {
-    if (selectedTab.value === "mnist") {
-        if (!file1.value || !file2.value) return null;
-        return [file1.value, file2.value];
-    }
-
     if (!file1.value) return null;
     return [file1.value];
 }
@@ -196,7 +155,6 @@ function selectTab(tab: ImageType) {
     selectedTab.value = tab;
     // the files of the previous type do not fit the new one
     file1.value = null;
-    file2.value = null;
     fileError.value = false;
 }
 

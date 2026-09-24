@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod checkpoint_table;
 pub mod db_handle;
 pub mod host_table;
 pub mod image_table;
 
 /// Creates all database-tables of the service, if they not already exist.
 ///
-/// Initializes the host-, image- and checkpoint-tables in order. If one of them fails, the whole
+/// Initializes the host- and image-tables in order. If one of them fails, the whole
 /// initialization fails, because the service can not work with an incomplete database.
 ///
 /// # Returns
@@ -41,15 +40,6 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initilaized image-database-table"),
         Err(e) => {
             log::error!("Failed to initialize image-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize checkpoint-table
-    match checkpoint_table::init_checkpoint_table() {
-        Ok(_) => log::info!("Initilaized checkpoint-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize checkpoint-database-table: {e}");
             return Err(e);
         }
     };
