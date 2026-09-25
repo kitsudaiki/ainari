@@ -147,3 +147,52 @@ export async function createSnapshotRestoreTask(
     );
     return resp.data;
 }
+
+/**
+ * `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/start`
+ *
+ * Creates the task, which boots a stopped virtual-machine again.
+ */
+export async function startVirtualMachine(
+    toriiPort: number,
+    virtualMachineUuid: string,
+): Promise<TaskResp> {
+    const resp = await sakuraClient(toriiPort).post(
+        `/v1alpha/virtual_machine/${virtualMachineUuid}/start`,
+        {},
+    );
+    return resp.data;
+}
+
+/**
+ * `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/stop`
+ *
+ * Creates the task, which shuts down the virtual-machine. It keeps all of its
+ * resources, so it can be started again later.
+ */
+export async function stopVirtualMachine(
+    toriiPort: number,
+    virtualMachineUuid: string,
+): Promise<TaskResp> {
+    const resp = await sakuraClient(toriiPort).post(
+        `/v1alpha/virtual_machine/${virtualMachineUuid}/stop`,
+        {},
+    );
+    return resp.data;
+}
+
+/**
+ * `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/reboot`
+ *
+ * Creates the task, which reboots a running virtual-machine.
+ */
+export async function rebootVirtualMachine(
+    toriiPort: number,
+    virtualMachineUuid: string,
+): Promise<TaskResp> {
+    const resp = await sakuraClient(toriiPort).post(
+        `/v1alpha/virtual_machine/${virtualMachineUuid}/reboot`,
+        {},
+    );
+    return resp.data;
+}

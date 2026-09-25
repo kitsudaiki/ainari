@@ -20,8 +20,11 @@ use ainari_common::error::AinariError;
 
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::reboot_ch_virtual_machine::reboot_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::restore_ch_virtual_machine::restore_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::save_ch_virtual_machine::save_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::start_ch_virtual_machine::start_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::stop_ch_virtual_machine::stop_ch_virtual_machine;
 use crate::database::task_table;
 
 #[derive(Debug)]
@@ -35,6 +38,17 @@ pub struct CloudHypervisorVirtualMachineCreateInfo {
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineDeleteInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+/// Information of the tasks, which only change the power-state of a virtual_machine, like
+/// start, stop and reboot
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachinePowerInfo {
     #[allow(dead_code)]
     pub vm_uuid: Uuid,
     #[allow(dead_code)]
@@ -73,6 +87,9 @@ pub enum TaskVariant {
     CloudHypervisorVirtualMachineDelete(CloudHypervisorVirtualMachineDeleteInfo),
     CloudHypervisorVirtualMachineSnapshot(CloudHypervisorVirtualMachineSnapshotInfo),
     CloudHypervisorVirtualMachineRestore(CloudHypervisorVirtualMachineRestoreInfo),
+    CloudHypervisorVirtualMachineStart(CloudHypervisorVirtualMachinePowerInfo),
+    CloudHypervisorVirtualMachineStop(CloudHypervisorVirtualMachinePowerInfo),
+    CloudHypervisorVirtualMachineReboot(CloudHypervisorVirtualMachinePowerInfo),
 }
 
 /// Metadata for tracking the state of a task.
@@ -168,6 +185,15 @@ impl Task {
             }
             TaskVariant::CloudHypervisorVirtualMachineRestore(task_info) => {
                 handle_vm_restore(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineStart(task_info) => {
+                handle_vm_start(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineStop(task_info) => {
+                handle_vm_stop(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineReboot(task_info) => {
+                handle_vm_reboot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
         }
     }
@@ -269,6 +295,63 @@ async fn handle_vm_restore(
         &task_info.context,
     )
     .await
+}
+
+/// Handles the task, which boots the virtual_machine.
+///
+/// A failure is returned, so the task is marked as failed.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to start
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to start the virtual machine
+async fn handle_vm_start(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachinePowerInfo,
+) -> Result<(), AinariError> {
+    start_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
+}
+
+/// Handles the task, which shuts down the virtual_machine.
+///
+/// A failure is returned, so the task is marked as failed.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to stop
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to stop the virtual machine
+async fn handle_vm_stop(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachinePowerInfo,
+) -> Result<(), AinariError> {
+    stop_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
+}
+
+/// Handles the task, which reboots the virtual_machine.
+///
+/// A failure is returned, so the task is marked as failed.
+///
+/// # Arguments
+///
+/// * `_task_uuid` - Unique identifier for the task
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to reboot
+/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+/// * `task_info` - Information, which is needed to reboot the virtual machine
+async fn handle_vm_reboot(
+    _task_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
+    _: &mut TaskMeta,
+    task_info: &mut CloudHypervisorVirtualMachinePowerInfo,
+) -> Result<(), AinariError> {
+    reboot_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
 }
 
 /// Removes a directory and all its contents from the filesystem.

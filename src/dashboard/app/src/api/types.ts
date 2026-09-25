@@ -333,7 +333,10 @@ export type TaskType =
     | "VirtualMachineCreate"
     | "VirtualMachineDelete"
     | "SnapshotSave"
-    | "SnapshotRestore";
+    | "SnapshotRestore"
+    | "VirtualMachineStart"
+    | "VirtualMachineStop"
+    | "VirtualMachineReboot";
 
 /** Mirror of `task_structs::TaskState`. */
 export type TaskState =
