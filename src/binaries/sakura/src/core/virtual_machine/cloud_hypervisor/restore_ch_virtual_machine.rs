@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use std::fs;
-use std::path::Path;
 
 use cloud_hypervisor_client::apis::DefaultApi;
-use cloud_hypervisor_client::socket_based_api_client;
+use cloud_hypervisor_client::models::VmState;
 use uuid::Uuid;
 
 use ainari_api::common_functions::*;
@@ -30,18 +29,20 @@ use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 
 use super::create_ch_virtual_machine::{get_secret, run_command};
-use super::{snapshot_temp_directory, vm_socket_path};
+use super::{connect_to_vmm, mark_error_on_failure, set_vm_state, snapshot_temp_directory};
 use crate::config;
 use crate::database::virtual_machine_table;
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Resets the root-disk of an existing cloud-hypervisor virtual_machine to the state of a snapshot
 ///
 /// Only images, which are marked as snapshot, are accepted. A running virtual_machine is shut down
-/// first. Then the image is downloaded from the onsen into the temp-directory, decrypted with its
-/// secret from omamori and converted into a new raw-disk, which replaces the root-disk. At the
-/// end the virtual_machine is booted again, also if the restore failed, so it doesn't stay down.
-/// In case of a failure the old root-disk is kept, because it is only replaced after the new disk
-/// was completely written.
+/// first and marked as restoring. Then the image is downloaded from the onsen into the
+/// temp-directory, decrypted with its secret from omamori and converted into a new raw-disk, which
+/// replaces the root-disk. At the end the virtual_machine is booted and marked as running, also if
+/// the restore failed, so it doesn't stay down. If the boot fails, it is marked as error. In case
+/// of a failure the old root-disk is kept, because it is only replaced after the new disk was
+/// completely written.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to reset
@@ -86,29 +87,34 @@ pub async fn restore_ch_virtual_machine(
 
     log::info!("Start restore of snapshot-image {image_uuid} into VM {uuid}");
 
-    // a virtual_machine without cloud-hypervisor process doesn't use its disk
-    let socket_path = vm_socket_path(uuid);
-    let client = if Path::new(&socket_path).exists() {
-        let client = socket_based_api_client(&socket_path);
+    // the cloud-hypervisor process is required to boot the virtual_machine after the restore
+    let (client, state) = match connect_to_vmm(uuid, context).await {
+        Ok(vmm) => vmm,
+        Err(e) => return mark_error_on_failure(uuid, context, Err(e)),
+    };
+
+    // a failed shutdown doesn't change the state, because the virtual_machine still runs then
+    if matches!(state, VmState::Running | VmState::Paused) {
         client
             .shutdown_vm()
             .await
             .map_err(|e| AinariError::InternalError(format!("Shutdown VM {uuid} failed: {e:?}")))?;
-        Some(client)
-    } else {
-        None
-    };
+    }
+    // the virtual_machine is already shut down, so a failure here must not skip its boot below
+    if let Err(e) = set_vm_state(uuid, VirtualMachineState::Restoring, context) {
+        log::error!("Failed to mark VM {uuid} as restoring: {e}");
+    }
 
     let restore_result = replace_root_disk(image_uuid, &image_resp, &secret, &root_disk_path).await;
 
     // the cloud-hypervisor process keeps the configuration of the virtual_machine while it is
     // shut down and opens the disk again at boot, so the virtual_machine starts with the new disk
-    if let Some(client) = client {
-        client
-            .boot_vm()
-            .await
-            .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
-    }
+    let boot_result = client
+        .boot_vm()
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")));
+    mark_error_on_failure(uuid, context, boot_result)?;
+    set_vm_state(uuid, VirtualMachineState::Running, context)?;
     restore_result?;
 
     log::info!("Snapshot-image {image_uuid} restored into VM {uuid}");

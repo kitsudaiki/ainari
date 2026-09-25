@@ -19,9 +19,13 @@ use uuid::Uuid;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
-use super::connect_to_vmm;
+use super::{connect_to_vmm, mark_error_on_failure, set_vm_state};
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Reboots a running cloud-hypervisor virtual_machine
+///
+/// The virtual_machine is marked as running afterwards, or as error, if the reboot failed. A
+/// virtual_machine, which doesn't run, is rejected without changing its state.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to reboot
@@ -34,6 +38,20 @@ pub async fn reboot_ch_virtual_machine(
     uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), AinariError> {
+    let result = reboot_vm(uuid, context).await;
+    mark_error_on_failure(uuid, context, result)
+}
+
+/// Reboots the virtual_machine, if it is booted
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine to reboot
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` if the virtual_machine was rebooted
+/// * `Err(AinariError)` if the virtual_machine doesn't run or the reboot failed
+async fn reboot_vm(uuid: &Uuid, context: &UserContext) -> Result<(), AinariError> {
     let (client, state) = connect_to_vmm(uuid, context).await?;
 
     // cloud-hypervisor can only reboot a booted virtual_machine
@@ -50,5 +68,5 @@ pub async fn reboot_ch_virtual_machine(
         .map_err(|e| AinariError::InternalError(format!("Reboot VM {uuid} failed: {e:?}")))?;
     log::info!("VM {uuid} rebooted");
 
-    Ok(())
+    set_vm_state(uuid, VirtualMachineState::Running, context)
 }

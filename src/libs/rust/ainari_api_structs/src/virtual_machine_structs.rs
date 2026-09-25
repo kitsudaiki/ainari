@@ -56,7 +56,8 @@ pub struct VirtualMachineInternalCreateReq {
 pub struct VirtualMachineResp {
     pub uuid: Uuid,
     pub name: String,
-    pub is_created: bool,
+    /// Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPED, RESTORING or ERROR
+    pub vm_state: String,
     pub number_of_cores: i32,
     /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
     pub memory_size: i64,

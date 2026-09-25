@@ -19,6 +19,7 @@ use ainari_common::error::AinariError;
 
 use crate::config;
 use crate::database::virtual_machine_table;
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Path of the API-socket of the cloud-hypervisor process of a virtual_machine
 ///
@@ -115,4 +116,53 @@ pub(super) async fn connect_to_vmm(
         .map_err(|e| AinariError::InternalError(format!("Get info of VM {uuid} failed: {e:?}")))?;
 
     Ok((client, vm_info.state))
+}
+
+/// Stores a new state of a virtual_machine in the database
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `state` - New state of the virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` if the state was stored
+/// * `Err(AinariError)` if the virtual_machine doesn't exist or the database failed
+pub(super) fn set_vm_state(
+    uuid: &Uuid,
+    state: VirtualMachineState,
+    context: &UserContext,
+) -> Result<(), AinariError> {
+    log::debug!("Set state of VM {uuid} to {state}");
+    virtual_machine_table::update_virtual_machine_state(uuid, &state, context)
+        .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))
+}
+
+/// Marks a virtual_machine as error, if an operation failed, which should bring it into the
+/// running state
+///
+/// Rejected requests, which are signaled by `AinariError::InvalidInput`, don't change the state,
+/// because the virtual_machine was not touched by them. The original result is always returned,
+/// also if the error-state could not be stored.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `context` - User context containing authentication information
+/// * `result` - Result of the operation
+///
+/// # Returns
+/// * The unchanged `result` of the operation
+pub(super) fn mark_error_on_failure<T>(
+    uuid: &Uuid,
+    context: &UserContext,
+    result: Result<T, AinariError>,
+) -> Result<T, AinariError> {
+    if let Err(e) = &result {
+        if !matches!(e, AinariError::InvalidInput(_)) {
+            if let Err(state_err) = set_vm_state(uuid, VirtualMachineState::Error, context) {
+                log::error!("Failed to mark VM {uuid} as error: {state_err}");
+            }
+        }
+    }
+    result
 }

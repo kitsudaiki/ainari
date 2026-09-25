@@ -81,7 +81,7 @@ pub async fn reserve_virtual_machine_internal(
     let resp = VirtualMachineResp {
         uuid: virtual_machine_uuid,
         name: virtual_machine_data.name,
-        is_created: virtual_machine_data.is_created,
+        vm_state: virtual_machine_data.vm_state,
         number_of_cores: virtual_machine_data.number_of_cores,
         memory_size: virtual_machine_data.memory_size,
         disk_size: virtual_machine_data.disk_size,

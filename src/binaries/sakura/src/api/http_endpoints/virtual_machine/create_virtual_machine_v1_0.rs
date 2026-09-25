@@ -24,6 +24,7 @@ use crate::core::processing::tasks::{
 };
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -61,6 +62,14 @@ pub async fn create_virtual_machine(
         &virtual_machine_uuid,
         &body.image_uuid,
         &body.public_key_uuid,
+        &context,
+    )
+    .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+
+    // mark the virtual_machine as created, before the task for its creation is queued
+    virtual_machine_table::update_virtual_machine_state(
+        &virtual_machine_uuid,
+        &VirtualMachineState::Created,
         &context,
     )
     .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;

@@ -179,13 +179,16 @@ def reserve_and_create_virtual_machine(context,
 
 def wait_for_created_virtual_machine(context, virtual_machine_uuid: str) -> dict:
     """
-    Waits until the sakura-host reports the virtual machine as created and returns its data.
+    Waits until the sakura-host reports the virtual machine as running and returns its data.
     """
     end_time = time.time() + VM_CREATE_TIMEOUT
     while time.time() < end_time:
         virtual_machine_data = virtual_machine.get_virtual_machine(context, virtual_machine_uuid)
-        if virtual_machine_data.get("is_created"):
+        vm_state = virtual_machine_data.get("vm_state")
+        if vm_state == "RUNNING":
             return virtual_machine_data
+        if vm_state == "ERROR":
+            raise RuntimeError(f"creation of virtual machine '{virtual_machine_uuid}' failed")
         time.sleep(2.0)
 
     raise TimeoutError(
