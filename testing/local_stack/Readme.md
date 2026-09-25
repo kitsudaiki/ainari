@@ -91,7 +91,7 @@ python3 -m venv .venv
 
     ainarictl network create -s 192.168.100.1/24 local-net
     ainarictl vm create -c 2 -m 2147483648 -u NETWORK_UUID -i IMAGE_UUID -k KEY_UUID vm1
-    ainarictl vm get VM_UUID                 # repeat, until 'is_created' is true
+    ainarictl vm get VM_UUID                 # repeat, until 'vm_state' is RUNNING
     ainarictl floating_ip add -n vm1-fip -u NETWORK_UUID -i INTERNAL_IP
     ```
 

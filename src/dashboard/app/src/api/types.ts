@@ -157,11 +157,20 @@ export interface VirtualMachineBasicResp {
     disk_size: number;
 }
 
+/** Allowed values of `virtual_machine_structs::VirtualMachineResp::vm_state`. */
+export type VirtualMachineState =
+    | "RESERVED"
+    | "CREATED"
+    | "RUNNING"
+    | "STOPED"
+    | "RESTORING"
+    | "ERROR";
+
 /** Mirror of `virtual_machine_structs::VirtualMachineResp`. */
 export interface VirtualMachineResp {
     uuid: string;
     name: string;
-    is_created: boolean;
+    vm_state: VirtualMachineState;
     number_of_cores: number;
     /** memory in MiB */
     memory_size: number;

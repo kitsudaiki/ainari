@@ -32,21 +32,8 @@
                             <td>{{ info.name }}</td>
                         </tr>
                         <tr>
-                            <td>Is Created</td>
-                            <td>
-                                <div class="bool-icon">
-                                    <img
-                                        v-if="info.is_created"
-                                        :src="icons.acceptIcon"
-                                        alt="True"
-                                    />
-                                    <img
-                                        v-else
-                                        :src="icons.cancelIcon"
-                                        alt="False"
-                                    />
-                                </div>
-                            </td>
+                            <td>State</td>
+                            <td>{{ info.vm_state }}</td>
                         </tr>
                         <tr>
                             <td>Number of Cores</td>

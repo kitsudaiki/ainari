@@ -30,7 +30,7 @@ table! {
     virtual_machines (uuid) {
         uuid -> Varchar,
         name -> Varchar,
-        is_created -> Bool,
+        vm_state -> Varchar,
         number_of_cores -> Integer,
         memory_size -> BigInt,
         disk_size -> BigInt,
@@ -61,7 +61,8 @@ pub struct VirtualMachineEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
     pub name: String,
-    pub is_created: bool,
+    /// Power-state of the virtual_machine, see `VirtualMachineState`
+    pub vm_state: String,
     pub number_of_cores: i32,
     pub memory_size: i64,
     pub disk_size: i64,
@@ -102,7 +103,7 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
         "CREATE TABLE IF NOT EXISTS virtual_machines (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
-        is_created BOOL,
+        vm_state VARCHAR(16) NOT NULL DEFAULT 'RESERVED',
         number_of_cores INTEGER,
         memory_size INTEGER,
         image_uuid VARCHAR(40),
@@ -135,7 +136,60 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => return Err(e.into()),
     }
 
+    // `vm_state` replaced the old boolean `is_created`. Tables of older versions get the new
+    // column, where created virtual_machines are handled as running, and the old column is
+    // removed afterwards.
+    match conn.batch_execute(
+        "ALTER TABLE virtual_machines ADD COLUMN vm_state VARCHAR(16) NOT NULL DEFAULT 'RESERVED';",
+    ) {
+        Ok(()) => {
+            conn.batch_execute(
+                "UPDATE virtual_machines SET vm_state = 'RUNNING' WHERE is_created = 1;
+                ALTER TABLE virtual_machines DROP COLUMN is_created;",
+            )?;
+        }
+        Err(e) if e.to_string().contains("duplicate column name") => {}
+        Err(e) => return Err(e.into()),
+    }
+
     Ok(())
+}
+
+/// Allowed values of the `vm_state` column of a virtual_machine
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VirtualMachineState {
+    /// The virtual_machine is reserved on this host, but not created yet
+    Reserved,
+    /// The task, which creates the virtual_machine, is queued or in progress
+    Created,
+    /// The virtual_machine is booted
+    Running,
+    /// The virtual_machine was powered off
+    Stoped,
+    /// The root-disk of the virtual_machine is reset to a snapshot
+    Restoring,
+    /// Something blocks the start of the virtual_machine
+    Error,
+}
+
+impl VirtualMachineState {
+    /// Value of the state, like it is stored in the database
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VirtualMachineState::Reserved => "RESERVED",
+            VirtualMachineState::Created => "CREATED",
+            VirtualMachineState::Running => "RUNNING",
+            VirtualMachineState::Stoped => "STOPED",
+            VirtualMachineState::Restoring => "RESTORING",
+            VirtualMachineState::Error => "ERROR",
+        }
+    }
+}
+
+impl std::fmt::Display for VirtualMachineState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 /// Values of a new virtual_machine, which are provided by the caller of `add_new_virtual_machine`
@@ -186,7 +240,7 @@ pub fn add_new_virtual_machine(
     let virtual_machine = VirtualMachineEntry {
         uuid: new_virtual_machine.uuid,
         name: new_virtual_machine.name,
-        is_created: false,
+        vm_state: VirtualMachineState::Reserved.to_string(),
         number_of_cores: new_virtual_machine.number_of_cores,
         memory_size: new_virtual_machine.memory_size,
         disk_size: new_virtual_machine.disk_size,
@@ -368,7 +422,6 @@ pub fn set_virtual_machine_image(
 }
 
 /// Updates the image, public-key, seed-image and root-disk of an existing virtual_machine
-/// and marks it as created
 ///
 /// # Arguments
 /// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to update
@@ -399,11 +452,48 @@ pub fn update_virtual_machine(
     // Update the values and set the update timestamp and user
     match diesel::update(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
         .set((
-            is_created.eq(true),
             image_uuid.eq(new_image_uuid.to_string()),
             public_key_uuid.eq(new_public_key_uuid.to_string()),
             seed_path.eq(new_seed_path),
             root_disk_path.eq(new_root_disk_path),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Updates the power-state of an existing virtual_machine
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to update
+/// * `new_vm_state` - New state of the virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err(enums::DbError)` with an appropriate error on failure
+pub fn update_virtual_machine_state(
+    virtual_machine_uuid: &Uuid,
+    new_vm_state: &VirtualMachineState,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // First verify that the virtual_machine exists and the user has permission to update it
+    get_virtual_machine(virtual_machine_uuid, context)?;
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    match diesel::update(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
+        .set((
+            vm_state.eq(new_vm_state.as_str()),
             updated_at.eq(Utc::now().to_rfc3339()),
             updated_by.eq(context.user_id.clone()),
         ))
@@ -513,7 +603,7 @@ mod tests {
         let virtual_machine = VirtualMachineEntry {
             uuid: uuid1,
             name: "Alice".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 2,
             memory_size: 4096,
             disk_size: 10,
@@ -543,10 +633,7 @@ mod tests {
             Ok(retrieved_virtual_machine) => {
                 assert_eq!(retrieved_virtual_machine.uuid, virtual_machine.uuid);
                 assert_eq!(retrieved_virtual_machine.name, virtual_machine.name);
-                assert_eq!(
-                    retrieved_virtual_machine.is_created,
-                    virtual_machine.is_created
-                );
+                assert_eq!(retrieved_virtual_machine.vm_state, virtual_machine.vm_state);
                 assert_eq!(
                     retrieved_virtual_machine.number_of_cores,
                     virtual_machine.number_of_cores
@@ -639,7 +726,7 @@ mod tests {
         let virtual_machine1 = VirtualMachineEntry {
             uuid: uuid1,
             name: "Alice".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 2,
             memory_size: 4096,
             disk_size: 10,
@@ -665,7 +752,7 @@ mod tests {
         let virtual_machine2 = VirtualMachineEntry {
             uuid: uuid2,
             name: "Bob".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 2,
             memory_size: 4096,
             disk_size: 10,
@@ -718,7 +805,7 @@ mod tests {
         let virtual_machine = VirtualMachineEntry {
             uuid: uuid1,
             name: "Alice".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 2,
             memory_size: 4096,
             disk_size: 10,
@@ -751,6 +838,61 @@ mod tests {
 
     #[test]
     #[serial]
+    fn test_update_virtual_machine_state() {
+        let _ = init_virtual_machine_table();
+        let uuid1 = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            is_project_admin: false.to_string(),
+        };
+
+        hard_delete_virtual_machine(&uuid1);
+
+        let new_virtual_machine = NewVirtualMachine {
+            uuid: uuid1,
+            name: "Alice".to_string(),
+            number_of_cores: 2,
+            memory_size: 4096,
+            disk_size: 10,
+            image_uuid: Uuid::nil(),
+            public_key_uuid: Uuid::nil(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: None,
+            seed_path: "".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
+        };
+        add_new_virtual_machine(new_virtual_machine, &context).unwrap();
+
+        // a new virtual_machine starts as reserved
+        let virtual_machine = get_virtual_machine(&uuid1, &context)
+            .ok()
+            .expect("virtual_machine not found");
+        assert_eq!(virtual_machine.vm_state, "RESERVED");
+
+        update_virtual_machine_state(&uuid1, &VirtualMachineState::Stoped, &context)
+            .ok()
+            .expect("failed to update state");
+        let virtual_machine = get_virtual_machine(&uuid1, &context)
+            .ok()
+            .expect("virtual_machine not found");
+        assert_eq!(virtual_machine.vm_state, "STOPED");
+
+        // an unknown virtual_machine can not be updated
+        let result =
+            update_virtual_machine_state(&Uuid::new_v4(), &VirtualMachineState::Running, &context);
+        assert!(matches!(result, Err(enums::DbError::NotFound)));
+
+        hard_delete_virtual_machine(&uuid1);
+    }
+
+    #[test]
+    #[serial]
     fn test_virtual_machines_permissions() {
         let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
@@ -760,7 +902,7 @@ mod tests {
         let virtual_machine1 = VirtualMachineEntry {
             uuid: uuid1,
             name: "Alice".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 1,
             memory_size: 1024,
             disk_size: 10,
@@ -786,7 +928,7 @@ mod tests {
         let virtual_machine2 = VirtualMachineEntry {
             uuid: uuid2,
             name: "Bob".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 1,
             memory_size: 1024,
             disk_size: 10,
@@ -812,7 +954,7 @@ mod tests {
         let virtual_machine3 = VirtualMachineEntry {
             uuid: uuid3,
             name: "Poi".to_string(),
-            is_created: false,
+            vm_state: VirtualMachineState::Reserved.to_string(),
             number_of_cores: 1,
             memory_size: 1024,
             disk_size: 10,

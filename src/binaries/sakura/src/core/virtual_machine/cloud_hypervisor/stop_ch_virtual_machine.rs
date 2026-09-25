@@ -19,13 +19,16 @@ use uuid::Uuid;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
-use super::connect_to_vmm;
+use super::{connect_to_vmm, set_vm_state};
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Shuts down a cloud-hypervisor virtual_machine
 ///
 /// Only the virtual_machine is shut down, while its cloud-hypervisor process keeps running
 /// together with the configuration of the virtual_machine, so it can be booted again later. A
-/// virtual_machine, which is already shut down, is left untouched.
+/// virtual_machine, which is already shut down, is left untouched. The virtual_machine is marked
+/// as stopped afterwards. A failed shutdown doesn't change the state, because the
+/// virtual_machine still runs in this case.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to stop
@@ -42,15 +45,14 @@ pub async fn stop_ch_virtual_machine(
 
     if matches!(state, VmState::Created | VmState::Shutdown) {
         log::warn!("VM {uuid} is not running, so there is nothing to stop.");
-        return Ok(());
+    } else {
+        log::info!("Stop VM {uuid}");
+        client
+            .shutdown_vm()
+            .await
+            .map_err(|e| AinariError::InternalError(format!("Shutdown VM {uuid} failed: {e:?}")))?;
+        log::info!("VM {uuid} stopped");
     }
 
-    log::info!("Stop VM {uuid}");
-    client
-        .shutdown_vm()
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Shutdown VM {uuid} failed: {e:?}")))?;
-    log::info!("VM {uuid} stopped");
-
-    Ok(())
+    set_vm_state(uuid, VirtualMachineState::Stoped, context)
 }

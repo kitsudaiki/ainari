@@ -59,19 +59,28 @@
                             {{ formatResource(virtualMachine.disk_size, "GiB") }}
                         </td>
                         <td class="state-column">
-                            <span
-                                class="state-light"
-                                :class="
-                                    'state-' +
-                                    (vmStates[virtualMachine.uuid] ?? 'unknown')
-                                "
-                                :title="
-                                    stateLabels[
-                                        vmStates[virtualMachine.uuid] ??
-                                            'unknown'
-                                    ]
-                                "
-                            ></span>
+                            <div class="state-cell">
+                                <span
+                                    class="state-light"
+                                    :class="
+                                        'state-' +
+                                        (vmStates[virtualMachine.uuid] ??
+                                            'unknown')
+                                    "
+                                    :title="
+                                        stateLabels[
+                                            vmStates[virtualMachine.uuid] ??
+                                                'unknown'
+                                        ]
+                                    "
+                                ></span>
+                                <span class="state-value">
+                                    {{
+                                        vmStateValues[virtualMachine.uuid] ??
+                                        "–"
+                                    }}
+                                </span>
+                            </div>
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -211,7 +220,11 @@ import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { getAuthContext } from "@/auth_context";
 import { hanami, sakura } from "@/api";
-import type { VirtualMachineBasicResp } from "@/api";
+import type {
+    TaskResp,
+    VirtualMachineBasicResp,
+    VirtualMachineState,
+} from "@/api";
 import VirtualMachineCreateModal from "./virtual_machine_create_modal.vue";
 import VirtualMachineInfoModal from "./virtual_machine_info_modal.vue";
 import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
@@ -234,15 +247,35 @@ const snapshotVirtualMachineUuid = ref<string | null>(null);
 // the torii-port of the virtual-machine, which is needed to reach its sakura
 const snapshotToriiPort = ref<number>(0);
 
-// State of each virtual machine, shown as traffic-light in the table
-type VmState = "unknown" | "created" | "reserved" | "error";
+// State of each virtual machine, shown as traffic-light in the table. "pending"
+// is only local and shows, that a start-, stop- or reboot-task is not finished yet.
+type VmState = "unknown" | "pending" | Lowercase<VirtualMachineState>;
 const stateLabels: Record<VmState, string> = {
     unknown: "Unknown",
-    created: "Created",
+    pending: "Task in progress",
     reserved: "Reserved, not created yet",
+    created: "Creating",
+    running: "Running",
+    stoped: "Stopped",
+    restoring: "Restoring snapshot",
     error: "Error",
 };
+// states, which change without an action of the user, so they are polled
+const transitionalStates: VmState[] = [
+    "unknown",
+    "pending",
+    "reserved",
+    "created",
+    "restoring",
+];
 const vmStates = ref<Record<string, VmState>>({});
+// last known `vm_state` of each virtual machine, which is printed next to the
+// traffic-light. It is kept while a task is pending.
+const vmStateValues = ref<Record<string, VirtualMachineState>>({});
+// task of the last start-, stop- or reboot-action of a virtual machine, which
+// is followed until it is finished
+const pendingPowerTasks: Record<string, { toriiPort: number; taskUuid: string }> =
+    {};
 let statePollTimer: ReturnType<typeof setInterval> | null = null;
 let statePollRunning = false;
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
@@ -284,11 +317,17 @@ async function fetchVirtualMachines() {
 
     // drop states of virtual machines, which don't exist anymore
     const states: Record<string, VmState> = {};
+    const stateValues: Record<string, VirtualMachineState> = {};
     for (const virtualMachine of virtualMachines.value) {
         states[virtualMachine.uuid] =
             vmStates.value[virtualMachine.uuid] ?? "unknown";
+        const stateValue = vmStateValues.value[virtualMachine.uuid];
+        if (stateValue) {
+            stateValues[virtualMachine.uuid] = stateValue;
+        }
     }
     vmStates.value = states;
+    vmStateValues.value = stateValues;
 
     await Promise.all(
         virtualMachines.value.map((vm) => updateVirtualMachineState(vm.uuid)),
@@ -299,28 +338,34 @@ async function fetchVirtualMachines() {
 // State of the virtual machines
 //=============================================================================
 async function fetchVirtualMachineState(uuid: string): Promise<VmState> {
-    let virtualMachine;
-    try {
-        virtualMachine = await hanami.getVirtualMachine(uuid);
-    } catch {
-        return "error";
-    }
-    if (virtualMachine.is_created) {
-        return "created";
+    const pendingTask = pendingPowerTasks[uuid];
+    if (pendingTask) {
+        try {
+            const task = await sakura.getTask(
+                pendingTask.toriiPort,
+                uuid,
+                pendingTask.taskUuid,
+            );
+            if (task.state === "Queued" || task.state === "Active") {
+                return "pending";
+            }
+        } catch {
+            // the task can not be followed, so only the state is shown
+        }
+        delete pendingPowerTasks[uuid];
     }
 
-    // the virtual machine is not created yet, so check if the create-task failed
     try {
-        const tasks = await sakura.listTasks(virtualMachine.torii_port, uuid);
-        const failed = tasks.some(
-            (task) =>
-                task.task_type === "VirtualMachineCreate" &&
-                (task.state === "Error" || task.state === "Aborted"),
-        );
-        return failed ? "error" : "reserved";
+        const virtualMachine = await hanami.getVirtualMachine(uuid);
+        // the virtual machine could have been removed from the list in the meantime
+        if (uuid in vmStates.value) {
+            vmStateValues.value[uuid] = virtualMachine.vm_state;
+        }
+        return virtualMachine.vm_state.toLowerCase() as VmState;
     } catch {
-        // tasks not reachable (yet), so it counts as still in progress
-        return "reserved";
+        // the state is unknown, so an old value must not be shown anymore
+        delete vmStateValues.value[uuid];
+        return "error";
     }
 }
 
@@ -332,16 +377,16 @@ async function updateVirtualMachineState(uuid: string) {
     }
 }
 
-// checks every second all virtual machines, which are reserved but not created yet
-async function pollReservedVirtualMachines() {
+// checks every second all virtual machines, whose state is still changing
+async function pollTransitionalVirtualMachines() {
     // skip, if the previous check is still running
     if (statePollRunning) return;
     statePollRunning = true;
     try {
-        const reserved = Object.keys(vmStates.value).filter(
-            (uuid) => vmStates.value[uuid] === "reserved",
+        const transitional = Object.keys(vmStates.value).filter((uuid) =>
+            transitionalStates.includes(vmStates.value[uuid]),
         );
-        await Promise.all(reserved.map(updateVirtualMachineState));
+        await Promise.all(transitional.map(updateVirtualMachineState));
     } finally {
         statePollRunning = false;
     }
@@ -420,7 +465,7 @@ async function acceptDeleteModal() {
 type PowerAction = "start" | "stop" | "reboot";
 const powerFunctions: Record<
     PowerAction,
-    (toriiPort: number, virtualMachineUuid: string) => Promise<unknown>
+    (toriiPort: number, virtualMachineUuid: string) => Promise<TaskResp>
 > = {
     start: sakura.startVirtualMachine,
     stop: sakura.stopVirtualMachine,
@@ -429,8 +474,8 @@ const powerFunctions: Record<
 
 /**
  * The sakura is only reachable through the torii, so the port of the
- * virtual-machine is resolved first. The task runs in the background and can
- * be followed in the task-view.
+ * virtual-machine is resolved first. The task runs in the background and is
+ * followed by the state-polling, until it is finished.
  */
 async function changePowerState(
     virtualMachine: VirtualMachineBasicResp,
@@ -439,7 +484,15 @@ async function changePowerState(
     openDropdown.value = null;
     try {
         const resp = await hanami.getVirtualMachine(virtualMachine.uuid);
-        await powerFunctions[action](resp.torii_port, virtualMachine.uuid);
+        const task = await powerFunctions[action](
+            resp.torii_port,
+            virtualMachine.uuid,
+        );
+        pendingPowerTasks[virtualMachine.uuid] = {
+            toriiPort: resp.torii_port,
+            taskUuid: task.uuid,
+        };
+        vmStates.value[virtualMachine.uuid] = "pending";
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
@@ -498,7 +551,7 @@ onMounted(fetchVirtualMachines);
 
 onMounted(() => {
     window.addEventListener("click", handleClickOutside);
-    statePollTimer = setInterval(pollReservedVirtualMachines, 1000);
+    statePollTimer = setInterval(pollTransitionalVirtualMachines, 1000);
 });
 
 onBeforeUnmount(() => {
@@ -538,32 +591,38 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
     text-align: right;
 }
 
-/* only as wide as the header, with the light in the center */
+/* only as wide as its content */
 .state-column {
     width: 1%;
     white-space: nowrap;
-    text-align: center;
     /* more space between the disk and the state */
     padding-left: 2rem;
 }
 
-/* block instead of inline-block, so it isn't aligned to the text-baseline, but
-centered by the cell */
+/* light and value side by side, both centered vertically */
+.state-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .state-light {
-    display: block;
-    margin: 0 auto;
+    flex-shrink: 0;
     width: 0.9rem;
     height: 0.9rem;
     border-radius: 50%;
     background-color: var(--color-text-light);
 }
 
-.state-created {
+.state-running {
     background-color: #66bb6a;
     box-shadow: 0 0 0.4rem #66bb6a;
 }
 
-.state-reserved {
+.state-reserved,
+.state-created,
+.state-restoring,
+.state-pending {
     background-color: #ffca28;
     box-shadow: 0 0 0.4rem #ffca28;
 }

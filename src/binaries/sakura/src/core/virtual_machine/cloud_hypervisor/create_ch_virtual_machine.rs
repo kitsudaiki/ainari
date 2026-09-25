@@ -38,9 +38,13 @@ use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 
-use super::{vm_directory, vm_serial_log_path, vm_socket_path, vm_temp_directory};
+use super::{
+    mark_error_on_failure, set_vm_state, vm_directory, vm_serial_log_path, vm_socket_path,
+    vm_temp_directory,
+};
 use crate::config;
 use crate::database::virtual_machine_table;
+use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Handle of a running cloud-hypervisor virtual_machine
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,7 +60,9 @@ pub struct VmHandle {
 /// Creates and boots a new cloud-hypervisor virtual_machine based on its database-entry
 ///
 /// This downloads and converts the boot-image, creates the cloud-init seed-image, starts a new
-/// cloud-hypervisor process and creates and boots the virtual_machine via its API-socket.
+/// cloud-hypervisor process and creates and boots the virtual_machine via its API-socket. The
+/// virtual_machine is marked as running afterwards, or as error, if the creation failed, because
+/// it can not be started in this case.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to create
@@ -69,6 +75,20 @@ pub async fn create_ch_virtual_machine(
     uuid: &Uuid,
     context: &UserContext,
 ) -> Result<VmHandle, AinariError> {
+    let result = create_and_boot_vm(uuid, context).await;
+    mark_error_on_failure(uuid, context, result)
+}
+
+/// Prepares all files of the virtual_machine and boots it in a new cloud-hypervisor process
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine to create
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(VmHandle)` with the handle of the running virtual_machine on success
+/// * `Err(AinariError)` with an appropriate error on failure
+async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHandle, AinariError> {
     let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
         .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
     let endpoints =
@@ -198,7 +218,7 @@ pub async fn create_ch_virtual_machine(
         }
     });
 
-    // the virtual_machine runs now, so its disks are stored and it is marked as created
+    // the virtual_machine runs now, so its disks are stored and it is marked as running
     virtual_machine_table::update_virtual_machine(
         uuid,
         &virtual_machine_data.image_uuid,
@@ -208,6 +228,7 @@ pub async fn create_ch_virtual_machine(
         context,
     )
     .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
+    set_vm_state(uuid, VirtualMachineState::Running, context)?;
 
     log::info!("New VM {uuid} started");
 
