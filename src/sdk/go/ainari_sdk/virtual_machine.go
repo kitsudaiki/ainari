@@ -52,6 +52,33 @@ func CreateVirtualMachine(context AccessContext, toriiPort int, virtual_machineU
 	return SendPost(context, address, path, jsonBody)
 }
 
+// StartVirtualMachine creates a task on the sakura-host of a virtual machine, which boots the
+// stopped virtual machine again.
+func StartVirtualMachine(context AccessContext, toriiPort int, virtual_machineUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/start", virtual_machineUuid)
+	jsonBody := map[string]interface{}{}
+	return SendPost(context, address, path, jsonBody)
+}
+
+// StopVirtualMachine creates a task on the sakura-host of a virtual machine, which shuts down the
+// virtual machine. It keeps all of its resources, so it can be started again later.
+func StopVirtualMachine(context AccessContext, toriiPort int, virtual_machineUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/stop", virtual_machineUuid)
+	jsonBody := map[string]interface{}{}
+	return SendPost(context, address, path, jsonBody)
+}
+
+// RebootVirtualMachine creates a task on the sakura-host of a virtual machine, which reboots the
+// running virtual machine.
+func RebootVirtualMachine(context AccessContext, toriiPort int, virtual_machineUuid string) (map[string]interface{}, error) {
+	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/reboot", virtual_machineUuid)
+	jsonBody := map[string]interface{}{}
+	return SendPost(context, address, path, jsonBody)
+}
+
 func GetVirtualMachine(context AccessContext, virtual_machineUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s", virtual_machineUuid)
 	vars := map[string]interface{}{}
