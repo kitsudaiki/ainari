@@ -12,14 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: miko-selfsigned-cert
-spec:
-  secretName: miko-selfsigned-secret
-  issuerRef:
-    name: selfsigned-issuer
-  dnsNames:
-    - {{ .Values.miko.api.domain }}
-
+{{ include "ainari.certificate" (list . "miko" (list "miko-tls-service")) }}

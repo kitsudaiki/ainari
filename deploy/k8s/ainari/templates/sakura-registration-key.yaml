@@ -18,4 +18,4 @@ metadata:
   name: sakura-registration-key
 type: Opaque
 data:
-  sakura_retistration_key: bXktc3VwZXItc2VjcmV0LWFwaS1rZXk= 
+  sakura_retistration_key: {{ required "secrets.sakura_registration_key is required!" .Values.secrets.sakura_registration_key | b64enc }}

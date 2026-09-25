@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Every pod is one sakura-host together with the gateway in front of it. Both share the
+# network-namespace of the pod, so cloud-hypervisor can attach the virtual machines to the
+# TAP-devices of that gateway.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -19,8 +22,9 @@ metadata:
   labels:
     app: sakura
 spec:
-  serviceName: sakura-tls-service
+  serviceName: sakura
   replicas: {{ .Values.sakura.replica_count }}
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: sakura
@@ -29,47 +33,90 @@ spec:
       labels:
         app: sakura
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: sakura-node
-                operator: In
-                values:
-                - "true"
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - sakura
-            topologyKey: kubernetes.io/hostname
-
-      initContainers:
-      - name: copy-config
-        image: busybox
-        command:
-          - sh
-          - -c
-          - |
-            ORDINAL=${HOSTNAME##*-}
-            mkdir -p /etc/ainari
-            ls /configs
-            cp /configs/sakura-config-${ORDINAL}/sakura.toml /etc/ainari/sakura.toml
-        volumeMounts:
-        - name: sakura-configs
-          mountPath: /configs
-        - name: sakura-config
-          mountPath: /etc/ainari
-
+      {{- include "ainari.affinity" (list . "sakura" "sakura-node") | nindent 6 }}
+      securityContext:
+        # sakura runs as a normal user and opens the virtual machines over /dev/kvm
+        supplementalGroups:
+        - {{ .Values.sakura.kvm_gid }}
       containers:
-      - name: sakura
-        image: {{ .Values.sakura.docker.repository }}:{{ .Values.sakura.docker.tag }}
-        imagePullPolicy: {{ .Values.sakura.docker.pull_policy }}
+      # the gateway in front of this sakura-host, which owns the TAP-devices of its virtual
+      # machines
+      - name: torii
+        image: {{ include "ainari.image" .Values.torii }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.torii) }}
+        command: ["/bin/bash", "/etc/ainari/scripts/start_torii.sh"]
+        # the eBPF-datapath is attached to the interfaces of the pod and the TAP-devices are
+        # created over /dev/net/tun
+        securityContext:
+          privileged: true
         env:
+        - name: RUST_LOG
+          value: "debug"
+        - name: CONFIG_TEMPLATE
+          value: /etc/ainari/templates/torii-vmm.toml
+        - name: DEFAULT_GATEWAY_HOST
+          value: torii-public.{{ .Release.Namespace }}.svc.cluster.local
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
+        volumeMounts:
+        # the routes and TAP-devices of this gateway are gone with the pod anyway
+        - name: torii-data
+          mountPath: /etc/ainari/torii/
+        - name: torii-config
+          mountPath: /etc/ainari/templates
+          readOnly: true
+        - name: torii-scripts
+          mountPath: /etc/ainari/scripts
+          readOnly: true
+        - name: debugfs
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        readinessProbe:
+          # torii only listens on localhost and its image has no curl, so it is asked over its
+          # tls-termination, whose certificate is not verified by the kubelet
+          httpGet:
+            path: /v1alpha/is_ready
+            port: 8444
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          # torii only listens on localhost and its image has no curl, so it is asked over its
+          # tls-termination, whose certificate is not verified by the kubelet
+          httpGet:
+            path: /v1alpha/is_ready
+            port: 8444
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 2
+          failureThreshold: 3
+
+      - name: sakura
+        image: {{ include "ainari.image" .Values.sakura }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.sakura) }}
+        # the config contains the address of this pod, which is only known, when it starts
+        command:
+        - /bin/sh
+        - -c
+        - >-
+          mkdir -p /etc/ainari/sakura/virtual_machines &&
+          sed "s/@HOSTNAME@/$HOSTNAME/g" /etc/ainari/templates/sakura.toml > /tmp/sakura.toml &&
+          exec /home/ainari/start_sakura.sh
+        # Kubernetes has no way to hand single devices like /dev/kvm and /dev/net/tun to a
+        # container. Sakura still runs as a normal user, only cloud-hypervisor carries
+        # CAP_NET_ADMIN as a file-capability.
+        securityContext:
+          privileged: true
+        env:
+        - name: CONFIG_FILE
+          value: /tmp/sakura.toml
         - name: RUST_LOG
           value: "debug,h2=info"
         - name: INTERNAL_API_KEY
@@ -82,20 +129,17 @@ spec:
             secretKeyRef:
               name: sakura-registration-key
               key: sakura_retistration_key
-
         volumeMounts:
         - name: data-volume
           mountPath: /etc/ainari/sakura/
         - name: sakura-config
-          mountPath: /etc/ainari
+          mountPath: /etc/ainari/templates
+          readOnly: true
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           mountPath: /etc/wireguard
           readOnly: true
-        securityContext:
-          capabilities:
-            add:
-              - NET_ADMIN
-              - SYS_MODULE
+        {{- end }}
         readinessProbe:
           exec:
             command:
@@ -133,28 +177,55 @@ spec:
             memory: "128Mi"
             cpu: "500m"
 
+      # tls-termination of the torii in front of this sakura-host. Hanami reaches it on the same
+      # port as the one of the gateway at the edge.
+      - name: torii-tls-termination
+        image: nginx:latest
+        ports:
+        - containerPort: 8444
+        volumeMounts:
+        - name: torii-tls-certs
+          mountPath: /etc/nginx/certs
+        - name: torii-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
       volumes:
-        - name: sakura-configs
-          projected:
-            sources:
-            {{- range $i := until (.Values.sakura.replica_count | int) }}
-            - configMap:
-                name: sakura-config-{{ $i }}
-                items:
-                - key: sakura.toml
-                  path: sakura-config-{{ $i }}/sakura.toml
-            {{- end }}
         - name: sakura-config
+          configMap:
+            name: sakura-config
+        - name: torii-config
+          configMap:
+            name: torii-config
+        - name: torii-scripts
+          configMap:
+            name: torii-scripts
+        - name: torii-data
           emptyDir: {}
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
         - name: tls-certs
           secret:
-            secretName: sakura-selfsigned-secret
+            secretName: sakura-tls-secret
         - name: sakura-nginx-config
           configMap:
             name: sakura-nginx-config
+        - name: torii-tls-certs
+          secret:
+            secretName: torii-tls-secret
+        - name: torii-nginx-config
+          configMap:
+            name: torii-nginx-config
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           secret:
             secretName: wg-sakura-secret
+        {{- end }}
 
   volumeClaimTemplates:
   - metadata:
@@ -162,7 +233,7 @@ spec:
     spec:
       accessModes:
         - ReadWriteOnce
-      storageClassName: {{ .Values.sakura.storage.storage_class }}
+      storageClassName: {{ include "ainari.storageClass" (list . .Values.sakura) }}
       resources:
         requests:
-          storage: 100Mi
+          storage: {{ .Values.sakura.storage_size }}

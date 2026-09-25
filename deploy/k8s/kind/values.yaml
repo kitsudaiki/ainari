@@ -1,0 +1,138 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Values of the kind-setup, which is started by scripts/setup_kind_stack.sh. They turn the chart
+# into the same setup as the local docker-compose one: the images of the local build, two
+# sakura-hosts and the api of every component on the same port of the host. Unlike the
+# docker-compose setup, the api is served over https with certificates of a local CA, which the
+# clients either trust or skip the verification for.
+
+global:
+  # there is no ingress-controller, the api and the dashboard are published over node-ports
+  ingress:
+    enabled: false
+  # The CA is created once by scripts/setup_kind_stack.sh in temporary_files/kind and stays the
+  # same over all runs, so it only has to be trusted once. The api is reached over 127.0.0.1 from
+  # the host.
+  certificates:
+    ca_secret: ainari-kind-ca
+    extra_dns_names:
+      - localhost
+    extra_ip_addresses:
+      - 127.0.0.1
+  wireguard:
+    enabled: false
+  # there is only one node
+  strict_scheduling: false
+  # the storage-class of the local-path-provisioner of kind
+  storage_class: standard
+  image:
+    # the images are built locally and loaded into kind, they can not be pulled
+    pull_policy: IfNotPresent
+  node_ports:
+    enabled: true
+    offset: 20000
+
+
+secrets:
+  internal_api_key: "local-internal-api-key"
+  onsen_registration_key: "local-onsen-registration-key"
+  sakura_registration_key: "local-sakura-registration-key"
+
+
+miko:
+  docker:
+    repository: "ainari/miko"
+    tag: "local"
+  api:
+    public_address: "https://127.0.0.1:11417"
+  # the same test-login, which the cli and the other tests use
+  user:
+    id: "asdf"
+    name: "asdf"
+    passphrase: "asdfasdf"
+  token:
+    data: "asdf"
+
+
+hanami:
+  docker:
+    repository: "ainari/hanami"
+    tag: "local"
+  api:
+    public_address: "https://127.0.0.1:11418"
+  network:
+    floating_ip_cidr: "10.0.0.0/24"
+
+
+ryokan:
+  docker:
+    repository: "ainari/ryokan"
+    tag: "local"
+  api:
+    public_address: "https://127.0.0.1:11416"
+
+
+omamori:
+  docker:
+    repository: "ainari/omamori"
+    tag: "local"
+  api:
+    public_address: "https://127.0.0.1:11421"
+
+
+onsen:
+  docker:
+    repository: "ainari/onsen"
+    tag: "local"
+
+
+# two sakura-hosts, so a virtual machine can land on either of them and the traffic between them
+# really crosses the gateway at the edge
+sakura:
+  replica_count: 2
+  docker:
+    repository: "ainari/sakura"
+    tag: "local"
+  # set by scripts/setup_kind_stack.sh to the group of /dev/kvm within the node
+  kvm_gid: 103
+
+
+torii:
+  docker:
+    repository: "ainari/torii"
+    tag: "local"
+  api:
+    public_address: "https://127.0.0.1:11419"
+  service:
+    type: NodePort
+  # has to match the extraPortMappings in cluster.yaml
+  port_range:
+    start: 10042
+    end: 10053
+  public:
+    network:
+      overlay_iface: "veth-gw"
+      uplink_iface: "veth-gw"
+      uplink_next_hop: "10.0.0.1"
+    # the veth-pair towards the host is moved into the pod by scripts/setup_kind_stack.sh
+    wait_for_iface: "veth-gw"
+
+
+# the dashboard is always part of the kind-setup
+dashboard:
+  enabled: true
+  docker:
+    repository: "ainari/dashboard"
+    tag: "local"

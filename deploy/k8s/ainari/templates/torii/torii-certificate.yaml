@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: torii-selfsigned-cert
-spec:
-  secretName: torii-selfsigned-secret
-  issuerRef:
-    name: selfsigned-issuer
-  dnsNames:
-    - {{ .Values.torii.api.domain }}
-
+# The same certificate is used by the gateway at the edge and by the gateways in the pods of the
+# sakura-hosts, which are reached with the names of these pods.
+{{ include "ainari.certificate" (list . "torii" (list "torii-tls-service" "torii-public" "*.sakura")) }}

@@ -19,7 +19,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.onsen.storage.storage_class }}
+  storageClassName: {{ include "ainari.storageClass" (list . .Values.onsen) }}
   resources:
     requests:
       storage: 1Gi

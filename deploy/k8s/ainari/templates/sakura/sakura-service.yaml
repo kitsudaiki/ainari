@@ -12,20 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.dashboard.enabled }}
+# Headless service of the statefulset. Every sakura-host registers itself in hanami with the name
+# of its pod in this service, which resolves to the address of the pod. The address is published
+# before the pod is ready, because hanami needs it as soon as the host registers itself.
 apiVersion: v1
 kind: Service
 metadata:
-  name: dashboard-tls-service
+  name: sakura
   labels:
-    run: dashboard
+    app: sakura
 spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
   selector:
-    app: dashboard
+    app: sakura
   ports:
-    - name: input
+    - name: tls
       protocol: TCP
       port: 8443
       targetPort: 8443
-  type: ClusterIP
-{{- end }}
+    - name: torii-tls
+      protocol: TCP
+      port: 8444
+      targetPort: 8444

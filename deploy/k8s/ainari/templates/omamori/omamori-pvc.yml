@@ -19,7 +19,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.omamori.storage.storage_class }}
+  storageClassName: {{ include "ainari.storageClass" (list . .Values.omamori) }}
   resources:
     requests:
       storage: 100Mi

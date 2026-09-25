@@ -12,20 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.dashboard.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: dashboard-tls-service
-  labels:
-    run: dashboard
-spec:
-  selector:
-    app: dashboard
-  ports:
-    - name: input
-      protocol: TCP
-      port: 8443
-      targetPort: 8443
-  type: ClusterIP
-{{- end }}
+# publishes the tls-termination of ryokan on the nodes, see global.node_ports in values.yaml
+{{- include "ainari.nodePortService" (list . "ryokan" (list (list 11416 8443))) }}

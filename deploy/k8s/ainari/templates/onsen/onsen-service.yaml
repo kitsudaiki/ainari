@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Headless service of the statefulset. Every onsen registers itself in ryokan with the name of its
+# pod in this service.
 apiVersion: v1
 kind: Service
 metadata:
-  name: sakura-tls-service
+  name: onsen
   labels:
-    app: sakura
+    app: onsen
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
-    app: sakura
+    app: onsen
   ports:
-    - name: input
+    - name: grpc
       protocol: TCP
-      port: 8443
-      targetPort: 8443
+      port: 50051
+      targetPort: 50051

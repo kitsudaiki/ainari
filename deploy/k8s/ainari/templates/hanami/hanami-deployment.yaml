@@ -28,28 +28,11 @@ spec:
       labels:
         app: hanami
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: hanami-node
-                operator: In
-                values:
-                - "true"
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - hanami
-            topologyKey: kubernetes.io/hostname
+      {{- include "ainari.affinity" (list . "hanami" "hanami-node") | nindent 6 }}
       containers:
       - name: hanami
-        image: {{ .Values.hanami.docker.repository }}:{{ .Values.hanami.docker.tag }}
-        imagePullPolicy: {{ .Values.hanami.docker.pull_policy }}
+        image: {{ include "ainari.image" .Values.hanami }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.hanami) }}
         env:
         - name: RUST_LOG
           value: "debug"
@@ -114,7 +97,7 @@ spec:
             claimName: hanami-pvc
         - name: tls-certs
           secret:
-            secretName: hanami-selfsigned-secret
+            secretName: hanami-tls-secret
         - name: hanami-nginx-config
           configMap:
             name: hanami-nginx-config

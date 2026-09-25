@@ -12,13 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if .Values.dashboard.enabled }}
 apiVersion: v1
 metadata:
   name: dashboard-config
 data:
+  # the browser talks to miko directly, so it gets the public address of miko
   config.json: |+
     {
-        "apiUrl": "https://{{ .Values.miko.api.domain }}"
+        "apiUrl": "{{ include "ainari.publicAddress" (list . "miko") }}"
+    }
+
+  # The image serves the dashboard on port 80 of all addresses. It is only reachable over the
+  # tls-termination, like every other component, so it only listens on localhost here.
+  default.conf: |+
+    server {
+        listen 127.0.0.1:80;
+        server_name localhost;
+
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
     }
 
 kind: ConfigMap
+{{- end }}

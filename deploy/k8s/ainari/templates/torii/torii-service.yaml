@@ -12,20 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.dashboard.enabled }}
+# Headless service of the gateway at the edge. It resolves to the address of the pod itself,
+# because this address is the one, which the other gateways send their traffic to, and the one,
+# which hanami compares with the addresses of the sakura-hosts. The address is published before
+# the pod is ready, because the gateway only becomes ready, when its uplink is there.
 apiVersion: v1
 kind: Service
 metadata:
-  name: dashboard-tls-service
+  name: torii-public
   labels:
-    run: dashboard
+    app: torii-public
 spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
   selector:
-    app: dashboard
+    app: torii-public
   ports:
-    - name: input
+    - name: tls
       protocol: TCP
-      port: 8443
-      targetPort: 8443
-  type: ClusterIP
-{{- end }}
+      port: 8444
+      targetPort: 8444
+---
+{{- include "ainari.nodePortService" (list . "torii-public" (list (list 11419 8444))) }}

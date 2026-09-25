@@ -12,29 +12,101 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Configs of the gateways. They differ only in their role: the gateway at the edge of the network
+# has an uplink, on which it serves the floating ip-addresses. The gateways in front of the
+# sakura-hosts own the TAP-devices of the virtual machines of their host and send everything else
+# to the gateway at the edge.
+#
+# @DEFAULT_GATEWAY_IP@ is replaced by start_torii.sh with the address of the gateway at the edge,
+# because the address of a pod is only known, when it runs.
 apiVersion: v1
+kind: ConfigMap
 metadata:
   name: torii-config
 data:
-  torii.toml: |+
+  torii-public.toml: |+
     debug = true
     log_path = ""
     skip_tls_verification = true
 
     [api]
-    public_ip = "0.0.0.0"
+    public_ip = "127.0.0.1"
     public_port = 11419
-    internal_ip = "0.0.0.0"
+    internal_ip = "127.0.0.1"
     internal_port = 10419
 
     [database]
     file_path = "/etc/ainari/torii/torii_db"
-    
+
     [miko]
-    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    address = "{{ include "ainari.mikoAddress" . }}"
 
     [ports]
     min_port = {{ .Values.torii.port_range.start }}
     max_port = {{ .Values.torii.port_range.end }}
+    # the api is only reachable over the tls-termination, the proxies from the outside
+    listen_ip = "0.0.0.0"
 
+    [network]
+    overlay_iface = "{{ .Values.torii.public.network.overlay_iface }}"
+    underlay_iface = "eth0"
+    uplink_iface = "{{ .Values.torii.public.network.uplink_iface }}"
+    uplink_next_hop = "{{ .Values.torii.public.network.uplink_next_hop }}"
+
+  torii-vmm.toml: |+
+    debug = true
+    log_path = ""
+    skip_tls_verification = true
+
+    [api]
+    public_ip = "127.0.0.1"
+    public_port = 11419
+    internal_ip = "127.0.0.1"
+    internal_port = 10419
+
+    [database]
+    file_path = "/etc/ainari/torii/torii_db"
+
+    [miko]
+    address = "{{ include "ainari.mikoAddress" . }}"
+
+    [ports]
+    min_port = {{ .Values.torii.port_range.start }}
+    max_port = {{ .Values.torii.port_range.end }}
+    # the api is only reachable over the tls-termination, the proxies from the outside
+    listen_ip = "0.0.0.0"
+
+    [network]
+    # there is no overlay-interface here, the TAP-devices are attached when they are created
+    overlay_iface = "none"
+    underlay_iface = "eth0"
+    default_gateway_ip = "@DEFAULT_GATEWAY_IP@"
+---
+apiVersion: v1
 kind: ConfigMap
+metadata:
+  name: torii-scripts
+data:
+  start_torii.sh: |+
+    #!/bin/bash
+    #
+    # Prepares a gateway in the pod and starts it afterwards with the start-script of the image.
+    set -e
+
+    export CONFIG_FILE=/tmp/torii.toml
+    cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
+
+    # A gateway in front of a sakura-host sends everything, which is not for one of its virtual
+    # machines, to the gateway at the edge of the network.
+    if [ -n "$DEFAULT_GATEWAY_HOST" ]; then
+        echo "Resolving the gateway at the edge $DEFAULT_GATEWAY_HOST ..."
+        GATEWAY_IP=""
+        while [ -z "$GATEWAY_IP" ]; do
+            GATEWAY_IP="$(getent ahostsv4 "$DEFAULT_GATEWAY_HOST" | awk 'NR == 1 {print $1}')"
+            [ -n "$GATEWAY_IP" ] || sleep 1
+        done
+        echo "The gateway at the edge has the address $GATEWAY_IP"
+        sed -i "s/@DEFAULT_GATEWAY_IP@/$GATEWAY_IP/g" "$CONFIG_FILE"
+    fi
+
+    exec /app/start.sh

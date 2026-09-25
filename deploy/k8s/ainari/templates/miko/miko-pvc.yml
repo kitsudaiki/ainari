@@ -19,7 +19,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.miko.storage.storage_class }}
+  storageClassName: {{ include "ainari.storageClass" (list . .Values.miko) }}
   resources:
     requests:
       storage: 100Mi

@@ -28,28 +28,11 @@ spec:
       labels:
         app: ryokan
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: ryokan-node
-                operator: In
-                values:
-                - "true"
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - ryokan
-            topologyKey: kubernetes.io/hostname
+      {{- include "ainari.affinity" (list . "ryokan" "ryokan-node") | nindent 6 }}
       containers:
       - name: ryokan
-        image: {{ .Values.ryokan.docker.repository }}:{{ .Values.ryokan.docker.tag }}
-        imagePullPolicy: {{ .Values.ryokan.docker.pull_policy }}
+        image: {{ include "ainari.image" .Values.ryokan }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.ryokan) }}
         env:
         - name: RUST_LOG
           value: "debug,h2=info"
@@ -70,9 +53,11 @@ spec:
           mountPath: /etc/ainari/ryokan.toml
           subPath: ryokan.toml
           readOnly: true
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           mountPath: /etc/wireguard
           readOnly: true
+        {{- end }}
         securityContext:
           seccompProfile: 
             type: RuntimeDefault
@@ -125,10 +110,12 @@ spec:
             claimName: ryokan-pvc
         - name: tls-certs
           secret:
-            secretName: ryokan-selfsigned-secret
+            secretName: ryokan-tls-secret
         - name: ryokan-nginx-config
           configMap:
             name: ryokan-nginx-config
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           secret:
             secretName: wg-ryokan-secret
+        {{- end }}

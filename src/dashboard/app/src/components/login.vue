@@ -30,6 +30,7 @@
                         type="text"
                         id="login_id_field"
                         placeholder="User-ID"
+                        @keyup.enter="login"
                         :class="{ invalid_input: userIdError }"
                     />
                     <p v-if="userIdError" class="error-msg">
@@ -37,14 +38,13 @@
                     </p>
                 </div>
 
-                <br /><br />
-
-                <div>
+                <div class="login-field-spacing">
                     <input
                         v-model="password"
                         type="password"
                         id="login_pw_field"
                         placeholder="Password"
+                        @keyup.enter="login"
                         :class="{ invalid_input: passwordError }"
                     />
                     <p v-if="passwordError" class="error-msg">
@@ -167,6 +167,10 @@ async function login() {
 .login-modal {
     width: 22rem;
     margin-bottom: 5rem;
+}
+
+.login-field-spacing {
+    margin-top: 1rem;
 }
 
 /* is not found when I put this in one of the css files. Don't know why... */

@@ -12,10 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# All certificates of the components are signed by one CA, so a client only has to trust that CA.
+# Without an own CA in global.certificates.ca_secret, cert-manager creates it: a self-signed
+# root-certificate, which is only used to sign the CA.
+{{- $caSecret := default "ainari-ca" .Values.global.certificates.ca_secret }}
+{{- if not .Values.global.certificates.ca_secret }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: selfsigned-issuer
 spec:
   selfSigned: {}
-
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ainari-ca
+spec:
+  isCA: true
+  commonName: ainari-ca
+  secretName: {{ $caSecret }}
+  duration: 87600h # 10 years
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+---
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: ainari-ca-issuer
+spec:
+  ca:
+    secretName: {{ $caSecret }}
