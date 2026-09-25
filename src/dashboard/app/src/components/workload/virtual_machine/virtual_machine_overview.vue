@@ -100,6 +100,36 @@
                                     </button>
                                     <button
                                         @click="
+                                            changePowerState(
+                                                virtualMachine,
+                                                'start',
+                                            )
+                                        "
+                                    >
+                                        Start
+                                    </button>
+                                    <button
+                                        @click="
+                                            changePowerState(
+                                                virtualMachine,
+                                                'stop',
+                                            )
+                                        "
+                                    >
+                                        Stop
+                                    </button>
+                                    <button
+                                        @click="
+                                            changePowerState(
+                                                virtualMachine,
+                                                'reboot',
+                                            )
+                                        "
+                                    >
+                                        Reboot
+                                    </button>
+                                    <button
+                                        @click="
                                             openSnapshotSaveModal(virtualMachine)
                                         "
                                     >
@@ -382,6 +412,40 @@ function cancelDeleteModal() {
 async function acceptDeleteModal() {
     await fetchVirtualMachines();
     cancelDeleteModal();
+}
+
+//=============================================================================
+// Power-state, which is changed by a new task on the virtual machine
+//=============================================================================
+type PowerAction = "start" | "stop" | "reboot";
+const powerFunctions: Record<
+    PowerAction,
+    (toriiPort: number, virtualMachineUuid: string) => Promise<unknown>
+> = {
+    start: sakura.startVirtualMachine,
+    stop: sakura.stopVirtualMachine,
+    reboot: sakura.rebootVirtualMachine,
+};
+
+/**
+ * The sakura is only reachable through the torii, so the port of the
+ * virtual-machine is resolved first. The task runs in the background and can
+ * be followed in the task-view.
+ */
+async function changePowerState(
+    virtualMachine: VirtualMachineBasicResp,
+    action: PowerAction,
+) {
+    openDropdown.value = null;
+    try {
+        const resp = await hanami.getVirtualMachine(virtualMachine.uuid);
+        await powerFunctions[action](resp.torii_port, virtualMachine.uuid);
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            `Failed to ${action} virtual machine`,
+        );
+    }
 }
 
 //=============================================================================

@@ -64,6 +64,51 @@ def create_virtual_machine(context: AccessContext,
                                             json_body)
 
 
+def start_virtual_machine(context: AccessContext,
+                          torii_port: int,
+                          virtual_machine_uuid: str) -> dict:
+    """
+    Creates a task on the sakura-host of a virtual machine, which boots the stopped virtual
+    machine again.
+    """
+    address = f"{context.torii_base_address}:{torii_port}"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/start"
+    return ainari_request.send_post_request(context,
+                                            address,
+                                            path,
+                                            {})
+
+
+def stop_virtual_machine(context: AccessContext,
+                         torii_port: int,
+                         virtual_machine_uuid: str) -> dict:
+    """
+    Creates a task on the sakura-host of a virtual machine, which shuts down the virtual
+    machine. It keeps all of its resources, so it can be started again later.
+    """
+    address = f"{context.torii_base_address}:{torii_port}"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/stop"
+    return ainari_request.send_post_request(context,
+                                            address,
+                                            path,
+                                            {})
+
+
+def reboot_virtual_machine(context: AccessContext,
+                           torii_port: int,
+                           virtual_machine_uuid: str) -> dict:
+    """
+    Creates a task on the sakura-host of a virtual machine, which reboots the running virtual
+    machine.
+    """
+    address = f"{context.torii_base_address}:{torii_port}"
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/reboot"
+    return ainari_request.send_post_request(context,
+                                            address,
+                                            path,
+                                            {})
+
+
 def get_virtual_machine(context: AccessContext,
                         virtual_machine_uuid: str) -> dict:
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}"

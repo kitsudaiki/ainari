@@ -63,6 +63,9 @@ pub enum TaskType {
     VirtualMachineDelete = 1,
     SnapshotSave = 2,
     SnapshotRestore = 3,
+    VirtualMachineStart = 4,
+    VirtualMachineStop = 5,
+    VirtualMachineReboot = 6,
 }
 
 #[cfg(feature = "diesel")]
@@ -103,6 +106,9 @@ impl fmt::Display for TaskType {
             TaskType::VirtualMachineDelete => "VirtualMachineDeleteTask",
             TaskType::SnapshotSave => "SnapshotSaveTask",
             TaskType::SnapshotRestore => "SnapshotRestoreTask",
+            TaskType::VirtualMachineStart => "VirtualMachineStartTask",
+            TaskType::VirtualMachineStop => "VirtualMachineStopTask",
+            TaskType::VirtualMachineReboot => "VirtualMachineRebootTask",
         };
         write!(f, "{s}")
     }
@@ -117,6 +123,9 @@ impl FromStr for TaskType {
             "VirtualMachineDeleteTask" => Ok(TaskType::VirtualMachineDelete),
             "SnapshotSaveTask" => Ok(TaskType::SnapshotSave),
             "SnapshotRestoreTask" => Ok(TaskType::SnapshotRestore),
+            "VirtualMachineStartTask" => Ok(TaskType::VirtualMachineStart),
+            "VirtualMachineStopTask" => Ok(TaskType::VirtualMachineStop),
+            "VirtualMachineRebootTask" => Ok(TaskType::VirtualMachineReboot),
             _ => Err(()),
         }
     }

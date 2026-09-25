@@ -168,6 +168,51 @@ var deleteVirtualMachineCmd = &cobra.Command{
 	},
 }
 
+// newVirtualMachinePowerCmd builds a command, which creates a task on the sakura-host of a virtual
+// machine to change its power-state. The start-, stop- and reboot-commands only differ in the
+// called sdk-function.
+func newVirtualMachinePowerCmd(
+	use string,
+	short string,
+	powerFunc func(ainari_sdk.AccessContext, int, string) (map[string]interface{}, error),
+) *cobra.Command {
+	return &cobra.Command{
+		Use:   use + " VIRTUAL_MACHINE_UUID",
+		Short: short,
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			context, err := Login()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			virtual_machineUuid := args[0]
+			toriiPort := getToriiPort(context, virtual_machineUuid)
+			content, err := powerFunc(context, toriiPort, virtual_machineUuid)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			ainarictl_common.PrintSingle(content)
+		},
+	}
+}
+
+var startVirtualMachineCmd = newVirtualMachinePowerCmd(
+	"start",
+	"Create a new task to boot a stopped virtual machine again.",
+	ainari_sdk.StartVirtualMachine)
+
+var stopVirtualMachineCmd = newVirtualMachinePowerCmd(
+	"stop",
+	"Create a new task to shut down a virtual machine, which keeps all of its resources.",
+	ainari_sdk.StopVirtualMachine)
+
+var rebootVirtualMachineCmd = newVirtualMachinePowerCmd(
+	"reboot",
+	"Create a new task to reboot a running virtual machine.",
+	ainari_sdk.RebootVirtualMachine)
+
 var getVirtualMachineCountCmd = &cobra.Command{
 	Use:   "count",
 	Short: "Get the number of virtual machines of the project.",
@@ -214,6 +259,12 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	virtual_machineCmd.AddCommand(listVirtualMachineCmd)
 
 	virtual_machineCmd.AddCommand(deleteVirtualMachineCmd)
+
+	virtual_machineCmd.AddCommand(startVirtualMachineCmd)
+
+	virtual_machineCmd.AddCommand(stopVirtualMachineCmd)
+
+	virtual_machineCmd.AddCommand(rebootVirtualMachineCmd)
 
 	virtual_machineCmd.AddCommand(getVirtualMachineCountCmd)
 }

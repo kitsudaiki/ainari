@@ -68,6 +68,18 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{virtual_machine_uuid}/snapshot_restore")
                         .route(post().to(snapshot_restore_v1_0::snapshot_restore_task)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/start")
+                        .route(post().to(start_virtual_machine_v1_0::start_virtual_machine)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/stop")
+                        .route(post().to(stop_virtual_machine_v1_0::stop_virtual_machine)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/reboot")
+                        .route(post().to(reboot_virtual_machine_v1_0::reboot_virtual_machine)),
                 ),
         )
         .service(
