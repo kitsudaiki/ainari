@@ -12,13 +12,13 @@ ainari_clients = { path = "../../libs/rust/ainari_clients" }
 torii_common = { path = "../../libs/rust/torii_common" }
 # web-server
 actix-web = "4"
-actix-multipart = "0.7"
+actix-multipart = "0.8"
 futures-util = "0.3"
 tokio = { version = "1", features = ["full"] }
 actix-rt = "2.11"
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
-apistos = { version = "0.6", features = ["extras"] }
+apistos = { version = "0.9", features = ["extras"] }
 validator = { version = "0.21", features = ["derive"] }
 # serialize
 serde = { version = "1", features = ["derive"] }
@@ -49,14 +49,8 @@ aya-log = "0.3"
 anyhow = { workspace = true }
 aya-build = { workspace = true }
 cargo_metadata = { workspace = true }
-tonic-build = "0.10"
+tonic-build = "0.14"
 
 
 [dev-dependencies]
 serial_test = "4"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

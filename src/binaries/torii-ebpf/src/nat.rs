@@ -3,7 +3,7 @@ use crate::maps::{FIP_DNAT_MAP, FIP_SNAT_MAP};
 use crate::utils::{csum_replace4, ipv4_checksum, ptr_at, ptr_at_mut};
 use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
-use network_types::icmp::IcmpHdr;
+use network_types::icmp::Icmpv4Hdr;
 use network_types::ip::IpProto;
 use torii_common::RouteKey;
 
@@ -101,7 +101,7 @@ pub fn apply_dnat(
                     }
                 } else if ipv4.protocol == IpProto::Icmp as u8 {
                     // Handle ICMP Checksum
-                    if let Ok(_icmp) = ptr_at_mut::<IcmpHdr>(ctx, l4_offset) {
+                    if let Ok(_icmp) = ptr_at_mut::<Icmpv4Hdr>(ctx, l4_offset) {
                         // Note: ICMPv4 does NOT include the IP pseudo-header in its checksum.
                         // Because we only changed the outer IP address (and not the ICMP payload),
                         // the L4 checksum remains completely valid. No csum_replace4 is needed.
@@ -213,7 +213,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32
                     }
                 } else if inner_ip.protocol == IpProto::Icmp as u8 {
                     // Handle ICMP Checksum
-                    if let Ok(_icmp) = ptr_at_mut::<IcmpHdr>(ctx, l4_offset) {
+                    if let Ok(_icmp) = ptr_at_mut::<Icmpv4Hdr>(ctx, l4_offset) {
                         // Pass-through without csum rewrite for the same reasons as DNAT:
                         // ICMPv4 checksums exclude the IP header.
                     }

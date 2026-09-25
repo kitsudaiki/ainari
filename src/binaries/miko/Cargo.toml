@@ -10,13 +10,13 @@ ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 # web-server
 actix-web = "4"
-actix-multipart = "0.7"
+actix-multipart = "0.8"
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs"] }
 actix-rt = "2.10"
 # openapi-generator
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
-apistos = { version = "0.6", features = ["extras"] }
+apistos = { version = "0.9", features = ["extras"] }
 validator = { version = "0.21", features = ["derive"] }
 # serialize
 serde = { version = "1", features = ["derive"] }

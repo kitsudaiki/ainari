@@ -28,5 +28,13 @@ fn main() -> anyhow::Result<()> {
             .as_str(),
         ..Default::default()
     };
+
+    // aya-build forwards every status-line of the nested cargo-build (Compiling, Finished, ...)
+    // as cargo-warning. Quiet mode suppresses these, while compiler-warnings and -errors are still
+    // forwarded, because aya-build reads them from the json-output of cargo.
+    // SAFETY: the build-script is single-threaded at this point, so no other thread reads the
+    // environment concurrently.
+    unsafe { std::env::set_var("CARGO_TERM_QUIET", "true") };
+
     aya_build::build_ebpf([ebpf_package], Toolchain::default())
 }

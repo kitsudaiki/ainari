@@ -8,7 +8,7 @@ torii_common = { path = "../../libs/rust/torii_common" }
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
-network-types = "0.0.6" 
+network-types = "0.2.0" 
 
 [build-dependencies]
 which = { workspace = true }
@@ -16,9 +16,3 @@ which = { workspace = true }
 [[bin]]
 name = "torii"
 path = "src/main.rs"
-
-[profile.release]
-panic = "abort"
-
-[profile.dev]
-panic = "abort"
