@@ -54,9 +54,3 @@ tonic-build = "0.14"
 
 [dev-dependencies]
 serial_test = "4"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

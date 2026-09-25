@@ -16,9 +16,3 @@ which = { workspace = true }
 [[bin]]
 name = "torii"
 path = "src/main.rs"
-
-[profile.release]
-panic = "abort"
-
-[profile.dev]
-panic = "abort"
