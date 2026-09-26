@@ -56,8 +56,8 @@ services:
       - AINARI_ADMIN_NAME=${AINARI_USER:-asdf}
       - AINARI_ADMIN_PASSPHRASE=${AINARI_PASSPHRASE:-asdfasdf}
     volumes:
-      - ./deploy/local_stack/configs/miko.toml:/etc/ainari/miko.toml:ro
-      - ./deploy/local_stack/configs/token_key:/etc/ainari/token_key:ro
+      - ./testing/local_stack/configs/miko.toml:/etc/ainari/miko.toml:ro
+      - ./testing/local_stack/configs/token_key:/etc/ainari/token_key:ro
     ports:
       - "11417:11417"
     networks:
@@ -78,7 +78,7 @@ services:
       - CONFIG_FILE=/etc/ainari/omamori.toml
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
     volumes:
-      - ./deploy/local_stack/configs/omamori.toml:/etc/ainari/omamori.toml:ro
+      - ./testing/local_stack/configs/omamori.toml:/etc/ainari/omamori.toml:ro
     ports:
       - "11421:11421"
     depends_on:
@@ -102,7 +102,7 @@ services:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
     volumes:
-      - ./deploy/local_stack/configs/ryokan.toml:/etc/ainari/ryokan.toml:ro
+      - ./testing/local_stack/configs/ryokan.toml:/etc/ainari/ryokan.toml:ro
     ports:
       - "11416:11416"
     depends_on:
@@ -127,7 +127,7 @@ services:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
     volumes:
-      - ./deploy/local_stack/configs/onsen.toml:/etc/ainari/onsen.toml:ro
+      - ./testing/local_stack/configs/onsen.toml:/etc/ainari/onsen.toml:ro
     depends_on:
       - miko
       - ryokan
@@ -150,7 +150,7 @@ services:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
     volumes:
-      - ./deploy/local_stack/configs/hanami.toml:/etc/ainari/hanami.toml:ro
+      - ./testing/local_stack/configs/hanami.toml:/etc/ainari/hanami.toml:ro
     ports:
       - "11418:11418"
     depends_on:
@@ -180,7 +180,7 @@ services:
       - WAIT_FOR_IFACE=veth-gw
       - UPLINK_NEXT_HOP=10.0.0.1
     volumes:
-      - ./deploy/local_stack/configs/torii_public.toml:/etc/ainari/torii.toml:ro
+      - ./testing/local_stack/configs/torii_public.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
     ports:
       - "11419:11419"
@@ -209,7 +209,7 @@ services:
     volumes:
       # every gateway in front of a sakura-host uses the same config: they differ only in their
       # address on the underlay, which they get from docker
-      - ./deploy/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
+      - ./testing/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
     depends_on:
       - miko
@@ -255,7 +255,7 @@ services:
       - "/dev/kvm:/dev/kvm"
       - "/dev/net/tun:/dev/net/tun"
     volumes:
-      - ./deploy/local_stack/configs/sakura.toml:/etc/ainari/sakura.toml:ro
+      - ./testing/local_stack/configs/sakura.toml:/etc/ainari/sakura.toml:ro
     depends_on:
       - miko
       - hanami
@@ -277,7 +277,7 @@ services:
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
-      - ./deploy/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
+      - ./testing/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
     depends_on:
       - miko
@@ -311,7 +311,7 @@ services:
       - "/dev/kvm:/dev/kvm"
       - "/dev/net/tun:/dev/net/tun"
     volumes:
-      - ./deploy/local_stack/configs/sakura_2.toml:/etc/ainari/sakura.toml:ro
+      - ./testing/local_stack/configs/sakura_2.toml:/etc/ainari/sakura.toml:ro
     depends_on:
       - miko
       - hanami
