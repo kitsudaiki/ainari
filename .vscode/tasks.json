@@ -123,12 +123,6 @@
         "problemMatcher": ["$rustc"]
       },
       {
-        "label": "build ebpf payload",
-        "type": "shell",
-        "command": "cargo +nightly build --package torii-ebpf --target bpfel-unknown-none -Z build-std=core,panic_abort",
-        "problemMatcher": ["$rustc"]
-      },
-      {
         "label": "Run Torii (Profile A: Debug)",
         "type": "shell",
         "dependsOn": "build ebpf payload",
@@ -168,11 +162,40 @@
         "dependsOn": "build ebpf payload",
         // uplink setup and torii share one sudo, so the password is asked only once
         "command": "cargo build --package torii && sudo -E RUST_BACKTRACE=full RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/scripts/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/debug/torii'",
-        "problemMatcher": ["$rustc"],
+        // torii keeps running, so the task is marked as ready, once its api listens. This allows
+        // to use it as preLaunchTask of the compounds in launch.json.
+        "isBackground": true,
+        "problemMatcher": {
+            "base": "$rustc",
+            "background": {
+                "activeBegin": true,
+                "beginsPattern": "^\\s*(Compiling|Finished|Blocking)",
+                "endsPattern": "HTTP-server listen internally"
+            }
+        },
         "group": {
             "kind": "build",
         },
-        "presentation": { "reveal": "always", "focus": true, "panel": "shared" }
+        "presentation": { "reveal": "always", "focus": true, "panel": "dedicated" }
+      },
+      {
+        "label": "Run Torii (single-node, release)",
+        "type": "shell",
+        // uplink setup and torii share one sudo, so the password is asked only once
+        "command": "cargo build --release --package torii && sudo -E RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/scripts/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/release/torii'",
+        "isBackground": true,
+        "problemMatcher": {
+            "base": "$rustc",
+            "background": {
+                "activeBegin": true,
+                "beginsPattern": "^\\s*(Compiling|Finished|Blocking)",
+                "endsPattern": "HTTP-server listen internally"
+            }
+        },
+        "group": {
+            "kind": "build",
+        },
+        "presentation": { "reveal": "always", "focus": true, "panel": "dedicated" }
       },
       {
         "label": "Run Neko",
