@@ -66,7 +66,6 @@ disk-space for it. The image and the public-key are not set here, but by the fol
 create-call."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 409,
     error_code = 500
 )]

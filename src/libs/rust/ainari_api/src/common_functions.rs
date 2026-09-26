@@ -221,13 +221,55 @@ pub fn map_db_register_error(obj_type: &str, _err: enums::DbError) -> ErrorRespo
 pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError) -> ErrorResponse {
     match err {
         enums::DbError::InternalError => {
-            log::error!("Error while deleting {obj_type} with ID '{id}' from DB");
+            log::error!("Error while get {obj_type} with ID '{id}' from DB");
             ErrorResponse::InternalError("Internal Error".to_string())
         }
         enums::DbError::NotFound => {
             ErrorResponse::NotFound(format!("{obj_type} with ID '{id}' not found."))
         }
     }
+}
+
+/// To handle error when requesting a value from the database right after it was
+/// added to the database.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being accessed.
+/// * `id` - A string slice containing the ID of the object.
+/// * `err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// Always InternalError
+pub fn map_db_id_get_after_add_error(
+    obj_type: &str,
+    id: &str,
+    _err: enums::DbError,
+) -> ErrorResponse {
+    log::error!("Error while get {obj_type} with ID '{id}' from DB");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
+/// To handle error when requesting a value from the database right after it was
+/// added to the database.
+///
+/// # Arguments
+///
+/// * `obj_type` - A string slice describing the type of object being accessed.
+/// * `uuid` - A reference to a Uuid object.
+/// * `err` - A DbError enum indicating the type of database error.
+///
+/// # Returns
+///
+/// Always InternalError
+pub fn map_db_uuid_get_after_add_error(
+    obj_type: &str,
+    uuid: &Uuid,
+    _err: enums::DbError,
+) -> ErrorResponse {
+    log::error!("Error while get {obj_type} with UUID '{uuid}' from DB");
+    ErrorResponse::InternalError("Internal Error".to_string())
 }
 
 /// Maps database errors for get and delete operations using UUID to appropriate ErrorResponse.

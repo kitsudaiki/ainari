@@ -72,7 +72,7 @@ pub async fn create_user_admin(
 
     // get new created user from database to get additional information
     let user = user_table::get_user(user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_after_add_error("user", user_id, e))?;
 
     let resp = UserResp {
         id: user.id,
