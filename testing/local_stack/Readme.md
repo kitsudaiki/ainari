@@ -15,7 +15,8 @@ so each chapter can be read without the others:
 5. [Differences between the setups](#5-differences-between-the-setups)
 
 All of them use the same floating ip-addresses (`10.0.0.0/24`), so only one of them can run at a
-time.
+time. Every chapter also describes, how to run the setup out of a container, which brings all
+required tools, for a test without installing them on the host.
 
 ---
 
@@ -175,6 +176,48 @@ The test waits at its start until both sakura-hosts are registered in hanami.
 `AINARI_SAKURA_HOSTS` sets how many hosts it waits for and `AINARI_VIRTUAL_MACHINES` how many
 virtual machines it creates. Every one of them gets 2 cores and 2 GiB memory, so the two of the
 default need 4 GiB on the host.
+
+### Running from the tools-container
+
+The image `dockerfiles/Dockerfile_local_test_tools` contains all tools of the requirements above,
+which can be installed in an image, so they don't have to be installed on the host. The container
+runs in the network- and pid-namespace of the host and uses the docker of the host, so the setup
+is deployed on the host, exactly like without the container. The repository is mounted with the
+same path as on the host, because the docker of the host resolves the paths of the setup.
+`HOST_UID` and `HOST_GID` let the container run as the user of the host, so the files, which the
+setup creates in the repository, belong to this user; the user has sudo within the container.
+
+Build the image once in the root of the repository:
+
+```bash
+docker build -f dockerfiles/Dockerfile_local_test_tools -t ainari/local-test-tools .
+```
+
+Start the container in the root of the repository:
+
+```bash
+docker run --rm -it --privileged --network host --pid host \
+    -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$PWD:$PWD" -w "$PWD" \
+    ainari/local-test-tools
+```
+
+Within the container, the setup is started, tested and stopped with the same commands as on the
+host. The python of the container has the dependencies of the sdk already:
+
+```bash
+make up local
+python3 testing/local_stack/vm_lifecycle_test.py
+cd src/cli/ainarictl && go build . && cd -    # the cli, if needed
+make down local
+```
+
+What still has to be on the host: docker, `/dev/kvm`, `/dev/net/tun` and a kernel with
+eBPF/XDP-support. The setup is reachable from the host like without the container: the api at
+`http://127.0.0.1:11417` and the floating ip-addresses over `veth-host`, which the setup-script
+creates on the host. The setup keeps running, when the container is left; it is stopped with
+`make down local` out of a new container.
 
 ### Hints
 
@@ -349,6 +392,53 @@ make down kind
 `AINARI_SAKURA_HOSTS` sets how many sakura-hosts the test waits for (default 2) and
 `AINARI_VIRTUAL_MACHINES` how many virtual machines it creates (default 2, each with 2 cores and
 2 GiB memory).
+
+### Running from the tools-container
+
+The image `dockerfiles/Dockerfile_local_test_tools` contains all tools of the requirements above,
+which can be installed in an image, so they don't have to be installed on the host. The container
+runs in the network- and pid-namespace of the host and uses the docker of the host, so the setup
+is deployed on the host, exactly like without the container. The repository is mounted with the
+same path as on the host, because the docker of the host resolves the paths of the setup.
+`HOST_UID` and `HOST_GID` let the container run as the user of the host, so the files, which the
+setup creates in the repository, belong to this user; the user has sudo within the container.
+
+Build the image once in the root of the repository:
+
+```bash
+docker build -f dockerfiles/Dockerfile_local_test_tools -t ainari/local-test-tools .
+```
+
+Start the container in the root of the repository. `KUBECONFIG` puts the kubeconfig of the
+cluster into the repository, so it is still there after the container is left:
+
+```bash
+docker run --rm -it --privileged --network host --pid host \
+    -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+    -e KUBECONFIG="$PWD/temporary_files/kind/kubeconfig" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$PWD:$PWD" -w "$PWD" \
+    ainari/local-test-tools
+```
+
+Within the container, the setup is started, tested and stopped with the same commands as on the
+host. The python of the container has the dependencies of the sdk already, and `kubectl` and
+`kind` are available:
+
+```bash
+make up kind
+AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/local_stack/vm_lifecycle_test.py
+kubectl --namespace ainari get pods
+make down kind
+```
+
+What still has to be on the host: docker, `/dev/kvm`, `/dev/net/tun` and a kernel with
+eBPF/XDP-support. The setup is reachable from the host like without the container: the api and
+the dashboard at `https://127.0.0.1:<port>`, the floating ip-addresses over `veth-kind`, which
+the setup-script creates on the host, and the cluster with
+`kubectl --kubeconfig temporary_files/kind/kubeconfig`, if `kubectl` is installed on the host.
+The setup keeps running, when the container is left; it is stopped with `make down kind` out of a
+new container, started with the same command.
 
 ### Hints
 
@@ -542,6 +632,55 @@ make down vagrant
 `AINARI_VIRTUAL_MACHINES` how many virtual machines it creates (default 2, each with 2 cores and
 2 GiB memory within the virtual machines of the sakura-hosts, which have 6 GiB each).
 
+### Running from the tools-container
+
+The image `dockerfiles/Dockerfile_local_test_tools` contains all tools of the requirements above,
+which can be installed in an image, so they don't have to be installed on the host. The container
+runs in the network- and pid-namespace of the host and uses the docker of the host, so the setup
+is deployed on the host, exactly like without the container. The repository is mounted with the
+same path as on the host, because the docker of the host resolves the paths of the setup.
+`HOST_UID` and `HOST_GID` let the container run as the user of the host, so the files, which the
+setup creates in the repository, belong to this user; the user has sudo within the container.
+
+Build the image once in the root of the repository:
+
+```bash
+docker build -f dockerfiles/Dockerfile_local_test_tools -t ainari/local-test-tools .
+```
+
+Start the container in the root of the repository. Beside the docker of the host, vagrant uses
+the libvirt of the host over its socket. The volume `ainari-vagrant-home` keeps the downloaded
+box of vagrant over all containers, so it is only downloaded once:
+
+```bash
+docker run --rm -it --privileged --network host --pid host \
+    -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /var/run/libvirt:/var/run/libvirt \
+    -v ainari-vagrant-home:/opt/vagrant.d/boxes \
+    -v "$PWD:$PWD" -w "$PWD" \
+    ainari/local-test-tools
+```
+
+Within the container, the setup is started, tested and stopped with the same commands as on the
+host. The python of the container has the dependencies of the sdk already, and `vagrant` with the
+plugin `vagrant-libvirt` and `ansible` are available:
+
+```bash
+make up vagrant
+AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 python3 testing/local_stack/vm_lifecycle_test.py
+kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get pods
+cd testing/vagrant && vagrant ssh ainari-mgmt
+make down vagrant
+```
+
+What still has to be on the host: docker, libvirt (`libvirtd` running) and kvm with nested
+virtualization. Neither vagrant nor ansible are required on the host. The setup is reachable from
+the host like without the container: the api and the dashboard at `https://192.168.56.10:<port>`
+and the floating ip-addresses over the route, which the setup-script adds on the host. The
+virtual machines keep running, when the container is left; they are destroyed with
+`make down vagrant` out of a new container, started with the same command.
+
 ### Hints
 
 - **Certificates:** all certificates are signed by the CA
@@ -694,6 +833,7 @@ The end-to-end test `testing/local_stack/vm_lifecycle_test.py` skips the verific
 | Virtualization of the sakura-hosts  | kvm of the host                       | kvm of the host                                 | nested kvm within the virtual machines                  |
 | Needs sudo for                      | the whole setup-script                | the veth-pair and the NAT-rules                 | only the route on the host                              |
 | Tools on the host                   | docker compose                        | kind, kubectl, helm, openssl                    | vagrant-libvirt, ansible, openssl                       |
+| Host-sockets for the tools-container | docker                               | docker                                          | docker, libvirt                                         |
 | eBPF-support of the host-kernel     | required                              | required                                        | not required                                            |
 | Resources                           | smallest                              | small                                           | about 20 GiB memory, 25 GiB disk                        |
 | Time to start                       | fast                                  | a few minutes                                   | longest (virtual machines, k3s)                         |

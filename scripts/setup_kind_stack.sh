@@ -298,7 +298,7 @@ for resource in deployment/miko deployment/omamori deployment/ryokan deployment/
 done
 
 echo ""
-echo "The stack is up. The api is reachable over https with self-signed certificates at:"
+echo "The stack is up. The api is reachable over https at:"
 echo "    miko     https://127.0.0.1:11417"
 echo "    hanami   https://127.0.0.1:11418"
 echo "    ryokan   https://127.0.0.1:11416"
