@@ -30,14 +30,13 @@ import (
 )
 
 var (
-	floatingIpName        string
-	floatingIpNetworkUuid string
-	floatingIpInternalIp  string
+	floatingIpName               string
+	floatingIpVirtualMachineUuid string
 )
 
 var addFloatingIpCmd = &cobra.Command{
-	Use:   "add -n NAME -u NETWORK_UUID -i INTERNAL_IP [FLOATING_IP]",
-	Short: "Assign a floating IP to an internal IP. If no FLOATING_IP is given, a free one is selected.",
+	Use:   "add -n NAME [-v VIRTUAL_MACHINE_UUID] [FLOATING_IP]",
+	Short: "Reserve a new floating IP. If no FLOATING_IP is given, a free one is selected. If a virtual machine is given, the floating IP is directly attached to it.",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -51,9 +50,48 @@ var addFloatingIpCmd = &cobra.Command{
 		}
 		content, err := ainari_sdk.AddFloatingIp(context,
 			floatingIpName,
-			floatingIpNetworkUuid,
 			floatingIp,
-			floatingIpInternalIp)
+			floatingIpVirtualMachineUuid)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var attachFloatingIpCmd = &cobra.Command{
+	Use:   "attach FLOATING_IP_UUID VIRTUAL_MACHINE_UUID",
+	Short: "Attach a floating IP to a virtual machine.",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.AttachFloatingIp(context, args[0], args[1])
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var detachFloatingIpCmd = &cobra.Command{
+	Use:   "detach FLOATING_IP_UUID",
+	Short: "Detach a floating IP from its virtual machine, so it can be attached to another one.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.DetachFloatingIp(context, args[0])
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -133,11 +171,12 @@ func Init_FloatingIp_Commands(rootCmd *cobra.Command) {
 
 	floatingIpCmd.AddCommand(addFloatingIpCmd)
 	addFloatingIpCmd.Flags().StringVarP(&floatingIpName, "name", "n", "", "Name of the floating IP (mandatory)")
-	addFloatingIpCmd.Flags().StringVarP(&floatingIpNetworkUuid, "network", "u", "", "UUID of the network, which the internal address belongs to (mandatory)")
-	addFloatingIpCmd.Flags().StringVarP(&floatingIpInternalIp, "internal", "i", "", "Internal address, which the floating IP is assigned to (mandatory)")
+	addFloatingIpCmd.Flags().StringVarP(&floatingIpVirtualMachineUuid, "virtual_machine", "v", "", "UUID of the virtual machine, which the new floating IP is attached to (optional)")
 	addFloatingIpCmd.MarkFlagRequired("name")
-	addFloatingIpCmd.MarkFlagRequired("network")
-	addFloatingIpCmd.MarkFlagRequired("internal")
+
+	floatingIpCmd.AddCommand(attachFloatingIpCmd)
+
+	floatingIpCmd.AddCommand(detachFloatingIpCmd)
 
 	floatingIpCmd.AddCommand(getFloatingIpCmd)
 

@@ -57,7 +57,7 @@ pub fn v1alpha_routes() -> Scope {
                         post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal),
                     ),
                 )
-                .service(resource("/{floating_ip}/internal").route(
+                .service(resource("/{ip}/internal").route(
                     delete().to(delete_floating_ip_internal_v1_0::delete_floating_ip_internal),
                 )),
         )

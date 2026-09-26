@@ -16,6 +16,7 @@
 
 import { hanamiClient } from "./client";
 import type {
+    FloatingIpAttachReq,
     FloatingIpBasicResp,
     FloatingIpCreateReq,
     FloatingIpResp,
@@ -118,6 +119,24 @@ export async function listFloatingIps(): Promise<FloatingIpBasicResp[]> {
 /** `GET /v1alpha/floating_ip/{floating_ip_uuid}` */
 export async function getFloatingIp(uuid: string): Promise<FloatingIpResp> {
     const resp = await hanamiClient().get(`/v1alpha/floating_ip/${uuid}`);
+    return resp.data;
+}
+
+/** `PUT /v1alpha/floating_ip/{floating_ip_uuid}/attach` */
+export async function attachFloatingIp(
+    uuid: string,
+    body: FloatingIpAttachReq,
+): Promise<FloatingIpResp> {
+    const resp = await hanamiClient().put(
+        `/v1alpha/floating_ip/${uuid}/attach`,
+        body,
+    );
+    return resp.data;
+}
+
+/** `PUT /v1alpha/floating_ip/{floating_ip_uuid}/detach` */
+export async function detachFloatingIp(uuid: string): Promise<FloatingIpResp> {
+    const resp = await hanamiClient().put(`/v1alpha/floating_ip/${uuid}/detach`);
     return resp.data;
 }
 

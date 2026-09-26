@@ -23,7 +23,8 @@ It walks through the whole life-cycle of two virtual machines with the python-sd
     3. create a network
     4. reserve the virtual machines in hanami
     5. create the reserved virtual machines on their sakura-hosts
-    6. give every virtual machine its own floating ip-address
+    6. give every virtual machine its own floating ip-address. The first one gets it attached
+       directly by the create-call, the others by a separate attach-call after the create
     7. log into every virtual machine over ssh with the generated key
 
 Both virtual machines use the same image, the same public key and the same network and differ
@@ -294,11 +295,27 @@ def main() -> int:
 
     # 6. floating ip-addresses
     log("creating a floating ip-address for every virtual machine")
-    for virtual_machine_entry in virtual_machines:
-        floating_ip_data = floating_ip.create_floating_ip(context,
-                                                          f"{virtual_machine_entry['name']}-fip",
-                                                          network_uuid,
-                                                          virtual_machine_entry["internal_ip"])
+    for index, virtual_machine_entry in enumerate(virtual_machines):
+        name = f"{virtual_machine_entry['name']}-fip"
+        if index == 0:
+            # create and attach within one call
+            floating_ip_data = floating_ip.create_floating_ip(
+                context,
+                name,
+                virtual_machine_uuid=virtual_machine_entry["uuid"])
+        else:
+            # only reserve first and attach afterwards
+            floating_ip_data = floating_ip.create_floating_ip(context, name)
+            if floating_ip_data["internal_ip"] is not None:
+                raise RuntimeError(f"new floating ip '{floating_ip_data['uuid']}' "
+                                   f"is already attached")
+            floating_ip_data = floating_ip.attach_floating_ip(context,
+                                                              floating_ip_data["uuid"],
+                                                              virtual_machine_entry["uuid"])
+        if floating_ip_data["internal_ip"] != virtual_machine_entry["internal_ip"]:
+            raise RuntimeError(f"floating ip '{floating_ip_data['uuid']}' is attached to "
+                               f"'{floating_ip_data['internal_ip']}' instead of "
+                               f"'{virtual_machine_entry['internal_ip']}'")
         virtual_machine_entry["floating_ip"] = floating_ip_data["floating_ip"]
         log(f"    {virtual_machine_entry['floating_ip']} "
             f"-> {virtual_machine_entry['internal_ip']}")

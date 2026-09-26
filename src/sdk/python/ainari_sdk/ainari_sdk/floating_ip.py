@@ -18,26 +18,54 @@ from .access_context import AccessContext
 
 def create_floating_ip(context: AccessContext,
                        name: str,
-                       network_uuid: str,
-                       internal_ip: str,
-                       floating_ip: str = "") -> dict:
+                       floating_ip: str = "",
+                       virtual_machine_uuid: str = "") -> dict:
     """
-    Assigns a floating ip-address to an internal address. If no floating ip-address is requested,
-    a free one is selected by the server.
+    Reserves a new floating ip-address. If no floating ip-address is requested, a free one is
+    selected by the server. If a virtual machine is given, the new floating ip-address is directly
+    attached to it.
     """
     path = "/v1alpha/floating_ip"
     json_body = {
         "name": name,
-        "network_uuid": network_uuid,
-        "internal_ip": internal_ip,
     }
     if floating_ip:
         json_body["floating_ip"] = floating_ip
+    if virtual_machine_uuid:
+        json_body["virtual_machine_uuid"] = virtual_machine_uuid
 
     return ainari_request.send_post_request(context,
                                             context.hanami_address,
                                             path,
                                             json_body)
+
+
+def attach_floating_ip(context: AccessContext,
+                       floating_ip_uuid: str,
+                       virtual_machine_uuid: str) -> dict:
+    """
+    Attaches a floating ip-address to a virtual machine.
+    """
+    path = f"/v1alpha/floating_ip/{floating_ip_uuid}/attach"
+    json_body = {
+        "virtual_machine_uuid": virtual_machine_uuid,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.hanami_address,
+                                           path,
+                                           json_body)
+
+
+def detach_floating_ip(context: AccessContext,
+                       floating_ip_uuid: str) -> dict:
+    """
+    Detaches a floating ip-address from its virtual machine, so it can be attached to another one.
+    """
+    path = f"/v1alpha/floating_ip/{floating_ip_uuid}/detach"
+    return ainari_request.send_put_request(context,
+                                           context.hanami_address,
+                                           path,
+                                           {})
 
 
 def get_floating_ip(context: AccessContext,

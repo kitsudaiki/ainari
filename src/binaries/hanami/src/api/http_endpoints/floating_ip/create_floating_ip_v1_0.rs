@@ -19,26 +19,25 @@ use std::net::Ipv4Addr;
 use validator::Validate;
 
 use crate::config;
-use crate::database::address_table;
+use crate::core::floating_ip::{attach_floating_ip, to_floating_ip_resp};
 use crate::database::floating_ip_table;
-use crate::database::floating_ip_table::FloatingIpEntry;
 use crate::database::floating_ip_table::FloatingIpReserveError;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::floating_ip as floating_ip_clients;
 use ainari_clients::quota::get_quota;
-use torii_common::VNI_DEFAULT;
 
 #[api_operation(
     tag = "floating_ip",
     summary = "Create new floating_ip",
     description = r###"Create new floating_ip.
 
-If no floating ip-address is requested, a free one is selected."###,
+The floating ip-address is only reserved and not attached to any virtual_machine. If no
+floating ip-address is requested, a free one is selected. If a virtual_machine is given, the
+floating ip-address is attached to it directly. If this attach fails, the reservation is
+released again."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -57,111 +56,34 @@ pub async fn create_floating_ip(
 
     // add new floating_ip to database and reserve the requested or a free floating ip-address for it
     let (floating_ip_uuid, _) = floating_ip_table::add_new_floating_ip(
-        &body.network_uuid,
-        &body.internal_ip,
+        &body.name,
         body.floating_ip.as_ref(),
         &config::CONFIG.network.floating_ip_cidr,
         &context,
     )
     .map_err(|e| map_reserve_error(e, body.floating_ip.as_ref()))?;
 
-    // get new created floating_ip from database to get additional information
-    let floating_ip_entrry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("project", &floating_ip_uuid, e))?;
-
-    // register the NAT of the floating ip-address in the torii, which is reachable from outside
-    register_floating_ip(&floating_ip_entrry, &body.name, &context).await?;
-
-    let resp = FloatingIpResp {
-        uuid: floating_ip_uuid,
-        network_uuid: floating_ip_entrry.network_uuid,
-        floating_ip: floating_ip_entrry.floating_ip_addr,
-        internal_ip: floating_ip_entrry.internal_ip_addr,
-        created_by: floating_ip_entrry.created_by,
-        created_at: floating_ip_entrry.created_at,
-        updated_by: floating_ip_entrry.updated_by,
-        updated_at: floating_ip_entrry.updated_at,
+    let floating_ip_entry = match body.virtual_machine_uuid {
+        Some(virtual_machine_uuid) => {
+            match attach_floating_ip(&floating_ip_uuid, &virtual_machine_uuid, &context).await {
+                Ok(entry) => entry,
+                Err(e) => {
+                    // the user requested a floating ip-address for the virtual_machine, so an
+                    // unattached one is not what was asked for and is released again
+                    log::error!(
+                        "Failed to attach new floating ip '{floating_ip_uuid}' to virtual_machine \
+                         '{virtual_machine_uuid}'. Releasing it again."
+                    );
+                    let _ = floating_ip_table::force_delete_floating_ip(&floating_ip_uuid);
+                    return Err(e);
+                }
+            }
+        }
+        None => floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
+            .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?,
     };
 
-    Ok(CreatedJson(resp))
-}
-
-/// Registers the NAT of a floating ip-address in the torii
-///
-/// The floating ip-address is translated by the torii, which is reachable from the outside,
-/// because that is where the traffic of the virtual_machines enters and leaves the virtual
-/// network. If the registration fails, the reserved address is released again, so it is not
-/// blocked by an entry, which the torii doesn't know.
-///
-/// The tenant of the internal address travels with the registration. A floating ip-address is
-/// unique across all networks, so it is what tells the torii, which tenant an arriving packet
-/// belongs to - and the internal address behind it is only meaningful within that tenant.
-///
-/// # Arguments
-/// * `floating_ip_entry` - Reserved floating ip-address with its internal address
-/// * `name` - Name of the floating ip-address
-/// * `context` - User context containing authentication information
-///
-/// # Returns
-/// * `Ok(())` if the floating ip-address is registered in the torii
-/// * `Err(ErrorResponse)` with an appropriate error on failure
-async fn register_floating_ip(
-    floating_ip_entry: &FloatingIpEntry,
-    name: &str,
-    context: &UserContext,
-) -> Result<(), ErrorResponse> {
-    let result = async {
-        // get endpoints from miko
-        let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
-            .await
-            .map_err(map_ainari_error_to_api_response)?;
-
-        // the tenant is stored with the address of the virtual_machine, so the floating
-        // ip-address is registered in exactly the tenant, which its internal address lives in
-        let vni = match address_table::get_address_by_internal_ip(
-            &floating_ip_entry.network_uuid,
-            &floating_ip_entry.internal_ip_addr,
-        ) {
-            Ok(address) => address.vni,
-            Err(_) => {
-                // nothing holds this address yet, so there is no tenant to join. The shared one
-                // is what a setup without tenants uses anyway.
-                log::warn!(
-                    "No address-entry for '{}' in network '{}', so its floating ip-address is \
-                     registered in the shared tenant.",
-                    floating_ip_entry.internal_ip_addr,
-                    floating_ip_entry.network_uuid
-                );
-                VNI_DEFAULT
-            }
-        };
-
-        floating_ip_clients::create_floating_ip(
-            &endpoints.torii,
-            &context.token,
-            &config::INTERNAL_API_KEY,
-            name,
-            &floating_ip_entry.network_uuid,
-            &floating_ip_entry.floating_ip_addr,
-            &floating_ip_entry.internal_ip_addr,
-            vni,
-            config::CONFIG.skip_tls_verification,
-        )
-        .await
-        .map_err(map_ainari_error_to_api_response)
-    }
-    .await;
-
-    if let Err(e) = result {
-        log::error!(
-            "Failed to register floating ip '{}' in torii. Releasing it again.",
-            floating_ip_entry.floating_ip_addr
-        );
-        let _ = floating_ip_table::force_delete_floating_ip(&floating_ip_entry.uuid);
-        return Err(e);
-    }
-
-    Ok(())
+    Ok(CreatedJson(to_floating_ip_resp(floating_ip_entry)))
 }
 
 /// Converts an error of the floating ip-address reservation into an error-response.

@@ -16,31 +16,23 @@
 
 <template>
     <div class="modal-overlay" @click.self="cancel">
-        <div class="modal floating-ip-create-modal">
+        <div class="modal floating-ip-attach-modal">
             <div class="modal-topbar">
-                <span>Create floating IP</span>
+                <span>Attach floating IP</span>
             </div>
             <div class="modal-content">
-                <div>
-                    <input
-                        v-model="form.name"
-                        type="text"
-                        placeholder="Name"
-                        :class="{ invalid_input: nameError }"
-                    />
-                    <p v-if="nameError" class="error-msg">
-                        Name must be at least 4 characters
-                    </p>
-                </div>
+                <strong>Floating IP: {{ floating_ip?.floating_ip }}</strong>
+                <br />
                 <br />
                 <div class="field-row">
                     <label for="virtual_machine">Virtual machine: </label>
                     <select
                         id="virtual_machine"
-                        v-model="form.virtual_machine_uuid"
+                        v-model="virtualMachineUuid"
                         class="select-dropdown"
+                        :class="{ invalid_input: virtualMachineError }"
                     >
-                        <option value="">None (only reserve)</option>
+                        <option value="" disabled>Select a virtual machine</option>
                         <option
                             v-for="virtualMachine in virtualMachines"
                             :key="virtualMachine.uuid"
@@ -50,30 +42,17 @@
                         </option>
                     </select>
                 </div>
-                <p class="hint-msg">
-                    If a virtual machine is selected, the floating IP is directly
-                    attached to it.
+                <p v-if="virtualMachineError" class="error-msg">
+                    A virtual machine must be selected
                 </p>
-                <br />
-                <div>
-                    <input
-                        v-model="form.floating_ip"
-                        type="text"
-                        placeholder="Floating IP (optional)"
-                        :class="{ invalid_input: floatingIpError }"
-                    />
-                    <p v-if="floatingIpError" class="error-msg">
-                        Floating IP must be a valid IPv4-address
-                    </p>
-                    <p class="hint-msg">
-                        Leave empty to let the backend pick a free address.
-                    </p>
-                </div>
             </div>
 
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept">
+                    <button
+                        class="icon-button"
+                        @click="handleAccept(floating_ip?.uuid)"
+                    >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -90,13 +69,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 
 import { hanami } from "@/api";
-import type { FloatingIpCreateReq, VirtualMachineBasicResp } from "@/api";
+import type { FloatingIpBasicResp, VirtualMachineBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
+    floating_ip: FloatingIpBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 defineProps<Props>();
@@ -104,22 +84,10 @@ const emit = defineEmits<{
     (e: "accept"): void;
     (e: "cancel"): void;
 }>();
-
 const errorPopupMsg = ref<string>("");
-const nameError = ref(false);
-const floatingIpError = ref(false);
-
+const virtualMachineError = ref(false);
+const virtualMachineUuid = ref<string>("");
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
-
-const form = reactive({
-    name: "",
-    floating_ip: "",
-    virtual_machine_uuid: "",
-});
-
-// plain IPv4-address. The backend validates this again, this check only avoids the
-// obvious typos.
-const IPV4_PATTERN = /^(\d{1,3}\.){3}\d{1,3}$/;
 
 async function fetchVirtualMachines() {
     try {
@@ -132,34 +100,20 @@ async function fetchVirtualMachines() {
     }
 }
 
-async function handleAccept() {
-    nameError.value = form.name.length < 4;
-    // the floating ip is optional, so it is only checked when something was typed in
-    floatingIpError.value =
-        form.floating_ip !== "" && !IPV4_PATTERN.test(form.floating_ip);
-
-    if (nameError.value || floatingIpError.value) {
-        return;
-    }
+async function handleAccept(floating_ip_uuid: string | undefined) {
+    if (!floating_ip_uuid) return;
+    virtualMachineError.value = virtualMachineUuid.value === "";
+    if (virtualMachineError.value) return;
 
     try {
-        const body: FloatingIpCreateReq = {
-            name: form.name,
-        };
-        if (form.floating_ip !== "") {
-            body.floating_ip = form.floating_ip;
-        }
-        if (form.virtual_machine_uuid !== "") {
-            body.virtual_machine_uuid = form.virtual_machine_uuid;
-        }
-
-        await hanami.createFloatingIp(body);
-
+        await hanami.attachFloatingIp(floating_ip_uuid, {
+            virtual_machine_uuid: virtualMachineUuid.value,
+        });
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
-            "Failed to create floating IP",
+            "Failed to attach floating IP",
         );
     }
 }
@@ -172,18 +126,13 @@ onMounted(fetchVirtualMachines);
 </script>
 
 <style scoped>
-.floating-ip-create-modal {
+.floating-ip-attach-modal {
     width: 32rem;
 }
 
 /* is not found when I put this in one of the css files. Don't know why... */
 .invalid_input {
     border-bottom: 2px solid #ff4d4f;
-}
-
-.hint-msg {
-    font-size: 0.8rem;
-    opacity: 0.7;
 }
 
 .field-row {

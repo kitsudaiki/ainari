@@ -214,18 +214,25 @@ export interface NetworkResp extends NetworkBasicResp {
 /** Mirror of `floating_ip_structs::FloatingIpCreateReq`. */
 export interface FloatingIpCreateReq {
     name: string;
-    network_uuid: string;
     /** If left out, the backend selects a free address. */
     floating_ip?: string;
-    internal_ip: string;
+    /** If set, the new floating ip is directly attached to this virtual machine. */
+    virtual_machine_uuid?: string;
+}
+
+/** Mirror of `floating_ip_structs::FloatingIpAttachReq`. */
+export interface FloatingIpAttachReq {
+    virtual_machine_uuid: string;
 }
 
 /** Mirror of `floating_ip_structs::FloatingIpBasicResp`. */
 export interface FloatingIpBasicResp {
     uuid: string;
-    network_uuid: string;
+    /** `null`, as long as the floating ip is not attached to a virtual machine. */
+    network_uuid: string | null;
     floating_ip: string;
-    internal_ip: string;
+    /** `null`, as long as the floating ip is not attached to a virtual machine. */
+    internal_ip: string | null;
 }
 
 /** Mirror of `floating_ip_structs::FloatingIpResp`. */

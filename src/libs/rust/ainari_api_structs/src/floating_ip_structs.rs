@@ -26,19 +26,30 @@ use crate::common_structs::default_vni;
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct FloatingIpCreateReq {
     pub name: String,
-    pub network_uuid: Uuid,
     /// Requested floating IP-address. If not set, a free one is selected.
     #[serde(default)]
     pub floating_ip: Option<Ipv4Addr>,
-    pub internal_ip: Ipv4Addr,
+    /// Virtual_machine, which the floating IP-address is attached to directly after its
+    /// creation. If not set, the floating IP-address is only reserved.
+    #[serde(default)]
+    pub virtual_machine_uuid: Option<Uuid>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct FloatingIpAttachReq {
+    /// Virtual_machine, which the floating IP-address is attached to
+    pub virtual_machine_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct FloatingIpResp {
     pub uuid: Uuid,
-    pub network_uuid: Uuid,
+    /// Network of the attached virtual_machine. Not set, if the floating IP-address is detached.
+    pub network_uuid: Option<Uuid>,
     pub floating_ip: Ipv4Addr,
-    pub internal_ip: Ipv4Addr,
+    /// Internal IP-address of the attached virtual_machine. Not set, if the floating
+    /// IP-address is detached.
+    pub internal_ip: Option<Ipv4Addr>,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -73,9 +84,9 @@ pub struct FloatingIpInternalResp {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct FloatingIpBasicResp {
     pub uuid: Uuid,
-    pub network_uuid: Uuid,
+    pub network_uuid: Option<Uuid>,
     pub floating_ip: Ipv4Addr,
-    pub internal_ip: Ipv4Addr,
+    pub internal_ip: Option<Ipv4Addr>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

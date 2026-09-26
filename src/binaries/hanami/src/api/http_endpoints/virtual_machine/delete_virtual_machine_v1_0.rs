@@ -21,8 +21,10 @@ use uuid::Uuid;
 
 use crate::config;
 use crate::core::delete_watcher::spawn_delete_watcher;
+use crate::core::floating_ip::detach_floating_ip;
 use crate::core::routing::{delete_routes_to, torii_of_host};
 use crate::database::address_table;
+use crate::database::floating_ip_table;
 use crate::database::host_table::{self, HostResources};
 use crate::database::meta_virtual_machine_table;
 
@@ -81,6 +83,16 @@ pub async fn delete_virtual_machine(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    // a floating ip-address must not point at the address of the virtual_machine any more,
+    // after it is released. The floating ip-address itself stays reserved, so it can be
+    // attached to another virtual_machine.
+    detach_floating_ip_of_virtual_machine(
+        &virtual_machine.network_uuid,
+        &virtual_machine.internal_ip,
+        &context,
+    )
+    .await?;
+
     // sakura reports the memory in bytes, but the hosts-table counts it in MiB
     let resources = HostResources {
         number_of_cores: i64::from(virtual_machine.number_of_cores),
@@ -135,6 +147,38 @@ pub async fn delete_virtual_machine(
     .await?;
 
     Ok(NoContent)
+}
+
+/// Detaches the floating ip-address of a virtual_machine, if it has one.
+///
+/// # Arguments
+/// * `network_uuid` - The network of the virtual_machine
+/// * `internal_ip` - The internal ip-address of the virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` if the virtual_machine has no floating ip-address attached any more
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+async fn detach_floating_ip_of_virtual_machine(
+    network_uuid: &Uuid,
+    internal_ip: &Ipv4Addr,
+    context: &UserContext,
+) -> Result<(), ErrorResponse> {
+    let floating_ip_entry =
+        floating_ip_table::get_floating_ip_by_internal_ip(network_uuid, internal_ip).map_err(
+            |_| {
+                log::error!(
+                    "Failed to get floating ip of '{internal_ip}' in network '{network_uuid}' \
+                     from database."
+                );
+                ErrorResponse::InternalError("Internal Error".to_string())
+            },
+        )?;
+
+    match floating_ip_entry {
+        Some(floating_ip_entry) => detach_floating_ip(&floating_ip_entry, context).await,
+        None => Ok(()),
+    }
 }
 
 /// Removes the address of a deleted virtual_machine from the gateways and from the database

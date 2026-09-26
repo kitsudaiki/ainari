@@ -245,6 +245,18 @@ async fn prepare_selected_host(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
+    // the UUID of the virtual_machine is only known now, so the address is linked with it
+    // afterwards. The link is what a floating ip-address is attached by later.
+    address_table::set_virtual_machine_of_address(&vm_address.uuid, &virtual_machine_resp.uuid)
+        .map_err(|_| {
+            log::error!(
+                "Failed to link address '{}' with virtual_machine '{}' in database.",
+                vm_address.uuid,
+                virtual_machine_resp.uuid
+            );
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
+
     // send request to torii to create a proxy
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
