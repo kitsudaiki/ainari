@@ -11,6 +11,7 @@ target
 venv
 .venv
 .vagrant
+.claude
 
 temporary_files
 testing/go_cli_api/ainarictl

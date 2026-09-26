@@ -1,0 +1,96 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image with all tools, which the three local test environments of testing/local_stack/Readme.md
+# need (docker compose, kind, kubectl, helm, vagrant with vagrant-libvirt, ansible, go, the
+# python-sdk, ...), so they can be started without installing these tools on the host.
+#
+# The container runs in the network- and pid-namespace of the host and uses the docker and libvirt
+# of the host, so the setups are deployed on the host. What can't be installed in an image has to
+# be on the host already: docker, kvm, a kernel with eBPF-support and, for the vagrant-setup,
+# libvirt. See testing/local_stack/Readme.md for the command to start the container.
+#
+# Build:
+#   docker build -f dockerfiles/Dockerfile_local_test_tools -t ainari/local-test-tools .
+
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# versions of the tools, the same as the ones of the Makefile and the setup-scripts
+ARG KIND_VERSION=v0.30.0
+ARG KUBECTL_VERSION=v1.34.12
+ARG HELM_VERSION=v3.17.3
+ARG GO_VERSION=1.26.8
+ARG ANSIBLE_CORE_VERSION=2.20.9
+ARG VAGRANT_LIBVIRT_VERSION=0.12.2
+
+# The image of ubuntu brings the user 'ubuntu' with the id 1000, which is also the id of the first
+# user of most hosts. The entrypoint creates the user of the host itself, see there.
+RUN userdel --remove ubuntu
+
+# tools of the setup-scripts and the network-setup of the host
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg git make sudo jq \
+        openssl openssh-client rsync \
+        iproute2 iptables ethtool iputils-ping util-linux \
+        python3 python3-venv python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# docker-cli with the plugins compose and buildx, which talk to the docker of the host
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" \
+        > /etc/apt/sources.list.d/docker.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        docker-ce-cli docker-compose-plugin docker-buildx-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# vagrant with the plugin vagrant-libvirt, which talks to the libvirt of the host. The plugin is
+# compiled against libvirt, so the build-tools are needed as well.
+ENV VAGRANT_HOME=/opt/vagrant.d
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com noble main" \
+        > /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        vagrant libvirt-clients libvirt-dev build-essential pkg-config \
+    && vagrant plugin install vagrant-libvirt --plugin-version "$VAGRANT_LIBVIRT_VERSION" \
+    && rm -rf /var/lib/apt/lists/*
+
+# kind, kubectl and helm
+RUN curl -fsSLo /usr/local/bin/kind "https://kind.sigs.k8s.io/dl/$KIND_VERSION/kind-linux-amd64" \
+    && curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl" \
+    && chmod +x /usr/local/bin/kind /usr/local/bin/kubectl \
+    && curl -fsSL "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin --strip-components=1 linux-amd64/helm
+
+# go, to build the cli
+RUN curl -fsSL "https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz" | tar -xz -C /usr/local
+ENV PATH="/usr/local/go/bin:$PATH" \
+    GOPATH=/tmp/go \
+    GOCACHE=/tmp/go-cache
+
+# ansible for the vagrant-setup and the dependencies of the python-sdk for the end-to-end test
+COPY src/sdk/python/ainari_sdk/requirements.txt /tmp/sdk-requirements.txt
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir "ansible-core==$ANSIBLE_CORE_VERSION" \
+        -r /tmp/sdk-requirements.txt \
+    && rm /tmp/sdk-requirements.txt
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY dockerfiles/files/local_test_tools_entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/bin/bash"]
