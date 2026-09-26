@@ -19,7 +19,8 @@
 # clients either trust or skip the verification for.
 
 global:
-  # there is no ingress-controller, the api and the dashboard are published over node-ports
+  # there is no ingress-controller, the api and the dashboard are published over node-ports,
+  # see external_services
   ingress:
     enabled: false
   # The CA is created once by scripts/setup_kind_stack.sh in temporary_files/kind and stays the
@@ -40,9 +41,10 @@ global:
   image:
     # the images are built locally and loaded into kind, they can not be pulled
     pull_policy: IfNotPresent
-  node_ports:
+  external_services:
     enabled: true
-    offset: 20000
+    type: NodePort
+    node_port_offset: 20000
 
 
 secrets:

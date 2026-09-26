@@ -12,358 +12,295 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Installs k3s on the virtual machines of testing/vagrant/Vagrantfile and deploys the helm-chart of
+# deploy/k8s/ainari on it. It is run by vagrant once for all virtual machines, see
+# scripts/setup_vagrant_stack.sh, which builds the images and the CA before.
+#
+# Groups:
+#   management  the k3s-server, which also runs the control-components of ainari
+#   torii       the gateway at the edge of the network
+#   sakura      the sakura-hosts, each with the torii in front of it
+#
+# Only modules of ansible-core are used, so no collections have to be installed.
+
 ---
-- name: Install k3s server
-  hosts: k3s_server
+- name: Prepare all virtual machines
+  hosts: all
   become: true
   tasks:
-    - name: Install k3s server
-      ansible.builtin.shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
+    - name: Install the tools of the gateways and the uplink
+      ansible.builtin.apt:
+        name:
+          - ethtool
+          - iptables
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    # Vagrant adds a management-interface with its own default route, so k3s would pick that
+    # interface. The cluster has to use the private network instead, which has the bigger mtu.
+    - name: Find the interface of the private network
+      ansible.builtin.shell: |
+        set -o pipefail
+        ip -o -4 addr show | awk -v ip="{{ node_ip }}" '{ split($4, a, "/"); if (a[1] == ip) print $2 }'
       args:
+        executable: /bin/bash
+      register: private_iface
+      changed_when: false
+      failed_when: private_iface.stdout == ""
+
+
+- name: Install the k3s-server
+  hosts: management
+  become: true
+  tasks:
+    - name: Install k3s as server
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_VERSION="{{ k3s_version }}" \
+          INSTALL_K3S_EXEC="server \
+            --node-ip {{ node_ip }} \
+            --flannel-iface {{ private_iface.stdout }} \
+            --tls-san {{ node_ip }} \
+            --disable traefik \
+            --write-kubeconfig-mode 644" \
+          sh -
+      args:
+        executable: /bin/bash
         creates: /usr/local/bin/k3s
 
-    - name: Wait for k3s node token to exist
-      wait_for:
-        path: /var/lib/rancher/k3s/server/node-token
-        timeout: 120
-
-- name: Install k3s agents
-  hosts: k3s_agents
-  become: true
-  vars:
-    k3s_server_host: "{{ groups['k3s_server'][0] }}"
-  tasks:
-    - name: Wait for k3s node token on server
-      wait_for:
+    - name: Wait for the token of the cluster
+      ansible.builtin.wait_for:
         path: /var/lib/rancher/k3s/server/node-token
         timeout: 180
-      delegate_to: "{{ k3s_server_host }}"
-      run_once: true
 
-    - name: Read k3s token from server
-      command: cat /var/lib/rancher/k3s/server/node-token
-      delegate_to: "{{ k3s_server_host }}"
+    - name: Read the token of the cluster
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
       register: k3s_token
-      changed_when: false
-      run_once: true
 
-    - name: Install k3s agent
-      ansible.builtin.shell: |
-        curl -sfL https://get.k3s.io | \
-        K3S_URL=https://{{ hostvars[k3s_server_host].ansible_host }}:6443 \
-        K3S_TOKEN={{ k3s_token.stdout }} sh -
-      args:
-        creates: /usr/local/bin/k3s-agent
 
-    - name: Install rsync for the next step
-      apt:
-        name: rsync
-        state: present
-        update_cache: true
-
-    - name: Ensure /opt/app exists
-      file:
-        path: /opt/app
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Copy selected subdirectories
-      synchronize:
-        src: "{{ playbook_dir }}/../../{{ item }}"
-        dest: /opt/app/
-        recursive: true
-      loop:
-        - temporary_files
-
-    - name: Load pre-build docker-images into the k3s cache
-      ansible.builtin.shell: ctr -n k8s.io images import /opt/app/temporary_files/ainari_docker_files.tar
-
-        
-- name: Install all on the server
-  hosts: k3s_server
+- name: Install the k3s-agents
+  hosts: torii:sakura
   become: true
   vars:
-    cert_manager_namespace: cert-manager
-    cert_manager_version: v1.14.4
+    server: "{{ groups['management'][0] }}"
   tasks:
-    - name: Wait until all k3s nodes are registered and Ready
+    - name: Install k3s as agent
       ansible.builtin.shell: |
-        kubectl get nodes --no-headers | awk '{print $2}' | grep -v Ready || true
-      register: node_status
-      retries: 30
-      delay: 10
-      until: node_status.stdout == ""
-    
-    - name: Wait for Kubernetes API to be ready
-      ansible.builtin.shell: |
-        kubectl get nodes
-      register: kubectl_ready
-      retries: 20
-      delay: 10
-      until: kubectl_ready.rc == 0
-
-    - name: Install kubectl (from k3s)
-      file:
-        src: /usr/local/bin/k3s
-        dest: /usr/local/bin/kubectl
-        state: link
-
-    - name: Install Helm
-      ansible.builtin.shell: |
-        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        set -o pipefail
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_VERSION="{{ k3s_version }}" \
+          K3S_URL="https://{{ hostvars[server].node_ip }}:6443" \
+          K3S_TOKEN="{{ hostvars[server].k3s_token.content | b64decode | trim }}" \
+          INSTALL_K3S_EXEC="agent \
+            --node-ip {{ node_ip }} \
+            --flannel-iface {{ private_iface.stdout }}" \
+          sh -
       args:
+        executable: /bin/bash
+        creates: /usr/local/bin/k3s-agent-uninstall.sh
+
+
+- name: Import the locally built images
+  hosts: all
+  become: true
+  vars:
+    images_of_group:
+      management: [miko, omamori, ryokan, onsen, hanami, dashboard]
+      torii: [torii]
+      sakura: [sakura, torii]
+    images: "{{ group_names | map('extract', images_of_group) | flatten | unique }}"
+  tasks:
+    - name: Create the directory for the images
+      ansible.builtin.file:
+        path: /opt/ainari/images
+        state: directory
+        mode: "0755"
+
+    - name: Copy the images, which run on this node
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/temporary_files/vagrant/images/{{ item }}.tar"
+        dest: "/opt/ainari/images/{{ item }}.tar"
+        mode: "0644"
+      loop: "{{ images }}"
+
+    - name: Import the images into the containerd of k3s
+      ansible.builtin.command: k3s ctr --namespace k8s.io images import "/opt/ainari/images/{{ item }}.tar"
+      loop: "{{ images }}"
+      changed_when: true
+
+
+- name: Connect the gateway at the edge to the virtual machine ainari-torii
+  hosts: torii
+  become: true
+  tasks:
+    - name: Install the uplink-script
+      ansible.builtin.copy:
+        src: files/ainari-uplink.sh
+        dest: /usr/local/bin/ainari-uplink.sh
+        mode: "0755"
+      register: uplink_script
+
+    - name: Install the service of the uplink
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ainari-uplink.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Uplink of the gateway at the edge of the ainari-network
+          After=k3s-agent.service
+          Wants=k3s-agent.service
+
+          [Service]
+          ExecStart=/usr/local/bin/ainari-uplink.sh
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      register: uplink_service
+
+    - name: Start the service of the uplink
+      ansible.builtin.systemd_service:
+        name: ainari-uplink
+        enabled: true
+        state: "{{ 'restarted' if (uplink_script.changed or uplink_service.changed) else 'started' }}"
+        daemon_reload: true
+
+
+- name: Deploy ainari
+  hosts: management
+  become: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  vars:
+    namespace: ainari
+    release: ainari
+    kvm_gid_host: "{{ groups['sakura'][0] }}"
+  tasks:
+    - name: Wait until all nodes are registered and ready
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl get nodes --no-headers | awk '$2 == "Ready"' | wc -l
+      args:
+        executable: /bin/bash
+      register: ready_nodes
+      retries: 60
+      delay: 5
+      until: ready_nodes.stdout | int == groups['all'] | length
+      changed_when: false
+
+    # Every component runs only on the nodes with its label (global.strict_scheduling).
+    - name: Label the nodes
+      ansible.builtin.command: >
+        kubectl label node {{ item.0 }} {{ item.1 }}=true --overwrite
+      loop: >-
+        {{ groups['management'] | product(['miko-node', 'hanami-node', 'ryokan-node', 'omamori-node',
+                                            'onsen-node', 'ainari-dashboard-node']) | list
+           + groups['torii'] | product(['torii-node']) | list
+           + groups['sakura'] | product(['sakura-node']) | list }}
+      changed_when: true
+
+    - name: Install helm
+      ansible.builtin.unarchive:
+        src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+        extra_opts: [--strip-components=1, linux-amd64/helm]
         creates: /usr/local/bin/helm
 
-    - name: Ensure kubeconfig is usable for root
-      file:
-        path: /etc/rancher/k3s/k3s.yaml
-        mode: "0644"
+    - name: Install cert-manager
+      ansible.builtin.command: >
+        kubectl apply -f
+        https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml
+      register: cert_manager
+      changed_when: "'created' in cert_manager.stdout or 'configured' in cert_manager.stdout"
 
-    - name: Ensure .kube directory exists for vagrant user
-      file:
-        path: /home/vagrant/.kube
-        state: directory
-        owner: vagrant
-        group: vagrant
-        mode: "0755"
-
-    - name: Copy kubeconfig to vagrant home
-      copy:
-        src: /etc/rancher/k3s/k3s.yaml
-        dest: /home/vagrant/.kube/config
-        remote_src: true
-        owner: vagrant
-        group: vagrant
-        mode: "0644"
-
-    - name: Fix kubeconfig server address (use node IP)
-      replace:
-        path: /home/vagrant/.kube/config
-        regexp: 'https://127.0.0.1:6443'
-        replace: "https://{{ ansible_facts['default_ipv4']['address'] }}:6443"
-
-    - name: Install Docker
-      apt:
-        name:
-          - docker.io
-        state: present
-        update_cache: true
-
-    - name: Enable and start Docker
-      systemd:
-        name: docker
-        enabled: true
-        state: started
-
-    - name: Install rsync for the next step
-      apt:
-        name: rsync
-        state: present
-        update_cache: true
-
-    - name: Ensure /opt/app exists
-      file:
-        path: /opt/app
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Copy selected subdirectories
-      synchronize:
-        src: "{{ playbook_dir }}/../../{{ item }}"
-        dest: /opt/app/
-        recursive: true
-      loop:
-        - src
-        - deploy
-        - dockerfiles
-        - scripts
-        - testing
-        - temporary_files
-
-    - name: Load pre-build docker-images into the k3s cache
-      ansible.builtin.shell: ctr -n k8s.io images import /opt/app/temporary_files/ainari_docker_files.tar
-
-    - name: Install nginx-ingress
-      ansible.builtin.shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/baremetal/deploy.yaml
-        kubectl apply -f /opt/app/testing/vagrant/ingress-nginx-controller.yaml
-
-    - name: Add Jetstack Helm repo
-      command: helm repo add jetstack https://charts.jetstack.io
+    - name: Wait for cert-manager
+      ansible.builtin.command: >
+        kubectl --namespace cert-manager wait deployment --all --for=condition=Available --timeout=300s
       changed_when: false
 
-    - name: Update Helm repositories
-      command: helm repo update
-      changed_when: false
-
-    - name: Create ainari namespace
-      ansible.builtin.shell: |
-        kubectl create namespace ainari || true
-
-    - name: Ensure cert-manager namespace exists
-      ansible.builtin.shell: |
-        kubectl get namespace cert-manager || kubectl create namespace cert-manager
-
-    - name: Install cert-manager CRDs
-      ansible.builtin.shell: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.crds.yaml
-
-    - name: Install cert-manager Helm chart
-      ansible.builtin.shell: helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.14.4 --wait
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-    - name: Install WireGuard tools
-      apt:
-        name: wireguard-tools
-        state: present
-        update_cache: true
-
-    - name: Ensure Python 3 pip and packaging are installed
-      apt:
-        name:
-          - python3-pip
-          - python3-venv
-          - python3-packaging
-        state: present
-        update_cache: true
-
-    - name: Create Python virtual environment
-      ansible.builtin.shell: python3 -m venv .venv
-      args:
-        chdir: "{{ ansible_env.HOME }}"
-        creates: "{{ ansible_env.HOME }}/.venv"
-
-    - name: Install Jinja2 in the virtual environment
-      pip:
-        name: jinja2
-        virtualenv: "{{ ansible_env.HOME }}/.venv"
-
-    - name: Create wireguard-certs
-      ansible.builtin.shell: python3 wg_gen.py --namespace ainari
-      args:
-        chdir: "/opt/app/deploy/k8s"
-
-    - name: Ensure cert-manager namespace exists
-      ansible.builtin.shell: |
-        kubectl label nodes {{ item }} hanami-node=true
-        kubectl label nodes {{ item }} miko-node=true
-        kubectl label nodes {{ item }} ryokan-node=true
-        kubectl label nodes {{ item }} sakura-node=true
-        kubectl label nodes {{ item }} torii-node=true
-        kubectl label nodes {{ item }} omamori-node=true
-        kubectl label nodes {{ item }} onsen-node=true
-        kubectl label nodes {{ item }} ainari-dashboard-node=true
-        sudo kubectl config set-context --current --namespace=ainari
-      loop:
-        - server
-        - agent1
-        - agent2
-
-    - name: Check if Helm release of ainari exists
-      ansible.builtin.command:
-        cmd: helm status -n ainari ainari
-      register: helm_status
-      failed_when: false
-      changed_when: false
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-    - name: Install ainari
-      ansible.builtin.shell: helm install --namespace ainari --create-namespace ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
-      args:
-        chdir: "/opt/app/deploy/k8s"
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      when: helm_status.rc != 0
-
-    - name: Upgrade ainari
-      ansible.builtin.shell: helm upgrade --namespace ainari ainari ./ainari/ -f  /opt/app/testing/vagrant/test_values.yaml
-      args:
-        chdir: "/opt/app/deploy/k8s"
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      when: helm_status.rc == 0
-
-    - name: Add entries for the services to the /etc/hosts
-      ansible.builtin.blockinfile:
-        path: /etc/hosts
-        marker: "# {mark} ANSIBLE MANAGED HOSTS"
-        block: |
-          192.168.56.10  local-vagrant-hanami
-          192.168.56.10  local-vagrant-miko
-          192.168.56.10  local-vagrant-ryokan
-          192.168.56.10  local-vagrant-sakura
-          192.168.56.10  local-vagrant-torii
-          192.168.56.10  local-vagrant-omamori
-          192.168.56.10  local-vagrant-onsen
-          192.168.56.10  local-vagrant-ainari
-
-    - name: Ensure target directory for test-config exists
+    - name: Remove the helm-chart of a previous run
       ansible.builtin.file:
-        path: /etc/ainari
-        state: directory
-        mode: '0755'
-        owner: vagrant
-        group: vagrant
+        path: /opt/ainari/ainari
+        state: absent
 
-    - name: Copy test-config to target-directory
-      copy:
-        src: /opt/app/testing/vagrant/hanami_testing.conf
-        dest: /etc/ainari/hanami_testing.conf
-        remote_src: true
-        owner: vagrant
-        group: vagrant
+    - name: Copy the helm-chart and its values
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
         mode: "0644"
-
-    - name: Check if mnist-test-files are already downloaded
-      ansible.builtin.stat:
-        path: "{{ item }}"
+        directory_mode: "0755"
       loop:
-        - /tmp/train-images-idx3-ubyte
-        - /tmp/train-labels-idx1-ubyte
-        - /tmp/t10k-images-idx3-ubyte
-        - /tmp/t10k-labels-idx1-ubyte
-      register: minst_file_stats
+        - { src: "{{ repo_dir }}/deploy/k8s/ainari", dest: /opt/ainari/ }
+        - { src: values.yaml, dest: /opt/ainari/values.yaml }
 
-    - name: Download MNIST-files
+    - name: Copy the CA
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/temporary_files/vagrant/{{ item.name }}"
+        dest: "/opt/ainari/{{ item.name }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { name: ainari-vagrant-ca.crt, mode: "0644" }
+        - { name: ainari-vagrant-ca.key, mode: "0600" }
+
+    - name: Read the group of /dev/kvm on the sakura-hosts
+      ansible.builtin.command: stat -c %g /dev/kvm
+      delegate_to: "{{ kvm_gid_host }}"
+      register: kvm_gid
+      changed_when: false
+
+    # The setup keeps no state on purpose, like the other local setups: every run starts with empty
+    # databases and the new images, so a test never sees the virtual machines of a previous run.
+    - name: Remove the previous deployment
       ansible.builtin.shell: |
-        wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
-        wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
-        wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
-        wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
-        gzip -d train-images-idx3-ubyte.gz
-        gzip -d train-labels-idx1-ubyte.gz
-        gzip -d t10k-images-idx3-ubyte.gz
-        gzip -d t10k-labels-idx1-ubyte.gz
-      args:
-        chdir: "/tmp/"
-      when: >
-        minst_file_stats.results
-        | selectattr('stat.exists')
-        | list
-        | length == 0
+        helm status --namespace {{ namespace }} {{ release }} > /dev/null 2>&1 \
+          && helm uninstall --namespace {{ namespace }} {{ release }} --wait
+        kubectl delete namespace {{ namespace }} --ignore-not-found --wait
+      changed_when: true
 
-    - name: Install airnari-sdk
-      pip:
-        name: /opt/app/src/sdk/python/ainari_sdk
-        # requirements: /opt/app/src/sdk/python/ainari_sdk/requirements.txt
-        virtualenv: "{{ ansible_env.HOME }}/.venv"
+    - name: Create the namespace with the CA
+      ansible.builtin.shell: |
+        kubectl create namespace {{ namespace }}
+        kubectl --namespace {{ namespace }} create secret tls ainari-vagrant-ca \
+          --cert /opt/ainari/ainari-vagrant-ca.crt --key /opt/ainari/ainari-vagrant-ca.key
+      changed_when: true
 
-    - name: Sleep to ensure that the kuberentes-services are up and running
-      pause:
-        seconds: 60
-        
-    - name: Run sdk-api-tests
-      block:
-        - name: Run sdk-api-tests
-          ansible.builtin.shell: "{{ ansible_env.HOME }}/.venv/bin/python sdk_api_test.py"
-          register: cmd_result
-          args:
-            chdir: "/opt/app/testing/python_sdk_api"
-      always:
-        # print output of the sdk-api-test as plain text
-        - debug: var=cmd_result.stdout_lines
+    - name: Install the helm-chart
+      ansible.builtin.command: >
+        helm install {{ release }} /opt/ainari/ainari
+        --namespace {{ namespace }}
+        --values /opt/ainari/values.yaml
+        --set sakura.kvm_gid={{ kvm_gid.stdout }}
+      changed_when: true
+
+    - name: Wait for the components
+      ansible.builtin.command: >
+        kubectl --namespace {{ namespace }} rollout status {{ item }} --timeout=600s
+      loop:
+        - deployment/miko
+        - deployment/omamori
+        - deployment/ryokan
+        - deployment/hanami
+        - deployment/dashboard
+        - deployment/torii-public
+        - statefulset/onsen
+        - statefulset/sakura
+      changed_when: false
+
+    - name: Provide the kubeconfig for the host
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ repo_dir }}/temporary_files/vagrant/kubeconfig"
+        flat: true
+
+    - name: Point the kubeconfig of the host to the k3s-server
+      ansible.builtin.replace:
+        path: "{{ repo_dir }}/temporary_files/vagrant/kubeconfig"
+        regexp: "https://127.0.0.1:6443"
+        replace: "https://{{ node_ip }}:6443"
+      delegate_to: localhost
+      become: false

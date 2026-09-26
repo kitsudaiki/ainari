@@ -39,11 +39,15 @@ global:
   image:
     # overwrites the pull-policy of all components, if set
     pull_policy: ""
-  # Publishes the api of every component on the nodes of the cluster. The node-port is the port
-  # of the component plus this offset, for example 11417 + 20000 = 31417 for miko.
-  node_ports:
+  # Publishes the api of every component and the dashboard outside of the cluster, beside the
+  # ingresses.
+  external_services:
     enabled: false
-    offset: 20000
+    # NodePort publishes the api on the node-port, which is the port of the component plus
+    # node_port_offset, for example 11417 + 20000 = 31417 for miko. LoadBalancer publishes it on
+    # the port of the component itself, for example on the nodes with the servicelb of k3s.
+    type: NodePort
+    node_port_offset: 20000
 
 
 secrets:

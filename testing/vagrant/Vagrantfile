@@ -1,0 +1,87 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Four virtual machines with a kubernetes-cluster (k3s), on which the helm-chart of deploy/k8s/ainari
+# deploys the whole stack. It is started by scripts/setup_vagrant_stack.sh ('make up vagrant'),
+# which builds the images and the CA before.
+#
+#   ainari-mgmt      192.168.56.10   k3s-server, miko, hanami, ryokan, onsen, omamori, dashboard
+#   ainari-torii     192.168.56.11   the gateway at the edge of the network (torii-public)
+#   ainari-sakura-1  192.168.56.12   the first sakura-host with the torii in front of it
+#   ainari-sakura-2  192.168.56.13   the second sakura-host with the torii in front of it
+#
+# The sakura-hosts boot the virtual machines of ainari within these virtual machines, so they get
+# nested virtualization.
+
+# There is no official debian 13 image for vagrant, because of the license-change
+# Used this alternative images instead: https://github.com/alchemy-solutions/vagrant-cloud-images
+BOX = "cloud-image/debian-13"
+
+# Network between the virtual machines. The overlay of torii adds a header to every packet, which
+# runs within the pod-network of flannel, which adds another one, so the network needs a bigger mtu
+# than 1500 to keep the full mtu for the virtual machines of ainari.
+NETWORK_NAME = "ainari-vagrant"
+NETWORK_MTU = 1600
+
+NODES = [
+  { name: "ainari-mgmt",     ip: "192.168.56.10", cpus: 4, memory: 6144, group: "management" },
+  { name: "ainari-torii",    ip: "192.168.56.11", cpus: 2, memory: 2048, group: "torii" },
+  { name: "ainari-sakura-1", ip: "192.168.56.12", cpus: 4, memory: 6144, group: "sakura" },
+  { name: "ainari-sakura-2", ip: "192.168.56.13", cpus: 4, memory: 6144, group: "sakura" },
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  # the repository is not needed within the virtual machines, ansible copies what is needed
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  NODES.each do |node|
+    config.vm.define node[:name] do |machine|
+      machine.vm.hostname = node[:name]
+      machine.vm.network "private_network",
+                         ip: node[:ip],
+                         libvirt__network_name: NETWORK_NAME,
+                         libvirt__mtu: NETWORK_MTU,
+                         libvirt__dhcp_enabled: false,
+                         libvirt__forward_mode: "none"
+
+      machine.vm.provider :libvirt do |libvirt|
+        libvirt.cpus = node[:cpus]
+        libvirt.memory = node[:memory]
+        # nested virtualization for cloud-hypervisor on the sakura-hosts
+        libvirt.nested = true
+        libvirt.cpu_mode = "host-passthrough"
+        # the sakura-hosts store the images and disks of the virtual machines of ainari
+        libvirt.machine_virtual_size = node[:group] == "sakura" ? 40 : 20
+      end
+
+      # Ansible runs once for all virtual machines, after the last one is up. The setup-script
+      # starts them with 'vagrant up --no-provision' and provisions this last one afterwards, so
+      # all of them are really up, even if vagrant starts them in parallel.
+      if node == NODES.last
+        machine.vm.provision "ansible" do |ansible|
+          ansible.playbook = "playbook.yaml"
+          ansible.limit = "all"
+          ansible.compatibility_mode = "2.0"
+          ansible.groups = NODES.group_by { |n| n[:group] }.transform_values { |nodes| nodes.map { |n| n[:name] } }
+          ansible.host_vars = NODES.to_h { |n| [n[:name], { "node_ip" => n[:ip] }] }
+          ansible.extra_vars = {
+            ansible_python_interpreter: "/usr/bin/python3",
+            repo_dir: File.expand_path("../..", __dir__),
+          }
+        end
+      end
+    end
+  end
+end

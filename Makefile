@@ -18,6 +18,8 @@
 #   make down local
 #   make up kind       the same setup on a kind-cluster (scripts/setup_kind_stack.sh)
 #   make down kind
+#   make up vagrant    the same setup on a k3s-cluster of four virtual machines
+#   make down vagrant  (scripts/setup_vagrant_stack.sh)
 
 # kind is downloaded into temporary_files, if it is not installed
 KIND_VERSION ?= v0.30.0
@@ -25,10 +27,15 @@ BIN_DIR := temporary_files/bin
 KIND_ARCH := $(if $(filter aarch64 arm64,$(shell uname -m)),arm64,amd64)
 KIND ?= $(or $(shell command -v kind 2> /dev/null),$(BIN_DIR)/kind)
 
-# the setup, which 'up' and 'down' act on, is given as second goal
-STACK := $(filter local kind,$(MAKECMDGOALS))
+# ansible is installed into a virtual environment in temporary_files, if it is not installed
+ANSIBLE_CORE_VERSION ?= 2.20.9
+ANSIBLE_VENV := temporary_files/ansible-venv
+ANSIBLE_PLAYBOOK ?= $(or $(shell command -v ansible-playbook 2> /dev/null),$(ANSIBLE_VENV)/bin/ansible-playbook)
 
-.PHONY: help up down local kind
+# the setup, which 'up' and 'down' act on, is given as second goal
+STACK := $(filter local kind vagrant,$(MAKECMDGOALS))
+
+.PHONY: help up down local kind vagrant
 
 help:
 	@echo "Usage:"
@@ -36,19 +43,26 @@ help:
 	@echo "    make down local    stop the docker-compose setup"
 	@echo "    make up kind       start the setup on a kind-cluster (asks for sudo)"
 	@echo "    make down kind     delete the kind-cluster"
+	@echo "    make up vagrant    start the setup on four virtual machines (asks for sudo)"
+	@echo "    make down vagrant  destroy the virtual machines"
 
-up down: $(if $(filter kind,$(STACK)),$(KIND))
+up down: $(if $(filter kind,$(STACK)),$(KIND)) $(if $(filter vagrant,$(STACK)),$(ANSIBLE_PLAYBOOK))
 	@case "$(STACK)" in \
 		local) sudo ./scripts/setup_local_stack.sh $(if $(filter down,$@),--down) ;; \
 		kind) KIND="$(abspath $(KIND))" ./scripts/setup_kind_stack.sh $(if $(filter down,$@),--down) ;; \
-		*) echo "Usage: make $@ local|kind"; exit 1 ;; \
+		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./scripts/setup_vagrant_stack.sh $(if $(filter down,$@),--down) ;; \
+		*) echo "Usage: make $@ local|kind|vagrant"; exit 1 ;; \
 	esac
 
-# 'local' and 'kind' are only the arguments of 'up' and 'down'
-local kind:
+# 'local', 'kind' and 'vagrant' are only the arguments of 'up' and 'down'
+local kind vagrant:
 	@$(if $(filter up down,$(MAKECMDGOALS)),:,echo "Usage: make up|down $@"; exit 1)
 
 $(BIN_DIR)/kind:
 	mkdir -p $(BIN_DIR)
 	curl -fsSLo $@ https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-linux-$(KIND_ARCH)
 	chmod +x $@
+
+$(ANSIBLE_VENV)/bin/ansible-playbook:
+	python3 -m venv $(ANSIBLE_VENV)
+	$(ANSIBLE_VENV)/bin/pip install --quiet ansible-core==$(ANSIBLE_CORE_VERSION)

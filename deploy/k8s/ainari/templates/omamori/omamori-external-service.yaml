@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# publishes the tls-termination of omamori on the nodes, see global.node_ports in values.yaml
-{{- include "ainari.nodePortService" (list . "omamori" (list (list 11421 8443))) }}
+# publishes the tls-termination of omamori outside of the cluster, see global.external_services in values.yaml
+{{- include "ainari.externalService" (list . "omamori" (list (list 11421 8443))) }}

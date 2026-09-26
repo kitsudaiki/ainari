@@ -107,25 +107,28 @@ affinity:
 {{- end }}
 
 {{/*
-Service, which publishes the ports of a component on every node. The node-port is the port
-itself plus a fixed offset, so the kind-setup can map it back to the original port on the host.
+Service, which publishes the ports of a component outside of the cluster, see
+global.external_services. With the type NodePort, the node-port is the port itself plus a fixed
+offset, so the kind-setup can map it back to the original port on the host. With the type
+LoadBalancer, the port itself is published, for example by the servicelb of k3s on every node.
 Every port is given as pair of the published port and the port of the pod, which is the
 tls-termination in front of the component.
-Usage: {{ include "ainari.nodePortService" (list $ "hanami" (list (list 11418 8443))) }}
+Usage: {{ include "ainari.externalService" (list $ "hanami" (list (list 11418 8443))) }}
 */}}
-{{- define "ainari.nodePortService" -}}
+{{- define "ainari.externalService" -}}
 {{- $root := index . 0 -}}
 {{- $app := index . 1 -}}
 {{- $ports := index . 2 -}}
-{{- if $root.Values.global.node_ports.enabled }}
+{{- $external := $root.Values.global.external_services -}}
+{{- if $external.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $app }}-node-port
+  name: {{ $app }}-external
   labels:
     app: {{ $app }}
 spec:
-  type: NodePort
+  type: {{ $external.type }}
   selector:
     app: {{ $app }}
   ports:
@@ -135,7 +138,9 @@ spec:
       protocol: TCP
       port: {{ $port }}
       targetPort: {{ index $pair 1 }}
-      nodePort: {{ add $port $root.Values.global.node_ports.offset }}
+      {{- if eq $external.type "NodePort" }}
+      nodePort: {{ add $port $external.node_port_offset }}
+      {{- end }}
   {{- end }}
 {{- end }}
 {{- end }}

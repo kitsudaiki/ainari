@@ -1,25 +1,27 @@
 # Local stack
 
-Runs every component of ainari on one machine, with one gateway at the edge of the network, which
+Runs every component of ainari locally, with one gateway at the edge of the network, which
 serves the floating ip-addresses towards the host, and one gateway in front of every sakura-host,
 which owns the TAP-devices of the virtual machines of that host. There are two sakura-hosts, so a
 virtual machine can land on either of them and the traffic between the hosts really crosses the
 edge-gateway. It is meant for development and testing only.
 
-There are two ways to run it, with the same topology, the same ports on the host and the same
-end-to-end test:
+There are three ways to run it, with the same topology, the same ports and the same end-to-end
+test:
 
-| Setup | Start / stop                        | Runs on                                               |
-| ----- | ----------------------------------- | ----------------------------------------------------- |
-| local | `make up local` / `make down local` | docker compose, plain http                            |
-| kind  | `make up kind` / `make down kind`   | a kind-cluster with the helm-chart of `deploy/k8s`, https |
+| Setup   | Start / stop                            | Runs on                                                          |
+| ------- | --------------------------------------- | ---------------------------------------------------------------- |
+| local   | `make up local` / `make down local`     | docker compose on the host, plain http                           |
+| kind    | `make up kind` / `make down kind`       | a kind-cluster on the host with the helm-chart, https            |
+| vagrant | `make up vagrant` / `make down vagrant` | a k3s-cluster of four virtual machines with the helm-chart, https |
 
-Both use the same floating ip-addresses, so only one of them can run at a time.
+All of them use the same floating ip-addresses, so only one of them can run at a time.
 
 ## Topology
 
 ```
-     [ host ]  10.0.0.1 on veth-host (local) / veth-kind (kind)
+     [ host ]  10.0.0.1 on veth-host (local) / veth-kind (kind) /
+               veth-uplink of the virtual machine ainari-torii (vagrant)
                        |
                        v  veth-gw (uplink)
   ============================================================
@@ -56,13 +58,12 @@ else to the edge-gateway, so two virtual machines on different hosts reach each 
 
 ## Requirements
 
-### Both setups
+### All setups
 
-- docker (the engine), because the local setup runs its containers in it and kind runs its node
-  in it. Both build their images with it.
-- `/dev/kvm` and `/dev/net/tun` on the host, because the virtual machines are really booted
-- a kernel with eBPF/XDP support, because the gateways attach their datapath to the interfaces
-- `sudo`, because the setup-scripts connect the host to the edge-gateway and add NAT-rules
+- docker (the engine), because all setups build their images with it. The local setup also runs
+  its containers in it and kind runs its node in it.
+- `/dev/kvm` on the host, because the virtual machines are really booted
+- `sudo`, because the setup-scripts connect the host to the edge-gateway or add a route to it
 - `make`
 - `go` in the version of `src/cli/ainarictl/go.mod`, to build the cli
 - `python3` with the dependencies of the sdk for the end-to-end test:
@@ -71,6 +72,11 @@ else to the edge-gateway, so two virtual machines on different hosts reach each 
 python3 -m venv .venv
 .venv/bin/pip install -r src/sdk/python/ainari_sdk/requirements.txt
 ```
+
+### Local and kind setup
+
+- `/dev/net/tun` on the host
+- a kernel with eBPF/XDP support, because the gateways attach their datapath to the interfaces
 
 ### Local setup (`make up local`)
 
@@ -85,6 +91,21 @@ python3 -m venv .venv
 - access to github, because cert-manager is installed into the cluster from there
 
 The kind-setup doesn't need docker compose.
+
+### Vagrant setup (`make up vagrant`)
+
+- `vagrant` with the plugin `vagrant-libvirt` and libvirt, see `docs/developer/repo/local_testing.md`
+- nested virtualization of kvm (`/sys/module/kvm_amd/parameters/nested` or
+  `/sys/module/kvm_intel/parameters/nested` is `1` or `Y`), because the sakura-hosts run in
+  virtual machines
+- about 20 GiB free memory, 25 GiB free disk
+- `openssl`, to create the CA of the setup
+- `ansible-playbook`. If it is not installed, `make` installs `ansible-core` into a virtual
+  environment in `temporary_files/ansible-venv`.
+- access to the internet from the virtual machines, because they install k3s, helm and
+  cert-manager from there
+
+The vagrant-setup needs neither docker compose nor kind, `kubectl` or `helm` on the host.
 
 ## Local setup
 
@@ -346,3 +367,79 @@ be trusted again.
 - the components talk https to each other, only the connection between ryokan, sakura and onsen
   is still plain grpc, because the grpc-client has no tls-support yet
 - the dashboard is always part of the setup
+
+## Vagrant setup
+
+### Getting started
+
+```bash
+make up vagrant      # runs scripts/setup_vagrant_stack.sh, asks for sudo for the route
+make down vagrant    # destroys the virtual machines and removes the route again
+```
+
+`make up vagrant` builds the images, starts four virtual machines (`testing/vagrant/Vagrantfile`)
+and runs the ansible-playbook `testing/vagrant/playbook.yaml` over them, which installs k3s,
+cert-manager and the helm-chart of `deploy/k8s/ainari` with the values of
+`testing/vagrant/values.yaml`. At last it adds a route towards the floating ip-addresses on the
+host. Like the other setups, every run starts with empty databases, also when the virtual machines
+already exist. A run over existing virtual machines only skips their creation and installation.
+
+| Virtual machine   | Address         | Runs                                                               |
+| ----------------- | --------------- | ------------------------------------------------------------------ |
+| `ainari-mgmt`     | `192.168.56.10` | the k3s-server, miko, hanami, ryokan, onsen, omamori, the dashboard |
+| `ainari-torii`    | `192.168.56.11` | `torii-public`, the gateway at the edge of the network              |
+| `ainari-sakura-1` | `192.168.56.12` | one sakura-host with the torii in front of it (`sakura-N`)          |
+| `ainari-sakura-2` | `192.168.56.13` | the other sakura-host with the torii in front of it                 |
+
+Unlike the kind-setup, every component runs only on the nodes with its label
+(`global.strict_scheduling`), so the traffic between the sakura-hosts and the edge-gateway really
+crosses the network between the virtual machines. The sakura-hosts get nested virtualization, so
+they boot the virtual machines of ainari within their own virtual machine.
+
+The api is published by the servicelb of k3s with the same ports as in the other setups, on the
+addresses of the virtual machines:
+
+- miko `https://192.168.56.10:11417`, hanami `:11418`, ryokan `:11416`, omamori `:11421`,
+  torii `https://192.168.56.11:11419`
+- the dashboard `https://192.168.56.10:11422`
+
+```bash
+AINARI_ADDRESS=https://192.168.56.10:11417 ainarictl --insecure host list
+kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get pods -o wide
+cd testing/vagrant && vagrant ssh ainari-mgmt    # kubectl and helm work there as root as well
+```
+
+### End-to-end test
+
+```bash
+make up vagrant
+AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 .venv/bin/python testing/local_stack/vm_lifecycle_test.py
+make down vagrant
+```
+
+### The CA of the vagrant-setup
+
+The certificates of the vagrant-setup are signed by an own CA,
+`temporary_files/vagrant/ainari-vagrant-ca.crt`, which `make up vagrant` creates once and keeps
+over all runs. It is limited by name-constraints to `192.168.56.0/24` and names below
+`cluster.local`. It is trusted the same way as the CA of the kind-setup, only with its own file
+and name, for example for the trust-store of the system:
+
+```bash
+sudo cp temporary_files/vagrant/ainari-vagrant-ca.crt /usr/local/share/ca-certificates/ainari-vagrant-ca.crt && sudo update-ca-certificates
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n ainari-vagrant-ca -i temporary_files/vagrant/ainari-vagrant-ca.crt
+```
+
+For Firefox, the path `/usr/local/share/ca-certificates/ainari-vagrant-ca.crt` is added to the list
+of the policy `Certificates.Install`, beside the one of the kind-setup.
+
+### Differences to the kind-setup
+
+- the uplink of the edge-gateway is not on the host, but on the virtual machine `ainari-torii`:
+  the service `ainari-uplink` there moves a veth-pair into the pod of `torii-public` and moves a
+  new one into every new pod. That virtual machine is the next hop `10.0.0.1` of the gateway and
+  masquerades the traffic of the virtual machines of ainari towards the internet.
+- the host reaches the floating ip-addresses over the route `10.0.0.0/24 via 192.168.56.11`,
+  which `make up vagrant` adds and `make down vagrant` removes
+- the network between the virtual machines has an mtu of 1600, because the overlay of torii runs
+  within the vxlan of flannel, so the virtual machines of ainari keep an mtu of 1500

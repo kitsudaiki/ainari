@@ -12,5 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# publishes the tls-termination of miko on the nodes, see global.node_ports in values.yaml
-{{- include "ainari.nodePortService" (list . "miko" (list (list 11417 8443))) }}
+{{- if .Values.dashboard.enabled }}
+# publishes the tls-termination of the dashboard outside of the cluster, see global.external_services in values.yaml
+{{- include "ainari.externalService" (list . "dashboard" (list (list 11422 8443))) }}
+{{- end }}

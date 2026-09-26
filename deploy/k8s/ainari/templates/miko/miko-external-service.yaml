@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# publishes the tls-termination of hanami on the nodes, see global.node_ports in values.yaml
-{{- include "ainari.nodePortService" (list . "hanami" (list (list 11418 8443))) }}
+# publishes the tls-termination of miko outside of the cluster, see global.external_services in values.yaml
+{{- include "ainari.externalService" (list . "miko" (list (list 11417 8443))) }}

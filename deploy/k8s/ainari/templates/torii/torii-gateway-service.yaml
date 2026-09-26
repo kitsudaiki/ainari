@@ -28,8 +28,8 @@ spec:
   - name: p-{{ $p }}
     port: {{ $p | int }}
     targetPort: {{ $p | int }}
-    {{- if and (eq $.Values.torii.service.type "NodePort") $.Values.global.node_ports.enabled }}
-    nodePort: {{ add $p $.Values.global.node_ports.offset }}
+    {{- if and (eq $.Values.torii.service.type "NodePort") $.Values.global.external_services.enabled }}
+    nodePort: {{ add $p $.Values.global.external_services.node_port_offset }}
     {{- end }}
     protocol: TCP
 {{- end }}

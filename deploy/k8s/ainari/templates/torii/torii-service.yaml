@@ -33,4 +33,4 @@ spec:
       port: 8444
       targetPort: 8444
 ---
-{{- include "ainari.nodePortService" (list . "torii-public" (list (list 11419 8444))) }}
+{{- include "ainari.externalService" (list . "torii-public" (list (list 11419 8444))) }}

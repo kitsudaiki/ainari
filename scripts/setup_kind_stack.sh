@@ -168,18 +168,8 @@ fi
 # build the images
 # ---------------------------------------------------------------------------------------------
 # Always rebuild first: starting with stale images silently runs a different version than the one
-# in this working tree. The images are the same as the ones of the docker-compose setup, with the
-# faster 'local'-profile of cargo, but built without docker compose.
-echo "Building the images ..."
-for target in miko omamori ryokan onsen hanami; do
-    docker build -f dockerfiles/Dockerfile_services --target "$target" \
-        --build-arg CARGO_PROFILE=local -t "ainari/$target:local" .
-done
-docker build -f dockerfiles/Dockerfile_services --target sakura \
-    --build-arg CARGO_PROFILE=local --build-arg "KVM_GID=$KVM_GID" -t ainari/sakura:local .
-docker build -f dockerfiles/Dockerfile_torii \
-    --build-arg CARGO_PROFILE=local -t ainari/torii:local .
-docker build -f dockerfiles/Dockerfile_dashboard -t ainari/dashboard:local .
+# in this working tree.
+KVM_GID="$KVM_GID" "$PROJECT_DIR/scripts/build_local_images.sh"
 
 # ---------------------------------------------------------------------------------------------
 # create the cluster
@@ -228,21 +218,8 @@ if "${KUBECTL[@]}" get namespace "$NAMESPACE" > /dev/null 2>&1; then
     kubectl --context "$CONTEXT" delete namespace "$NAMESPACE" --wait
 fi
 
-if [ ! -f "$CA_CERT" ] || [ ! -f "$CA_KEY" ]; then
-    echo "Creating the CA in $CA_DIR ..."
-    mkdir -p "$CA_DIR"
-    (
-        umask 077
-        openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
-            -keyout "$CA_KEY" -out "$CA_CERT" -days 3650 \
-            -subj "/CN=ainari kind-setup CA" \
-            -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
-            -addext "keyUsage=critical,keyCertSign,cRLSign" \
-            -addext "nameConstraints=critical,permitted;IP:127.0.0.1/255.255.255.255,permitted;DNS:localhost,permitted;DNS:cluster.local" \
-            2> /dev/null
-    )
-    chmod 644 "$CA_CERT"
-fi
+"$PROJECT_DIR/scripts/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari kind-setup CA" \
+    "permitted;IP:127.0.0.1/255.255.255.255,permitted;DNS:localhost,permitted;DNS:cluster.local"
 
 "${KUBECTL[@]}" create namespace "$NAMESPACE" > /dev/null
 "${KUBECTL[@]}" create secret tls "$CA_SECRET" --cert "$CA_CERT" --key "$CA_KEY" > /dev/null

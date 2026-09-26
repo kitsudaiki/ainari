@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.dashboard.enabled }}
-# publishes the tls-termination of the dashboard on the nodes, see global.node_ports in values.yaml
-{{- include "ainari.nodePortService" (list . "dashboard" (list (list 11422 8443))) }}
-{{- end }}
+# versions of the software, which the playbook installs
+k3s_version: "v1.36.4+k3s1"
+helm_version: "v3.17.3"
+# the same version as in scripts/setup_kind_stack.sh
+cert_manager_version: "v1.18.2"
