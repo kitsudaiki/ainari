@@ -256,7 +256,7 @@ const stateLabels: Record<VmState, string> = {
     reserved: "Reserved, not created yet",
     created: "Creating",
     running: "Running",
-    stoped: "Stopped",
+    stopped: "Stopped",
     restoring: "Restoring snapshot",
     error: "Error",
 };

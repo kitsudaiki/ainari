@@ -10,7 +10,8 @@ environment-variable `CONFIG_FILE`.
 | Parameter               | Type    | Default    | Description                                                                                        |
 | ----------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- |
 | `debug`                 | boolean | _required_ | Enables debug mode for detailed logging and troubleshooting.                                       |
-| `log_path`              | string  | `"/var/log/"` | Path to the directory where log files will be stored. Currently not evaluated by the service.   |
+| `log_type` | string | `"stdout"` | Target of the logs: `"stdout"` or `"log_file"`. |
+| `log_path` | string | `"/var/log/"` | Directory of the log-file `<service>.log`, if `log_type` is `"log_file"`. |
 | `skip_tls_verification` | boolean | `false`    | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 
 ### `api` Configuration
@@ -57,34 +58,39 @@ The whole section is optional.
 
 So there are two kinds of gateways:
 
-- **edge gateway**: has `uplink_iface` and `uplink_next_hop` and serves the floating IPs (see `example_configs/ainari/torii_public.toml`)
-- **internal gateway**: has no uplink and optionally a `default_gateway_ip` pointing to the edge gateway (see `example_configs/ainari/torii.toml`)
+- **edge gateway**: has `uplink_iface` and `uplink_next_hop` and serves the floating IPs (see
+  `example_configs/ainari/torii_public.toml`)
+- **internal gateway**: has no uplink and optionally a `default_gateway_ip` pointing to the edge
+  gateway (see `example_configs/ainari/torii.toml`)
 
 ### `development` Configuration
 
 !!! warning
 
-    These settings are only for local development and testing. Never use them in a production deployment.
+    These settings are only for local development and testing. Never use them in a production
+    deployment.
 
 | Parameter     | Type    | Default | Description                                                                                                                                                                  |
 | ------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `single_node` | boolean | `false` | Runs the single node setup: the uplink, the floating IPs and all VMs sit behind this one gateway, without underlay, tunnel or IPsec. Requires `network.uplink_iface` and `network.uplink_next_hop`. |
 
-In the single node setup the floating IPs are translated only where the traffic crosses the uplink: packets entering through it are
-translated to the VM (DNAT), packets of a VM leaving through it get the floating IP of the VM as source (SNAT). ARP requests for the
-floating IPs on the uplink are answered by the gateway itself with the MAC of the uplink. At startup the routes towards `uplink_next_hop`
-and the default route (`0.0.0.0`) are pointed at the uplink. Overlay and underlay are not used, so `overlay_iface` and `underlay_iface`
-can be set to `"none"`.
+In the single node setup the floating IPs are translated only where the traffic crosses the uplink:
+packets entering through it are translated to the VM (DNAT), packets of a VM leaving through it get
+the floating IP of the VM as source (SNAT). ARP requests for the floating IPs on the uplink are
+answered by the gateway itself with the MAC of the uplink. At startup the routes towards
+`uplink_next_hop` and the default route (`0.0.0.0`) are pointed at the uplink. Overlay and underlay
+are not used, so `overlay_iface` and `underlay_iface` can be set to `"none"`.
 
-The uplink can be any interface, also a physical NIC: set `network.uplink_iface` to the NIC and `network.uplink_next_hop` to the router behind
-it. The floating IPs then have to be unused addresses of that network. For local development
-`scripts/setup_single_node_uplink.sh` creates a veth pair `uplink0` (10.0.0.254/24) towards a network namespace `torii-outside`
-(10.0.0.1/24), from which the floating IPs are reachable (`sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2`).
+The uplink can be any interface, also a physical NIC: set `network.uplink_iface` to the NIC and
+`network.uplink_next_hop` to the router behind it. The floating IPs then have to be unused addresses
+of that network. For local development `scripts/setup_single_node_uplink.sh` creates a veth pair
+`uplink0` (10.0.0.254/24) towards a network namespace `torii-outside` (10.0.0.1/24), from which the
+floating IPs are reachable (`sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2`).
 
 ## Tenants
 
-Unnumbered TAP-devices already get several VMs of the *same subnet* onto one host. They do not get
-two VMs of the *same address* onto one host: a returning packet for `192.168.100.2` has to end up
+Unnumbered TAP-devices already get several VMs of the _same subnet_ onto one host. They do not get
+two VMs of the _same address_ onto one host: a returning packet for `192.168.100.2` has to end up
 on exactly one TAP, and nothing in the packet says which. That is what the **VNI** is for.
 
 Every route, every packet-filter and every floating IP is stored under a `(vni, address)`-pair
@@ -109,7 +115,7 @@ simply by addressing its floating IP.
 The overlay itself is VXLAN (RFC 7348) on UDP port 5555, which is what carries the VNI between two
 gateways:
 
-```
+```text
 [ Ethernet | IPv4 | UDP 5555 | VXLAN (vni) | inner Ethernet frame ... ]
   14         20     8          8
 ```
@@ -121,7 +127,7 @@ Traffic marked `encrypted: true` leaves the eBPF-datapath and is routed by the k
 no VNI. Each tenant therefore gets a routing-table of its own (`tenant_table_base + vni`),
 selected by two `ip rule`s per TAP-device:
 
-```
+```text
 1000:  from all iif tap-00000001 lookup 101
 1001:  from all iif tap-00000001 unreachable
 ```

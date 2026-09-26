@@ -11,4 +11,4 @@
 
 ## Hanami
 
-<swagger-ui src="open_api_docu_hanami.json"/>
+[OpenAPI-spec of hanami](open_api_docu_hanami.json){ .swagger-ui-spec }

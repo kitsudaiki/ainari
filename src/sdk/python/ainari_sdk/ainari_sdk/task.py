@@ -98,12 +98,14 @@ def abort_task(context: AccessContext,
 def wait_for_task_finished(context: AccessContext,
                            torii_port: int,
                            task_uuid: str,
-                           time_interval: float = 1.0):
-    finished = False
-    while not finished:
+                           time_interval: float = 1.0) -> dict:
+    """
+    Waits until the task reached one of its final states `Finished`, `Aborted` or `Error` and
+    returns the task, so the caller can check its state and messages.
+    """
+    while True:
         result = get_task(context, torii_port, task_uuid)
-        finished = result["state"] == "FINISHED"
-        # in case that the task is already finished, an unnecessary sleep should be avoided
-        if finished:
-            return
+        # in case that the task is already done, an unnecessary sleep should be avoided
+        if result["state"] in ("Finished", "Aborted", "Error"):
+            return result
         time.sleep(time_interval)

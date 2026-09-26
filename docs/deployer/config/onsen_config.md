@@ -10,7 +10,8 @@ environment-variable `CONFIG_FILE`.
 | Parameter               | Type    | Default    | Description                                                                                        |
 | ----------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- |
 | `debug`                 | boolean | _required_ | Enables debug mode for detailed logging and troubleshooting.                                       |
-| `log_path`              | string  | `"/var/log/"` | Path to the directory where log files will be stored. Currently not evaluated by the service.   |
+| `log_type` | string | `"stdout"` | Target of the logs: `"stdout"` or `"log_file"`. |
+| `log_path` | string | `"/var/log/"` | Directory of the log-file `<service>.log`, if `log_type` is `"log_file"`. |
 | `skip_tls_verification` | boolean | `false`    | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 | `address`               | string  | _required_ | Address of the onsen-host itself, where it can be reached from the ryokan and sakura.              |
 

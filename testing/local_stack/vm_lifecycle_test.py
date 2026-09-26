@@ -25,7 +25,9 @@ It walks through the whole life-cycle of two virtual machines with the python-sd
     5. create the reserved virtual machines on their sakura-hosts
     6. give every virtual machine its own floating ip-address. The first one gets it attached
        directly by the create-call, the others by a separate attach-call after the create
-    7. log into every virtual machine over ssh with the generated key
+    7. log into every virtual machine over ssh with the generated key. If the floating
+       ip-addresses are only reachable within a network-namespace, like in the single-node setup
+       of VSCode, this is set with AINARI_SSH_NETNS
 
 Both virtual machines use the same image, the same public key and the same network and differ
 only in their addresses. Hanami picks a sakura-host for every one of them, so they can land on
@@ -95,6 +97,12 @@ HOST_REGISTRATION_TIMEOUT = 300
 # a virtual machine needs a while to boot, before it answers on ssh
 VM_CREATE_TIMEOUT = 600
 SSH_TIMEOUT = 300
+
+# Network-namespace, out of which the floating ip-addresses are reachable, if they are not reachable
+# from the host itself. This is the case for the single-node setup of VSCode, which serves them
+# only towards the namespace 'torii-outside'. The ssh-commands are then executed with sudo within
+# this namespace. Empty, if the host reaches the floating ip-addresses directly.
+SSH_NETNS = os.getenv("AINARI_SSH_NETNS", "")
 
 
 def log(message: str):
@@ -206,7 +214,12 @@ def run_over_ssh(floating_ip_address: str, command: str) -> str:
     """
     Runs a command in the virtual machine over ssh and returns its output.
     """
-    ssh_command = [
+    ssh_command = []
+    if SSH_NETNS:
+        # the credentials of sudo were already requested at the start of the test, because the
+        # output is captured here, so a password-prompt would not be visible
+        ssh_command += ["sudo", "-n", "ip", "netns", "exec", SSH_NETNS]
+    ssh_command += [
         "ssh",
         "-i", SSH_KEY_PATH,
         "-o", "StrictHostKeyChecking=no",
@@ -241,6 +254,10 @@ def wait_for_ssh(floating_ip_address: str) -> str:
 def main() -> int:
     os.makedirs(WORK_DIR, exist_ok=True)
     test_id = str(uuid.uuid4())[:8]
+
+    if SSH_NETNS:
+        log(f"ssh runs within the network-namespace '{SSH_NETNS}', which requires sudo")
+        subprocess.run(["sudo", "-v"], check=True)
 
     log(f"login as '{USER_ID}' at {MIKO_ADDRESS}")
     context = login.request_context(MIKO_ADDRESS,
@@ -321,6 +338,10 @@ def main() -> int:
             f"-> {virtual_machine_entry['internal_ip']}")
 
     # 7. ssh
+    if SSH_NETNS:
+        # the credentials of sudo can be expired in the meantime, so they are refreshed here,
+        # where a password-prompt is still visible
+        subprocess.run(["sudo", "-v"], check=True)
     for virtual_machine_entry in virtual_machines:
         log(f"waiting for ssh on {virtual_machine_entry['floating_ip']} ...")
         output = wait_for_ssh(virtual_machine_entry["floating_ip"])
@@ -330,8 +351,10 @@ def main() -> int:
 
     log("")
     log("SUCCESS")
+    ssh_prefix = f"sudo ip netns exec {SSH_NETNS} " if SSH_NETNS else ""
     for virtual_machine_entry in virtual_machines:
-        log(f"    ssh -i {SSH_KEY_PATH} {VM_USER}@{virtual_machine_entry['floating_ip']}")
+        floating_ip_address = virtual_machine_entry["floating_ip"]
+        log(f"    {ssh_prefix}ssh -i {SSH_KEY_PATH} {VM_USER}@{floating_ip_address}")
 
     return 0
 

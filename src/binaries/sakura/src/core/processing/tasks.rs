@@ -16,8 +16,11 @@ use uuid::Uuid;
 
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::image::delete_image;
 use ainari_common::error::AinariError;
 
+use crate::config;
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::reboot_ch_virtual_machine::reboot_ch_virtual_machine;
@@ -265,12 +268,46 @@ async fn handle_vm_snapshot(
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineSnapshotInfo,
 ) -> Result<(), AinariError> {
-    save_ch_virtual_machine(
+    let result = save_ch_virtual_machine(
         virtual_machine_uuid,
         &task_info.image_uuid,
         &task_info.context,
     )
-    .await
+    .await;
+
+    // the image was registered in ryokan before the task was queued, so a failed snapshot would
+    // leave an image behind, which has no file
+    if result.is_err() {
+        remove_failed_snapshot_image(&task_info.image_uuid, &task_info.context).await;
+    }
+
+    result
+}
+
+/// Removes the image of a failed snapshot from ryokan. A failure is only logged, because the
+/// error of the snapshot itself is more important for the task.
+///
+/// # Arguments
+///
+/// * `image_uuid` - Unique identifier of the image, which was registered for the snapshot
+/// * `context` - User context containing authentication information
+async fn remove_failed_snapshot_image(image_uuid: &Uuid, context: &UserContext) {
+    let result = async {
+        let endpoints =
+            get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
+        delete_image(
+            &endpoints.ryokan,
+            &context.token,
+            image_uuid,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+    }
+    .await;
+
+    if let Err(e) = result {
+        log::error!("Failed to delete image {image_uuid} of failed snapshot: {e}");
+    }
 }
 
 /// Handles the task, which resets the root-disk of the virtual_machine to a snapshot.

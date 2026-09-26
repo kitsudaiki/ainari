@@ -29,7 +29,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{Use: "ainarictl"}
+// version of the cli, which is updated by scripts/update_version.sh
+var version = "0.20.0"
+
+var rootCmd = &cobra.Command{Use: "ainarictl", Version: version}
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&ainarictl_common.PrintAsJson, "json_output", "j", false, "Return output as json")

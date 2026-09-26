@@ -11,4 +11,4 @@
 
 ## Torii
 
-<swagger-ui src="open_api_docu_torii.json"/>
+[OpenAPI-spec of torii](open_api_docu_torii.json){ .swagger-ui-spec }

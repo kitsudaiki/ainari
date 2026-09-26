@@ -11,4 +11,4 @@
 
 ## Sakura
 
-<swagger-ui src="open_api_docu_sakura.json"/>
+[OpenAPI-spec of sakura](open_api_docu_sakura.json){ .swagger-ui-spec }

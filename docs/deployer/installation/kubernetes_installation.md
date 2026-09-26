@@ -2,271 +2,233 @@
 
 !!! warning
 
-    The installation process is very basic at the moment and still only for testing, because many
-    important parts are not implemented yet. So for example only self-signed certificates are used at
-    the moment.
+    The installation process is still only for testing, because many important parts are not
+    implemented yet.
 
-For the installation on a kubernetes `helm` is used.
-
-| Supported versions                                  |
-| --------------------------------------------------- |
-| [![kubernetes-1_30][img_kubernetes-1_30]][workflow] |
-| [![kubernetes-1_31][img_kubernetes-1_31]][workflow] |
-| [![kubernetes-1_32][img_kubernetes-1_32]][workflow] |
-| [![kubernetes-1_33][img_kubernetes-1_33]][workflow] |
+The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an existing kubernetes.
 
 ## Requirements
 
-1. **Kubernetes**
+- **Kubernetes** with `kubectl` access
 
-    No specific version a the moment known. There are no special features used at the moment, so any
-    version, which is not EOL should work.
+    The nodes for sakura need `/dev/kvm`. Sakura and torii run as privileged pods, because they
+    attach eBPF-programs to their interfaces. The volumes use the storage-class `local-path` by
+    default, which can be changed with `global.storage_class`.
 
     !!! example
 
-        For fast, easy and minimal installation a `k3s` as single-node installation can be used without
-        traefik. Installation with for example:
+        For a minimal single-node installation `k3s` without traefik can be used:
 
-        ```
-        sudo curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
+        ```bash
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
 
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
         ```
 
-1. **Helm**
+- **Helm**
 
     [official Installation-Guide](https://helm.sh/docs/intro/install/)
 
-1. **Nginx-ingress-controller** (if not already exist in your kubernetes)
+- **wireguard-tools** and **python3** with `jinja2` on the host, to create the wireguard-configs
 
-    run:
-
-    ```
-    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/baremetal/deploy.yaml
-    ```
-
-    and apply file with the content:
-
-    ```
-    ---
-
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: ingress-nginx-controller-loadbalancer
-      namespace: ingress-nginx
-    spec:
-      selector:
-        app.kubernetes.io/component: controller
-        app.kubernetes.io/instance: ingress-nginx
-        app.kubernetes.io/name: ingress-nginx
-      ports:
-        - name: http
-          port: 80
-          protocol: TCP
-          targetPort: 80
-        - name: https
-          port: 443
-          protocol: TCP
-          targetPort: 443
-      type: LoadBalancer
-    ```
-
-1. **Cert-Manager**
-
-    Installation:
-
-    ```
-    helm repo add jetstack https://charts.jetstack.io
-    helm repo update
-    kubectl create namespace cert-manager
-    helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
-    ```
-
-1. **Prepare wiregurad-configs**
-
-    These configs are necessary for the wireguard-connection between sakura and ryokan to the onsen
-
-    Install required apt- and python-package:
-
-    ```
+    ```bash
     sudo apt-get install wireguard-tools
     python3 -m venv .venv
     source .venv/bin/activate
     pip3 install jinja2
     ```
 
-    Generate configs and upload them into kubernestes as secrets (kubectl required on the host)
+## Installation
 
+1. **Get the helm-chart**
+
+    ```bash
+    git clone https://github.com/kitsudaiki/ainari.git
+    cd ainari/deploy/k8s
     ```
-    cd deploy/k8s
-    python3 wg_gen.py
+
+    Alternatively the pre-built chart `ainari-x.y.z.tgz` can be downloaded from the
+    [file-share](https://files.ainari.cloud/) and used instead of `./ainari` in step 7.
+
+1. **Ingress-nginx-controller** (if not already exist in your kubernetes)
+
+    The ingresses of the chart use the ingress-class `nginx`.
+
+    ```bash
+    helm upgrade --install ingress-nginx ingress-nginx \
+        --repo https://kubernetes.github.io/ingress-nginx \
+        --namespace ingress-nginx --create-namespace
     ```
 
-1. **Node label**
+    Without an ingress-controller set `global.ingress.enabled: false` and
+    `global.external_services.enabled: true` in step 6, to publish the apis over node-ports.
 
-    To all avaialbe nodes, where it is allowed to be deployed:
+1. **Cert-Manager** (if not already exist in your kubernetes)
 
+    Required in any case, because all components talk https to each other with certificates of
+    cert-manager.
+
+    ```bash
+    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+    kubectl -n cert-manager wait deployment --all --for=condition=Available --timeout=300s
     ```
-    kubectl label nodes NODE_NAME hanami-node=true
+
+1. **Namespace and wireguard-configs**
+
+    The connection of ryokan and sakura to onsen runs through wireguard. The configs are created and
+    uploaded as secrets into the namespace of the installation:
+
+    ```bash
+    kubectl create namespace ainari
+    python3 wg_gen.py --namespace ainari
+    ```
+
+1. **Node labels**
+
+    Every component is only scheduled on nodes with its label and never twice on the same node:
+
+    ```bash
     kubectl label nodes NODE_NAME miko-node=true
+    kubectl label nodes NODE_NAME hanami-node=true
     kubectl label nodes NODE_NAME ryokan-node=true
-    kubectl label nodes NODE_NAME sakura-node=true
-    kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME omamori-node=true
     kubectl label nodes NODE_NAME onsen-node=true
+    kubectl label nodes NODE_NAME sakura-node=true
+    kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME ainari-dashboard-node=true
     ```
 
-    !!! info
+    On a cluster with only one node set `global.strict_scheduling: false` in step 6 instead.
 
-        At the moment Ainari is only a single-node application. This will change in the near future, but
-        at the moment it doesn't make sense to label more than one node.
+1. **Values**
 
-<!-- 3. If measuring of the cpu power consumption should be available, then the following requirements must be fulfilled on the hosts of the kubernetes-deployment:
+    Create a file `my_values.yaml` with at least the following content. All other values and their
+    defaults are described in `deploy/k8s/ainari/values.yaml`.
 
-    - Required specific CPU-architecture:
-        - **Intel**:
-            - Sandy-Bridge or newer
-        - **AMD** :
-            - Zen-Architecture or newer
-            - for CPUs of AMD Zen/Zen2 Linux-Kernel of version `5.8` or newer must be used, for Zen3 Linux-Kernel of version `5.11` or newer
+    ```yaml
+    secrets:
+      internal_api_key: "RANDOM_KEY_1"
+      onsen_registration_key: "RANDOM_KEY_2"
+      sakura_registration_key: "RANDOM_KEY_3"
 
-    - the `msr`-kernel module has to be loaded with `modeprobe msr`. -->
+    miko:
+      user:
+        id: "USER_ID"
+        name: "USER_NAME"
+        passphrase: "PASSPHRASE"
+      token:
+        data: "TOKEN_KEY"
 
-## Installation
+    sakura:
+      # output of 'stat -c %g /dev/kvm' on the sakura-nodes
+      kvm_gid: KVM_GID
 
-**From repository**
+    torii:
+      public:
+        network:
+          overlay_iface: "UPLINK_IFACE"
+          uplink_iface: "UPLINK_IFACE"
+          uplink_next_hop: "UPLINK_NEXT_HOP"
 
-```bash
-git clone https://github.com/kitsudaiki/ainari.git
+    hanami:
+      network:
+        floating_ip_cidr: "FLOATING_IP_CIDR"
+    ```
 
-cd ainari/deploy/k8s
+    - `USER_ID`, `USER_NAME`, `PASSPHRASE`
 
-helm install \
-    --set docker.tag=DOCKER_IMAGE_TAG \
-    --set user.id=USER_ID  \
-    --set user.name=USER_NAME  \
-    --set user.passphrase=PASSPHRASE  \
-    --set token.data=TOKEN_KEY  \
-    --set api.domain=DOMAIN_NAME  \
-    ainari \
-    ./ainari/
-```
+        - **required**
+        - Login of the initial admin-user.
+        - `USER_ID` MUST match the regex `[a-zA-Z][a-zA-Z_0-9@]*`, `USER_NAME` the regex
+            `[a-zA-Z][a-zA-Z_0-9 ]*`, both with between `4` and `256` characters length.
+            `PASSPHRASE` MUST have between `8` and `4096` characters.
 
-**From pre-build**
+    - `TOKEN_KEY`
 
-Download the helm-chart from the [file-share](https://files.ainari.cloud/)
+        - **required**
+        - Key to sign the tokens of the users. See [Token-Key](../config/token_key.md).
 
-```bash
-helm install \
-    --set docker.tag=DOCKER_IMAGE_TAG \
-    --set user.id=USER_ID  \
-    --set user.name=USER_NAME  \
-    --set user.passphrase=PASSPHRASE  \
-    --set token.data=TOKEN_KEY  \
-    --set api.domain=DOMAIN_NAME  \
-    ainari \
-    ainari-x.y.z.tgz
-```
+    - `RANDOM_KEY_*`
 
-The `--set`-flag defining the login-information for the initial admin-user of the instance:
+        - Keys for the internal communication. The defaults of the chart are public, so always
+          replace them.
 
-- `USER_ID`
+    - `UPLINK_IFACE`, `UPLINK_NEXT_HOP`, `FLOATING_IP_CIDR`
 
-    - **required**
-    - Identifier for the new user. It is used for login and internal references to the user.
-    - String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9@]*` with between `4` and `256`
-        characters length
+        - Uplink of the gateway `torii-public`, on which the floating IPs out of
+          `FLOATING_IP_CIDR` are served, and the router behind it. The interface has to exist
+          within the pod of `torii-public`. If it is moved into the pod after its start, set its
+          name additionally as `torii.public.wait_for_iface`. `scripts/setup_kind_stack.sh`
+          shows an example, which injects a veth-pair into the pod.
 
-- `USER_NAME`
+    - Docker-images
 
-    - **required**
-    - Better readable name for the user, which doesn't have to be unique in the system.
-    - String, which MUST match the regex `[a-zA-Z][a-zA-Z_0-9 ]*` with between `4` and `256`
-        characters length
+        - Every component uses the tag `develop` of
+          [docker-hub](https://hub.docker.com/u/kitsudaiki) by default. Another version is set
+          per component with `<component>.docker.tag`, for example `miko.docker.tag`.
 
-- `PASSPHRASE`
+    - Domains
 
-    - **required**
-    - Passphrase for the initial user
-    - String, with between `8` and `4096` characters length
+        - Every component is reachable over the domain `<component>.api.domain`, by default
+          `local-miko`, `local-hanami`, `local-ryokan`, `local-omamori`, `local-torii` and
+          `local-ainari` for the dashboard.
 
-- `TOKEN_KEY`
+1. **Install**
 
-    - **required**
-    - Key for the JWT-Tokens
-    - String
+    ```bash
+    helm install ainari ./ainari --namespace ainari --values my_values.yaml
+    ```
 
-- `DOMAIN_NAME`
-
-    - Domain for https-access.
-    - String
-    - default: *local-sakura*
-
-- `DOCKER_IMAGE_TAG`
-
-    - Docker-tag used from
-        [docker-hub](https://hub.docker.com/repository/docker/kitsudaiki/sakura/tags)
-    - String
-    - default: *develop*
-
-After a successful installation the `USER_ID` and `PASSPHRASE` have to be used for login to the
-system.
+    After a successful installation the `USER_ID` and `PASSPHRASE` have to be used for login to
+    the system.
 
 ## Using
 
 - check if all pods are running
 
-    !!! example
+    ```bash
+    kubectl -n ainari get pods
+    ```
 
-        ```bash
-        kubectl get pods
+- get IP-address of the ingresses
 
-        NAME                       READY   STATUS    RESTARTS   AGE
-        hanami-bd47df5cb-xjv48     2/2     Running   0          21h
-        miko-b6d6ddb5d-q2lw4       2/2     Running   0          21h
-        omamori-5c97875748-p2x68   2/2     Running   0          21h
-        onsen-5bcf6f99b7-fw6hn     1/1     Running   0          21h
-        ryokan-5bb4d7f484-r426w    2/2     Running   0          21h
-        sakura-749674674c-dvzgt    2/2     Running   0          21h
-        torii-5945db9996-l47f6     2/2     Running   0          21h
-        ```
+    ```bash
+    kubectl -n ainari get ingress
+    ```
 
-- get IP-address
-
-    !!! example
-
-        ```bash
-        kubectl get ingress
-
-        NAME                    CLASS     HOSTS          ADDRESS          PORTS     AGE
-        miko-ingress-redirect   traefik   local-sakura   192.168.178.87   80        8s
-        miko-ingress            traefik   local-sakura   192.168.178.87   80, 443   8s
-        ```
-
-- add domain with ip to `/etc/hosts`
+- add the domains with this ip to `/etc/hosts`
 
     !!! example
 
         ```
-        192.168.178.87  local-hanami
         192.168.178.87  local-miko
+        192.168.178.87  local-hanami
         192.168.178.87  local-ryokan
-        192.168.178.87  local-sakura
-        192.168.178.87  local-torii
         192.168.178.87  local-omamori
-        192.168.178.87  local-onsen
+        192.168.178.87  local-torii
+        192.168.178.87  local-ainari
         ```
+
+- trust the CA, which signed all certificates. If `global.certificates.ca_secret` is not set,
+    cert-manager creates it in the secret `ainari-ca`:
+
+    ```bash
+    kubectl -n ainari get secret ainari-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > ainari-ca.crt
+    sudo cp ainari-ca.crt /usr/local/share/ca-certificates/
+    sudo update-ca-certificates
+    ```
 
 - use the address of miko for the CLI:
 
-    ```
+    ```bash
     export AINARI_ADDRESS=https://local-miko
     ```
 
-[img_kubernetes-1_30]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
-[img_kubernetes-1_31]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
-[img_kubernetes-1_32]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
-[img_kubernetes-1_33]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
-[workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
+- the dashboard is available under `https://local-ainari`
+
+## Uninstall
+
+```bash
+helm uninstall ainari --namespace ainari
+kubectl delete namespace ainari
+```

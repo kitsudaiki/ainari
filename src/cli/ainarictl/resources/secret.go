@@ -34,7 +34,7 @@ var (
 )
 
 var createSecretCmd = &cobra.Command{
-	Use:   "create -s SECRET SECRET_NAME",
+	Use:   "create -p SECRET_PAYLOAD SECRET_NAME",
 	Short: "Upload new secret to omamori.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {

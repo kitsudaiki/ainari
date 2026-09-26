@@ -54,5 +54,5 @@ pub async fn stop_ch_virtual_machine(
         log::info!("VM {uuid} stopped");
     }
 
-    set_vm_state(uuid, VirtualMachineState::Stoped, context)
+    set_vm_state(uuid, VirtualMachineState::Stopped, context)
 }

@@ -4,3 +4,10 @@
   --md-primary-fg-color--dark:  #8b0390;
 }
 
+
+/* swagger-ui has no dark mode, so it keeps its light background within the dark theme */
+.swagger-ui-container {
+  background-color: #ffffff;
+  border-radius: 0.2rem;
+  padding: 0.5rem;
+}

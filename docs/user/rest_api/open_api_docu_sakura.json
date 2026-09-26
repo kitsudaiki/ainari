@@ -20,7 +20,6 @@
         ],
         "summary": "Get version",
         "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
-        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
         "responses": {
           "200": {
             "description": "",
@@ -54,7 +53,6 @@
         ],
         "summary": "Get ready status",
         "description": "Get status of the service endpoint.",
-        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
         "responses": {
           "200": {
             "description": "",
@@ -78,19 +76,18 @@
         ]
       }
     },
-    "/v1alpha/model/internal": {
+    "/v1alpha/virtual_machine/internal": {
       "post": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Create new model",
-        "description": "Create new model based on a model-template.",
-        "operationId": "post_v1alpha-model-internal-415b2328d133ba597e215fc77d54fb40",
+        "summary": "Reserve new virtual_machine",
+        "description": "Reserve a new virtual_machine on this host,\\\n\\\nso its resources are blocked, before the create-task is queued.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ModelCreateReq"
+                "$ref": "#/components/schemas/VirtualMachineInternalCreateReq"
               }
             }
           },
@@ -102,44 +99,60 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "ModelResp",
+                  "title": "VirtualMachineResp",
                   "type": "object",
                   "required": [
                     "created_at",
                     "created_by",
-                    "inputs",
+                    "disk_size",
+                    "image_uuid",
+                    "internal_ip",
+                    "memory_size",
                     "name",
-                    "outputs",
-                    "template",
+                    "network_uuid",
+                    "number_of_cores",
                     "torii_port",
                     "updated_at",
                     "updated_by",
-                    "uuid"
+                    "uuid",
+                    "vm_state"
                   ],
                   "properties": {
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "created_by": {
                       "type": "string"
                     },
-                    "inputs": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                    "disk_size": {
+                      "description": "size of the disk of the virtual_machine in GiB",
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "image_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "internal_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "memory_size": {
+                      "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+                      "type": "integer",
+                      "format": "int64"
                     },
                     "name": {
                       "type": "string"
                     },
-                    "outputs": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                    "network_uuid": {
+                      "type": "string",
+                      "format": "uuid"
                     },
-                    "template": {
-                      "type": "string"
+                    "number_of_cores": {
+                      "type": "integer",
+                      "format": "int32"
                     },
                     "torii_port": {
                       "type": "integer",
@@ -147,7 +160,8 @@
                       "minimum": 0.0
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_by": {
                       "type": "string"
@@ -155,6 +169,10 @@
                     "uuid": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "vm_state": {
+                      "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
+                      "type": "string"
                     }
                   }
                 }
@@ -166,6 +184,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -180,18 +201,17 @@
       },
       "get": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "List model",
-        "description": "List basic information of all model from the database.",
-        "operationId": "get_v1alpha-model-internal-415b2328d133ba597e215fc77d54fb40",
+        "summary": "List virtual_machines",
+        "description": "List basic information of all virtual_machines from the database.",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModelListResp"
+                  "$ref": "#/components/schemas/VirtualMachineListResp"
                 }
               }
             }
@@ -211,17 +231,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/internal": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/internal": {
       "get": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Get model",
-        "description": "Get information of a model from the database.",
-        "operationId": "get_v1alpha-model-7976f89eb74f9a8a076886f35498d123",
+        "summary": "Get virtual_machine",
+        "description": "Get information of a virtual_machine from the database.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -237,7 +256,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModelResp"
+                  "$ref": "#/components/schemas/VirtualMachineResp"
                 }
               }
             }
@@ -264,14 +283,13 @@
       },
       "delete": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Delete model",
-        "description": "Delete a model from the database and core.",
-        "operationId": "delete_v1alpha-model-7976f89eb74f9a8a076886f35498d123",
+        "summary": "Delete virtual_machine",
+        "description": "Create a new task, which deletes the virtual_machine.\\\n\\\nThe task stops the virtual_machine, removes all of its files from the host and marks it as\\\ndeleted in the database afterwards. So the virtual_machine can still be read, until the task\\\nis finished.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -306,134 +324,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/request": {
-      "put": {
-        "tags": [
-          "model"
-        ],
-        "summary": "Get model",
-        "description": "Get information of a model from the database.",
-        "operationId": "put_v1alpha-model-2266c3d9202d112f7046d627c4dd477c",
-        "parameters": [
-          {
-            "name": "model_uuid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "Uuid",
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ModelRequestReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModelRequestResp"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Requested object not found"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/model/{model_uuid}/train": {
-      "put": {
-        "tags": [
-          "model"
-        ],
-        "summary": "Get model",
-        "description": "Get information of a model from the database.",
-        "operationId": "put_v1alpha-model-d3833f2e77485f3454ae04b70eb73065",
-        "parameters": [
-          {
-            "name": "model_uuid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "Uuid",
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ModelTrainReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Requested object not found"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/model/{model_uuid}/task/train": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}": {
       "post": {
         "tags": [
           "task"
         ],
-        "summary": "Create new train-task",
-        "description": "Create new train-task for a model",
-        "operationId": "post_v1alpha-model-e55c45c69c59b8b86ab58c96ab46e87b",
+        "summary": "Create new virtual_machine",
+        "description": "Create a new task, which creates the virtual_machine.\\\n\\\nThe image and the public-key of the request are stored on the reserved\\\nvirtual_machine, before the task is queued.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -447,7 +347,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TaskCreateTrainReq"
+                "$ref": "#/components/schemas/VirtualMachineCreateTaskReq"
               }
             }
           },
@@ -462,49 +362,39 @@
                   "title": "TaskResp",
                   "type": "object",
                   "required": [
-                    "created_at",
                     "created_by",
-                    "current_cycle",
-                    "current_epoch",
-                    "name",
+                    "description",
+                    "messages",
                     "state",
                     "task_type",
-                    "total_number_of_cycles",
-                    "total_number_of_epochs",
                     "uuid"
                   ],
                   "properties": {
-                    "created_at": {
-                      "type": "string"
-                    },
                     "created_by": {
                       "type": "string"
                     },
-                    "current_cycle": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "current_epoch": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "error_message": {
-                      "type": "string",
-                      "nullable": true
+                    "description": {
+                      "type": "string"
                     },
                     "finished_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
-                    "name": {
-                      "type": "string"
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "queued_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "started_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "state": {
@@ -512,14 +402,6 @@
                     },
                     "task_type": {
                       "$ref": "#/components/schemas/TaskType"
-                    },
-                    "total_number_of_cycles": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "total_number_of_epochs": {
-                      "type": "integer",
-                      "format": "int64"
                     },
                     "uuid": {
                       "type": "string",
@@ -548,17 +430,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task/request": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save": {
       "post": {
         "tags": [
           "task"
         ],
-        "summary": "Create new request-task",
-        "description": "Create new request-task for a model",
-        "operationId": "post_v1alpha-model-d4fa49c53fe91566907b66045f7221ad",
+        "summary": "Create new snapshot-save-task",
+        "description": "Create a new task, which saves the root-disk of a virtual_machine as new snapshot.\\\n\\\nThe snapshot is registered in ryokan as image, which is marked as snapshot, before the task is\\\nqueued, so the image-quota of the user is checked immediately. The task encrypts the root-disk\\\nand uploads it into the onsen.\\\n\\\nThe virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly\\\nbefore, can still be in the memory of the virtual_machine and is then missing in the snapshot.\\\nRun `sync` inside the virtual_machine right before creating the snapshot.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -572,7 +453,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TaskCreateRequestReq"
+                "$ref": "#/components/schemas/TaskSnapshotSaveReq"
               }
             }
           },
@@ -587,49 +468,39 @@
                   "title": "TaskResp",
                   "type": "object",
                   "required": [
-                    "created_at",
                     "created_by",
-                    "current_cycle",
-                    "current_epoch",
-                    "name",
+                    "description",
+                    "messages",
                     "state",
                     "task_type",
-                    "total_number_of_cycles",
-                    "total_number_of_epochs",
                     "uuid"
                   ],
                   "properties": {
-                    "created_at": {
-                      "type": "string"
-                    },
                     "created_by": {
                       "type": "string"
                     },
-                    "current_cycle": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "current_epoch": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "error_message": {
-                      "type": "string",
-                      "nullable": true
+                    "description": {
+                      "type": "string"
                     },
                     "finished_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
-                    "name": {
-                      "type": "string"
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "queued_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "started_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "state": {
@@ -637,14 +508,6 @@
                     },
                     "task_type": {
                       "$ref": "#/components/schemas/TaskType"
-                    },
-                    "total_number_of_cycles": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "total_number_of_epochs": {
-                      "type": "integer",
-                      "format": "int64"
                     },
                     "uuid": {
                       "type": "string",
@@ -661,6 +524,12 @@
           "401": {
             "description": "Unauthorized"
           },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
           "500": {
             "description": "Internal error"
           }
@@ -673,17 +542,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task/checkpoint_save": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore": {
       "post": {
         "tags": [
           "task"
         ],
-        "summary": "Create new checkpoint-task",
-        "description": "Create new checkpoint-task for a model",
-        "operationId": "post_v1alpha-model-63fc9da5a6cdaf3f6960e0798fff93a1",
+        "summary": "Create new snapshot-restore-task",
+        "description": "Create a new task, which resets the root-disk of an existing virtual_machine to\\\nthe state of a snapshot.\\\n\\\nOnly images, which are marked as snapshot, can be restored.\\\n\\\nThe virtual_machine is shut down, while its root-disk is replaced, and booted again afterwards.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -697,7 +565,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TaskCheckpointSaveReq"
+                "$ref": "#/components/schemas/TaskSnapshotRestoreReq"
               }
             }
           },
@@ -712,49 +580,39 @@
                   "title": "TaskResp",
                   "type": "object",
                   "required": [
-                    "created_at",
                     "created_by",
-                    "current_cycle",
-                    "current_epoch",
-                    "name",
+                    "description",
+                    "messages",
                     "state",
                     "task_type",
-                    "total_number_of_cycles",
-                    "total_number_of_epochs",
                     "uuid"
                   ],
                   "properties": {
-                    "created_at": {
-                      "type": "string"
-                    },
                     "created_by": {
                       "type": "string"
                     },
-                    "current_cycle": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "current_epoch": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "error_message": {
-                      "type": "string",
-                      "nullable": true
+                    "description": {
+                      "type": "string"
                     },
                     "finished_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
-                    "name": {
-                      "type": "string"
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "queued_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "started_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "state": {
@@ -762,14 +620,6 @@
                     },
                     "task_type": {
                       "$ref": "#/components/schemas/TaskType"
-                    },
-                    "total_number_of_cycles": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "total_number_of_epochs": {
-                      "type": "integer",
-                      "format": "int64"
                     },
                     "uuid": {
                       "type": "string",
@@ -801,17 +651,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task/checkpoint_restore": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/start": {
       "post": {
         "tags": [
           "task"
         ],
-        "summary": "Create new checkpoint-task",
-        "description": "Create new checkpoint-task for a model",
-        "operationId": "post_v1alpha-model-a6b6484c3d058460fa6a64a06b250e95",
+        "summary": "Create new start-task",
+        "description": "Create a new task, which boots a stopped virtual_machine again.\\\n\\\nA virtual_machine, which already runs, is left untouched. A paused virtual_machine is resumed.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -821,16 +670,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskCheckpointRestoreReq"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "201": {
             "description": "",
@@ -840,49 +679,39 @@
                   "title": "TaskResp",
                   "type": "object",
                   "required": [
-                    "created_at",
                     "created_by",
-                    "current_cycle",
-                    "current_epoch",
-                    "name",
+                    "description",
+                    "messages",
                     "state",
                     "task_type",
-                    "total_number_of_cycles",
-                    "total_number_of_epochs",
                     "uuid"
                   ],
                   "properties": {
-                    "created_at": {
-                      "type": "string"
-                    },
                     "created_by": {
                       "type": "string"
                     },
-                    "current_cycle": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "current_epoch": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "error_message": {
-                      "type": "string",
-                      "nullable": true
+                    "description": {
+                      "type": "string"
                     },
                     "finished_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
-                    "name": {
-                      "type": "string"
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "queued_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "started_at": {
                       "type": "string",
+                      "format": "date-time",
                       "nullable": true
                     },
                     "state": {
@@ -890,14 +719,6 @@
                     },
                     "task_type": {
                       "$ref": "#/components/schemas/TaskType"
-                    },
-                    "total_number_of_cycles": {
-                      "type": "integer",
-                      "format": "int64"
-                    },
-                    "total_number_of_epochs": {
-                      "type": "integer",
-                      "format": "int64"
                     },
                     "uuid": {
                       "type": "string",
@@ -929,25 +750,212 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task/{task_uuid}": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/stop": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new stop-task",
+        "description": "Create a new task, which shuts down the virtual_machine.\\\n\\\nThe virtual_machine keeps all of its resources, like its disks and its addresses, so it can be\\\nstarted again later. A virtual_machine, which is already stopped, is left untouched.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/reboot": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new reboot-task",
+        "description": "Create a new task, which reboots the virtual_machine.\\\n\\\nOnly a running virtual_machine can be rebooted. A stopped virtual_machine has to be started\\\ninstead.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/task/{task_uuid}": {
       "get": {
         "tags": [
           "task"
         ],
         "summary": "Get task",
-        "description": "Get information of a task of a model from the database.",
-        "operationId": "get_v1alpha-model-f226d7d7c778872cff618507e6c9bedb",
+        "description": "Get information of a task from the database.",
         "parameters": [
-          {
-            "name": "model_uuid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "Uuid",
-              "type": "string",
-              "format": "uuid"
-            }
-          },
           {
             "name": "task_uuid",
             "in": "path",
@@ -991,25 +999,14 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task/{task_uuid}/abort": {
+    "/v1alpha/task/{task_uuid}/abort": {
       "put": {
         "tags": [
           "task"
         ],
         "summary": "Abort task",
         "description": "Abort a task.",
-        "operationId": "put_v1alpha-model-658f5ce5c1e2469dc6573966ca4e0563",
         "parameters": [
-          {
-            "name": "model_uuid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "Uuid",
-              "type": "string",
-              "format": "uuid"
-            }
-          },
           {
             "name": "task_uuid",
             "in": "path",
@@ -1056,23 +1053,24 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}/task": {
+    "/v1alpha/task": {
       "get": {
         "tags": [
           "task"
         ],
         "summary": "List tasks",
-        "description": "List all tasks of a model",
-        "operationId": "get_v1alpha-model-1d54ca07dbf5412ba5489e4828afb79e",
+        "description": "List all tasks. With the query-parameter `resource_uuid`, only the tasks of\\\nthis resource, like a virtual_machine, are listed.",
         "parameters": [
           {
-            "name": "model_uuid",
-            "in": "path",
-            "required": true,
+            "name": "resource_uuid",
+            "in": "query",
+            "description": "Resource, like a virtual_machine, to list only its tasks. Without it, all tasks of the sakura-host are listed.",
+            "required": false,
             "schema": {
-              "title": "Uuid",
+              "description": "Resource, like a virtual_machine, to list only its tasks. Without it, all tasks of the sakura-host are listed.",
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "nullable": true
             }
           }
         ],
@@ -1093,6 +1091,9 @@
           "401": {
             "description": "Unauthorized"
           },
+          "404": {
+            "description": "Requested object not found"
+          },
           "500": {
             "description": "Internal error"
           }
@@ -1108,195 +1109,6 @@
   },
   "components": {
     "schemas": {
-      "ModelBasicResp": {
-        "type": "object",
-        "required": [
-          "name",
-          "proxy_port",
-          "uuid"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "proxy_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
-          },
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "ModelCreateReq": {
-        "title": "ModelCreateReq",
-        "type": "object",
-        "required": [
-          "name",
-          "template"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          },
-          "template": {
-            "type": "string",
-            "minLength": 10
-          }
-        }
-      },
-      "ModelListResp": {
-        "title": "ModelListResp",
-        "type": "object",
-        "required": [
-          "models"
-        ],
-        "properties": {
-          "models": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ModelBasicResp"
-            }
-          }
-        }
-      },
-      "ModelRequestReq": {
-        "title": "ModelRequestReq",
-        "type": "object",
-        "required": [
-          "inputs",
-          "outputs"
-        ],
-        "properties": {
-          "inputs": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "number",
-                "format": "float"
-              }
-            }
-          },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1
-          }
-        }
-      },
-      "ModelRequestResp": {
-        "title": "ModelRequestResp",
-        "type": "object",
-        "required": [
-          "outputs"
-        ],
-        "properties": {
-          "outputs": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "number",
-                "format": "float"
-              }
-            }
-          }
-        }
-      },
-      "ModelResp": {
-        "title": "ModelResp",
-        "type": "object",
-        "required": [
-          "created_at",
-          "created_by",
-          "inputs",
-          "name",
-          "outputs",
-          "template",
-          "torii_port",
-          "updated_at",
-          "updated_by",
-          "uuid"
-        ],
-        "properties": {
-          "created_at": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "inputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "name": {
-            "type": "string"
-          },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "template": {
-            "type": "string"
-          },
-          "torii_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
-          },
-          "updated_at": {
-            "type": "string"
-          },
-          "updated_by": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "ModelTrainReq": {
-        "title": "ModelTrainReq",
-        "type": "object",
-        "required": [
-          "inputs",
-          "outputs"
-        ],
-        "properties": {
-          "inputs": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "number",
-                "format": "float"
-              }
-            }
-          },
-          "outputs": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "number",
-                "format": "float"
-              }
-            }
-          }
-        }
-      },
       "ReadyResp": {
         "title": "ReadyResp",
         "type": "object",
@@ -1312,20 +1124,29 @@
       "TaskBasicResp": {
         "type": "object",
         "required": [
-          "current_epoch",
-          "name",
+          "description",
           "state",
           "task_type",
-          "total_number_of_epochs",
           "uuid"
         ],
         "properties": {
-          "current_epoch": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "name": {
+          "description": {
             "type": "string"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "queued_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "state": {
             "$ref": "#/components/schemas/TaskState"
@@ -1333,171 +1154,9 @@
           "task_type": {
             "$ref": "#/components/schemas/TaskType"
           },
-          "total_number_of_epochs": {
-            "type": "integer",
-            "format": "int64"
-          },
           "uuid": {
             "type": "string",
             "format": "uuid"
-          }
-        }
-      },
-      "TaskCheckpointRestoreReq": {
-        "title": "TaskCheckpointRestoreReq",
-        "type": "object",
-        "required": [
-          "checkpoint_uuid",
-          "name"
-        ],
-        "properties": {
-          "checkpoint_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          }
-        }
-      },
-      "TaskCheckpointSaveReq": {
-        "title": "TaskCheckpointSaveReq",
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          }
-        }
-      },
-      "TaskCreateRequestReq": {
-        "title": "TaskCreateRequestReq",
-        "type": "object",
-        "required": [
-          "inputs",
-          "name",
-          "results"
-        ],
-        "properties": {
-          "inputs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TaskDatasetLink"
-            },
-            "minItems": 1
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          },
-          "results": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TaskDatasetResultLink"
-            },
-            "minItems": 1
-          },
-          "time_length": {
-            "type": "integer",
-            "format": "uint64",
-            "maximum": 100000000.0,
-            "minimum": 1.0,
-            "nullable": true
-          }
-        }
-      },
-      "TaskCreateTrainReq": {
-        "title": "TaskCreateTrainReq",
-        "type": "object",
-        "required": [
-          "inputs",
-          "name",
-          "number_of_epochs",
-          "outputs"
-        ],
-        "properties": {
-          "forecast_length": {
-            "type": "integer",
-            "format": "uint64",
-            "maximum": 100000000.0,
-            "minimum": 0.0,
-            "nullable": true
-          },
-          "inputs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TaskDatasetLink"
-            },
-            "minItems": 1
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          },
-          "number_of_epochs": {
-            "type": "integer",
-            "format": "uint64",
-            "maximum": 1000000.0,
-            "minimum": 1.0
-          },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TaskDatasetLink"
-            },
-            "minItems": 1
-          },
-          "time_length": {
-            "type": "integer",
-            "format": "uint64",
-            "maximum": 100000000.0,
-            "minimum": 1.0,
-            "nullable": true
-          }
-        }
-      },
-      "TaskDatasetLink": {
-        "type": "object",
-        "required": [
-          "dataset_column",
-          "dataset_uuid",
-          "hexagon"
-        ],
-        "properties": {
-          "dataset_column": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          },
-          "dataset_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "hexagon": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
-          }
-        }
-      },
-      "TaskDatasetResultLink": {
-        "type": "object",
-        "required": [
-          "hexagon"
-        ],
-        "properties": {
-          "hexagon": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
           }
         }
       },
@@ -1520,49 +1179,39 @@
         "title": "TaskResp",
         "type": "object",
         "required": [
-          "created_at",
           "created_by",
-          "current_cycle",
-          "current_epoch",
-          "name",
+          "description",
+          "messages",
           "state",
           "task_type",
-          "total_number_of_cycles",
-          "total_number_of_epochs",
           "uuid"
         ],
         "properties": {
-          "created_at": {
-            "type": "string"
-          },
           "created_by": {
             "type": "string"
           },
-          "current_cycle": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "current_epoch": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "error_message": {
-            "type": "string",
-            "nullable": true
+          "description": {
+            "type": "string"
           },
           "finished_at": {
             "type": "string",
+            "format": "date-time",
             "nullable": true
           },
-          "name": {
-            "type": "string"
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "queued_at": {
             "type": "string",
+            "format": "date-time",
             "nullable": true
           },
           "started_at": {
             "type": "string",
+            "format": "date-time",
             "nullable": true
           },
           "state": {
@@ -1571,17 +1220,37 @@
           "task_type": {
             "$ref": "#/components/schemas/TaskType"
           },
-          "total_number_of_cycles": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "total_number_of_epochs": {
-            "type": "integer",
-            "format": "int64"
-          },
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "TaskSnapshotRestoreReq": {
+        "title": "TaskSnapshotRestoreReq",
+        "type": "object",
+        "required": [
+          "image_uuid"
+        ],
+        "properties": {
+          "image_uuid": {
+            "description": "Image, which must be a snapshot, to reset the root-disk of the virtual_machine to",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TaskSnapshotSaveReq": {
+        "title": "TaskSnapshotSaveReq",
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
           }
         }
       },
@@ -1599,10 +1268,13 @@
       "TaskType": {
         "type": "string",
         "enum": [
-          "Train",
-          "Request",
-          "CheckpointSave",
-          "CheckpointRestore"
+          "VirtualMachineCreate",
+          "VirtualMachineDelete",
+          "SnapshotSave",
+          "SnapshotRestore",
+          "VirtualMachineStart",
+          "VirtualMachineStop",
+          "VirtualMachineReboot"
         ]
       },
       "VersionResp": {
@@ -1621,6 +1293,211 @@
             "type": "string"
           },
           "version": {
+            "type": "string"
+          }
+        }
+      },
+      "VirtualMachineBasicResp": {
+        "type": "object",
+        "required": [
+          "disk_size",
+          "memory_size",
+          "name",
+          "number_of_cores",
+          "proxy_port",
+          "uuid"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proxy_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VirtualMachineCreateTaskReq": {
+        "title": "VirtualMachineCreateTaskReq",
+        "type": "object",
+        "required": [
+          "image_uuid",
+          "public_key_uuid",
+          "vm_uuid"
+        ],
+        "properties": {
+          "image_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "public_key_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vm_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VirtualMachineInternalCreateReq": {
+        "title": "VirtualMachineInternalCreateReq",
+        "type": "object",
+        "required": [
+          "disk_size",
+          "internal_ip",
+          "mac_address",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "tap_name"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "mac_address": {
+            "type": "string"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine in bytes",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tap_name": {
+            "type": "string"
+          }
+        }
+      },
+      "VirtualMachineListResp": {
+        "title": "VirtualMachineListResp",
+        "type": "object",
+        "required": [
+          "virtual_machines"
+        ],
+        "properties": {
+          "virtual_machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VirtualMachineBasicResp"
+            }
+          }
+        }
+      },
+      "VirtualMachineResp": {
+        "title": "VirtualMachineResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "disk_size",
+          "image_uuid",
+          "internal_ip",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "torii_port",
+          "updated_at",
+          "updated_by",
+          "uuid",
+          "vm_state"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "torii_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vm_state": {
+            "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
             "type": "string"
           }
         }

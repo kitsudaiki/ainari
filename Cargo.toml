@@ -36,6 +36,11 @@ default-members = [
 ]
 resolver = "2"
 
+[workspace.package]
+version = "0.20.0"
+edition = "2024"
+rust-version = "1.85.1"
+
 [workspace.dependencies]
 aya = { version = "0.14.0", default-features = false }
 aya-build = { version = "0.2.0", default-features = false }

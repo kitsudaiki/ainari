@@ -20,7 +20,6 @@
         ],
         "summary": "Get version",
         "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
-        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
         "responses": {
           "200": {
             "description": "",
@@ -54,7 +53,6 @@
         ],
         "summary": "Get ready status",
         "description": "Get status of the service endpoint.",
-        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
         "responses": {
           "200": {
             "description": "",
@@ -84,8 +82,7 @@
           "proxy"
         ],
         "summary": "Register new proxy",
-        "description": "Register new proxy.",
-        "operationId": "post_v1alpha-proxy-internal-b7896230c4a213302caa08228a4f5760",
+        "description": "Register a new proxy.\\\n\\\nA free port from the configured port-range is selected for it and the proxy is\\\nadded to the running proxy-handler.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,12 +104,12 @@
                   "required": [
                     "created_at",
                     "created_by",
-                    "model_uuid",
                     "port",
                     "target_address",
                     "updated_at",
                     "updated_by",
-                    "uuid"
+                    "uuid",
+                    "virtual_machine_uuid"
                   ],
                   "properties": {
                     "created_at": {
@@ -120,10 +117,6 @@
                     },
                     "created_by": {
                       "type": "string"
-                    },
-                    "model_uuid": {
-                      "type": "string",
-                      "format": "uuid"
                     },
                     "port": {
                       "type": "integer",
@@ -142,6 +135,10 @@
                     "uuid": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "virtual_machine_uuid": {
+                      "type": "string",
+                      "format": "uuid"
                     }
                   }
                 }
@@ -153,6 +150,12 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -171,9 +174,8 @@
         "tags": [
           "proxy"
         ],
-        "summary": "List proxy",
-        "description": "List basic information of all proxy from the database.",
-        "operationId": "get_v1alpha-proxy-9a1e417526c62d6c55723ea2bd1d992c",
+        "summary": "List proxies",
+        "description": "List basic information of all proxies from the database.",
         "responses": {
           "200": {
             "description": "",
@@ -207,7 +209,6 @@
         ],
         "summary": "Get proxy",
         "description": "Get information of a proxy from the database.",
-        "operationId": "get_v1alpha-proxy-ef7d4f0735ca5c212f1336edfe16d38b",
         "parameters": [
           {
             "name": "proxy_uuid",
@@ -259,7 +260,6 @@
         ],
         "summary": "Delete proxy",
         "description": "Delete a proxy from the database.",
-        "operationId": "delete_v1alpha-proxy-edc6950e4f9e34f2682f80d1728b7bc3",
         "parameters": [
           {
             "name": "proxy_uuid",
@@ -296,23 +296,1637 @@
           }
         ]
       }
+    },
+    "/v1alpha/floating_ip/internal": {
+      "post": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Register new floating-ip",
+        "description": "Provision a floating IP and register its SNAT/DNAT rules in eBPF.\\\n\\\nThe floating IP is associated with a private internal IP, which updates both the\\\n`FIP_DNAT_MAP` and the `FIP_SNAT_MAP` of the datapath.\\\n\\\nThe two maps are keyed differently on purpose. A floating IP is unique across the\\\nwhole setup, so the inbound direction is keyed by it alone and carries the tenant\\\nof the VM in its value - resolving a floating IP is exactly the step that moves a\\\npacket from the shared uplink into a tenant. The outbound direction is keyed by\\\n`(vni, internal_ip)`, because the internal address is precisely the thing that may\\\nrepeat across tenants.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FloatingIpInternalCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "FloatingIpInternalResp",
+                  "type": "object",
+                  "required": [
+                    "floating_ip",
+                    "internal_ip",
+                    "name",
+                    "network_uuid",
+                    "uuid",
+                    "vni"
+                  ],
+                  "properties": {
+                    "floating_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "internal_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "network_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "vni": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/floating_ip/{ip}/internal": {
+      "delete": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Delete floating-ip",
+        "description": "Remove a floating-ip NAT configuration.\\\n\\\nThe NAT definitions are dropped from the internal tracking state as well as from\\\nboth eBPF NAT maps, which terminates the external access.",
+        "parameters": [
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "The floating IPv4 address",
+              "type": "string",
+              "format": "ipv4"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/route/internal": {
+      "get": {
+        "tags": [
+          "route"
+        ],
+        "summary": "List routes",
+        "description": "List all dynamically configured routes currently managing packet flow via eBPF.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "route"
+        ],
+        "summary": "Register new route",
+        "description": "Register a new route and program it into the eBPF maps of the datapath.\\\n\\\nThe route is stored under `(vni, dest_ip)`, so the same destination may exist\\\nonce per tenant. A request without a `vni` lands in tenant 0, which is the shared\\\ntenant every setup that does not care about isolation runs in.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "RouteResp",
+                  "type": "object",
+                  "required": [
+                    "dest_ip",
+                    "encrypted",
+                    "target_iface",
+                    "uuid",
+                    "vni"
+                  ],
+                  "properties": {
+                    "dest_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "encrypted": {
+                      "type": "boolean"
+                    },
+                    "gateway_ip": {
+                      "type": "string",
+                      "format": "ipv4",
+                      "nullable": true
+                    },
+                    "next_hop_ip": {
+                      "type": "string",
+                      "format": "ipv4",
+                      "nullable": true
+                    },
+                    "next_hop_mac": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "target_iface": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "vni": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/route/{route_uuid}/internal": {
+      "put": {
+        "tags": [
+          "route"
+        ],
+        "summary": "Update route",
+        "description": "Update an existing route atomically for zero-downtime migration.\\\n\\\nBecause eBPF map updates are atomic at the kernel level, active connections pivot\\\nto the new tunnel destination without dropping packets. The floating-ip NAT maps\\\nremain unaffected.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "route"
+        ],
+        "summary": "Delete route",
+        "description": "Delete a route and purge it from the eBPF maps.\\\n\\\nThe packet filter guarding the route dies with it, and an encrypted route also\\\nloses its fail-closed block policies and its kernel host-route.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/route/{route_uuid}/filter/internal": {
+      "get": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Get route filter",
+        "description": "Show the packet filter currently attached to one route.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Clear route filter",
+        "description": "Drop the whole packet filter of one route.\\\n\\\nBoth include-lists are emptied in one step, which puts the route back into its\\\nunrestricted default state.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/route/{route_uuid}/filter/ip_range/internal": {
+      "post": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Add filter ip-ranges",
+        "description": "Add IP ranges to the include-list of one route.\\\n\\\nThe list starts out empty, which means \"every address is allowed\". The first\\\nentry flips that around: from then on the route only carries packets whose\\\nsource address is named by one of its ranges. Entries may be written as a single\\\naddress, as a subnet in CIDR notation or as an explicit range, and adding one\\\nthat is already present is a no-op rather than an error.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterIpRangeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Remove filter ip-ranges",
+        "description": "Remove IP ranges from the include-list of one route.\\\n\\\nAn entry is identified by the addresses it covers, not by the way it was written\\\ndown: `10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the\\\nlast range opens the route for every address again.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterIpRangeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/route/{route_uuid}/filter/port/internal": {
+      "post": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Add filter ports",
+        "description": "Add ports to the include-list of one route.\\\n\\\nAs long as the list is empty every port is allowed. Once it holds an entry, only\\\nTCP and UDP packets with a matching source *or* destination port are carried -\\\nmatching either side is what lets the answers of an allowed service back through\\\nthe reverse route. Traffic without ports (ICMP and friends) is not affected by\\\nthis list; it is governed by the IP ranges alone.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterPortReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Remove filter ports",
+        "description": "Remove ports from the include-list of one route.\\\n\\\nEntries are matched by the ports they cover, so `22` removes the single port\\\nentry and `8000-8100` the range. Removing the last entry opens the route for\\\nevery port again.",
+        "parameters": [
+          {
+            "name": "route_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterPortReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter": {
+      "get": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "List filters",
+        "description": "List the packet filters of every route that has one.\\\n\\\nRoutes without any include-list are left out: they carry everything and have no\\\nentry in the eBPF filter map either.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_crypto/key/internal": {
+      "get": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "List crypto-keys",
+        "description": "List the IPsec keys this gateway currently holds.\\\n\\\nThe key material is never part of the answer - it is written straight into the\\\nkernel and not kept in the application state.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CryptoKeyListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "Register new crypto-key",
+        "description": "Install one AES-256-GCM key for one direction of a VM-to-VM connection.\\\n\\\nA key is programmed as an xfrm Security Association in tunnel mode between the\\\ntwo gateways, with a selector that pins it to exactly one VM pair. That is what\\\ngives every connection its own key material even though several VMs may share\\\nthe same remote gateway.\\\n\\\n`egress` creates the outbound SA and points the outbound policy of the VM pair at\\\nits SPI, which makes it the key used for new packets, so a rotation never has a\\\ngap in which traffic would leave unprotected. `ingress` creates an inbound SA and\\\nthe matching in/fwd policies; any number of inbound keys can be held for the same\\\nconnection at the same time - the SPI in the ESP header of an incoming packet\\\ndecides which one is used.\\\n\\\n`vni` names the tenant of the two VM-addresses. The kernel's xfrm selectors know\\\nnothing about tenants, so a second tenant that wants to protect the very same\\\naddress-pair is refused instead of silently overwriting the first one.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CryptoKeyReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "CryptoKeyResp",
+                  "type": "object",
+                  "required": [
+                    "direction",
+                    "local_ip",
+                    "peer_gateway_ip",
+                    "remote_ip",
+                    "spi",
+                    "vni"
+                  ],
+                  "properties": {
+                    "direction": {
+                      "$ref": "#/components/schemas/CryptoDirection"
+                    },
+                    "local_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "peer_gateway_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "remote_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "spi": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "vni": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_crypto/key/{direction}/{spi}/internal": {
+      "delete": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "Delete crypto-key",
+        "description": "Remove one IPsec key again, which is the second half of a key rotation.\\\n\\\nOnly the Security Association is dropped; the policies of the connection stay in\\\nplace. Deleting the key a policy currently points at therefore does not open a\\\nhole - the traffic is discarded until another key is installed.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CryptoDirection"
+            }
+          },
+          {
+            "name": "spi",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_crypto/toggle/internal": {
+      "post": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "Toggle crypto",
+        "description": "Switch the encryption of a single VM-to-VM connection on or off.\\\n\\\nThis makes the protection optional per connection without losing anything: the\\\nkeys of the connection stay installed in the kernel, only the policies are\\\nrewritten. A disabled connection sends and accepts plain traffic even though a\\\nkey is set for it, and enabling it again immediately puts the keys back to use.\\\n\\\nBoth gateways of a connection have to be switched, otherwise the side that still\\\ndemands ESP drops the now unprotected packets of the other one.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CryptoToggleReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CryptoToggleResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_crypto/connection/internal": {
+      "get": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "List connections",
+        "description": "List the VM-to-VM connections this gateway knows about.\\\n\\\nShows for every connection whether its encryption is currently switched on and\\\nwhich outbound key is in use, which is the quickest way to tell a protected\\\nconnection from a deliberately unprotected one.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_interface/config/internal": {
+      "post": {
+        "tags": [
+          "network_interface"
+        ],
+        "summary": "Configure interface",
+        "description": "Configure an existing network interface's IP and up/down state.\\\n\\\nActs as a wrapper around the system `ip` commands to programmatically assign\\\nCIDRs and enable interfaces on the host operating system.\\\n\\\nIt is also where a port is placed into a tenant. Every packet entering the overlay\\\ndatapath takes its VNI from the interface it arrived on, so this registration is\\\nwhat decides which half of the routing map a VM gets to see. `fip_port`\\\nadditionally marks the one interface that faces the outside world: only there is a\\\nfloating IP allowed to name the tenant of a packet, which is what keeps a VM from\\\nreaching another tenant by addressing its floating IP.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IfaceConfigReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IfaceConfigResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_interface/tap/internal": {
+      "post": {
+        "tags": [
+          "network_interface"
+        ],
+        "summary": "Register new tap-device",
+        "description": "Create a new TAP device and dynamically attach the eBPF overlay program.\\\n\\\nThe device stays intentionally unnumbered - no IP address and no subnet are\\\nattached to it, and any leftover address is flushed. Everything the VM needs from\\\na gateway is provided by eBPF instead: the XDP ARP responder answers the requests\\\nof the VM (using the MAC of the TAP device itself) and the routing maps forward\\\nthe traffic. Because no subnet is claimed on the host side, several VMs of the\\\nsame subnet can be attached to the same host.\\\n\\\nThe device is also registered as a port of its tenant. That registration is the\\\nonly source of the VNI for everything the VM sends, which is what lets two VMs on\\\nthis host carry the very same address: they differ by the port their frames arrive\\\non, and every lookup downstream is keyed by that tenant.\\\n\\\nIn addition to the eBPF state, a host route and a permanent neighbour entry for\\\nthe VM are programmed into the kernel. They are what lets the kernel hand IPsec\\\nprotected traffic over to the right TAP after decrypting it, without ever needing\\\nan address or an ARP exchange on this link. For a tenant other than the shared one\\\nthey go into that tenant's own routing table, selected by an `ip rule` on this TAP\\\n- the kernel has no VNI, so the ingress interface is the only thing left to tell\\\nthe tenants apart on that path.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TapReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TapResp",
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "success",
+                    "tap_name",
+                    "vni"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "tap_name": {
+                      "type": "string"
+                    },
+                    "vni": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
-      "ProxyBasicResp": {
+      "ConnectionListResp": {
+        "title": "ConnectionListResp",
         "type": "object",
         "required": [
-          "model_uuid",
-          "port",
-          "target_address",
-          "uuid"
+          "connections"
         ],
         "properties": {
-          "model_uuid": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionResp"
+            }
+          }
+        }
+      },
+      "ConnectionResp": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "local_ip",
+          "peer_gateway_ip",
+          "remote_ip",
+          "vni"
+        ],
+        "properties": {
+          "active_egress_spi": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "local_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "peer_gateway_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "remote_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "CryptoDirection": {
+        "description": "The direction a crypto-key protects, which is what separates an outbound Security Association from an inbound one.\n\nA key is only ever one of the two, so the direction is part of the type instead of a string that every handler would have to re-validate.",
+        "oneOf": [
+          {
+            "title": "egress",
+            "description": "Protects the traffic leaving this gateway",
+            "type": "string",
+            "enum": [
+              "egress"
+            ]
+          },
+          {
+            "title": "ingress",
+            "description": "Protects the traffic arriving at this gateway",
+            "type": "string",
+            "enum": [
+              "ingress"
+            ]
+          }
+        ]
+      },
+      "CryptoKeyListResp": {
+        "title": "CryptoKeyListResp",
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CryptoKeyResp"
+            }
+          }
+        }
+      },
+      "CryptoKeyReq": {
+        "title": "CryptoKeyReq",
+        "type": "object",
+        "required": [
+          "direction",
+          "key",
+          "local_ip",
+          "peer_gateway_ip",
+          "remote_ip",
+          "spi"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/CryptoDirection"
+          },
+          "key": {
+            "$ref": "#/components/schemas/Secret"
+          },
+          "local_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "peer_gateway_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "remote_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "spi": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "vni": {
+            "description": "Tenant the two VM-addresses are valid in. The kernel's xfrm selectors know nothing about tenants, so a second tenant that wants to protect the very same address-pair is refused instead of silently overwriting the first one.",
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "CryptoKeyResp": {
+        "title": "CryptoKeyResp",
+        "type": "object",
+        "required": [
+          "direction",
+          "local_ip",
+          "peer_gateway_ip",
+          "remote_ip",
+          "spi",
+          "vni"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/CryptoDirection"
+          },
+          "local_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "peer_gateway_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "remote_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "spi": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "CryptoToggleReq": {
+        "title": "CryptoToggleReq",
+        "type": "object",
+        "required": [
+          "enabled",
+          "local_ip",
+          "remote_ip"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "local_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "peer_gateway_ip": {
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "remote_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "vni": {
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "CryptoToggleResp": {
+        "title": "CryptoToggleResp",
+        "type": "object",
+        "required": [
+          "enabled",
+          "local_ip",
+          "remote_ip",
+          "vni"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "local_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "peer_gateway_ip": {
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "remote_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "FilterEntry": {
+        "description": "One entry of the filter overview.",
+        "type": "object",
+        "required": [
+          "dest_ip",
+          "filter",
+          "route_uuid",
+          "vni"
+        ],
+        "properties": {
+          "dest_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/RouteFilterRules"
+          },
+          "route_uuid": {
             "type": "string",
             "format": "uuid"
           },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "FilterIpRangeReq": {
+        "title": "FilterIpRangeReq",
+        "type": "object",
+        "required": [
+          "ranges"
+        ],
+        "properties": {
+          "ranges": {
+            "description": "Single address, CIDR subnet or explicit `first-last` range",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FilterListResponse": {
+        "title": "FilterListResponse",
+        "description": "Response payload for listing the packet filters of all routes.",
+        "type": "object",
+        "required": [
+          "filters"
+        ],
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterEntry"
+            }
+          }
+        }
+      },
+      "FilterPortReq": {
+        "title": "FilterPortReq",
+        "type": "object",
+        "required": [
+          "ports"
+        ],
+        "properties": {
+          "ports": {
+            "description": "Single port or explicit `first-last` range",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FilterResp": {
+        "title": "FilterResp",
+        "type": "object",
+        "required": [
+          "dest_ip",
+          "filter",
+          "route_uuid",
+          "vni"
+        ],
+        "properties": {
+          "dest_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/RouteFilterRules"
+          },
+          "route_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "FloatingIpInternalCreateReq": {
+        "title": "FloatingIpInternalCreateReq",
+        "description": "Request to make one internal address reachable under a floating IP.\n\nThe floating IP is unique across the whole setup; `vni` says which tenant the internal address it points at belongs to. Resolving a floating IP is what moves a packet from the shared uplink into that tenant.",
+        "type": "object",
+        "required": [
+          "floating_ip",
+          "internal_ip",
+          "name",
+          "network_uuid"
+        ],
+        "properties": {
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vni": {
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "FloatingIpInternalResp": {
+        "title": "FloatingIpInternalResp",
+        "type": "object",
+        "required": [
+          "floating_ip",
+          "internal_ip",
+          "name",
+          "network_uuid",
+          "uuid",
+          "vni"
+        ],
+        "properties": {
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "IfaceConfigReq": {
+        "title": "IfaceConfigReq",
+        "description": "Request to configure an already existing interface.\n\nBesides the address and the link state this is also where a port is placed into a tenant. `fip_port` marks the interface that faces the outside world: only there does the datapath translate floating IPs, and only there may a floating IP decide which tenant a packet belongs to. Marking a TAP as a floating IP port would let the VM behind it reach every other tenant by addressing a floating IP, so the two settings exclude each other in practice.",
+        "type": "object",
+        "required": [
+          "iface_name",
+          "up"
+        ],
+        "properties": {
+          "fip_port": {
+            "default": false,
+            "type": "boolean"
+          },
+          "iface_name": {
+            "type": "string"
+          },
+          "ip_cidr": {
+            "type": "string",
+            "nullable": true
+          },
+          "up": {
+            "type": "boolean"
+          },
+          "vni": {
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "IfaceConfigResp": {
+        "title": "IfaceConfigResp",
+        "type": "object",
+        "required": [
+          "fip_port",
+          "iface_name",
+          "up",
+          "vni"
+        ],
+        "properties": {
+          "fip_port": {
+            "type": "boolean"
+          },
+          "iface_name": {
+            "type": "string"
+          },
+          "ip_cidr": {
+            "type": "string",
+            "nullable": true
+          },
+          "up": {
+            "type": "boolean"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "IpRangeRule": {
+        "description": "One entry of the ip include-list of a route, as an inclusive range.",
+        "type": "object",
+        "required": [
+          "first",
+          "last",
+          "spec"
+        ],
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "last": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "spec": {
+            "type": "string"
+          }
+        }
+      },
+      "PortRangeRule": {
+        "description": "One entry of the port include-list of a route, as an inclusive range.",
+        "type": "object",
+        "required": [
+          "first",
+          "last",
+          "spec"
+        ],
+        "properties": {
+          "first": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "last": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "spec": {
+            "type": "string"
+          }
+        }
+      },
+      "ProxyBasicResp": {
+        "type": "object",
+        "required": [
+          "port",
+          "target_address",
+          "uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
           "port": {
             "type": "integer",
             "format": "uint16",
@@ -324,6 +1938,10 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -331,18 +1949,18 @@
         "title": "ProxyCreateReq",
         "type": "object",
         "required": [
-          "model_uuid",
-          "target_address"
+          "target_address",
+          "virtual_machine_uuid"
         ],
         "properties": {
-          "model_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
           "target_address": {
             "type": "string",
             "maxLength": 127,
             "minLength": 4
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -367,12 +1985,12 @@
         "required": [
           "created_at",
           "created_by",
-          "model_uuid",
           "port",
           "target_address",
           "updated_at",
           "updated_by",
-          "uuid"
+          "uuid",
+          "virtual_machine_uuid"
         ],
         "properties": {
           "created_at": {
@@ -380,10 +1998,6 @@
           },
           "created_by": {
             "type": "string"
-          },
-          "model_uuid": {
-            "type": "string",
-            "format": "uuid"
           },
           "port": {
             "type": "integer",
@@ -402,6 +2016,10 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -414,6 +2032,193 @@
         "properties": {
           "api": {
             "type": "boolean"
+          }
+        }
+      },
+      "RouteFilterRules": {
+        "type": "object",
+        "required": [
+          "ip_ranges",
+          "ports"
+        ],
+        "properties": {
+          "ip_ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IpRangeRule"
+            }
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortRangeRule"
+            }
+          }
+        }
+      },
+      "RouteListResp": {
+        "title": "RouteListResp",
+        "type": "object",
+        "required": [
+          "routes"
+        ],
+        "properties": {
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteResp"
+            }
+          }
+        }
+      },
+      "RouteReq": {
+        "title": "RouteReq",
+        "description": "Request to create or update one route.\n\n`vni` names the tenant `dest_ip` is valid in. Two routes may carry the same destination as long as their tenants differ - that is the entire point of the field, and what allows two VMs with the same address to be hosted side by side. Leaving it out puts the route into the shared tenant 0.",
+        "type": "object",
+        "required": [
+          "dest_ip",
+          "target_iface"
+        ],
+        "properties": {
+          "dest_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "encrypted": {
+            "default": false,
+            "type": "boolean"
+          },
+          "gateway_ip": {
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "next_hop_ip": {
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "next_hop_mac": {
+            "default": null,
+            "type": "string",
+            "nullable": true
+          },
+          "target_iface": {
+            "type": "string"
+          },
+          "vni": {
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "RouteResp": {
+        "title": "RouteResp",
+        "type": "object",
+        "required": [
+          "dest_ip",
+          "encrypted",
+          "target_iface",
+          "uuid",
+          "vni"
+        ],
+        "properties": {
+          "dest_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "encrypted": {
+            "type": "boolean"
+          },
+          "gateway_ip": {
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "next_hop_ip": {
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "next_hop_mac": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_iface": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "Secret": {
+        "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
+        "type": "string"
+      },
+      "TapReq": {
+        "title": "TapReq",
+        "description": "Request to create a TAP device and attach a VM to it.\n\n`vni` places the port into a tenant. Everything the VM behind it sends takes its tenant from this registration and from nowhere else, which is what lets two VMs with the *same address* live on one host.",
+        "type": "object",
+        "required": [
+          "tap_name"
+        ],
+        "properties": {
+          "tap_name": {
+            "type": "string"
+          },
+          "vm_ip": {
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "vm_mac": {
+            "default": null,
+            "type": "string",
+            "nullable": true
+          },
+          "vni": {
+            "default": 0,
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "TapResp": {
+        "title": "TapResp",
+        "type": "object",
+        "required": [
+          "message",
+          "success",
+          "tap_name",
+          "vni"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "tap_name": {
+            "type": "string"
+          },
+          "vni": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
           }
         }
       },

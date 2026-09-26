@@ -1,0 +1,52 @@
+# Config of markdownlint-cli2 for the documentation, which is built with zensical. The rules are
+# adjusted to the markdown-extensions of zensical.toml (admonitions, content-tabs, snippets,
+# attr_list, md_in_html), which are not part of plain CommonMark.
+#
+# Run it with:
+#   make lint-docs
+
+config:
+  default: true
+
+  # The body of admonitions ('!!! info'), collapsible blocks ('??? note') and content-tabs
+  # ('=== "Tab"') is indented by 4 spaces, which markdownlint takes as indented code-blocks.
+  MD046: false
+
+  # Python-Markdown requires 4 spaces for nested lists, 2 spaces break the nesting in zensical.
+  MD007:
+    indent: 4
+
+  # The long lines of prose are not wrapped everywhere, so only code-blocks and tables are
+  # excluded from the limit.
+  MD013:
+    line_length: 100
+    code_blocks: false
+    tables: false
+
+  # The same sub-heading (for example 'Requirements' or 'Usage') is fine in different sections.
+  MD024:
+    siblings_only: true
+
+  # HTML, which is used on purpose by the docs, for example for the colored status of the
+  # features and md_in_html.
+  MD033:
+    allowed_elements:
+      - span
+      - img
+      - br
+      - p
+      - div
+      - details
+      - summary
+
+  # Some pages start with an admonition or a snippet and not with a heading.
+  MD041: false
+
+globs:
+  - "docs/**/*.md"
+  - "README.md"
+
+ignores:
+  # symlinks to the files in the root of the repository, which are no documentation-pages
+  - "docs/home/CHANGELOG.md"
+  - "docs/home/license.md"

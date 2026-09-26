@@ -15,6 +15,7 @@
 use std::path::Path;
 
 use cloud_hypervisor_client::apis::DefaultApi;
+use cloud_hypervisor_client::models::VmState;
 use cloud_hypervisor_client::socket_based_api_client;
 use uuid::Uuid;
 
@@ -114,7 +115,7 @@ pub async fn save_ch_virtual_machine(
 /// Copies the root-disk of a virtual_machine into a qcow2-image
 ///
 /// A running virtual_machine is paused during the copy and resumed afterwards, also if the copy
-/// failed, so the virtual_machine doesn't stay paused.
+/// failed, so the virtual_machine doesn't stay paused. A stopped virtual_machine is copied as it is.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
@@ -129,15 +130,23 @@ async fn copy_root_disk(
     root_disk_path: &str,
     target_path: &str,
 ) -> Result<(), AinariError> {
-    // a virtual_machine without cloud-hypervisor process doesn't write to its disk
+    // Only a running virtual_machine writes to its disk and has to be paused. The
+    // cloud-hypervisor process of a stopped virtual_machine keeps running, so its socket exists
+    // as well, but the shut down virtual_machine can not be paused.
     let socket_path = vm_socket_path(uuid);
     let client = if Path::new(&socket_path).exists() {
         let client = socket_based_api_client(&socket_path);
-        client
-            .pause_vm()
-            .await
-            .map_err(|e| AinariError::InternalError(format!("Pause VM {uuid} failed: {e:?}")))?;
-        Some(client)
+        let vm_info = client.vm_info_get().await.map_err(|e| {
+            AinariError::InternalError(format!("Get info of VM {uuid} failed: {e:?}"))
+        })?;
+        if vm_info.state == VmState::Running {
+            client.pause_vm().await.map_err(|e| {
+                AinariError::InternalError(format!("Pause VM {uuid} failed: {e:?}"))
+            })?;
+            Some(client)
+        } else {
+            None
+        }
     } else {
         None
     };

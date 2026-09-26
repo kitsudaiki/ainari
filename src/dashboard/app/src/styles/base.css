@@ -27,7 +27,7 @@ limitations under the License.
     --color-text-dark: #1b1c1f; /* text on light surfaces */
     /* The highlight-color is the only value, which has to be changed to change the
     accent of the whole dashboard. All other highlight-values are derived from it. */
-    --color-highlight: #0e98dc;
+    --color-highlight: #fa9835;
 
     --color-highlight-glow: rgb(from var(--color-highlight) r g b / 0.45);
     --color-highlight-tint: rgb(from var(--color-highlight) r g b / 0.35);

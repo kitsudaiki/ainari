@@ -1,0 +1,121 @@
+[project]
+site_name = "Ainari-docs"
+site_author = "Tobias Anker"
+site_url = "https://docs.ainari.cloud"
+repo_name = "kitsudaiki/ainari"
+repo_url = "https://github.com/kitsudaiki/ainari"
+copyright = "all rights reserved; 2022-2026 Tobias Anker"
+extra_css = [
+  "stylesheets/extra.css",
+]
+extra_javascript = [
+  "javascripts/swagger_ui.js",
+]
+
+nav = [
+  { "Home" = [
+    "index.md",
+    "home/features.md",
+    "home/overview.md",
+    "home/license.md",
+    "home/CHANGELOG.md",
+  ] },
+  { "User-Docu" = [
+    "user/dashboard/dashboard.md",
+    { "CLI and SDK" = [
+      "user/cli_sdk/cli_sdk_docu.md",
+      "user/cli_sdk/example_workflow.md",
+    ] },
+    { "Rest-API" = [
+      "user/rest_api/rest_api_docu_sakura.md",
+      "user/rest_api/rest_api_docu_hanami.md",
+      "user/rest_api/rest_api_docu_miko.md",
+      "user/rest_api/rest_api_docu_ryokan.md",
+      "user/rest_api/rest_api_docu_torii.md",
+      "user/rest_api/rest_api_docu_omamori.md",
+    ] },
+  ] },
+  { "Deployer/Admin-Docu" = [
+    { "Installation" = [
+      "deployer/installation/kubernetes_installation.md",
+    ] },
+    { "Configuration" = [
+      "deployer/config/sakura_config.md",
+      "deployer/config/hanami_config.md",
+      "deployer/config/miko_config.md",
+      "deployer/config/ryokan_config.md",
+      "deployer/config/torii_config.md",
+      "deployer/config/omamori_config.md",
+      "deployer/config/onsen_config.md",
+      "deployer/config/dashboard_config.md",
+      "deployer/config/token_key.md",
+      "deployer/config/hanami_testing_config.md",
+    ] },
+    { "Database" = [
+      "deployer/database/sakura_db.md",
+      "deployer/database/hanami_db.md",
+      "deployer/database/miko_db.md",
+      "deployer/database/ryokan_db.md",
+      "deployer/database/torii_db.md",
+      "deployer/database/omamori_db.md",
+    ] },
+  ] },
+  { "Development-Docu" = [
+      "developer/repo_structure.md",
+      "developer/build_guide.md",
+      { "Local test environments" = [
+        "developer/local_testing/local_testing.md",
+        "developer/local_testing/docker_compose_setup.md",
+        "developer/local_testing/kind_setup.md",
+        "developer/local_testing/vagrant_setup.md",
+        "developer/local_testing/https_ca.md",
+      ] },
+      "developer/development.md",
+      "developer/git_workflow.md",
+  ] },
+]
+
+# The mkdocs-plugin 'drawio-exporter' is not supported by zensical. The rest-api docu is rendered
+# with swagger-ui by javascripts/swagger_ui.js instead of the mkdocs-plugin 'swagger-ui-tag'.
+# Search is enabled by default.
+
+[project.theme]
+language = "en"
+logo = "img/ainari_logo_mini.jpg"
+features = [
+  "navigation.tabs",
+  # "navigation.sections",
+  "navigation.expand",
+  "navigation.prune",
+  "navigation.top",
+  "navigation.path",
+  "content.code.annotate",
+  "content.tabs.link",
+]
+
+#[project.theme.palette]
+#scheme = "slate"
+
+[project.markdown_extensions]
+pymdownx.highlight.anchor_linenums = true
+toc.permalink = true
+tables = {}
+attr_list = {}
+md_in_html = {}
+admonition = {}
+pymdownx.details = {}
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.snippets = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/kitsudaiki"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/linkedin"
+link = "https://www.linkedin.com/in/tobiasanker42"

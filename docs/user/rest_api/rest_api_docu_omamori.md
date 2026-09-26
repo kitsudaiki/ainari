@@ -11,4 +11,4 @@
 
 ## Omamori
 
-<swagger-ui src="open_api_docu_omamori.json"/>
+[OpenAPI-spec of omamori](open_api_docu_omamori.json){ .swagger-ui-spec }

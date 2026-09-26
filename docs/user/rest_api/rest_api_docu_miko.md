@@ -11,4 +11,4 @@
 
 ## Miko
 
-<swagger-ui src="open_api_docu_miko.json"/>
+[OpenAPI-spec of miko](open_api_docu_miko.json){ .swagger-ui-spec }
