@@ -12,14 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: sakura-selfsigned-cert
-spec:
-  secretName: sakura-selfsigned-secret
-  issuerRef:
-    name: selfsigned-issuer
-  dnsNames:
-    - {{ .Values.sakura.api.domain }}
-
+# every sakura-host is reached with the name of its pod in the headless service
+{{ include "ainari.certificate" (list . "sakura" (list "*.sakura")) }}

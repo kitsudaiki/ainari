@@ -19,7 +19,7 @@ metadata:
 spec:
   type: {{ default "LoadBalancer" .Values.torii.service.type }}
   selector:
-    app: torii
+    app: torii-public
   ports:
 {{- $start := int .Values.torii.port_range.start }}
 {{- $end   := int .Values.torii.port_range.end }}
@@ -28,5 +28,8 @@ spec:
   - name: p-{{ $p }}
     port: {{ $p | int }}
     targetPort: {{ $p | int }}
+    {{- if and (eq $.Values.torii.service.type "NodePort") $.Values.global.external_services.enabled }}
+    nodePort: {{ add $p $.Values.global.external_services.node_port_offset }}
+    {{- end }}
     protocol: TCP
 {{- end }}

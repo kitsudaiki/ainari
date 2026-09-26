@@ -37,6 +37,7 @@
 | ---------- | ------- | ------- | ------------------------------------------------ |
 | `min_port` | integer | `10042` | Minimum port number for dynamic port allocation. |
 | `max_port` | integer | `10043` | Maximum port number for dynamic port allocation. |
+| `listen_ip` | string | `api.public_ip` | Address, which the proxies listen on. |
 
 ### `network` Configuration
 

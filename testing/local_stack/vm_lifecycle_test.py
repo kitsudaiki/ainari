@@ -54,6 +54,12 @@ from ainari_sdk import network       # noqa: E402
 from ainari_sdk import public_key    # noqa: E402
 from ainari_sdk import virtual_machine  # noqa: E402
 
+import urllib3  # noqa: E402
+
+# The kind-setup serves the api over https with self-signed certificates, which the test doesn't
+# verify on purpose, so urllib3 would warn about every single request.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # the addresses and credentials of the local docker-compose setup
 MIKO_ADDRESS = os.getenv("AINARI_MIKO_ADDRESS", "http://127.0.0.1:11417")
 USER_ID = os.getenv("AINARI_USER", "asdf")

@@ -34,19 +34,23 @@ data:
     file_path = "/etc/ainari/miko/miko_db"
 
     [endpoints.hanami]
-    public_address = "https://{{ .Values.hanami.api.domain }}:443"
-    internal_address = "https://hanami-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    public_address = "{{ include "ainari.publicAddress" (list . "hanami") }}"
+    internal_address = "{{ include "ainari.internalAddress" (list . "hanami") }}"
 
     [endpoints.ryokan]
-    public_address = "https://{{ .Values.ryokan.api.domain }}:443"
-    internal_address = "https://ryokan-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    public_address = "{{ include "ainari.publicAddress" (list . "ryokan") }}"
+    internal_address = "{{ include "ainari.internalAddress" (list . "ryokan") }}"
 
+    # Hanami derives the torii of every sakura-host from this address, by replacing the host with
+    # the one of the sakura-host and keeping the port, and compares the resolved addresses. So it
+    # points to the headless service of the gateway at the edge, which resolves to the address of
+    # the pod itself, and to port 8444, where the tls-termination of every torii listens.
     [endpoints.torii]
-    public_address = "https://{{ .Values.torii.api.domain }}:443"
-    internal_address = "https://torii-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    public_address = "{{ include "ainari.publicAddress" (list . "torii") }}"
+    internal_address = "https://torii-public.{{ .Release.Namespace }}.svc.cluster.local:8444"
 
     [endpoints.omamori]
-    public_address = "https://{{ .Values.omamori.api.domain }}:443"
-    internal_address = "https://omamori-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    public_address = "{{ include "ainari.publicAddress" (list . "omamori") }}"
+    internal_address = "{{ include "ainari.internalAddress" (list . "omamori") }}"
 
 kind: ConfigMap

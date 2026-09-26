@@ -83,7 +83,8 @@ def request_context(address: str,
 
     # Create and return the context object
     context = AccessContext(token, miko_address, hanami_address,
-                            ryokan_address, omamori_address, torii_address, torii_base_address)
+                            ryokan_address, omamori_address, torii_address, torii_base_address,
+                            verify_connection)
     return context
 
 

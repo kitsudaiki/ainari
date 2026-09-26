@@ -12,14 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: ryokan-selfsigned-cert
-spec:
-  secretName: ryokan-selfsigned-secret
-  issuerRef:
-    name: selfsigned-issuer
-  dnsNames:
-    - {{ .Values.ryokan.api.domain }}
-
+{{ include "ainari.certificate" (list . "ryokan" (list "ryokan-tls-service")) }}

@@ -12,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: dashboard-selfsigned-cert
-spec:
-  secretName: dashboard-selfsigned-secret
-  issuerRef:
-    name: selfsigned-issuer
-  dnsNames:
-    - {{ .Values.dashboard.api.domain }}
+{{- if .Values.dashboard.enabled }}
+{{ include "ainari.certificate" (list . "dashboard" (list "dashboard-tls-service")) }}
+{{- end }}

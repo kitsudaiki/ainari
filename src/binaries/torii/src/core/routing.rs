@@ -16,7 +16,8 @@ use crate::core::crypto::install_block_policies;
 use crate::core::models::TapInfo;
 use crate::core::state::GatewayState;
 use crate::core::utils::{
-    get_arp_mac, get_ifindex, get_local_ip, get_mac_address, parse_mac, run_ip, with_table,
+    get_arp_mac, get_ifindex, get_local_ip, get_mac_address, get_next_hop, parse_mac, run_ip,
+    with_table,
 };
 
 use ainari_api_structs::route_structs::*;
@@ -201,7 +202,10 @@ pub fn build_route_target(
     } else if let Some(gateway_ip) = req.gateway_ip {
         action = ROUTE_ACTION_ENCAP;
         encap_dst_ip = u32::from(gateway_ip);
-        encap_dst_mac = get_arp_mac(gateway_ip);
+        // The remote gateway is not necessarily on the same link, so the frame
+        // is addressed to the router in between, if there is one.
+        let next_hop = get_next_hop(gateway_ip, &CONFIG.network.underlay_iface);
+        encap_dst_mac = get_arp_mac(next_hop);
 
         let local_ip =
             get_local_ip(&CONFIG.network.underlay_iface).unwrap_or(Ipv4Addr::UNSPECIFIED);

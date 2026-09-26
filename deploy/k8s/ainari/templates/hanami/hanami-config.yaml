@@ -31,6 +31,9 @@ data:
     file_path = "/etc/ainari/hanami/hanami_db"
     
     [miko]
-    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    address = "{{ include "ainari.mikoAddress" . }}"
+
+    [network]
+    floating_ip_cidr = "{{ .Values.hanami.network.floating_ip_cidr }}"
 
 kind: ConfigMap

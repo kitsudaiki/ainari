@@ -20,12 +20,17 @@ data:
     debug = true
     log_path = ""
     skip_tls_verification = true
+    {{- if .Values.global.wireguard.enabled }}
     address = "http://10.10.0.1:50051"
+    {{- else }}
+    # @HOSTNAME@ is replaced by the name of the pod, when it starts
+    address = "http://@HOSTNAME@.onsen.{{ .Release.Namespace }}.svc.cluster.local:50051"
+    {{- end }}
 
     [storage]
     location = "/etc/ainari/onsen/"
     
     [miko]
-    address = "https://miko-tls-service.{{ .Release.Namespace }}.svc.cluster.local:8443"
+    address = "{{ include "ainari.mikoAddress" . }}"
     
 kind: ConfigMap

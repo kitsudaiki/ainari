@@ -79,6 +79,50 @@ pub fn get_local_ip(iface: &str) -> Option<Ipv4Addr> {
     None
 }
 
+/// Determines the link layer next hop towards an address.
+///
+/// The underlay does not have to be a single link: on a routed network, like
+/// the pod-network of most kubernetes-clusters, the other gateways are only
+/// reachable over a router. The kernel knows which one, so its route towards
+/// the address is asked, restricted to the given interface.
+///
+/// # Arguments
+/// * `ip` - The address, which has to be reached
+/// * `iface` - The interface, which the traffic leaves on
+///
+/// # Returns
+/// The gateway of the route, or `ip` itself, if it is directly on the link or
+/// the kernel has no route
+pub fn get_next_hop(ip: Ipv4Addr, iface: &str) -> Ipv4Addr {
+    let output = std::process::Command::new("ip")
+        .args(["-4", "route", "get", &ip.to_string(), "oif", iface])
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            parse_route_via(&String::from_utf8_lossy(&output.stdout)).unwrap_or(ip)
+        }
+        _ => ip,
+    }
+}
+
+/// Extracts the gateway from the output of `ip route get`.
+///
+/// # Arguments
+/// * `route` - Output of `ip route get`, like `10.244.1.5 via 10.244.0.1 dev eth0 src ...`
+///
+/// # Returns
+/// The address behind `via`, or `None` for a destination on the link itself
+fn parse_route_via(route: &str) -> Option<Ipv4Addr> {
+    let mut words = route.split_whitespace();
+    while let Some(word) = words.next() {
+        if word == "via" {
+            return words.next()?.parse().ok();
+        }
+    }
+    None
+}
+
 /// Resolves the MAC address of a target IP using ARP.
 ///
 /// This function pings the target IP to force an ARP resolution, then parses
@@ -359,6 +403,18 @@ mod tests {
             args,
             vec!["route", "replace", "10.0.0.1/32", "table", "101"]
         );
+    }
+
+    #[test]
+    fn the_gateway_of_a_routed_destination_is_the_next_hop() {
+        let route = "10.244.1.5 via 10.244.0.1 dev eth0 src 10.244.0.23 uid 0 \n    cache \n";
+        assert_eq!(parse_route_via(route), Some(Ipv4Addr::new(10, 244, 0, 1)));
+    }
+
+    #[test]
+    fn a_destination_on_the_link_has_no_gateway() {
+        let route = "172.30.0.10 dev eth0 src 172.30.0.20 uid 0 \n    cache \n";
+        assert_eq!(parse_route_via(route), None);
     }
 
     #[test]

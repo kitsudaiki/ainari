@@ -17,13 +17,13 @@ kind: Service
 metadata:
   name: torii-tls-service
   labels:
-    run: torii
+    run: torii-public
 spec:
   selector:
-    app: torii
+    app: torii-public
   ports:
     - name: input
       protocol: TCP
       port: 8443
-      targetPort: 8443
+      targetPort: 8444
   type: ClusterIP

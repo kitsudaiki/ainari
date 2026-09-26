@@ -12,6 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# settings, which apply to all components
+global:
+  # Every component is reachable over an ingress of ingress-nginx. The components always talk
+  # https to each other, over a nginx-sidecar with a certificate of cert-manager, so cert-manager
+  # is always required.
+  ingress:
+    enabled: true
+  # All certificates are signed by one CA, so a client only has to trust this CA.
+  certificates:
+    # Name of a secret of the type kubernetes.io/tls with the certificate and key of an own CA.
+    # If empty, cert-manager creates a CA in the secret 'ainari-ca'.
+    ca_secret: ""
+    # additional names and addresses, which every certificate is valid for
+    extra_dns_names: []
+    extra_ip_addresses: []
+  # The connection between ryokan, onsen and sakura runs through wireguard. The secrets are
+  # created by deploy/k8s/wg_gen.py.
+  wireguard:
+    enabled: true
+  # Every component runs only on the nodes with its label (for example 'hanami-node=true') and
+  # never twice on the same node. A cluster with only one node needs this to be disabled.
+  strict_scheduling: true
+  # overwrites the storage-class of all components, if set
+  storage_class: ""
+  image:
+    # overwrites the pull-policy of all components, if set
+    pull_policy: ""
+  # Publishes the api of every component and the dashboard outside of the cluster, beside the
+  # ingresses.
+  external_services:
+    enabled: false
+    # NodePort publishes the api on the node-port, which is the port of the component plus
+    # node_port_offset, for example 11417 + 20000 = 31417 for miko. LoadBalancer publishes it on
+    # the port of the component itself, for example on the nodes with the servicelb of k3s.
+    type: NodePort
+    node_port_offset: 20000
+
+
+secrets:
+  internal_api_key: "my-super-secret-api-key"
+  onsen_registration_key: "my-super-secret-api-key"
+  sakura_registration_key: "my-super-secret-api-key"
+
+
 miko:
   replica_count: 1
   docker:
@@ -22,6 +66,8 @@ miko:
     storage_class: local-path
   api:
     domain: local-miko
+    # address, which is handed out to the clients. Derived from the domain, if empty.
+    public_address: ""
   user:
     id: ""
     name: ""
@@ -41,6 +87,11 @@ hanami:
     storage_class: local-path
   api:
     domain: local-hanami
+    # address, which is handed out to the clients. Derived from the domain, if empty.
+    public_address: ""
+  network:
+    # range of the floating ip-addresses, which are served by the torii at the edge
+    floating_ip_cidr: "10.0.0.0/24"
 
 
 sakura:
@@ -55,6 +106,11 @@ sakura:
     domain: local-sakura
   processing:
     max_number_of_threads: 0
+  # Id of the group, which owns /dev/kvm on the nodes. Sakura runs as a normal user and needs it
+  # to open the virtual machines.
+  kvm_gid: 993
+  # size of the volume, which holds the database and the disks of the virtual machines
+  storage_size: 20Gi
 
 
 ryokan:
@@ -67,6 +123,8 @@ ryokan:
     storage_class: local-path
   api:
     domain: local-ryokan
+    # address, which is handed out to the clients. Derived from the domain, if empty.
+    public_address: ""
 
 
 omamori:
@@ -79,6 +137,8 @@ omamori:
     storage_class: local-path
   api:
     domain: local-omamori
+    # address, which is handed out to the clients. Derived from the domain, if empty.
+    public_address: ""
 
 
 onsen:
@@ -103,14 +163,28 @@ torii:
     storage_class: local-path
   api:
     domain: local-torii
+    # address, which is handed out to the clients. Derived from the domain, if empty.
+    public_address: ""
   service:
     type: LoadBalancer
   port_range:
     start: 10040
     end: 10050
+  # The gateway at the edge of the network. It serves the floating ip-addresses on its uplink.
+  public:
+    network:
+      overlay_iface: "veth-gw"
+      uplink_iface: "veth-gw"
+      # address of the next hop behind the uplink
+      uplink_next_hop: "10.0.0.1"
+    # Name of an interface, which is moved into the pod from the outside (for example by
+    # scripts/setup_kind_stack.sh). The gateway waits for it, before it starts. Empty, if the
+    # uplink is already there.
+    wait_for_iface: ""
 
 
 dashboard:
+  enabled: true
   replica_count: 1
   docker:
     tag: "develop"

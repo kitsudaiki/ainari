@@ -12,47 +12,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The gateway at the edge of the network. It serves the floating ip-addresses on its uplink and
+# routes them to the gateways in front of the sakura-hosts, which run the virtual machines.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: torii
+  name: torii-public
   labels:
-    app: torii
+    app: torii-public
 spec:
   replicas: {{ .Values.torii.replica_count }}
+  # the uplink belongs to exactly one pod, so the old one has to be gone first
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app: torii
+      app: torii-public
   template:
     metadata:
       labels:
-        app: torii
+        app: torii-public
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: torii-node
-                operator: In
-                values:
-                - "true"
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - torii
-            topologyKey: kubernetes.io/hostname
+      {{- include "ainari.affinity" (list . "torii-public" "torii-node") | nindent 6 }}
       containers:
       - name: torii
-        image: {{ .Values.torii.docker.repository }}:{{ .Values.torii.docker.tag }}
-        imagePullPolicy: {{ .Values.torii.docker.pull_policy }}
+        image: {{ include "ainari.image" .Values.torii }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.torii) }}
+        command: ["/bin/bash", "/etc/ainari/scripts/start_torii.sh"]
+        # the eBPF-datapath is attached to the interfaces of the pod
+        securityContext:
+          privileged: true
         env:
         - name: RUST_LOG
           value: "debug"
+        - name: CONFIG_TEMPLATE
+          value: /etc/ainari/templates/torii-public.toml
+        {{- with .Values.torii.public.wait_for_iface }}
+        # the uplink is moved into the pod from the outside, so torii waits for it and resolves
+        # the next hop on it, before it programs its routes
+        - name: WAIT_FOR_IFACE
+          value: {{ . | quote }}
+        - name: UPLINK_NEXT_HOP
+          value: {{ $.Values.torii.public.network.uplink_next_hop | quote }}
+        {{- end }}
         - name: INTERNAL_API_KEY
           valueFrom:
             secretKeyRef:
@@ -62,31 +64,47 @@ spec:
         - name: data-volume
           mountPath: /etc/ainari/torii/
         - name: torii-config
-          mountPath: /etc/ainari/torii.toml
-          subPath: torii.toml
+          mountPath: /etc/ainari/templates
           readOnly: true
+        - name: torii-scripts
+          mountPath: /etc/ainari/scripts
+          readOnly: true
+        - name: debugfs
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        # the gateway waits for its uplink, before it starts, which can take a while
+        startupProbe:
+          # torii only listens on localhost and its image has no curl, so it is asked over its
+          # tls-termination, whose certificate is not verified by the kubelet
+          httpGet:
+            path: /v1alpha/is_ready
+            port: 8444
+            scheme: HTTPS
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 120
         readinessProbe:
-          exec:
-            command:
-            - curl
-            - --fail
-            - localhost:10419/v1alpha/is_ready
-          initialDelaySeconds: 5
+          # torii only listens on localhost and its image has no curl, so it is asked over its
+          # tls-termination, whose certificate is not verified by the kubelet
+          httpGet:
+            path: /v1alpha/is_ready
+            port: 8444
+            scheme: HTTPS
           periodSeconds: 10
           timeoutSeconds: 2
           successThreshold: 1
           failureThreshold: 3
         livenessProbe:
-          exec:
-            command:
-            - curl
-            - --fail
-            - localhost:10419/v1alpha/is_ready
-          initialDelaySeconds: 15
+          # torii only listens on localhost and its image has no curl, so it is asked over its
+          # tls-termination, whose certificate is not verified by the kubelet
+          httpGet:
+            path: /v1alpha/is_ready
+            port: 8444
+            scheme: HTTPS
           periodSeconds: 20
           timeoutSeconds: 2
           failureThreshold: 3
-  
+
       - name: tls-termination
         image: nginx:latest
         volumeMounts:
@@ -104,12 +122,18 @@ spec:
         - name: torii-config
           configMap:
             name: torii-config
+        - name: torii-scripts
+          configMap:
+            name: torii-scripts
         - name: data-volume
           persistentVolumeClaim:
             claimName: torii-pvc
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
         - name: tls-certs
           secret:
-            secretName: torii-selfsigned-secret
+            secretName: torii-tls-secret
         - name: torii-nginx-config
           configMap:
             name: torii-nginx-config

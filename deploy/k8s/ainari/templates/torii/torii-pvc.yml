@@ -19,7 +19,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.torii.storage.storage_class }}
+  storageClassName: {{ include "ainari.storageClass" (list . .Values.torii) }}
   resources:
     requests:
       storage: 100Mi

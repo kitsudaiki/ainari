@@ -79,7 +79,8 @@ impl ProxyHandler {
         }
 
         // Construct the public address string and convert it to a SocketAddr
-        let addr_str = format!("{}:{}", config::CONFIG.api.public_ip, port);
+        let listen_ip = config::CONFIG.ports.listen_ip(&config::CONFIG.api);
+        let addr_str = format!("{listen_ip}:{port}");
         let public_addr = match SocketAddr::from_str(&addr_str) {
             Ok(public_addr) => public_addr,
             Err(e) => {

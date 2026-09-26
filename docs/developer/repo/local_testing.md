@@ -1,24 +1,35 @@
 # Local testing
 
+There are three setups, which run the whole stack locally, with the same topology and the same
+end-to-end test. They are described in detail in `testing/local_stack/Readme.md`.
+
+| Setup   | Start / stop                            | Runs on                                                 |
+| ------- | --------------------------------------- | ------------------------------------------------------- |
+| local   | `make up local` / `make down local`     | docker compose on the host                              |
+| kind    | `make up kind` / `make down kind`       | a kind-cluster on the host, with the helm-chart         |
+| vagrant | `make up vagrant` / `make down vagrant` | a k3s-cluster of four virtual machines, with the helm-chart |
+
+All of them build the images from the local source code, so no registry is required, and the
+kind- and vagrant-setup deploy the local helm-chart of `deploy/k8s/ainari`. That way the code, the
+dockerfiles, the helm-chart and the sdk are tested in a single workflow.
+
 ## Testing in multi-node kubernetes
 
-In the repository there is a Vagrantfile with connected minimalistic playbook, which creates 3
-locally hosted libvirt virtual machines, installes a k3s-kubernetes within these instances,
-configures and installes ainari in there and runs the sdk-api-test against the setup. This
-test-setup doesn't require docker-hub. At the beginning of the setup it build docker-images from the
-local source code and pushes these local images direcly into the k3s-kubernetes without any
-additional registry and also uses the local helm chart for the deployment within the kubernetes.
-That way the code, dockerfiles, helm-charts and sdk-lib are tested in single automated workflow in a
-virtual multi-node environment.
+The vagrant-setup (`testing/vagrant`) creates four libvirt virtual machines with nested
+virtualization: one for the control-components, one for the gateway at the edge of the network and
+two sakura-hosts, which really boot the virtual machines of ainari. Ansible installs k3s within
+them and deploys the helm-chart.
 
 ### Minimal Requirements
 
 - **CPU**: 8 threads (better 16 threads to avoid cpu-overcommit)
-- **Memory**: 14 GiB
+- **Memory**: 20 GiB for the virtual machines
+- **Disk**: about 25 GiB (the virtual machines grow to about 20 GiB with a few virtual machines of
+  ainari, plus the images)
+- nested virtualization of kvm (`/sys/module/kvm_intel/parameters/nested` or
+  `/sys/module/kvm_amd/parameters/nested` is `Y` or `1`)
 
-### Installation
-
-This installation uses Vagrant with libvirt as provider to deploy the virtual machines.
+### Installation of vagrant with libvirt
 
 - Install apt-packages necessary for libvirt and the libvirt-provider
 
@@ -30,15 +41,14 @@ This installation uses Vagrant with libvirt as provider to deploy the virtual ma
         libvirt-clients \
         virtinst \
         bridge-utils \
-        cpu-checker
+        cpu-checker \
         build-essential \
         ruby-dev \
         pkg-config \
         libvirt-dev \
         libxml2-dev \
         libxslt-dev \
-        zlib1g-dev \
-        rsync
+        zlib1g-dev
     ```
 
 - Enable and start libvirt:
@@ -61,58 +71,10 @@ This installation uses Vagrant with libvirt as provider to deploy the virtual ma
     vagrant plugin install vagrant-libvirt
     ```
 
-- Update `/etc/hosts` by adding the content
-
-    ```plain
-    192.168.56.10  local-vagrant-hanami
-    192.168.56.10  local-vagrant-miko
-    192.168.56.10  local-vagrant-ryokan
-    192.168.56.10  local-vagrant-sakura
-    192.168.56.10  local-vagrant-torii
-    192.168.56.10  local-vagrant-omamori
-    192.168.56.10  local-vagrant-onsen
-    192.168.56.10  local-vagrant-ainari
-    ```
-
-- Install local ansible required to execute the playbook
-
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip3 install ansible
-    ```
+Ansible doesn't have to be installed: `make up vagrant` installs it into a virtual environment in
+`temporary_files`, if it is missing.
 
 ### Usage
 
-#### Vagrant-actions:
-
-- create a complete new test-installation
-
-    `vagrant up`
-
-- in case a run failed and you want to run it again or with updated playbooks against the same
-    already existing vagrant environment
-
-    `vagrant provision`
-
-- ssh into server of the virtual machines
-
-    `vagrant ssh server`
-
-    with this you will enter the machine with the kubernetes api. It is only a minimalistic shell, so
-    run `/bin/bash` at first in there to get a real bash shell. There you can also run `kubectl` and
-    `helm` commands.
-
-- delete previous vagrant environment
-
-    `vagrant destroy -f`
-
-#### access the dashboard
-
-After a finished `vagrant up`, enter the address `https://local-vagrant-ainari` into your browser
-and you should see the dashboard
-
-Login:
-
-- **user**: `asdf`
-- **password**: `asdfasdf`
+See the section *Vagrant setup* of `testing/local_stack/Readme.md`. The dashboard is reachable at
+`https://192.168.56.10:11422` with the user `asdf` and the password `asdfasdf`.

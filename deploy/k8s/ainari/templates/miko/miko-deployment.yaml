@@ -28,10 +28,11 @@ spec:
       labels:
         app: miko
     spec:
+      {{- include "ainari.affinity" (list . "miko" "miko-node") | nindent 6 }}
       containers:
       - name: miko
-        image: {{ .Values.miko.docker.repository }}:{{ .Values.miko.docker.tag }}
-        imagePullPolicy: {{ .Values.miko.docker.pull_policy }}
+        image: {{ include "ainari.image" .Values.miko }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.miko) }}
         env:
         - name: AINARI_ADMIN_ID
           value: {{ required "user.id is required!" .Values.miko.user.id }}
@@ -104,7 +105,7 @@ spec:
             claimName: miko-pvc
         - name: tls-certs
           secret:
-            secretName: miko-selfsigned-secret
+            secretName: miko-tls-secret
         - name: miko-nginx-config
           configMap:
             name: miko-nginx-config

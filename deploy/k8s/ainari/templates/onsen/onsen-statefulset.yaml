@@ -19,6 +19,7 @@ metadata:
   labels:
     app: onsen
 spec:
+  serviceName: onsen
   replicas: {{ .Values.onsen.replica_count }}
   selector:
     matchLabels:
@@ -28,29 +29,19 @@ spec:
       labels:
         app: onsen
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: onsen-node
-                operator: In
-                values:
-                - "true"
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - onsen
-            topologyKey: kubernetes.io/hostname
+      {{- include "ainari.affinity" (list . "onsen" "onsen-node") | nindent 6 }}
       containers:
       - name: onsen
-        image: {{ .Values.onsen.docker.repository }}:{{ .Values.onsen.docker.tag }}
-        imagePullPolicy: {{ .Values.onsen.docker.pull_policy }}
+        image: {{ include "ainari.image" .Values.onsen }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.onsen) }}
+        # the config contains the address of this pod, which is only known, when it starts
+        command:
+        - /bin/sh
+        - -c
+        - sed "s/@HOSTNAME@/$HOSTNAME/g" /etc/ainari/templates/onsen.toml > /tmp/onsen.toml && exec /home/ainari/start_onsen.sh
         env:
+        - name: CONFIG_FILE
+          value: /tmp/onsen.toml
         - name: RUST_LOG
           value: "debug,h2=info"
         - name: INTERNAL_API_KEY
@@ -85,12 +76,13 @@ spec:
         - name: data-volume
           mountPath: /etc/ainari/onsen/
         - name: onsen-config
-          mountPath: /etc/ainari/onsen.toml
-          subPath: onsen.toml
+          mountPath: /etc/ainari/templates
           readOnly: true
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           mountPath: /etc/wireguard
           readOnly: true
+        {{- end }}
         securityContext:
           capabilities:
             add:
@@ -104,6 +96,8 @@ spec:
         - name: data-volume
           persistentVolumeClaim:
             claimName: onsen-pvc
+        {{- if .Values.global.wireguard.enabled }}
         - name: wg-secret
           secret:
             secretName: wg-onsen-secret
+        {{- end }}

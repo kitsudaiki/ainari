@@ -12,18 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: sakura-tls-service
-  labels:
-    app: sakura
-spec:
-  clusterIP: None
-  selector:
-    app: sakura
-  ports:
-    - name: input
-      protocol: TCP
-      port: 8443
-      targetPort: 8443
+# publishes the tls-termination of miko outside of the cluster, see global.external_services in values.yaml
+{{- include "ainari.externalService" (list . "miko" (list (list 11417 8443))) }}

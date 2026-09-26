@@ -12,24 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $root := . }}
-{{- $replicas := int .Values.sakura.replica_count }}
-{{- range $i := until $replicas }}
+# @HOSTNAME@ is replaced by the name of the pod, when it starts. Hanami uses this address to talk
+# to sakura and derives the torii, which owns the TAP-devices of the virtual machines of this host,
+# from it, because both share the pod.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sakura-config-{{ $i }}
+  name: sakura-config
 data:
   sakura.toml: |+
     debug = true
     log_path = ""
     skip_tls_verification = true
-    address = "https://sakura-{{ $i }}.sakura-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
+    address = "https://@HOSTNAME@.sakura.{{ .Release.Namespace }}.svc.cluster.local:8443"
 
     [processing]
-    max_number_of_threads = {{ $root.Values.sakura.processing.max_number_of_threads }}
+    max_number_of_threads = {{ .Values.sakura.processing.max_number_of_threads }}
 
     [storage]
+    local_vm_storage_path = "/etc/ainari/sakura/virtual_machines"
     tempfile_location = "/tmp/sakura"
 
     [api]
@@ -40,8 +41,11 @@ data:
 
     [database]
     file_path = "/etc/ainari/sakura/sakura_db"
-    
+
     [miko]
-    address = "https://miko-tls-service.{{ $root.Release.Namespace }}.svc.cluster.local:8443"
----  {{/* This separator is mandatory inside the loop. otherwise only one instance is created */}}
-{{- end }}
+    address = "{{ include "ainari.mikoAddress" . }}"
+
+    [host]
+    reserved_cores = 0
+    reserved_memory = 0
+    reserved_disk = 0

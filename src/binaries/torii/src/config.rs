@@ -87,6 +87,24 @@ pub struct Ports {
     pub min_port: u16,
     /// Maximum port number
     pub max_port: u16,
+    /// Address, which the proxies listen on. Falls back to the public address of the api, so
+    /// the api can be kept away from the outside, for example behind a tls-termination, while
+    /// the proxies are still reachable.
+    #[serde(default)]
+    pub listen_ip: Option<String>,
+}
+
+impl Ports {
+    /// Returns the address, which the proxies listen on
+    ///
+    /// # Arguments
+    /// * `api` - Api configuration, whose public address is the fallback
+    ///
+    /// # Returns
+    /// The configured `listen_ip`, or the public address of the api, if there is none
+    pub fn listen_ip<'a>(&'a self, api: &'a ainari_config::Api) -> &'a str {
+        self.listen_ip.as_deref().unwrap_or(&api.public_ip)
+    }
 }
 
 /// Network interface configuration
