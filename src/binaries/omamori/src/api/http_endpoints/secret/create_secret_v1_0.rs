@@ -33,7 +33,6 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create a new secret from the payload, which is provided by the request."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -63,7 +62,7 @@ pub async fn create_secret(
 
     // get new created secret from database to get additional information
     let secret = secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("project", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("secret", &secret_uuid, e))?;
 
     let resp = SecretResp {
         uuid: secret_uuid,

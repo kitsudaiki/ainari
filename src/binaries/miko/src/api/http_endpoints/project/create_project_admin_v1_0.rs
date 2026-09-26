@@ -30,7 +30,6 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create new project. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -60,7 +59,7 @@ pub async fn create_project_admin(
 
     // get new created project from database to get additional information
     let project = project_table::get_project(project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("project", project_id, e))?;
+        .map_err(|e| map_db_id_get_after_add_error("project", project_id, e))?;
 
     let resp = ProjectResp {
         id: project.id,

@@ -32,7 +32,6 @@ use ainari_common::functions::{create_ssh_key_fingerprint, is_valid_ssh_public_k
     description = r###"Upload new ssh-public-key."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
 pub async fn upload_public_key(
@@ -74,7 +73,7 @@ pub async fn upload_public_key(
 
     // get new created public-key from database to get additional information
     let public_key_entry = public_key_table::get_public_key(&public_key_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("public_key", &public_key_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("public_key", &public_key_uuid, e))?;
 
     let resp = PublicKeyResp {
         uuid: public_key_entry.uuid,

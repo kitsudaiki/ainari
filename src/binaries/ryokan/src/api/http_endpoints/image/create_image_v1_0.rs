@@ -39,7 +39,6 @@ use ainari_files::file_encryption::encrypt_file;
     description = r###"Create new image by uploading files."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -110,7 +109,7 @@ pub async fn upload_binary(
     })?;
 
     let image_data = image_table::get_image(&image_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("image", &image_uuid, e))?;
 
     let resp = ImageResp {
         uuid: image_uuid,

@@ -33,7 +33,6 @@ use ainari_clients::quota::get_quota;
     description = r###"Create new network."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -59,7 +58,7 @@ pub async fn create_network(
 
     // get new created network from database to get additional information
     let network = network_table::get_network(&network_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("project", &network_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("project", &network_uuid, e))?;
 
     let resp = NetworkResp {
         uuid: network_uuid,

@@ -35,7 +35,6 @@ This is called by the onsen-host itself without user-interaction, so it requires
 no token, but is protected by the internal api-key and the registration-key."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
 pub async fn register_host_internal(
@@ -75,7 +74,7 @@ pub async fn register_host_internal(
 
     // get new created host from database to get additional information
     let host_data = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("onsen-host", &host_uuid, e))?;
 
     let resp = HostResp {
         uuid: host_uuid,
