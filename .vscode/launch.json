@@ -1,28 +1,35 @@
 {
     "version": "0.2.0",
+    // The whole stack runs locally without any container. Torii needs root for its eBPF-datapath
+    // and a process can not be debugged, while it gets elevated privileges, so it is not part of
+    // the compound as debug-session. Instead it runs as single-node gateway (uplink, floating
+    // ip-addresses and TAP-devices of all virtual machines behind one torii) in a task, which asks
+    // for the sudo-password in its terminal and is started before all other services.
+    // Torii keeps running after the debug-sessions were stopped: terminate the task
+    // "Run Torii (single-node)" to stop it, or keep it running for the next start of the compound.
     "compounds": [
         {
             "name": "Ainari Debug",
+            "preLaunchTask": "Run Torii (single-node)",
+            "stopAll": true,
             "configurations": [
-                "Hanami Debug Build", 
-                "Miko Debug Build", 
-                "Ryokan Debug Build", 
-                // "Torii Debug Build", 
-                // "Torii Debug Build (vmm)",
-                "Omamori Debug Build", 
-                "Sakura Debug Build", 
+                "Miko Debug Build",
+                "Omamori Debug Build",
+                "Hanami Debug Build",
+                "Ryokan Debug Build",
+                "Sakura Debug Build",
                 "Onsen Debug Build"
             ],
         },
         {
             "name": "Ainari Release",
+            "preLaunchTask": "Run Torii (single-node, release)",
+            "stopAll": true,
             "configurations": [
-                "Hanami Release Build", 
-                "Miko Release Build", 
-                "Ryokan Release Build", 
-                // "Torii Release Build", 
-                // "Torii Release Build (vmm)",
+                "Miko Release Build",
                 "Omamori Release Build",
+                "Hanami Release Build",
+                "Ryokan Release Build",
                 "Sakura Release Build",
                 "Onsen Release Build"
             ],
@@ -167,68 +174,6 @@
                 "ONSEN_REGISTRATION_KEY": "onsen-key",
             },
         },
-        {
-            "name": "Torii Debug Build",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/target/debug/torii",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "preLaunchTask": "build torii debug",
-            "sourceLanguages": ["rust"],
-            "env": {
-                "RUST_BACKTRACE": "full",
-                "RUST_LOG": "debug",
-                "INTERNAL_API_KEY": "test-internal-api-key",
-            },
-        },
-        {
-            "name": "Torii Release Build",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/target/release/torii",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "preLaunchTask": "build torii release",
-            "sourceLanguages": ["rust"],
-            "env": {
-                "RUST_LOG": "debug",
-                "INTERNAL_API_KEY": "test-internal-api-key",
-            },
-        },
-        // {
-        //     "name": "Torii Debug Build (vmm)",
-        //     "type": "lldb",
-        //     "request": "launch",
-        //     "program": "${workspaceFolder}/target/debug/torii",
-        //     "args": [],
-        //     "cwd": "${workspaceFolder}",
-        //     "stopOnEntry": false,
-        //     "preLaunchTask": "build torii debug",
-        //     "sourceLanguages": ["rust"],
-        //     "env": {
-        //         "RUST_BACKTRACE": "full",
-        //         "RUST_LOG": "debug",
-        //         "INTERNAL_API_KEY": "test-internal-api-key",
-        //     },
-        // },
-        // {
-        //     "name": "Torii Release Build (vmm)",
-        //     "type": "lldb",
-        //     "request": "launch",
-        //     "program": "${workspaceFolder}/target/release/torii",
-        //     "args": [],
-        //     "cwd": "${workspaceFolder}",
-        //     "stopOnEntry": false,
-        //     "preLaunchTask": "build torii release",
-        //     "sourceLanguages": ["rust"],
-        //     "env": {
-        //         "RUST_LOG": "debug",
-        //         "INTERNAL_API_KEY": "test-internal-api-key",
-        //     },
-        // },
         {
             "name": "Omamori Debug Build",
             "type": "lldb",
