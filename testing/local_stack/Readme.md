@@ -10,7 +10,9 @@ so each chapter can be read without the others:
    node in docker, https
 3. [Vagrant setup](#3-vagrant-setup) (`make up vagrant`): the helm-chart on a kubernetes-cluster
    of four virtual machines, https
-4. [Differences between the setups](#4-differences-between-the-setups)
+4. [The CA of the kind- and the vagrant-setup](#4-the-ca-of-the-kind--and-the-vagrant-setup):
+   how to trust the certificates of the two https-setups
+5. [Differences between the setups](#5-differences-between-the-setups)
 
 All of them use the same floating ip-addresses (`10.0.0.0/24`), so only one of them can run at a
 time.
@@ -300,7 +302,8 @@ The api is reachable on the host at:
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 
 Build the cli in `src/cli/ainarictl` with `go build .` and point it at miko. Without the CA of the
-setup in the trust-store of the system (see the hints), the cli has to skip the verification of
+setup in the trust-store of the system (see
+[chapter 4](#4-the-ca-of-the-kind--and-the-vagrant-setup)), the cli has to skip the verification of
 the certificates:
 
 ```bash
@@ -349,75 +352,10 @@ make down kind
 
 ### Hints
 
-#### The CA of the kind-setup
-
-All certificates are signed by one CA, which `make up kind` creates once in
-`temporary_files/kind/ainari-kind-ca.crt` and keeps over all runs. Trusted once, the browser and
-the clients accept all endpoints of the setup, also the proxy-ports of torii, without any
-exceptions. The CA is limited by name-constraints to `127.0.0.1`, `localhost` and names below
-`cluster.local`, so it can't be misused for any other host, even if its key leaks. Deleting
-`temporary_files/kind` creates a new CA with the next `make up kind`, which then has to be trusted
-again.
-
-- The trust-store of the system (debian/ubuntu), which is used by curl and the go-cli, so
-  `ainarictl` works without `--insecure`. The file has to end with `.crt` and has to be in
-  `/usr/local/share/ca-certificates`, otherwise it is skipped. `update-ca-certificates` reports
-  `1 added`:
-
-    ```bash
-    sudo cp temporary_files/kind/ainari-kind-ca.crt /usr/local/share/ca-certificates/ainari-kind-ca.crt && sudo update-ca-certificates
-    curl https://127.0.0.1:11417/v1alpha/is_ready    # works now without -k
-    ```
-
-    To remove it again:
-
-    ```bash
-    sudo rm /usr/local/share/ca-certificates/ainari-kind-ca.crt && sudo update-ca-certificates --fresh
-    ```
-
-- Firefox and Chromium don't use the trust-store of the system on linux, but their own
-  nss-databases, so the CA has to be added to them separately.
-
-- Firefox: an enterprise-policy imports the CA at every start into every profile. It uses the file
-  of the trust-store of the system from above, so that step has to be done first. The command
-  overwrites an existing `/etc/firefox/policies/policies.json`, so check before, that there is
-  none yet. If the CA of the vagrant-setup is imported as well, both paths belong into the list
-  of `Install`.
-
-    ```bash
-    sudo mkdir -p /etc/firefox/policies && echo '{"policies":{"Certificates":{"Install":["/usr/local/share/ca-certificates/ainari-kind-ca.crt"]}}}' | sudo tee /etc/firefox/policies/policies.json
-    ```
-
-    Firefox has to be closed completely and started again afterwards; `about:policies` shows the
-    policy as active. Without the policy, the CA can be imported by hand: *Settings → Privacy &
-    Security → Certificates → View Certificates → Authorities → Import*, then choose *Trust this
-    CA to identify websites*. To remove the policy again:
-    `sudo rm /etc/firefox/policies/policies.json`; the CA, which Firefox imported already, stays
-    in its store, until it is deleted under *Authorities*.
-
-- Chrome and Chromium use the nss-database of the user in `~/.pki/nssdb` (the snap of Chromium
-  uses `~/snap/chromium/current/.pki/nssdb` instead). `certutil` is part of `libnss3-tools`:
-
-    ```bash
-    sudo apt install libnss3-tools
-    certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n ainari-kind-ca -i temporary_files/kind/ainari-kind-ca.crt
-    ```
-
-    The browser has to be restarted completely afterwards; `certutil -d sql:$HOME/.pki/nssdb -L`
-    lists the CA as `ainari-kind-ca` with the trust `C,,`. Without `certutil`, the CA can be
-    imported by hand in *Settings → Privacy and security → Security → Manage certificates* under
-    the authorities, with *Trust this certificate for identifying websites*. To remove it again:
-    `certutil -d sql:$HOME/.pki/nssdb -D -n ainari-kind-ca`.
-
-- The python-sdk uses the certificates of `certifi` and not the ones of the system, so it needs
-  the CA explicitly: `REQUESTS_CA_BUNDLE=temporary_files/kind/ainari-kind-ca.crt`.
-
-- Without a trusted CA, the dashboard can't log in, even if its own certificate was accepted in
-  the browser: the browser talks to the api on other ports, whose certificates have to be
-  accepted separately, so importing the CA is the easier way.
-
-#### Other hints
-
+- **Certificates:** all certificates are signed by the CA `temporary_files/kind/ainari-kind-ca.crt`.
+  Without it in the trust-stores, the clients have to skip the verification and the dashboard
+  can't log in. How to trust it is described in
+  [chapter 4](#4-the-ca-of-the-kind--and-the-vagrant-setup).
 - **What the setup-script does as root:** it creates the veth-pair `veth-kind` / `veth-gw`, gives
   the host side `10.0.0.1/24`, moves the gateway side over the network-namespace of the node into
   the one of the pod `torii-public`, enables `net.ipv4.ip_forward` and adds a MASQUERADE-rule for
@@ -555,7 +493,8 @@ The api is reachable on the host at:
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 
 Build the cli in `src/cli/ainarictl` with `go build .` and point it at miko. Without the CA of the
-setup in the trust-store of the system (see the hints), the cli has to skip the verification of
+setup in the trust-store of the system (see
+[chapter 4](#4-the-ca-of-the-kind--and-the-vagrant-setup)), the cli has to skip the verification of
 the certificates:
 
 ```bash
@@ -605,75 +544,10 @@ make down vagrant
 
 ### Hints
 
-#### The CA of the vagrant-setup
-
-All certificates are signed by one CA, which `make up vagrant` creates once in
-`temporary_files/vagrant/ainari-vagrant-ca.crt` and keeps over all runs. Trusted once, the browser
-and the clients accept all endpoints of the setup, also the proxy-ports of torii, without any
-exceptions. The CA is limited by name-constraints to `192.168.56.0/24` and names below
-`cluster.local`, so it can't be misused for any other host, even if its key leaks. Deleting
-`temporary_files/vagrant` creates a new CA with the next `make up vagrant`, which then has to be
-trusted again.
-
-- The trust-store of the system (debian/ubuntu), which is used by curl and the go-cli, so
-  `ainarictl` works without `--insecure`. The file has to end with `.crt` and has to be in
-  `/usr/local/share/ca-certificates`, otherwise it is skipped. `update-ca-certificates` reports
-  `1 added`:
-
-    ```bash
-    sudo cp temporary_files/vagrant/ainari-vagrant-ca.crt /usr/local/share/ca-certificates/ainari-vagrant-ca.crt && sudo update-ca-certificates
-    curl https://192.168.56.10:11417/v1alpha/is_ready    # works now without -k
-    ```
-
-    To remove it again:
-
-    ```bash
-    sudo rm /usr/local/share/ca-certificates/ainari-vagrant-ca.crt && sudo update-ca-certificates --fresh
-    ```
-
-- Firefox and Chromium don't use the trust-store of the system on linux, but their own
-  nss-databases, so the CA has to be added to them separately.
-
-- Firefox: an enterprise-policy imports the CA at every start into every profile. It uses the file
-  of the trust-store of the system from above, so that step has to be done first. The command
-  overwrites an existing `/etc/firefox/policies/policies.json`, so check before, that there is
-  none yet. If the CA of the kind-setup is imported as well, both paths belong into the list of
-  `Install`.
-
-    ```bash
-    sudo mkdir -p /etc/firefox/policies && echo '{"policies":{"Certificates":{"Install":["/usr/local/share/ca-certificates/ainari-vagrant-ca.crt"]}}}' | sudo tee /etc/firefox/policies/policies.json
-    ```
-
-    Firefox has to be closed completely and started again afterwards; `about:policies` shows the
-    policy as active. Without the policy, the CA can be imported by hand: *Settings → Privacy &
-    Security → Certificates → View Certificates → Authorities → Import*, then choose *Trust this
-    CA to identify websites*. To remove the policy again:
-    `sudo rm /etc/firefox/policies/policies.json`; the CA, which Firefox imported already, stays
-    in its store, until it is deleted under *Authorities*.
-
-- Chrome and Chromium use the nss-database of the user in `~/.pki/nssdb` (the snap of Chromium
-  uses `~/snap/chromium/current/.pki/nssdb` instead). `certutil` is part of `libnss3-tools`:
-
-    ```bash
-    sudo apt install libnss3-tools
-    certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n ainari-vagrant-ca -i temporary_files/vagrant/ainari-vagrant-ca.crt
-    ```
-
-    The browser has to be restarted completely afterwards; `certutil -d sql:$HOME/.pki/nssdb -L`
-    lists the CA as `ainari-vagrant-ca` with the trust `C,,`. Without `certutil`, the CA can be
-    imported by hand in *Settings → Privacy and security → Security → Manage certificates* under
-    the authorities, with *Trust this certificate for identifying websites*. To remove it again:
-    `certutil -d sql:$HOME/.pki/nssdb -D -n ainari-vagrant-ca`.
-
-- The python-sdk uses the certificates of `certifi` and not the ones of the system, so it needs
-  the CA explicitly: `REQUESTS_CA_BUNDLE=temporary_files/vagrant/ainari-vagrant-ca.crt`.
-
-- Without a trusted CA, the dashboard can't log in, even if its own certificate was accepted in
-  the browser: the browser talks to the api on other ports, whose certificates have to be
-  accepted separately, so importing the CA is the easier way.
-
-#### Other hints
-
+- **Certificates:** all certificates are signed by the CA
+  `temporary_files/vagrant/ainari-vagrant-ca.crt`. Without it in the trust-stores, the clients have
+  to skip the verification and the dashboard can't log in. How to trust it is described in
+  [chapter 4](#4-the-ca-of-the-kind--and-the-vagrant-setup).
 - **Ports:** the servicelb of k3s publishes the api and the proxy-ports of torii with their own
   ports on every virtual machine (`global.external_services` with the type `LoadBalancer` in the
   values), so every address of the virtual machines works, not only the ones in the table.
@@ -691,7 +565,114 @@ trusted again.
 
 ---
 
-## 4. Differences between the setups
+## 4. The CA of the kind- and the vagrant-setup
+
+The kind- and the vagrant-setup serve every endpoint over https. All certificates of a setup are
+signed by its own CA, which `make up kind` or `make up vagrant` creates once and keeps over all
+runs, so it only has to be trusted once. Trusted, the browser and the clients accept all endpoints
+of the setup, also the proxy-ports of torii, without any exceptions. Without it, the clients have
+to skip the verification (`ainarictl --insecure`), and the dashboard can't log in, even if its own
+certificate was accepted in the browser: the browser talks to the api on other ports, whose
+certificates would have to be accepted separately.
+
+| Setup   | CA                                             | Name                | Valid only for                                  |
+| ------- | ---------------------------------------------- | ------------------- | ----------------------------------------------- |
+| kind    | `temporary_files/kind/ainari-kind-ca.crt`       | `ainari-kind-ca`    | `127.0.0.1`, `localhost`, names below `cluster.local` |
+| vagrant | `temporary_files/vagrant/ainari-vagrant-ca.crt` | `ainari-vagrant-ca` | `192.168.56.0/24`, names below `cluster.local`   |
+
+The CAs are limited by name-constraints to the addresses of their setup, so they can't be misused
+for any other host, even if their key leaks. Deleting `temporary_files/kind` or
+`temporary_files/vagrant` creates a new CA with the next start of the setup, which then has to be
+trusted again.
+
+The commands below are the same for both setups. They are run in the root of the repository with
+the name of the setup in `SETUP`:
+
+```bash
+SETUP=kind       # or: SETUP=vagrant
+```
+
+### Trust-store of the system
+
+The trust-store of the system (debian/ubuntu) is used by curl and the go-cli, so `ainarictl` works
+without `--insecure`. The file has to end with `.crt` and has to be in
+`/usr/local/share/ca-certificates`, otherwise it is skipped. `update-ca-certificates` reports
+`1 added`:
+
+```bash
+sudo cp temporary_files/$SETUP/ainari-$SETUP-ca.crt /usr/local/share/ca-certificates/ainari-$SETUP-ca.crt && sudo update-ca-certificates
+```
+
+While the setup is running, the api then answers without skipping the verification, for example
+`curl https://127.0.0.1:11417/v1alpha/is_ready` (kind) or
+`curl https://192.168.56.10:11417/v1alpha/is_ready` (vagrant). To remove the CA again:
+
+```bash
+sudo rm /usr/local/share/ca-certificates/ainari-$SETUP-ca.crt && sudo update-ca-certificates --fresh
+```
+
+### Firefox
+
+Firefox and Chromium don't use the trust-store of the system on linux, but their own
+nss-databases, so the CA has to be added to them separately, even if it is already in the one of
+the system.
+
+An enterprise-policy imports the CAs at every start into every profile of Firefox. It uses the
+files of the trust-store of the system, so that step has to be done first. The command overwrites
+an existing `/etc/firefox/policies/policies.json`, so check before, that there is none yet.
+
+```bash
+sudo mkdir -p /etc/firefox/policies && echo '{"policies":{"Certificates":{"Install":["/usr/local/share/ca-certificates/ainari-'$SETUP'-ca.crt"]}}}' | sudo tee /etc/firefox/policies/policies.json
+```
+
+To trust the CAs of both setups, both files have to be in the trust-store of the system and both
+paths in the list:
+
+```bash
+sudo mkdir -p /etc/firefox/policies && echo '{"policies":{"Certificates":{"Install":["/usr/local/share/ca-certificates/ainari-kind-ca.crt","/usr/local/share/ca-certificates/ainari-vagrant-ca.crt"]}}}' | sudo tee /etc/firefox/policies/policies.json
+```
+
+Firefox has to be closed completely and started again afterwards; `about:policies` shows the
+policy as active. Without the policy, the CA can be imported by hand: *Settings → Privacy &
+Security → Certificates → View Certificates → Authorities → Import*, then choose *Trust this CA to
+identify websites*. To remove the policy again: `sudo rm /etc/firefox/policies/policies.json`; the
+CAs, which Firefox imported already, stay in its store, until they are deleted under
+*Authorities*.
+
+### Chrome and Chromium
+
+Chrome and Chromium use the nss-database of the user in `~/.pki/nssdb` (the snap of Chromium uses
+`~/snap/chromium/current/.pki/nssdb` instead). `certutil` is part of `libnss3-tools`:
+
+```bash
+sudo apt install libnss3-tools
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n ainari-$SETUP-ca -i temporary_files/$SETUP/ainari-$SETUP-ca.crt
+```
+
+The browser has to be restarted completely afterwards; `certutil -d sql:$HOME/.pki/nssdb -L`
+lists the CA as `ainari-kind-ca` or `ainari-vagrant-ca` with the trust `C,,`. Without `certutil`,
+the CA can be imported by hand in *Settings → Privacy and security → Security → Manage
+certificates* under the authorities, with *Trust this certificate for identifying websites*. To
+remove it again:
+
+```bash
+certutil -d sql:$HOME/.pki/nssdb -D -n ainari-$SETUP-ca
+```
+
+### Python-sdk
+
+The python-sdk uses the certificates of `certifi` and not the ones of the system, so it needs the
+CA explicitly:
+
+```bash
+export REQUESTS_CA_BUNDLE=temporary_files/$SETUP/ainari-$SETUP-ca.crt
+```
+
+The end-to-end test `testing/local_stack/vm_lifecycle_test.py` skips the verification anyway.
+
+---
+
+## 5. Differences between the setups
 
 |                                     | Docker-compose setup                  | Kind setup                                      | Vagrant setup                                           |
 | ----------------------------------- | ------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
