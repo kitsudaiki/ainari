@@ -1,5 +1,7 @@
 debug = true
-log_path = "/var/log"
+# "stdout" or "log_file", the log-file is written into log_path
+log_type = "stdout"
+log_path = "/var/log/"
 skip_tls_verification = true
 address = "http://127.0.0.1:50051"
 

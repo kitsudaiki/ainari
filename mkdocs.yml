@@ -51,6 +51,9 @@ nav:
       - deployer/config/torii_config.md
       - deployer/config/omamori_config.md
       - deployer/config/onsen_config.md
+      - deployer/config/dashboard_config.md
+      - deployer/config/token_key.md
+      - deployer/config/hanami_testing_config.md
     - Database:
       - deployer/database/sakura_db.md
       - deployer/database/hanami_db.md

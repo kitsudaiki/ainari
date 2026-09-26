@@ -1,5 +1,7 @@
 debug = true
-log_path = "/var/log"
+# "stdout" or "log_file", the log-file is written into log_path
+log_type = "stdout"
+log_path = "/var/log/"
 
 [api]
 public_ip = "0.0.0.0"

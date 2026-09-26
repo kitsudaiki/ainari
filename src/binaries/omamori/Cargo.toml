@@ -29,7 +29,6 @@ toml = "1.1"
 once_cell = "1.21"
 # logger
 log = "0.4"
-env_logger = "0.11"
 # database
 diesel = { version = "2.3", features = ["sqlite", "uuid"] }
 # common stuff

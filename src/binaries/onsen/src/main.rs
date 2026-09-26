@@ -18,7 +18,6 @@ mod config;
 mod ryokan_interaction;
 mod server;
 
-use log::LevelFilter;
 use std::fs;
 
 /// Entrypoint of the onsen.
@@ -34,11 +33,8 @@ use std::fs;
 /// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    let enable_debug_log = config::CONFIG.debug;
-    if !enable_debug_log {
-        log::set_max_level(LevelFilter::Info);
-    }
+    let config = &config::CONFIG;
+    ainari_common::logger::init_logger(config.log_type, &config.log_path, "onsen", config.debug)?;
 
     // create directories if they not exist
     let location = config::CONFIG.storage.location.clone();

@@ -23,8 +23,6 @@ mod onsen_functions;
 
 use ainari_common::functions::clear_directory;
 
-use log::LevelFilter;
-
 /// Entrypoint of the ryokan.
 ///
 /// Manages the onsen-hosts together with the images stored on them.
@@ -39,11 +37,8 @@ use log::LevelFilter;
 ///
 /// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    let enable_debug_log = config::CONFIG.debug;
-    if !enable_debug_log {
-        log::set_max_level(LevelFilter::Info);
-    }
+    let config = &config::CONFIG;
+    ainari_common::logger::init_logger(config.log_type, &config.log_path, "ryokan", config.debug)?;
 
     // create directories if they not exist
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();

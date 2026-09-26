@@ -1,51 +1,64 @@
 # Torii
 
+The config is read from `/etc/ainari/torii.toml`. The path can be overwritten with the
+environment-variable `CONFIG_FILE`.
+
 ## Options
 
 ### Root Configuration
 
-| Parameter               | Type    | Default      | Description                                                                                        |
-| ----------------------- | ------- | ------------ | -------------------------------------------------------------------------------------------------- |
-| `debug`                 | boolean | `true`       | Enables debug mode for detailed logging and troubleshooting.                                       |
-| `log_path`              | string  | `"/var/log"` | Path to the directory where log files will be stored.                                              |
-| `skip_tls_verification` | boolean | `true`       | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
+| Parameter               | Type    | Default    | Description                                                                                        |
+| ----------------------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| `debug`                 | boolean | _required_ | Enables debug mode for detailed logging and troubleshooting.                                       |
+| `log_path`              | string  | `"/var/log/"` | Path to the directory where log files will be stored. Currently not evaluated by the service.   |
+| `skip_tls_verification` | boolean | `false`    | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 
 ### `api` Configuration
 
-| Parameter       | Type    | Default     | Description                         |
-| --------------- | ------- | ----------- | ----------------------------------- |
-| `public_ip`     | string  | `"0.0.0.0"` | IP address for public API access.   |
-| `public_port`   | integer | `11419`     | Port for public API access.         |
-| `internal_ip`   | string  | `"0.0.0.0"` | IP address for internal API access. |
-| `internal_port` | integer | `10419`     | Port for internal API access.       |
+| Parameter       | Type    | Default    | Description                         |
+| --------------- | ------- | ---------- | ----------------------------------- |
+| `public_ip`     | string  | _required_ | IP address for public API access.   |
+| `public_port`   | integer | _required_ | Port for public API access.         |
+| `internal_ip`   | string  | _required_ | IP address for internal API access. |
+| `internal_port` | integer | _required_ | Port for internal API access.       |
 
 ### `database` Configuration
 
-| Parameter   | Type   | Default                  | Description                |
-| ----------- | ------ | ------------------------ | -------------------------- |
-| `file_path` | string | `"/etc/ainari/torii_db"` | Path to the database file. |
+| Parameter   | Type   | Default    | Description                |
+| ----------- | ------ | ---------- | -------------------------- |
+| `file_path` | string | _required_ | Path to the database file. |
 
 ### `miko` Configuration
 
-| Parameter | Type   | Default                    | Description                  |
-| --------- | ------ | -------------------------- | ---------------------------- |
-| `address` | string | `"http://127.0.0.1:11417"` | Address of the Miko service. |
+| Parameter | Type   | Default    | Description                  |
+| --------- | ------ | ---------- | ---------------------------- |
+| `address` | string | _required_ | Address of the Miko service. |
 
 ### `ports` Configuration
 
-| Parameter  | Type    | Default | Description                                      |
-| ---------- | ------- | ------- | ------------------------------------------------ |
-| `min_port` | integer | `10042` | Minimum port number for dynamic port allocation. |
-| `max_port` | integer | `10043` | Maximum port number for dynamic port allocation. |
-| `listen_ip` | string | `api.public_ip` | Address, which the proxies listen on. |
+| Parameter   | Type    | Default         | Description                                                                                                                  |
+| ----------- | ------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `min_port`  | integer | _required_      | Minimum port number for dynamic port allocation.                                                                             |
+| `max_port`  | integer | _required_      | Maximum port number for dynamic port allocation.                                                                             |
+| `listen_ip` | string  | `api.public_ip` | Address, which the proxies listen on. Allows to keep the api away from the outside, while the proxies are still reachable. |
 
 ### `network` Configuration
 
-| Parameter            | Type    | Default     | Description                                                                          |
-| -------------------- | ------- | ----------- | ------------------------------------------------------------------------------------ |
-| `overlay_iface`      | string  | `"veth-gw"` | Interface of the overlay network, `overlay_ingress` is attached to it.               |
-| `underlay_iface`     | string  | `"eth0"`    | Interface of the underlay network, `underlay_ingress` is attached to it.             |
-| `tenant_table_base`  | integer | `100`       | First kernel routing-table a tenant is given. The table of a tenant is `tenant_table_base + vni`. |
+The whole section is optional.
+
+| Parameter            | Type    | Default     | Description                                                                                                                                                  |
+| -------------------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `overlay_iface`      | string  | `"veth-gw"` | Interface of the overlay network, `overlay_ingress` is attached to it.                                                                                       |
+| `underlay_iface`     | string  | `"eth0"`    | Interface of the underlay network, `underlay_ingress` is attached to it.                                                                                     |
+| `uplink_iface`       | string  | -           | Interface facing the outside, on which the floating IPs are served. Only the gateway at the edge of the network has one. Requires `uplink_next_hop`.         |
+| `uplink_next_hop`    | string  | -           | Next hop behind the uplink, which all traffic leaving the virtual network is sent to. Requires `uplink_iface`.                                               |
+| `default_gateway_ip` | string  | -           | Underlay-address of the gateway at the edge of the network. A gateway without uplink sends everything it has no route for there. Can not be combined with `uplink_iface`. |
+| `tenant_table_base`  | integer | `100`       | First kernel routing-table a tenant is given. The table of a tenant is `tenant_table_base + vni`.                                                            |
+
+So there are two kinds of gateways:
+
+- **edge gateway**: has `uplink_iface` and `uplink_next_hop` and serves the floating IPs (see `example_configs/ainari/torii_public.toml`)
+- **internal gateway**: has no uplink and optionally a `default_gateway_ip` pointing to the edge gateway (see `example_configs/ainari/torii.toml`)
 
 ### `development` Configuration
 
@@ -53,23 +66,20 @@
 
     These settings are only for local development and testing. Never use them in a production deployment.
 
-| Parameter         | Type    | Default | Description                                                                                                                          |
-| ----------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `single_node`     | boolean | `false` | Runs the single node setup: the uplink, the floating IPs and all VMs sit behind this one gateway, without underlay, tunnel or IPsec. |
-| `uplink_iface`    | string  | -       | Interface facing the outside, on which the floating IPs are served. Required if `single_node` is enabled.                            |
-| `uplink_next_hop` | string  | -       | Next hop behind the uplink, which all traffic leaving the virtual network is sent to. Required if `single_node` is enabled.          |
+| Parameter     | Type    | Default | Description                                                                                                                                                                  |
+| ------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `single_node` | boolean | `false` | Runs the single node setup: the uplink, the floating IPs and all VMs sit behind this one gateway, without underlay, tunnel or IPsec. Requires `network.uplink_iface` and `network.uplink_next_hop`. |
 
 In the single node setup the floating IPs are translated only where the traffic crosses the uplink: packets entering through it are
 translated to the VM (DNAT), packets of a VM leaving through it get the floating IP of the VM as source (SNAT). ARP requests for the
 floating IPs on the uplink are answered by the gateway itself with the MAC of the uplink. At startup the routes towards `uplink_next_hop`
-and the default route (`0.0.0.0`) are pointed at the uplink.
+and the default route (`0.0.0.0`) are pointed at the uplink. Overlay and underlay are not used, so `overlay_iface` and `underlay_iface`
+can be set to `"none"`.
 
-The uplink can be any interface, also a physical NIC: set `uplink_iface` to the NIC and `uplink_next_hop` to the router behind
+The uplink can be any interface, also a physical NIC: set `network.uplink_iface` to the NIC and `network.uplink_next_hop` to the router behind
 it. The floating IPs then have to be unused addresses of that network. For local development
 `scripts/setup_single_node_uplink.sh` creates a veth pair `uplink0` (10.0.0.254/24) towards a network namespace `torii-outside`
 (10.0.0.1/24), from which the floating IPs are reachable (`sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2`).
-
-An example config-file for the single node setup is `example_configs/ainari/torii_single_node.toml`.
 
 ## Tenants
 
@@ -128,12 +138,29 @@ that stays in the eBPF overlay has no such limit.
 Hanami hands out one tenant per network and stores it with the addresses it reserves, so nothing
 has to be configured by hand for the virtual machines it creates.
 
-## Example
+## Examples
 
 !!! info
 
-    example config-file can be found in the repository under `example_configs/ainari/`
+    example config-files can be found in the repository under `example_configs/ainari/`
+
+### Internal gateway
 
 ```toml
 --8<-- "example_configs/ainari/torii.toml"
+```
+
+### Edge gateway
+
+Used by the local docker-compose setup, where the uplink `veth-gw` is injected into the container
+by `scripts/setup_local_stack.sh`.
+
+```toml
+--8<-- "example_configs/ainari/torii_public.toml"
+```
+
+### Single node
+
+```toml
+--8<-- "example_configs/ainari/torii_single_node.toml"
 ```

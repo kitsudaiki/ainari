@@ -45,3 +45,49 @@ pub struct Api {
 pub struct Database {
     pub file_path: String,
 }
+
+/// Target of the log-output of a service
+#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogType {
+    /// Write the logs to stdout
+    #[default]
+    Stdout,
+    /// Write the logs into a file inside of the `log_path`
+    LogFile,
+}
+
+/// Default directory of the log-files
+pub fn default_log_path() -> String {
+    "/var/log/".to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Deserialize)]
+    struct LogConfig {
+        #[serde(default)]
+        log_type: LogType,
+    }
+
+    #[test]
+    fn test_log_type_is_read() {
+        let config: LogConfig = serde_json::from_str(r#"{"log_type": "stdout"}"#).unwrap();
+        assert_eq!(config.log_type, LogType::Stdout);
+        let config: LogConfig = serde_json::from_str(r#"{"log_type": "log_file"}"#).unwrap();
+        assert_eq!(config.log_type, LogType::LogFile);
+    }
+
+    #[test]
+    fn test_missing_log_type_defaults_to_stdout() {
+        let config: LogConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(config.log_type, LogType::Stdout);
+    }
+
+    #[test]
+    fn test_invalid_log_type_is_rejected() {
+        assert!(serde_json::from_str::<LogConfig>(r#"{"log_type": "file"}"#).is_err());
+    }
+}
