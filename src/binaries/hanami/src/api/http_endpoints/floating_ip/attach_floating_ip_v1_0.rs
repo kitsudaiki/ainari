@@ -16,30 +16,38 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
+use validator::Validate;
 
-use crate::core::floating_ip::to_floating_ip_resp;
-use crate::database::floating_ip_table;
+use crate::core::floating_ip::{attach_floating_ip as attach, to_floating_ip_resp};
 
-use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "floating_ip",
-    summary = "Get floating_ip",
-    description = r###"Get information of a floating_ip from the database."###,
+    summary = "Attach floating_ip",
+    description = r###"Attach a floating_ip to a virtual_machine.
+
+The network and the internal ip-address of the virtual_machine are read from the database and
+the NAT of the floating ip-address is registered in the torii. A floating_ip can only be
+attached to one virtual_machine and a virtual_machine can only have one floating_ip."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
-pub async fn get_floating_ip(
+pub async fn attach_floating_ip(
     floating_ip_uuid: Path<Uuid>,
+    body: Json<FloatingIpAttachReq>,
     context: UserContext,
 ) -> Result<Json<FloatingIpResp>, ErrorResponse> {
-    let floating_ip_data = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
+    // validate incoming json
+    body.validate()
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    Ok(Json(to_floating_ip_resp(floating_ip_data)))
+    let floating_ip_entry = attach(&floating_ip_uuid, &body.virtual_machine_uuid, &context).await?;
+
+    Ok(Json(to_floating_ip_resp(floating_ip_entry)))
 }

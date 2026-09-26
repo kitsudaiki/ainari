@@ -34,7 +34,7 @@ export function handleAxiosError(
     // Handle response errors (when the request was made and the server responded)
     if (err.response) {
         const status = err.response.status;
-        const message = err.response.data?.message ?? baseMessage;
+        const message = responseMessage(err.response.data) ?? baseMessage;
 
         return `${baseMessage}: API error ${status}: ${message}`;
     }
@@ -46,4 +46,25 @@ export function handleAxiosError(
 
     // Handle other errors (when the request was not made)
     return `${baseMessage}: ${err.message}`;
+}
+
+/**
+ * Extracts the error message from the body of an error-response
+ *
+ * The backends send their error messages as plain text, so the body is a string. A JSON-body
+ * with a `message`-field is supported as well.
+ *
+ * @param data - The body of the error-response
+ *
+ * @returns The error message, or undefined if the body contains none
+ */
+function responseMessage(data: unknown): string | undefined {
+    if (typeof data === "string") {
+        return data.trim() !== "" ? data.trim() : undefined;
+    }
+    if (data !== null && typeof data === "object" && "message" in data) {
+        const message = (data as { message: unknown }).message;
+        return typeof message === "string" ? message : undefined;
+    }
+    return undefined;
 }

@@ -352,3 +352,91 @@ impl TryFrom<DbIpv4Addr> for Ipv4Addr {
         db_ip.0.parse()
     }
 }
+
+//===================================================================================================
+
+/// Bridge-type to store an `Option<Uuid>` in a nullable `Varchar`-column.
+///
+/// Works like `DbUuid`, but keeps the null-case. It implements `Queryable` instead of
+/// `FromSqlRow` for the same reason as described for `DbOptDateTime`.
+#[derive(Debug, Clone, AsExpression)]
+#[diesel(sql_type = Nullable<Varchar>)]
+pub struct DbOptUuid(pub Option<String>);
+
+impl<DB: Backend> Queryable<Nullable<Varchar>, DB> for DbOptUuid
+where
+    Option<String>: Queryable<Nullable<Varchar>, DB>,
+{
+    type Row = <Option<String> as Queryable<Nullable<Varchar>, DB>>::Row;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(DbOptUuid(Option::<String>::build(row)?))
+    }
+}
+
+impl<DB: Backend> ToSql<Nullable<Varchar>, DB> for DbOptUuid
+where
+    Option<String>: ToSql<Nullable<Varchar>, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl From<Option<Uuid>> for DbOptUuid {
+    fn from(opt: Option<Uuid>) -> Self {
+        DbOptUuid(opt.map(|uuid| uuid.to_string()))
+    }
+}
+
+impl TryFrom<DbOptUuid> for Option<Uuid> {
+    type Error = uuid::Error;
+
+    fn try_from(db_opt: DbOptUuid) -> Result<Self, Self::Error> {
+        db_opt.0.map(|s| Uuid::parse_str(&s)).transpose()
+    }
+}
+
+//===================================================================================================
+
+/// Bridge-type to store an `Option<Ipv4Addr>` in a nullable `Varchar`-column.
+///
+/// Works like `DbIpv4Addr`, but keeps the null-case. It implements `Queryable` instead of
+/// `FromSqlRow` for the same reason as described for `DbOptDateTime`.
+#[derive(Debug, Clone, AsExpression)]
+#[diesel(sql_type = Nullable<Varchar>)]
+pub struct DbOptIpv4Addr(pub Option<String>);
+
+impl<DB: Backend> Queryable<Nullable<Varchar>, DB> for DbOptIpv4Addr
+where
+    Option<String>: Queryable<Nullable<Varchar>, DB>,
+{
+    type Row = <Option<String> as Queryable<Nullable<Varchar>, DB>>::Row;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(DbOptIpv4Addr(Option::<String>::build(row)?))
+    }
+}
+
+impl<DB: Backend> ToSql<Nullable<Varchar>, DB> for DbOptIpv4Addr
+where
+    Option<String>: ToSql<Nullable<Varchar>, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl From<Option<Ipv4Addr>> for DbOptIpv4Addr {
+    fn from(opt: Option<Ipv4Addr>) -> Self {
+        DbOptIpv4Addr(opt.map(|ip| ip.to_string()))
+    }
+}
+
+impl TryFrom<DbOptIpv4Addr> for Option<Ipv4Addr> {
+    type Error = AddrParseError;
+
+    fn try_from(db_opt: DbOptIpv4Addr) -> Result<Self, Self::Error> {
+        db_opt.0.map(|s| s.parse()).transpose()
+    }
+}

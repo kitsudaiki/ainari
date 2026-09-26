@@ -17,7 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::core::floating_ip::to_floating_ip_resp;
+use crate::core::floating_ip::{detach_floating_ip as detach, to_floating_ip_resp};
 use crate::database::floating_ip_table;
 
 use ainari_api::common_functions::*;
@@ -27,19 +27,30 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "floating_ip",
-    summary = "Get floating_ip",
-    description = r###"Get information of a floating_ip from the database."###,
+    summary = "Detach floating_ip",
+    description = r###"Detach a floating_ip from its virtual_machine.
+
+The NAT of the floating ip-address is removed from the torii, but the floating ip-address stays
+reserved, so it can be attached to another virtual_machine again. Detaching a floating_ip,
+which is not attached, has no effect."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_floating_ip(
+pub async fn detach_floating_ip(
     floating_ip_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<FloatingIpResp>, ErrorResponse> {
-    let floating_ip_data = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
+    // get the floating_ip from the database to know, which address has to be removed from the NAT
+    // of the torii. It also checks, that the user is allowed to detach the floating_ip.
+    let floating_ip_entry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
 
-    Ok(Json(to_floating_ip_resp(floating_ip_data)))
+    detach(&floating_ip_entry, &context).await?;
+
+    let floating_ip_entry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
+
+    Ok(Json(to_floating_ip_resp(floating_ip_entry)))
 }

@@ -62,6 +62,7 @@ table! {
         network_uuid -> Varchar,
         vni -> Integer,
         host_address -> Varchar,
+        virtual_machine_uuid -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -99,6 +100,11 @@ pub struct AddressEntry {
     /// derived from it, so the routes of a virtual_machine can be changed later, when another
     /// virtual_machine is added to the same network.
     pub host_address: String,
+    /// Virtual_machine, which uses this address. It is set after the virtual_machine was
+    /// created on its sakura-host, so it is None for a short time and for entries, which were
+    /// written before the virtual_machines were linked with their addresses.
+    #[diesel(serialize_as = DbOptUuid, deserialize_as = DbOptUuid)]
+    pub virtual_machine_uuid: Option<Uuid>,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -130,6 +136,7 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
         network_uuid VARCHAR(40),
         vni INTEGER NOT NULL DEFAULT 0,
         host_address VARCHAR(256),
+        virtual_machine_uuid VARCHAR(40),
         owner_id VARCHAR(256),
         project_id VARCHAR(256),
         status VARCHAR(8),
@@ -153,6 +160,9 @@ pub fn init_address_table() -> Result<(), Box<dyn Error>> {
     // SQLite has no `ADD COLUMN IF NOT EXISTS`. The error of the second run is therefore the
     // expected outcome and ignored: it only says the column is already there.
     let _ = conn.batch_execute("ALTER TABLE addresses ADD COLUMN vni INTEGER NOT NULL DEFAULT 0;");
+    // the same for the link to the virtual_machine, which was added later
+    let _ =
+        conn.batch_execute("ALTER TABLE addresses ADD COLUMN virtual_machine_uuid VARCHAR(40);");
 
     Ok(())
 }
@@ -568,6 +578,7 @@ pub fn add_new_address(
         network_uuid: *network_uuid,
         vni,
         host_address: host_address.to_string(),
+        virtual_machine_uuid: None,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -617,6 +628,74 @@ pub fn get_address(address_uuid: &Uuid) -> Result<AddressEntry, enums::DbError> 
     use self::addresses::dsl::*;
 
     let query = addresses.filter(uuid.eq(address_uuid.to_string()).and(status.eq("ACTIVE")));
+
+    match query
+        .select(AddressEntry::as_select())
+        .first::<AddressEntry>(&mut *conn)
+    {
+        Ok(address) => Ok(address),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Links an address with the virtual_machine, which uses it.
+///
+/// The address is reserved before the virtual_machine is created on its sakura-host, so the
+/// UUID of the virtual_machine is only known afterwards and set here.
+///
+/// # Arguments
+/// * `address_uuid` - The UUID of the address
+/// * `address_virtual_machine_uuid` - The UUID of the virtual_machine, which uses the address
+///
+/// # Returns
+/// A Result indicating success or an error
+pub fn set_virtual_machine_of_address(
+    address_uuid: &Uuid,
+    address_virtual_machine_uuid: &Uuid,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+    match diesel::update(addresses.filter(uuid.eq(address_uuid.to_string())))
+        .set((
+            virtual_machine_uuid.eq(Some(address_virtual_machine_uuid.to_string())),
+            updated_at.eq(Utc::now().to_rfc3339()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Retrieves the address of a virtual_machine by the UUID of the virtual_machine.
+///
+/// Only active addresses are returned. There is no permission-based filtering, so the caller
+/// has to verify, that the user is allowed to access the virtual_machine.
+///
+/// # Arguments
+/// * `address_virtual_machine_uuid` - The UUID of the virtual_machine
+///
+/// # Returns
+/// A Result containing the AddressEntry if found, or a DbError if not found or an error occurs
+pub fn get_address_of_virtual_machine(
+    address_virtual_machine_uuid: &Uuid,
+) -> Result<AddressEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+
+    let query = addresses.filter(
+        virtual_machine_uuid
+            .eq(address_virtual_machine_uuid.to_string())
+            .and(status.eq("ACTIVE")),
+    );
 
     match query
         .select(AddressEntry::as_select())
@@ -908,6 +987,7 @@ mod tests {
             network_uuid: *entry_network_uuid,
             vni: TEST_VNI,
             host_address: TEST_HOST_ADDRESS.to_string(),
+            virtual_machine_uuid: None,
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
             status: entry_status.to_string(),
@@ -2167,5 +2247,41 @@ mod tests {
         for entry_uuid in [&uuid1, &uuid2, &uuid3] {
             hard_delete_address(entry_uuid);
         }
+    }
+
+    #[test]
+    #[serial]
+    fn test_virtual_machine_of_address() {
+        let _ = init_address_table();
+        let uuid1 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let virtual_machine_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, false);
+
+        let entry = new_entry(
+            &uuid1,
+            MAC_1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+
+        hard_delete_mac_address(MAC_1);
+        add_address(entry).unwrap();
+
+        // the address is not linked with the virtual_machine yet
+        assert_not_found(get_address_of_virtual_machine(&virtual_machine_uuid1));
+
+        assert!(set_virtual_machine_of_address(&uuid1, &virtual_machine_uuid1).is_ok());
+        let retrieved = expect_entry(get_address_of_virtual_machine(&virtual_machine_uuid1));
+        assert_eq!(retrieved.uuid, uuid1);
+        assert_eq!(retrieved.virtual_machine_uuid, Some(virtual_machine_uuid1));
+
+        // a deleted address doesn't belong to a virtual_machine any more
+        assert!(delete_address(&uuid1, &context).is_ok());
+        assert_not_found(get_address_of_virtual_machine(&virtual_machine_uuid1));
+
+        hard_delete_address(&uuid1);
     }
 }

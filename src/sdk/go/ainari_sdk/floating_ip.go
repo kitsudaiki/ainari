@@ -25,17 +25,35 @@ import (
 )
 
 // AddFloatingIp creates a new floating ip. If floatingIp is an empty string, a free floating ip is selected.
-func AddFloatingIp(context AccessContext, name, networkUuid, floatingIp, internalIp string) (map[string]interface{}, error) {
+// If virtualMachineUuid is not an empty string, the new floating ip is directly attached to this virtual machine.
+func AddFloatingIp(context AccessContext, name, floatingIp, virtualMachineUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/floating_ip"
 	jsonBody := map[string]interface{}{
-		"name":         name,
-		"network_uuid": networkUuid,
-		"internal_ip":  internalIp,
+		"name": name,
 	}
 	if floatingIp != "" {
 		jsonBody["floating_ip"] = floatingIp
 	}
+	if virtualMachineUuid != "" {
+		jsonBody["virtual_machine_uuid"] = virtualMachineUuid
+	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
+}
+
+// AttachFloatingIp attaches a floating ip to a virtual machine.
+func AttachFloatingIp(context AccessContext, floatingIpUuid, virtualMachineUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/floating_ip/%s/attach", floatingIpUuid)
+	jsonBody := map[string]interface{}{
+		"virtual_machine_uuid": virtualMachineUuid,
+	}
+	return SendPut(context, context.HanamiAddress, path, jsonBody)
+}
+
+// DetachFloatingIp detaches a floating ip from its virtual machine, so it can be attached to another one.
+func DetachFloatingIp(context AccessContext, floatingIpUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/floating_ip/%s/detach", floatingIpUuid)
+	jsonBody := map[string]interface{}{}
+	return SendPut(context, context.HanamiAddress, path, jsonBody)
 }
 
 func GetFloatingIp(context AccessContext, floatingIpUuid string) (map[string]interface{}, error) {

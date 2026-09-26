@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::web::{Scope, delete, get, post, resource, scope};
+use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
@@ -76,6 +76,14 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{floating_ip_uuid}")
                         .route(get().to(get_floating_ip_v1_0::get_floating_ip))
                         .route(delete().to(delete_floating_ip_v1_0::delete_floating_ip)),
+                )
+                .service(
+                    resource("/{floating_ip_uuid}/attach")
+                        .route(put().to(attach_floating_ip_v1_0::attach_floating_ip)),
+                )
+                .service(
+                    resource("/{floating_ip_uuid}/detach")
+                        .route(put().to(detach_floating_ip_v1_0::detach_floating_ip)),
                 ),
         )
         .service(

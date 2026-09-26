@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod attach_floating_ip_v1_0;
 pub mod create_floating_ip_v1_0;
 pub mod delete_floating_ip_v1_0;
+pub mod detach_floating_ip_v1_0;
 pub mod get_floating_ip_v1_0;
 pub mod list_floating_ip_v1_0;

@@ -126,7 +126,7 @@ two virtual machines on different hosts reach each other over it.
     ainarictl network create -s 192.168.100.1/24 local-net
     ainarictl vm create -c 2 -m 2147483648 -u NETWORK_UUID -i IMAGE_UUID -k KEY_UUID vm1
     ainarictl vm get VM_UUID                 # repeat, until 'vm_state' is RUNNING
-    ainarictl floating_ip add -n vm1-fip -u NETWORK_UUID -i INTERNAL_IP
+    ainarictl floating_ip add -n vm1-fip -v VM_UUID   # or: floating_ip add + floating_ip attach FIP_UUID VM_UUID
     ```
 
 5. connect to the virtual machine over its floating ip-address, which the host reaches over
@@ -366,7 +366,7 @@ ainarictl --insecure image create disk -i noble-server-cloudimg-amd64.img ubuntu
 ainarictl --insecure network create -s 192.168.100.1/24 local-net
 ainarictl --insecure vm create -c 2 -m 2147483648 -u NETWORK_UUID -i IMAGE_UUID -k KEY_UUID vm1
 ainarictl --insecure vm get VM_UUID      # repeat, until 'vm_state' is RUNNING
-ainarictl --insecure floating_ip add -n vm1-fip -u NETWORK_UUID -i INTERNAL_IP
+ainarictl --insecure floating_ip add -n vm1-fip -v VM_UUID   # or: floating_ip add + floating_ip attach FIP_UUID VM_UUID
 
 ssh -i ~/.ssh/ainari_local ubuntu@FLOATING_IP
 ```
@@ -604,7 +604,7 @@ ainarictl --insecure image create disk -i noble-server-cloudimg-amd64.img ubuntu
 ainarictl --insecure network create -s 192.168.100.1/24 local-net
 ainarictl --insecure vm create -c 2 -m 2147483648 -u NETWORK_UUID -i IMAGE_UUID -k KEY_UUID vm1
 ainarictl --insecure vm get VM_UUID      # repeat, until 'vm_state' is RUNNING
-ainarictl --insecure floating_ip add -n vm1-fip -u NETWORK_UUID -i INTERNAL_IP
+ainarictl --insecure floating_ip add -n vm1-fip -v VM_UUID   # or: floating_ip add + floating_ip attach FIP_UUID VM_UUID
 
 ssh -i ~/.ssh/ainari_local ubuntu@FLOATING_IP
 ```

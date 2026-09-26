@@ -31,8 +31,9 @@ use ainari_common::objects::*;
 table! {
     floating_ips (uuid) {
         uuid -> Varchar,
-        network_uuid -> Varchar,
-        internal_ip_addr -> Varchar,
+        name -> Varchar,
+        network_uuid -> Nullable<Varchar>,
+        internal_ip_addr -> Nullable<Varchar>,
         floating_ip_addr -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
@@ -53,10 +54,16 @@ table! {
 pub struct FloatingIpEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
-    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
-    pub network_uuid: Uuid,
-    #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
-    pub internal_ip_addr: Ipv4Addr,
+    /// Name of the floating IP-address, which is also used for its registration in the torii
+    pub name: String,
+    /// Network of the attached virtual_machine. None, as long as the floating IP-address is
+    /// not attached to a virtual_machine.
+    #[diesel(serialize_as = DbOptUuid, deserialize_as = DbOptUuid)]
+    pub network_uuid: Option<Uuid>,
+    /// Internal IP-address of the attached virtual_machine. None, as long as the floating
+    /// IP-address is not attached to a virtual_machine.
+    #[diesel(serialize_as = DbOptIpv4Addr, deserialize_as = DbOptIpv4Addr)]
+    pub internal_ip_addr: Option<Ipv4Addr>,
     #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
     pub floating_ip_addr: Ipv4Addr,
     pub owner_id: String,
@@ -82,6 +89,7 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
     conn.batch_execute(
         "CREATE TABLE IF NOT EXISTS floating_ips (
         uuid VARCHAR(40) PRIMARY KEY,
+        name VARCHAR(256) NOT NULL DEFAULT '',
         network_uuid VARCHAR(40),
         internal_ip_addr VARCHAR(40),
         floating_ip_addr VARCHAR(40),
@@ -98,6 +106,21 @@ pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
     DROP INDEX IF EXISTS floating_ips_floating_ip_addr;
     CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_active_floating_ip_addr
         ON floating_ips (floating_ip_addr) WHERE status = 'ACTIVE';",
+    )?;
+
+    // A database, which was created before the floating IP-addresses could be attached and
+    // detached, has no name-column yet, and SQLite has no `ADD COLUMN IF NOT EXISTS`. The error
+    // of the second run is therefore the expected outcome and ignored.
+    let _ = conn.batch_execute(
+        "ALTER TABLE floating_ips ADD COLUMN name VARCHAR(256) NOT NULL DEFAULT '';",
+    );
+
+    // The torii keys the outbound translation by the internal IP-address, so a virtual_machine
+    // can only have one floating IP-address. Detached entries have NULL as internal IP-address,
+    // which never collides within a unique index.
+    conn.batch_execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_active_network_internal_ip_addr
+            ON floating_ips (network_uuid, internal_ip_addr) WHERE status = 'ACTIVE';",
     )?;
 
     Ok(())
@@ -126,6 +149,9 @@ impl From<enums::DbError> for FloatingIpReserveError {
 
 /// Reserves a floating IP-address by adding a new floating-ip entry to the database.
 ///
+/// The new entry is not attached to any virtual_machine, so its network and its internal
+/// IP-address are not set. They are set later by `attach_floating_ip`.
+///
 /// Floating IP-addresses are unique across all ACTIVE entries of the whole table and not only
 /// within a network. Deleted entries don't block their floating IP-address, so it can be reused.
 /// The reservation is done by inserting the new entry, so the floating IP-address can not
@@ -138,8 +164,7 @@ impl From<enums::DbError> for FloatingIpReserveError {
 /// floating IP-address is increased again until the reservation was successful.
 ///
 /// # Arguments
-/// * `network_uuid` - The UUID of the network the floating IP-address belongs to
-/// * `internal_ip_addr` - The internal IP-address, which is reachable over the floating IP-address
+/// * `floating_ip_name` - Name of the new floating IP-address
 /// * `floating_ip_addr` - Optional requested floating IP-address. If None, a free one is selected.
 /// * `floating_cidr` - CIDR like `203.0.113.0/24`, which defines the range of the floating IP-addresses.
 ///   The network-address, the first address (gateway) and the broadcast-address are not assigned.
@@ -149,8 +174,7 @@ impl From<enums::DbError> for FloatingIpReserveError {
 /// A Result containing the UUID of the new entry and the reserved floating IP-address,
 /// or a FloatingIpReserveError if the reservation failed
 pub fn add_new_floating_ip(
-    network_uuid: &Uuid,
-    internal_ip_addr: &Ipv4Addr,
+    floating_ip_name: &str,
     floating_ip_addr: Option<&Ipv4Addr>,
     floating_cidr: &str,
     context: &UserContext,
@@ -174,8 +198,7 @@ pub fn add_new_floating_ip(
             requested,
             last_floating_ip,
             false,
-            network_uuid,
-            internal_ip_addr,
+            floating_ip_name,
             context,
         );
     }
@@ -189,8 +212,7 @@ pub fn add_new_floating_ip(
         first_candidate,
         last_floating_ip,
         true,
-        network_uuid,
-        internal_ip_addr,
+        floating_ip_name,
         context,
     )
 }
@@ -206,8 +228,7 @@ pub fn add_new_floating_ip(
 /// * `first_candidate` - Numeric value of the first floating IP-address to try
 /// * `last_floating_ip` - Numeric value of the last floating IP-address, which can be assigned
 /// * `increase_on_conflict` - true to try the next floating IP-address, if the current one is already used
-/// * `network_uuid` - The UUID of the network the floating IP-address belongs to
-/// * `internal_ip_addr` - The internal IP-address, which is reachable over the floating IP-address
+/// * `floating_ip_name` - Name of the new floating IP-address
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -217,8 +238,7 @@ fn reserve_floating_ip_from(
     first_candidate: u32,
     last_floating_ip: u32,
     increase_on_conflict: bool,
-    network_uuid: &Uuid,
-    internal_ip_addr: &Ipv4Addr,
+    floating_ip_name: &str,
     context: &UserContext,
 ) -> Result<(Uuid, Ipv4Addr), FloatingIpReserveError> {
     let mut candidate = first_candidate;
@@ -232,8 +252,9 @@ fn reserve_floating_ip_from(
         let floating_ip_addr = Ipv4Addr::from(candidate);
         let floating_ip = FloatingIpEntry {
             uuid: floating_ip_uuid,
-            network_uuid: *network_uuid,
-            internal_ip_addr: *internal_ip_addr,
+            name: floating_ip_name.to_string(),
+            network_uuid: None,
+            internal_ip_addr: None,
             floating_ip_addr,
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
@@ -493,6 +514,152 @@ pub fn delete_floating_ip(
     }
 }
 
+/// Errors, which can occur while attaching a floating IP-address to a virtual_machine.
+#[derive(Debug, PartialEq)]
+pub enum FloatingIpAttachError {
+    /// The floating IP-address doesn't exist or the user has no permission to access it
+    NotFound,
+    /// The floating IP-address is already attached to a virtual_machine
+    AlreadyAttached,
+    /// The virtual_machine already has another floating IP-address
+    VirtualMachineHasFloatingIp,
+    /// Any other database-error
+    InternalError,
+}
+
+/// Attaches a floating IP-address to a virtual_machine by setting the network and the internal
+/// IP-address of the virtual_machine in its entry.
+///
+/// The entry is only updated, if it is not attached yet. This check is part of the update
+/// itself, so two requests can not attach the same floating IP-address at the same time. A
+/// virtual_machine can only have one floating IP-address, which is ensured by the unique
+/// index on the network and the internal IP-address.
+///
+/// # Arguments
+/// * `floating_ip_uuid` - The UUID of the floating IP-address to attach
+/// * `attach_network_uuid` - The network of the virtual_machine
+/// * `attach_internal_ip` - The internal IP-address of the virtual_machine
+/// * `context` - The user context containing information about the user and their permissions
+///
+/// # Returns
+/// A Result containing the updated entry, or a FloatingIpAttachError if the attach failed
+pub fn attach_floating_ip(
+    floating_ip_uuid: &Uuid,
+    attach_network_uuid: &Uuid,
+    attach_internal_ip: &Ipv4Addr,
+    context: &UserContext,
+) -> Result<FloatingIpEntry, FloatingIpAttachError> {
+    // Verify the floating IP-address exists and the user has permission to attach it
+    get_floating_ip(floating_ip_uuid, context).map_err(|e| match e {
+        enums::DbError::NotFound => FloatingIpAttachError::NotFound,
+        enums::DbError::InternalError => FloatingIpAttachError::InternalError,
+    })?;
+
+    let result = {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::floating_ips::dsl::*;
+        diesel::update(
+            floating_ips.filter(
+                uuid.eq(floating_ip_uuid.to_string())
+                    .and(status.eq("ACTIVE"))
+                    .and(internal_ip_addr.is_null()),
+            ),
+        )
+        .set((
+            network_uuid.eq(Some(attach_network_uuid.to_string())),
+            internal_ip_addr.eq(Some(attach_internal_ip.to_string())),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    };
+
+    match result {
+        Ok(0) => return Err(FloatingIpAttachError::AlreadyAttached),
+        Ok(_) => {}
+        Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
+            return Err(FloatingIpAttachError::VirtualMachineHasFloatingIp);
+        }
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            return Err(FloatingIpAttachError::InternalError);
+        }
+    }
+
+    get_floating_ip(floating_ip_uuid, context).map_err(|_| FloatingIpAttachError::InternalError)
+}
+
+/// Detaches a floating IP-address from its virtual_machine by removing the network and the
+/// internal IP-address from its entry, so it can be attached to another virtual_machine again.
+///
+/// There is no permission-check, so the caller has to verify, that the user is allowed to
+/// detach the floating IP-address.
+///
+/// # Arguments
+/// * `floating_ip_uuid` - The UUID of the floating IP-address to detach
+/// * `context` - The user context of the user, who detaches the floating IP-address
+///
+/// # Returns
+/// A Result indicating success or an error
+pub fn detach_floating_ip(
+    floating_ip_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::floating_ips::dsl::*;
+    match diesel::update(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
+        .set((
+            network_uuid.eq(None::<String>),
+            internal_ip_addr.eq(None::<String>),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Retrieves the floating IP-address, which is attached to a virtual_machine.
+///
+/// The virtual_machine is identified by its network and its internal IP-address. Only active
+/// entries are taken into account. There is no permission-based filtering.
+///
+/// # Arguments
+/// * `vm_network_uuid` - The network of the virtual_machine
+/// * `vm_internal_ip` - The internal IP-address of the virtual_machine
+///
+/// # Returns
+/// A Result containing the attached entry, None if the virtual_machine has no floating
+/// IP-address, or a DbError if an error occurs
+pub fn get_floating_ip_by_internal_ip(
+    vm_network_uuid: &Uuid,
+    vm_internal_ip: &Ipv4Addr,
+) -> Result<Option<FloatingIpEntry>, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::floating_ips::dsl::*;
+
+    floating_ips
+        .filter(
+            network_uuid
+                .eq(vm_network_uuid.to_string())
+                .and(internal_ip_addr.eq(vm_internal_ip.to_string()))
+                .and(status.eq("ACTIVE")),
+        )
+        .select(FloatingIpEntry::as_select())
+        .first::<FloatingIpEntry>(&mut *conn)
+        .optional()
+        .map_err(|e| {
+            log::error!("Database-error: {e:?}");
+            enums::DbError::InternalError
+        })
+}
+
 /// Deletes all meta floating_ips from the database.
 ///
 /// This function marks all active meta floating_ips as deleted without checking permissions.
@@ -529,7 +696,7 @@ mod tests {
     use std::sync::LazyLock;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    const INTERNAL_IP: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+    const FLOATING_IP_NAME: &str = "test-floating-ip";
 
     /// CIDR for the reservation-tests, which is not used by the entries of `new_entry`.
     const TEST_CIDR: &str = "203.0.113.0/24";
@@ -543,10 +710,22 @@ mod tests {
     });
     static FLOATING_IP_COUNTER: AtomicU32 = AtomicU32::new(0);
 
+    /// Random start within `10.0.0.0/8` for the internal IP-addresses of the test-entries,
+    /// because a virtual_machine can only have one floating IP-address, so the ACTIVE
+    /// test-entries must not share their internal IP-address within a network.
+    static INTERNAL_IP_BASE: LazyLock<u32> =
+        LazyLock::new(|| u32::from(Ipv4Addr::new(10, 0, 0, 0)) + u32::from(rand::random::<u16>()));
+    static INTERNAL_IP_COUNTER: AtomicU32 = AtomicU32::new(0);
+
     /// Returns a new floating IP-address for a test-entry, because floating IP-addresses
     /// have to be unique within the whole table.
     fn next_floating_ip() -> Ipv4Addr {
         Ipv4Addr::from(*FLOATING_IP_BASE + FLOATING_IP_COUNTER.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Returns a new internal IP-address for a test-entry.
+    fn next_internal_ip() -> Ipv4Addr {
+        Ipv4Addr::from(*INTERNAL_IP_BASE + INTERNAL_IP_COUNTER.fetch_add(1, Ordering::SeqCst))
     }
 
     fn hard_delete_floating_ip(floating_ip_uuid: &Uuid) {
@@ -573,8 +752,9 @@ mod tests {
     ) -> FloatingIpEntry {
         FloatingIpEntry {
             uuid: *entry_uuid,
-            network_uuid: *entry_network_uuid,
-            internal_ip_addr: INTERNAL_IP,
+            name: FLOATING_IP_NAME.to_string(),
+            network_uuid: Some(*entry_network_uuid),
+            internal_ip_addr: Some(next_internal_ip()),
             floating_ip_addr: next_floating_ip(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
@@ -622,12 +802,10 @@ mod tests {
     #[serial]
     fn test_add_new_floating_ip() {
         let _ = init_floating_ip_table();
-        let network_uuid1 = Uuid::new_v4();
-        let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
         let (uuid1, floating_ip1) =
-            add_new_floating_ip(&network_uuid1, &INTERNAL_IP, None, TEST_CIDR, &context)
+            add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
                 .unwrap_or_else(|_| panic!("reservation failed"));
         assert!(
             (u32::from(FIRST_TEST_IP)..=u32::from(LAST_TEST_IP)).contains(&u32::from(floating_ip1))
@@ -635,15 +813,17 @@ mod tests {
 
         let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
         assert_eq!(retrieved.uuid, uuid1);
-        assert_eq!(retrieved.network_uuid, network_uuid1);
-        assert_eq!(retrieved.internal_ip_addr, INTERNAL_IP);
+        assert_eq!(retrieved.name, FLOATING_IP_NAME);
+        // a new floating IP-address is not attached to any virtual_machine
+        assert_eq!(retrieved.network_uuid, None);
+        assert_eq!(retrieved.internal_ip_addr, None);
         assert_eq!(retrieved.floating_ip_addr, floating_ip1);
         assert_eq!(retrieved.owner_id, "test-user");
         assert_eq!(retrieved.status, "ACTIVE");
 
         // floating IP-addresses are unique within the whole table, so another network gets the next one
         let (uuid2, floating_ip2) =
-            add_new_floating_ip(&network_uuid2, &INTERNAL_IP, None, TEST_CIDR, &context)
+            add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
                 .unwrap_or_else(|_| panic!("reservation failed"));
         assert_ne!(uuid2, uuid1);
         assert_eq!(u32::from(floating_ip2), u32::from(floating_ip1) + 1);
@@ -651,7 +831,7 @@ mod tests {
         // deleted entries don't block their floating IP-address, so it is reused
         assert!(delete_floating_ip(&uuid2, &context).is_ok());
         let (uuid3, floating_ip3) =
-            add_new_floating_ip(&network_uuid2, &INTERNAL_IP, None, TEST_CIDR, &context)
+            add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
                 .unwrap_or_else(|_| panic!("reservation failed"));
         assert_ne!(uuid3, uuid2);
         assert_eq!(floating_ip3, floating_ip2);
@@ -849,7 +1029,6 @@ mod tests {
         let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
@@ -877,19 +1056,13 @@ mod tests {
         add_floating_ip(taken1).unwrap();
         add_floating_ip(taken2).unwrap();
 
-        let (reserved_uuid, reserved_ip) = reserve_floating_ip_from(
-            base,
-            base + 10,
-            true,
-            &network_uuid1,
-            &INTERNAL_IP,
-            &context,
-        )
-        .unwrap_or_else(|_| panic!("reservation failed"));
+        let (reserved_uuid, reserved_ip) =
+            reserve_floating_ip_from(base, base + 10, true, FLOATING_IP_NAME, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
         assert_eq!(reserved_ip, Ipv4Addr::from(base + 2));
         assert_eq!(
-            expect_entry(get_floating_ip(&reserved_uuid, &context)).network_uuid,
-            network_uuid1
+            expect_entry(get_floating_ip(&reserved_uuid, &context)).name,
+            FLOATING_IP_NAME
         );
 
         hard_delete_floating_ip(&uuid1);
@@ -901,12 +1074,10 @@ mod tests {
     #[serial]
     fn test_reserve_floating_ip_range_exhausted() {
         let _ = init_floating_ip_table();
-        let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
         let last = u32::from(LAST_TEST_IP);
-        let result =
-            reserve_floating_ip_from(last + 1, last, true, &network_uuid1, &INTERNAL_IP, &context);
+        let result = reserve_floating_ip_from(last + 1, last, true, FLOATING_IP_NAME, &context);
         assert_eq!(result, Err(FloatingIpReserveError::NoFreeAddress));
     }
 
@@ -914,8 +1085,6 @@ mod tests {
     #[serial]
     fn test_add_new_floating_ip_requested() {
         let _ = init_floating_ip_table();
-        let network_uuid1 = Uuid::new_v4();
-        let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
         // an own range, so no other entries of the table are within it
@@ -923,14 +1092,9 @@ mod tests {
         let requested = Ipv4Addr::new(192, 0, 2, 200);
         hard_delete_floating_ip_addr(&requested);
 
-        let (uuid1, floating_ip1) = add_new_floating_ip(
-            &network_uuid1,
-            &INTERNAL_IP,
-            Some(&requested),
-            cidr,
-            &context,
-        )
-        .unwrap_or_else(|_| panic!("reservation failed"));
+        let (uuid1, floating_ip1) =
+            add_new_floating_ip(FLOATING_IP_NAME, Some(&requested), cidr, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
         assert_eq!(floating_ip1, requested);
         assert_eq!(
             expect_entry(get_floating_ip(&uuid1, &context)).floating_ip_addr,
@@ -938,25 +1102,14 @@ mod tests {
         );
 
         // already used by an ACTIVE entry, also in another network
-        let result = add_new_floating_ip(
-            &network_uuid2,
-            &INTERNAL_IP,
-            Some(&requested),
-            cidr,
-            &context,
-        );
+        let result = add_new_floating_ip(FLOATING_IP_NAME, Some(&requested), cidr, &context);
         assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
 
         // after deleting the entry, the floating IP-address can be requested again
         assert!(delete_floating_ip(&uuid1, &context).is_ok());
-        let (uuid2, floating_ip2) = add_new_floating_ip(
-            &network_uuid2,
-            &INTERNAL_IP,
-            Some(&requested),
-            cidr,
-            &context,
-        )
-        .unwrap_or_else(|_| panic!("reservation failed"));
+        let (uuid2, floating_ip2) =
+            add_new_floating_ip(FLOATING_IP_NAME, Some(&requested), cidr, &context)
+                .unwrap_or_else(|_| panic!("reservation failed"));
         assert_eq!(floating_ip2, requested);
 
         // not within the assignable range of the CIDR
@@ -966,13 +1119,7 @@ mod tests {
             Ipv4Addr::new(192, 0, 2, 255),
             Ipv4Addr::new(192, 0, 3, 5),
         ] {
-            let result = add_new_floating_ip(
-                &network_uuid1,
-                &INTERNAL_IP,
-                Some(&not_in_range),
-                cidr,
-                &context,
-            );
+            let result = add_new_floating_ip(FLOATING_IP_NAME, Some(&not_in_range), cidr, &context);
             assert_eq!(result, Err(FloatingIpReserveError::NotInRange));
         }
 
@@ -984,11 +1131,10 @@ mod tests {
     #[serial]
     fn test_add_new_floating_ip_invalid_cidr() {
         let _ = init_floating_ip_table();
-        let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
         for cidr in ["203.0.113.0/31", "203.0.113.0", "no-cidr/24"] {
-            let result = add_new_floating_ip(&network_uuid1, &INTERNAL_IP, None, cidr, &context);
+            let result = add_new_floating_ip(FLOATING_IP_NAME, None, cidr, &context);
             assert_eq!(result, Err(FloatingIpReserveError::InvalidCidr));
         }
     }
@@ -1067,6 +1213,7 @@ mod tests {
             "DELETED",
         );
         let floating_ip1 = entry1.floating_ip_addr;
+        let internal_ip1 = entry1.internal_ip_addr;
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -1078,7 +1225,7 @@ mod tests {
         let entries = list_floating_ips(&context).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].uuid, uuid1);
-        assert_eq!(entries[0].internal_ip_addr, INTERNAL_IP);
+        assert_eq!(entries[0].internal_ip_addr, internal_ip1);
         assert_eq!(entries[0].floating_ip_addr, floating_ip1);
 
         hard_delete_floating_ip(&uuid1);
@@ -1303,5 +1450,71 @@ mod tests {
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_attach_detach_floating_ip() {
+        let _ = init_floating_ip_table();
+        let network_uuid1 = Uuid::new_v4();
+        let internal_ip1 = next_internal_ip();
+        let internal_ip2 = next_internal_ip();
+        let context = new_context("test-user", "test-project", false, false);
+        let other_context = new_context("other-user", "other-project", false, false);
+
+        let (uuid1, _) = add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
+            .unwrap_or_else(|_| panic!("reservation failed"));
+        let (uuid2, _) = add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
+            .unwrap_or_else(|_| panic!("reservation failed"));
+
+        // nothing is attached yet
+        assert!(matches!(
+            get_floating_ip_by_internal_ip(&network_uuid1, &internal_ip1),
+            Ok(None)
+        ));
+
+        // a floating IP-address of another user can not be attached
+        assert_eq!(
+            attach_floating_ip(&uuid1, &network_uuid1, &internal_ip1, &other_context),
+            Err(FloatingIpAttachError::NotFound)
+        );
+
+        let attached = attach_floating_ip(&uuid1, &network_uuid1, &internal_ip1, &context)
+            .unwrap_or_else(|_| panic!("attach failed"));
+        assert_eq!(attached.network_uuid, Some(network_uuid1));
+        assert_eq!(attached.internal_ip_addr, Some(internal_ip1));
+        assert!(matches!(
+            get_floating_ip_by_internal_ip(&network_uuid1, &internal_ip1),
+            Ok(Some(entry)) if entry.uuid == uuid1
+        ));
+
+        // an attached floating IP-address can not be attached a second time
+        assert_eq!(
+            attach_floating_ip(&uuid1, &network_uuid1, &internal_ip2, &context),
+            Err(FloatingIpAttachError::AlreadyAttached)
+        );
+
+        // a virtual_machine can only have one floating IP-address
+        assert_eq!(
+            attach_floating_ip(&uuid2, &network_uuid1, &internal_ip1, &context),
+            Err(FloatingIpAttachError::VirtualMachineHasFloatingIp)
+        );
+
+        // after the detach, the floating IP-address can be attached to another virtual_machine
+        assert!(detach_floating_ip(&uuid1, &context).is_ok());
+        let detached = expect_entry(get_floating_ip(&uuid1, &context));
+        assert_eq!(detached.network_uuid, None);
+        assert_eq!(detached.internal_ip_addr, None);
+        assert!(matches!(
+            get_floating_ip_by_internal_ip(&network_uuid1, &internal_ip1),
+            Ok(None)
+        ));
+
+        // ... and the virtual_machine can get another floating IP-address
+        assert!(attach_floating_ip(&uuid2, &network_uuid1, &internal_ip1, &context).is_ok());
+        assert!(attach_floating_ip(&uuid1, &network_uuid1, &internal_ip2, &context).is_ok());
+
+        hard_delete_floating_ip(&uuid1);
+        hard_delete_floating_ip(&uuid2);
     }
 }
