@@ -48,7 +48,7 @@ pub async fn get_virtual_machine(
                 map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
             })?;
 
-    let sakura_uuid = convert_uuid(&virtual_machine_data.sakura_host_uuid)?;
+    let sakura_uuid = virtual_machine_data.sakura_host_uuid;
 
     let host_data = host_table::get_host(&sakura_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
@@ -60,7 +60,7 @@ pub async fn get_virtual_machine(
         .map_err(map_ainari_error_to_api_response)?;
 
     // send request to torii to get port
-    let proxy_uuid = convert_uuid(&virtual_machine_data.proxy_uuid)?;
+    let proxy_uuid = virtual_machine_data.proxy_uuid;
     let proxy_resp = proxy_clients::get_proxy(
         &endpoints.torii,
         &context.token,

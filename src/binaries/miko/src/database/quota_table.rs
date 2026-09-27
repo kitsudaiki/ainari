@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -23,6 +23,7 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for the quotas table
 // This table stores quota information for users including maximum limits
@@ -60,11 +61,14 @@ pub struct QuotaEntry {
     pub max_network: i32,
     pub max_floating_ip: i32,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
 }
 
@@ -190,15 +194,15 @@ pub fn add_new_quota(
         max_network,
         max_floating_ip,
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_quota(&quota)
+    add_quota(quota.clone())
 }
 
 /// Adds a quota entry to the database.
@@ -212,7 +216,7 @@ pub fn add_new_quota(
 /// # Returns
 /// - `Ok(usize)` with the number of rows affected if successful
 /// - An error if the insertion fails
-pub fn add_quota(quota: &QuotaEntry) -> QueryResult<usize> {
+pub fn add_quota(quota: QuotaEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
 
@@ -413,9 +417,9 @@ mod tests {
             max_network: 50,
             max_floating_ip: 51,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -423,7 +427,7 @@ mod tests {
 
         hard_delete_quota(&quota.id);
 
-        add_quota(&quota).unwrap();
+        add_quota(quota.clone()).unwrap();
         if let Ok(retrieved_quota) = get_quota(&owner_id, &context) {
             assert_eq!(retrieved_quota.id, quota.id);
             assert_eq!(
@@ -464,9 +468,9 @@ mod tests {
             max_network: 50,
             max_floating_ip: 51,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -474,7 +478,7 @@ mod tests {
 
         hard_delete_quota(&quota.id);
 
-        add_quota(&quota).unwrap();
+        add_quota(quota.clone()).unwrap();
 
         let new_max_virtual_machine = 52;
         let new_max_image = 53;
@@ -536,9 +540,9 @@ mod tests {
             max_network: 50,
             max_floating_ip: 51,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -552,9 +556,9 @@ mod tests {
             max_network: 50,
             max_floating_ip: 51,
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -563,8 +567,8 @@ mod tests {
         hard_delete_quota(&user1.id);
         hard_delete_quota(&user2.id);
 
-        add_quota(&user1).unwrap();
-        add_quota(&user2).unwrap();
+        add_quota(user1.clone()).unwrap();
+        add_quota(user2.clone()).unwrap();
 
         let quotas = list_quotas(&context).unwrap();
         assert_eq!(quotas.len(), 1);
@@ -595,9 +599,9 @@ mod tests {
             max_network: 50,
             max_floating_ip: 51,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -605,7 +609,7 @@ mod tests {
 
         hard_delete_quota(&quota.id);
 
-        add_quota(&quota).unwrap();
+        add_quota(quota).unwrap();
         let _ = delete_quota(&owner_id, &context);
         let result = get_quota(&owner_id, &context);
         assert!(result.is_err());

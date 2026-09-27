@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use rand::prelude::IndexedRandom;
@@ -23,6 +23,7 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema
 table! {
@@ -54,7 +55,8 @@ table! {
 #[diesel(table_name = hosts)]
 pub struct HostEntry {
     /// Unique identifier for the host
-    pub uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub uuid: Uuid,
     /// Human-readable name for the host
     pub name: String,
     /// Network address of the host
@@ -74,15 +76,18 @@ pub struct HostEntry {
     /// Current status of the host (ACTIVE, DELETED, etc.)
     pub status: String,
     /// Timestamp when the host was created
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     /// User ID who created the host
     pub created_by: String,
     /// Timestamp when the host was last updated
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     /// User ID who last updated the host
     pub updated_by: String,
     /// Timestamp when the host was deleted (if applicable)
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
 }
@@ -179,7 +184,7 @@ pub fn add_new_host(
     context: &UserContext,
 ) -> QueryResult<usize> {
     let host = HostEntry {
-        uuid: host_uuid.to_string().clone(),
+        uuid: *host_uuid,
         name: host_name.to_owned(),
         address: host_address.to_owned(),
         number_of_cores: resources.number_of_cores,
@@ -189,15 +194,15 @@ pub fn add_new_host(
         disk_space: resources.disk_space,
         amount_of_used_disk_space: 0,
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_host(&host)
+    add_host(host.clone())
 }
 
 /// Updates the hardware-resources of an existing host.
@@ -250,7 +255,7 @@ pub fn update_host_resources(
 ///
 /// # Returns
 /// * QueryResult containing the number of rows affected
-pub fn add_host(host: &HostEntry) -> QueryResult<usize> {
+pub fn add_host(host: HostEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
     diesel::insert_into(hosts).values(host).execute(&mut *conn)
@@ -422,7 +427,7 @@ pub fn allocate_host_resources(
             .choose(&mut rand::rng())
             .ok_or(diesel::result::Error::NotFound)?;
 
-        diesel::update(hosts.filter(uuid.eq(&selected_host.uuid)))
+        diesel::update(hosts.filter(uuid.eq(selected_host.uuid.to_string())))
             .set((
                 used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
                 amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
@@ -431,7 +436,7 @@ pub fn allocate_host_resources(
             .execute(conn)?;
 
         hosts
-            .filter(uuid.eq(&selected_host.uuid))
+            .filter(uuid.eq(selected_host.uuid.to_string()))
             .select(HostEntry::as_select())
             .first::<HostEntry>(conn)
     });
@@ -550,7 +555,7 @@ mod tests {
         };
 
         let host = HostEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -560,9 +565,9 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -570,7 +575,7 @@ mod tests {
 
         hard_delete_host(&uuid1);
 
-        add_host(&host).unwrap();
+        add_host(host.clone()).unwrap();
         match get_host(&uuid1, &context) {
             Ok(retrieved_host) => {
                 assert_eq!(retrieved_host.uuid, host.uuid);
@@ -702,7 +707,7 @@ mod tests {
         let Ok(host) = allocate_host_resources(&requested, &context) else {
             panic!("no host selected");
         };
-        assert_eq!(host.uuid, uuid1.to_string());
+        assert_eq!(host.uuid, uuid1);
         assert_eq!(host.used_number_of_cores, 600_000);
         assert_eq!(host.amount_of_used_memory, 600_000_000);
         assert_eq!(host.amount_of_used_disk_space, 600_000_000);
@@ -841,7 +846,7 @@ mod tests {
         };
 
         let host1 = HostEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -851,16 +856,16 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let host2 = HostEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -870,9 +875,9 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -881,8 +886,8 @@ mod tests {
         hard_delete_host(&uuid1);
         hard_delete_host(&uuid2);
 
-        add_host(&host1).unwrap();
-        add_host(&host2).unwrap();
+        add_host(host1).unwrap();
+        add_host(host2).unwrap();
         let hosts = list_hosts(&context).unwrap();
         assert_eq!(hosts.len(), 1);
         hard_delete_host(&uuid1);
@@ -906,7 +911,7 @@ mod tests {
         };
 
         let host = HostEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -916,9 +921,9 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -926,7 +931,7 @@ mod tests {
 
         hard_delete_host(&uuid1);
 
-        add_host(&host).unwrap();
+        add_host(host).unwrap();
         let _ = delete_host_admin(&uuid1, &context);
         let result = get_host(&uuid1, &context);
         assert!(result.is_err());
@@ -941,7 +946,7 @@ mod tests {
         let uuid3 = Uuid::new_v4();
 
         let host1 = HostEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -951,16 +956,16 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let host2 = HostEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -970,16 +975,16 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let host3 = HostEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: "Poi".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             number_of_cores: 16,
@@ -989,9 +994,9 @@ mod tests {
             disk_space: 1024,
             amount_of_used_disk_space: 0,
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -1001,9 +1006,9 @@ mod tests {
         hard_delete_host(&uuid2);
         hard_delete_host(&uuid3);
 
-        add_host(&host1).unwrap();
-        add_host(&host2).unwrap();
-        add_host(&host3).unwrap();
+        add_host(host1).unwrap();
+        add_host(host2).unwrap();
+        add_host(host3).unwrap();
 
         // list-test
         let context = UserContext {
@@ -1026,7 +1031,7 @@ mod tests {
         };
         match get_host(&uuid1, &context) {
             Ok(retrieved_host) => {
-                assert_eq!(retrieved_host.uuid, uuid1.to_string());
+                assert_eq!(retrieved_host.uuid, uuid1);
             }
             Err(_) => {
                 assert_eq!(true, false);

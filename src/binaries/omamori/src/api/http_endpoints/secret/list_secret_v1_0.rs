@@ -38,7 +38,7 @@ pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, E
     };
 
     for secret in secrets {
-        let uuid = convert_uuid(&secret.uuid)?;
+        let uuid = secret.uuid;
         let obj = SecretBasicResp {
             uuid,
             name: secret.name.clone(),

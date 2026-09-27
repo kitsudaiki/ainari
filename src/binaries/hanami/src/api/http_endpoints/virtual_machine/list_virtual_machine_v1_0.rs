@@ -54,10 +54,10 @@ pub async fn list_virtual_machine(
 
     // fill reponse
     for virtual_machine in virtual_machines {
-        let uuid = convert_uuid(&virtual_machine.uuid)?;
+        let uuid = virtual_machine.uuid;
 
         // get port of the virtual_machine from torii
-        let proxy_uuid = convert_uuid(&virtual_machine.proxy_uuid)?;
+        let proxy_uuid = virtual_machine.proxy_uuid;
         let proxy_resp = proxy_clients::get_proxy(
             &endpoints.torii,
             &context.token,

@@ -40,7 +40,7 @@ pub async fn get_image_internal(
     let image_data = image_table::get_image(&image_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
 
-    let secret_uuid = convert_uuid(&image_data.secret_uuid)?;
+    let secret_uuid = image_data.secret_uuid;
     let resp = ImageInternalResp {
         uuid: *image_uuid,
         name: image_data.name,

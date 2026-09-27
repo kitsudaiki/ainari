@@ -54,7 +54,7 @@ pub async fn delete_image(
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
         .map_err(map_ainari_error_to_api_response)?;
-    let secret_uuid = convert_uuid(&image_data.secret_uuid)?;
+    let secret_uuid = image_data.secret_uuid;
     delete_secret(
         &endpoints.omamori,
         &context.token,

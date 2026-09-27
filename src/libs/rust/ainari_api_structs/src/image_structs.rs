@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -37,9 +38,9 @@ pub struct ImageInternalResp {
     pub file_path: String,
     pub is_snapshot: bool,
     pub secret_uuid: Uuid,
-    pub created_at: String,
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
 }
 
@@ -48,9 +49,9 @@ pub struct ImageResp {
     pub uuid: Uuid,
     pub name: String,
     pub is_snapshot: bool,
-    pub created_at: String,
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
 }
 

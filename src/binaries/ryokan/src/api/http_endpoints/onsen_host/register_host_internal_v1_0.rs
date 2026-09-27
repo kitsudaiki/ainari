@@ -58,7 +58,7 @@ pub async fn register_host_internal(
     let mut host_uuid = Uuid::new_v4();
     match host_table::get_host_by_address(&body.host_address, &context) {
         Ok(host_data) => {
-            host_uuid = convert_uuid(&host_data.uuid)?;
+            host_uuid = host_data.uuid;
         }
         Err(_) => {
             // add new host to database if address not already exist

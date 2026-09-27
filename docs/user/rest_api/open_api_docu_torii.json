@@ -113,7 +113,8 @@
                   ],
                   "properties": {
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "created_by": {
                       "type": "string"
@@ -127,7 +128,8 @@
                       "type": "string"
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_by": {
                       "type": "string"
@@ -1994,7 +1996,8 @@
         ],
         "properties": {
           "created_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "created_by": {
             "type": "string"
@@ -2008,7 +2011,8 @@
             "type": "string"
           },
           "updated_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updated_by": {
             "type": "string"

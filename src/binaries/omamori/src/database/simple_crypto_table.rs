@@ -20,6 +20,7 @@ use uuid::Uuid;
 use crate::database::db_handle;
 
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for the simple_crypto table
 // The table stores encrypted secrets with a UUID as the primary key
@@ -38,7 +39,8 @@ table! {
 #[diesel(table_name = simple_crypto)]
 pub struct SimpleCryptoEntry {
     /// The UUID of the secret
-    pub secret_uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub secret_uuid: Uuid,
     /// The encrypted secret value
     pub encrypted_secret: String,
 }
@@ -73,11 +75,11 @@ pub fn init_simple_crypto_table() -> Result<(), Box<dyn Error>> {
 /// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_simple_crypto_data(uuid: &Uuid, encrypted_secret: &str) -> QueryResult<usize> {
     let secret = SimpleCryptoEntry {
-        secret_uuid: uuid.to_string().clone(),
+        secret_uuid: *uuid,
         encrypted_secret: encrypted_secret.to_owned(),
     };
 
-    add_secret(&secret)
+    add_secret(secret.clone())
 }
 
 /// Adds a secret entry to the simple_crypto table
@@ -91,7 +93,7 @@ pub fn add_new_simple_crypto_data(uuid: &Uuid, encrypted_secret: &str) -> QueryR
 /// # Returns
 ///
 /// A QueryResult indicating the number of rows affected by the insert operation
-pub fn add_secret(secret: &SimpleCryptoEntry) -> QueryResult<usize> {
+pub fn add_secret(secret: SimpleCryptoEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::simple_crypto::dsl::*;
     diesel::insert_into(simple_crypto)
@@ -183,13 +185,13 @@ mod tests {
         let encrypted_secret = "just a dummy-secret".to_string();
 
         let secret = SimpleCryptoEntry {
-            secret_uuid: uuid1.to_string(),
+            secret_uuid: uuid1,
             encrypted_secret: encrypted_secret.clone(),
         };
 
         let _ = delete_secret(&uuid1);
 
-        add_secret(&secret).unwrap();
+        add_secret(secret.clone()).unwrap();
         match get_secret(&uuid1) {
             Ok(retrieved_secret) => {
                 assert_eq!(retrieved_secret.secret_uuid, secret.secret_uuid);
@@ -212,20 +214,20 @@ mod tests {
         let encrypted_secret = "just a dummy-secret".to_string();
 
         let secret1 = SimpleCryptoEntry {
-            secret_uuid: uuid1.to_string(),
+            secret_uuid: uuid1,
             encrypted_secret: encrypted_secret.clone(),
         };
 
         let secret2 = SimpleCryptoEntry {
-            secret_uuid: uuid2.to_string(),
+            secret_uuid: uuid2,
             encrypted_secret: encrypted_secret.clone(),
         };
 
         let _ = delete_secret(&uuid1);
         let _ = delete_secret(&uuid2);
 
-        add_secret(&secret1).unwrap();
-        add_secret(&secret2).unwrap();
+        add_secret(secret1).unwrap();
+        add_secret(secret2).unwrap();
         let simple_crypto = list_simple_crypto().unwrap();
         assert_eq!(simple_crypto.len(), 2);
         let _ = delete_secret(&uuid1);
@@ -240,13 +242,13 @@ mod tests {
         let encrypted_secret = "just a dummy-secret".to_string();
 
         let secret = SimpleCryptoEntry {
-            secret_uuid: uuid1.to_string(),
+            secret_uuid: uuid1,
             encrypted_secret: encrypted_secret.clone(),
         };
 
         let _ = delete_secret(&uuid1);
 
-        add_secret(&secret).unwrap();
+        add_secret(secret).unwrap();
         let _ = delete_secret(&uuid1);
         let result = get_secret(&uuid1);
         assert!(result.is_err());

@@ -94,7 +94,7 @@ pub async fn reserve_virtual_machine(
     )?;
 
     // parse uuid-string
-    let sakura_uuid = convert_uuid(&selected_host.uuid)?;
+    let sakura_uuid = selected_host.uuid;
 
     // give the allocated resources back to the host, if the virtual_machine can not be reserved
     let (virtual_machine_resp, proxy_uuid) =

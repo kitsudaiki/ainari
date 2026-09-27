@@ -60,8 +60,8 @@ pub async fn delete_virtual_machine(
                 map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
             })?;
 
-    let sakura_uuid = convert_uuid(&virtual_machine_data.sakura_host_uuid)?;
-    let proxy_uuid = convert_uuid(&virtual_machine_data.proxy_uuid)?;
+    let sakura_uuid = virtual_machine_data.sakura_host_uuid;
+    let proxy_uuid = virtual_machine_data.proxy_uuid;
 
     let host_data = host_table::get_host(&sakura_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;

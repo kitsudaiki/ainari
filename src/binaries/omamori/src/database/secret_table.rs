@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
@@ -23,6 +23,7 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for the secrets table
 table! {
@@ -48,16 +49,20 @@ table! {
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = secrets)]
 pub struct SecretEntry {
-    pub uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub uuid: Uuid,
     pub name: String,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
 }
 
@@ -102,20 +107,20 @@ pub fn init_secret_table() -> Result<(), Box<dyn Error>> {
 /// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
     let secret = SecretEntry {
-        uuid: secret_uuid.to_string().clone(),
+        uuid: *secret_uuid,
         name: name.to_owned(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_secret(&secret)
+    add_secret(secret.clone())
 }
 
 /// Adds a secret to the database
@@ -129,7 +134,7 @@ pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> 
 /// # Returns
 ///
 /// A QueryResult indicating the number of rows affected by the insert operation
-pub fn add_secret(secret: &SecretEntry) -> QueryResult<usize> {
+pub fn add_secret(secret: SecretEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
     diesel::insert_into(secrets)
@@ -332,14 +337,14 @@ mod tests {
         };
 
         let secret = SecretEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -347,7 +352,7 @@ mod tests {
 
         hard_delete_secret(&uuid1);
 
-        add_secret(&secret).unwrap();
+        add_secret(secret.clone()).unwrap();
         match get_secret(&uuid1, &context) {
             Ok(retrieved_secret) => {
                 assert_eq!(retrieved_secret.uuid, secret.uuid);
@@ -387,28 +392,28 @@ mod tests {
         };
 
         let secret1 = SecretEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let secret2 = SecretEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -417,8 +422,8 @@ mod tests {
         hard_delete_secret(&uuid1);
         hard_delete_secret(&uuid2);
 
-        add_secret(&secret1).unwrap();
-        add_secret(&secret2).unwrap();
+        add_secret(secret1).unwrap();
+        add_secret(secret2).unwrap();
         let secrets = list_secrets(&context).unwrap();
         assert_eq!(secrets.len(), 1);
         hard_delete_secret(&uuid1);
@@ -443,14 +448,14 @@ mod tests {
         };
 
         let secret = SecretEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -458,7 +463,7 @@ mod tests {
 
         hard_delete_secret(&uuid1);
 
-        add_secret(&secret).unwrap();
+        add_secret(secret).unwrap();
         let _ = delete_secret(&uuid1, &context);
         let result = get_secret(&uuid1, &context);
         assert!(result.is_err());
@@ -484,42 +489,42 @@ mod tests {
         };
 
         let secret1 = SecretEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let secret2 = SecretEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let secret3 = SecretEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: name.clone(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -529,9 +534,9 @@ mod tests {
         hard_delete_secret(&uuid2);
         hard_delete_secret(&uuid3);
 
-        add_secret(&secret1).unwrap();
-        add_secret(&secret2).unwrap();
-        add_secret(&secret3).unwrap();
+        add_secret(secret1).unwrap();
+        add_secret(secret2).unwrap();
+        add_secret(secret3).unwrap();
 
         let number = count_secrets(&context).unwrap();
         assert_eq!(number, 3);
@@ -551,42 +556,42 @@ mod tests {
         let name = "test-secret".to_string();
 
         let secret1 = SecretEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let secret2 = SecretEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let secret3 = SecretEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: name.clone(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -596,9 +601,9 @@ mod tests {
         hard_delete_secret(&uuid2);
         hard_delete_secret(&uuid3);
 
-        add_secret(&secret1).unwrap();
-        add_secret(&secret2).unwrap();
-        add_secret(&secret3).unwrap();
+        add_secret(secret1).unwrap();
+        add_secret(secret2).unwrap();
+        add_secret(secret3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -643,7 +648,7 @@ mod tests {
         };
         match get_secret(&uuid1, &context) {
             Ok(retrieved_secret) => {
-                assert_eq!(retrieved_secret.uuid, uuid1.to_string());
+                assert_eq!(retrieved_secret.uuid, uuid1);
             }
             Err(_) => {
                 assert_eq!(true, false);

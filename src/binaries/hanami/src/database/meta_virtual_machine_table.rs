@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
@@ -24,6 +24,7 @@ use crate::database::host_table::HostResources;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for meta_virtual_machines table
 table! {
@@ -52,18 +53,24 @@ table! {
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = meta_virtual_machines)]
 pub struct MetaVirtualMachineEntry {
-    pub uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub uuid: Uuid,
     pub name: String,
-    pub sakura_host_uuid: String,
-    pub proxy_uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub sakura_host_uuid: Uuid,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub proxy_uuid: Uuid,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
     /// Number of cpu-cores of the virtual_machine
     pub number_of_cores: i64,
@@ -137,16 +144,16 @@ pub fn add_new_meta_virtual_machine(
     context: &UserContext,
 ) -> QueryResult<usize> {
     let meta_virtual_machine = MetaVirtualMachineEntry {
-        uuid: meta_virtual_machine_uuid.to_string().clone(),
+        uuid: *meta_virtual_machine_uuid,
         name: virtual_machine_name.to_string().clone(),
-        sakura_host_uuid: sakura_host_uuid.to_string().clone(),
-        proxy_uuid: proxy_uuid.to_string().clone(),
+        sakura_host_uuid: *sakura_host_uuid,
+        proxy_uuid: *proxy_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
@@ -155,7 +162,7 @@ pub fn add_new_meta_virtual_machine(
         disk_size: resources.disk_space,
     };
 
-    add_meta_virtual_machine(&meta_virtual_machine)
+    add_meta_virtual_machine(meta_virtual_machine.clone())
 }
 
 /// Adds a meta virtual_machine to the database.
@@ -168,7 +175,7 @@ pub fn add_new_meta_virtual_machine(
 /// # Returns
 /// A QueryResult indicating the number of rows affected
 pub fn add_meta_virtual_machine(
-    meta_virtual_machine: &MetaVirtualMachineEntry,
+    meta_virtual_machine: MetaVirtualMachineEntry,
 ) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
@@ -417,16 +424,16 @@ mod tests {
         };
 
         let meta_virtual_machine = MetaVirtualMachineEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -437,7 +444,7 @@ mod tests {
 
         hard_delete_meta_virtual_machine(&uuid1);
 
-        add_meta_virtual_machine(&meta_virtual_machine).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine.clone()).unwrap();
         match get_meta_virtual_machine(&uuid1, &context) {
             Ok(retrieved_meta_virtual_machine) => {
                 assert_eq!(
@@ -513,16 +520,16 @@ mod tests {
         };
 
         let meta_virtual_machine1 = MetaVirtualMachineEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -532,16 +539,16 @@ mod tests {
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -553,8 +560,8 @@ mod tests {
         hard_delete_meta_virtual_machine(&uuid1);
         hard_delete_meta_virtual_machine(&uuid2);
 
-        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
-        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine2).unwrap();
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
         assert_eq!(meta_virtual_machines.len(), 1);
         hard_delete_meta_virtual_machine(&uuid1);
@@ -581,16 +588,16 @@ mod tests {
         };
 
         let meta_virtual_machine = MetaVirtualMachineEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -601,7 +608,7 @@ mod tests {
 
         hard_delete_meta_virtual_machine(&uuid1);
 
-        add_meta_virtual_machine(&meta_virtual_machine).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine).unwrap();
         let _ = delete_meta_virtual_machine(&uuid1, &context);
         let result = get_meta_virtual_machine(&uuid1, &context);
         assert!(result.is_err());
@@ -629,16 +636,16 @@ mod tests {
         };
 
         let meta_virtual_machine1 = MetaVirtualMachineEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -648,16 +655,16 @@ mod tests {
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -667,16 +674,16 @@ mod tests {
         };
 
         let meta_virtual_machine3 = MetaVirtualMachineEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -689,9 +696,9 @@ mod tests {
         hard_delete_meta_virtual_machine(&uuid2);
         hard_delete_meta_virtual_machine(&uuid3);
 
-        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
-        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
-        add_meta_virtual_machine(&meta_virtual_machine3).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine2).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine3).unwrap();
 
         let number = count_meta_virtual_machines(&context).unwrap();
         assert_eq!(number, 3);
@@ -713,16 +720,16 @@ mod tests {
         let proxy_uuid1 = Uuid::new_v4();
 
         let meta_virtual_machine1 = MetaVirtualMachineEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -732,16 +739,16 @@ mod tests {
         };
 
         let meta_virtual_machine2 = MetaVirtualMachineEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -751,16 +758,16 @@ mod tests {
         };
 
         let meta_virtual_machine3 = MetaVirtualMachineEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: name.clone(),
-            sakura_host_uuid: sakura_host_uuid1.to_string(),
-            proxy_uuid: proxy_uuid1.to_string(),
+            sakura_host_uuid: sakura_host_uuid1,
+            proxy_uuid: proxy_uuid1,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -773,9 +780,9 @@ mod tests {
         hard_delete_meta_virtual_machine(&uuid2);
         hard_delete_meta_virtual_machine(&uuid3);
 
-        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
-        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
-        add_meta_virtual_machine(&meta_virtual_machine3).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine2).unwrap();
+        add_meta_virtual_machine(meta_virtual_machine3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -820,7 +827,7 @@ mod tests {
         };
         match get_meta_virtual_machine(&uuid1, &context) {
             Ok(retrieved_meta_virtual_machine) => {
-                assert_eq!(retrieved_meta_virtual_machine.uuid, uuid1.to_string());
+                assert_eq!(retrieved_meta_virtual_machine.uuid, uuid1);
             }
             Err(_) => {
                 assert_eq!(true, false);

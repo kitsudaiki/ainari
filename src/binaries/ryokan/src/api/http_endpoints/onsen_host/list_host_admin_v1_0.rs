@@ -38,7 +38,7 @@ pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>,
     let mut resp = HostListResp { hosts: Vec::new() };
 
     for host in hosts {
-        let uuid = convert_uuid(&host.uuid)?;
+        let uuid = host.uuid;
         let obj = HostBasicResp {
             uuid,
             name: host.name,
