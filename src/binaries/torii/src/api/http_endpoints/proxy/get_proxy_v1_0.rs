@@ -40,7 +40,7 @@ pub async fn get_proxy(
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
 
-    let virtual_machine_uuid = convert_uuid(&proxy_data.virtual_machine_uuid)?;
+    let virtual_machine_uuid = proxy_data.virtual_machine_uuid;
 
     let resp = ProxyResp {
         uuid: *proxy_uuid,

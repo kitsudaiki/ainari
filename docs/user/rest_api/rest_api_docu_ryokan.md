@@ -11,4 +11,4 @@
 
 ## Ryokan
 
-<swagger-ui src="open_api_docu_ryokan.json"/>
+[OpenAPI-spec of ryokan](open_api_docu_ryokan.json){ .swagger-ui-spec }

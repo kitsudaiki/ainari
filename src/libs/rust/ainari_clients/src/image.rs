@@ -19,6 +19,7 @@ use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
+use crate::handle_empty_response;
 use crate::handle_response;
 use crate::prepare_client;
 
@@ -111,4 +112,35 @@ pub async fn get_image(
 
     // Handle the response and return the result
     handle_response::<ImageInternalResp>(response, "image", &image_uuid.to_string()).await
+}
+
+/// Deletes an existing image in ryokan, together with its file in the onsen and its secret
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token for the API request
+/// * `image_uuid` - The UUID of the image to delete
+/// * `insecure_client` - Whether to create an insecure HTTP client (for testing purposes)
+///
+/// # Returns
+///
+/// A `Result` containing either an empty tuple (success) or an error
+pub async fn delete_image(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    image_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<(), AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/image/{image_uuid}");
+
+    let response = client
+        .delete(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .send()
+        .await;
+
+    handle_empty_response(response, "image", &image_uuid.to_string()).await
 }

@@ -2,7 +2,9 @@
 # used by the local docker-compose setup, where the uplink 'veth-gw' is injected into the
 # container by scripts/setup_local_stack.sh.
 debug = true
-log_path = "/var/log"
+# "stdout" or "log_file", the log-file is written into log_path
+log_type = "stdout"
+log_path = "/var/log/"
 skip_tls_verification = true
 
 [api]

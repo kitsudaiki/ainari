@@ -302,11 +302,11 @@ ethernets:
 "
     );
 
+    // no password is set, so the password of the default-user stays locked and only the login
+    // with the ssh-key is possible
     let user_data = format!(
         "#cloud-config
-password: ubuntu
-chpasswd: {{ expire: False }}
-ssh_pwauth: True
+ssh_pwauth: false
 ssh_authorized_keys:
   - {quoted_public_key}
 "

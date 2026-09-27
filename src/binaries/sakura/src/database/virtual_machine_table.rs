@@ -152,6 +152,11 @@ pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => return Err(e.into()),
     }
 
+    // older versions stored the stopped state with the typo 'STOPED'
+    conn.batch_execute(
+        "UPDATE virtual_machines SET vm_state = 'STOPPED' WHERE vm_state = 'STOPED';",
+    )?;
+
     Ok(())
 }
 
@@ -165,7 +170,7 @@ pub enum VirtualMachineState {
     /// The virtual_machine is booted
     Running,
     /// The virtual_machine was powered off
-    Stoped,
+    Stopped,
     /// The root-disk of the virtual_machine is reset to a snapshot
     Restoring,
     /// Something blocks the start of the virtual_machine
@@ -179,7 +184,7 @@ impl VirtualMachineState {
             VirtualMachineState::Reserved => "RESERVED",
             VirtualMachineState::Created => "CREATED",
             VirtualMachineState::Running => "RUNNING",
-            VirtualMachineState::Stoped => "STOPED",
+            VirtualMachineState::Stopped => "STOPPED",
             VirtualMachineState::Restoring => "RESTORING",
             VirtualMachineState::Error => "ERROR",
         }
@@ -875,13 +880,27 @@ mod tests {
             .expect("virtual_machine not found");
         assert_eq!(virtual_machine.vm_state, "RESERVED");
 
-        update_virtual_machine_state(&uuid1, &VirtualMachineState::Stoped, &context)
+        update_virtual_machine_state(&uuid1, &VirtualMachineState::Stopped, &context)
             .ok()
             .expect("failed to update state");
         let virtual_machine = get_virtual_machine(&uuid1, &context)
             .ok()
             .expect("virtual_machine not found");
-        assert_eq!(virtual_machine.vm_state, "STOPED");
+        assert_eq!(virtual_machine.vm_state, "STOPPED");
+
+        // the old typo 'STOPED' is migrated at the next initialization of the table
+        {
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            conn.batch_execute(&format!(
+                "UPDATE virtual_machines SET vm_state = 'STOPED' WHERE uuid = '{uuid1}';"
+            ))
+            .expect("failed to set old state");
+        }
+        init_virtual_machine_table().expect("failed to initialize table");
+        let virtual_machine = get_virtual_machine(&uuid1, &context)
+            .ok()
+            .expect("virtual_machine not found");
+        assert_eq!(virtual_machine.vm_state, "STOPPED");
 
         // an unknown virtual_machine can not be updated
         let result =

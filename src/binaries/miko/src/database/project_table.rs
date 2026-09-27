@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -22,6 +22,7 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for the projects table
 table! {
@@ -48,11 +49,14 @@ pub struct ProjectEntry {
     pub id: String,
     pub name: String,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
 }
 
@@ -124,15 +128,15 @@ pub fn add_new_project(
         id: project_id.clone(),
         name: project_name.to_owned(),
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_project(&project)
+    add_project(project.clone())
 }
 
 /// Adds a project to the database.
@@ -148,7 +152,7 @@ pub fn add_new_project(
 ///
 /// * `Ok(usize)` with the number of rows affected if successful
 /// * A database error if the operation fails
-pub fn add_project(project: &ProjectEntry) -> QueryResult<usize> {
+pub fn add_project(project: ProjectEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
 
@@ -287,9 +291,9 @@ mod tests {
             id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -297,7 +301,7 @@ mod tests {
 
         hard_delete_project(&project.id);
 
-        add_project(&project).unwrap();
+        add_project(project.clone()).unwrap();
         if let Ok(retrieved_project) = get_project(&project_id, &context) {
             assert_eq!(retrieved_project.id, project.id);
             assert_eq!(retrieved_project.name, project.name);
@@ -330,9 +334,9 @@ mod tests {
             id: project_id1.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -342,9 +346,9 @@ mod tests {
             id: project_id2.clone(),
             name: "Bob".to_string(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -353,8 +357,8 @@ mod tests {
         hard_delete_project(&project1.id);
         hard_delete_project(&project2.id);
 
-        add_project(&project1).unwrap();
-        add_project(&project2).unwrap();
+        add_project(project1.clone()).unwrap();
+        add_project(project2.clone()).unwrap();
 
         let projects = list_projects(&context).unwrap();
         assert_eq!(projects.len(), 1);
@@ -381,9 +385,9 @@ mod tests {
             id: project_id.clone(),
             name: "Alice".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -391,7 +395,7 @@ mod tests {
 
         hard_delete_project(&project.id);
 
-        add_project(&project).unwrap();
+        add_project(project).unwrap();
         let _ = delete_project(&project_id, &context);
         let result = get_project(&project_id, &context);
         assert!(result.is_err());

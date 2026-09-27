@@ -78,6 +78,13 @@ var createVirtualMachineCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// the output of the reservation doesn't contain the image yet, so the virtual machine is
+		// requested again after the creation was started
+		content, err = ainari_sdk.GetVirtualMachine(context, virtual_machineUuid)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		ainarictl_common.PrintSingle(content)
 	},
 }
@@ -111,7 +118,7 @@ func getVirtualMachineAccess(virtual_machine_data map[string]interface{}) (strin
 }
 
 var getVirtualMachineCmd = &cobra.Command{
-	Use:   "get CLUSTER_UUID",
+	Use:   "get VIRTUAL_MACHINE_UUID",
 	Short: "Get information of a specific virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -149,7 +156,7 @@ var listVirtualMachineCmd = &cobra.Command{
 }
 
 var deleteVirtualMachineCmd = &cobra.Command{
-	Use:   "delete CLUSTER_UUID",
+	Use:   "delete VIRTUAL_MACHINE_UUID",
 	Short: "Delete a specific virtual machine from the backend.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {

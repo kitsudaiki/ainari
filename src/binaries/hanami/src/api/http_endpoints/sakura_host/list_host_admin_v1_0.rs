@@ -42,7 +42,7 @@ pub async fn list_host_admin(
     let mut resp = SakuraHostListResp { hosts: Vec::new() };
 
     for host in hosts {
-        let uuid = convert_uuid(&host.uuid)?;
+        let uuid = host.uuid;
 
         // the database only contains non-negative values, because of its CHECK-constraints
         let obj = SakuraHostBasicResp {

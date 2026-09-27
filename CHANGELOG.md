@@ -6,11 +6,43 @@
 
 #### EVERYTHING
 
-Complete rework of the project to give it more purpose:
+Complete rework of the project into an IaaS software:
 - outsources the old neural network core into the side-project: https://github.com/kitsudaiki/saki
-- integrated a first version of VM creation with the the cloud hypervisor
+- integrated the Cloud-Hypervisor to create virtual machines istead of neural networks
+    - create VM
+    - delete VM
+    - start VM
+    - stop VM
+    - reboot VM
+    - save root disk of VM as encrypted snapshot
+    - restore old VM state based on existing encrypted snapshot
+- manage images and snapshots instead of datasets
+    - upload images encrypted
+    - use them to create the root-disk for the virtual machines
+- define tenant networks
+- manage floating-ips
+- upload pulib-key for virtual machines
 - added new network layer to torii
-- added basic handling for networks, floating-ips, images and public-keys
+    - in Rust with eBPF
+    - create routes between VMs on different physical hosts
+    - IPsec encryption for routes
+    - packet filter for routes
+    - floating-ips to access VMs
+- improved database tables
+
+### Added
+
+- new ways to automatically deploy locally started with a new makefile
+    - docker-compose setup
+    - kind (kubernetes in docker) setup
+    - new vagrant setup
+
+### Changed
+
+- updated documentation
+- updated dashboard with better styling
+- replaced logo, because the old one was moved to the saki-repo
+- logging also to files possible now
 
 
 ## v0.11.1

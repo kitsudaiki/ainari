@@ -1,7 +1,8 @@
 [package]
 name = "ainari_api_structs"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 ainari_common = { path = "../ainari_common" }

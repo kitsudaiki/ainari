@@ -296,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_api"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_api_structs"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_clients"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -376,13 +376,15 @@ dependencies = [
 
 [[package]]
 name = "ainari_common"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "apistos-schemars",
  "base64 0.23.1",
  "chrono",
  "diesel",
+ "env_logger",
  "hex",
+ "log",
  "serde",
  "serde_json",
  "sha2",
@@ -392,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_files"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "ainari_common",
  "base64 0.23.1",
@@ -406,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_hardware"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1874,7 +1876,7 @@ dependencies = [
 
 [[package]]
 name = "hanami"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -1888,7 +1890,6 @@ dependencies = [
  "bytes",
  "chrono",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "lazy_static",
@@ -2437,7 +2438,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "miko"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2449,7 +2450,6 @@ dependencies = [
  "apistos-schemars",
  "chrono",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "jsonwebtoken",
@@ -2530,7 +2530,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "neko"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "env_logger",
  "log",
@@ -2671,7 +2671,7 @@ dependencies = [
 
 [[package]]
 name = "omamori"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2688,7 +2688,6 @@ dependencies = [
  "bytes",
  "chrono",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "hex",
@@ -2720,7 +2719,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "onsen"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2736,7 +2735,6 @@ dependencies = [
  "byteorder",
  "bytes",
  "chrono",
- "env_logger",
  "futures",
  "futures-core",
  "futures-util",
@@ -3267,7 +3265,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "ryokan"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3283,7 +3281,6 @@ dependencies = [
  "bytes",
  "chrono",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "lazy_static",
@@ -3309,7 +3306,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "sakura"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3330,7 +3327,6 @@ dependencies = [
  "cloud-hypervisor-client",
  "core_affinity",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "lazy_static",
@@ -3931,7 +3927,7 @@ dependencies = [
 
 [[package]]
 name = "torii"
-version = "0.9.0"
+version = "0.20.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3950,7 +3946,6 @@ dependencies = [
  "cargo_metadata",
  "chrono",
  "diesel",
- "env_logger",
  "futures",
  "futures-util",
  "lazy_static",
@@ -3971,7 +3966,7 @@ dependencies = [
 
 [[package]]
 name = "torii-ebpf"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "aya-ebpf",
  "aya-log-ebpf",
@@ -3982,7 +3977,7 @@ dependencies = [
 
 [[package]]
 name = "torii_common"
-version = "0.1.0"
+version = "0.20.0"
 dependencies = [
  "aya",
 ]

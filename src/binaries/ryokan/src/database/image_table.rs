@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
@@ -23,6 +23,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema
 table! {
@@ -50,7 +51,8 @@ table! {
 #[diesel(table_name = images)]
 pub struct ImageEntry {
     /// Unique identifier for the image
-    pub uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub uuid: Uuid,
     /// Name of the image
     pub name: String,
     /// Address of the Onsen service associated with this image
@@ -58,7 +60,8 @@ pub struct ImageEntry {
     /// Path to the file containing the image
     pub file_path: String,
     /// Secret UUID used for authentication with the image
-    pub secret_uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub secret_uuid: Uuid,
     /// True, if the image is a snapshot of the root-disk of a virtual_machine
     pub is_snapshot: bool,
     /// ID of the user who owns this image
@@ -68,15 +71,18 @@ pub struct ImageEntry {
     /// Status of the image (e.g., "ACTIVE", "DELETED")
     pub status: String,
     /// Timestamp when the image was created
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     /// ID of the user who created the image
     pub created_by: String,
     /// Timestamp when the image was last updated
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     /// ID of the user who last updated the image
     pub updated_by: String,
     /// Timestamp when the image was deleted (if applicable)
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     /// ID of the user who deleted the image (if applicable)
     pub deleted_by: Option<String>,
 }
@@ -147,24 +153,24 @@ pub fn add_new_image(
 ) -> QueryResult<usize> {
     // Create a new ImageEntry with the provided parameters
     let image = ImageEntry {
-        uuid: image_uuid.to_string().clone(),
+        uuid: *image_uuid,
         name: image_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
-        secret_uuid: secret_uuid.to_string().clone(),
+        secret_uuid: *secret_uuid,
         is_snapshot,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_image(&image)
+    add_image(image.clone())
 }
 
 /// Adds an image to the database.
@@ -176,7 +182,7 @@ pub fn add_new_image(
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
-pub fn add_image(image: &ImageEntry) -> QueryResult<usize> {
+pub fn add_image(image: ImageEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
 
@@ -346,18 +352,18 @@ mod tests {
         };
 
         let image = ImageEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: true,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -365,7 +371,7 @@ mod tests {
 
         hard_delete_image(&uuid1);
 
-        add_image(&image).unwrap();
+        add_image(image.clone()).unwrap();
         if let Ok(retrieved_image) = get_image(&uuid1, &context) {
             assert_eq!(retrieved_image.uuid, image.uuid);
             assert_eq!(retrieved_image.name, image.name);
@@ -402,36 +408,36 @@ mod tests {
         };
 
         let image1 = ImageEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let image2 = ImageEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -440,8 +446,8 @@ mod tests {
         hard_delete_image(&uuid1);
         hard_delete_image(&uuid2);
 
-        add_image(&image1).unwrap();
-        add_image(&image2).unwrap();
+        add_image(image1).unwrap();
+        add_image(image2).unwrap();
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 1);
         hard_delete_image(&uuid1);
@@ -467,18 +473,18 @@ mod tests {
         };
 
         let image = ImageEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -486,7 +492,7 @@ mod tests {
 
         hard_delete_image(&uuid1);
 
-        add_image(&image).unwrap();
+        add_image(image).unwrap();
         let _ = delete_image(&uuid1, &context);
         let result = get_image(&uuid1, &context);
         assert!(result.is_err());
@@ -514,54 +520,54 @@ mod tests {
         };
 
         let image1 = ImageEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let image2 = ImageEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let image3 = ImageEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -571,9 +577,9 @@ mod tests {
         hard_delete_image(&uuid2);
         hard_delete_image(&uuid3);
 
-        add_image(&image1).unwrap();
-        add_image(&image2).unwrap();
-        add_image(&image3).unwrap();
+        add_image(image1).unwrap();
+        add_image(image2).unwrap();
+        add_image(image3).unwrap();
 
         let number = count_images(&context).unwrap();
         assert_eq!(number, 3);
@@ -594,54 +600,54 @@ mod tests {
         let secret_uuid = Uuid::new_v4();
 
         let image1 = ImageEntry {
-            uuid: uuid1.to_string(),
+            uuid: uuid1,
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let image2 = ImageEntry {
-            uuid: uuid2.to_string(),
+            uuid: uuid2,
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let image3 = ImageEntry {
-            uuid: uuid3.to_string(),
+            uuid: uuid3,
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
-            secret_uuid: secret_uuid.to_string(),
+            secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -651,9 +657,9 @@ mod tests {
         hard_delete_image(&uuid2);
         hard_delete_image(&uuid3);
 
-        add_image(&image1).unwrap();
-        add_image(&image2).unwrap();
-        add_image(&image3).unwrap();
+        add_image(image1).unwrap();
+        add_image(image2).unwrap();
+        add_image(image3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -698,7 +704,7 @@ mod tests {
         };
         match get_image(&uuid1, &context) {
             Ok(retrieved_image) => {
-                assert_eq!(retrieved_image.uuid, uuid1.to_string());
+                assert_eq!(retrieved_image.uuid, uuid1);
             }
             Err(_) => {
                 assert_eq!(true, false);

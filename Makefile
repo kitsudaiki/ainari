@@ -20,6 +20,9 @@
 #   make down kind
 #   make up vagrant    the same setup on a k3s-cluster of four virtual machines
 #   make down vagrant  (scripts/setup_vagrant_stack.sh)
+#
+#   make lint-docs     checks the markdown of the documentation (.markdownlint-cli2.yaml),
+#                      with FIX=1 the fixable findings are fixed automatically
 
 # kind is downloaded into temporary_files, if it is not installed
 KIND_VERSION ?= v0.30.0
@@ -32,10 +35,13 @@ ANSIBLE_CORE_VERSION ?= 2.20.9
 ANSIBLE_VENV := temporary_files/ansible-venv
 ANSIBLE_PLAYBOOK ?= $(or $(shell command -v ansible-playbook 2> /dev/null),$(ANSIBLE_VENV)/bin/ansible-playbook)
 
+# markdownlint runs as docker-container, so node doesn't have to be installed
+MARKDOWNLINT_IMAGE ?= davidanson/markdownlint-cli2:v0.18.1
+
 # the setup, which 'up' and 'down' act on, is given as second goal
 STACK := $(filter local kind vagrant,$(MAKECMDGOALS))
 
-.PHONY: help up down local kind vagrant
+.PHONY: help up down local kind vagrant lint-docs
 
 help:
 	@echo "Usage:"
@@ -45,6 +51,7 @@ help:
 	@echo "    make down kind     delete the kind-cluster"
 	@echo "    make up vagrant    start the setup on four virtual machines (asks for sudo)"
 	@echo "    make down vagrant  destroy the virtual machines"
+	@echo "    make lint-docs     check the markdown of the documentation"
 
 up down: $(if $(filter kind,$(STACK)),$(KIND)) $(if $(filter vagrant,$(STACK)),$(ANSIBLE_PLAYBOOK))
 	@case "$(STACK)" in \
@@ -66,3 +73,6 @@ $(BIN_DIR)/kind:
 $(ANSIBLE_VENV)/bin/ansible-playbook:
 	python3 -m venv $(ANSIBLE_VENV)
 	$(ANSIBLE_VENV)/bin/pip install --quiet ansible-core==$(ANSIBLE_CORE_VERSION)
+
+lint-docs:
+	docker run --rm --user "$$(id -u):$$(id -g)" -v "$(CURDIR):/workdir" $(MARKDOWNLINT_IMAGE) $(if $(FIX),--fix)

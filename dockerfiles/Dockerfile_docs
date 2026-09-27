@@ -19,48 +19,21 @@ ARG DEBCONF_NONINTERACTIVE_SEEN=true
 
 WORKDIR /code
 
-# xvfb, dbus and libgbm are required, because the drawio-exporter renders the diagrams with the
-# electron-based drawio-desktop, which needs a display-server even in this headless build
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 \
                        python3-pip \
                        python3-venv \
-                       ca-certificates \
-                       wget \
-                       curl \
-                       libgbm-dev \
-                       xvfb \
-                       dbus && \
+                       ca-certificates && \
     apt-get clean autoclean && \
     apt-get autoremove --yes
 
 RUN python3 -m venv ainari_env && \
     . ainari_env/bin/activate && \
-    pip3 install mkdocs==1.6.1 \
-                 mkdocs-material==9.7.3 \
-                 mkdocs-swagger-ui-tag==0.8.0 \
-                 mkdocs-drawio-exporter==0.10.2
-
-ARG DRAWIO_VERSION=28.2.5
-# libasound2t64 is not pulled in by the dependencies of the deb-package, but the electron-runtime
-# of drawio refuses to start without it
-RUN wget -q https://github.com/jgraph/drawio-desktop/releases/download/v${DRAWIO_VERSION}/drawio-amd64-${DRAWIO_VERSION}.deb && \
-    apt-get update && \
-    apt -f -y install ./drawio-amd64-${DRAWIO_VERSION}.deb libasound2t64 && \
-    rm drawio-amd64-${DRAWIO_VERSION}.deb && \
-    apt-get clean autoclean && \
-    apt-get autoremove --yes
-
-# drawio is an electron-application and its chromium-sandbox can not be used inside a container,
-# because it is not allowed to create new namespaces there. The exporter looks up 'drawio' on the
-# PATH, so this wrapper is placed in front of the binary of the deb-package to disable the sandbox,
-# instead of putting a container-only workaround into the mkdocs.yml of the repository.
-RUN printf '#!/bin/sh\nexec /opt/drawio/drawio --no-sandbox "$@"\n' > /usr/local/bin/drawio && \
-    chmod +x /usr/local/bin/drawio
+    pip3 install zensical
 
 # CHANGELOG.md and LICENSE have to sit beside the docs-directory, because 'docs/home/CHANGELOG.md'
 # and 'docs/home/license.md' are symlinks pointing to them
-COPY mkdocs.yml mkdocs.yml
+COPY zensical.toml zensical.toml
 COPY CHANGELOG.md CHANGELOG.md
 COPY LICENSE LICENSE
 COPY docs docs
@@ -70,9 +43,7 @@ COPY docs docs
 # within the image as it has within the repository
 COPY example_configs example_configs
 
-# the `xvfb-run -a` comes from the following trouble-shooting for a headless execution:
-# https://github.com/LukeCarrier/mkdocs-drawio-exporter?tab=readme-ov-file#headless-usage
-RUN . ainari_env/bin/activate && xvfb-run -a mkdocs build --clean
+RUN . ainari_env/bin/activate && zensical build --clean
 
 # ---------------------------------------------------
 

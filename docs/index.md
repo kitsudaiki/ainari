@@ -4,38 +4,53 @@
 
 # Ainari
 
-## Overview
+<p align="center">
+  <img src="img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
+</p>
 
-Ainari is split into a micro-service architecture. See here for
-[Overview-Description](/home/overview/)
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+See more in the [About-section](/home/about/) of the documentation.
 
-![Overview](home/ainari_overview.drawio)
+## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
+
 
 ## Summary important links
 
 <div class="grid cards" markdown>
 
+- :material-source-repository:{ .lg .middle } **Project**
+
+    ______________________________________________________________________
+
+    [:octicons-arrow-right-24: About](/home/about/)
+
+    [:octicons-arrow-right-24: Features](/home/features/)
+
+    [:octicons-arrow-right-24: Overview](/home/home/overview/)
+
 - :material-clock-fast:{ .lg .middle } **Getting started**
 
     ______________________________________________________________________
+
+    [:octicons-arrow-right-24: Quick start guide](/home/quick_start/)
 
     [:octicons-arrow-right-24: Example-Workflow](/user/cli_sdk/example_workflow/)
 
     [:octicons-arrow-right-24: Installation-Guide](/deployer/installation/kubernetes_installation/)
 
-    [:octicons-arrow-right-24: SDK and CLI documentation](/user/cli_sdk/cli_sdk_docu/)
+    [:octicons-arrow-right-24: Dashboard documenation](/user/dashboard/dashboard/)
 
-    [:octicons-arrow-right-24: OpenAPI documentation](/user/rest_api/rest_api_docu_sakura/)
+    [:octicons-arrow-right-24: SDK and CLI documentation](/user/cli_sdk/cli_sdk_docu/)
 
 - :octicons-codespaces-24:{ .lg .middle } **Development**
 
     ______________________________________________________________________
 
-    [:octicons-arrow-right-24: How to build](/developer/repo/build_guide/)
+    [:octicons-arrow-right-24: Repository-Overview](/developer/repo_structure/)
 
-    [:octicons-arrow-right-24: Development-Guide](/developer/repo/development/)
+    [:octicons-arrow-right-24: Development-Guide](/developer/development/)
 
-    [:octicons-arrow-right-24: Dependency-Overview](/developer/repo/dependencies/)
+    [:octicons-arrow-right-24: Dependency-Overview](/developer/dependencies/)
 
 - :octicons-package-24:{ .lg .middle } **Pre-build objects**
 
@@ -49,14 +64,13 @@ Ainari is split into a micro-service architecture. See here for
 
     [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.ainari.cloud/)
 
-
 </div>
 
 ## Author
 
-**Tobias Anker**
+Tobias Anker
 
-eMail: tobias.anker@kitsunemimi.moe
+eMail: <tobias.anker@kitsunemimi.moe>
 
 ## License
 

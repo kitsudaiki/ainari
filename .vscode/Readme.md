@@ -58,3 +58,22 @@ admin-user `asdf` / `asdfasdf`) are set as env-variables in `launch.json` and `t
     ```bash
     sudo ip netns exec torii-outside ssh -i ~/.ssh/ainari_local ubuntu@FLOATING_IP
     ```
+
+## Remove the uplink
+
+The uplink `uplink0` and the network namespace `torii-outside` are created by the task
+`Run Torii (single-node)` and stay after torii was stopped. Starting the task again replaces them,
+so they only have to be removed, when the setup is not needed anymore. First stop torii by
+terminating its task, then run the task `remove single-node uplink` or directly:
+
+```bash
+sudo ./scripts/setup_single_node_uplink.sh down
+```
+
+This deletes `uplink0` together with its peer `outside0` and the namespace `torii-outside`, so the
+routes of the uplink and the floating ip-addresses are gone as well. Check that nothing is left:
+
+```bash
+ip link show uplink0      # Device "uplink0" does not exist.
+ip netns list             # torii-outside is not listed anymore
+```

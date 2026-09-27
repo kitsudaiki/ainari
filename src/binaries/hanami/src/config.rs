@@ -30,6 +30,12 @@ pub struct Config {
     // general values
     /// Flag to enable debug mode
     pub debug: bool,
+    /// Target of the log-output, `stdout` or `log_file`
+    #[serde(default)]
+    pub log_type: ainari_config::LogType,
+    /// Directory of the log-file, if `log_type` is `log_file`
+    #[serde(default = "ainari_config::default_log_path")]
+    pub log_path: String,
     /// Flag to skip TLS verification (insecure)
     #[serde(default = "default_insecure_clients")]
     pub skip_tls_verification: bool,
@@ -100,15 +106,15 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
                     v
                 }
                 Err(e) => {
-                    log::error!("Failed to parse '{e}'");
-                    log::error!("{e}");
+                    eprintln!("Failed to parse '{e}'");
+                    eprintln!("{e}");
                     process::exit(1);
                 }
             }
         }
         Err(e) => {
-            log::error!("Failed read config-file '{file_path}'");
-            log::error!("{e}");
+            eprintln!("Failed read config-file '{file_path}'");
+            eprintln!("{e}");
             process::exit(1);
         }
     }

@@ -162,7 +162,7 @@ export type VirtualMachineState =
     | "RESERVED"
     | "CREATED"
     | "RUNNING"
-    | "STOPED"
+    | "STOPPED"
     | "RESTORING"
     | "ERROR";
 

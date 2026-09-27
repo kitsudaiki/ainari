@@ -41,7 +41,6 @@ The image and the public-key of the request are stored on the reserved
 virtual_machine, before the task is queued."###,
     error_code = 400,
     error_code = 401,
-    error_code = 404,
     error_code = 500
 )]
 pub async fn create_virtual_machine(
@@ -64,7 +63,7 @@ pub async fn create_virtual_machine(
         &body.public_key_uuid,
         &context,
     )
-    .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    .map_err(|e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     // mark the virtual_machine as created, before the task for its creation is queued
     virtual_machine_table::update_virtual_machine_state(
@@ -72,11 +71,11 @@ pub async fn create_virtual_machine(
         &VirtualMachineState::Created,
         &context,
     )
-    .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    .map_err(|e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
+            |e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e),
         )?;
 
     // prepare task-info
@@ -112,7 +111,7 @@ pub async fn create_virtual_machine(
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

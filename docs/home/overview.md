@@ -3,11 +3,9 @@
 Ainari consist of a micro-service architecture. The overview of the current state of the setup is
 shown and described below:
 
-![Overview](ainari_overview.drawio)
+![Overview](/img/ainari_overview.jpg)
 
-## Components
-
-There are 7 core-components at the moment, all of them written in Rust.
+## Core-Components
 
 ### Miko
 
@@ -20,8 +18,8 @@ JWT-tokens against Miko, to check if the token is valid.
 !!! info
 
     At the moment the project-management is basically non-existing even the project-db-table and
-    endpoints are present. Will be fixed in the future. Also RBAC roles will be handled later by Miko
-    too.
+    endpoints are present. Will be fixed in the future. Also RBAC roles will be handled later by
+    Miko too.
 
 ### Omamori
 
@@ -31,8 +29,8 @@ to upload, generate and download keys.
 !!! info
 
     Current only a simple crypto process is done by omamori, where uploaded and generated keys are
-    encrypted by a key from the config and stored encrypted within the database. Will be updated by a
-    Vault-connection and other backends in the future.
+    encrypted by a key from the config and stored encrypted within the database. Will be updated by
+    a Vault-connection and other backends in the future.
 
 ### Onsen
 
@@ -71,53 +69,30 @@ new connection. Also list and delete networks is done by Hanami.
 
 !!! info
 
-    This scheduling is at the moment only a random selection, but be updated to a real scheduling in the
-    future.
+    This scheduling is at the moment only a random selection, but be updated to a real scheduling in
+    the future.
 
 ### Torii
 
-Torii is the gateway-component. It is basically only a layer-3-proxy, which is configured by Hanami
-for each model. Torii creates a port for each model and the user can directly interact with the
-model of the hosted Sakura-host over this port. Torii doesn't terminate the HTTPS-connection
-between the user and the Sakura-host with the model, which basically provides an end-to-end
-encrypted connection for all user interactions with the model. Torii doesn't have a benefit at the
-moment, but was already added to the setup as early as possible to avoid later problems, when
-model-migration was implemented in Sakura and a proxy is needed to not break user-connections.
+Torii is the gateway-component, is configured by hanami and handles 2 differen pathways:
 
-!!! info
-
-    Maybe in the future it will be changed to a lower osi-layer, because the current setup also has its
-    disadvantages.
+1. It is basically only a layer-3-proxy. Torii creates a port for each virtual machine and the user
+   can directly interact with the Sakura compute host, which holds the VM. Torii doesn't terminate
+   the HTTPS-connection between the user and the Sakura-host, which basically provides an end-to-end
+   encrypted connection for all user interactions with the control endpoints for the VM. The path
+   was added to the setup instead of direct access to the compute host, to make later added
+   migration of virtual machines easier for the user to handle.
 
 ## other
 
 ### Dashboard
 
-!!! info
-
-    under construction and is written in Vue.js and Typescript.
+See [Dashboard docu](/user/dashboard/dashboard/)
 
 ### Python-SDK
 
-The SDK is written in python, because most data analytic tools are written in python, because most
-of the tools and frameworks in this field are python. This should make integration in other
-workflows more easily.
+See [Python SDK docu](/cli_sdk/cli_sdk_docu/#__tabbed_2_2)
 
 ### CLI
 
-As alternative option there is a CLI-tool written in Golang.
-
-### Test-scripts
-
-There are a few test-scripts to tests the basic functionality of the python-SDK and the CLI. They
-are used in the CI-pipeline for testing.
-
-### Kubernetes-Installation
-
-Beside the development-setup with vscode or a manual deployment, the only deployment-method is
-currently a kubernetes installation with a helm-chart.
-
-!!! info
-
-    The kubernetes-setup is currently very basic and still lacks a bunch of security and configration
-    updates. An Ansible-installation will come in the future too.
+See [CLI docu](/user/cli_sdk/cli_sdk_docu/)

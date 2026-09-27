@@ -35,7 +35,7 @@ pub async fn list_image(context: UserContext) -> Result<Json<ImageListResp>, Err
     let mut resp = ImageListResp { images: Vec::new() };
 
     for image in images {
-        let uuid = convert_uuid(&image.uuid)?;
+        let uuid = image.uuid;
         let obj = ImageBasicResp {
             uuid,
             name: image.name.clone(),

@@ -19,8 +19,6 @@ mod config;
 mod core;
 mod database;
 
-use log::LevelFilter;
-
 /// Entrypoint of the hanami.
 ///
 /// Manages the sakura-hosts, the virtual networks and the floating ip-addresses.
@@ -32,11 +30,8 @@ use log::LevelFilter;
 ///
 /// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    let enable_debug_log = config::CONFIG.debug;
-    if !enable_debug_log {
-        log::set_max_level(LevelFilter::Info);
-    }
+    let config = &config::CONFIG;
+    ainari_common::logger::init_logger(config.log_type, &config.log_path, "hanami", config.debug)?;
 
     database::init_database()?;
 

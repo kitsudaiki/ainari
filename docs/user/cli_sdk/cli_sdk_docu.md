@@ -1,282 +1,867 @@
 # CLI-SDK-Docu
 
-The CLI and the SDK-library provides functions to interact with the API of the backend.
+The CLI `ainarictl` and the Python-SDK provide functions to interact with the API of Ainari. The
+CLI is based on the Go-SDK in `src/sdk/go/ainari_sdk`.
 
-!!! Warning
+For a complete walk-through from the upload of an image to the ssh-login into a virtual machine,
+see the [Example-Workflow](example_workflow.md).
 
-    This documentation is **NOT** up-to-date at the moment. I'm very sorry, but because of a very
-    limited amount of time I have for this project and because there coming some big changes in 0.10.0
-    again and because it seems that no one use the project at the moment anyway, I haven't updated the
-    documenation of the SDK and CLI here for version 0.8.0. For the CLI you can use the --help output.
-
-## Installation / Compile
+## Installation
 
 === "CLI"
 
+    Requires `go` in the version of `src/cli/ainarictl/go.mod`.
+
     ```bash
-    # go into the cli-source-directory
-    cd src/cli/ainarictl/
+    git clone https://github.com/kitsudaiki/ainari.git
+    cd ainari/src/cli/ainarictl/
 
-    # build protobuf-messages
-    # pushd ../sdk/go/ainari_sdk
-    # protoc --go_out=. --proto_path ../../../libs/protobuf ainari_messages.proto3
-    # popd
-
-    # build cli-tool
     go build .
     ```
+
+    Alternatively the pre-build binary can be downloaded from the
+    [file-share](https://files.ainari.cloud/).
 
 === "Python-SDK"
 
     ```bash
-    # clone repository
     git clone https://github.com/kitsudaiki/ainari.git
 
     # create python-env (optional)
     python3 -m venv ainari_sdk_env
     source ainari_sdk_env/bin/activate
 
-    # install sdk
-    cd Ainari/src/sdk/python/ainari_sdk
-    pip3 install -U .
+    pip3 install ./ainari/src/sdk/python/ainari_sdk
     ```
 
-## Exceptions
+## Login
 
-Each of the used HTTP-error codes results in a different exception. For the available error-code /
-exceptions of each of the endpoints, look into the
-[REST-API documenation](https://docs.ainari.cloud/api/rest_api_documentation/)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import ainari_exceptions
-
-    try:
-        (command)
-    except ainari_exceptions.NotFoundException as e:
-        print(e)
-    except ainari_exceptions.UnauthorizedException as e:
-        print(e)
-    except ainari_exceptions.BadRequestException as e:
-        print(e)
-    except ainari_exceptions.ConflictException as e:
-        print(e)
-    except ainari_exceptions.InternalServerErrorException as e:
-        print("internal error")
-    ```
-
-    !!! info
-
-        The `InternalServerErrorException` doesn't contain a message. If this exception appears, you have
-        have to look into the logs on the server.
-
-## For insecure connections
-
-In case the server use self-signed certificates for its https-connection, the ssl verification can
-be disabled. Each functions has a paramater `verify_connection`, wich is per default `True`. This
-validation can be disabled by adding `,verify_connection=False` to the end of a function-call.
-
-## Request Token
-
-For each of the following actions, the user must request an access-token at the beginning. This
-token is a jwt-token with basic information of the user. The token is only valid for a certain
-amount of time until it expires, based on the configuration of the server.
+Every action requires a token of the user, which is requested from miko. The token is only valid
+for a certain amount of time, based on the configuration of the server. Besides the token, miko
+returns the addresses of all other components, so only the address of miko is required.
 
 === "CLI"
 
-    In case of the cli, the address and login credentials only have to be set via environment variables
+    The address and the login-credentials are set via environment-variables. A new token is
+    requested automatically for every command.
 
     ```bash
-    export MIKO_ADDRESS=http://127.0.0.1:11417
+    export AINARI_ADDRESS=http://127.0.0.1:11417
     export AINARI_USER=asdf
     export AINARI_PASSPHRASE=asdfasdf
     ```
 
+    Global flags, which are available for all commands:
+
+    | Flag                 | Description                                                         |
+    | -------------------- | ------------------------------------------------------------------- |
+    | `--insecure`         | disable the tls-verification, for example for self-signed certificates |
+    | `-j`, `--json_output`| print the output as json instead of a table, for example for `jq`  |
+
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import ainari_token
+    from ainari_sdk import login
 
-    address = "http://127.0.0.1:11417"
-    test_user = "asdf"
-    test_passphrase = "asdfasdf"
-
-    context = login.request_context(address, test_user, test_passphrase)
-
+    context = login.request_context("http://127.0.0.1:11417", "asdf", "asdfasdf")
     ```
 
-## Project
+    The returned `context` is the first argument of all other functions. To disable the
+    tls-verification, for example for self-signed certificates, add `verify_connection=False`:
 
-Non-admin user need to be assigned to a project for logical separation.
+    ```python
+    context = login.request_context(address, user_id, passphrase, verify_connection=False)
+    ```
+
+## Exceptions
+
+=== "Python-SDK"
+
+    Each of the used HTTP-error-codes results in a different exception:
+
+    ```python
+    from ainari_sdk import ainari_exceptions, image
+
+    try:
+        image.get_image(context, image_uuid)
+    except ainari_exceptions.BadRequestException as e:        # 400
+        print(e)
+    except ainari_exceptions.UnauthorizedException as e:      # 401
+        print(e)
+    except ainari_exceptions.NotFoundException as e:          # 404
+        print(e)
+    except ainari_exceptions.ConflictException as e:          # 409
+        print(e)
+    except ainari_exceptions.InternalServerErrorException:    # 500
+        print("internal error")
+
+    # example output:
+    #
+    # b"image with UUID '00000000-0000-0000-0000-000000000001' not found."
+    ```
+
+    !!! info
+
+        The `InternalServerErrorException` doesn't contain a message. If this exception appears,
+        you have to look into the logs of the server.
+
+## Token, endpoints and version
+
+=== "CLI"
+
+    ```bash
+    # validate the own token and print its user-context
+    ainarictl token validate
+
+    # request a new token
+    ainarictl token renew
+
+    # addresses of the components
+    ainarictl endpoints
+
+    # version of the backend
+    ainarictl get version
+    ```
+
+    example:
+
+    ```bash
+    ainarictl endpoints
+
+    ┌─────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ HANAMI  │ {"internal_address":"http://hanami:10418","public_address":"http://127.0.0.1:11418"}       │
+    │ OMAMORI │ {"internal_address":"http://omamori:10421","public_address":"http://127.0.0.1:11421"}      │
+    │ RYOKAN  │ {"internal_address":"http://ryokan:10416","public_address":"http://127.0.0.1:11416"}       │
+    │ TORII   │ {"internal_address":"http://torii-public:10419","public_address":"http://127.0.0.1:11419"} │
+    └─────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import common, login
+
+    login.validate_token(context)     # {"context": {"user_id": "asdf", "is_admin": "true", ...}}
+    login.renew_token(context)        # {"access_token": "eyJ0eXAi..."}
+    login.get_endpoints(context)      # {"hanami": {"public_address": ..., "internal_address": ...}, ...}
+
+    common.get_version(context, context.miko_address)
+
+    # example-content of result:
+    #
+    # {
+    #     "version": "unknown",
+    #     "commit_hash": "",
+    #     "timestamp": "2026-09-26 19:52:26"
+    # }
+    ```
+
+    `renew_token` doesn't modify the context, so the new token has to be set with
+    `context.token = result["access_token"]`.
+
+## Hosts
+
+The sakura-hosts run the virtual machines, the onsen-hosts store the images and snapshots. Both
+register themselves at startup.
 
 !!! info
 
-    These endpoints have a hard-coded requirement, that only admins are allowed to manage projects.
+    Only admins are allowed to manage hosts.
 
-### Create Project
+=== "CLI"
 
-Create new empty project.
+    ```bash
+    ainarictl host list
+    ainarictl host get <HOST_UUID>
+    ainarictl host delete <HOST_UUID>
+
+    ainarictl onsen_host list
+    ainarictl onsen_host get <HOST_UUID>
+    ainarictl onsen_host delete <HOST_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl host list
+
+    ┌───────────────────────────┬───────────────────────┬────────────┬───────────────────────┬─────────────┬──────────────┬─────────────────┬──────────────────────┬──────────────────────────────────────┐
+    │ AMOUNT OF USED DISK SPACE │ AMOUNT OF USED MEMORY │ DISK SPACE │     HOST ADDRESS      │ MEMORY SIZE │     NAME     │ NUMBER OF CORES │ USED NUMBER OF CORES │                 UUID                 │
+    ├───────────────────────────┼───────────────────────┼────────────┼───────────────────────┼─────────────┼──────────────┼─────────────────┼──────────────────────┼──────────────────────────────────────┤
+    │ 10                        │ 2048                  │ 211        │ http://sakura-2:11420 │ 64209       │ c248af01c8a1 │ 16              │ 2                    │ 5251f5ab-587b-41a6-a12c-f847d6931e68 │
+    │ 10                        │ 2048                  │ 211        │ http://sakura:11420   │ 64209       │ 25310b148a34 │ 16              │ 2                    │ f882fe4e-bab3-4ac7-b464-687ea3ef3571 │
+    └───────────────────────────┴───────────────────────┴────────────┴───────────────────────┴─────────────┴──────────────┴─────────────────┴──────────────────────┴──────────────────────────────────────┘
+    ```
+
+    Memory is given in MiB, disk-space in GiB.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import host
+
+    host.list_hosts(context)
+    host.get_host(context, host_uuid)
+    host.delete_host(context, host_uuid)
+
+    host.list_onsen_hosts(context)
+    host.get_onsen_host(context, host_uuid)
+    host.delete_onsen_host(context, host_uuid)
+
+    # example-content of the result of list_hosts:
+    #
+    # {
+    #     "hosts": [
+    #         {
+    #             "uuid": "5251f5ab-587b-41a6-a12c-f847d6931e68",
+    #             "name": "c248af01c8a1",
+    #             "host_address": "http://sakura-2:11420",
+    #             "number_of_cores": 16,
+    #             "used_number_of_cores": 2,
+    #             "memory_size": 64209,
+    #             "amount_of_used_memory": 2048,
+    #             "disk_space": 211,
+    #             "amount_of_used_disk_space": 10
+    #         },
+    #         ...
+    #     ]
+    # }
+    ```
+
+## Public keys
+
+ssh-public-keys, which are deployed into virtual machines for the default-user of the image.
+
+=== "CLI"
+
+    ```bash
+    ainarictl public_key upload -k <PUBLIC_KEY_FILE> <NAME>
+    ainarictl public_key list
+    ainarictl public_key get <PUBLIC_KEY_UUID>
+    ainarictl public_key delete <PUBLIC_KEY_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl public_key upload -k ./ainari_key.pub my-key
+
+    ┌─────────────┬────────────────────────────────────────────────────┐
+    │ CREATED AT  │ 2026-09-26T20:03:31.680995885Z                     │
+    │ CREATED BY  │ asdf                                               │
+    │ FINGERPRINT │ SHA256:NDAzYbceDFgBNX08rg+jkvRqGZyPR+NZpDyIoLGtgRg │
+    │ NAME        │ my-key                                             │
+    │ UPDATED AT  │ 2026-09-26T20:03:31.680996125Z                     │
+    │ UPDATED BY  │ asdf                                               │
+    │ UUID        │ bd9f3a6b-df8f-42cc-803b-21f997feea96               │
+    └─────────────┴────────────────────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    The public key is given as string in its one-line openssh-representation.
+
+    ```python
+    from ainari_sdk import public_key
+
+    with open("./ainari_key.pub") as f:
+        result = public_key.upload_public_key(context, "my-key", f.read().strip())
+
+    public_key.list_public_keys(context)    # {"public_keys": [{"uuid": ..., "name": ..., "fingerprint": ...}]}
+    public_key.get_public_key(context, public_key_uuid)
+    public_key.delete_public_key(context, public_key_uuid)
+    public_key.delete_all_public_keys(context)
+    ```
+
+## Images
+
+Disk-images, which are used as boot-disk of virtual machines, for example an ubuntu-cloud-image.
+Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
+
+=== "CLI"
+
+    ```bash
+    ainarictl image create disk -i <INPUT_FILE_PATH> <NAME>
+    ainarictl image list
+    ainarictl image get <IMAGE_UUID>
+    ainarictl image count
+    ainarictl image delete <IMAGE_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl image list
+
+    ┌─────────────┬───────────────────────┬──────────────────────────────────────┐
+    │ IS SNAPSHOT │         NAME          │                 UUID                 │
+    ├─────────────┼───────────────────────┼──────────────────────────────────────┤
+    │ false       │ ubuntu-noble          │ 0fefb138-6077-489a-930c-afad9c5c54bf │
+    │ true        │ my-snapshot           │ 0ff16ea5-5380-4f3d-af62-08b1fe5d615b │
+    └─────────────┴───────────────────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import image
+
+    result = image.upload_disk_file(context, "ubuntu-noble", "./noble-server-cloudimg-amd64.img")
+
+    image.list_images(context)        # {"images": [{"uuid": ..., "name": ..., "is_snapshot": false}]}
+    image.get_image(context, image_uuid)
+    image.get_image_count(context)    # {"number_of_items": 1}
+    image.delete_image(context, image_uuid)
+    image.delete_all_images(context)
+    ```
+
+!!! info
+
+    The image-file is stored encrypted. For every image a secret with the name
+    `autogenerated secret for image <IMAGE_UUID>` is created automatically.
+
+## Networks
+
+=== "CLI"
+
+    ```bash
+    ainarictl network create -s <SUBNET> <NAME>
+    ainarictl network list
+    ainarictl network get <NETWORK_UUID>
+    ainarictl network delete <NETWORK_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl network create -s 192.168.200.1/24 my-network
+
+    ┌────────────┬──────────────────────────────────────┐
+    │ CREATED AT │ 2026-09-26T20:03:31.734173936Z       │
+    │ CREATED BY │ asdf                                 │
+    │ NAME       │ my-network                           │
+    │ SUBNET     │ 192.168.200.1/24                     │
+    │ UPDATED AT │ 2026-09-26T20:03:31.734174146Z       │
+    │ UPDATED BY │ asdf                                 │
+    │ UUID       │ 1769874d-07e4-4bea-a11f-3ea09caa9ef4 │
+    └────────────┴──────────────────────────────────────┘
+    ```
+
+    The first address of the subnet is the gateway of the virtual machines.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import network
+
+    result = network.create_network(context, "my-network", "192.168.200.1/24")
+
+    network.list_networks(context)    # {"networks": [{"uuid": ..., "name": ..., "subnet": ...}]}
+    network.get_network(context, network_uuid)
+    network.delete_network(context, network_uuid)
+    network.delete_all_networks(context)
+    ```
+
+## Virtual machines
+
+A virtual machine is reserved on one of the sakura-hosts first. Afterwards the image and the public
+key are installed into it and it is booted by a [task](#tasks) on this host. The host is addressed
+over the `torii_port` of the virtual machine.
+
+The state of the virtual machine is shown in `vm_state`:
+
+| State       | Description                                          |
+| ----------- | ---------------------------------------------------- |
+| `RESERVED`  | reserved on a host, but not created yet              |
+| `CREATED`   | the task, which creates the virtual machine, is running |
+| `RUNNING`   | booted                                               |
+| `STOPPED`   | powered off                                          |
+| `RESTORING` | the root-disk is reset to a snapshot                 |
+| `ERROR`     | something blocks the start of the virtual machine    |
+
+### Create virtual machine
+
+=== "CLI"
+
+    `vm create` does both steps, the reservation and the creation. Memory is given in MiB, the
+    disk in GiB.
+
+    ```bash
+    ainarictl vm create -c <NUMBER_OF_CORES> -m <MEMORY_SIZE> -d <DISK_SIZE> \
+        -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> <NAME>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl vm create -c 1 -m 1024 -d 5 \
+        -u 1769874d-07e4-4bea-a11f-3ea09caa9ef4 \
+        -i 0fefb138-6077-489a-930c-afad9c5c54bf \
+        -k bd9f3a6b-df8f-42cc-803b-21f997feea96 \
+        my-vm
+
+    ┌─────────────────┬──────────────────────────────────────┐
+    │ CREATED AT      │ 2026-09-26T20:03:37.596527148Z       │
+    │ CREATED BY      │ asdf                                 │
+    │ DISK SIZE       │ 5                                    │
+    │ IMAGE UUID      │ 0fefb138-6077-489a-930c-afad9c5c54bf │
+    │ INTERNAL IP     │ 192.168.200.2                        │
+    │ MEMORY SIZE     │ 1024                                 │
+    │ NAME            │ my-vm                                │
+    │ NETWORK UUID    │ 1769874d-07e4-4bea-a11f-3ea09caa9ef4 │
+    │ NUMBER OF CORES │ 1                                    │
+    │ TORII PORT      │ 10044                                │
+    │ UPDATED AT      │ 2026-09-26T20:03:37.690766143Z       │
+    │ UPDATED BY      │ asdf                                 │
+    │ UUID            │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    │ VM STATE        │ CREATED                              │
+    └─────────────────┴──────────────────────────────────────┘
+    ```
+
+    The creation runs in the background; repeat `ainarictl vm get <VIRTUAL_MACHINE_UUID>`, until
+    `VM STATE` is `RUNNING`.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import virtual_machine
+
+    # 1. reserve the virtual machine on one of the sakura-hosts
+    reserved = virtual_machine.reserve_virtual_machine(context,
+                                                       "my-vm",
+                                                       1,        # number of cores
+                                                       1024,     # memory in MiB
+                                                       5,        # disk in GiB
+                                                       network_uuid)
+
+    # 2. install image and public key and boot it
+    task = virtual_machine.create_virtual_machine(context,
+                                                  reserved["torii_port"],
+                                                  reserved["uuid"],
+                                                  image_uuid,
+                                                  public_key_uuid)
+
+    # 3. wait until it is running
+    while virtual_machine.get_virtual_machine(context, reserved["uuid"])["vm_state"] != "RUNNING":
+        time.sleep(2.0)
+    ```
+
+    If the second step fails, the virtual machine stays reserved and has to be deleted.
+
+### Get, list and delete virtual machines
+
+=== "CLI"
+
+    ```bash
+    ainarictl vm list
+    ainarictl vm get <VIRTUAL_MACHINE_UUID>
+    ainarictl vm count
+    ainarictl vm delete <VIRTUAL_MACHINE_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl vm list
+
+    ┌───────────┬─────────────┬─────────┬─────────────────┬────────────┬──────────────────────────────────────┐
+    │ DISK SIZE │ MEMORY SIZE │  NAME   │ NUMBER OF CORES │ PROXY PORT │                 UUID                 │
+    ├───────────┼─────────────┼─────────┼─────────────────┼────────────┼──────────────────────────────────────┤
+    │ 10        │ 2048        │ vm-1    │ 2               │ 10042      │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
+    │ 5         │ 1024        │ my-vm   │ 1               │ 10044      │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    └───────────┴─────────────┴─────────┴─────────────────┴────────────┴──────────────────────────────────────┘
+    ```
+
+    The deletion runs in the background:
+
+    ```bash
+    ainarictl vm delete 943e56bb-c6e4-4716-a26c-f1fd46a45618
+
+    deletion of virtual machine '943e56bb-c6e4-4716-a26c-f1fd46a45618' started
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import virtual_machine
+
+    virtual_machine.list_virtual_machines(context)    # {"virtual_machines": [...]}
+    virtual_machine.get_virtual_machine_count(context)    # {"number_of_items": 2}
+    virtual_machine.delete_virtual_machine(context, virtual_machine_uuid)
+    virtual_machine.delete_all_virtual_machines(context)
+
+    virtual_machine.get_virtual_machine(context, virtual_machine_uuid)
+
+    # example-content of result:
+    #
+    # {
+    #     "uuid": "943e56bb-c6e4-4716-a26c-f1fd46a45618",
+    #     "name": "my-vm",
+    #     "vm_state": "RUNNING",
+    #     "number_of_cores": 1,
+    #     "memory_size": 1024,
+    #     "disk_size": 5,
+    #     "image_uuid": "0fefb138-6077-489a-930c-afad9c5c54bf",
+    #     "network_uuid": "1769874d-07e4-4bea-a11f-3ea09caa9ef4",
+    #     "internal_ip": "192.168.200.2",
+    #     "torii_port": 10044,
+    #     "created_at": "2026-09-26T20:03:37.596527148Z",
+    #     "created_by": "asdf",
+    #     "updated_at": "2026-09-26T20:03:41.705820591Z",
+    #     "updated_by": "asdf"
+    # }
+    ```
+
+### Start, stop and reboot
+
+Each of these creates a [task](#tasks) on the sakura-host of the virtual machine. A stopped
+virtual machine keeps all of its resources.
+
+=== "CLI"
+
+    ```bash
+    ainarictl vm stop <VIRTUAL_MACHINE_UUID>
+    ainarictl vm start <VIRTUAL_MACHINE_UUID>
+    ainarictl vm reboot <VIRTUAL_MACHINE_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl vm stop 943e56bb-c6e4-4716-a26c-f1fd46a45618
+
+    ┌─────────────┬─────────────────────────────────────────────────────────────────────┐
+    │ CREATED BY  │ asdf                                                                │
+    │ DESCRIPTION │ Stop virtual machine with UUID 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    │ FINISHED AT │ <nil>                                                               │
+    │ MESSAGES    │ []                                                                  │
+    │ QUEUED AT   │ 2026-09-26T20:03:43.047004500Z                                      │
+    │ STARTED AT  │ <nil>                                                               │
+    │ STATE       │ Queued                                                              │
+    │ TASK TYPE   │ VirtualMachineStop                                                  │
+    │ UUID        │ 0ae2b3ed-a008-4c31-a1a8-434f558d5be1                                │
+    └─────────────┴─────────────────────────────────────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import virtual_machine
+
+    torii_port = virtual_machine.get_virtual_machine(context, virtual_machine_uuid)["torii_port"]
+
+    task = virtual_machine.stop_virtual_machine(context, torii_port, virtual_machine_uuid)
+    task = virtual_machine.start_virtual_machine(context, torii_port, virtual_machine_uuid)
+    task = virtual_machine.reboot_virtual_machine(context, torii_port, virtual_machine_uuid)
+    ```
+
+## Floating IPs
+
+Floating IPs make a virtual machine reachable from the network behind the uplink of the gateway.
+
+=== "CLI"
+
+    ```bash
+    # reserve a free floating IP, or a specific one, and optionally attach it directly
+    ainarictl floating_ip add -n <NAME> [-v <VIRTUAL_MACHINE_UUID>] [<FLOATING_IP>]
+
+    ainarictl floating_ip attach <FLOATING_IP_UUID> <VIRTUAL_MACHINE_UUID>
+    ainarictl floating_ip detach <FLOATING_IP_UUID>
+    ainarictl floating_ip list
+    ainarictl floating_ip get <FLOATING_IP_UUID>
+    ainarictl floating_ip delete <FLOATING_IP_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl floating_ip add -n my-fip
+
+    ┌──────────────┬──────────────────────────────────────┐
+    │ CREATED AT   │ 2026-09-26T20:03:31.786090618Z       │
+    │ CREATED BY   │ asdf                                 │
+    │ FLOATING IP  │ 10.0.0.4                             │
+    │ INTERNAL IP  │ <nil>                                │
+    │ NETWORK UUID │ <nil>                                │
+    │ UPDATED AT   │ 2026-09-26T20:03:31.786090838Z       │
+    │ UPDATED BY   │ asdf                                 │
+    │ UUID         │ c4521f1a-fe9f-4eea-b146-e7cb66d59a54 │
+    └──────────────┴──────────────────────────────────────┘
+
+    ainarictl floating_ip attach c4521f1a-fe9f-4eea-b146-e7cb66d59a54 943e56bb-c6e4-4716-a26c-f1fd46a45618
+
+    ┌──────────────┬──────────────────────────────────────┐
+    │ CREATED AT   │ 2026-09-26T20:03:31.786090618Z       │
+    │ CREATED BY   │ asdf                                 │
+    │ FLOATING IP  │ 10.0.0.4                             │
+    │ INTERNAL IP  │ 192.168.200.2                        │
+    │ NETWORK UUID │ 1769874d-07e4-4bea-a11f-3ea09caa9ef4 │
+    │ UPDATED AT   │ 2026-09-26T20:03:42.824349537Z       │
+    │ UPDATED BY   │ asdf                                 │
+    │ UUID         │ c4521f1a-fe9f-4eea-b146-e7cb66d59a54 │
+    └──────────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import floating_ip
+
+    # reserve and attach within one call
+    result = floating_ip.create_floating_ip(context, "my-fip",
+                                            virtual_machine_uuid=virtual_machine_uuid)
+
+    # or reserve first and attach afterwards
+    result = floating_ip.create_floating_ip(context, "my-fip")
+    result = floating_ip.attach_floating_ip(context, result["uuid"], virtual_machine_uuid)
+
+    floating_ip.detach_floating_ip(context, floating_ip_uuid)
+    floating_ip.list_floating_ips(context)    # {"floating_ips": [...]}
+    floating_ip.get_floating_ip(context, floating_ip_uuid)
+    floating_ip.delete_floating_ip(context, floating_ip_uuid)
+    floating_ip.delete_all_floating_ips(context)
+
+    # example-content of result:
+    #
+    # {
+    #     "uuid": "c4521f1a-fe9f-4eea-b146-e7cb66d59a54",
+    #     "floating_ip": "10.0.0.4",
+    #     "internal_ip": "192.168.200.2",
+    #     "network_uuid": "1769874d-07e4-4bea-a11f-3ea09caa9ef4",
+    #     ...
+    # }
+    ```
+
+    A specific floating IP can be requested with `floating_ip="10.0.0.10"`.
+
+## Tasks
+
+Actions, which take longer, run as tasks in the background on the sakura-host of a virtual machine:
+the creation, start, stop and reboot of virtual machines and the snapshots. The `STATE` of a task
+is one of `Created`, `Queued`, `Active`, `Finished`, `Aborted` or `Error`. In case of an error,
+the reason is listed in `MESSAGES`.
+
+=== "CLI"
+
+    The CLI selects the sakura-host over the given virtual machine.
+
+    ```bash
+    ainarictl task list <VIRTUAL_MACHINE_UUID>
+    ainarictl task get <VIRTUAL_MACHINE_UUID> <TASK_UUID>
+    ainarictl task abort <VIRTUAL_MACHINE_UUID> <TASK_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl task get 943e56bb-c6e4-4716-a26c-f1fd46a45618 0ae2b3ed-a008-4c31-a1a8-434f558d5be1
+
+    ┌─────────────┬─────────────────────────────────────────────────────────────────────┐
+    │ CREATED BY  │ asdf                                                                │
+    │ DESCRIPTION │ Stop virtual machine with UUID 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    │ FINISHED AT │ 2026-09-26T20:03:43.083014431Z                                      │
+    │ MESSAGES    │ []                                                                  │
+    │ QUEUED AT   │ 2026-09-26T20:03:43.047004500Z                                      │
+    │ STARTED AT  │ 2026-09-26T20:03:43.054219173Z                                      │
+    │ STATE       │ Finished                                                            │
+    │ TASK TYPE   │ VirtualMachineStop                                                  │
+    │ UUID        │ 0ae2b3ed-a008-4c31-a1a8-434f558d5be1                                │
+    └─────────────┴─────────────────────────────────────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    The sakura-host is selected over the `torii_port` of a virtual machine on this host.
+
+    ```python
+    from ainari_sdk import task
+
+    task.list_tasks(context, torii_port)    # {"tasks": [...]}
+    task.get_task(context, torii_port, task_uuid)
+    task.abort_task(context, torii_port, task_uuid)
+
+    # wait until the task is done and check its result
+    result = task.wait_for_task_finished(context, torii_port, task_uuid)
+    if result["state"] != "Finished":
+        print(result["messages"])
+    ```
+
+### Snapshots
+
+A snapshot saves the root-disk of a virtual machine as new image with `is_snapshot` set. It can
+be restored into a virtual machine later on.
+
+!!! warning
+
+    A running virtual machine is only paused during the copy, so data, which is still in its
+    memory, is missing in the snapshot. Run `sync` inside the virtual machine right before creating
+    the snapshot, or stop the virtual machine before.
+
+=== "CLI"
+
+    ```bash
+    ainarictl task create snapshot_create <VIRTUAL_MACHINE_UUID> <SNAPSHOT_NAME>
+    ainarictl task create snapshot_restore -i <SNAPSHOT_IMAGE_UUID> <VIRTUAL_MACHINE_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl task create snapshot_create 943e56bb-c6e4-4716-a26c-f1fd46a45618 my-snapshot
+
+    ┌─────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ CREATED BY  │ asdf                                                                                                                         │
+    │ DESCRIPTION │ Create snapshot-image 0ff16ea5-5380-4f3d-af62-08b1fe5d615b of virtual machine with UUID 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    │ FINISHED AT │ <nil>                                                                                                                        │
+    │ MESSAGES    │ []                                                                                                                           │
+    │ QUEUED AT   │ 2026-09-26T20:06:03.073346092Z                                                                                               │
+    │ STARTED AT  │ <nil>                                                                                                                        │
+    │ STATE       │ Queued                                                                                                                       │
+    │ TASK TYPE   │ SnapshotSave                                                                                                                 │
+    │ UUID        │ ae64a8be-0031-4e72-8ba4-05939dbd2abe                                                                                         │
+    └─────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import task
+
+    task.create_snapshot_save_task(context, torii_port, virtual_machine_uuid, "my-snapshot")
+    task.create_snapshot_restore_task(context, torii_port, virtual_machine_uuid, snapshot_image_uuid)
+    ```
+
+## Secrets
+
+Secrets are stored encrypted in omamori.
+
+=== "CLI"
+
+    ```bash
+    # upload a secret
+    ainarictl secret create -p <SECRET_PAYLOAD> <NAME>
+
+    # let the server generate the payload
+    ainarictl secret generate <NAME>
+
+    ainarictl secret list
+    ainarictl secret get <SECRET_UUID>
+    ainarictl secret get-payload <SECRET_UUID>
+    ainarictl secret count
+    ainarictl secret delete <SECRET_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl secret create -p my-secret-value my-secret
+
+    ┌────────────┬──────────────────────────────────────┐
+    │ CREATED AT │ 2026-09-26T20:03:31.590033494+00:00  │
+    │ CREATED BY │ asdf                                 │
+    │ NAME       │ my-secret                            │
+    │ UPDATED AT │ 2026-09-26T20:03:31.590036109+00:00  │
+    │ UPDATED BY │ asdf                                 │
+    │ UUID       │ 4121ad18-1115-4197-a716-0031e68f327f │
+    └────────────┴──────────────────────────────────────┘
+
+    ainarictl secret get-payload 4121ad18-1115-4197-a716-0031e68f327f
+
+    ┌────────────────┬─────────────────┐
+    │ SECRET PAYLOAD │ my-secret-value │
+    └────────────────┴─────────────────┘
+    ```
+
+    !!! warning
+
+        With `-p` the secret is visible in the command-line and the shell-history.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import secret
+
+    result = secret.create_secret(context, "my-secret", "my-secret-value")
+    result = secret.generate_secret(context, "my-generated-secret")
+
+    secret.list_secrets(context)    # {"secrets": [{"uuid": ..., "name": ...}]}
+    secret.get_secret(context, secret_uuid)
+    secret.get_secret_payload(context, secret_uuid)    # {"secret_payload": "my-secret-value"}
+    secret.get_secret_count(context)    # {"number_of_items": 1}
+    secret.delete_secret(context, secret_uuid)
+    secret.delete_all_secrets(context)
+    ```
+
+## Proxies
+
+Every virtual machine gets a proxy-port on the torii automatically, which forwards to its
+sakura-host (the `torii_port` of the virtual machine). So proxies normally don't have to be managed
+by hand.
+
+=== "CLI"
+
+    ```bash
+    ainarictl proxy list
+    ainarictl proxy get <PROXY_UUID>
+    ainarictl proxy set -t <TARGET_ADDRESS> -v <VIRTUAL_MACHINE_UUID>
+    ainarictl proxy delete <PROXY_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl proxy list
+
+    ┌───────┬───────────────────────┬──────────────────────────────────────┬──────────────────────────────────────┐
+    │ PORT  │    TARGET ADDRESS     │                 UUID                 │         VIRTUAL MACHINE UUID         │
+    ├───────┼───────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+    │ 10042 │ http://sakura:11420   │ fb0e6638-b840-48e3-b474-5c7fed4dded9 │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
+    │ 10043 │ http://sakura-2:11420 │ 70871149-dec8-4911-b2cd-4a343f8c4614 │ 070af3fd-1a37-4546-b3e2-035e03b3bd65 │
+    └───────┴───────────────────────┴──────────────────────────────────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import proxy
+
+    proxy.list_proxys(context)    # {"proxys": [...]}
+    proxy.get_proxy(context, proxy_uuid)
+    proxy.set_proxy(context, target_address, virtual_machine_uuid)
+    proxy.delete_proxy(context, proxy_uuid)
+    proxy.delete_all_proxys(context)
+    ```
+
+## Projects
+
+Projects are used for logical separation of the resources of users.
+
+!!! info
+
+    Only admins are allowed to manage projects.
 
 === "CLI"
 
     ```bash
     ainarictl project create -n <NAME> <PROJECT_ID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl project create -n "cli test project" cli_test_project
-
-    +------------+---------------------+
-    | ID         | cli_test_project    |
-    | NAME       | cli test project    |
-    | CREATOR ID | asdf                |
-    | CREATED AT | 2024-07-12 20:52:21 |
-    +------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import project
-
-    address = "http://127.0.0.1:11417"
-    project_id = "test_project"
-    project_name = "Test Project"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = project.create_project(context, projet_id, project_name)
-
-    # example-content of result:
-    #
-    # {
-    #     "creator_id": "asdf",
-    #     "id": "test_project",
-    #     "name": "Test Project"
-    # }
-    ```
-
-### Get Project
-
-Get information about a project.
-
-=== "CLI"
-
-    ```bash
+    ainarictl project list
     ainarictl project get <PROJECT_ID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl project get cli_test_project
-
-    +------------+---------------------+
-    | ID         | cli_test_project    |
-    | NAME       | cli test project    |
-    | CREATOR ID | asdf                |
-    | CREATED AT | 2024-07-12 20:52:21 |
-    +------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import project
-
-    address = "http://127.0.0.1:11417"
-    project_id = "test_project"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = project.get_project(context, projet_id)
-
-    # example-content of result:
-    #
-    # {
-    #     "creator_id": "asdf",
-    #     "id": "test_project",
-    #     "name": "Test Project"
-    # }
-    ```
-
-### List Project
-
-List all projects.
-
-=== "CLI"
-
-    ```bash
-    ainarictl project list
-    ```
-
-    example:
-
-    ```bash
-    ainarictl project list
-
-    +------------------+------------------+------------+---------------------+
-    |        ID        |       NAME       | CREATOR ID |     CREATED AT      |
-    +------------------+------------------+------------+---------------------+
-    | cli_test_project | cli test project | asdf       | 2024-07-12 20:52:21 |
-    +------------------+------------------+------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import project
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = project.list_projects(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "test_project",
-    #             "Test Project",
-    #             "asdf"
-    #         ]
-    #     ],
-    #     "header": [
-    #         "id",
-    #         "name",
-    #         "creator_id"
-    #     ]
-    # }
-    ```
-
-### Delete Project
-
-Delete a project.
-
-!!! warning
-
-    At the moment there is no check, if there still exist resources within this project.
-
-=== "CLI"
-
-    ```bash
     ainarictl project delete <PROJECT_ID>
     ```
 
     example:
 
     ```bash
-    ainarictl project delete cli_test_project
+    ainarictl project create -n "my project" my_project
 
-    successfully deleted project 'cli_test_project'
+    ┌────────────┬─────────────────────────────────────┐
+    │ CREATED AT │ 2026-09-26T20:03:31.501358043+00:00 │
+    │ CREATED BY │ asdf                                │
+    │ ID         │ my_project                          │
+    │ NAME       │ my project                          │
+    │ UPDATED AT │ 2026-09-26T20:03:31.501360318+00:00 │
+    │ UPDATED BY │ asdf                                │
+    └────────────┴─────────────────────────────────────┘
     ```
 
 === "Python-SDK"
@@ -284,123 +869,47 @@ Delete a project.
     ```python
     from ainari_sdk import project
 
-    address = "http://127.0.0.1:11417"
-    project_id = "test_project"
+    result = project.create_project(context, "my_project", "my project")
 
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    project.delete_project(context, projet_id)
+    project.list_projects(context)    # {"projects": [{"id": "my_project", "name": "my project"}]}
+    project.get_project(context, "my_project")
+    project.delete_project(context, "my_project")
+    project.delete_all_projects(context)
     ```
 
-### Delete all projects
-
-Delete all projects.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import project
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    project.delete_all_projects(token, address)
-    ```
-
-## User
+## Users
 
 !!! info
 
-    These endpoints have a hard-coded requirement, that only admins are allowed to manage user.
-
-### Create User
-
-Create a new user.
-
-If the `is_admin` is set to true, the user becomes a global admin.
+    Only admins are allowed to manage users.
 
 === "CLI"
 
     ```bash
-    ./ainarictl user create -n <NAME> <USER_ID>
-
-    (the cli will request the passphrase for the new user after enter this command)
-    ```
-
-    example:
-
-    ```bash
-    ./ainarictl user create -n "cli test user" -p "asdfasdfasdf" cli_test_user
-    Enter Passphrase:
-    Enter Passphrase again:
-
-    +------------+---------------------+
-    | ID         | cli_test_user       |
-    | NAME       | cli test user       |
-    | IS ADMIN   | false               |
-    | PROJECTS   | []                  |
-    | CREATOR ID | asdf                |
-    | CREATED AT | 2024-07-12 20:52:21 |
-    +------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-    new_user = "new_user"
-    new_id = "new_user"
-    new_pw = "asdfasdf"
-    is_admin = True
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = user.create_user(context, new_id, new_user, new_pw, is_admin)
-
-    # example-content of result:
-    #
-    # {
-    #     "creator_id": "asdf",
-    #     "id": "new_user",
-    #     "is_admin": true,
-    #     "name": "new_user",
-    #     "projects": []
-    # }
-    ```
-
-### Get User
-
-Get information about a specific user.
-
-=== "CLI"
-
-    ```bash
+    ainarictl user create -n <NAME> [--is_admin] <USER_ID>
+    ainarictl user list
     ainarictl user get <USER_ID>
+    ainarictl user delete <USER_ID>
     ```
+
+    Without `-p <PASSPHRASE>` the passphrase is requested interactively. The flag should only be
+    used for automated testing, because the passphrase is visible in the command-line and the
+    shell-history.
 
     example:
 
     ```bash
-    ainarictl user get cli_test_user
+    ainarictl user create -n "my user" my_user
 
-    +------------+---------------------+
-    | ID         | cli_test_user       |
-    | NAME       | cli test user       |
-    | IS ADMIN   | false               |
-    | PROJECTS   | []                  |
-    | CREATOR ID | asdf                |
-    | CREATED AT | 2024-07-12 20:52:21 |
-    +------------+---------------------+
+    ┌────────────┬─────────────────────────────────────┐
+    │ CREATED AT │ 2026-09-26T20:03:31.521602790+00:00 │
+    │ CREATED BY │ asdf                                │
+    │ ID         │ my_user                             │
+    │ IS ADMIN   │ false                               │
+    │ NAME       │ my user                             │
+    │ UPDATED AT │ 2026-09-26T20:03:31.521603672+00:00 │
+    │ UPDATED BY │ asdf                                │
+    └────────────┴─────────────────────────────────────┘
     ```
 
 === "Python-SDK"
@@ -408,1556 +917,60 @@ Get information about a specific user.
     ```python
     from ainari_sdk import user
 
-    address = "http://127.0.0.1:11417"
-    user_id = "new_user"
+    result = user.create_user(context, "my_user", "my user", "my-passphrase", False)
 
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = user.get_user(context, user_id)
-
-    # example-content of result:
-    #
-    # {
-    #     "creator_id": "asdf",
-    #     "id": "tsugumi",
-    #     "is_admin": true,
-    #     "name": "Tsugumi",
-    #     "projects": []
-    # }
+    user.list_users(context)    # {"users": [{"id": ..., "name": ..., "is_admin": "false"}]}
+    user.get_user(context, "my_user")
+    user.delete_user(context, "my_user")
+    user.delete_all_user(context)
     ```
 
-### List User
+## Quotas
 
-List all user.
+Maximum number of resources per user. Every user can see the own quota, only admins can see and
+set the quotas of other users.
 
 === "CLI"
 
     ```bash
-    ainarictl user list
+    # own quota
+    ainarictl quota show
+
+    # admin only
+    ainarictl quota list
+    ainarictl quota get <USER_ID>
+    ainarictl quota set <USER_ID> \
+        --max_virtual_machine <N> --max_image <N> --max_secret <N> \
+        --max_network <N> --max_floating_ip <N>
     ```
 
     example:
 
     ```bash
-    ainarictl user list
+    ainarictl quota list
 
-    |      ID       |     NAME      | IS ADMIN | PROJECTS | CREATOR ID  |     CREATED AT      |
-    +---------------+---------------+----------+----------+-------------+---------------------+
-    | asdf          | asdf          | true     | []       | AINARI_INIT | 2024-06-26 16:57:35 |
-    | cli_test_user | cli test user | false    | []       | asdf        | 2024-07-12 20:52:21 |
-    +---------------+---------------+----------+----------+-------------+---------------------+
+    ┌─────────────────┬───────────┬─────────────┬────────────┬─────────────────────┬─────────┐
+    │ MAX FLOATING IP │ MAX IMAGE │ MAX NETWORK │ MAX SECRET │ MAX VIRTUAL MACHINE │ USER ID │
+    ├─────────────────┼───────────┼─────────────┼────────────┼─────────────────────┼─────────┤
+    │ 10              │ 10        │ 10          │ 10         │ 10                  │ asdf    │
+    │ 2               │ 5         │ 2           │ 5          │ 5                   │ my_user │
+    └─────────────────┴───────────┴─────────────┴────────────┴─────────────────────┴─────────┘
     ```
 
 === "Python-SDK"
 
     ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = user.list_users(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "header": [
-    #         "id",
-    #         "name",
-    #         "creator_id",
-    #         "projects",
-    #         "is_admin"
-    #     ],
-    #     "body": [
-    #         [
-    #             "asdf",
-    #             "asdf",
-    #             "MISAKI",
-    #             [],
-    #             true
-    #         ],
-    #         [
-    #             "new_user",
-    #             "new_user",
-    #             "asdf",
-    #             [],
-    #             true
-    #         ]
-    #     ]
-    # }
-    ```
-
-### Delete User
-
-Delete a user from the backend.
-
-!!! info
-
-    A user can not be deleted by himself.
-
-=== "CLI"
-
-    ```bash
-    ainarictl user delete cli_test_user
-    ```
-
-    example:
-
-    ```bash
-    ainarictl user delete cli_test_user
-
-    successfully deleted project 'cli_test_project'
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-    user_id = "new_user"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    user.delete_user(context, user_id)
-    ```
-
-### Delete all users
-
-Delete all users, except the one, who executed this action.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    user.delete_all_user(token, address)
-    ```
-
-### Add project to user
-
-Assigne a project to a normal user.
-
-The `role` is uses be the policy-file of the Ainari-instance restrict access to specific
-API-endpoints. Per default there exist `admin` and `member` as roles.
-
-If `is_project_admin` is set to true, the user can access all resources of all users within the
-project.
-
-=== "CLI"
-
-    ```bash
-    ```
-
-    example:
-
-    ```bash
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-    user_id = "new_user"
-    project_id = "test_project"
-    role = "member"
-    is_project_admin = True
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = add_roject_to_user(token,
-                                address,
-                                user_id,
-                                project_id,
-                                role,
-                                is_project_admin)
-    ```
-
-### Remove project from user
-
-Unassign a project from a user.
-
-=== "CLI"
-
-    ```bash
-
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-    user_id = "new_user"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    remove_project_fromUser(context, user_id, project_id)
-    ```
-
-### List projects of current user
-
-List projects only of the current user, which are enabled by the current token.
-
-=== "CLI"
-
-    ```bash
-
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = list_projects_of_user(token, address)
-    ```
-
-### Switch project-scrope of current user
-
-Switch to another project with the current user.
-
-=== "CLI"
-
-    ```bash
-
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import user
-
-    address = "http://127.0.0.1:11417"
-    project_id = "test_project"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = switch_project(context, project_id)
-    ```
-
-## Dataset
-
-Datasets are a bunch of train- or test-data, which can be uploaded to the server.
-
-### Upload MNIST-Dataset
-
-These are files of the official mnist-dataset, which can be uploaded and which are primary used for
-testing currently. Each dataset of this type requires the file-path to the local input- and
-label-file of the same dataset.
-
-!!! warning
-
-    Because of a lack of validation at the moment, it is easy to break the backend with unexpected
-    input.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset create mnist -i <PATH_TO_INPUT_FILE> -l <PATH_TO_LABEL_FILE> <NAME>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset create mnist -i /tmp/train-images-idx3-ubyte -l /tmp/train-labels-idx1-ubyte cli_test_dataset
-
-    +-------------------+-----------------------------------------------------------------------------------------------+
-    | UUID              | 146bacb3-b5bf-485b-a2e8-d1812b57eb63                                                          |
-    | NAME              | cli_test_dataset                                                                              |
-    | VERSION           | v1.0alpha                                                                                     |
-    | NUMBER OF COLUMNS | 794                                                                                           |
-    | NUMBER OF ROWS    | 60000                                                                                         |
-    | DESCRIPTION       | {"label":{"column_end":794,"column_start":784},"picture":{"column_end":784,"column_start":0}} |
-    | VISIBILITY        | private                                                                                       |
-    | OWNER ID          | asdf                                                                                          |
-    | PROJECT ID        | admin                                                                                         |
-    | CREATED AT        | <nil>                                                                                         |
-    +-------------------+-----------------------------------------------------------------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-    train_dataset_name = "train_test_dataset"
-    train_inputs = "/tmp/mnist/train-images.idx3-ubyte"
-    train_labels = "/tmp/mnist/train-labels.idx1-ubyte"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    dataset_uuid = dataset.upload_mnist_files(context, train_dataset_name, train_inputs, train_labels)
-
-    # example-content of dataset_uuid:
-    #
-    # 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4
-    ```
-
-### Upload CSV-Dataset
-
-!!! warning
-
-    Because of a lack of validation at the moment, it is easy to break the backend with unexpected
-    input.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset create csv -i <PATH_TO_INPUT_FILE> <NAME>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset create csv -i /tmp/test.csv test_csv
-
-    +-------------------+--------------------------------------------------------------------------------------------------+
-    | UUID              | 0923f01b-90ff-4323-9c18-fcfb655985d4                                                             |
-    | NAME              | test_csv                                                                                         |
-    | VERSION           | v1.0alpha                                                                                        |
-    | NUMBER OF COLUMNS | 2                                                                                                |
-    | NUMBER OF ROWS    | 1723                                                                                             |
-    | DESCRIPTION       | {"test_input":{"column_end":1,"column_start":0},"test_output":{"column_end":2,"column_start":1}} |
-    | TASK UUID         | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4                                                             |
-    | VISIBILITY        | private                                                                                          |
-    | OWNER ID          | asdf                                                                                             |
-    | PROJECT ID        | admin                                                                                            |
-    | CREATED AT        | 2025-03-15 22:02:47                                                                              |
-    +-------------------+--------------------------------------------------------------------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-    train_dataset_name = "train_test_dataset"
-    train_inputs = "/tmp/csv/test-file.csv"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    dataset_uuid = dataset.upload_csv_files(context, train_dataset_name, train_inputs)
-
-    # example-content of dataset_uuid:
-    #
-    # 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4
-    ```
-
-### Get Dataset
-
-Get information about a specific dataset.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset get <DATASET_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset get 146bacb3-b5bf-485b-a2e8-d1812b57eb63
-
-    +-------------------+-----------------------------------------------------------------------------------------------+
-    | UUID              | 91c3799d-556b-4562-ae6d-96d631a46a42                                                          |
-    | NAME              | cli_test_dataset_req                                                                          |
-    | VERSION           | v1.0alpha                                                                                     |
-    | NUMBER OF COLUMNS | 794                                                                                           |
-    | NUMBER OF ROWS    | 10000                                                                                         |
-    | DESCRIPTION       | {"label":{"column_end":794,"column_start":784},"picture":{"column_end":784,"column_start":0}} |
-    | TASK UUID         | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4                                                          |
-    | VISIBILITY        | private                                                                                       |
-    | OWNER ID          | asdf                                                                                          |
-    | PROJECT ID        | admin                                                                                         |
-    | CREATED AT        | 2025-03-15 22:02:47                                                                           |
-    +-------------------+-----------------------------------------------------------------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-    dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = dataset.get_dataset(context, dataset_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "inputs": 784,
-    #     "lines": 60000,
-    #     "location": "/etc/ainari/datasets/6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4_mnist_asdf",
-    #     "name": "train_test_dataset",
-    #     "outputs": 10,
-    #     "owner_id": "asdf",
-    #     "project_id": "admin",
-    #     "type": "mnist",
-    #     "task_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
-    #     "uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
-    #     "visibility": "private"
-    # }
-    ```
-
-### List Datasets
-
-List all visible datasets.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset list
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset list
-
-    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
-    |                 UUID                 |          NAME          |              TASK UUID               | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
-    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
-    | 8126302c-6d51-43d5-8f34-2c0a574b9ed7 | cli_test_dataset_train |                                      | private    | asdf     | admin      | 2025-03-15 22:02:45 |
-    | 91c3799d-556b-4562-ae6d-96d631a46a42 | cli_test_dataset_req   |                                      | private    | asdf     | admin      | 2025-03-15 22:02:47 |
-    | 91c3799d-556b-4562-ae6d-96d631a46a42 | cli_request_test_task  | 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4 | private    | asdf     | admin      | 2025-03-15 22:02:47 |
-    +--------------------------------------+------------------------+--------------------------------------+------------+----------+------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = dataset.list_datasets(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "2025-03-15 21:18:52",
-    #             "329553e0-c4c4-4139-95ee-3ace764739a5",
-    #             "admin",
-    #             "asdf",
-    #             "private",
-    #             "cli_test_dataset_train",
-    #             ""
-    #         ],
-    #         [
-    #             "2025-03-15 21:18:54",
-    #             "887d1b59-8a3e-4814-b148-8405c1d240e0",
-    #             "admin",
-    #             "asdf",
-    #             "private",
-    #             "cli_test_dataset_req",
-    #             ""
-    #         ],
-    #         [
-    #             "2025-03-15 21:20:17",
-    #             "38f464b8-d627-4ab5-944c-94391dd1962d",
-    #             "admin",
-    #             "asdf",
-    #             "private",
-    #             "cli_request_test_task",
-    #             "38f464b8-d627-4ab5-944c-94391dd1962d"
-    #         ]
-    #     ],
-    #     "header": [
-    #         "created_at",
-    #         "uuid",
-    #         "project_id",
-    #         "owner_id",
-    #         "visibility",
-    #         "name",
-    #         "task_uuid"
-    #     ]
-    # }
-    ```
-
-### Delete Dataset
-
-Delete a dataset.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset delete <DATASET_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset delete 146bacb3-b5bf-485b-a2e8-d1812b57eb63
-
-    successfully deleted dataset '146bacb3-b5bf-485b-a2e8-d1812b57eb63'
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-    dataset_uuid = "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    dataset.delete_dataset(context, dataset_uuid)
-    ```
-
-### Delete all Datasets
-
-Delete all datasets.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import dataset
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    dataset.delete_all_datasets(token, address)
-    ```
-
-### Check MNIST Dataset Result
-
-Checks a resulting dataset from an MNIST-test against a reference-dataset to compare how much of the
-output of the network was correct. The output gives the percentage of the correct output-values. It
-is primary used for automatic testing.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset check -r <REFERENCE_DATASET_UUID> <COMPARE_DATASET_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset check -r 6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4 d40c0c06-bd28-49a4-b872-6a70c4750bb9
-
-    +----------+-------------------+
-    | ACCURACY | 91.22999572753906 |
-    +----------+-------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import request_result
-
-    address = "http://127.0.0.1:11417"
-    reference_dataset_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
-    dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = request_result.check_mnist_dataset(token,
-                                                address,
-                                                dataset_uuid,
-                                                reference_dataset_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "accuracy": 93.40999603271484
-    # }
-    ```
-
-### Download Dataset content
-
-At the moment it is not possible to download complete datasets via websocket, like it is done for
-the upload. For now there is only an endpoint to request a slice of a dataset.
-
-=== "CLI"
-
-    ```bash
-    ainarictl dataset content -c <COLUMN_NAME>  -n <NUMBER_OF_ROWS> -o <ROW_OFFSET>  <DATASET_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl dataset content -c test_output -o 100 -n 10 718566ed-b8a7-4d69-8cf5-d3eb7d75e30b
-
-    +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
-    |     |    0     |    1     |    2     |    3     |    4     |    5     |    6     |    7     |    8     |    9     |
-    +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
-    | 100 | 0.016387 | 0.002124 | 0.010096 | 0.000188 | 0.017916 | 0.001169 | 0.964437 | 0.003989 | 0.002181 | 0.228054 |
-    | 101 | 0.916684 | 0.002899 | 0.003278 | 0.000233 | 0.000781 | 0.026245 | 0.001160 | 0.004049 | 0.021715 | 0.001850 |
-    | 102 | 0.001839 | 0.000525 | 0.000984 | 0.017098 | 0.001073 | 0.912213 | 0.000645 | 0.027830 | 0.022612 | 0.016936 |
-    | 103 | 0.001453 | 0.000520 | 0.001891 | 0.000291 | 0.978680 | 0.002586 | 0.001325 | 0.008534 | 0.000475 | 0.003352 |
-    | 104 | 0.002475 | 0.000776 | 0.002657 | 0.085600 | 0.004949 | 0.008605 | 0.001795 | 0.008018 | 0.000428 | 0.842937 |
-    | 105 | 0.002862 | 0.002042 | 0.000669 | 0.000687 | 0.038985 | 0.004651 | 0.001625 | 0.014875 | 0.005904 | 0.969930 |
-    | 106 | 0.005426 | 0.003454 | 0.940081 | 0.012480 | 0.002740 | 0.002005 | 0.007840 | 0.002082 | 0.001886 | 0.000216 |
-    | 107 | 0.005302 | 0.903132 | 0.005140 | 0.005941 | 0.000177 | 0.009913 | 0.002384 | 0.002448 | 0.130046 | 0.003401 |
-    | 108 | 0.000278 | 0.000692 | 0.000237 | 0.010781 | 0.005375 | 0.037098 | 0.007750 | 0.012575 | 0.004456 | 0.901723 |
-    | 109 | 0.002321 | 0.000556 | 0.001553 | 0.000226 | 0.858400 | 0.002418 | 0.006818 | 0.017290 | 0.001165 | 0.016600 |
-    +-----+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
-    ```
-
-    (first column of the table is the row-counter starting by the defined row-offset)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import request_result
-
-    address = "http://127.0.0.1:11417"
-    dataset_uuid = "d40c0c06-bd28-49a4-b872-6a70c4750bb9"
-    column_name = "test_output"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = dataset.download_dataset_content(token,
-                                              address,
-                                              dataset_uuid,
-                                              column_name,
-                                              2,    # number of rows
-                                              100)  # offset
-
-    # example-content of result:
-    #
-    # {
-    #     "data": [
-    #         [
-    #             0.0035933551844209433,
-    #             0.0016254606889560819,
-    #             0.024600498378276825,
-    #             0.002956731477752328,
-    #             0.002234742045402527,
-    #             0.0011109848273918033,
-    #             0.8660337328910828,
-    #             0.00447552977129817,
-    #             0.04139076545834541,
-    #             0.0272488035261631
-    #         ],
-    #         [
-    #             0.8367037773132324,
-    #             0.002998552517965436,
-    #             0.0006984848878346384,
-    #             0.008744454011321068,
-    #             0.00039861834375187755,
-    #             0.013055858202278614,
-    #             0.00038920185761526227,
-    #             0.003807016182690859,
-    #             0.005977323278784752,
-    #             0.004582217428833246
-    #         ]
-    #     ]
-    # }
-
-    ```
-
-## Model
-
-Model containing the neural network.
-
-### Create Model
-
-To initialize a new model, a model-templated is used, which describes the basic structure of the
-network (see documentation of the
-[model-templates](https://docs.ainari.cloud/api/model_template/))
-
-=== "CLI"
-
-    ```bash
-    ainarictl model create -t <PATH_TO_TEMPLATE> <NAME>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model create -t ./model_template cli_test_model
-
-    +------------+--------------------------------------+
-    | UUID       | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
-    | NAME       | cli_test_model                     |
-    | VISIBILITY | private                              |
-    | OWNER ID   | asdf                                 |
-    | PROJECT ID | admin                                |
-    | CREATED AT | 2024-07-13 21:45:56                  |
-    +------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    model_name = "test_model"
-    model_template = \
-        "version: 1\n" \
-        "settings:\n" \
-        "    neuron_cooldown: 10000000.0\n" \
-        "    refractory_time: 1\n" \
-        "    max_connection_distance: 1\n" \
-        "hexagons:\n" \
-        "    1,1,1\n" \
-        "    2,1,1\n" \
-        "    3,1,1\n" \
-        "    \n" \
-        "inputs:\n" \
-        "    picture: 1,1,1\n" \
-        "\n" \
-        "outputs:\n" \
-        "    label: 3,1,1\n" \
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.create_model(context, model_name, model_template)
-
-    # example-content of result:
-    #
-    # {
-    #     "name": "test_model",
-    #     "owner_id": "asdf",
-    #     "project_id": "admin",
-    #     "uuid": "d94f2b53-f404-4215-9a33-63c4a03e3202",
-    #     "visibility": "private"
-    # }
-    ```
-
-### Get Model
-
-Get information of a specific model.
-
-!!! info It is basically the same output like coming from the create command and contains only the
-
-data stored in the database. Information about the model itself, like number of neurons, amount of
-used memory and so on are still missing in this output currently.
-
-=== "CLI"
-
-    ```bash
-    ainarictl model get <CLUSTER_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model get 12959485-51a7-45bc-84dd-aad1c9bfd510
-
-    +--------------------+--------------------------------------+
-    | UUID               | 12959485-51a7-45bc-84dd-aad1c9bfd510 |
-    | NAME               | cli_test_model                     |
-    | VISIBILITY         | private                              |
-    | OWNER ID           | asdf                                 |
-    | NUMBER OF BLOCKS   | 3                                    |
-    | NUMBER OF SECTIONS | 973                                  |
-    | PROJECT ID         | admin                                |
-    | CREATED AT         | 2024-07-13 21:45:56                  |
-    +--------------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.get_model(context, model_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "name": "test_model",
-    #     "owner_id": "asdf",
-    #     "project_id": "admin",
-    #     "number_of_blocks": 3,
-    #     "number_of_sections": 973,
-    #     "uuid": "d94f2b53-f404-4215-9a33-63c4a03e3202",
-    #     "visibility": "private"
-    # }
-    ```
-
-### List Model
-
-List all visible model.
-
-=== "CLI"
-
-    ```bash
-    ainarictl model list
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model list
-
-    +--------------------------------------+------------------+------------+----------+------------+---------------------+
-    |                 UUID                 |       NAME       | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
-    +--------------------------------------+------------------+------------+----------+------------+---------------------+
-    | 12959485-51a7-45bc-84dd-aad1c9bfd510 | cli_test_model | private    | asdf     | admin      | 2024-07-13 21:45:56 |
-    +--------------------------------------+------------------+------------+----------+------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.list_models(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "d94f2b53-f404-4215-9a33-63c4a03e3202",
-    #             "admin",
-    #             "asdf",
-    #             "private",
-    #             "test_model"
-    #         ]
-    #     ],
-    #     "header": [
-    #         "uuid",
-    #         "project_id",
-    #         "owner_id",
-    #         "visibility",
-    #         "name"
-    #     ]
-    # }
-    ```
-
-### Delete Model
-
-Delete a model from a backend.
-
-=== "CLI"
-
-    ```bash
-    ainarictl model delete <CLUSTER_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model delete 12959485-51a7-45bc-84dd-aad1c9bfd510
-
-    successfully deleted model '12959485-51a7-45bc-84dd-aad1c9bfd510'
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    model.delete_model(context, model_uuid)
-    ```
-
-### Delete all Model
-
-Delete all model.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    model.delete_all_model(token, address)
-    ```
-
-### Create Checkpoint of Model
-
-Save the state of the model by creating a checkpoint, which is stored on the server.
-
-=== "CLI"
-
-    ```bash
-    ainarictl model save -n <NAME> <CLUSTER_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model save -n cli_test_checkpoint d28d72f0-f95f-42bd-b14d-b7e12d3b9d82
-
-    +------------+--------------------------------------+
-    | UUID       | d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 |
-    | NAME       | cli_test_checkpoint                  |
-    +------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    checkpoint_name = "test_checkpoint"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.save_model(context, checkpoint_name, model_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "name": "test_checkpoint",
-    #     "uuid": "d7130869-520f-4743-8f90-4f17f3382321"
-    # }
-    ```
-
-### Restore Checkpoint of Model
-
-Reset a model to the state, which is stored in a specific checkpoint.
-
-=== "CLI"
-
-    ```bash
-    ainarictl model restore -c <CHECKPOINT_UUID> <CLUSTER_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl model restore -c d28d72f0-f95f-42bd-b14d-b7e12d3b9d82 cc6120c7-cc31-4f17-baee-c6c606f00512
-
-    +------------+--------------------------------------+
-    | UUID       | 6e7a911e-5f81-4ffb-9de0-2b6717b1be52 |
-    +------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
-    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.restore_model(context, checkpoint_uuid, model_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "uuid": "e27e4834-64df-4db2-883e-9bfb44bc6753"
-    # }
-    ```
-
-### Switch Host
-
-Each CPU and GPU is handled as its logical host. Model and be moved between them. To list
-avaialble hosts there is the
-[list-hosts endpoint](https://docs.ainari.cloud/api/sdk_library/#list-hosts).
-
-!!! warning
-
-    GPU-support is not available at the moment and multi CPU is also still not supported, so this
-    function is basically not avaiable in the current state
-
-=== "CLI"
-
-    (Not implemented by the CLI)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import model
-
-    address = "http://127.0.0.1:11417"
-    host_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
-    model_uuid = "d94f2b53-f404-4215-9a33-63c4a03e3202"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = model.switch_host(context, model_uuid, host_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "name": "test_model",
-    #     "owner_id": "asdf",
-    #     "project_id": "admin",
-    #     "uuid": "d94f2b53-f404-4215-9a33-63c4a03e3202",
-    #     "visibility": "private"
-    # }
-    ```
-
-## Task
-
-Tasks are asynchronous actions, which are placed within a queue of the model, which should be
-affected by the task. They are processed one after another.
-
-### Create Train-Task
-
-Create a new task to train the model with the data of a dataset, which was uploaded before.
-
-=== "CLI"
-
-    ```bash
-    ainarictl task create train -j \
-    -i <INPUT_DATASET_UUID>:<INPUT_DATASET_COLUMN_NAME>:<INPUT_HEXAGON_NAME> \
-    -o <LABEL_DATASET_UUID>:<LABEL_DATASET_COLUMN_NAME>:<LABEL_HEXAGON_NAME> \
-    -c <CLUSTER_UUID> \
-    <TASK_NAME>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl task create train -j \
-    -i b03d1682-8f5b-48cb-bff5-08b67e8de6fe:picture:picture_hexagon \
-    -o b833ddbe-55db-49d5-97b7-771293505493:label:label_hexagon \
-    -c 9f86921d-9a7c-44a2-836c-1683928d9354 \
-    cli_train_test_task
-
-    +------------------------+--------------------------------------+
-    | UUID                   | 2e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc |
-    | STATE                  | active                               |
-    | CURRENT CYCLE          | 171                                  |
-    | TOTAL NUMBER OF CYCLES | 60000                                |
-    | QUEUE TIMESTAMP        | 2024-07-13 22:21:13                  |
-    | START TIMESTAMP        | 2024-07-13 22:21:13                  |
-    | END TIMESTAMP          | -                                    |
-    +------------------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    task_name = "test_task"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-    inputs = [
-        {
-            "dataset_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
-            "dataset_column": "picture",
-            "hexagon_name": "picture_hex"
-        }
-    ]
-
-    outputs = [
-        {
-            "dataset_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
-            "dataset_column": "label",
-            "hexagon_name": "label_hex"
-        }
-    ]
-
-
-    # inputs and outputs are maps with key-value-pairs,
-    # where the key is the name of the hexagon of the matching
-    # field within the dataset and the value is the UUID of
-    # the used dataset for the input- and output-data
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = task.create_train_task(token,
-                                    address,
-                                    task_name,
-                                    model_uuid,
-                                    inputs,
-                                    outputs)
-    task_uuid = result["uuid"]
-
-    # optional you can wait until the task is finished
-    task.wait_for_task_finished(context, task_uuid, model_uuid, 1.0)
-    ```
-
-### Create Request-Task
-
-Create a new task to request information from a trained model. As input the data of a dataset are
-used, which had to be uplaoded first.
-
-=== "CLI"
-
-    ```bash
-    ainarictl task create request -j \
-    -i <INPUT_DATASET_UUID>:<INPUT_DATASET_COLUMN_NAME>:<INPUT_HEXAGON_NAME> \
-    -r <OUTPUT_HEXAGON_NAME>:<OUTPUT_DATASET_COLUMN_NAME> \
-    -c <CLUSTER_UUID> \
-    <TASK_NAME>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl task create train -j \
-    -i b03d1682-8f5b-48cb-bff5-08b67e8de6fe:picture:picture_hexagon \
-    -r label_hexagon:output_data \
-    -c 9f86921d-9a7c-44a2-836c-1683928d9354 \
-    cli_train_test_task
-
-    +------------------------+--------------------------------------+
-    | UUID                   | ec964017-ee19-4775-8fff-4f3fb3640361 |
-    | STATE                  | finished                             |
-    | CURRENT CYCLE          | 10000                                |
-    | TOTAL NUMBER OF CYCLES | 10000                                |
-    | QUEUE TIMESTAMP        | 2024-07-13 22:21:23                  |
-    | START TIMESTAMP        | 2024-07-13 22:21:23                  |
-    | END TIMESTAMP          | 2024-07-13 22:21:23                  |
-    +------------------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    task_name = "test_task"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-    inputs = [
-        {
-            "dataset_uuid": "6f2bbcd2-7081-4b08-ae1d-16e6cd6f54c4",
-            "dataset_column": "picture",
-            "hexagon_name": "picture_hex"
-        }
-    ]
-
-    results = [
-        {
-            "dataset_column": "test_output",
-            "hexagon_name": "label_hex"
-        }
-    ]
-
-
-    # inputs and results are maps with key-value-pairs,
-    # where the key is the name of the hexagon of the matching
-    # field within the dataset and the value is the UUID of
-    # the used dataset for the input- and output-data
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = task.create_request_task(token,
-                                      address,
-                                      task_name,
-                                      model_uuid,
-                                      inputs,
-                                      results)
-    task_uuid = result["uuid"]
-
-    # optional you can wait until the task is finished
-    task.wait_for_task_finished(context, task_uuid, model_uuid, 1.0)
-    ```
-
-### Get Task
-
-=== "CLI"
-
-    ```bash
-    ainarictl task get -c <CLUSTER_UUID> <TASK_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl task get -c 9f86921d-9a7c-44a2-836c-1683928d93542e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc
-
-    +------------------------+--------------------------------------+
-    | UUID                   | 2e28e3bb-af45-4fbc-8ce3-c0c9a8e704bc |
-    | STATE                  | finished                             |
-    | CURRENT CYCLE          | 60000                                |
-    | TOTAL NUMBER OF CYCLES | 60000                                |
-    | QUEUE TIMESTAMP        | 2024-07-13 22:21:13                  |
-    | START TIMESTAMP        | 2024-07-13 22:21:13                  |
-    | END TIMESTAMP          | 2024-07-13 22:21:21                  |
-    +------------------------+--------------------------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-    task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = task.get_task(context, task_uuid, model_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "end_timestamp": "-",
-    #     "percentage_finished": 0.6904833316802979,
-    #     "queue_timestamp": "2024-01-08 21:19:16",
-    #     "start_timestamp": "2024-01-08 21:19:16",
-    #     "state": "active"
-    # }
-    ```
-
-### List Task
-
-List all tasks for a model, together with their progress.
-
-=== "CLI"
-
-    ```bash
-    ainarictl task list -c <CLUSTER_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ./ainarictl task list -c 49d50999-c47f-48cb-906b-211218f897e4
-
-    +--------------------------------------+----------+
-    |                 UUID                 |  STATE   |
-    +--------------------------------------+----------+
-    | 97bdb8e7-c23f-41dc-af92-5cb77e2843a4 | active   |
-    | efb1eb3b-a3fd-4dca-9cfa-84d728dc69eb | finished |
-    +--------------------------------------+----------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = task.list_tasks(context, model_uuid)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "ef2ee9e9-d724-49bb-b656-2d5e3484b9f3",
-    #             "finished",
-    #             "1.000000",
-    #             "2024-01-08 21:19:23",
-    #             "2024-01-08 21:19:23",
-    #             "2024-01-08 21:19:23"
-    #         ]
-    #     ],
-    #     "header": [
-    #         "uuid",
-    #         "state",
-    #         "percentage",
-    #         "queued",
-    #         "start",
-    #         "end"
-    #     ]
-    # }
-    ```
-
-### Delete Task
-
-Delete a task from a model. In this task was a request and produced a request-result, this result
-will not be deleted.
-
-=== "CLI"
-
-    ```bash
-    ainarictl task delete -c <CLUSTER_UUID> <TASK_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl task delete -c 49d50999-c47f-48cb-906b-211218f897e4 ddbf5bc1-3487-4755-8651-a96842ccec12
-
-    successfully deleted task 'ddbf5bc1-3487-4755-8651-a96842ccec12'
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-    task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    task.delete_task(context, task_uuid, model_uuid)
-    ```
-
-### Wait until Task is finished
-
-Delete a task from a model. In this task was a request and produced a request-result, this result
-will not be deleted.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import task
-
-    address = "http://127.0.0.1:11417"
-    model_uuid = "9f86921d-9a7c-44a2-836c-1683928d9354"
-    task_uuid = "c7f7e274-5d7d-4696-8591-18441cb1b685"
-    time_interval = 0.1  # time-interval to check if finished, in seconds
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    task.wait_for_task_finished(context, task_uuid, model_uuid, time_interval)
-    ```
-
-## Checkpoint
-
-Checkpoints are a copy of the current state of a model. It can be used as backup to restore an
-older state a model.
-
-!!! info
-
-    It is possible to apply a checkpoint to any model, but at the moment it is not possible to
-    directly create a new model out of a checkpoint.
-
-### List Checkpoints
-
-List all visible checkpoints.
-
-=== "CLI"
-
-    ```bash
-    ainarictl checkpoint list
-    ```
-
-    example:
-
-    ```bash
-    ainarictl checkpoint list
-
-    +--------------------------------------+---------------------+------------+----------+------------+---------------------+
-    |                 UUID                 |        NAME         | VISIBILITY | OWNER ID | PROJECT ID |     CREATED AT      |
-    +--------------------------------------+---------------------+------------+----------+------------+---------------------+
-    | 9303816f-e575-410b-a75d-8444ff3ac303 | cli_test_checkpoint | private    | asdf     | admin      | 2024-07-12 20:46:50 |
-    +--------------------------------------+---------------------+------------+----------+------------+---------------------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import checkpoint
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = checkpoint.list_checkpoints(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "cc6120c7-cc31-4f17-baee-c6c606f00512",
-    #             "admin",
-    #             "asdf",
-    #             "private",
-    #             "test_checkpoint"
-    #         ]
-    #     ],
-    #     "header": [
-    #         "uuid",
-    #         "project_id",
-    #         "owner_id",
-    #         "visibility",
-    #         "name"
-    #     ]
-    # }
-    ```
-
-### Delete Checkpoint
-
-Delete a checkpoint from the backend.
-
-=== "CLI"
-
-    ```bash
-    ainarictl checkpoint delete <CHECKPOINT_UUID>
-    ```
-
-    example:
-
-    ```bash
-    ainarictl checkpoint delete 84eaae8e-aeae-4db4-840e-ca38f4461ec7
-
-    successfully deleted checkpoint '84eaae8e-aeae-4db4-840e-ca38f4461ec7'
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import checkpoint
-
-    address = "http://127.0.0.1:11417"
-    checkpoint_uuid = "cc6120c7-cc31-4f17-baee-c6c606f00512"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    checkpoint.delete_checkpoint(context, checkpoint_uuid)
-
-    ```
-
-### Delete all Checkpoints
-
-Delete all checkpoint.
-
-=== "CLI"
-
-    (not implemented yet)
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import checkpoint
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    checkpoint.delete_all_checkpoints(token, address)
-    ```
-
-## Hosts
-
-### List Hosts
-
-Each CPU and GPU is handled as its own logical host to have more control over the exact location of
-the data. These logical hosts can be listed with this endpoint.
-
-=== "CLI"
-
-    ```bash
-    ainarictl host list
-    ```
-
-    example:
-
-    ```bash
-    ainarictl host list
-
-    +--------------------------------------+------+
-    |                 UUID                 | TYPE |
-    +--------------------------------------+------+
-    | e82a8848-e23c-4c60-9017-d98414cf3c0d | cpu  |
-    +--------------------------------------+------+
-    ```
-
-=== "Python-SDK"
-
-    ```python
-    from ainari_sdk import hosts
-
-    address = "http://127.0.0.1:11417"
-
-    # request a token for a user, who has admin-permissions
-    # see: https://docs.ainari.cloud/api/sdk_library/#request-token
-
-    result = hosts.list_hosts(token, address)
-
-    # example-content of result:
-    #
-    # {
-    #     "body": [
-    #         [
-    #             "cc6120c7-cc31-4f17-baee-c6c606f00512",
-    #             "cpu",
-    #         ]
-    #     ],
-    #     "header": [
-    #         "uuid",
-    #         "type"
-    #     ]
-    # }
+    from ainari_sdk import quota
+
+    quota.get_own_quota(context)
+
+    # admin only
+    quota.list_quotas(context)    # {"quotas": [...]}
+    quota.get_quota(context, "my_user")
+    quota.set_quota(context, "my_user",
+                    5,    # max_virtual_machine
+                    5,    # max_image
+                    5,    # max_secret
+                    2,    # max_network
+                    2)    # max_floating_ip
     ```

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -25,6 +25,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::functions::sha256_hash;
+use ainari_common::objects::*;
 use ainari_common::secret::Secret;
 
 // Define the schema for the users table in the database
@@ -61,11 +62,14 @@ pub struct UserEntry {
     pub pw_hash: String,
     pub salt: String,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
 }
 
@@ -224,15 +228,15 @@ pub fn add_new_user(
         pw_hash,
         salt,
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_user(&user)
+    add_user(user.clone())
 }
 
 /// Inserts a user into the database.
@@ -246,7 +250,7 @@ pub fn add_new_user(
 /// # Returns
 ///
 /// Returns the number of rows affected by the insert operation.
-pub fn add_user(user: &UserEntry) -> QueryResult<usize> {
+pub fn add_user(user: UserEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
 
@@ -412,9 +416,9 @@ mod tests {
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -422,7 +426,7 @@ mod tests {
 
         hard_delete_user(&user.id);
 
-        add_user(&user).unwrap();
+        add_user(user.clone()).unwrap();
         if let Ok(retrieved_user) = get_user(&owner_id, &context) {
             assert_eq!(retrieved_user.id, user.id);
             assert_eq!(retrieved_user.name, user.name);
@@ -463,9 +467,9 @@ mod tests {
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -479,9 +483,9 @@ mod tests {
             pw_hash: "hash456".to_string(),
             salt: "salt456".to_string(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -490,8 +494,8 @@ mod tests {
         hard_delete_user(&user1.id);
         hard_delete_user(&user2.id);
 
-        add_user(&user1).unwrap();
-        add_user(&user2).unwrap();
+        add_user(user1.clone()).unwrap();
+        add_user(user2.clone()).unwrap();
 
         let users = list_users(&context).unwrap();
         assert_eq!(users.len(), 1);
@@ -522,9 +526,9 @@ mod tests {
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -532,7 +536,7 @@ mod tests {
 
         hard_delete_user(&user.id);
 
-        add_user(&user).unwrap();
+        add_user(user).unwrap();
         let _ = delete_user(&owner_id, &context);
         let result = get_user(&owner_id, &context);
         assert!(result.is_err());

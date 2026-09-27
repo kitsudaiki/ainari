@@ -153,11 +153,7 @@ impl ProxyHandler {
 
         // Add each proxy to the handler
         for proxy in proxys {
-            let uuid = Uuid::parse_str(&proxy.uuid).map_err(|e| {
-                AinariError::InternalError(format!(
-                    "Failed to convert proxy-uuid with error: '{e}'"
-                ))
-            })?;
+            let uuid = proxy.uuid;
 
             let port = proxy.port as u16;
             self.add_proxy(&uuid, port, &proxy.target_address).await?;

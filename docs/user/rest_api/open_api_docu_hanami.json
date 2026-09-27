@@ -20,7 +20,6 @@
         ],
         "summary": "Get version",
         "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
-        "operationId": "get_v1alpha-version-1e2836c8de57ab886569fa1a9ee2e045",
         "responses": {
           "200": {
             "description": "",
@@ -54,7 +53,6 @@
         ],
         "summary": "Get ready status",
         "description": "Get status of the service endpoint.",
-        "operationId": "get_v1alpha-is_ready-c5ef651c8ed632b0da8bc3d752a27721",
         "responses": {
           "200": {
             "description": "",
@@ -78,19 +76,18 @@
         ]
       }
     },
-    "/v1alpha/model": {
+    "/v1alpha/virtual_machine": {
       "post": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Create new model",
-        "description": "Create new model based on a model-template.",
-        "operationId": "post_v1alpha-model-d6834d23668b0943b119758597b23710",
+        "summary": "Reserve new virtual_machine",
+        "description": "Reserve a new virtual_machine together with its address within the given network.\\\n\\\nThe virtual_machine is placed on a random sakura-host, which has enough free cores, memory and\\\ndisk-space for it. The image and the public-key are not set here, but by the following\\\ncreate-call.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ModelCreateReq"
+                "$ref": "#/components/schemas/VirtualMachineCreateReq"
               }
             }
           },
@@ -102,44 +99,60 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "ModelResp",
+                  "title": "VirtualMachineResp",
                   "type": "object",
                   "required": [
                     "created_at",
                     "created_by",
-                    "inputs",
+                    "disk_size",
+                    "image_uuid",
+                    "internal_ip",
+                    "memory_size",
                     "name",
-                    "outputs",
-                    "template",
+                    "network_uuid",
+                    "number_of_cores",
                     "torii_port",
                     "updated_at",
                     "updated_by",
-                    "uuid"
+                    "uuid",
+                    "vm_state"
                   ],
                   "properties": {
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "created_by": {
                       "type": "string"
                     },
-                    "inputs": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                    "disk_size": {
+                      "description": "size of the disk of the virtual_machine in GiB",
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "image_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "internal_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "memory_size": {
+                      "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+                      "type": "integer",
+                      "format": "int64"
                     },
                     "name": {
                       "type": "string"
                     },
-                    "outputs": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                    "network_uuid": {
+                      "type": "string",
+                      "format": "uuid"
                     },
-                    "template": {
-                      "type": "string"
+                    "number_of_cores": {
+                      "type": "integer",
+                      "format": "int32"
                     },
                     "torii_port": {
                       "type": "integer",
@@ -147,7 +160,8 @@
                       "minimum": 0.0
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_by": {
                       "type": "string"
@@ -155,6 +169,10 @@
                     "uuid": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "vm_state": {
+                      "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
+                      "type": "string"
                     }
                   }
                 }
@@ -166,6 +184,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -180,18 +201,17 @@
       },
       "get": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "List model",
-        "description": "List basic information of all model from the database.",
-        "operationId": "get_v1alpha-model-d6834d23668b0943b119758597b23710",
+        "summary": "List virtual_machines",
+        "description": "List basic information of all virtual_machines from the database.\\\n\\\nThe memory is given in MiB and the disk-size in GiB.",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModelListResp"
+                  "$ref": "#/components/schemas/VirtualMachineListResp"
                 }
               }
             }
@@ -211,14 +231,13 @@
         ]
       }
     },
-    "/v1alpha/model/count": {
+    "/v1alpha/virtual_machine/count": {
       "get": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Get number of model of the user",
-        "description": "Get number of model of the user from the database.",
-        "operationId": "get_v1alpha-model-count-08c01446446446eb87efe0bfdc8495f1",
+        "summary": "Get number of virtual_machines of the user",
+        "description": "Get number of virtual_machines of the user from the database.",
         "responses": {
           "200": {
             "description": "",
@@ -230,14 +249,8 @@
               }
             }
           },
-          "400": {
-            "description": "Bad request"
-          },
           "401": {
             "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -251,17 +264,16 @@
         ]
       }
     },
-    "/v1alpha/model/{model_uuid}": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}": {
       "get": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Get model",
-        "description": "Get information of a model from the database.",
-        "operationId": "get_v1alpha-model-259c3173bf01fa263064729538fec4c3",
+        "summary": "Get virtual_machine",
+        "description": "Get information of a virtual_machine from the database.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -277,7 +289,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModelResp"
+                  "$ref": "#/components/schemas/VirtualMachineResp"
                 }
               }
             }
@@ -304,14 +316,13 @@
       },
       "delete": {
         "tags": [
-          "model"
+          "virtual_machine"
         ],
-        "summary": "Delete model",
-        "description": "Delete a model from the database and core.",
-        "operationId": "delete_v1alpha-model-259c3173bf01fa263064729538fec4c3",
+        "summary": "Delete virtual_machine",
+        "description": "Delete a virtual_machine.\\\n\\\nIt is deleted on its sakura-host in the background. A watcher releases its cores, memory and\\\ndisk-space on the host, as soon as the sakura-host has finished the deletion. Its metadata is removed from the database, the\\\nproxy, which is connected to it, is deleted on the torii and the routes from and\\\nto the virtual_machine are removed from the gateways of its network.",
         "parameters": [
           {
-            "name": "model_uuid",
+            "name": "virtual_machine_uuid",
             "in": "path",
             "required": true,
             "schema": {
@@ -346,19 +357,560 @@
         ]
       }
     },
+    "/v1alpha/network": {
+      "post": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Create new network",
+        "description": "Create new network.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NetworkCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "NetworkResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "subnet",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "subnet": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "List networks",
+        "description": "List basic information of all networks from the database.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network/{network_uuid}": {
+      "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Get network",
+        "description": "Get information of a network from the database.",
+        "parameters": [
+          {
+            "name": "network_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Delete network",
+        "description": "Delete a network from the database.",
+        "parameters": [
+          {
+            "name": "network_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/floating_ip": {
+      "post": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Create new floating_ip",
+        "description": "Create new floating_ip.\\\n\\\nThe floating ip-address is only reserved and not attached to any virtual_machine. If no\\\nfloating ip-address is requested, a free one is selected. If a virtual_machine is given, the\\\nfloating ip-address is attached to it directly. If this attach fails, the reservation is\\\nreleased again.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FloatingIpCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "FloatingIpResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "floating_ip",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "floating_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "internal_ip": {
+                      "description": "Internal IP-address of the attached virtual_machine. Not set, if the floating IP-address is detached.",
+                      "type": "string",
+                      "format": "ipv4",
+                      "nullable": true
+                    },
+                    "network_uuid": {
+                      "description": "Network of the attached virtual_machine. Not set, if the floating IP-address is detached.",
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "List floating_ips",
+        "description": "List basic information of all floating_ips from the database.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FloatingIpListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/floating_ip/{floating_ip_uuid}": {
+      "get": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Get floating_ip",
+        "description": "Get information of a floating_ip from the database.",
+        "parameters": [
+          {
+            "name": "floating_ip_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FloatingIpResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Delete floating_ip",
+        "description": "Delete a floating_ip.\\\n\\\nIf the floating_ip is still attached to a virtual_machine, it is detached first, so the\\\naddress is never released while the torii still translates it.",
+        "parameters": [
+          {
+            "name": "floating_ip_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/floating_ip/{floating_ip_uuid}/attach": {
+      "put": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Attach floating_ip",
+        "description": "Attach a floating_ip to a virtual_machine.\\\n\\\nThe network and the internal ip-address of the virtual_machine are read from the database and\\\nthe NAT of the floating ip-address is registered in the torii. A floating_ip can only be\\\nattached to one virtual_machine and a virtual_machine can only have one floating_ip.",
+        "parameters": [
+          {
+            "name": "floating_ip_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FloatingIpAttachReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FloatingIpResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/floating_ip/{floating_ip_uuid}/detach": {
+      "put": {
+        "tags": [
+          "floating_ip"
+        ],
+        "summary": "Detach floating_ip",
+        "description": "Detach a floating_ip from its virtual_machine.\\\n\\\nThe NAT of the floating ip-address is removed from the torii, but the floating ip-address stays\\\nreserved, so it can be attached to another virtual_machine again. Detaching a floating_ip,\\\nwhich is not attached, has no effect.",
+        "parameters": [
+          {
+            "name": "floating_ip_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FloatingIpResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/host/internal": {
       "post": {
         "tags": [
           "host"
         ],
-        "summary": "Register new host",
-        "description": "Register new host.",
-        "operationId": "post_v1alpha-host-internal-62027aebc96d0c46798d689d9d5c30aa",
+        "summary": "Register new sakura-host",
+        "description": "Register a new sakura-host.\\\n\\\nThis is called by the sakura-host itself without user-interaction, so it requires\\\nno token, but is protected by the internal api-key and the registration-key.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/HostCreateReq"
+                "$ref": "#/components/schemas/SakuraHostCreateReq"
               }
             }
           },
@@ -383,7 +935,8 @@
                   ],
                   "properties": {
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "created_by": {
                       "type": "string"
@@ -395,7 +948,8 @@
                       "type": "string"
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_by": {
                       "type": "string"
@@ -432,16 +986,15 @@
         "tags": [
           "host"
         ],
-        "summary": "List host",
-        "description": "List basic information of all host from the database.",
-        "operationId": "get_v1alpha-host-admin-166c09562c8c2f6e544f05937de0f78b",
+        "summary": "List hosts",
+        "description": "List basic information of all hosts from the database.\\\n\\\nThis contains the resources of each host and how much of them is allocated by virtual-machines.\\\nThe memory is given in MiB and the disk-space in GiB.",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HostListResp"
+                  "$ref": "#/components/schemas/SakuraHostListResp"
                 }
               }
             }
@@ -468,7 +1021,6 @@
         ],
         "summary": "Get host",
         "description": "Get information of a host from the database.",
-        "operationId": "get_v1alpha-host-07e46470783297151810a434b07fb2e6",
         "parameters": [
           {
             "name": "host_uuid",
@@ -518,7 +1070,6 @@
         ],
         "summary": "Delete host",
         "description": "Delete a host from the database.",
-        "operationId": "delete_v1alpha-host-07e46470783297151810a434b07fb2e6",
         "parameters": [
           {
             "name": "host_uuid",
@@ -573,19 +1124,40 @@
           }
         }
       },
-      "HostBasicResp": {
+      "FloatingIpAttachReq": {
+        "title": "FloatingIpAttachReq",
         "type": "object",
         "required": [
-          "host_address",
-          "name",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "virtual_machine_uuid": {
+            "description": "Virtual_machine, which the floating IP-address is attached to",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "FloatingIpBasicResp": {
+        "type": "object",
+        "required": [
+          "floating_ip",
           "uuid"
         ],
         "properties": {
-          "host_address": {
-            "type": "string"
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
           },
-          "name": {
-            "type": "string"
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "uuid": {
             "type": "string",
@@ -593,54 +1165,92 @@
           }
         }
       },
-      "HostCreateReq": {
-        "title": "HostCreateReq",
+      "FloatingIpCreateReq": {
+        "title": "FloatingIpCreateReq",
         "type": "object",
         "required": [
-          "deleted_uuids",
-          "host_address",
-          "name",
-          "registration_key"
+          "name"
         ],
         "properties": {
-          "deleted_uuids": {
-            "$ref": "#/components/schemas/UuidList"
-          },
-          "host_address": {
+          "floating_ip": {
+            "description": "Requested floating IP-address. If not set, a free one is selected.",
+            "default": null,
             "type": "string",
-            "maxLength": 127,
-            "minLength": 4
+            "format": "ipv4",
+            "nullable": true
           },
           "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
+            "type": "string"
           },
-          "registration_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Secret"
-              }
-            ],
-            "maxLength": 127,
-            "minLength": 4,
-            "maxItems": 127,
-            "minItems": 4
+          "virtual_machine_uuid": {
+            "description": "Virtual_machine, which the floating IP-address is attached to directly after its creation. If not set, the floating IP-address is only reserved.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
-      "HostListResp": {
-        "title": "HostListResp",
+      "FloatingIpListResp": {
+        "title": "FloatingIpListResp",
         "type": "object",
         "required": [
-          "hosts"
+          "floating_ips"
         ],
         "properties": {
-          "hosts": {
+          "floating_ips": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HostBasicResp"
+              "$ref": "#/components/schemas/FloatingIpBasicResp"
             }
+          }
+        }
+      },
+      "FloatingIpResp": {
+        "title": "FloatingIpResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "floating_ip",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "internal_ip": {
+            "description": "Internal IP-address of the attached virtual_machine. Not set, if the floating IP-address is detached.",
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "network_uuid": {
+            "description": "Network of the attached virtual_machine. Not set, if the floating IP-address is detached.",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -658,7 +1268,8 @@
         ],
         "properties": {
           "created_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "created_by": {
             "type": "string"
@@ -670,7 +1281,8 @@
             "type": "string"
           },
           "updated_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updated_by": {
             "type": "string"
@@ -681,21 +1293,19 @@
           }
         }
       },
-      "ModelBasicResp": {
+      "NetworkBasicResp": {
         "type": "object",
         "required": [
           "name",
-          "proxy_port",
+          "subnet",
           "uuid"
         ],
         "properties": {
           "name": {
             "type": "string"
           },
-          "proxy_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
+          "subnet": {
+            "type": "string"
           },
           "uuid": {
             "type": "string",
@@ -703,87 +1313,66 @@
           }
         }
       },
-      "ModelCreateReq": {
-        "title": "ModelCreateReq",
+      "NetworkCreateReq": {
+        "title": "NetworkCreateReq",
         "type": "object",
         "required": [
           "name",
-          "template"
+          "subnet"
         ],
         "properties": {
           "name": {
-            "type": "string",
-            "maxLength": 127,
-            "minLength": 4
+            "type": "string"
           },
-          "template": {
-            "type": "string",
-            "minLength": 10
+          "subnet": {
+            "type": "string"
           }
         }
       },
-      "ModelListResp": {
-        "title": "ModelListResp",
+      "NetworkListResp": {
+        "title": "NetworkListResp",
         "type": "object",
         "required": [
-          "models"
+          "networks"
         ],
         "properties": {
-          "models": {
+          "networks": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ModelBasicResp"
+              "$ref": "#/components/schemas/NetworkBasicResp"
             }
           }
         }
       },
-      "ModelResp": {
-        "title": "ModelResp",
+      "NetworkResp": {
+        "title": "NetworkResp",
         "type": "object",
         "required": [
           "created_at",
           "created_by",
-          "inputs",
           "name",
-          "outputs",
-          "template",
-          "torii_port",
+          "subnet",
           "updated_at",
           "updated_by",
           "uuid"
         ],
         "properties": {
           "created_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "created_by": {
             "type": "string"
           },
-          "inputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "name": {
             "type": "string"
           },
-          "outputs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "template": {
+          "subnet": {
             "type": "string"
-          },
-          "torii_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
           },
           "updated_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updated_by": {
             "type": "string"
@@ -806,7 +1395,142 @@
           }
         }
       },
+      "SakuraHostBasicResp": {
+        "type": "object",
+        "required": [
+          "amount_of_used_disk_space",
+          "amount_of_used_memory",
+          "disk_space",
+          "host_address",
+          "memory_size",
+          "name",
+          "number_of_cores",
+          "used_number_of_cores",
+          "uuid"
+        ],
+        "properties": {
+          "amount_of_used_disk_space": {
+            "description": "disk-space in GiB, which is allocated by virtual-machines",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "amount_of_used_memory": {
+            "description": "memory in MiB, which is allocated by virtual-machines",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "disk_space": {
+            "description": "total size of the disk, which holds the virtual-machines, in GiB",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "host_address": {
+            "type": "string"
+          },
+          "memory_size": {
+            "description": "total memory of the host in MiB",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_cores": {
+            "description": "number of cpu-threads of the host",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "used_number_of_cores": {
+            "description": "number of cpu-threads, which are allocated by virtual-machines",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SakuraHostCreateReq": {
+        "title": "SakuraHostCreateReq",
+        "type": "object",
+        "required": [
+          "deleted_uuids",
+          "disk_space",
+          "host_address",
+          "memory_size",
+          "name",
+          "number_of_cores",
+          "registration_key"
+        ],
+        "properties": {
+          "deleted_uuids": {
+            "$ref": "#/components/schemas/UuidList"
+          },
+          "disk_space": {
+            "description": "total size of the disk, which holds the virtual-machines, in GiB",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "host_address": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "memory_size": {
+            "description": "total memory of the host in MiB",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "number_of_cores": {
+            "description": "number of cpu-threads of the host",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "registration_key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 127,
+            "minLength": 4,
+            "maxItems": 127,
+            "minItems": 4
+          }
+        }
+      },
+      "SakuraHostListResp": {
+        "title": "SakuraHostListResp",
+        "type": "object",
+        "required": [
+          "hosts"
+        ],
+        "properties": {
+          "hosts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SakuraHostBasicResp"
+            }
+          }
+        }
+      },
       "Secret": {
+        "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
         "type": "string"
       },
       "UuidList": {
@@ -840,6 +1564,177 @@
             "type": "string"
           },
           "version": {
+            "type": "string"
+          }
+        }
+      },
+      "VirtualMachineBasicResp": {
+        "type": "object",
+        "required": [
+          "disk_size",
+          "memory_size",
+          "name",
+          "number_of_cores",
+          "proxy_port",
+          "uuid"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proxy_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VirtualMachineCreateReq": {
+        "title": "VirtualMachineCreateReq",
+        "type": "object",
+        "required": [
+          "disk_size",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine in MiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1.0
+          }
+        }
+      },
+      "VirtualMachineListResp": {
+        "title": "VirtualMachineListResp",
+        "type": "object",
+        "required": [
+          "virtual_machines"
+        ],
+        "properties": {
+          "virtual_machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VirtualMachineBasicResp"
+            }
+          }
+        }
+      },
+      "VirtualMachineResp": {
+        "title": "VirtualMachineResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "disk_size",
+          "image_uuid",
+          "internal_ip",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "torii_port",
+          "updated_at",
+          "updated_by",
+          "uuid",
+          "vm_state"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "torii_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vm_state": {
+            "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
             "type": "string"
           }
         }

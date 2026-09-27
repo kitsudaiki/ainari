@@ -32,6 +32,12 @@ pub struct Config {
     // general values
     /// Whether debug mode is enabled
     pub debug: bool,
+    /// Target of the log-output, `stdout` or `log_file`
+    #[serde(default)]
+    pub log_type: ainari_config::LogType,
+    /// Directory of the log-file, if `log_type` is `log_file`
+    #[serde(default = "ainari_config::default_log_path")]
+    pub log_path: String,
     /// Skip TLS certificate verification for all connections
     ///
     /// Defaults to `false` for security reasons.
@@ -255,22 +261,22 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
                 Ok(v) => {
                     let config: Config = v;
                     if let Err(e) = config.validate() {
-                        log::error!("Invalid config '{file_path}': {e}");
+                        eprintln!("Invalid config '{file_path}': {e}");
                         process::exit(1);
                     }
                     log::info!("successfully loaded config '{file_path}'");
                     config
                 }
                 Err(e) => {
-                    log::error!("Failed to parse '{e}'");
-                    log::error!("{e}");
+                    eprintln!("Failed to parse '{e}'");
+                    eprintln!("{e}");
                     process::exit(1);
                 }
             }
         }
         Err(e) => {
-            log::error!("Failed read config-file '{file_path}'");
-            log::error!("{e}");
+            eprintln!("Failed read config-file '{file_path}'");
+            eprintln!("{e}");
             process::exit(1);
         }
     }

@@ -1,24 +1,27 @@
 # Ainari
 
-![Latest Release](https://img.shields.io/github/v/release/kitsudaiki/ainari?include_prereleases&label=Version&style=flat-square)
+![Latest
+Release](https://img.shields.io/github/v/release/kitsudaiki/ainari?include_prereleases&label=Version&style=flat-square)
 ![License](https://img.shields.io/github/license/kitsudaiki/ainari?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Linux-blue?style=flat-square)
 ![Architecture](https://img.shields.io/badge/Architecture-amd64%20%2B%20arm64-blue?style=flat-square)
 
-[![Github workflow status](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/build_test.yml?branch=develop&style=flat-square&label=Build%20and%20Test)](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml)
-[![RS Report](https://rust-reportcard.xuri.me/badge/github.com/kitsudaiki/ainari?style=flat-square)](https://rust-reportcard.xuri.me/report/github.com/kitsudaiki/ainari)
+[![Github workflow
+status](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/build_test.yml?branch=develop&style=flat-square&label=Build%20and%20Test)](https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml)
+[![RS
+Report](https://rust-reportcard.xuri.me/badge/github.com/kitsudaiki/ainari?style=flat-square)](https://rust-reportcard.xuri.me/report/github.com/kitsudaiki/ainari)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/kitsudaiki/ainari/codeql.yml?branch=develop&style=flat-square&label=CodeQL)](https://github.com/kitsudaiki/ainari/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
+[![OpenSSF
+Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
-# **IMPORTANT**: Currently under heavy reconstruction
+<p align="center">
+  <img src="docs/img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
+</p>
 
-<img align="left" width="210" height="210" src="assets/wip.jpg">
+## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
 
-### **This project is currently under heavy reconstruction,** 
-### **by moving this project from an AIaaS to an IaaS**
-### **The old neural network core was outsourced to the side-project [Saki](https://github.com/kitsudaiki/saki)**
-### **Last version of this project with the old neural network core is v0.11.1**
-
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+See more in the [About-section](https://docs.ainari.cloud/home/about/) of the documentation.
 
 <!-- ## Supported Environment
 
@@ -27,34 +30,35 @@
 | [![python-3_10][img_python-3_10]][workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][workflow] |
 | [![python-3_11][img_python-3_11]][workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][workflow] |
 | [![python-3_12][img_python-3_12]][workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][workflow] |
-|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][workflow] | -->
+|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][workflow] |
+-->
+## Project
 
-## Overview
+- [About](https://docs.ainari.cloud/home/about/)
 
-Ainari is split into a micro-service architecture. See here for
-[Overview-Description](https://docs.ainari.cloud/home/overview/)
+- [Features](https://docs.ainari.cloud/home/features/)
 
-<p align="center">
-  <img src="assets/ainari_overview.jpg" width="1500" height="700" />
-</p>
+- [Overview](https://docs.ainari.cloud/home/home/overview/)
 
-<!-- ## Getting started
+## Getting started
+
+- [Quick Start Guide](https://docs.ainari.cloud/home/quick_start/)
 
 - [Example-Workflow](https://docs.ainari.cloud/user/cli_sdk/example_workflow/)
 
 - [Installation-Guide](https://docs.ainari.cloud/deployer/installation/kubernetes_installation/)
 
+- [Dashboard documentation](https://docs.ainari.cloud/user/dashboard/dashboard/)
+
 - [SDK and CLI documentation](https://docs.ainari.cloud/user/cli_sdk/cli_sdk_docu/)
 
-- [Automatic generated OpenAPI documentation](https://docs.ainari.cloud/user/rest_api/rest_api_docu_sakura/)
-
 ## Development
+
+- [Repository-Overview](https://docs.ainari.cloud/developer/repo_structure/)
 
 - [How to build](https://docs.ainari.cloud/developer/repo/build_guide/)
 
 - [Development-Guide](https://docs.ainari.cloud/developer/repo/development/)
-
-- [Dependency-Overview](https://docs.ainari.cloud/developer/repo/dependencies/) -->
 
 ## Pre-build objects
 
@@ -68,9 +72,9 @@ on `develop`-branch and for each tag.
 
 ## Author
 
-**Tobias Anker**
+Tobias Anker
 
-eMail: tobias.anker@kitsunemimi.moe
+eMail: <tobias.anker@kitsunemimi.moe>
 
 ## License
 

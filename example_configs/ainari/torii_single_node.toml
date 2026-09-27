@@ -1,7 +1,9 @@
 # Torii config for the single node setup. Only for local development and
 # testing, never use it in a production deployment.
 debug = true
-log_path = "/var/log"
+# "stdout" or "log_file", the log-file is written into log_path
+log_type = "stdout"
+log_path = "/var/log/"
 skip_tls_verification = true
 
 [api]

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use std::error::Error;
@@ -24,6 +24,7 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::objects::*;
 
 // Define the schema for the proxys table
 table! {
@@ -64,18 +65,23 @@ table! {
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = proxys)]
 pub struct ProxyEntry {
-    pub uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub uuid: Uuid,
     pub port: i32,
     pub target_address: String,
-    pub virtual_machine_uuid: String,
+    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
+    pub virtual_machine_uuid: Uuid,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
-    pub created_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub created_at: DateTime<Utc>,
     pub created_by: String,
-    pub updated_at: String,
+    #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
+    pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    pub deleted_at: Option<String>,
+    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
+    pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
 }
 
@@ -127,32 +133,32 @@ pub fn add_new_proxy(
 ) -> QueryResult<usize> {
     // Create a new ProxyEntry with the provided parameters and current timestamps
     let proxy = ProxyEntry {
-        uuid: proxy_uuid.to_string().clone(),
+        uuid: *proxy_uuid,
         port: port.into(),
         target_address: target_address.to_owned(),
-        virtual_machine_uuid: virtual_machine_uuid.to_string().clone(),
+        virtual_machine_uuid: *virtual_machine_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
-        created_at: Utc::now().to_rfc3339(),
+        created_at: Utc::now(),
         created_by: context.user_id.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
     };
 
-    add_proxy(&proxy)
+    add_proxy(proxy.clone())
 }
 
 /// Adds a proxy entry to the database.
 ///
 /// # Arguments
-/// * `proxy` - Reference to the ProxyEntry to be added
+/// * `proxy` - The ProxyEntry to be added
 ///
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of rows affected
-pub fn add_proxy(proxy: &ProxyEntry) -> QueryResult<usize> {
+pub fn add_proxy(proxy: ProxyEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
     diesel::insert_into(proxys)
@@ -360,16 +366,16 @@ mod tests {
         };
 
         let proxy = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
+            uuid: proxy_uuid1,
             port: 42,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -377,7 +383,7 @@ mod tests {
 
         hard_delete_proxy(&proxy_uuid1);
 
-        add_proxy(&proxy).unwrap();
+        add_proxy(proxy.clone()).unwrap();
         match get_proxy(&proxy_uuid1, &context) {
             Ok(retrieved_proxy) => {
                 assert_eq!(retrieved_proxy.uuid, proxy.uuid);
@@ -421,32 +427,32 @@ mod tests {
         };
 
         let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
+            uuid: proxy_uuid1,
             port: 42,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2.to_string(),
+            uuid: proxy_uuid2,
             port: 43,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -455,8 +461,8 @@ mod tests {
         hard_delete_proxy(&proxy_uuid1);
         hard_delete_proxy(&proxy_uuid2);
 
-        add_proxy(&proxy1).unwrap();
-        add_proxy(&proxy2).unwrap();
+        add_proxy(proxy1).unwrap();
+        add_proxy(proxy2).unwrap();
         let proxys = list_proxys(&context).unwrap();
         assert_eq!(proxys.len(), 1);
         hard_delete_proxy(&proxy_uuid1);
@@ -482,16 +488,16 @@ mod tests {
         };
 
         let proxy = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
+            uuid: proxy_uuid1,
             port: 42,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -499,7 +505,7 @@ mod tests {
 
         hard_delete_proxy(&proxy_uuid1);
 
-        add_proxy(&proxy).unwrap();
+        add_proxy(proxy).unwrap();
         let _ = delete_proxy(&proxy_uuid1, &context);
         let result = get_proxy(&proxy_uuid1, &context);
         assert!(result.is_err());
@@ -516,48 +522,48 @@ mod tests {
         let virtual_machine_uuid1 = Uuid::new_v4();
 
         let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
+            uuid: proxy_uuid1,
             port: 42,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2.to_string(),
+            uuid: proxy_uuid2,
             port: 43,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let proxy3 = ProxyEntry {
-            uuid: proxy_uuid3.to_string(),
+            uuid: proxy_uuid3,
             port: 44,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -567,9 +573,9 @@ mod tests {
         hard_delete_proxy(&proxy_uuid2);
         hard_delete_proxy(&proxy_uuid3);
 
-        add_proxy(&proxy1).unwrap();
-        add_proxy(&proxy2).unwrap();
-        add_proxy(&proxy3).unwrap();
+        add_proxy(proxy1).unwrap();
+        add_proxy(proxy2).unwrap();
+        add_proxy(proxy3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -614,7 +620,7 @@ mod tests {
         };
         match get_proxy(&proxy_uuid1, &context) {
             Ok(retrieved_proxy) => {
-                assert_eq!(retrieved_proxy.uuid, proxy_uuid1.to_string());
+                assert_eq!(retrieved_proxy.uuid, proxy_uuid1);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -661,48 +667,48 @@ mod tests {
         let virtual_machine_uuid1 = Uuid::new_v4();
 
         let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1.to_string(),
+            uuid: proxy_uuid1,
             port: 42,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2.to_string(),
+            uuid: proxy_uuid2,
             port: 43,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
         };
 
         let proxy3 = ProxyEntry {
-            uuid: proxy_uuid3.to_string(),
+            uuid: proxy_uuid3,
             port: 44,
             target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1.to_string(),
+            virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),
-            created_at: "2025-03-31".to_string(),
+            created_at: Utc::now(),
             created_by: "admin".to_string(),
-            updated_at: "2025-03-31".to_string(),
+            updated_at: Utc::now(),
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
@@ -714,15 +720,15 @@ mod tests {
 
         assert_eq!(get_free_proxy(42, 45).unwrap(), 42);
 
-        add_proxy(&proxy1).unwrap();
+        add_proxy(proxy1).unwrap();
 
         assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
 
-        add_proxy(&proxy3).unwrap();
+        add_proxy(proxy3).unwrap();
 
         assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
 
-        add_proxy(&proxy2).unwrap();
+        add_proxy(proxy2).unwrap();
 
         assert!(get_free_proxy(42, 45).is_err());
 
