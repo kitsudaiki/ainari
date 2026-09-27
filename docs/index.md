@@ -8,20 +8,31 @@
   <img src="img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
 </p>
 
-## Overview
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+See more in the [About-section](/home/about/) of the documentation.
 
-Ainari is split into a micro-service architecture. See here for
-[Overview-Description](/home/overview/)
+## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
 
-![Overview](home/ainari_overview.jpg)
 
 ## Summary important links
 
 <div class="grid cards" markdown>
 
+- :material-source-repository:{ .lg .middle } **Project**
+
+    ______________________________________________________________________
+
+    [:octicons-arrow-right-24: About](/home/about/)
+
+    [:octicons-arrow-right-24: Features](/home/features/)
+
+    [:octicons-arrow-right-24: Overview](/home/home/overview/)
+
 - :material-clock-fast:{ .lg .middle } **Getting started**
 
     ______________________________________________________________________
+
+    [:octicons-arrow-right-24: Quick start guide](/home/quick_start/)
 
     [:octicons-arrow-right-24: Example-Workflow](/user/cli_sdk/example_workflow/)
 

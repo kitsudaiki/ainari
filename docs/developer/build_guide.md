@@ -1,5 +1,32 @@
 # How to build
 
+## Requirements
+
+The datapath of torii attaches eBPF/XDP-programs to the interfaces and redirects the packets
+between them, so the kernel of the host, where the services are running, requires eBPF/XDP-support.
+The recommended minimum is a kernel `5.10`, which is the first LTS-kernel, where XDP-redirect is
+mature enough. The following distributions provide such a kernel:
+
+| Distribution               | Minimal version     | Default kernel             | Notes                                                                                            |
+| -------------------------- | ------------------- | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| Ubuntu                     | 22.04 LTS           | 5.15                       | 24.04 LTS ships 6.8. 20.04 only has 5.4 by default and is only usable with the HWE-kernel (5.15) |
+| Debian                     | 11 (Bullseye)       | 5.10                       | 12 ships 6.1, 13 ships 6.12                                                                      |
+| RHEL / Rocky / AlmaLinux   | 9                   | 5.14 (with many backports) | 8 with kernel 4.18 is not recommended, because parts of XDP are only a Technology Preview there  |
+| CentOS Stream              | 9                   | 5.14                       | Same kernel line as RHEL 9                                                                       |
+| Fedora                     | any supported (41+) | 6.x                        | New kernels arrive quickly                                                                       |
+| SUSE Linux Enterprise      | 15 SP4              | 5.14                       | SP3 only has 5.3                                                                                 |
+| openSUSE Leap / Tumbleweed | 15.4 / rolling      | 5.14 / current 6.x         |                                                                                                  |
+| Amazon Linux               | 2023                | 6.1                        | Amazon Linux 2 only works with the optional 5.10-kernel                                          |
+| Arch Linux                 | rolling             | current 6.x                | Fine as long as it is up to date                                                                 |
+
+The containers use the kernel of the host, so for WSL2 or Docker Desktop the kernel of their VM
+is relevant. The kernel of a host can be checked with:
+
+```bash
+uname -r
+grep -E 'CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_XDP_SOCKETS=' /boot/config-$(uname -r)
+```
+
 ## Preparation
 
 - Install packages

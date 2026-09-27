@@ -3,6 +3,11 @@
 This page provides an overview of the important features of the Ainari IaaS stack, outside of the
 base capabilities of uploading resources and creating a virtual machine based on these.
 
+!!! warning
+
+    **IMPORTANT: even the implemented features are mostly currently just in a prototypical state.**
+    **They work, but are not ready for productive usage yet.**
+
 ## Security
 
 ### Image encryption

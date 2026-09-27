@@ -15,6 +15,8 @@ extra_javascript = [
 nav = [
   { "Home" = [
     "index.md",
+    "home/about.md",
+    "home/quick_start.md",
     "home/features.md",
     "home/overview.md",
     "home/license.md",
