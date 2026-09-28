@@ -34,7 +34,7 @@ to upload, generate and download keys.
 
 ### Onsen
 
-The Onsen is the storage-pool all datasets and checkpoints from the Ryokan and Sakura are stored
+The Onsen is the storage-pool all images and snapshots from the Ryokan and Sakura are stored
 here. This component is/must not be accessible from the internet. Its also doesn't check JWT-tokens,
 because it doesn't contain a REST-API. It interacts with the Ryokan and Sakura over a
 grpc-connection and protobuffer-messages. In the kubernetes-setup these 2 connections are secured by
@@ -47,15 +47,13 @@ a wireguard-tunnel.
 
 ### Ryokan
 
-Ryokan manage the Onsen-hosts within the Onsen stored datasets and checkpoints. CSV- and MNIST-files
+Ryokan manage the Onsen-hosts. Images for new virtual machines
 can be uploaded, and will be converted and against a key from Omamori encrypted before the files are
 placed in the Onsen.
 
 ### Sakura
 
-Sakura is the core of the project and contains the handling and processing of the artificial neural
-networks (model). Checkpoints created from model are encrypted with an auto-generated key from
-Omamori, before placing the data in the Onsen.
+Sakura is the compute hosts of this IaaS stack. It manage the cloud hypervisor VMs.
 
 !!! info
 
@@ -63,14 +61,9 @@ Omamori, before placing the data in the Onsen.
 
 ### Hanami
 
-Hanami manage the Sakura-hosts. Whenever a new model is requested by the user, this request goes
+Hanami manage the Sakura-hosts. Whenever a new virtual machine is requested by the user, this request goes
 against Hanami, which selects the Sakura-host of the new model and configures the Torii for the
-new connection. Also list and delete networks is done by Hanami.
-
-!!! info
-
-    This scheduling is at the moment only a random selection, but be updated to a real scheduling in
-    the future.
+new connection. Also the handling of networks and floating ips is done by Hanami.
 
 ### Torii
 
@@ -82,6 +75,10 @@ Torii is the gateway-component, is configured by hanami and handles 2 differen p
    encrypted connection for all user interactions with the control endpoints for the VM. The path
    was added to the setup instead of direct access to the compute host, to make later added
    migration of virtual machines easier for the user to handle.
+
+2. Torii also provides the networks between the virtual machines and from the virtual machines to
+   the internet. There is a public Torii as gateway to the outside and one Torii on each Sakura
+   Host.
 
 ## other
 
