@@ -256,13 +256,14 @@ async fn prepare_selected_host(
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
-    // send request to torii to create a proxy
+    // send request to torii to create a proxy. It forwards to the external api of the sakura-host,
+    // so the clients can't reach its internal endpoints over the proxy-port.
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
         &context.token,
         &config::INTERNAL_API_KEY,
         &virtual_machine_resp.uuid,
-        &selected_host.address,
+        selected_host.proxy_target_address(),
         config::CONFIG.skip_tls_verification,
     )
     .await

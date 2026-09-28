@@ -12,8 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod floating_ip;
-pub mod network;
-pub mod proxy;
-pub mod sakura_host;
-pub mod virtual_machine;
+pub mod get_proxy_v1_0;
+pub mod list_proxy_v1_0;

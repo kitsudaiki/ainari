@@ -147,7 +147,8 @@ torii:
     repository: "ainari/torii"
     tag: "local"
   # The proxy-ports are published by the servicelb of k3s on every node. The clients connect to
-  # the address of this public address with the proxy-port of a virtual machine.
+  # the host of this public address with the proxy-port of a virtual machine. The api of torii
+  # itself is only reachable within the cluster.
   api:
     public_address: "https://192.168.56.11:11419"
   service:

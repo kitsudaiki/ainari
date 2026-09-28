@@ -94,8 +94,11 @@ The api is reachable on the host at:
 | hanami    | `https://127.0.0.1:11418` |
 | ryokan    | `https://127.0.0.1:11416` |
 | omamori   | `https://127.0.0.1:11421` |
-| torii     | `https://127.0.0.1:11419` |
 | dashboard | `https://127.0.0.1:11422` |
+
+The api of torii is only reachable within the cluster. The virtual machines and their sakura-hosts
+are reached over the proxy-ports of torii (`127.0.0.1:<proxy-port>`), and the proxies can be listed
+over hanami (`GET /v1alpha/proxy`).
 
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 

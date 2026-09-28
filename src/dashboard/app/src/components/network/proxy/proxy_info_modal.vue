@@ -77,7 +77,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
 
-import { torii } from "@/api";
+import { hanami } from "@/api";
 import type { ProxyBasicResp, ProxyResp } from "@/api";
 import common from "@/common";
 import { handleAxiosError } from "@/handleAxiosError";
@@ -96,7 +96,7 @@ const errorPopupMsg = ref<string>("");
 
 async function fetchInfo(uuid: string) {
     try {
-        const data = await torii.getProxy(uuid);
+        const data = await hanami.getProxy(uuid);
         data.created_at = common.formatDateTime(data.created_at);
         data.updated_at = common.formatDateTime(data.updated_at);
         info.value = data;

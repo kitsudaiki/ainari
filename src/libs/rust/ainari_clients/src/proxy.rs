@@ -116,13 +116,13 @@ This function retrieves a list of all proxies configured in the Ainari system.
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
 
 # Returns
-A `Result` containing the `ProxyResp` with the list of proxies or an `AinariError` if the operation fails.
+A `Result` containing the `ProxyListResp` with the list of proxies or an `AinariError` if the operation fails.
 */
 pub async fn list_proxy(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     insecure_client: bool,
-) -> Result<ProxyResp, AinariError> {
+) -> Result<ProxyListResp, AinariError> {
     let address = torii_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/proxy");
@@ -133,7 +133,7 @@ pub async fn list_proxy(
         .send()
         .await;
 
-    let resp: Result<ProxyResp, AinariError> = handle_response(response, "proxy", "").await;
+    let resp: Result<ProxyListResp, AinariError> = handle_response(response, "proxy", "").await;
     resp
 }
 

@@ -31,7 +31,7 @@ all required tools, for a test without installing them on the host.
 | Placement of the components         | all on the host                       | all on the one node                             | on the virtual machines with their label                |
 | Protocol of the api                 | http                                  | https                                           | https                                                   |
 | Certificates                        | none                                  | own CA, `temporary_files/kind`                  | own CA, `temporary_files/vagrant`                       |
-| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`, torii on `.11`          |
+| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`, proxy-ports on `.11`    |
 | Dashboard                           | has to be deployed manually           | yes, port 11422                                 | yes, port 11422                                         |
 | Network between the gateways        | one docker-bridge (shared link)       | routed pod-network of kind                      | flannel (vxlan) between the virtual machines            |
 | Uplink of the edge-gateway          | `veth-host` on the host               | `veth-kind` on the host                         | `veth-uplink` on the virtual machine `ainari-torii`     |

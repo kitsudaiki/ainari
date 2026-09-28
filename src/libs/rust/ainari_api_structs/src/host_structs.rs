@@ -38,6 +38,11 @@ pub struct SakuraHostCreateReq {
     pub name: String,
     #[validate(length(min = 4, max = 127))]
     pub host_address: String,
+    /// Address of the external api of the host, which the proxies forward to. Hosts without it
+    /// are reached over `host_address` by the proxies as well.
+    #[serde(default)]
+    #[validate(length(min = 4, max = 127))]
+    pub external_address: Option<String>,
     pub deleted_uuids: UuidList,
     #[validate(length(min = 4, max = 127))]
     pub registration_key: Secret,

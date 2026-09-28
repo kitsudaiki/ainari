@@ -14,6 +14,7 @@ environment-variable `CONFIG_FILE`.
 | `log_path` | string | `"/var/log/"` | Directory of the log-file `<service>.log`, if `log_type` is `"log_file"`. |
 | `skip_tls_verification` | boolean | `false`    | Set true to skip validation of https-connections, for example in case of self-singed certificates. |
 | `address`               | string  | _required_ | Address of the sakura-host itself, where it can be reached from hanami and torii.                  |
+| `external_address`      | string  | -          | Address of the external api of the sakura-host, which the proxy-ports of torii forward to. The internal endpoints are not reachable over it. If not set, `address` is used. |
 
 ### `api` Configuration
 

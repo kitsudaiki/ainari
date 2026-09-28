@@ -139,6 +139,8 @@ torii:
   docker:
     repository: "ainari/torii"
     tag: "local"
+  # The api of torii is only reachable within the cluster, but the clients take the host of this
+  # address to reach the proxy-ports of the virtual machines.
   api:
     public_address: "https://127.0.0.1:11419"
   service:

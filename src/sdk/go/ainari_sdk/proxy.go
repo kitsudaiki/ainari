@@ -24,29 +24,18 @@ import (
 	"fmt"
 )
 
+// The proxies are stored in the torii at the edge, whose api is only reachable within the
+// cluster, so they are read over the hanami. They are created and deleted by the hanami together
+// with the virtual machines.
+
 func GetProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/proxy/%s", proxyId)
 	vars := map[string]interface{}{}
-	return SendGet(context, context.ToriiAddress, path, vars)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
 func ListProxy(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/proxy"
 	vars := map[string]interface{}{}
-	return SendGet(context, context.ToriiAddress, path, vars)
-}
-
-func DeleteProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/proxy/%s/internal", proxyId)
-	vars := map[string]interface{}{}
-	return SendDelete(context, context.ToriiAddress, path, vars)
-}
-
-func SetProxy(context AccessContext, targetAddress, virtualMachineUuid string) (map[string]interface{}, error) {
-	path := "v1alpha/proxy/internal"
-	jsonBody := map[string]interface{}{
-		"target_address":       targetAddress,
-		"virtual_machine_uuid": virtualMachineUuid,
-	}
-	return SendPost(context, context.ToriiAddress, path, jsonBody)
+	return SendGet(context, context.HanamiAddress, path, vars)
 }

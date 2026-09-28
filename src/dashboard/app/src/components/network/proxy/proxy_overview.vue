@@ -79,7 +79,7 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { getAuthContext } from "@/auth_context";
-import { hanami, torii } from "@/api";
+import { hanami } from "@/api";
 import type { ProxyBasicResp, VirtualMachineBasicResp } from "@/api";
 import ProxyInfoModal from "./proxy_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
@@ -108,7 +108,7 @@ async function fetchProxies() {
     torii_base_address.value = getAuthContext().torii_base_address;
 
     try {
-        proxies.value = await torii.listProxies();
+        proxies.value = await hanami.listProxies();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
