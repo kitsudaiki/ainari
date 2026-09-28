@@ -35,6 +35,6 @@
     docker buildx build \
     --platform linux/amd64,linux/arm64 \
     -f dockerfiles/Dockerfile_build_base \
-    -t kitsudaiki/ainari_build_base:0.1.0 \
+    -t kitsudaiki/ainari_build_base:0.3.0 \
     --push .
     ```

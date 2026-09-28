@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:local_test .
+# the images of the components are built on this image, which Dockerfile_services uses by default
+docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.3.0 .
 
 docker build -f dockerfiles/Dockerfile_services --target hanami  -t kitsudaiki/hanami:local_test .
 docker build -f dockerfiles/Dockerfile_services --target miko    -t kitsudaiki/miko:local_test .

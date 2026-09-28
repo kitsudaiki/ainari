@@ -182,3 +182,104 @@ spec:
   {{- end }}
   {{- end }}
 {{- end }}
+
+{{/*
+Address of the mysql-server, which is either the service of the deployed server or the configured
+external one.
+*/}}
+{{- define "ainari.mysqlHost" -}}
+{{- if .Values.mysql.deploy -}}
+mysql.{{ .Release.Namespace }}.svc.cluster.local
+{{- else -}}
+{{ required "mysql.host is required, if mysql.deploy is disabled!" .Values.mysql.host }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Database, user and password of a component on the mysql-server. The names are used within the
+init-script of the server, so they are restricted to letters, digits and underscores.
+Usage: {{ $db := include "ainari.mysqlDatabase" (list $ "hanami") | fromYaml }}
+*/}}
+{{- define "ainari.mysqlDatabase" -}}
+{{- $root := index . 0 -}}
+{{- $name := index . 1 -}}
+{{- $db := index $root.Values.mysql.databases $name -}}
+{{- range $key := list "database" "user" -}}
+{{- if not (regexMatch "^[a-zA-Z0-9_]+$" (index $db $key | toString)) -}}
+{{- fail (printf "mysql.databases.%s.%s may only contain letters, digits and underscores!" $name $key) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := required (printf "mysql.databases.%s.password is required!" $name) $db.password -}}
+{{ toYaml $db }}
+{{- end }}
+
+{{/*
+Config-group of the mysql-database of a component. The value 'database_type = "mysql"' has to be
+set separately in the root of the config.
+Usage: {{ include "ainari.mysqlConfig" (list $ "hanami") | indent 4 | trim }}
+*/}}
+{{- define "ainari.mysqlConfig" -}}
+{{- $root := index . 0 -}}
+{{- $db := include "ainari.mysqlDatabase" . | fromYaml -}}
+# the password is read from the env-variable AINARI_MYSQL_PASSWORD
+[mysql]
+host = "{{ include "ainari.mysqlHost" $root }}"
+port = {{ $root.Values.mysql.port }}
+user = "{{ $db.user }}"
+database = "{{ $db.database }}"
+{{- end }}
+
+{{/*
+Env-variable with the password of the mysql-database of a component.
+Usage: {{ include "ainari.mysqlPasswordEnv" "hanami" | nindent 8 }}
+*/}}
+{{- define "ainari.mysqlPasswordEnv" -}}
+- name: AINARI_MYSQL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: mysql-credentials
+      key: {{ . }}_password
+{{- end }}
+
+{{/*
+Init-container, which waits until the mysql-server accepts connections. The components exit at
+their start, if they can't reach their database, so without it, they would be restarted with an
+increasing delay, while the server is still initializing. mysqladmin succeeds, as soon as the
+server answers, even if it rejects the login.
+Usage: {{ include "ainari.waitForMysql" . | nindent 6 }}
+*/}}
+{{- define "ainari.waitForMysql" -}}
+initContainers:
+- name: wait-for-mysql
+  image: {{ include "ainari.image" .Values.mysql }}
+  imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.mysql) }}
+  command:
+  - sh
+  - -c
+  - |
+    until mysqladmin ping --host={{ include "ainari.mysqlHost" . }} --port={{ .Values.mysql.port }} --connect-timeout=2 > /dev/null 2>&1; do
+      echo "waiting for the mysql-server ..."
+      sleep 2
+    done
+{{- end }}
+
+{{/*
+Init-container, which waits until miko answers. Onsen and sakura request the endpoints of the
+other components from miko at their start and exit, if it is not reachable yet, so without it
+they would be restarted with an increasing delay, while miko is still starting. The certificate is
+not verified, because the check sends no data and only waits for an answer.
+Usage: {{ include "ainari.waitForMiko" . | nindent 6 }}
+*/}}
+{{- define "ainari.waitForMiko" -}}
+initContainers:
+- name: wait-for-miko
+  image: nginx:latest
+  command:
+  - sh
+  - -c
+  - |
+    until curl --silent --fail --insecure --max-time 3 {{ include "ainari.mikoAddress" . }}/v1alpha/is_ready > /dev/null; do
+      echo "waiting for miko ..."
+      sleep 2
+    done
+{{- end }}

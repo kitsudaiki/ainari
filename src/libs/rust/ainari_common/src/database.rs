@@ -19,9 +19,11 @@
 
 use diesel::backend::Backend;
 use diesel::connection::SimpleConnection;
+use diesel::dsl::sql;
 use diesel::migration::{self, Migration, MigrationSource};
 use diesel::mysql::MysqlConnection;
 use diesel::prelude::*;
+use diesel::sql_types::{Integer, Nullable, Text};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness};
 use std::env;
@@ -35,6 +37,13 @@ use crate::secret::Secret;
 /// mysql-server closes connections, which were idle for too long, so they have to be
 /// re-established.
 const MYSQL_IDLE_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+
+/// Seconds, which an instance waits for a lock of the mysql-database, which is held by another
+/// instance of the same service
+const MYSQL_LOCK_TIMEOUT_SECS: i32 = 300;
+
+/// Name of the lock, which serializes the migrations of all instances of a service
+const MIGRATION_LOCK: &str = "migrations";
 
 /// Connection to the database of a service.
 ///
@@ -134,6 +143,98 @@ impl DbHandle {
 
         Ok(conn)
     }
+
+    /// Runs a function exclusively over all instances of the service, which share the database.
+    ///
+    /// With a mysql-database it is protected by a named lock of the database-server, so it waits,
+    /// while another instance runs a function with the same name. This is for example used at the
+    /// start, so the initial entries are only created once, even if multiple replicas start at the
+    /// same time. A sqlite-database is only used by one instance, so the function runs directly.
+    ///
+    /// The lock belongs to the connection, so the function has to use this handle for its queries
+    /// and must not take longer than `MYSQL_IDLE_CHECK_INTERVAL`, because a re-established
+    /// connection doesn't hold the lock any more.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the lock
+    /// * `function` - Function, which is run while the lock is held
+    ///
+    /// # Returns
+    ///
+    /// The result of the function, or an error-message, if the lock could not be taken.
+    pub fn run_exclusively<T>(
+        &self,
+        name: &str,
+        function: impl FnOnce() -> T,
+    ) -> Result<T, String> {
+        let lock_name = match &self.config {
+            DatabaseConfig::Sqlite(_) => return Ok(function()),
+            DatabaseConfig::Mysql(mysql_config) => mysql_lock_name(&mysql_config.database, name),
+        };
+
+        {
+            let mut conn = self.lock().map_err(|_| "mutex poisoned".to_string())?;
+            if let DbConnection::Mysql(mysql_conn) = &mut *conn {
+                acquire_mysql_lock(mysql_conn, &lock_name)?;
+            }
+        }
+
+        let result = function();
+
+        let mut conn = self.lock().map_err(|_| "mutex poisoned".to_string())?;
+        if let DbConnection::Mysql(mysql_conn) = &mut *conn {
+            release_mysql_lock(mysql_conn, &lock_name);
+        }
+
+        Ok(result)
+    }
+}
+
+/// Builds the name of a lock of the mysql-server. The names are valid for the whole server, so
+/// they are prefixed with the name of the database, which belongs to one service.
+fn mysql_lock_name(database: &str, name: &str) -> String {
+    format!("{database}.{name}")
+}
+
+/// Takes a named lock of the mysql-server for the connection. It waits up to
+/// `MYSQL_LOCK_TIMEOUT_SECS`, while another connection holds the lock.
+///
+/// # Returns
+///
+/// Ok, if the lock was taken, or an error-message, if the timeout was reached.
+fn acquire_mysql_lock(conn: &mut MysqlConnection, lock_name: &str) -> Result<(), String> {
+    let locked = diesel::select(
+        sql::<Nullable<Integer>>("GET_LOCK(")
+            .bind::<Text, _>(lock_name)
+            .sql(", ")
+            .bind::<Integer, _>(MYSQL_LOCK_TIMEOUT_SECS)
+            .sql(")"),
+    )
+    .get_result::<Option<i32>>(conn)
+    .map_err(|e| format!("Failed to take the database-lock '{lock_name}': {e}"))?;
+
+    match locked {
+        Some(1) => Ok(()),
+        _ => Err(format!(
+            "Timeout while waiting for the database-lock '{lock_name}'"
+        )),
+    }
+}
+
+/// Releases a named lock of the mysql-server, which was taken by `acquire_mysql_lock`. A failure is
+/// only logged, because the server releases the lock anyway, when the connection is closed.
+fn release_mysql_lock(conn: &mut MysqlConnection, lock_name: &str) {
+    let released = diesel::select(
+        sql::<Nullable<Integer>>("RELEASE_LOCK(")
+            .bind::<Text, _>(lock_name)
+            .sql(")"),
+    )
+    .get_result::<Option<i32>>(conn);
+
+    if let Err(e) = released {
+        log::warn!("Failed to release the database-lock '{lock_name}': {e}");
+    }
 }
 
 /// Opens the connection to the database and applies all pending migrations to it.
@@ -169,8 +270,19 @@ fn connect(config: &DatabaseConfig, migrations: &DbMigrations) -> Result<DbConne
             let url = mysql_config.connection_url(&password);
             let mut conn = MysqlConnection::establish(url.reveal())
                 .map_err(|e| format!("Error connecting to the mysql-database: {e}"))?;
-            conn.run_pending_migrations(MigrationsRef(migrations.mysql))
-                .map_err(|e| format!("Error applying the migrations to the database: {e}"))?;
+
+            // All instances of a service apply the migrations at their start, so they are
+            // serialized. Otherwise instances, which start at the same time, would create the
+            // same tables in parallel.
+            let lock_name = mysql_lock_name(&mysql_config.database, MIGRATION_LOCK);
+            acquire_mysql_lock(&mut conn, &lock_name)?;
+            let result = conn
+                .run_pending_migrations(MigrationsRef(migrations.mysql))
+                .map(|_| ())
+                .map_err(|e| format!("Error applying the migrations to the database: {e}"));
+            release_mysql_lock(&mut conn, &lock_name);
+            result?;
+
             Ok(DbConnection::Mysql(conn))
         }
     }
@@ -225,6 +337,20 @@ mod tests {
     }
 
     #[test]
+    fn test_run_exclusively_with_sqlite() {
+        let file_path = env::temp_dir().join(format!("ainari_test_{}.db", uuid::Uuid::new_v4()));
+        let config = DatabaseConfig::Sqlite(SqliteDatabase {
+            file_path: file_path.to_string_lossy().to_string(),
+        });
+        let handle = DbHandle::new(config, test_migrations()).expect("failed to connect");
+
+        assert_eq!(handle.run_exclusively("test", || 42), Ok(42));
+
+        drop(handle);
+        let _ = std::fs::remove_file(file_path);
+    }
+
+    #[test]
     fn test_invalid_sqlite_path_fails() {
         let config = DatabaseConfig::Sqlite(SqliteDatabase {
             file_path: "/not/existing/dir/db".to_string(),
@@ -232,20 +358,57 @@ mod tests {
         assert!(DbHandle::new(config, test_migrations()).is_err());
     }
 
-    #[test]
-    fn test_lost_mysql_connection_is_reestablished() {
-        // only a mysql-connection can be closed by the server
-        let Ok(host) = env::var(TEST_MYSQL_HOST_ENV) else {
-            return;
-        };
-        let config = DatabaseConfig::Mysql(MysqlDatabase {
+    /// Reads the config of the mysql-server for the tests.
+    ///
+    /// # Returns
+    ///
+    /// The config, or None, if no mysql-server is configured for the tests.
+    fn test_mysql_config() -> Option<DatabaseConfig> {
+        let host = env::var(TEST_MYSQL_HOST_ENV).ok()?;
+        Some(DatabaseConfig::Mysql(MysqlDatabase {
             host,
             port: env::var("AINARI_TEST_MYSQL_PORT")
                 .map(|port| port.parse().expect("invalid port"))
                 .unwrap_or(3306),
             user: env::var("AINARI_TEST_MYSQL_USER").expect("user not set"),
             database: env::var("AINARI_TEST_MYSQL_DATABASE").expect("database not set"),
+        }))
+    }
+
+    #[test]
+    fn test_run_exclusively_with_mysql() {
+        let Some(config) = test_mysql_config() else {
+            return;
+        };
+        let first = DbHandle::new(config.clone(), test_migrations()).expect("failed to connect");
+        let second = DbHandle::new(config, test_migrations()).expect("failed to connect");
+
+        // while the first instance holds the lock, the second one can not take it
+        let result = first.run_exclusively("exclusive_test", || {
+            let mut conn = second.lock().expect("mutex poisoned");
+            let DbConnection::Mysql(mysql_conn) = &mut *conn else {
+                panic!("no mysql-connection");
+            };
+            let locked = diesel::select(sql::<Nullable<Integer>>(
+                "GET_LOCK('ainari_common.exclusive_test', 0)",
+            ))
+            .get_result::<Option<i32>>(mysql_conn)
+            .expect("failed to query the lock");
+            assert_eq!(locked, Some(0));
+            42
         });
+        assert_eq!(result, Ok(42));
+
+        // afterwards the lock is released again
+        assert_eq!(second.run_exclusively("exclusive_test", || 43), Ok(43));
+    }
+
+    #[test]
+    fn test_lost_mysql_connection_is_reestablished() {
+        // only a mysql-connection can be closed by the server
+        let Some(config) = test_mysql_config() else {
+            return;
+        };
         let handle = DbHandle::new(config, test_migrations()).expect("failed to connect");
 
         // the server closes the connection, like after a timeout

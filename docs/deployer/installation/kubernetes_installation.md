@@ -96,7 +96,13 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     kubectl label nodes NODE_NAME sakura-node=true
     kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME ainari-dashboard-node=true
+    kubectl label nodes NODE_NAME mysql-node=true
     ```
+
+    Miko, hanami, ryokan and omamori can run with multiple replicas (`<component>.replica_count`),
+    one on each node with their label, because they keep their state only within their mysql-
+    database. Ryokan only supports this with `global.wireguard.enabled: false`, because its
+    wireguard-tunnel can't be shared by multiple replicas.
 
     On a cluster with only one node set `global.strict_scheduling: false` in step 6 instead.
 
@@ -133,6 +139,18 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     hanami:
       network:
         floating_ip_cidr: "FLOATING_IP_CIDR"
+
+    mysql:
+      root_password: "MYSQL_ROOT_PASSWORD"
+      databases:
+        miko:
+          password: "MYSQL_PASSWORD_1"
+        hanami:
+          password: "MYSQL_PASSWORD_2"
+        ryokan:
+          password: "MYSQL_PASSWORD_3"
+        omamori:
+          password: "MYSQL_PASSWORD_4"
     ```
 
     - `USER_ID`, `USER_NAME`, `PASSPHRASE`
@@ -152,6 +170,17 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
 
         - Keys for the internal communication. The defaults of the chart are public, so always
           replace them.
+
+    - `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD_*`
+
+        - Miko, hanami, ryokan and omamori always store their data in a mysql-server, each in its
+          own database with its own user. By default the chart deploys the server on the node with
+          the label `mysql-node` and creates the databases and users at its first start. The
+          defaults of the passwords are public, so always replace them.
+        - To use an existing server instead, set `mysql.deploy: false`, its address as
+          `mysql.host` (and `mysql.port`) and the names and passwords of the databases and users,
+          which have to exist already, as `mysql.databases.<component>`. The root-password is not
+          needed then. The components create their tables themselves.
 
     - `UPLINK_IFACE`, `UPLINK_NEXT_HOP`, `FLOATING_IP_CIDR`
 

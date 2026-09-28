@@ -13,9 +13,11 @@
 # limitations under the License.
 
 # Values of the vagrant-setup, which is started by scripts/setup_vagrant_stack.sh. The chart runs
-# on a k3s-cluster of four virtual machines, so, unlike in the kind-setup, every component runs on
-# the nodes with its label (strict_scheduling). The api of every component is published with its
-# own port on the addresses of the nodes, for example miko on https://192.168.56.10:11417.
+# on a k3s-cluster of eight virtual machines, so, unlike in the kind-setup, every component runs on
+# the nodes with its label (strict_scheduling). Miko, hanami, ryokan, omamori and the dashboard run
+# with three replicas, one on each of the three management-nodes, which all share the mysql-server on its
+# own node. The api of every component is published with its own port on the addresses of the
+# nodes, for example miko on https://192.168.56.10:11417.
 
 global:
   # there is no ingress-controller, the api and the dashboard are published by the servicelb of
@@ -43,6 +45,10 @@ global:
       - 192.168.56.11
       - 192.168.56.12
       - 192.168.56.13
+      - 192.168.56.14
+      - 192.168.56.15
+      - 192.168.56.16
+      - 192.168.56.17
 
 
 secrets:
@@ -51,7 +57,31 @@ secrets:
   sakura_registration_key: "local-sakura-registration-key"
 
 
+# The mysql-server runs on the node with the label mysql-node, which is the virtual machine
+# ainari-mysql. Like the rest of the setup it starts empty with every run.
+mysql:
+  root_password: "local-mysql-root-password"
+  databases:
+    miko:
+      database: "miko"
+      user: "miko"
+      password: "local-miko-password"
+    hanami:
+      database: "hanami"
+      user: "hanami"
+      password: "local-hanami-password"
+    ryokan:
+      database: "ryokan"
+      user: "ryokan"
+      password: "local-ryokan-password"
+    omamori:
+      database: "omamori"
+      user: "omamori"
+      password: "local-omamori-password"
+
+
 miko:
+  replica_count: 3
   docker:
     repository: "ainari/miko"
     tag: "local"
@@ -67,6 +97,7 @@ miko:
 
 
 hanami:
+  replica_count: 3
   docker:
     repository: "ainari/hanami"
     tag: "local"
@@ -77,6 +108,7 @@ hanami:
 
 
 ryokan:
+  replica_count: 3
   docker:
     repository: "ainari/ryokan"
     tag: "local"
@@ -85,6 +117,7 @@ ryokan:
 
 
 omamori:
+  replica_count: 3
   docker:
     repository: "ainari/omamori"
     tag: "local"
@@ -92,6 +125,7 @@ omamori:
     public_address: "https://192.168.56.10:11421"
 
 
+# onsen runs on the node with the label onsen-node, which is the virtual machine ainari-onsen
 onsen:
   docker:
     repository: "ainari/onsen"
@@ -131,8 +165,10 @@ torii:
     wait_for_iface: "veth-gw"
 
 
+# one replica of the dashboard on each of the three management-nodes, like the control-components
 dashboard:
   enabled: true
+  replica_count: 3
   docker:
     repository: "ainari/dashboard"
     tag: "local"

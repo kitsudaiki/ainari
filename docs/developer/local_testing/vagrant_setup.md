@@ -2,7 +2,7 @@
 
 ## Overview
 
-Runs the helm-chart of `deploy/k8s/ainari` on a kubernetes-cluster (k3s) of four virtual machines,
+Runs the helm-chart of `deploy/k8s/ainari` on a kubernetes-cluster (k3s) of eight virtual machines,
 which vagrant creates with libvirt (`testing/vagrant/Vagrantfile`). An ansible-playbook
 (`testing/vagrant/playbook.yaml`) installs k3s, cert-manager and the chart with the values of
 `testing/vagrant/values.yaml`. Every component runs only on the virtual machines with its label,
@@ -12,12 +12,23 @@ machines of ainari within their own virtual machine. The components only talk ht
 other, over a nginx-sidecar with a certificate of cert-manager. The dashboard is always part of
 this setup.
 
-| Virtual machine   | Address         | Runs                                                               |
-| ----------------- | --------------- | ------------------------------------------------------------------ |
-| `ainari-mgmt`     | `192.168.56.10` | the k3s-server, miko, hanami, ryokan, onsen, omamori, the dashboard |
-| `ainari-torii`    | `192.168.56.11` | `torii-public`, the gateway at the edge of the network              |
-| `ainari-sakura-1` | `192.168.56.12` | one sakura-host with the torii in front of it                       |
-| `ainari-sakura-2` | `192.168.56.13` | the other sakura-host with the torii in front of it                 |
+Miko, hanami, ryokan and omamori run with three replicas, one on each of the three
+management-machines, and all of them share the mysql-server on the virtual machine `ainari-mysql`.
+So the setup also tests, that the control-components work with multiple replicas: a request can
+land on any of them, because they keep their state only within the database.
+
+| Virtual machine   | Address         | Runs                                                                        |
+| ----------------- | --------------- | --------------------------------------------------------------------------- |
+| `ainari-mgmt-1`   | `192.168.56.10` | the k3s-server, one replica of miko, hanami, ryokan and omamori             |
+| `ainari-mgmt-2`   | `192.168.56.14` | one replica of miko, hanami, ryokan and omamori                             |
+| `ainari-mgmt-3`   | `192.168.56.15` | one replica of miko, hanami, ryokan and omamori                             |
+| `ainari-mysql`    | `192.168.56.16` | the mysql-server of miko, hanami, ryokan and omamori                        |
+| `ainari-onsen`    | `192.168.56.17` | onsen, which stores the images of the virtual machines                      |
+| `ainari-torii`    | `192.168.56.11` | `torii-public`, the gateway at the edge of the network                      |
+| `ainari-sakura-1` | `192.168.56.12` | one sakura-host with the torii in front of it                               |
+| `ainari-sakura-2` | `192.168.56.13` | the other sakura-host with the torii in front of it                         |
+
+The dashboard runs with three replicas as well, one on each management-machine.
 
 ## Architecture
 
@@ -26,8 +37,14 @@ flowchart TB
     host["host<br/>route 10.0.0.0/24 via 192.168.56.11"]
 
     subgraph net["private network of vagrant 192.168.56.0/24, mtu 1600"]
-        subgraph mgmt["VM ainari-mgmt 192.168.56.10"]
-            control["k3s-server<br/>miko, omamori, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar"]
+        subgraph mgmt["VMs ainari-mgmt-1 to -3 192.168.56.10, .14, .15"]
+            control["k3s-server on ainari-mgmt-1<br/>one replica of miko, omamori, ryokan, hanami on each<br/>and of the dashboard<br/>each with a tls-sidecar"]
+        end
+        subgraph onsenvm["VM ainari-onsen 192.168.56.17"]
+            onsen["pod onsen-0<br/>images of the virtual machines"]
+        end
+        subgraph mysqlvm["VM ainari-mysql 192.168.56.16"]
+            mysql["pod mysql-0<br/>databases of miko, hanami, ryokan, omamori"]
         end
         subgraph toriivm["VM ainari-torii 192.168.56.11"]
             uplink["service ainari-uplink<br/>10.0.0.1 on veth-uplink, NAT to the internet"]
@@ -48,6 +65,10 @@ flowchart TB
     public -- "underlay over flannel (vxlan)" --- pod1
     pod0 --- vm0["virtual machines"]
     pod1 --- vm1["virtual machines"]
+    control -- "mysql" --- mysql
+    control -. "grpc" .- onsen
+    onsen -. "images" .- pod0
+    onsen -. "images" .- pod1
     control -. "https" .- public
     control -. "https" .- pod0
     control -. "https" .- pod1
@@ -72,7 +93,7 @@ derives the torii of a host from this address.
   `docs/developer/local_testing.md`.
 - nested virtualization of kvm: `/sys/module/kvm_amd/parameters/nested` or
   `/sys/module/kvm_intel/parameters/nested` has to be `1` or `Y`
-- about 20 GiB free memory and 25 GiB free disk
+- about 32 GiB free memory and 40 GiB free disk
 - docker (the engine), which builds the images
 - `openssl`, to create the CA of the setup
 - `ansible-playbook`. If it is not installed, `make` installs `ansible-core` into a virtual
@@ -99,7 +120,7 @@ make up vagrant      # runs scripts/setup_vagrant_stack.sh, asks for sudo for th
 make down vagrant    # destroys the virtual machines and removes the route again
 ```
 
-`make up vagrant` builds the images, starts the four virtual machines, runs the ansible-playbook
+`make up vagrant` builds the images, starts the eight virtual machines, runs the ansible-playbook
 over them and at last adds the route `10.0.0.0/24 via 192.168.56.11` on the host. Every run starts
 with empty databases, also when the virtual machines already exist; a run over existing virtual
 machines only skips their creation and the installation of k3s.
@@ -148,7 +169,7 @@ The cluster and the virtual machines can be inspected with:
 
 ```bash
 kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get pods -o wide
-cd testing/vagrant && vagrant ssh ainari-mgmt    # kubectl and helm work there as well
+cd testing/vagrant && vagrant ssh ainari-mgmt-1    # kubectl and helm work there as well
 ```
 
 ## End-to-end test
@@ -205,7 +226,7 @@ plugin `vagrant-libvirt` and `ansible` are available:
 make up vagrant
 AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 python3 testing/local_stack/vm_lifecycle_test.py
 kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get pods
-cd testing/vagrant && vagrant ssh ainari-mgmt
+cd testing/vagrant && vagrant ssh ainari-mgmt-1
 make down vagrant
 ```
 

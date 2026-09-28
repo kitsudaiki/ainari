@@ -292,8 +292,9 @@ fi
 # wait for the components
 # ---------------------------------------------------------------------------------------------
 echo "Waiting for the components to become ready ..."
-for resource in deployment/miko deployment/omamori deployment/ryokan deployment/hanami \
-                deployment/torii-public deployment/dashboard statefulset/onsen statefulset/sakura; do
+for resource in statefulset/mysql deployment/miko deployment/omamori deployment/ryokan \
+                deployment/hanami deployment/torii-public deployment/dashboard statefulset/onsen \
+                statefulset/sakura; do
     "${KUBECTL[@]}" rollout status "$resource" --timeout=600s
 done
 

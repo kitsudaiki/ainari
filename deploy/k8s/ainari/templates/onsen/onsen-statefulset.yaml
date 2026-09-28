@@ -30,6 +30,7 @@ spec:
         app: onsen
     spec:
       {{- include "ainari.affinity" (list . "onsen" "onsen-node") | nindent 6 }}
+      {{- include "ainari.waitForMiko" . | nindent 6 }}
       containers:
       - name: onsen
         image: {{ include "ainari.image" .Values.onsen }}
