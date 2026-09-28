@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[sqlite]`, which replaces the old `[database]`-group, and `[mysql]`. The password of the
   MySQL-database is read from the env-variable `AINARI_MYSQL_PASSWORD`.
 - Redundant control plane in Kubernetes setup
+- in kubernetes setup, now it is checked if the internal requests really coming from internal components
 
 ## v0.20.1
 

@@ -13,4 +13,4 @@
 # limitations under the License.
 
 # publishes the tls-termination of hanami outside of the cluster, see global.external_services in values.yaml
-{{- include "ainari.externalService" (list . "hanami" (list (list 11418 8443))) }}
+{{ include "ainari.externalService" (list . "hanami" (list (list 11418 9443))) }}

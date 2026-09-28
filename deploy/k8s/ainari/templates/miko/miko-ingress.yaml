@@ -32,7 +32,8 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: miko-tls-service
+            # the clients reach only the external api
+            name: miko-external
             port:
-              number: 8443
+              number: 11417
 {{- end }}

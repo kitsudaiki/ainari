@@ -32,7 +32,8 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: ryokan-tls-service
+            # the clients reach only the external api
+            name: ryokan-external
             port:
-              number: 8443
+              number: 11416
 {{- end }}

@@ -32,7 +32,8 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: hanami-tls-service
+            # the clients reach only the external api
+            name: hanami-external
             port:
-              number: 8443
+              number: 11418
 {{- end }}

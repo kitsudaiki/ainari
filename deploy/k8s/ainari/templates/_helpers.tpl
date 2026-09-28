@@ -107,8 +107,9 @@ affinity:
 {{- end }}
 
 {{/*
-Service, which publishes the ports of a component outside of the cluster, see
-global.external_services. With the type NodePort, the node-port is the port itself plus a fixed
+Service of the external api of a component. It always exists, because the ingress forwards to it
+as well, but it only publishes the ports outside of the cluster, if global.external_services is
+enabled, otherwise it has the type ClusterIP. With the type NodePort, the node-port is the port itself plus a fixed
 offset, so the kind-setup can map it back to the original port on the host. With the type
 LoadBalancer, the port itself is published, for example by the servicelb of k3s on every node.
 Every port is given as pair of the published port and the port of the pod, which is the
@@ -120,7 +121,7 @@ Usage: {{ include "ainari.externalService" (list $ "hanami" (list (list 11418 84
 {{- $app := index . 1 -}}
 {{- $ports := index . 2 -}}
 {{- $external := $root.Values.global.external_services -}}
-{{- if $external.enabled }}
+{{- $type := ternary $external.type "ClusterIP" $external.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -128,7 +129,7 @@ metadata:
   labels:
     app: {{ $app }}
 spec:
-  type: {{ $external.type }}
+  type: {{ $type }}
   selector:
     app: {{ $app }}
   ports:
@@ -138,11 +139,10 @@ spec:
       protocol: TCP
       port: {{ $port }}
       targetPort: {{ index $pair 1 }}
-      {{- if eq $external.type "NodePort" }}
+      {{- if eq $type "NodePort" }}
       nodePort: {{ add $port $external.node_port_offset }}
       {{- end }}
   {{- end }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -282,4 +282,115 @@ initContainers:
       echo "waiting for miko ..."
       sleep 2
     done
+{{- end }}
+
+{{/*
+Config of a nginx-sidecar, which terminates tls and forwards the requests to a port of the
+component within the pod.
+Usage: {{ include "ainari.nginxConfig" (list 8443 10417) | nindent 4 }}
+The first argument is the port, where nginx listens, the second one the port of the component.
+*/}}
+{{- define "ainari.nginxConfig" -}}
+{{- $listen := index . 0 -}}
+{{- $upstream := index . 1 -}}
+user nginx;
+worker_processes  2;
+error_log  /dev/stdout;
+events {
+    worker_connections  1024;
+}
+http {
+    server
+    {
+        server_tokens off;
+
+        listen {{ $listen }} ssl;
+        listen [::]:{{ $listen }} ssl;
+        http2  on;
+
+        ssl_certificate /etc/nginx/certs/tls.crt;
+        ssl_certificate_key /etc/nginx/certs/tls.key;
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:SSL:50m;
+        ssl_session_tickets off;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers on;
+
+        # HSTS (15768000 seconds = 6 months)
+        add_header Strict-Transport-Security max-age=15768000;
+
+        client_max_body_size 1G;
+
+        access_log /dev/stdout;
+        error_log  /dev/stdout;
+
+        location / {
+            proxy_cache         off;
+
+            proxy_set_header    Upgrade $http_upgrade;
+            proxy_set_header    Connection "Upgrade";
+            proxy_http_version  1.1;
+            # large uploads, like the images of ryokan, are streamed to the component instead of
+            # being buffered in the sidecar, whose memory is limited
+            proxy_request_buffering off;
+            proxy_set_header    Host                $http_host;
+            proxy_set_header    X-Real-IP           $remote_addr;
+            proxy_set_header    X-Forwarded-For     $proxy_add_x_forwarded_for;
+
+            proxy_pass http://127.0.0.1:{{ $upstream }}/;
+            proxy_read_timeout 180;
+        }
+    }
+}
+{{- end }}
+
+{{/*
+ConfigMap with the configs of the two nginx-sidecars of a component, which has an internal and an
+external api. The internal one listens on 8443 for '<component>-tls-service' and forwards to the
+internal port of the component, the external one listens on 9443 for '<component>-external' and
+the ingress and forwards to the public port of the component.
+Usage: {{ include "ainari.nginxConfigMap" (list "miko" 10417 11417) }}
+*/}}
+{{- define "ainari.nginxConfigMap" -}}
+{{- $name := index . 0 -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-nginx-config
+data:
+  # tls-termination of the internal api, which the other components reach over {{ $name }}-tls-service
+  internal.conf: |+
+    {{- include "ainari.nginxConfig" (list 8443 (index . 1)) | nindent 4 }}
+  # tls-termination of the external api, which the clients reach over {{ $name }}-external and the
+  # ingress
+  external.conf: |+
+    {{- include "ainari.nginxConfig" (list 9443 (index . 2)) | nindent 4 }}
+{{- end }}
+
+{{/*
+The two nginx-sidecars of a component with an internal and an external api, see
+ainari.nginxConfigMap.
+Usage: {{ include "ainari.tlsSidecars" "miko" | nindent 6 }}
+*/}}
+{{- define "ainari.tlsSidecars" -}}
+{{- range $sidecar := list (list "tls-termination" "internal.conf") (list "external-tls-termination" "external.conf") }}
+- name: {{ index $sidecar 0 }}
+  image: nginx:latest
+  volumeMounts:
+  - name: tls-certs
+    mountPath: /etc/nginx/certs
+  - name: {{ $ }}-nginx-config
+    mountPath: /etc/nginx/nginx.conf
+    subPath: {{ index $sidecar 1 }}
+  resources:
+    # Without requests, kubernetes reserves the limits for the sidecar, which would block
+    # half a cpu per sidecar, although the tls-termination needs only a fraction of it.
+    requests:
+      memory: "32Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+{{- end }}
 {{- end }}
