@@ -1,13 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## v0.20.10
 
 ### BREAKING-CHANGES
 
 #### EVERYTHING
 
 Complete rework of the project into an IaaS software:
-- outsources the old neural network core into the side-project: https://github.com/kitsudaiki/saki
+- outsourced the old artificial neural network core into the side-project: https://github.com/kitsudaiki/saki
 - integrated the Cloud-Hypervisor to create virtual machines istead of neural networks
     - create VM
     - delete VM
@@ -44,6 +44,8 @@ Complete rework of the project into an IaaS software:
 - replaced logo, because the old one was moved to the saki-repo
 - logging also to files possible now
 
+---
+---
 
 ## v0.11.1
 
