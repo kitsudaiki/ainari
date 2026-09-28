@@ -1,6 +1,7 @@
 # Config of omamori for the local docker-compose setup.
 debug = true
 log_path = "/var/log"
+database_type = "sqlite"
 skip_tls_verification = true
 
 [api]
@@ -12,7 +13,7 @@ internal_port = 10421
 [miko]
 address = "http://miko:11417"
 
-[database]
+[sqlite]
 file_path = "/etc/ainari/omamori_db"
 
 [simple_crypto]

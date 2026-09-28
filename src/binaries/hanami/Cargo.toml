@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-ainari_common = { path = "../../libs/rust/ainari_common" }
+ainari_common = { path = "../../libs/rust/ainari_common", features = ["mysql"] }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 torii_common = { path = "../../libs/rust/torii_common" }

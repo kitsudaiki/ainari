@@ -19,7 +19,7 @@ use diesel::result::DatabaseErrorKind;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
-use crate::database::{assignable_ip_range, db_handle};
+use crate::database::{assignable_ip_range, db_handle, is_unique_violation_of};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -327,13 +327,13 @@ fn reserve_address_from(
             // another request was faster and reserved one of the values, so try the next one
             Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, info)) => {
                 let message = info.message();
-                if message.contains("addresses.mac_address") {
+                if is_unique_violation_of(message, "addresses", "mac_address") {
                     mac_candidate += 1;
                 }
-                if message.contains("addresses.tap_name") {
+                if is_unique_violation_of(message, "addresses", "tap_name") {
                     tap_candidate += 1;
                 }
-                if message.contains("addresses.internal_ip") {
+                if is_unique_violation_of(message, "addresses", "internal_ip") {
                     ip_candidate += 1;
                 }
             }

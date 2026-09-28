@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+# connection-handling of the services, which support a sqlite- and a mysql-database. It links the
+# client-library of mysql, so it is only enabled by these services.
+mysql = ["diesel/mysql", "dep:diesel_migrations"]
+
 [dependencies]
 # logging
 log = "0.4"
@@ -25,6 +30,10 @@ serde_json = "1"
 schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
 validator = { version = "0.21", features = ["derive"] }
 
+# url-encoding of the database-credentials
+percent-encoding = "2.3"
+
 # database-traits
 diesel = { version = "2.3", features = ["sqlite"]}
+diesel_migrations = { version = "2.3", optional = true }
 uuid = { version = "1.23.1", features = ["v4"] }

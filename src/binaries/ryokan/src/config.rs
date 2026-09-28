@@ -30,7 +30,9 @@ use ainari_common::secret::Secret;
 /// * `skip_tls_verification` - When true, skips TLS certificate verification for insecure clients.
 /// * `storage` - Configuration for storage settings.
 /// * `api` - Configuration for API settings from ainari_common.
-/// * `database` - Configuration for database settings from ainari_common.
+/// * `database_type` - Type of the database and so the database-group, which is used.
+/// * `sqlite` - Configuration of a local sqlite-database from ainari_common.
+/// * `mysql` - Configuration of a remote mysql-database from ainari_common.
 /// * `miko` - Configuration for Miko endpoint settings from ainari_common.
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -42,6 +44,8 @@ pub struct Config {
     /// Directory of the log-file, if `log_type` is `log_file`
     #[serde(default = "ainari_config::default_log_path")]
     pub log_path: String,
+    /// Type of the database, which also selects the database-group, which is used
+    pub database_type: ainari_config::DatabaseType,
     /// When true, skips TLS certificate verification for insecure clients.
     /// Defaults to false for security reasons.
     #[serde(default = "default_insecure_clients")]
@@ -49,7 +53,10 @@ pub struct Config {
     // groups
     pub storage: Storage,
     pub api: ainari_config::Api,
-    pub database: ainari_config::Database,
+    /// Local sqlite-database, required if `database_type` is `sqlite`
+    pub sqlite: Option<ainari_config::SqliteDatabase>,
+    /// Remote mysql-database, required if `database_type` is `mysql`
+    pub mysql: Option<ainari_config::MysqlDatabase>,
     pub miko: ainari_config::MikoEndpoint,
 }
 

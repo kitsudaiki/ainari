@@ -19,6 +19,7 @@ data:
   hanami.toml: |+
     debug = true
     log_path = ""
+    database_type = "sqlite"
     skip_tls_verification = true
 
     [api]
@@ -27,7 +28,7 @@ data:
     internal_ip = "127.0.0.1"
     internal_port = 10418
 
-    [database]
+    [sqlite]
     file_path = "/etc/ainari/hanami/hanami_db"
     
     [miko]

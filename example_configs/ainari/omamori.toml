@@ -2,6 +2,8 @@ debug = true
 # "stdout" or "log_file", the log-file is written into log_path
 log_type = "stdout"
 log_path = "/var/log/"
+# "sqlite" or "mysql", which selects the group below, which is used to connect to the database
+database_type = "sqlite"
 skip_tls_verification = true
 
 [api]
@@ -13,8 +15,15 @@ internal_port = 10421
 [miko]
 address = "http://127.0.0.1:11417"
 
-[database]
+[sqlite]
 file_path = "/etc/ainari/omamori_db"
+
+# the password is read from the env-variable AINARI_MYSQL_PASSWORD
+#[mysql]
+#host = "127.0.0.1"
+#port = 3306
+#user = "omamori"
+#database = "omamori"
 
 [simple_crypto]
 key_b64 = "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE="

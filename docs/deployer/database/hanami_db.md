@@ -1,8 +1,12 @@
 # Hanami
 
-Hanami stores its data in a SQLite-database, whose file is configured with `database.file_path`
-(`/etc/ainari/hanami_db` in the example config). The tables are created at the first start, missing
-columns are added automatically at the start after an update.
+Hanami stores its data either in a SQLite-database, whose file is configured with `sqlite.file_path`
+(`/etc/ainari/hanami_db` in the example config), or in a MySQL-database, which is configured with the
+`mysql`-group. Which one is used is selected by `database_type`. The tables are created and
+updated by the migrations in `src/binaries/hanami/migrations/sqlite` and
+`src/binaries/hanami/migrations/mysql`, which are applied automatically at the start. The types
+below are the ones of the SQLite-database; the MySQL-database uses `INT` for `INTEGER` and
+`LONGTEXT` for `TEXT`.
 
 ## hosts
 
@@ -101,6 +105,10 @@ Unique indexes:
 - `addresses_active_tap_name`: `(tap_name)` where `status = 'ACTIVE'`
 - `addresses_active_network_internal_ip`: `(network_uuid, internal_ip)` where `status = 'ACTIVE'`
 
+MySQL has no partial indexes, so there the unique indexes are built on generated columns
+`active_<column>`, which contain the value of the column, if `status = 'ACTIVE'`, and NULL
+otherwise.
+
 ## floating_ips
 
 Floating IPs and the internal address they are attached to. `network_uuid` and `internal_ip_addr`
@@ -128,3 +136,7 @@ Unique indexes:
 - `floating_ips_active_floating_ip_addr`: `(floating_ip_addr)` where `status = 'ACTIVE'`
 - `floating_ips_active_network_internal_ip_addr`: `(network_uuid, internal_ip_addr)` where `status =
   'ACTIVE'`
+
+MySQL has no partial indexes, so there the unique indexes are built on generated columns
+`active_<column>`, which contain the value of the column, if `status = 'ACTIVE'`, and NULL
+otherwise.

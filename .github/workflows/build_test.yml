@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev
+          sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
           sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
 
       - name: Install Rust Nightly
@@ -266,7 +266,7 @@ jobs:
         name: Install dependencies for SDK
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev
+          sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
           sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
         name: Install Rust Nightly
@@ -374,6 +374,21 @@ jobs:
     name: "Cargo Test"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
     runs-on: ubuntu-24.04
+    services:
+      # database for the second test-run of the components, which also support mysql
+      mysql:
+        image: mysql:8.4@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d
+        env:
+          MYSQL_ROOT_PASSWORD: root-test-password
+          MYSQL_USER: ainari
+          MYSQL_PASSWORD: ainari-test-password
+        ports:
+          - 127.0.0.1:3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot-test-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
     env:
       FORCE_COLOR: 1
       INTERNAL_API_KEY: test-internal-api-key
@@ -384,7 +399,7 @@ jobs:
         name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler gcc g++ ssh curl zstd pkg-config libssl-dev libsqlite3-dev
+          sudo apt-get install -y protobuf-compiler gcc g++ ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
           sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
         name: Install Rust Nightly
@@ -425,6 +440,38 @@ jobs:
           cd ${GITHUB_REPOSITORY#*/}
           # only one test-thread to avoid conflicts between tests, which access the same singleton
           cargo test -- --test-threads=1
+      -
+        name: Run tests with mysql
+        env:
+          AINARI_MYSQL_PASSWORD: ainari-test-password
+        run: |
+          cd ${GITHUB_REPOSITORY#*/}
+          # the shared connection-handling of ainari_common skips its mysql-tests without a
+          # mysql-server, so they are run explicitly with the mysql-service of this job
+          docker exec ${{ job.services.mysql.id }} \
+            mysql -u root -proot-test-password \
+            -e "CREATE DATABASE ainari_common; GRANT ALL ON ainari_common.* TO 'ainari'@'%';"
+          AINARI_TEST_MYSQL_HOST=127.0.0.1 \
+          AINARI_TEST_MYSQL_USER=ainari \
+          AINARI_TEST_MYSQL_DATABASE=ainari_common \
+            cargo test -p ainari_common --features mysql database
+
+          # miko, hanami, omamori and ryokan also support mysql, so their tests run a second time
+          # with their example-config switched to a database of the mysql-service of this job
+          for component in miko hanami omamori ryokan; do
+            docker exec ${{ job.services.mysql.id }} \
+              mysql -u root -proot-test-password \
+              -e "CREATE DATABASE ${component}; GRANT ALL ON ${component}.* TO 'ainari'@'%';"
+            sed -e 's/^database_type = "sqlite"/database_type = "mysql"/' \
+                -e 's/^#\[mysql\]/[mysql]/' \
+                -e 's/^#host = .*/host = "127.0.0.1"/' \
+                -e 's/^#port = /port = /' \
+                -e 's/^#user = .*/user = "ainari"/' \
+                -e 's/^#database = /database = /' \
+                "./example_configs/ainari/${component}.toml" > "${RUNNER_TEMP}/${component}_mysql.toml"
+            CONFIG_FILE="${RUNNER_TEMP}/${component}_mysql.toml" \
+              cargo test -p "${component}" -- --test-threads=1
+          done
     
     
 

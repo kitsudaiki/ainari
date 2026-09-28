@@ -382,9 +382,11 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "diesel",
+ "diesel_migrations",
  "env_logger",
  "hex",
  "log",
+ "percent-encoding",
  "serde",
  "serde_json",
  "sha2",
@@ -1483,11 +1485,16 @@ version = "2.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b934ddbdcb2abb9f9fc9c30bd47bcc5618b615eea1d334cda5fdf8ff9b072a"
 dependencies = [
+ "bitflags 2.13.2",
+ "byteorder",
  "diesel_derives",
  "downcast-rs",
  "libsqlite3-sys",
+ "mysqlclient-sys",
+ "percent-encoding",
  "sqlite-wasm-rs",
  "time",
+ "url",
  "uuid",
 ]
 
@@ -2561,6 +2568,17 @@ name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
+
+[[package]]
+name = "mysqlclient-sys"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b72511f8f6991fe4ac86421ea0625630fd94e360b906cc59720506499f9e8f3b"
+dependencies = [
+ "pkg-config",
+ "semver",
+ "vcpkg",
+]
 
 [[package]]
 name = "neko"

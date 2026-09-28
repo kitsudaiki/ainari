@@ -40,6 +40,28 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Checks, if a unique-violation was caused by the unique index of the given column.
+///
+/// The databases describe the violation differently in their error-message: sqlite lists the
+/// columns of the index like `UNIQUE constraint failed: addresses.mac_address`, while mysql names
+/// the index like `Duplicate entry '...' for key 'addresses.addresses_active_mac_address'`. The
+/// unique indexes of the mysql-migrations are therefore named after the column, which they make
+/// unique, at their end.
+///
+/// # Arguments
+/// * `message` - Error-message of the unique-violation
+/// * `table` - Name of the table
+/// * `column` - Name of the column
+///
+/// # Returns
+/// True, if the unique index of the column was violated
+pub fn is_unique_violation_of(message: &str, table: &str, column: &str) -> bool {
+    match message.split_once(" for key ") {
+        Some((_, key)) => key.trim_matches('\'').ends_with(column),
+        None => message.contains(&format!("{table}.{column}")),
+    }
+}
+
 /// Calculates the range of the assignable IP-addresses of a CIDR like `192.168.100.0/24`.
 ///
 /// The network-address and the first address, which is reserved for the gateway, are skipped at
@@ -66,6 +88,39 @@ pub fn assignable_ip_range(cidr: &str) -> Option<(u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_is_unique_violation_of() {
+        // sqlite lists the columns of the violated index
+        let message = "UNIQUE constraint failed: addresses.mac_address";
+        assert!(is_unique_violation_of(message, "addresses", "mac_address"));
+        assert!(!is_unique_violation_of(message, "addresses", "tap_name"));
+        let message = "UNIQUE constraint failed: addresses.network_uuid, addresses.internal_ip";
+        assert!(is_unique_violation_of(message, "addresses", "internal_ip"));
+        assert!(!is_unique_violation_of(message, "addresses", "mac_address"));
+
+        // mysql names the violated index, and the violating value must not be mistaken for it
+        let message = "Duplicate entry 'tap_name' for key 'addresses.addresses_active_mac_address'";
+        assert!(is_unique_violation_of(message, "addresses", "mac_address"));
+        assert!(!is_unique_violation_of(message, "addresses", "tap_name"));
+        let message = "Duplicate entry 'abc-10.0.0.2' for key \
+                       'addresses.addresses_active_network_internal_ip'";
+        assert!(is_unique_violation_of(message, "addresses", "internal_ip"));
+        let message = "Duplicate entry 'abc-10.0.0.2' for key \
+                       'floating_ips.floating_ips_active_network_internal_ip_addr'";
+        assert!(!is_unique_violation_of(
+            message,
+            "floating_ips",
+            "floating_ip_addr"
+        ));
+        assert!(is_unique_violation_of(
+            message,
+            "floating_ips",
+            "internal_ip_addr"
+        ));
+        let message = "Duplicate entry 'abc' for key 'addresses.PRIMARY'";
+        assert!(!is_unique_violation_of(message, "addresses", "mac_address"));
+    }
 
     #[test]
     fn test_assignable_ip_range() {

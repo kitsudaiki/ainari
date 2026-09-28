@@ -19,7 +19,7 @@ use diesel::result::DatabaseErrorKind;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
-use crate::database::{assignable_ip_range, db_handle};
+use crate::database::{assignable_ip_range, db_handle, is_unique_violation_of};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -224,7 +224,7 @@ fn reserve_floating_ip_from(
             Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, info)) => {
                 // another request was faster and reserved this floating IP-address, so try the next one.
                 // Otherwise the UUID was in conflict, so only a new UUID is generated in the next try.
-                if info.message().contains("floating_ips.floating_ip_addr") {
+                if is_unique_violation_of(info.message(), "floating_ips", "floating_ip_addr") {
                     if !increase_on_conflict {
                         return Err(FloatingIpReserveError::AlreadyUsed);
                     }
