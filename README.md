@@ -38,7 +38,7 @@ See more in the [About-section](https://docs.ainari.cloud/home/about/) of the do
 
 - [Features](https://docs.ainari.cloud/home/features/)
 
-- [Overview](https://docs.ainari.cloud/home/home/overview/)
+- [Architecture Overview](https://docs.ainari.cloud/home/overview/)
 
 ## Getting started
 

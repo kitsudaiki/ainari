@@ -10,9 +10,8 @@ assignees: kitsudaiki
 ### Checklist
 
 - [ ] Update Changelog
-- [ ] Version in helm-chart increased
-- [ ] Version in pip-package increased
+- [ ] Version in versions within repo were updated
 - [ ] Rest-API docs are up-to-date
-- [ ] Test with SDK-API-Tester
+- [ ] Tested local setup
 - [ ] Create Docker-Images
 - [ ] Create Release-Tag
