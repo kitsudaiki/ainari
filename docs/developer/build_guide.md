@@ -34,7 +34,7 @@ grep -E 'CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_XDP_SOCKETS=' /boot/config-$(una
     - For Ubuntu 24.04 and Debian 12:
 
         ```bash
-        sudo apt-get install gcc curl git pkg-config protobuf-compiler libssl-dev libsqlite3-dev
+        sudo apt-get install gcc curl git pkg-config protobuf-compiler libssl-dev libsqlite3-dev libmariadb-dev
         ```
 
 - Install the Rust-compiler with [rustup](https://rustup.rs/) (minimum version: `1.85.1`)

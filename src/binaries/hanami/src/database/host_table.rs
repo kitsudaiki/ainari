@@ -14,7 +14,7 @@
 
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use rand::prelude::IndexedRandom;
+use rand::prelude::SliceRandom;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -336,8 +336,10 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
 /// is greater or equal to the requested value. The used values of the selected host are
 /// increased by the requested values.
 ///
-/// The check and the allocation run while the database-connection is locked and within one
-/// immediate transaction, so no other request can allocate the same resources in between.
+/// The free resources are checked again within the update, which allocates them, so the
+/// allocation is atomic within the database. If another request, for example of another
+/// hanami-instance with the same database, allocated the resources of the selected host in
+/// between, the update doesn't change anything and the next suitable host is tried.
 ///
 /// # Arguments
 /// * `requested` - Resources, which are requested by the new virtual-machine
@@ -354,31 +356,39 @@ pub fn allocate_host_resources(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let result = conn.immediate_transaction::<_, diesel::result::Error, _>(|conn| {
-        let suitable_hosts = hosts
-            .filter(status.eq("ACTIVE"))
-            .filter((number_of_cores - used_number_of_cores).ge(requested.number_of_cores))
-            .filter((memory_size - amount_of_used_memory).ge(requested.memory_size))
-            .filter((disk_space - amount_of_used_disk_space).ge(requested.disk_space))
-            .select(HostEntry::as_select())
-            .load::<HostEntry>(conn)?;
+    let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        let has_free_resources = status
+            .eq("ACTIVE")
+            .and((number_of_cores - used_number_of_cores).ge(requested.number_of_cores))
+            .and((memory_size - amount_of_used_memory).ge(requested.memory_size))
+            .and((disk_space - amount_of_used_disk_space).ge(requested.disk_space));
 
-        let selected_host = suitable_hosts
-            .choose(&mut rand::rng())
-            .ok_or(diesel::result::Error::NotFound)?;
+        let mut suitable_hosts = hosts
+            .filter(has_free_resources)
+            .select(uuid)
+            .load::<String>(conn)?;
+        suitable_hosts.shuffle(&mut rand::rng());
 
-        diesel::update(hosts.filter(uuid.eq(selected_host.uuid.to_string())))
-            .set((
-                used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
-                amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
-                amount_of_used_disk_space.eq(amount_of_used_disk_space + requested.disk_space),
-            ))
-            .execute(conn)?;
+        for selected_uuid in suitable_hosts {
+            let allocated =
+                diesel::update(hosts.filter(uuid.eq(&selected_uuid).and(has_free_resources)))
+                    .set((
+                        used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
+                        amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
+                        amount_of_used_disk_space
+                            .eq(amount_of_used_disk_space + requested.disk_space),
+                    ))
+                    .execute(conn)?;
 
-        hosts
-            .filter(uuid.eq(selected_host.uuid.to_string()))
-            .select(HostEntry::as_select())
-            .first::<HostEntry>(conn)
+            if allocated == 1 {
+                return hosts
+                    .filter(uuid.eq(&selected_uuid))
+                    .select(HostEntry::as_select())
+                    .first::<HostEntry>(conn);
+            }
+        }
+
+        Err(diesel::result::Error::NotFound)
     });
 
     match result {
@@ -412,18 +422,23 @@ pub fn release_host_resources(
     use diesel::dsl::sql;
     use diesel::sql_types::BigInt;
 
-    // MAX(x, 0) keeps the values valid for the CHECK-constraints of the table
+    // Decreases a used value, but never below 0, which keeps the values valid for the
+    // CHECK-constraints of the table. It is written as CASE, because sqlite and mysql have
+    // different functions for the maximum of two values.
+    let decrease = |column: &str, value: i64| {
+        sql::<BigInt>(&format!("CASE WHEN {column} > "))
+            .bind::<BigInt, _>(value)
+            .sql(&format!(" THEN {column} - "))
+            .bind::<BigInt, _>(value)
+            .sql(" ELSE 0 END")
+    };
+
     match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
         .set((
-            used_number_of_cores.eq(sql::<BigInt>("MAX(used_number_of_cores - ")
-                .bind::<BigInt, _>(released.number_of_cores)
-                .sql(", 0)")),
-            amount_of_used_memory.eq(sql::<BigInt>("MAX(amount_of_used_memory - ")
-                .bind::<BigInt, _>(released.memory_size)
-                .sql(", 0)")),
-            amount_of_used_disk_space.eq(sql::<BigInt>("MAX(amount_of_used_disk_space - ")
-                .bind::<BigInt, _>(released.disk_space)
-                .sql(", 0)")),
+            used_number_of_cores.eq(decrease("used_number_of_cores", released.number_of_cores)),
+            amount_of_used_memory.eq(decrease("amount_of_used_memory", released.memory_size)),
+            amount_of_used_disk_space
+                .eq(decrease("amount_of_used_disk_space", released.disk_space)),
         ))
         .execute(&mut *conn)
     {

@@ -30,6 +30,11 @@ FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174d
 
 WORKDIR /app
 
+# client-library of the mysql-databases of miko, omamori, hanami and ryokan. It is part of the
+# base-image since version 0.3.0, so this step can be removed, when that version is used.
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y libmariadb-dev
+
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY src src
@@ -84,7 +89,7 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
@@ -106,7 +111,7 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
@@ -128,7 +133,7 @@ FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed0
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 && \
+    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
@@ -153,6 +158,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends openssl \
                        curl \
                        libsqlite3-0 \
+                       libmariadb3 \
                        wireguard-tools \
                        iptables-persistent \
                        iproute2 \

@@ -1,8 +1,12 @@
 # Omamori
 
-Omamori stores its data in a SQLite-database, whose file is configured with `database.file_path`
-(`/etc/ainari/omamori_db` in the example config). The tables are created at the first start, missing
-columns are added automatically at the start after an update.
+Omamori stores its data either in a SQLite-database, whose file is configured with `sqlite.file_path`
+(`/etc/ainari/omamori_db` in the example config), or in a MySQL-database, which is configured with the
+`mysql`-group. Which one is used is selected by `database_type`. The tables are created and
+updated by the migrations in `src/binaries/omamori/migrations/sqlite` and
+`src/binaries/omamori/migrations/mysql`, which are applied automatically at the start. The types
+below are the ones of the SQLite-database; the MySQL-database uses `INT` for `INTEGER` and
+`LONGTEXT` for `TEXT`.
 
 ## secrets
 

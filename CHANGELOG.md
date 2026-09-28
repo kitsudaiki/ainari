@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING-CHANGES
 
-#### Added
-
 - upgrade path for database-tables. just work AFTER this commit
+
+### Added
+
+- optional MySQL-database for miko, hanami, omamori and ryokan as alternative to the local
+  SQLite-database. The new config-value `database_type` selects between the config-groups
+  `[sqlite]`, which replaces the old `[database]`-group, and `[mysql]`. The password of the
+  MySQL-database is read from the env-variable `AINARI_MYSQL_PASSWORD`.
+
 
 ## v0.20.1
 

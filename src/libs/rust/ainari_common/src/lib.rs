@@ -17,6 +17,8 @@
 pub mod config;
 pub mod constants;
 pub mod counter;
+#[cfg(feature = "mysql")]
+pub mod database;
 pub mod enums;
 pub mod error;
 pub mod functions;

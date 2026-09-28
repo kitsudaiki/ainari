@@ -31,10 +31,15 @@ pub struct Config {
     /// Directory of the log-file, if `log_type` is `log_file`
     #[serde(default = "ainari_config::default_log_path")]
     pub log_path: String,
+    /// Type of the database, which also selects the database-group, which is used
+    pub database_type: ainari_config::DatabaseType,
     // groups
     pub auth: Auth,
     pub api: ainari_config::Api,
-    pub database: ainari_config::Database,
+    /// Local sqlite-database, required if `database_type` is `sqlite`
+    pub sqlite: Option<ainari_config::SqliteDatabase>,
+    /// Remote mysql-database, required if `database_type` is `mysql`
+    pub mysql: Option<ainari_config::MysqlDatabase>,
     pub endpoints: ainari_config::Endpoints,
 }
 

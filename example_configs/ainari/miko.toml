@@ -2,6 +2,8 @@ debug = true
 # "stdout" or "log_file", the log-file is written into log_path
 log_type = "stdout"
 log_path = "/var/log/"
+# "sqlite" or "mysql", which selects the group below, which is used to connect to the database
+database_type = "sqlite"
 
 [api]
 public_ip = "0.0.0.0"
@@ -9,8 +11,15 @@ public_port = 11417
 internal_ip = "0.0.0.0"
 internal_port = 10417
 
-[database]
+[sqlite]
 file_path = "/etc/ainari/miko_db"
+
+# the password is read from the env-variable AINARI_MYSQL_PASSWORD
+#[mysql]
+#host = "127.0.0.1"
+#port = 3306
+#user = "miko"
+#database = "miko"
 
 [auth]
 token_key_path = "/etc/ainari/token_key"

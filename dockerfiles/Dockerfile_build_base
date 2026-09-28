@@ -26,5 +26,6 @@ RUN set -e && \
                            pkg-config \
                            libssl-dev \
                            libsqlite3-dev \
+                           libmariadb-dev \
                            ca-certificates
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y

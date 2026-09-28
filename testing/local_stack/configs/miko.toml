@@ -5,6 +5,7 @@
 # the components use to talk to each other.
 debug = true
 log_path = "/var/log"
+database_type = "sqlite"
 skip_tls_verification = true
 
 [api]
@@ -13,7 +14,7 @@ public_port = 11417
 internal_ip = "0.0.0.0"
 internal_port = 10417
 
-[database]
+[sqlite]
 file_path = "/etc/ainari/miko_db"
 
 [auth]

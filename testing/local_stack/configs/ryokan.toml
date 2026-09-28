@@ -1,6 +1,7 @@
 # Config of ryokan for the local docker-compose setup.
 debug = true
 log_path = "/var/log"
+database_type = "sqlite"
 skip_tls_verification = true
 
 [api]
@@ -9,7 +10,7 @@ public_port = 11416
 internal_ip = "0.0.0.0"
 internal_port = 10416
 
-[database]
+[sqlite]
 file_path = "/etc/ainari/ryokan_db"
 
 [miko]

@@ -1,0 +1,3 @@
+CREATE TABLE test_entries (
+    id VARCHAR(40) PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
