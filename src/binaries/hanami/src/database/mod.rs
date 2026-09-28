@@ -21,61 +21,22 @@ pub mod network_table;
 
 use std::net::Ipv4Addr;
 
-/// Initializes all database tables required for the application.
+/// Opens the database of the service and applies all pending migrations of the
+/// `migrations`-directory, which create and update the database-tables.
 ///
-/// This function orchestrates the initialization of all database tables
-/// in the correct order. If any table fails to initialize, the entire
-/// operation fails and returns an error.
+/// # Panics
+///
+/// Panics, if the database can not be opened or a migration fails, because the service can not
+/// work with an incomplete database.
 ///
 /// # Returns
-/// * `Ok(())` - All tables initialized successfully
-/// * `Err(Box<dyn std::error::Error>)` - One or more tables failed to initialize
+///
+/// * `Ok(())` - The database is up to date.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize host-table
-    match host_table::init_host_table() {
-        Ok(_) => log::info!("Initialized host-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize host-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize meta virtual_machine table
-    match meta_virtual_machine_table::init_meta_virtual_machine_table() {
-        Ok(_) => log::info!("Initialized virtual_machine-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize virtual_machine-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize network table
-    match network_table::init_network_table() {
-        Ok(_) => log::info!("Initialized network-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize network-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize floating-ip table
-    match floating_ip_table::init_floating_ip_table() {
-        Ok(_) => log::info!("Initialized floating-ip-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize floating-ip-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize address table
-    match address_table::init_address_table() {
-        Ok(_) => log::info!("Initialized address-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize address-database-table: {e}");
-            return Err(e);
-        }
-    };
-
+    // Open the database and apply all pending migrations, which creates and updates the tables.
+    // This is done explicitly here, so a broken database is already detected at startup.
+    lazy_static::initialize(&db_handle::DB_CONN);
+    log::info!("Applied all database-migrations");
     Ok(())
 }
 

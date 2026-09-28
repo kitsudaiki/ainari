@@ -17,42 +17,41 @@ pub mod project_table;
 pub mod quota_table;
 pub mod user_table;
 
-/// Creates all database-tables of the service, if they not already exist.
+/// Opens the database of the service and applies all pending migrations of the
+/// `migrations`-directory, which create and update the database-tables.
+/// Afterwards the initial admin-user and its quota are created, if the database is still empty.
 ///
-/// Initializes the user-, project- and quota-tables in order. If one of them fails, the whole
-/// initialization fails, because the service can not work with an incomplete database.
+/// # Panics
+///
+/// Panics, if the database can not be opened or a migration fails, because the service can not
+/// work with an incomplete database.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - All tables are available.
-/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
+/// * `Ok(())` - The database is up to date and contains the initial admin.
+/// * `Err(Box<dyn std::error::Error>)` - The initial admin could not be created.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize user-table
-    match user_table::init_user_table() {
-        Ok(_) => log::info!("Initilaized user-database-table"),
+    // Open the database and apply all pending migrations, which creates and updates the tables.
+    // This is done explicitly here, so a broken database is already detected at startup.
+    lazy_static::initialize(&db_handle::DB_CONN);
+    log::info!("Applied all database-migrations");
+
+    // Create the initial admin-user, if the user-table is still empty
+    match user_table::init_admin() {
+        Ok(_) => log::info!("Initialized admin-user"),
         Err(e) => {
-            log::error!("Failed to initialize user-database-table: {e}");
+            log::error!("Failed to initialize admin-user: {e}");
             return Err(e);
         }
     };
 
-    // Initialize project-table
-    match project_table::init_project_table() {
-        Ok(_) => log::info!("Initilaized project-database-table"),
+    // Create the quota of the initial admin, if the quota-table is still empty
+    match quota_table::init_admin_quota() {
+        Ok(_) => log::info!("Initialized admin-quota"),
         Err(e) => {
-            log::error!("Failed to initialize project-database-table: {e}");
+            log::error!("Failed to initialize admin-quota: {e}");
             return Err(e);
         }
     };
-
-    // Initialize quota-table
-    match quota_table::init_quota_table() {
-        Ok(_) => log::info!("Initilaized quota-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize quota-database-table: {e}");
-            return Err(e);
-        }
-    };
-
     Ok(())
 }

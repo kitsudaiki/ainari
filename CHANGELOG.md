@@ -1,13 +1,26 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
+
+### BREAKING-CHANGES
+
+#### Added
+
+- upgrade path for database-tables. just work AFTER this commit
+
+## v0.20.1
 
 ### BREAKING-CHANGES
 
 #### EVERYTHING
 
 Complete rework of the project into an IaaS software:
-- outsources the old neural network core into the side-project: https://github.com/kitsudaiki/saki
+- outsourced the old artificial neural network core into the side-project: https://github.com/kitsudaiki/saki
 - integrated the Cloud-Hypervisor to create virtual machines istead of neural networks
     - create VM
     - delete VM
@@ -43,7 +56,11 @@ Complete rework of the project into an IaaS software:
 - updated dashboard with better styling
 - replaced logo, because the old one was moved to the saki-repo
 - logging also to files possible now
+- database-tables are created and updated by versioned diesel-migrations, which are embedded into
+  the binaries, instead of hard-coded SQL-statements
 
+---
+---
 
 ## v0.11.1
 

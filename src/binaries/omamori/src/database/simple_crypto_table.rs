@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -43,22 +41,6 @@ pub struct SimpleCryptoEntry {
     pub secret_uuid: Uuid,
     /// The encrypted secret value
     pub encrypted_secret: String,
-}
-
-/// Initializes the simple_crypto table in the database if it doesn't already exist
-///
-/// This function creates the table with the specified schema and returns Ok(()) on success.
-/// If an error occurs during table creation, it will be propagated to the caller.
-pub fn init_simple_crypto_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS simple_crypto (
-        secret_uuid VARCHAR(40) PRIMARY KEY,
-        encrypted_secret TEXT
-    );",
-    )?;
-
-    Ok(())
 }
 
 /// Adds a new entry to the simple_crypto table with the provided UUID and encrypted secret
@@ -180,7 +162,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_secret() {
-        let _ = init_simple_crypto_table();
         let uuid1 = Uuid::new_v4();
         let encrypted_secret = "just a dummy-secret".to_string();
 
@@ -208,7 +189,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_simple_crypto() {
-        let _ = init_simple_crypto_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let encrypted_secret = "just a dummy-secret".to_string();
@@ -237,7 +217,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_secret() {
-        let _ = init_simple_crypto_table();
         let uuid1 = Uuid::new_v4();
         let encrypted_secret = "just a dummy-secret".to_string();
 

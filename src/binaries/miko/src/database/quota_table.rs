@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use std::env;
@@ -70,40 +69,6 @@ pub struct QuotaEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the quotas table in the database if it doesn't already exist.
-///
-/// This function creates the quotas table with the appropriate schema
-/// and then calls `init_admin_quota` to set up the initial admin quota.
-///
-/// # Returns
-/// - `Ok(())` if the table was created successfully or already exists
-/// - An error if the table creation fails
-pub fn init_quota_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS quotas (
-        id VARCHAR(256),
-        max_virtual_machine INTEGER,
-        max_image INTEGER,
-        max_secret INTEGER,
-        max_network INTEGER,
-        max_floating_ip INTEGER,
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(64)
-    );",
-    )?;
-
-    // release lock on the connection to avoid dead-lock
-    drop(conn);
-
-    init_admin_quota()
 }
 
 /// Initializes the admin quota with default values.
@@ -398,7 +363,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_quota() {
-        let _ = init_quota_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-quota-1".to_string();
         let context = UserContext {
@@ -449,7 +413,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_set_quota() {
-        let _ = init_quota_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-quota-1".to_string();
         let context = UserContext {
@@ -520,7 +483,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_quotas() {
-        let _ = init_quota_table();
         let project_id = "test-project-1".to_string();
         let owner_id1 = "test-quota-2".to_string();
         let owner_id2 = "test-quota-3".to_string();
@@ -580,7 +542,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_quota() {
-        let _ = init_quota_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-quota-4".to_string();
         let context = UserContext {

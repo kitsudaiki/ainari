@@ -14,9 +14,7 @@
 
 use chrono::{DateTime, Utc};
 use diesel::Connection; // Required for .transaction()
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -73,46 +71,6 @@ pub struct TaskEntry {
     pub owner_id: String,
     pub project_id: String,
     pub created_by: String,
-}
-
-/// Initializes the tasks table in the database if it doesn't already exist.
-///
-/// This function creates the tasks table with the appropriate schema. It's typically called
-/// during application startup to ensure the required database tables exist.
-///
-/// # Returns
-/// * `Ok(())` if the table was successfully initialized or already exists
-/// * An error if there was a problem executing the SQL statement
-pub fn init_task_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS tasks (
-        uuid VARCHAR(40) PRIMARY KEY,
-        description VARCHAR(256),
-        resource_uuid VARCHAR(40),
-        resource_type VARCHAR(32),
-        task_type VARCHAR(32),
-        task_state VARCHAR(32),
-        queued_at VARCHAR(64),
-        started_at VARCHAR(64),
-        aborted_at VARCHAR(64),
-        finished_at VARCHAR(64),
-        messages TEXT,
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        created_by VARCHAR(256)
-    );",
-    )?;
-
-    // renamed separately, so it is also renamed in tables of older versions. In new tables the
-    // old column doesn't exist, so the error for the missing column is ignored.
-    match conn.batch_execute("ALTER TABLE tasks RENAME COLUMN name TO description;") {
-        Ok(()) => {}
-        Err(e) if e.to_string().contains("no such column") => {}
-        Err(e) => return Err(e.into()),
-    }
-
-    Ok(())
 }
 
 /// Adds a new task to the database.
@@ -390,7 +348,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_task() {
-        let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
         let resource_type = TaskResourceType::VirtualMachine;
@@ -437,7 +394,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_tasks() {
-        let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
@@ -510,7 +466,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_tasks_permissions() {
-        let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -646,7 +601,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_update_task_state() {
-        init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
         let resource_type = TaskResourceType::VirtualMachine;
@@ -738,7 +692,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_message_to_task() {
-        init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let error_msg = "This is an error".to_string();
         let resource_uuid = Uuid::new_v4();
@@ -787,7 +740,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_is_aborted() {
-        init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
         let resource_type = TaskResourceType::VirtualMachine;

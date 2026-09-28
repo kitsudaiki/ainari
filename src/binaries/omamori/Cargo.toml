@@ -31,6 +31,7 @@ once_cell = "1.21"
 log = "0.4"
 # database
 diesel = { version = "2.3", features = ["sqlite", "uuid"] }
+diesel_migrations = "2.3"
 # common stuff
 rand = "0.10.1"
 lazy_static = "1.4"

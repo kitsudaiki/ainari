@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use std::error::Error;
 
 use crate::database::db_handle;
 
@@ -58,34 +56,6 @@ pub struct ProjectEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the projects table in the database.
-///
-/// This function creates the projects table if it doesn't already exist.
-/// It should be called during application startup.
-///
-/// # Returns
-///
-/// * `Ok(())` if the table was successfully initialized or already exists
-/// * An error if the database operation fails
-pub fn init_project_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS projects (
-        id VARCHAR(256),
-        name VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    Ok(())
 }
 
 /// Adds a new project to the database.
@@ -276,7 +246,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_project() {
-        let _ = init_project_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {
@@ -318,7 +287,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_projects() {
-        let _ = init_project_table();
         let project_id1 = "test-project-2".to_string();
         let project_id2 = "test-project-3".to_string();
         let owner_id = "test-user".to_string();
@@ -370,7 +338,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_project() {
-        let _ = init_project_table();
         let project_id = "test-project-5".to_string();
         let owner_id = "test-user".to_string();
         let context = UserContext {

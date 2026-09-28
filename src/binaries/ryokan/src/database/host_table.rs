@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -71,36 +69,6 @@ pub struct HostEntry {
     pub deleted_at: Option<DateTime<Utc>>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the hosts table in the database if it doesn't already exist.
-///
-/// This function creates the table with the appropriate schema and constraints.
-/// It should be called during application startup to ensure the database
-/// schema is properly initialized.
-///
-/// # Returns
-///
-/// * `Ok(())` - If the table was successfully created or already exists
-/// * `Err(Box<dyn Error>)` - If there was an error executing the SQL command
-pub fn init_host_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS hosts (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
-        address VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    Ok(())
 }
 
 /// Adds a new host to the database with default values.
@@ -332,7 +300,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_host() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -382,7 +349,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_hosts() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
 
@@ -436,7 +402,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_host() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -473,7 +438,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_hosts_permissions() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();

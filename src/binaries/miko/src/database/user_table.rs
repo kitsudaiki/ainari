@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use rand::{RngExt, distr::Alphanumeric};
@@ -132,40 +131,6 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
     )?;
 
     Ok(())
-}
-
-/// Initializes the users table in the database.
-///
-/// This function creates the users table if it doesn't already exist
-/// and then initializes the first admin user.
-///
-/// # Errors
-///
-/// Returns an error if there's an issue creating the table or initializing
-/// the admin user.
-pub fn init_user_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(256),
-        name VARCHAR(256),
-        is_admin VARCHAR(8),
-        pw_hash VARCHAR(64),
-        salt VARCHAR(64),
-        projects TEXT,
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-    // release lock on the connection to avoid dead-lock
-    drop(conn);
-
-    init_admin()
 }
 
 /// Adds a new user to the system.
@@ -397,7 +362,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_user() {
-        let _ = init_user_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user-1".to_string();
         let context = UserContext {
@@ -447,7 +411,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_users() {
-        let _ = init_user_table();
         let project_id = "test-project-1".to_string();
         let owner_id1 = "test-user-2".to_string();
         let owner_id2 = "test-user-3".to_string();
@@ -507,7 +470,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_user() {
-        let _ = init_user_table();
         let project_id = "test-project-1".to_string();
         let owner_id = "test-user-4".to_string();
         let context = UserContext {

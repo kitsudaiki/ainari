@@ -17,42 +17,21 @@ pub mod public_key_table;
 pub mod secret_table;
 pub mod simple_crypto_table;
 
-/// Creates all database-tables of the service, if they not already exist.
+/// Opens the database of the service and applies all pending migrations of the
+/// `migrations`-directory, which create and update the database-tables.
 ///
-/// Initializes the public-key-, secret- and crypto-tables in order. If one of them fails, the whole
-/// initialization fails, because the service can not work with an incomplete database.
+/// # Panics
+///
+/// Panics, if the database can not be opened or a migration fails, because the service can not
+/// work with an incomplete database.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - All tables are available.
-/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
+/// * `Ok(())` - The database is up to date.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize host-table
-    match secret_table::init_secret_table() {
-        Ok(_) => log::info!("Initilaized secret-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize secret-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize host-table
-    match simple_crypto_table::init_simple_crypto_table() {
-        Ok(_) => log::info!("Initilaized simple-crypto-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize simple-crypto-database-table: {e}");
-            return Err(e);
-        }
-    };
-
-    // Initialize public-key-table
-    match public_key_table::init_public_key_table() {
-        Ok(_) => log::info!("Initilaized public-key-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize public-key-database-table: {e}");
-            return Err(e);
-        }
-    };
-
+    // Open the database and apply all pending migrations, which creates and updates the tables.
+    // This is done explicitly here, so a broken database is already detected at startup.
+    lazy_static::initialize(&db_handle::DB_CONN);
+    log::info!("Applied all database-migrations");
     Ok(())
 }
