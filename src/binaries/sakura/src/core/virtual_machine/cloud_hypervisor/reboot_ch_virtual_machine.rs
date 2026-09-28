@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::VmState;
 use uuid::Uuid;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
-use super::{connect_to_vmm, mark_error_on_failure, set_vm_state};
-use crate::database::virtual_machine_table::VirtualMachineState;
+use super::shutdown::shutdown_gracefully;
+use super::start_ch_virtual_machine::start_vm;
+use super::{connect_to_vmm, mark_error_on_failure};
 
 /// Reboots a running cloud-hypervisor virtual_machine
 ///
-/// The virtual_machine is marked as running afterwards, or as error, if the reboot failed. A
+/// The guest is shut down gracefully by its power-button and started again afterwards, so it can
+/// write its data to the disk before, like at the reboot of a real machine. The virtual_machine
+/// is marked as running afterwards, or as error, if the reboot failed. A
 /// virtual_machine, which doesn't run, is rejected without changing its state.
 ///
 /// # Arguments
@@ -61,12 +63,12 @@ async fn reboot_vm(uuid: &Uuid, context: &UserContext) -> Result<(), AinariError
         )));
     }
 
+    // The reset of cloud-hypervisor would restart the guest without the chance to write its data
+    // to the disk, so it is shut down gracefully and started again instead.
     log::info!("Reboot VM {uuid}");
-    client
-        .reboot_vm()
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Reboot VM {uuid} failed: {e:?}")))?;
+    shutdown_gracefully(uuid, &client, state).await?;
+    start_vm(uuid, context).await?;
     log::info!("VM {uuid} rebooted");
 
-    set_vm_state(uuid, VirtualMachineState::Running, context)
+    Ok(())
 }

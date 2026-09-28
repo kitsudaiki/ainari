@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redundant control plane in Kubernetes setup
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 
+### Changed
+
+- VMs are now gracefully shutdown
+
+### Fixed
+
+- VMs powered of from within the VM were not be able to start by the IaaS again
+
 ## v0.20.1
 
 ### BREAKING-CHANGES

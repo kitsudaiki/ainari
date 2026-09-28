@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::VmState;
 use uuid::Uuid;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
+use super::shutdown::{shutdown_gracefully, vmm_exited};
 use super::{connect_to_vmm, set_vm_state};
 use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Shuts down a cloud-hypervisor virtual_machine
 ///
-/// Only the virtual_machine is shut down, while its cloud-hypervisor process keeps running
-/// together with the configuration of the virtual_machine, so it can be booted again later. A
+/// The guest is shut down like a real machine by its power-button, so it can write its data to
+/// the disk, and only powered off hard, if it doesn't react, see `shutdown_gracefully`. A
 /// virtual_machine, which is already shut down, is left untouched. The virtual_machine is marked
 /// as stopped afterwards. A failed shutdown doesn't change the state, because the
 /// virtual_machine still runs in this case.
@@ -41,16 +41,19 @@ pub async fn stop_ch_virtual_machine(
     uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), AinariError> {
+    // cloud-hypervisor exits, when the guest powered itself off, so there is nothing to stop
+    if vmm_exited(uuid) {
+        log::warn!("VM {uuid} is not running, so there is nothing to stop.");
+        return set_vm_state(uuid, VirtualMachineState::Stopped, context);
+    }
+
     let (client, state) = connect_to_vmm(uuid, context).await?;
 
     if matches!(state, VmState::Created | VmState::Shutdown) {
         log::warn!("VM {uuid} is not running, so there is nothing to stop.");
     } else {
         log::info!("Stop VM {uuid}");
-        client
-            .shutdown_vm()
-            .await
-            .map_err(|e| AinariError::InternalError(format!("Shutdown VM {uuid} failed: {e:?}")))?;
+        shutdown_gracefully(uuid, &client, state).await?;
         log::info!("VM {uuid} stopped");
     }
 
