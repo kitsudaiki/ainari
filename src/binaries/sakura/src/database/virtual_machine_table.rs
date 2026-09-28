@@ -15,7 +15,6 @@
 use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use uuid::Uuid;
 
@@ -90,74 +89,6 @@ pub struct VirtualMachineEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the virtual_machines table in the database if it doesn't already exist
-///
-/// # Returns
-/// * `Ok(())` if the table was created or already exists
-/// * An error if there was a problem creating the table
-pub fn init_virtual_machine_table() -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS virtual_machines (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
-        vm_state VARCHAR(16) NOT NULL DEFAULT 'RESERVED',
-        number_of_cores INTEGER,
-        memory_size INTEGER,
-        image_uuid VARCHAR(40),
-        public_key_uuid VARCHAR(40),
-        network_uuid VARCHAR(40),
-        internal_ip VARCHAR(40),
-        root_disk_path VARCHAR(1024),
-        seed_path VARCHAR(1024),
-        tap_name VARCHAR(256),
-        mac_address VARCHAR(32),
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    // added separately, so it is also added to tables of older versions. Virtual_machines of
-    // older versions got a fixed disk-size of 5 GiB, so this is used as default.
-    match conn.batch_execute(
-        "ALTER TABLE virtual_machines ADD COLUMN disk_size BIGINT NOT NULL DEFAULT 5;",
-    ) {
-        Ok(()) => {}
-        Err(e) if e.to_string().contains("duplicate column name") => {}
-        Err(e) => return Err(e.into()),
-    }
-
-    // `vm_state` replaced the old boolean `is_created`. Tables of older versions get the new
-    // column, where created virtual_machines are handled as running, and the old column is
-    // removed afterwards.
-    match conn.batch_execute(
-        "ALTER TABLE virtual_machines ADD COLUMN vm_state VARCHAR(16) NOT NULL DEFAULT 'RESERVED';",
-    ) {
-        Ok(()) => {
-            conn.batch_execute(
-                "UPDATE virtual_machines SET vm_state = 'RUNNING' WHERE is_created = 1;
-                ALTER TABLE virtual_machines DROP COLUMN is_created;",
-            )?;
-        }
-        Err(e) if e.to_string().contains("duplicate column name") => {}
-        Err(e) => return Err(e.into()),
-    }
-
-    // older versions stored the stopped state with the typo 'STOPED'
-    conn.batch_execute(
-        "UPDATE virtual_machines SET vm_state = 'STOPPED' WHERE vm_state = 'STOPED';",
-    )?;
-
-    Ok(())
 }
 
 /// Allowed values of the `vm_state` column of a virtual_machine
@@ -592,7 +523,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_virtual_machine() {
-        let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -714,7 +644,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_virtual_machines() {
-        let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
 
@@ -794,7 +723,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_virtual_machine() {
-        let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -844,7 +772,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_update_virtual_machine_state() {
-        let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
 
         let context = UserContext {
@@ -888,20 +815,6 @@ mod tests {
             .expect("virtual_machine not found");
         assert_eq!(virtual_machine.vm_state, "STOPPED");
 
-        // the old typo 'STOPED' is migrated at the next initialization of the table
-        {
-            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-            conn.batch_execute(&format!(
-                "UPDATE virtual_machines SET vm_state = 'STOPED' WHERE uuid = '{uuid1}';"
-            ))
-            .expect("failed to set old state");
-        }
-        init_virtual_machine_table().expect("failed to initialize table");
-        let virtual_machine = get_virtual_machine(&uuid1, &context)
-            .ok()
-            .expect("virtual_machine not found");
-        assert_eq!(virtual_machine.vm_state, "STOPPED");
-
         // an unknown virtual_machine can not be updated
         let result =
             update_virtual_machine_state(&Uuid::new_v4(), &VirtualMachineState::Running, &context);
@@ -913,7 +826,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_virtual_machines_permissions() {
-        let _ = init_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();

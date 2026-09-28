@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -83,34 +81,6 @@ pub struct ProxyEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the proxys table if it doesn't already exist.
-///
-/// # Returns
-/// * `Ok(())` if the table was created or already exists
-/// * `Box<dyn Error>` if an error occurs during table creation
-pub fn init_proxy_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS proxys (
-        uuid VARCHAR(40) PRIMARY KEY,
-        port INTEGER,
-        target_address VARCHAR(256),
-        virtual_machine_uuid VARCHAR(40),
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    Ok(())
 }
 
 /// Adds a new proxy entry to the database with default values for a newly created proxy.
@@ -350,7 +320,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_proxy() {
-        let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
         let virtual_machine_uuid1 = Uuid::new_v4();
@@ -410,7 +379,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_proxys() {
-        let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let proxy_uuid2 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
@@ -472,7 +440,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_proxy() {
-        let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let target_address1: String = "127.0.0.1:443".to_string();
         let virtual_machine_uuid1 = Uuid::new_v4();
@@ -514,7 +481,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_proxys_permissions() {
-        let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let proxy_uuid2 = Uuid::new_v4();
         let proxy_uuid3 = Uuid::new_v4();
@@ -659,7 +625,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_free_proxy() {
-        let _ = init_proxy_table();
         let proxy_uuid1 = Uuid::new_v4();
         let proxy_uuid2 = Uuid::new_v4();
         let proxy_uuid3 = Uuid::new_v4();

@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use std::error::Error;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
@@ -117,54 +115,6 @@ pub struct AddressEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the addresses table in the database if it doesn't exist.
-///
-/// This function creates the table with the appropriate schema and constraints.
-/// The MAC-address and the tap-device name are unique across all ACTIVE entries and the internal
-/// IP-address is unique across all ACTIVE entries within the same network. Deleted entries don't block them.
-/// It's typically called during application startup to ensure the required tables exist.
-pub fn init_address_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS addresses (
-        uuid VARCHAR(40) PRIMARY KEY,
-        mac_address VARCHAR(40),
-        tap_name VARCHAR(16),
-        internal_ip VARCHAR(40),
-        network_uuid VARCHAR(40),
-        vni INTEGER NOT NULL DEFAULT 0,
-        host_address VARCHAR(256),
-        virtual_machine_uuid VARCHAR(40),
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );
-    DROP INDEX IF EXISTS addresses_network_internal_ip;
-    CREATE UNIQUE INDEX IF NOT EXISTS addresses_active_mac_address
-        ON addresses (mac_address) WHERE status = 'ACTIVE';
-    CREATE UNIQUE INDEX IF NOT EXISTS addresses_active_tap_name
-        ON addresses (tap_name) WHERE status = 'ACTIVE';
-    CREATE UNIQUE INDEX IF NOT EXISTS addresses_active_network_internal_ip
-        ON addresses (network_uuid, internal_ip) WHERE status = 'ACTIVE';",
-    )?;
-
-    // A database, which was created before the tenants existed, has no vni-column yet, and
-    // SQLite has no `ADD COLUMN IF NOT EXISTS`. The error of the second run is therefore the
-    // expected outcome and ignored: it only says the column is already there.
-    let _ = conn.batch_execute("ALTER TABLE addresses ADD COLUMN vni INTEGER NOT NULL DEFAULT 0;");
-    // the same for the link to the virtual_machine, which was added later
-    let _ =
-        conn.batch_execute("ALTER TABLE addresses ADD COLUMN virtual_machine_uuid VARCHAR(40);");
-
-    Ok(())
 }
 
 /// Gets the tenant, which the addresses of a network live in.
@@ -1044,7 +994,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
@@ -1083,7 +1032,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_address() {
-        let _ = init_address_table();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
@@ -1120,7 +1068,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_duplicate_mac_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1182,7 +1129,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_duplicate_tap_name() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1253,7 +1199,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_highest_tap_number() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1335,7 +1280,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_new_address() {
-        let _ = init_address_table();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1414,7 +1358,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_new_address_invalid_cidr() {
-        let _ = init_address_table();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
@@ -1426,7 +1369,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_new_address_range_of_cidr() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1464,7 +1406,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_highest_internal_ip() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1523,7 +1464,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_highest_mac_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1567,7 +1507,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_duplicate_internal_ip() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1631,7 +1570,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_address_retry_on_mac_conflict() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1694,7 +1632,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_address_retry_on_ip_conflict() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1739,7 +1676,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_address_retry_on_tap_conflict() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1799,7 +1735,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_address_range_exhausted() {
-        let _ = init_address_table();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
@@ -1843,7 +1778,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_address_not_found() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
 
         assert_not_found(get_address(&uuid1));
@@ -1852,7 +1786,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_addresses() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1898,7 +1831,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_address_by_internal_ip() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1957,7 +1889,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_addresses_of_network() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -2017,7 +1948,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -2068,7 +1998,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_force_delete_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
@@ -2096,7 +2025,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_all_addresses() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -2137,7 +2065,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_count_addresses() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -2188,7 +2115,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_addresses_without_permission_filter() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -2252,7 +2178,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_virtual_machine_of_address() {
-        let _ = init_address_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let virtual_machine_uuid1 = Uuid::new_v4();

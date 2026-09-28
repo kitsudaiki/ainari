@@ -14,9 +14,14 @@
 
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use std::sync::{Arc, Mutex};
 
 use crate::config;
+
+/// All migrations of the database of the service, which are embedded into the binary at
+/// compile-time from the `migrations`-directory of the crate.
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 lazy_static::lazy_static! {
     /// The global database connection virtual_machine.
@@ -29,8 +34,8 @@ lazy_static::lazy_static! {
 
 /// Establishes a new connection to the SQLite database.
 ///
-/// This function reads the database file path from the application configuration
-/// and attempts to establish a connection to it.
+/// This function reads the database file path from the application configuration,
+/// attempts to establish a connection to it and applies all pending migrations.
 ///
 /// # Returns
 ///
@@ -38,11 +43,15 @@ lazy_static::lazy_static! {
 ///
 /// # Errors
 ///
-/// This function will panic if it fails to establish a connection to the database.
+/// This function will panic if it fails to establish a connection to the database or to
+/// apply the migrations.
 /// In a production environment, you might want to handle this more gracefully.
 pub fn establish_connection() -> SqliteConnection {
     let file_path = config::CONFIG.database.file_path.clone();
     // Alternative for in-memory database:
     // let database_url = ":memory:".to_string();
-    SqliteConnection::establish(&file_path).expect("Error connecting to database")
+    let mut conn = SqliteConnection::establish(&file_path).expect("Error connecting to database");
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("Error applying the migrations to the database");
+    conn
 }

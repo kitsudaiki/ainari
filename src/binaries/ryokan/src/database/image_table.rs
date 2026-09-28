@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -85,45 +83,6 @@ pub struct ImageEntry {
     pub deleted_at: Option<DateTime<Utc>>,
     /// ID of the user who deleted the image (if applicable)
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the images table in the database.
-///
-/// This function creates the table if it doesn't already exist.
-/// Returns `Ok(())` on success or an error if the operation fails.
-pub fn init_image_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS images (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
-        onsen_address VARCHAR(256),
-        file_path TEXT,
-        secret_uuid VARCHAR(40),
-        is_snapshot BOOLEAN NOT NULL DEFAULT FALSE,
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    // added separately, so it is also added to tables of older versions. Snapshots were stored
-    // in their own table in older versions, so all existing images are no snapshots.
-    match conn
-        .batch_execute("ALTER TABLE images ADD COLUMN is_snapshot BOOLEAN NOT NULL DEFAULT FALSE;")
-    {
-        Ok(()) => {}
-        Err(e) if e.to_string().contains("duplicate column name") => {}
-        Err(e) => return Err(e.into()),
-    }
-
-    Ok(())
 }
 
 /// Adds a new image to the database.
@@ -336,7 +295,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_image() {
-        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -391,7 +349,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_images() {
-        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
@@ -457,7 +414,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_image() {
-        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let onsen_address = "127.0.0.1:1234".to_string();
         let secret_uuid = Uuid::new_v4();
@@ -501,7 +457,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_count_images() {
-        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -592,7 +547,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_images_permissions() {
-        let _ = init_image_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();

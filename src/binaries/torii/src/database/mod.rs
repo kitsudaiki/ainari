@@ -19,24 +19,25 @@ use std::io;
 
 use ainari_common::enums;
 
-/// Creates all database-tables of the service, if they not already exist.
+/// Opens the database of the service and applies all pending migrations of the
+/// `migrations`-directory, which create and update the database-tables.
+/// Afterwards all existing proxys are removed from the database to ensure consistency after a
+/// restart.
 ///
-/// Initializes the proxy-table in order. If one of them fails, the whole
-/// initialization fails, because the service can not work with an incomplete database.
+/// # Panics
+///
+/// Panics, if the database can not be opened or a migration fails, because the service can not
+/// work with an incomplete database.
 ///
 /// # Returns
 ///
-/// * `Ok(())` - All tables are available.
-/// * `Err(Box<dyn std::error::Error>)` - One of the tables could not be initialized.
+/// * `Ok(())` - If all database operations complete successfully.
+/// * `Err(Box<dyn std::error::Error>)` - If the proxys could not be removed.
 pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize proxy-table
-    match proxy_table::init_proxy_table() {
-        Ok(_) => log::info!("Initilaized proxy-database-table"),
-        Err(e) => {
-            log::error!("Failed to initialize proxy-database-table: {e}");
-            return Err(e);
-        }
-    };
+    // Open the database and apply all pending migrations, which creates and updates the tables.
+    // This is done explicitly here, so a broken database is already detected at startup.
+    lazy_static::initialize(&db_handle::DB_CONN);
+    log::info!("Applied all database-migrations");
 
     // clear all proxy from the database. This is necessary, because after a restart,
     // all proxy are broken and so the database doesn't match the real world.

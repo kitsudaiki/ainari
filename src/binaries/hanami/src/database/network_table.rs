@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -64,32 +62,6 @@ pub struct NetworkEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the networks table in the database if it doesn't exist.
-///
-/// This function creates the table with the appropriate schema and constraints.
-/// It's typically called during application startup to ensure the required tables exist.
-pub fn init_network_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS networks (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
-        subnet VARCHAR(40),
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    Ok(())
 }
 
 /// Adds a new meta network to the database.
@@ -348,7 +320,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_network() {
-        let _ = init_network_table();
         let uuid1 = Uuid::new_v4();
         let name = "test-network".to_string();
         let subnet = "127.0.0.1".to_string();
@@ -404,7 +375,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_networks() {
-        let _ = init_network_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let name = "test-network".to_string();
@@ -464,7 +434,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_network() {
-        let _ = init_network_table();
         let uuid1 = Uuid::new_v4();
         let name = "test-network".to_string();
         let subnet = "127.0.0.1".to_string();
@@ -505,7 +474,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_count_networks() {
-        let _ = init_network_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -586,7 +554,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_networks_permissions() {
-        let _ = init_network_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();

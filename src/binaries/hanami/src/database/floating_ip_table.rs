@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::dsl::count_star;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use std::error::Error;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
@@ -78,52 +76,6 @@ pub struct FloatingIpEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
-}
-
-/// Initializes the floating_ips table in the database if it doesn't exist.
-///
-/// This function creates the table with the appropriate schema and constraints.
-/// It's typically called during application startup to ensure the required tables exist.
-pub fn init_floating_ip_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS floating_ips (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256) NOT NULL DEFAULT '',
-        network_uuid VARCHAR(40),
-        internal_ip_addr VARCHAR(40),
-        floating_ip_addr VARCHAR(40),
-        owner_id VARCHAR(256),
-        project_id VARCHAR(256),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );
-    DROP INDEX IF EXISTS floating_ips_floating_ip_addr;
-    CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_active_floating_ip_addr
-        ON floating_ips (floating_ip_addr) WHERE status = 'ACTIVE';",
-    )?;
-
-    // A database, which was created before the floating IP-addresses could be attached and
-    // detached, has no name-column yet, and SQLite has no `ADD COLUMN IF NOT EXISTS`. The error
-    // of the second run is therefore the expected outcome and ignored.
-    let _ = conn.batch_execute(
-        "ALTER TABLE floating_ips ADD COLUMN name VARCHAR(256) NOT NULL DEFAULT '';",
-    );
-
-    // The torii keys the outbound translation by the internal IP-address, so a virtual_machine
-    // can only have one floating IP-address. Detached entries have NULL as internal IP-address,
-    // which never collides within a unique index.
-    conn.batch_execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS floating_ips_active_network_internal_ip_addr
-            ON floating_ips (network_uuid, internal_ip_addr) WHERE status = 'ACTIVE';",
-    )?;
-
-    Ok(())
 }
 
 /// Errors, which can occur while reserving a floating IP-address.
@@ -801,7 +753,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip() {
-        let _ = init_floating_ip_table();
         let context = new_context("test-user", "test-project", false, false);
 
         let (uuid1, floating_ip1) =
@@ -844,7 +795,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_duplicate_floating_ip_addr() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -880,7 +830,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_duplicate_floating_ip_addr_of_deleted_entries() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -952,7 +901,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_highest_floating_ip() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1026,7 +974,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_floating_ip_retry_on_conflict() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
@@ -1073,7 +1020,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_floating_ip_range_exhausted() {
-        let _ = init_floating_ip_table();
         let context = new_context("test-user", "test-project", false, false);
 
         let last = u32::from(LAST_TEST_IP);
@@ -1084,7 +1030,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip_requested() {
-        let _ = init_floating_ip_table();
         let context = new_context("test-user", "test-project", false, false);
 
         // an own range, so no other entries of the table are within it
@@ -1130,7 +1075,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip_invalid_cidr() {
-        let _ = init_floating_ip_table();
         let context = new_context("test-user", "test-project", false, false);
 
         for cidr in ["203.0.113.0/31", "203.0.113.0", "no-cidr/24"] {
@@ -1142,7 +1086,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_floating_ip() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1180,7 +1123,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_floating_ip_not_found() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
 
@@ -1192,7 +1134,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_floating_ips() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1235,7 +1176,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_floating_ip() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1261,7 +1201,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_force_delete_floating_ip() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, false);
@@ -1288,7 +1227,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_all_floating_ip() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
@@ -1326,7 +1264,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_count_floating_ips() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1374,7 +1311,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_floating_ips_permissions() {
-        let _ = init_floating_ip_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1455,7 +1391,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_attach_detach_floating_ip() {
-        let _ = init_floating_ip_table();
         let network_uuid1 = Uuid::new_v4();
         let internal_ip1 = next_internal_ip();
         let internal_ip2 = next_internal_ip();

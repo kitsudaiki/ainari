@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use rand::prelude::IndexedRandom;
-use std::error::Error;
 use uuid::Uuid;
 
 use crate::database::db_handle;
@@ -101,64 +99,6 @@ pub struct HostResources {
     pub memory_size: i64,
     /// Total size of the disk for the virtual-machines in GiB
     pub disk_space: i64,
-}
-
-/// Resource-columns of the hosts table. All of them are non-negative integers.
-const RESOURCE_COLUMNS: [&str; 6] = [
-    "number_of_cores",
-    "used_number_of_cores",
-    "memory_size",
-    "amount_of_used_memory",
-    "disk_space",
-    "amount_of_used_disk_space",
-];
-
-/// Initializes the hosts table in the database if it doesn't already exist.
-///
-/// This function creates the table with all necessary columns and constraints and adds
-/// the resource-columns, if they are missing in an already existing table.
-/// It should be called during application startup to ensure the table exists.
-///
-/// # Returns
-/// * `Ok(())` if the table was successfully created or already exists
-/// * An error if there was an issue executing the SQL command
-pub fn init_host_table() -> Result<(), Box<dyn Error>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS hosts (
-        uuid VARCHAR(40) PRIMARY KEY,
-        name VARCHAR(256),
-        address VARCHAR(256),
-        number_of_cores BIGINT NOT NULL DEFAULT 0 CHECK (number_of_cores >= 0),
-        used_number_of_cores BIGINT NOT NULL DEFAULT 0 CHECK (used_number_of_cores >= 0),
-        memory_size BIGINT NOT NULL DEFAULT 0 CHECK (memory_size >= 0),
-        amount_of_used_memory BIGINT NOT NULL DEFAULT 0 CHECK (amount_of_used_memory >= 0),
-        disk_space BIGINT NOT NULL DEFAULT 0 CHECK (disk_space >= 0),
-        amount_of_used_disk_space BIGINT NOT NULL DEFAULT 0 CHECK (amount_of_used_disk_space >= 0),
-        status VARCHAR(8),
-        created_at VARCHAR(64),
-        created_by VARCHAR(256),
-        updated_at VARCHAR(64),
-        updated_by VARCHAR(256),
-        deleted_at VARCHAR(64),
-        deleted_by VARCHAR(256)
-    );",
-    )?;
-
-    // tables of older versions were created without the resource-columns, so they are added
-    // there at the end of the table, because sqlite can not insert columns in between
-    for column in RESOURCE_COLUMNS {
-        let sql = format!(
-            "ALTER TABLE hosts ADD COLUMN {column} BIGINT NOT NULL DEFAULT 0 CHECK ({column} >= 0);"
-        );
-        match conn.batch_execute(&sql) {
-            Ok(()) => {}
-            Err(e) if e.to_string().contains("duplicate column name") => {}
-            Err(e) => return Err(e.into()),
-        }
-    }
-
-    Ok(())
 }
 
 /// Adds a new host to the database with default values.
@@ -541,7 +481,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_get_host() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -603,7 +542,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_host_and_update_resources() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let context = UserContext {
@@ -669,7 +607,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_allocate_and_release_host_resources() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let context = UserContext {
@@ -769,7 +706,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_allocate_host_resources_parallel() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let context = UserContext {
@@ -831,7 +767,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_list_hosts() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
 
@@ -897,7 +832,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_host() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
 
         let project_id = "test-project".to_string();
@@ -940,7 +874,6 @@ mod tests {
     #[test]
     #[serial]
     fn test_hosts_permissions() {
-        let _ = init_host_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();

@@ -1,0 +1,3 @@
+DROP INDEX floating_ips_active_network_internal_ip_addr;
+DROP INDEX floating_ips_active_floating_ip_addr;
+DROP TABLE floating_ips;
