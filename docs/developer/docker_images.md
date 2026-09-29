@@ -3,8 +3,8 @@
 The content of the docker-images of `dockerfiles/` is deterministic: every build of an image
 installs exactly the same packages in exactly the same versions. The packages don't come from the
 package-manager of a distribution, which always installs the latest version of its repository, but
-from [nix](https://nixos.org). `dockerfiles/Dockerfile_local_test_tools` is the only exception, because it
-is only a toolbox for the local test-environments.
+from [nix](https://nixos.org). `dockerfiles/Dockerfile_local_test_tools` is the only exception,
+because it is only a toolbox for the local test-environments.
 
 ## How it works
 
