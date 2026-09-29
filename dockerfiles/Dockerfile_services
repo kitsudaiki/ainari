@@ -22,15 +22,32 @@
 # To build a single image faster, the builder can be restricted to its component:
 #
 #   docker build -f dockerfiles/Dockerfile_services --target miko --build-arg BINARIES=miko ...
+#
+# The toolchain and all packages of the images come from the flake of dockerfiles/nix, which pins
+# them in its flake.lock. Every image is built 'FROM scratch' and contains nothing else than the
+# packages of its runtime-environment of dockerfiles/nix/packages.nix and its binary. The list of
+# these packages is in /etc/nix-packages.txt of every image. See docs/developer/docker_images.md.
 
-# Image with the toolchain, which is built from dockerfiles/Dockerfile_build_base. The scripts of
-# the local setups build it locally with this tag, so it doesn't have to be published for them.
-ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.3.0
+# Image with nix and the toolchain, which is built from dockerfiles/Dockerfile_build_base. The
+# scripts of the local setups build it locally with this tag, so it doesn't have to be published
+# for them.
+ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.4.0
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+# The base-image has the flake, with which it was built, but the flake of the repository is always
+# the one, which counts. If both are the same, nothing has to be downloaded.
+FROM ${BUILD_BASE_IMAGE} AS nix
+
+COPY dockerfiles/nix /nix-flake
 
 # ==========================================
 # builder of all components
 # ==========================================
-FROM ${BUILD_BASE_IMAGE} AS builder
+FROM nix AS builder
+
+RUN nix develop path:/nix-flake#services --command true
 
 WORKDIR /app
 
@@ -56,48 +73,40 @@ ARG BINARIES="miko omamori ryokan onsen hanami sakura"
 # binaries have to be copied out of it within the same step.
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=ainari-services-target,sharing=locked \
+    --mount=type=cache,target=/app/target,id=ainari-services-nix-target,sharing=locked \
     packages="" && \
     for bin in $BINARIES; do packages="$packages -p $bin"; done && \
-    ~/.cargo/bin/cargo build --profile "$CARGO_PROFILE" $packages && \
+    nix develop path:/nix-flake#services --command cargo build --profile "$CARGO_PROFILE" $packages && \
     mkdir -p /out && \
     for bin in $BINARIES; do \
         cp "target/$CARGO_PROFILE/$bin" /out/; \
     done
 
-# ==========================================
-# hypervisor of sakura
-# ==========================================
-# Downloaded in its own stage, so a change of the source-code doesn't download it again.
-FROM ${BUILD_BASE_IMAGE} AS hypervisor
-
-# the hypervisor, which runs the virtual machines, and the firmware, which boots them
-ARG CLOUD_HYPERVISOR_VERSION=v53.0
-RUN mkdir -p /out && \
-    curl -fSLo /out/cloud-hypervisor \
-        https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/${CLOUD_HYPERVISOR_VERSION}/cloud-hypervisor-static && \
-    chmod +x /out/cloud-hypervisor
-RUN curl -fSLo /out/CLOUDHV.fd \
-        https://github.com/cloud-hypervisor/edk2/releases/latest/download/CLOUDHV.fd
+# The development-shell puts all of its libraries into the RUNPATH of every binary, also the ones,
+# which the binary doesn't need, like mariadb for onsen. Only the needed ones are kept, so the
+# image doesn't need the others.
+RUN nix develop path:/nix-flake#services --command sh -c 'patchelf --shrink-rpath /out/*'
 
 # ==========================================
 # miko
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS miko
+FROM nix AS miko-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
+# the packages are downloaded before the binary is copied, so a change of the source-code doesn't
+# download them again
+RUN nix build --no-link path:/nix-flake#runtime-miko
 
-RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
+COPY --from=builder /out/miko /rootfs/usr/bin/miko
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-miko ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/usr/bin/miko && \
+    chmod +x /rootfs/usr/bin/miko
 
-COPY --from=builder /out/miko /usr/bin/miko
-RUN useradd -m ainari && \
-    mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
-    chown ainari:ainari /usr/bin/miko && \
-    chmod +x /usr/bin/miko
+FROM scratch AS miko
+
+COPY --from=miko-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 USER ainari
 CMD [ "miko" ]
@@ -105,21 +114,21 @@ CMD [ "miko" ]
 # ==========================================
 # omamori
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS omamori
+FROM nix AS omamori-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN nix build --no-link path:/nix-flake#runtime-omamori
 
-RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
+COPY --from=builder /out/omamori /rootfs/usr/bin/omamori
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-omamori ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/usr/bin/omamori && \
+    chmod +x /rootfs/usr/bin/omamori
 
-COPY --from=builder /out/omamori /usr/bin/omamori
-RUN useradd -m ainari && \
-    mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
-    chown ainari:ainari /usr/bin/omamori && \
-    chmod +x /usr/bin/omamori
+FROM scratch AS omamori
+
+COPY --from=omamori-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 USER ainari
 CMD [ "omamori" ]
@@ -127,21 +136,21 @@ CMD [ "omamori" ]
 # ==========================================
 # hanami
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS hanami
+FROM nix AS hanami-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN nix build --no-link path:/nix-flake#runtime-hanami
 
-RUN apt-get update && \
-    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
+COPY --from=builder /out/hanami /rootfs/usr/bin/hanami
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-hanami ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/usr/bin/hanami && \
+    chmod +x /rootfs/usr/bin/hanami
 
-COPY --from=builder /out/hanami /usr/bin/hanami
-RUN useradd -m ainari && \
-    mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
-    chown ainari:ainari /usr/bin/hanami && \
-    chmod +x /usr/bin/hanami
+FROM scratch AS hanami
+
+COPY --from=hanami-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 USER ainari
 CMD [ "hanami" ]
@@ -149,40 +158,27 @@ CMD [ "hanami" ]
 # ==========================================
 # ryokan
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS ryokan
+FROM nix AS ryokan-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN nix build --no-link path:/nix-flake#runtime-ryokan
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openssl \
-                       curl \
-                       libsqlite3-0 \
-                       libmariadb3 \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
+COPY --from=builder /out/ryokan /rootfs/home/ainari/ryokan
+COPY dockerfiles/files/start_ryokan.sh /rootfs/home/ainari/start_ryokan.sh
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-ryokan ainari && \
+    # Allow the user to create the wireguard-connection. The wg-quick of the image doesn't set
+    # 'net.ipv4.conf.all.src_valid_mark', which is not permitted within the pod, see
+    # dockerfiles/nix/packages.nix.
+    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
+    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/home/ainari/ryokan /rootfs/home/ainari/start_ryokan.sh && \
+    chmod +x /rootfs/home/ainari/ryokan /rootfs/home/ainari/start_ryokan.sh
 
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+FROM scratch AS ryokan
 
-# Create ainari user and set up directories
-RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
-
-COPY --from=builder /out/ryokan /home/ainari/ryokan
-COPY dockerfiles/files/start_ryokan.sh /home/ainari/start_ryokan.sh
-RUN mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
-    chown ainari:ainari /home/ainari/ryokan && \
-    chown ainari:ainari /home/ainari/start_ryokan.sh && \
-    chmod +x /home/ainari/start_ryokan.sh
+COPY --from=ryokan-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 USER ainari
 WORKDIR /home/ainari
@@ -192,38 +188,25 @@ CMD ["/home/ainari/start_ryokan.sh"]
 # ==========================================
 # onsen
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS onsen
+FROM nix AS onsen-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN nix build --no-link path:/nix-flake#runtime-onsen
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openssl \
-                       libsqlite3-0 \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
-    apt-get clean autoclean && \
-    apt-get autoremove --yes
+COPY --from=builder /out/onsen /rootfs/home/ainari/onsen
+COPY dockerfiles/files/start_onsen.sh /rootfs/home/ainari/start_onsen.sh
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-onsen ainari && \
+    # Allow the user to create the wireguard-connection
+    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
+    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/home/ainari/onsen /rootfs/home/ainari/start_onsen.sh && \
+    chmod +x /rootfs/home/ainari/onsen /rootfs/home/ainari/start_onsen.sh
 
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
+FROM scratch AS onsen
 
-# Create ainari user and set up directories
-RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
-
-COPY --from=builder /out/onsen /home/ainari/onsen
-COPY dockerfiles/files/start_onsen.sh /home/ainari/start_onsen.sh
-RUN mkdir -p /etc/ainari && \
-    chown ainari:ainari /etc/ainari && \
-    chown ainari:ainari /home/ainari/onsen && \
-    chown ainari:ainari /home/ainari/start_onsen.sh && \
-    chmod +x /home/ainari/start_onsen.sh
+COPY --from=onsen-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 USER ainari
 WORKDIR /home/ainari
@@ -233,57 +216,37 @@ CMD ["/home/ainari/start_onsen.sh"]
 # ==========================================
 # sakura
 # ==========================================
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS sakura
+FROM nix AS sakura-rootfs
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-# qemu-utils provides qemu-img, which converts a downloaded image into the boot-disk of a virtual
-# machine. cloud-image-utils provides cloud-localds, which builds the cloud-init seed-image.
-# libcap2-bin provides setcap, which is only used while building this image.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openssl \
-                       curl \
-                       libsqlite3-0 \
-                       qemu-utils \
-                       cloud-image-utils \
-                       libcap2-bin \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
-    apt-get clean autoclean &&\
-    apt-get autoremove --yes
-
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
-
-# Create ainari user and set up directories
-RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
+RUN nix build --no-link path:/nix-flake#runtime-sakura
 
 # The virtual machines are opened through /dev/kvm, which belongs to the group 'kvm' on the host.
 # The id of that group differs between hosts, so it can be overwritten at build-time and the
 # container gets the id of the host additionally over 'group_add' in the docker-compose-file.
 ARG KVM_GID=993
-RUN groupadd -g ${KVM_GID} kvm || groupmod -g ${KVM_GID} kvm && \
-    usermod -aG kvm ainari
 
-COPY --from=builder /out/sakura /home/ainari/sakura
-COPY dockerfiles/files/start_sakura.sh /home/ainari/start_sakura.sh
-RUN mkdir -p /etc/ainari/virtual_machines && \
-    chown -R ainari:ainari /etc/ainari && \
-    chown ainari:ainari /home/ainari/sakura && \
-    chown ainari:ainari /home/ainari/start_sakura.sh && \
-    chmod +x /home/ainari/sakura /home/ainari/start_sakura.sh
+COPY --from=builder /out/sakura /rootfs/home/ainari/sakura
+COPY dockerfiles/files/start_sakura.sh /rootfs/home/ainari/start_sakura.sh
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-sakura ainari && \
+    # Allow the user to create the wireguard-connection
+    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
+    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
+    echo "kvm:x:${KVM_GID}:ainari" >> /rootfs/etc/group && \
+    mkdir -p /rootfs/etc/ainari/virtual_machines && \
+    chown -R 1000:1000 /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/home/ainari/sakura /rootfs/home/ainari/start_sakura.sh && \
+    chmod +x /rootfs/home/ainari/sakura /rootfs/home/ainari/start_sakura.sh && \
+    # The hypervisor and its firmware. The paths are the defaults of the '[hypervisor]'-section
+    # of the config of sakura. The hypervisor is copied out of the nix-store, because it gets a
+    # capability below, which is not possible within the store.
+    cp "$(readlink -f /rootfs/usr/bin/cloud-hypervisor)" /rootfs/usr/local/bin/cloud-hypervisor && \
+    ln -s /etc/cloud-hypervisor/CLOUDHV.fd /rootfs/usr/local/share/CLOUDHV.fd
 
-# the hypervisor and its firmware. The paths are the defaults of the '[hypervisor]'-section of
-# the config of sakura.
-COPY --from=hypervisor /out/cloud-hypervisor /usr/local/bin/cloud-hypervisor
-COPY --from=hypervisor /out/CLOUDHV.fd /usr/local/share/CLOUDHV.fd
+FROM scratch AS sakura
+
+COPY --from=sakura-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # Attaching a virtual machine to an existing TAP-device is the only privileged operation of this
 # container. The capability is given to the hypervisor-binary itself, so neither sakura nor the

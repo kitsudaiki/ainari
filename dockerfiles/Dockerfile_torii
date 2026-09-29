@@ -15,30 +15,30 @@
 # Image of the torii, which is used for every gateway of the network. Which role a gateway has is
 # only a question of its config: the gateway at the edge has an uplink, the gateways in front of
 # the sakura-hosts have a default-gateway instead.
+#
+# The toolchain and all packages of the image come from the flake of dockerfiles/nix, which pins
+# them in its flake.lock. The image is built 'FROM scratch' and contains nothing else than the
+# packages of 'runtime-torii' of dockerfiles/nix/packages.nix and the torii. The list of these
+# packages is in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+
+ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+FROM ${NIX_IMAGE} AS nix
+
+RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+COPY dockerfiles/nix /nix-flake
 
 # ==========================================
 # STAGE 1: Builder
 # ==========================================
-FROM ubuntu:24.04 AS builder
+# The eBPF-programs of the datapath are built with the nightly-toolchain and the bpf-linker of the
+# development-shell 'torii'
+FROM nix AS builder
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl git \
-    build-essential clang llvm libelf-dev zlib1g-dev \
-    linux-headers-generic \
-    pkg-config libssl-dev libsqlite3-dev protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# the eBPF-programs of the datapath are built with the nightly-toolchain and the bpf-linker
-RUN rustup toolchain install nightly --component rust-src
-RUN rustup default stable
-
-RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-RUN cargo binstall -y bpf-linker
+RUN nix develop path:/nix-flake#torii --command true
 
 WORKDIR /build
 
@@ -52,26 +52,42 @@ ARG CARGO_PROFILE=release
 
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/build/target,id=ainari-torii-target,sharing=locked \
-    cargo build --profile "$CARGO_PROFILE" -p torii && \
+    --mount=type=cache,target=/build/target,id=ainari-torii-nix-target,sharing=locked \
+    nix develop path:/nix-flake#torii --command cargo build --profile "$CARGO_PROFILE" -p torii && \
     mkdir -p /out && \
     cp "/build/target/$CARGO_PROFILE/torii" /out/
 
-# ==========================================
-# STAGE 2: Minimal Runtime
-# ==========================================
-FROM ubuntu:24.04
+# The eBPF-programs within the torii contain the paths of the sources of the standard-library,
+# which are compiled for the bpf-target, as plain text. They are not needed at runtime, but would
+# pull the whole toolchain into the image, so the hash of the toolchain is replaced within them.
+# Also the libraries, which the torii doesn't need, are removed out of its RUNPATH, which contains
+# all libraries of the development-shell.
+RUN nix develop path:/nix-flake#torii --command sh -c \
+        'remove-references-to -t "$(dirname "$(dirname "$(command -v rustc)")")" /out/torii && \
+         patchelf --shrink-rpath /out/torii'
 
-ARG DEBIAN_FRONTEND=noninteractive
+# ==========================================
+# STAGE 2: Root-filesystem of the runtime
+# ==========================================
+FROM nix AS rootfs
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    iproute2 openssh-client ethtool iputils-ping \
-    libssl3 libsqlite3-0 ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# the packages are downloaded before the binary is copied, so a change of the source-code doesn't
+# download them again
+RUN nix build --no-link path:/nix-flake#runtime-torii
+
+COPY --from=builder /out/torii /rootfs/app/torii
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-torii
+
+# ==========================================
+# STAGE 3: Minimal Runtime
+# ==========================================
+FROM scratch
+
+COPY --from=rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 WORKDIR /app
-
-COPY --from=builder /out/torii /app/torii
 
 COPY <<'EOF' /app/start.sh
 #!/bin/bash

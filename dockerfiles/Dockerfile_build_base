@@ -12,23 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Debian 13, because the MariaDB client-library of Debian 12 (Connector/C 3.3.19) returns wrong
-# results to diesel. The images of the components use the same version, so the bindings of the
-# client-library, which are selected at build-time, match the library at runtime.
-FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+# Image with the toolchain of the rust-components, which dockerfiles/Dockerfile_services is built
+# on. It is only nix with the flake of dockerfiles/nix and the development-shell 'services' of it
+# already downloaded, so the images of the components don't have to download it again. The
+# toolchain itself (rust, protobuf, the libraries of openssl, sqlite and mariadb, ...) is pinned by
+# dockerfiles/nix/flake.lock. See docs/developer/docker_images.md.
+#
+# Build:
+#   docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.4.0 .
+FROM nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
-RUN set -e && \
-        apt-get update && \
-        apt-get install --no-install-recommends -y  \
-                           protobuf-compiler \
-                           gcc \
-                           git \
-                           curl \
-                           pkg-config \
-                           libssl-dev \
-                           libsqlite3-dev \
-                           libmariadb-dev \
-                           ca-certificates
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+COPY dockerfiles/nix /nix-flake
+RUN nix develop path:/nix-flake#services --command true

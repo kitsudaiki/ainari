@@ -107,8 +107,16 @@ For the tests of the whole stack, see [Local test environments](local_testing/lo
 
 ## Build docker-images
 
+The packages of all images are pinned with nix, see [Packages of the docker-images](docker_images.md).
+
 All rust-services except torii are built from one Dockerfile, which compiles them together and has
-one target per service: `miko`, `hanami`, `sakura`, `ryokan`, `onsen` and `omamori`.
+one target per service: `miko`, `hanami`, `sakura`, `ryokan`, `onsen` and `omamori`. It is built on
+the image of `dockerfiles/Dockerfile_build_base`, which has to be built first, if it is not pulled
+from Docker Hub:
+
+```bash
+docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.4.0 .
+```
 
 Run `docker build -f dockerfiles/Dockerfile_services --target <SERVICE> -t <DOCKER_IMAGE_NAME> .`
 

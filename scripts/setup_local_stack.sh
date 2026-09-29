@@ -95,7 +95,7 @@ echo "Building the images ..."
 # The images of the components are built on the image with the toolchain, which is built locally
 # with the tag, which dockerfiles/Dockerfile_services uses by default, so it doesn't have to be
 # published before.
-docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.3.0 .
+docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.4.0 .
 docker compose build
 
 echo "Starting the containers ..."

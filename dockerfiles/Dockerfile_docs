@@ -12,24 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:24.04 AS builder
+# Image of the documentation, which is built with zensical and served by the http-server of
+# python.
+#
+# zensical, python and all other packages of the image come from the flake of dockerfiles/nix,
+# which pins them in its flake.lock. The image is built 'FROM scratch' and contains nothing else
+# than the packages of 'runtime-docs' of dockerfiles/nix/packages.nix and the built documentation.
+# The list of these packages is in /etc/nix-packages.txt of the image. See
+# docs/developer/docker_images.md.
 
-ARG DEBIAN_FRONTEND=noninteractive
-ARG DEBCONF_NONINTERACTIVE_SEEN=true
+ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+FROM ${NIX_IMAGE} AS nix
+
+RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+COPY dockerfiles/nix /nix-flake
+
+# ==========================================
+# build of the documentation
+# ==========================================
+FROM nix AS builder
+
+RUN nix develop path:/nix-flake#docs --command true
 
 WORKDIR /code
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 \
-                       python3-pip \
-                       python3-venv \
-                       ca-certificates && \
-    apt-get clean autoclean && \
-    apt-get autoremove --yes
-
-RUN python3 -m venv ainari_env && \
-    . ainari_env/bin/activate && \
-    pip3 install zensical
 
 # CHANGELOG.md and LICENSE have to sit beside the docs-directory, because 'docs/home/CHANGELOG.md'
 # and 'docs/home/license.md' are symlinks pointing to them
@@ -43,24 +52,28 @@ COPY docs docs
 # within the image as it has within the repository
 COPY example_configs example_configs
 
-RUN . ainari_env/bin/activate && zensical build --clean
+RUN nix develop path:/nix-flake#docs --command zensical build --clean
+
+# ==========================================
+# root-filesystem of the runtime
+# ==========================================
+FROM nix AS rootfs
+
+RUN nix build --no-link path:/nix-flake#runtime-docs
+
+COPY --from=builder /code/site /rootfs/ainari_docs
+
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-docs ainari && \
+    chown -R 1000:1000 /rootfs/ainari_docs
 
 # ---------------------------------------------------
 
-FROM ubuntu:24.04
+FROM scratch
 
-ARG DEBIAN_FRONTEND=noninteractive
+COPY --from=rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 && \
-    apt-get clean autoclean && \
-    apt-get autoremove --yes
-
-COPY --from=builder /code/site /ainari_docs
-
-RUN chown -R ubuntu:ubuntu /ainari_docs
-
-USER ubuntu
+USER ainari
 WORKDIR /ainari_docs
 
 EXPOSE 8000
