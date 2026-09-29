@@ -35,6 +35,25 @@ Packages, which are not taken as they are from nixpkgs, are defined at the begin
 `dockerfiles/nix/packages.nix` together with the reason, for example the rust-toolchains, the
 client-library of MariaDB 3.4 or the version of cloud-hypervisor.
 
+## SBOM of the images
+
+`scripts/generate_sbom.sh` generates an SBOM of every image with
+[sbomnix](https://github.com/tiiuae/sbomnix), which is pinned by the flake as well. It lists all
+packages of the runtime-environment of the image, which are exactly the packages within the image,
+with their versions, licenses, patches, CPEs and purls. The images don't have to be built before
+and nix doesn't have to be installed on the host:
+
+```bash
+./scripts/generate_sbom.sh                          # all images for the platform of the host
+./scripts/generate_sbom.sh --platform linux/arm64   # needs QEMU on an amd64-host
+./scripts/generate_sbom.sh miko sakura              # only some images
+```
+
+The result is written to `temporary_files/sbom/<PLATFORM>/`: `<IMAGE>.cdx.json` (CycloneDX),
+`<IMAGE>.spdx.json` (SPDX), `<IMAGE>.csv` and `versions.csv` with the packages and versions of all
+images. The compiled rust-crates and the npm-packages of the dashboard are not part of these
+SBOMs, they are pinned by `Cargo.lock` and `package-lock.json`.
+
 ## Update the packages
 
 Nix doesn't have to be installed on the host, the commands run within the image of nix:

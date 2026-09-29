@@ -331,5 +331,10 @@ in
     docs = pkgs.mkShell {
       packages = [ pkgs.zensical ];
     };
+
+    # generates the SBOMs of the runtime-environments (scripts/generate_sbom.sh)
+    sbom = pkgs.mkShell {
+      packages = [ pkgs.sbomnix ];
+    };
   };
 }
