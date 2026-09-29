@@ -36,6 +36,20 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     lazy_static::initialize(&db_handle::DB_CONN);
     log::info!("Applied all database-migrations");
 
+    // Multiple replicas of miko can start at the same time with the same database, so the
+    // initial entries are created exclusively. Otherwise each of them would see the empty tables
+    // and create its own admin.
+    db_handle::DB_CONN.run_exclusively("init_admin", init_admin_entries)??;
+    Ok(())
+}
+
+/// Creates the initial admin-user and its quota, if the tables are still empty.
+///
+/// # Returns
+///
+/// * `Ok(())` - The admin exists.
+/// * `Err(Box<dyn std::error::Error>)` - The admin or its quota could not be created.
+fn init_admin_entries() -> Result<(), Box<dyn std::error::Error>> {
     // Create the initial admin-user, if the user-table is still empty
     match user_table::init_admin() {
         Ok(_) => log::info!("Initialized admin-user"),

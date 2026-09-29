@@ -19,7 +19,7 @@ data:
   ryokan.toml: |+
     debug = true
     log_path = ""
-    database_type = "sqlite"
+    database_type = "mysql"
     skip_tls_verification = true
 
     [storage]
@@ -31,8 +31,7 @@ data:
     internal_ip = "127.0.0.1"
     internal_port = 10416
 
-    [sqlite]
-    file_path = "/etc/ainari/ryokan/ryokan_db"
+    {{ include "ainari.mysqlConfig" (list . "ryokan") | indent 4 | trim }}
     
     [miko]
     address = "{{ include "ainari.mikoAddress" . }}"

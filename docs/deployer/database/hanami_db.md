@@ -31,6 +31,10 @@ them is already used by virtual machines.
 | updated_by                | VARCHAR(256) |            |                                                             |
 | deleted_at                | VARCHAR(64)  |            |                                                             |
 | deleted_by                | VARCHAR(256) |            |                                                             |
+| external_address          | VARCHAR(256) |            |                                                             |
+
+`external_address` is the address of the external api of the sakura-host, which the proxies of
+its virtual machines forward to. It is NULL for hosts without one, then `address` is used.
 
 ## meta_virtual_machines
 

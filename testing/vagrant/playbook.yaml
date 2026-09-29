@@ -17,7 +17,10 @@
 # scripts/setup_vagrant_stack.sh, which builds the images and the CA before.
 #
 # Groups:
-#   management  the k3s-server, which also runs the control-components of ainari
+#   management  the control-components of ainari, with one replica of miko, hanami, ryokan and
+#               omamori on each of them. The first one is also the k3s-server.
+#   mysql       the mysql-server, which the replicas of the control-components share
+#   onsen       onsen, which stores the images of the virtual machines
 #   torii       the gateway at the edge of the network
 #   sakura      the sakura-hosts, each with the torii in front of it
 #
@@ -51,7 +54,7 @@
 
 
 - name: Install the k3s-server
-  hosts: management
+  hosts: management[0]
   become: true
   tasks:
     - name: Install k3s as server
@@ -82,7 +85,7 @@
 
 
 - name: Install the k3s-agents
-  hosts: torii:sakura
+  hosts: management[1:]:mysql:onsen:torii:sakura
   become: true
   vars:
     server: "{{ groups['management'][0] }}"
@@ -108,7 +111,10 @@
   become: true
   vars:
     images_of_group:
-      management: [miko, omamori, ryokan, onsen, hanami, dashboard]
+      management: [miko, omamori, ryokan, hanami, dashboard]
+      onsen: [onsen]
+      # the image of the mysql-server is pulled from docker hub
+      mysql: []
       torii: [torii]
       sakura: [sakura, torii]
     images: "{{ group_names | map('extract', images_of_group) | flatten | unique }}"
@@ -171,12 +177,12 @@
 
 
 - name: Deploy ainari
-  hosts: management
+  hosts: management[0]
   become: true
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   vars:
-    namespace: ainari
+    k8s_namespace: ainari
     release: ainari
     kvm_gid_host: "{{ groups['sakura'][0] }}"
   tasks:
@@ -192,13 +198,17 @@
       until: ready_nodes.stdout | int == groups['all'] | length
       changed_when: false
 
-    # Every component runs only on the nodes with its label (global.strict_scheduling).
+    # Every component runs only on the nodes with its label (global.strict_scheduling) and never
+    # twice on the same node, so the three replicas of the control-components are spread over the
+    # three management-nodes.
     - name: Label the nodes
       ansible.builtin.command: >
         kubectl label node {{ item.0 }} {{ item.1 }}=true --overwrite
       loop: >-
         {{ groups['management'] | product(['miko-node', 'hanami-node', 'ryokan-node', 'omamori-node',
-                                            'onsen-node', 'ainari-dashboard-node']) | list
+                                            'ainari-dashboard-node']) | list
+           + groups['mysql'] | product(['mysql-node']) | list
+           + groups['onsen'] | product(['onsen-node']) | list
            + groups['torii'] | product(['torii-node']) | list
            + groups['sakura'] | product(['sakura-node']) | list }}
       changed_when: true
@@ -257,30 +267,31 @@
     # databases and the new images, so a test never sees the virtual machines of a previous run.
     - name: Remove the previous deployment
       ansible.builtin.shell: |
-        helm status --namespace {{ namespace }} {{ release }} > /dev/null 2>&1 \
-          && helm uninstall --namespace {{ namespace }} {{ release }} --wait
-        kubectl delete namespace {{ namespace }} --ignore-not-found --wait
+        helm status --namespace {{ k8s_namespace }} {{ release }} > /dev/null 2>&1 \
+          && helm uninstall --namespace {{ k8s_namespace }} {{ release }} --wait
+        kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
       changed_when: true
 
     - name: Create the namespace with the CA
       ansible.builtin.shell: |
-        kubectl create namespace {{ namespace }}
-        kubectl --namespace {{ namespace }} create secret tls ainari-vagrant-ca \
+        kubectl create namespace {{ k8s_namespace }}
+        kubectl --namespace {{ k8s_namespace }} create secret tls ainari-vagrant-ca \
           --cert /opt/ainari/ainari-vagrant-ca.crt --key /opt/ainari/ainari-vagrant-ca.key
       changed_when: true
 
     - name: Install the helm-chart
       ansible.builtin.command: >
         helm install {{ release }} /opt/ainari/ainari
-        --namespace {{ namespace }}
+        --namespace {{ k8s_namespace }}
         --values /opt/ainari/values.yaml
         --set sakura.kvm_gid={{ kvm_gid.stdout }}
       changed_when: true
 
     - name: Wait for the components
       ansible.builtin.command: >
-        kubectl --namespace {{ namespace }} rollout status {{ item }} --timeout=600s
+        kubectl --namespace {{ k8s_namespace }} rollout status {{ item }} --timeout=600s
       loop:
+        - statefulset/mysql
         - deployment/miko
         - deployment/omamori
         - deployment/ryokan

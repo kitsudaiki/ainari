@@ -14,5 +14,6 @@
 
 pub mod floating_ip;
 pub mod network;
+pub mod proxy;
 pub mod sakura_host;
 pub mod virtual_machine;

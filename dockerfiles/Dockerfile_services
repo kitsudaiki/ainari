@@ -23,17 +23,16 @@
 #
 #   docker build -f dockerfiles/Dockerfile_services --target miko --build-arg BINARIES=miko ...
 
+# Image with the toolchain, which is built from dockerfiles/Dockerfile_build_base. The scripts of
+# the local setups build it locally with this tag, so it doesn't have to be published for them.
+ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.3.0
+
 # ==========================================
 # builder of all components
 # ==========================================
-FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174de145301194e78ef505553111ac46107 AS builder
+FROM ${BUILD_BASE_IMAGE} AS builder
 
 WORKDIR /app
-
-# client-library of the mysql-databases of miko, omamori, hanami and ryokan. It is part of the
-# base-image since version 0.3.0, so this step can be removed, when that version is used.
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y libmariadb-dev
 
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
@@ -70,7 +69,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
 # hypervisor of sakura
 # ==========================================
 # Downloaded in its own stage, so a change of the source-code doesn't download it again.
-FROM kitsudaiki/ainari_build_base:0.2.0@sha256:763aad737f50a8774e1beacef80c3174de145301194e78ef505553111ac46107 AS hypervisor
+FROM ${BUILD_BASE_IMAGE} AS hypervisor
 
 # the hypervisor, which runs the virtual machines, and the firmware, which boots them
 ARG CLOUD_HYPERVISOR_VERSION=v53.0
@@ -84,7 +83,7 @@ RUN curl -fSLo /out/CLOUDHV.fd \
 # ==========================================
 # miko
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS miko
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS miko
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -106,7 +105,7 @@ CMD [ "miko" ]
 # ==========================================
 # omamori
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS omamori
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS omamori
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -128,7 +127,7 @@ CMD [ "omamori" ]
 # ==========================================
 # hanami
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS hanami
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS hanami
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -150,7 +149,7 @@ CMD [ "hanami" ]
 # ==========================================
 # ryokan
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS ryokan
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS ryokan
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -193,7 +192,7 @@ CMD ["/home/ainari/start_ryokan.sh"]
 # ==========================================
 # onsen
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS onsen
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS onsen
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -234,7 +233,7 @@ CMD ["/home/ainari/start_onsen.sh"]
 # ==========================================
 # sakura
 # ==========================================
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS sakura
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS sakura
 
 ARG DEBIAN_FRONTEND=noninteractive
 

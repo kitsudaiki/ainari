@@ -3,7 +3,10 @@ debug = true
 log_type = "stdout"
 log_path = "/var/log/"
 skip_tls_verification = true
-address = "http://127.0.0.1:11420"
+# internal api, which hanami uses. Its internal endpoints are only reachable over this port.
+address = "http://127.0.0.1:10420"
+# external api, which the proxy-ports of the torii at the edge forward to
+external_address = "http://127.0.0.1:11420"
 
 [api]
 public_ip = "0.0.0.0"

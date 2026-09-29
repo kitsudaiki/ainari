@@ -292,8 +292,9 @@ fi
 # wait for the components
 # ---------------------------------------------------------------------------------------------
 echo "Waiting for the components to become ready ..."
-for resource in deployment/miko deployment/omamori deployment/ryokan deployment/hanami \
-                deployment/torii-public deployment/dashboard statefulset/onsen statefulset/sakura; do
+for resource in statefulset/mysql deployment/miko deployment/omamori deployment/ryokan \
+                deployment/hanami deployment/torii-public deployment/dashboard statefulset/onsen \
+                statefulset/sakura; do
     "${KUBECTL[@]}" rollout status "$resource" --timeout=600s
 done
 
@@ -303,7 +304,6 @@ echo "    miko     https://127.0.0.1:11417"
 echo "    hanami   https://127.0.0.1:11418"
 echo "    ryokan   https://127.0.0.1:11416"
 echo "    omamori  https://127.0.0.1:11421"
-echo "    torii    https://127.0.0.1:11419"
 echo ""
 echo "The dashboard is reachable at https://127.0.0.1:11422."
 echo ""
@@ -319,7 +319,7 @@ echo "The two sakura-hosts (the pods sakura-0 and sakura-1, each with its own to
 echo "themselves in hanami, as soon as it is up."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/ainari_test/vm_lifecycle_test.py"
 echo "and the cli with 'ainarictl --insecure' and AINARI_ADDRESS=https://127.0.0.1:11417"
 
 exit 0

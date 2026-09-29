@@ -795,16 +795,15 @@ Secrets are stored encrypted in omamori.
 ## Proxies
 
 Every virtual machine gets a proxy-port on the torii automatically, which forwards to its
-sakura-host (the `torii_port` of the virtual machine). So proxies normally don't have to be managed
-by hand.
+sakura-host (the `torii_port` of the virtual machine). The proxies are created and deleted together
+with the virtual machines, so they can only be listed and read. This is done over hanami, because
+the api of torii is only reachable within the cluster.
 
 === "CLI"
 
     ```bash
     ainarictl proxy list
     ainarictl proxy get <PROXY_UUID>
-    ainarictl proxy set -t <TARGET_ADDRESS> -v <VIRTUAL_MACHINE_UUID>
-    ainarictl proxy delete <PROXY_UUID>
     ```
 
     example:
@@ -827,9 +826,6 @@ by hand.
 
     proxy.list_proxys(context)    # {"proxys": [...]}
     proxy.get_proxy(context, proxy_uuid)
-    proxy.set_proxy(context, target_address, virtual_machine_uuid)
-    proxy.delete_proxy(context, proxy_uuid)
-    proxy.delete_all_proxys(context)
     ```
 
 ## Projects

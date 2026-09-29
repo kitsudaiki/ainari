@@ -22,7 +22,9 @@ use actix_web::{
 
 use crate::api::token_handling;
 
-use ainari_api::auth_middleware::{ApiValidationConfig, check_internal_request};
+use ainari_api::auth_middleware::{
+    ApiValidationConfig, check_internal_endpoint_access, check_internal_request,
+};
 use ainari_api::errors::ErrorResponse;
 use ainari_common::functions::split_bearer_token;
 
@@ -42,6 +44,10 @@ pub async fn authorization_middleware(
         .expect("Api-validation-config missing!");
 
     log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
+
+    // done before anything else, so an internal endpoint is never reachable over the external
+    // connection, also not for the requests, which skip the other checks below
+    check_internal_endpoint_access(&req, api_validation_config)?;
 
     // skip check for specific endpoints
     skip_check |= uri == "/v1alpha/is_ready" && *req.method() == Method::GET;

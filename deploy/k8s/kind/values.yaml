@@ -16,7 +16,8 @@
 # into the same setup as the local docker-compose one: the images of the local build, two
 # sakura-hosts and the api of every component on the same port of the host. Unlike the
 # docker-compose setup, the api is served over https with certificates of a local CA, which the
-# clients either trust or skip the verification for.
+# clients either trust or skip the verification for, and miko, hanami, ryokan and omamori store
+# their data in a mysql-server within the cluster.
 
 global:
   # there is no ingress-controller, the api and the dashboard are published over node-ports,
@@ -51,6 +52,29 @@ secrets:
   internal_api_key: "local-internal-api-key"
   onsen_registration_key: "local-onsen-registration-key"
   sakura_registration_key: "local-sakura-registration-key"
+
+
+# miko, hanami, ryokan and omamori store their data in a mysql-server, which runs within the
+# cluster. Like the rest of the setup it starts empty with every run.
+mysql:
+  root_password: "local-mysql-root-password"
+  databases:
+    miko:
+      database: "miko"
+      user: "miko"
+      password: "local-miko-password"
+    hanami:
+      database: "hanami"
+      user: "hanami"
+      password: "local-hanami-password"
+    ryokan:
+      database: "ryokan"
+      user: "ryokan"
+      password: "local-ryokan-password"
+    omamori:
+      database: "omamori"
+      user: "omamori"
+      password: "local-omamori-password"
 
 
 miko:
@@ -115,6 +139,8 @@ torii:
   docker:
     repository: "ainari/torii"
     tag: "local"
+  # The api of torii is only reachable within the cluster, but the clients take the host of this
+  # address to reach the proxy-ports of the virtual machines.
   api:
     public_address: "https://127.0.0.1:11419"
   service:

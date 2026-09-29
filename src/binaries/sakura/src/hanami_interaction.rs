@@ -118,6 +118,7 @@ pub fn register_host() -> Result<(), AinariError> {
             &config::INTERNAL_API_KEY,
             &host_name,
             &config::CONFIG.address,
+            config::CONFIG.external_address.as_deref(),
             resp,
             &config::SAKURA_REGISTRATION_KEY,
             number_of_cores,

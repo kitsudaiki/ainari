@@ -92,7 +92,9 @@ impl WorkerThread {
                                 log::error!("{msg}");
                                 // TODO: better error-handling
                             }
-                            Err(AinariError::InternalError(msg)) => {
+                            Err(AinariError::NotFound(msg))
+                            | Err(AinariError::Conflict(msg))
+                            | Err(AinariError::InternalError(msg)) => {
                                 log::error!("{msg}");
                                 // TODO: better error-handling
                             }

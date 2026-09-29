@@ -24,11 +24,10 @@ name: ainari
 nodes:
 - role: control-plane
   extraPortMappings:
-  # ryokan, miko, hanami, torii and omamori
+  # ryokan, miko, hanami and omamori. The api of torii is only reachable within the cluster.
   - {containerPort: 31416, hostPort: 11416, listenAddress: "127.0.0.1"}
   - {containerPort: 31417, hostPort: 11417, listenAddress: "127.0.0.1"}
   - {containerPort: 31418, hostPort: 11418, listenAddress: "127.0.0.1"}
-  - {containerPort: 31419, hostPort: 11419, listenAddress: "127.0.0.1"}
   - {containerPort: 31421, hostPort: 11421, listenAddress: "127.0.0.1"}
   # dashboard
   - {containerPort: 31422, hostPort: 11422, listenAddress: "127.0.0.1"}

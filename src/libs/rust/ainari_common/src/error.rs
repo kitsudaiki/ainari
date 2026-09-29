@@ -18,6 +18,10 @@ use std::fmt;
 pub enum AinariError {
     Unauthorized(String),
     InvalidInput(String),
+    /// The requested object doesn't exist in the called service
+    NotFound(String),
+    /// The request conflicts with existing resources of the called service, like a quota
+    Conflict(String),
     InternalError(String),
 }
 
@@ -26,6 +30,8 @@ impl fmt::Display for AinariError {
         match *self {
             AinariError::Unauthorized(ref msg) => write!(f, "Unauthorized: {msg}"),
             AinariError::InvalidInput(ref msg) => write!(f, "Invalid input: {msg}"),
+            AinariError::NotFound(ref msg) => write!(f, "Not found: {msg}"),
+            AinariError::Conflict(ref msg) => write!(f, "Conflict: {msg}"),
             AinariError::InternalError(ref msg) => write!(f, "Internal error: {msg}"),
         }
     }
@@ -42,6 +48,8 @@ impl PartialEq<&str> for AinariError {
         match self {
             AinariError::Unauthorized(s)
             | AinariError::InvalidInput(s)
+            | AinariError::NotFound(s)
+            | AinariError::Conflict(s)
             | AinariError::InternalError(s) => s == other,
         }
     }

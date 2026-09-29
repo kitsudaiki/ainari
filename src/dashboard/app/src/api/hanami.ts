@@ -24,6 +24,8 @@ import type {
     NetworkBasicResp,
     NetworkCreateReq,
     NetworkResp,
+    ProxyBasicResp,
+    ProxyResp,
     SakuraHostBasicResp,
     VirtualMachineBasicResp,
     VirtualMachineCreateReq,
@@ -164,4 +166,30 @@ export async function getSakuraHost(uuid: string): Promise<HostResp> {
 /** `DELETE /v1alpha/host/{host_uuid}/admin` */
 export async function deleteSakuraHost(uuid: string): Promise<void> {
     await hanamiClient().delete(`/v1alpha/host/${uuid}/admin`);
+}
+
+//=============================================================================
+// proxy
+//=============================================================================
+
+/**
+ * `GET /v1alpha/proxy`
+ *
+ * Lists the proxy-entries of the user. Every virtual-machine gets one entry, which
+ * maps a port on the torii at the edge to the sakura of that virtual-machine.
+ *
+ * The api of the torii is only reachable within the cluster, so the hanami provides
+ * this read-only view on the entries. They are created and deleted by the hanami
+ * together with the virtual-machine itself.
+ */
+export async function listProxies(): Promise<ProxyBasicResp[]> {
+    const resp = await hanamiClient().get("/v1alpha/proxy");
+    // the field is named `proxys` in `ProxyListResp` of the backend
+    return resp.data.proxys;
+}
+
+/** `GET /v1alpha/proxy/{proxy_uuid}` */
+export async function getProxy(uuid: string): Promise<ProxyResp> {
+    const resp = await hanamiClient().get(`/v1alpha/proxy/${uuid}`);
+    return resp.data;
 }

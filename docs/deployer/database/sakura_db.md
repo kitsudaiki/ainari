@@ -1,8 +1,8 @@
 # Sakura
 
 Sakura stores its data in a SQLite-database, whose file is configured with `database.file_path`
-(`/etc/ainari/sakura_db` in the example config). The tables are created and updated by the migrations in
-`src/binaries/sakura/migrations`, which are applied automatically at the start.
+(`/etc/ainari/sakura_db` in the example config). The tables are created and updated by the
+migrations in `src/binaries/sakura/migrations`, which are applied automatically at the start.
 
 ## virtual_machines
 

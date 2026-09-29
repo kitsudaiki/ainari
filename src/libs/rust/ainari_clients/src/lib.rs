@@ -107,6 +107,8 @@ where
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
+                StatusCode::NOT_FOUND => Err(AinariError::NotFound(body_str)),
+                StatusCode::CONFLICT => Err(AinariError::Conflict(body_str)),
                 StatusCode::OK | StatusCode::CREATED => {
                     let deserialized: T = match serde_json::from_str(&body_str) {
                         Ok(body) => body,
@@ -177,6 +179,8 @@ pub async fn handle_empty_response(
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
+                StatusCode::NOT_FOUND => Err(AinariError::NotFound(body_str)),
+                StatusCode::CONFLICT => Err(AinariError::Conflict(body_str)),
                 StatusCode::NO_CONTENT => Ok(()),
                 code => {
                     let msg = format!(

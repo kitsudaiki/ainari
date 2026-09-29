@@ -3,6 +3,7 @@ pub mod delete_ch_virtual_machine;
 pub mod reboot_ch_virtual_machine;
 pub mod restore_ch_virtual_machine;
 pub mod save_ch_virtual_machine;
+mod shutdown;
 pub mod start_ch_virtual_machine;
 pub mod stop_ch_virtual_machine;
 

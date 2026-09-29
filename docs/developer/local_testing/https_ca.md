@@ -101,4 +101,4 @@ CA explicitly:
 export REQUESTS_CA_BUNDLE=temporary_files/$SETUP/ainari-$SETUP-ca.crt
 ```
 
-The end-to-end test `testing/local_stack/vm_lifecycle_test.py` skips the verification anyway.
+The end-to-end test `testing/ainari_test/vm_lifecycle_test.py` skips the verification anyway.

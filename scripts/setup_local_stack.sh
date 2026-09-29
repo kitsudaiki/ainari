@@ -92,6 +92,10 @@ fi
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree.
 echo "Building the images ..."
+# The images of the components are built on the image with the toolchain, which is built locally
+# with the tag, which dockerfiles/Dockerfile_services uses by default, so it doesn't have to be
+# published before.
+docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.3.0 .
 docker compose build
 
 echo "Starting the containers ..."
@@ -159,4 +163,4 @@ echo "in hanami, as soon as it is up. The test waits for both of them, before it
 echo "virtual machine, which hanami then puts on one of them."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    python3 testing/ainari_test/vm_lifecycle_test.py"

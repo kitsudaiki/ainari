@@ -14,15 +14,16 @@
 
 use std::fs;
 use std::net::Ipv4Addr;
+use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::{
     ConsoleConfig, ConsoleMode, CpusConfig, DiskConfig, MemoryConfig, NetConfig, PayloadConfig,
     SerialConfig, VmConfig,
 };
-use cloud_hypervisor_client::socket_based_api_client;
+use cloud_hypervisor_client::{SocketBasedApiClient, socket_based_api_client};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -44,7 +45,7 @@ use super::{
 };
 use crate::config;
 use crate::database::virtual_machine_table;
-use crate::database::virtual_machine_table::VirtualMachineState;
+use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachineState};
 
 /// Handle of a running cloud-hypervisor virtual_machine
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +124,65 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
     )?;
 
     log::info!("Start creation of VM {uuid}");
+    let (client, vm_pid) =
+        spawn_vmm_with_vm(uuid, &virtual_machine_data, &root_disk_path, &seed_path).await?;
 
+    log::info!(
+        "Booting VM {uuid} attached to {}",
+        virtual_machine_data.tap_name
+    );
+    client
+        .boot_vm()
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
+
+    // the virtual_machine runs now, so its disks are stored and it is marked as running
+    virtual_machine_table::update_virtual_machine(
+        uuid,
+        &virtual_machine_data.image_uuid,
+        &virtual_machine_data.public_key_uuid,
+        &seed_path,
+        Some(root_disk_path),
+        context,
+    )
+    .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
+    set_vm_state(uuid, VirtualMachineState::Running, context)?;
+
+    log::info!("New VM {uuid} started");
+
+    Ok(VmHandle {
+        tap_name: virtual_machine_data.tap_name,
+        socket_path: vm_socket_path(uuid),
+        pid: vm_pid,
+    })
+}
+
+/// Time, which a new cloud-hypervisor process gets to create its API-socket
+const VMM_SOCKET_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Starts a new cloud-hypervisor process and creates the virtual_machine in it, without booting
+/// it
+///
+/// This is used for the creation of a new virtual_machine and to start a stopped one again,
+/// because cloud-hypervisor exits, when the guest powers itself off. The configuration is always
+/// built from the database-entry, so the virtual_machine gets the same disks, network and
+/// resources every time. The process is reaped in a separate thread, when it exits.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `virtual_machine_data` - Database-entry of the virtual_machine
+/// * `root_disk_path` - Path of the root-disk of the virtual_machine
+/// * `seed_path` - Path of the cloud-init seed-image of the virtual_machine
+///
+/// # Returns
+/// * `Ok((SocketBasedApiClient, u32))` with the client of the API-socket and the process-id
+/// * `Err(AinariError)` if the process could not be started or the virtual_machine not created
+pub(super) async fn spawn_vmm_with_vm(
+    uuid: &Uuid,
+    virtual_machine_data: &VirtualMachineEntry,
+    root_disk_path: &str,
+    seed_path: &str,
+) -> Result<(SocketBasedApiClient, u32), AinariError> {
     // start cloud-hypervisor process, which is controlled via its API-socket
     let socket_path = vm_socket_path(uuid);
     let _ = fs::remove_file(&socket_path);
@@ -133,11 +192,57 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
         .spawn()
         .map_err(|e| AinariError::InternalError(format!("Failed to spawn VMM: {e}")))?;
 
-    // give the process time to create the API-socket
-    tokio::time::sleep(Duration::from_millis(500)).await;
-    let client = socket_based_api_client(&socket_path);
+    // the process creates its API-socket shortly after its start
+    let deadline = Instant::now() + VMM_SOCKET_TIMEOUT;
+    while !Path::new(&socket_path).exists() && Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 
-    let vm_config = VmConfig {
+    let client = socket_based_api_client(&socket_path);
+    let vm_config = build_vm_config(uuid, virtual_machine_data, root_disk_path, seed_path);
+
+    log::info!(
+        "Creating VM {uuid} attached to {}",
+        virtual_machine_data.tap_name
+    );
+    if let Err(e) = client.create_vm(vm_config).await {
+        // the process would stay without a virtual_machine otherwise
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(AinariError::InternalError(format!(
+            "Create VM {uuid} failed: {e:?}"
+        )));
+    }
+
+    // `wait` blocks, so it runs in a plain thread instead of an async task to not block the async
+    // runtime
+    let vm_pid = child.id();
+    std::thread::spawn(move || {
+        if let Err(e) = child.wait() {
+            log::error!("Failed to wait for VMM-process {vm_pid}: {e}");
+        }
+    });
+
+    Ok((client, vm_pid))
+}
+
+/// Builds the configuration of a virtual_machine for cloud-hypervisor
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `virtual_machine_data` - Database-entry of the virtual_machine
+/// * `root_disk_path` - Path of the root-disk of the virtual_machine
+/// * `seed_path` - Path of the cloud-init seed-image of the virtual_machine
+///
+/// # Returns
+/// The configuration of the virtual_machine
+fn build_vm_config(
+    uuid: &Uuid,
+    virtual_machine_data: &VirtualMachineEntry,
+    root_disk_path: &str,
+    seed_path: &str,
+) -> VmConfig {
+    VmConfig {
         payload: PayloadConfig {
             firmware: Some(config::CONFIG.hypervisor.firmware_path.clone()),
             ..Default::default()
@@ -178,65 +283,18 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
         // writable root-disk and read-only cloud-init seed-image
         disks: Some(vec![
             DiskConfig {
-                path: Some(root_disk_path.clone()),
+                path: Some(root_disk_path.to_owned()),
                 readonly: Some(false),
                 ..Default::default()
             },
             DiskConfig {
-                path: Some(seed_path.clone()),
+                path: Some(seed_path.to_owned()),
                 readonly: Some(true),
                 ..Default::default()
             },
         ]),
         ..Default::default()
-    };
-
-    log::info!(
-        "Creating VM {uuid} attached to {}",
-        virtual_machine_data.tap_name
-    );
-    client
-        .create_vm(vm_config)
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Create VM {uuid} failed: {e:?}")))?;
-
-    log::info!(
-        "Booting VM {uuid} attached to {}",
-        virtual_machine_data.tap_name
-    );
-    client
-        .boot_vm()
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
-
-    // Capture the PID before moving `child` into the reaper-thread. `wait` blocks, so it runs in
-    // a plain thread instead of an async task to not block the async runtime.
-    let vm_pid = child.id();
-    std::thread::spawn(move || {
-        if let Err(e) = child.wait() {
-            log::error!("Failed to wait for VMM-process {vm_pid}: {e}");
-        }
-    });
-
-    // the virtual_machine runs now, so its disks are stored and it is marked as running
-    virtual_machine_table::update_virtual_machine(
-        uuid,
-        &virtual_machine_data.image_uuid,
-        &virtual_machine_data.public_key_uuid,
-        &seed_path,
-        Some(root_disk_path),
-        context,
-    )
-    .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
-    set_vm_state(uuid, VirtualMachineState::Running, context)?;
-
-    log::info!("New VM {uuid} started");
-
-    Ok(VmHandle {
-        tap_name: virtual_machine_data.tap_name,
-        socket_path,
-        pid: vm_pid,
-    })
+    }
 }
 
 /// Creates the directories for the files of a virtual_machine

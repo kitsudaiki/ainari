@@ -29,30 +29,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	proxyTargetAddress      string
-	proxyVirtualMachineUuid string
-)
-
-var setProxyCmd = &cobra.Command{
-	Use:   "set -t TARGET_ADDRESS -v VIRTUAL_MACHINE_UUID",
-	Short: "Set a new proxy to a virtual machine.",
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.SetProxy(context, proxyTargetAddress, proxyVirtualMachineUuid)
-		if err == nil {
-			ainarictl_common.PrintSingle(content)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
 var getProxyCmd = &cobra.Command{
 	Use:   "get PROXY_UUID",
 	Short: "Get information of a specific proxy.",
@@ -93,44 +69,14 @@ var listProxyCmd = &cobra.Command{
 	},
 }
 
-var deleteProxyCmd = &cobra.Command{
-	Use:   "delete PROXY_UUID",
-	Short: "Delete a specific proxy from the backend.",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		proxyUuid := args[0]
-		_, err = ainari_sdk.DeleteProxy(context, proxyUuid)
-		if err == nil {
-			fmt.Printf("successfully deleted proxy '%v'\n", proxyUuid)
-		} else {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	},
-}
-
 var proxyCmd = &cobra.Command{
 	Use:   "proxy",
-	Short: "Manage proxy.",
+	Short: "Show the proxies, which make the virtual machines reachable. They are managed by the virtual machines.",
 }
 
 func Init_Proxy_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(proxyCmd)
 
-	proxyCmd.AddCommand(setProxyCmd)
-	setProxyCmd.Flags().StringVarP(&proxyTargetAddress, "target", "t", "", "Address, which the proxy has to point to (mandatory)")
-	setProxyCmd.Flags().StringVarP(&proxyVirtualMachineUuid, "virtual_machine", "v", "", "UUID of the virtual machine behind the proxy (mandatory)")
-	setProxyCmd.MarkFlagRequired("target")
-	setProxyCmd.MarkFlagRequired("virtual_machine")
-
 	proxyCmd.AddCommand(getProxyCmd)
-
 	proxyCmd.AddCommand(listProxyCmd)
-
-	proxyCmd.AddCommand(deleteProxyCmd)
 }

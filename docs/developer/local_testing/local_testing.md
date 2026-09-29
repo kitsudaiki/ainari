@@ -9,7 +9,7 @@ read without the others:
 2. [Kind setup](kind_setup.md) (`make up kind`): the helm-chart on a kubernetes-cluster of one
    node in docker, https
 3. [Vagrant setup](vagrant_setup.md) (`make up vagrant`): the helm-chart on a kubernetes-cluster
-   of four virtual machines, https
+   of eight virtual machines with three replicas of the control-components, https
 4. [The CA of the kind- and the vagrant-setup](https_ca.md):
 
 All of them use the same floating ip-addresses (`10.0.0.0/24`), so only one of them can run at a
@@ -24,12 +24,14 @@ all required tools, for a test without installing them on the host.
 | Setup-script                        | `scripts/setup_local_stack.sh`        | `scripts/setup_kind_stack.sh`                   | `scripts/setup_vagrant_stack.sh`                        |
 | Deployment                          | `docker-compose.yml`                  | helm-chart `deploy/k8s/ainari`                  | helm-chart `deploy/k8s/ainari`                          |
 | Configuration                       | `testing/local_stack/configs`          | `deploy/k8s/kind/values.yaml`                   | `testing/vagrant/values.yaml`                           |
-| Runs on                             | docker-containers on the host         | one kubernetes-node in docker (kind)            | four virtual machines with k3s (vagrant, libvirt)       |
-| Nodes                               | none                                  | 1                                               | 4 (management, edge-gateway, 2 sakura-hosts)            |
+| Runs on                             | docker-containers on the host         | one kubernetes-node in docker (kind)            | eight virtual machines with k3s (vagrant, libvirt)      |
+| Nodes                               | none                                  | 1                                               | 8 (3 management, mysql, onsen, gateway, 2 sakura-hosts) |
+| Database of the control-components  | sqlite-files in the containers        | mysql-server within the cluster                 | mysql-server on its own virtual machine                 |
+| Replicas of the control-components  | 1                                     | 1                                               | 3, one on each management-machine                       |
 | Placement of the components         | all on the host                       | all on the one node                             | on the virtual machines with their label                |
 | Protocol of the api                 | http                                  | https                                           | https                                                   |
 | Certificates                        | none                                  | own CA, `temporary_files/kind`                  | own CA, `temporary_files/vagrant`                       |
-| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`, torii on `.11`          |
+| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`, proxy-ports on `.11`    |
 | Dashboard                           | has to be deployed manually           | yes, port 11422                                 | yes, port 11422                                         |
 | Network between the gateways        | one docker-bridge (shared link)       | routed pod-network of kind                      | flannel (vxlan) between the virtual machines            |
 | Uplink of the edge-gateway          | `veth-host` on the host               | `veth-kind` on the host                         | `veth-uplink` on the virtual machine `ainari-torii`     |
@@ -40,6 +42,6 @@ all required tools, for a test without installing them on the host.
 | Tools on the host                   | docker compose                        | kind, kubectl, helm, openssl                    | vagrant-libvirt, ansible, openssl                       |
 | Host-sockets for the tools-container | docker                               | docker                                          | docker, libvirt                                         |
 | eBPF-support of the host-kernel     | required                              | required                                        | not required                                            |
-| Resources                           | smallest                              | small                                           | about 20 GiB memory, 25 GiB disk                        |
+| Resources                           | smallest                              | small                                           | about 32 GiB memory, 40 GiB disk                        |
 | Time to start                       | fast                                  | a few minutes                                   | longest (virtual machines, k3s)                         |
 | Suited for                          | fast development of the components    | testing the helm-chart                          | testing a real multi-node deployment                    |

@@ -32,6 +32,7 @@ use crate::prepare_client;
 /// * `internal_api_key` - The API key for internal authentication
 /// * `name` - The name of the Sakura host to register
 /// * `sakura_address` - The address of the Sakura host
+/// * `sakura_external_address` - Address of the external api of the sakura-host, if it has one
 /// * `deleted_uuids` - List of UUIDs that have been deleted and need to be tracked
 /// * `registration_key` - The registration key for the host
 /// * `number_of_cores` - Number of CPU threads of the Sakura host
@@ -48,6 +49,7 @@ pub async fn register_sakura_host(
     internal_api_key: &Secret,
     name: &str,
     sakura_address: &str,
+    sakura_external_address: Option<&str>,
     deleted_uuids: UuidList,
     registration_key: &Secret,
     number_of_cores: u64,
@@ -62,6 +64,7 @@ pub async fn register_sakura_host(
     let body = SakuraHostCreateReq {
         name: name.to_owned(),
         host_address: sakura_address.to_owned(),
+        external_address: sakura_external_address.map(str::to_owned),
         deleted_uuids,
         registration_key: Secret::from(registration_key.reveal()),
         number_of_cores,

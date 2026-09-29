@@ -42,6 +42,9 @@ pub struct ApiValidationConfig {
     pub internal_api_key: Secret,
     /// Flag to skip TLS verification when communicating with Miko
     pub skip_tls_verification: bool,
+    /// Port of the internal connection. If set, the internal endpoints are only reachable over
+    /// the connection with this port and requests over any other connection are rejected.
+    pub internal_endpoints_port: Option<u16>,
 }
 
 impl ApiValidationConfig {
@@ -68,8 +71,73 @@ impl ApiValidationConfig {
             internal_ip: api.internal_ip.clone(),
             internal_api_key: internal_api_key.clone(),
             skip_tls_verification,
+            internal_endpoints_port: None,
         }
     }
+
+    /// Allows the internal endpoints only over the internal connection.
+    ///
+    /// The server listens on an internal and an external port, which are exposed separately, so
+    /// requests from outside of the cluster only reach the external port. With this restriction
+    /// the internal endpoints are not reachable over the external port, not even with a valid
+    /// internal API-key.
+    ///
+    /// # Arguments
+    ///
+    /// * `internal_port` - Port of the internal connection
+    ///
+    /// # Returns
+    ///
+    /// The config with the restriction
+    pub fn restrict_internal_endpoints(mut self, internal_port: u16) -> Self {
+        self.internal_endpoints_port = Some(internal_port);
+        self
+    }
+}
+
+/// Checks if a path belongs to an internal endpoint, which is marked by the suffix `internal`.
+///
+/// Only the path is checked, so a query-string can not hide the suffix.
+fn is_internal_endpoint(path: &str) -> bool {
+    path.to_lowercase().ends_with("internal")
+}
+
+/// Checks if a request is allowed to access the endpoint over its connection.
+///
+/// If the config restricts the internal endpoints, they are only allowed over the connection
+/// with the internal port. The port is the one of the local socket, where the request came in, so
+/// it can not be faked by the client.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request
+/// * `api_validation_config` - Configuration with the port of the internal connection
+///
+/// # Returns
+///
+/// Ok(()) if the request is allowed, or a forbidden-error, if an internal endpoint was requested
+/// over the external connection
+pub fn check_internal_endpoint_access(
+    req: &ServiceRequest,
+    api_validation_config: &ApiValidationConfig,
+) -> Result<(), actix_web::Error> {
+    let Some(internal_port) = api_validation_config.internal_endpoints_port else {
+        return Ok(());
+    };
+
+    let local_port = req.app_config().local_addr().port();
+    if is_internal_endpoint(req.path()) && local_port != internal_port {
+        log::warn!(
+            "Rejected request against internal endpoint '{}' over the external port {local_port}",
+            req.path()
+        );
+        return Err(ErrorResponse::Forbidden(
+            "Internal endpoints are only reachable over the internal connection".to_string(),
+        )
+        .into());
+    }
+
+    Ok(())
 }
 
 /// Middleware for authorizing incoming API requests
@@ -97,6 +165,10 @@ pub async fn authorization_middleware(
         .expect("Api-validation-config missing!");
 
     log::debug!("call uri: '{uri}' for method: '{}'", *req.method());
+
+    // done before anything else, so an internal endpoint is never reachable over the external
+    // connection, also not for the requests, which skip the other checks below
+    check_internal_endpoint_access(&req, api_validation_config)?;
 
     // request of ready-status can be done without token
     skip_token_check |= uri == "/v1alpha/is_ready" && *req.method() == Method::GET;
@@ -152,7 +224,6 @@ pub fn check_internal_request(
     api_validation_config: &ApiValidationConfig,
 ) -> Result<(), actix_web::Error> {
     let uri = req.uri();
-    let uri_str = format!("{uri}");
 
     // get interface-address, where the request came in
     let peer_addr = match req.connection_info().peer_addr() {
@@ -167,7 +238,7 @@ pub fn check_internal_request(
         *req.method()
     );
 
-    if uri_str.to_lowercase().ends_with("internal") {
+    if is_internal_endpoint(req.path()) {
         // get token from header
         let api_key_header = match req.headers().get("X-Internal-API-Key") {
             Some(value) => value,
@@ -264,9 +335,114 @@ async fn check_auth_header(
         }
         Err(AinariError::Unauthorized(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::InvalidInput(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
-        Err(AinariError::InternalError(msg)) => {
+        // miko doesn't know the user of the token anymore
+        Err(AinariError::NotFound(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
+        Err(AinariError::Conflict(msg)) | Err(AinariError::InternalError(msg)) => {
             log::error!("Failed check token against Miko with error: '{msg}'");
             Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::middleware::from_fn;
+    use actix_web::{App, HttpResponse, HttpServer};
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+
+    #[test]
+    fn test_is_internal_endpoint() {
+        assert!(is_internal_endpoint("/v1alpha/host/internal"));
+        assert!(is_internal_endpoint("/v1alpha/image/abc/Internal"));
+        assert!(!is_internal_endpoint("/v1alpha/host"));
+        assert!(!is_internal_endpoint("/v1alpha/internal/host"));
+    }
+
+    /// Middleware, which only runs the check of the connection, so the test needs no miko.
+    async fn connection_check_middleware(
+        req: ServiceRequest,
+        next: Next<impl MessageBody>,
+    ) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
+        let config = req
+            .app_data::<web::Data<ApiValidationConfig>>()
+            .expect("config missing")
+            .clone();
+        check_internal_endpoint_access(&req, &config)?;
+        next.call(req).await
+    }
+
+    /// Sends a GET-request over a plain TCP-connection and returns the status-code.
+    fn get_status(port: u16, path: &str) -> u16 {
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("failed to connect");
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+        )
+        .expect("failed to send request");
+        let mut response = String::new();
+        stream
+            .read_to_string(&mut response)
+            .expect("failed to read response");
+        response
+            .split_whitespace()
+            .nth(1)
+            .and_then(|code| code.parse().ok())
+            .expect("invalid response")
+    }
+
+    #[actix_web::test]
+    async fn test_internal_endpoints_only_over_internal_port() {
+        let public = TcpListener::bind("127.0.0.1:0").unwrap();
+        let internal = TcpListener::bind("127.0.0.1:0").unwrap();
+        let public_port = public.local_addr().unwrap().port();
+        let internal_port = internal.local_addr().unwrap().port();
+
+        let config = ApiValidationConfig {
+            miko_address: String::new(),
+            internal_ip: "127.0.0.1".to_string(),
+            internal_api_key: Secret::from("key"),
+            skip_tls_verification: false,
+            internal_endpoints_port: None,
+        }
+        .restrict_internal_endpoints(internal_port);
+
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(config.clone()))
+                .wrap(from_fn(connection_check_middleware))
+                .route("/v1alpha/host", web::get().to(HttpResponse::Ok))
+                .route("/v1alpha/host/internal", web::get().to(HttpResponse::Ok))
+        })
+        .workers(1)
+        .listen(public)
+        .unwrap()
+        .listen(internal)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_rt::spawn(server);
+
+        let results = actix_web::rt::task::spawn_blocking(move || {
+            (
+                get_status(public_port, "/v1alpha/host"),
+                get_status(internal_port, "/v1alpha/host"),
+                get_status(public_port, "/v1alpha/host/internal"),
+                get_status(public_port, "/v1alpha/host/internal?x=1"),
+                get_status(internal_port, "/v1alpha/host/internal"),
+            )
+        })
+        .await
+        .unwrap();
+        handle.stop(true).await;
+
+        // normal endpoints are reachable over both connections
+        assert_eq!(results.0, 200);
+        assert_eq!(results.1, 200);
+        // internal endpoints only over the internal connection, also with a query-string
+        assert_eq!(results.2, 403);
+        assert_eq!(results.3, 403);
+        assert_eq!(results.4, 200);
     }
 }

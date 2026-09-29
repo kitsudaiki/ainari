@@ -20,6 +20,13 @@ metadata:
     app: hanami
 spec:
   replicas: {{ .Values.hanami.replica_count }}
+  # Every node runs at most one replica of a component (see ainari.affinity), so an update can't
+  # start an additional pod first. One old pod is removed, before its replacement is started.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: hanami
@@ -29,11 +36,13 @@ spec:
         app: hanami
     spec:
       {{- include "ainari.affinity" (list . "hanami" "hanami-node") | nindent 6 }}
+      {{- include "ainari.waitForMysql" . | nindent 6 }}
       containers:
       - name: hanami
         image: {{ include "ainari.image" .Values.hanami }}
         imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.hanami) }}
         env:
+        {{- include "ainari.mysqlPasswordEnv" "hanami" | nindent 8 }}
         - name: RUST_LOG
           value: "debug"
         - name: INTERNAL_API_KEY
@@ -47,8 +56,6 @@ spec:
               name: sakura-registration-key
               key: sakura_retistration_key
         volumeMounts:
-        - name: data-volume
-          mountPath: /etc/ainari/hanami/
         - name: hanami-config
           mountPath: /etc/ainari/hanami.toml
           subPath: hanami.toml
@@ -75,26 +82,12 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
-      - name: tls-termination
-        image: nginx:latest
-        volumeMounts:
-        - name: tls-certs
-          mountPath: /etc/nginx/certs
-        - name: hanami-nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
+      {{- include "ainari.tlsSidecars" "hanami" | nindent 6 }}
 
       volumes:
         - name: hanami-config
           configMap:
             name: hanami-config
-        - name: data-volume
-          persistentVolumeClaim:
-            claimName: hanami-pvc
         - name: tls-certs
           secret:
             secretName: hanami-tls-secret

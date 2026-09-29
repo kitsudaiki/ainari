@@ -34,6 +34,7 @@ spec:
         app: sakura
     spec:
       {{- include "ainari.affinity" (list . "sakura" "sakura-node") | nindent 6 }}
+      {{- include "ainari.waitForMiko" . | nindent 6 }}
       securityContext:
         # sakura runs as a normal user and opens the virtual machines over /dev/kvm
         supplementalGroups:
@@ -162,20 +163,9 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
-      - name: tls-termination
-        image: nginx:latest
-        ports:
-        - containerPort: 8443
-        volumeMounts:
-        - name: tls-certs
-          mountPath: /etc/nginx/certs
-        - name: sakura-nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
+      # tls-termination of the internal api (8443) for hanami and of the external api (9443), which
+      # the proxy-port of the torii at the edge forwards the clients to
+      {{- include "ainari.tlsSidecars" "sakura" | nindent 6 }}
 
       # tls-termination of the torii in front of this sakura-host. Hanami reaches it on the same
       # port as the one of the gateway at the edge.
@@ -190,6 +180,11 @@ spec:
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         resources:
+          # Without requests, kubernetes reserves the limits for the sidecar, which would block
+          # half a cpu per sidecar, although the tls-termination needs only a fraction of it.
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
           limits:
             memory: "128Mi"
             cpu: "500m"

@@ -18,6 +18,7 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::floating_ip::*;
 use crate::api::http_endpoints::network::*;
+use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::sakura_host::*;
 use crate::api::http_endpoints::virtual_machine::*;
 
@@ -51,6 +52,13 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(get_virtual_machine_v1_0::get_virtual_machine))
                         .route(delete().to(delete_virtual_machine_v1_0::delete_virtual_machine)),
                 ),
+        )
+        .service(
+            // read-only view on the proxies of the torii at the edge, whose api is only reachable
+            // within the cluster
+            scope("/proxy")
+                .service(resource("").route(get().to(list_proxy_v1_0::list_proxy)))
+                .service(resource("/{proxy_uuid}").route(get().to(get_proxy_v1_0::get_proxy))),
         )
         .service(
             scope("/network")

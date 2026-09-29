@@ -60,7 +60,9 @@ pub async fn run_server() -> Result<(), impl Error> {
         &config::CONFIG.api,
         &config::INTERNAL_API_KEY,
         false,
-    );
+    )
+    // the internal endpoints are only reachable over the internal port
+    .restrict_internal_endpoints(internal_port);
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {

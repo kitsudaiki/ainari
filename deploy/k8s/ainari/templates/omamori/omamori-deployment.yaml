@@ -20,6 +20,13 @@ metadata:
     app: omamori
 spec:
   replicas: {{ .Values.omamori.replica_count }}
+  # Every node runs at most one replica of a component (see ainari.affinity), so an update can't
+  # start an additional pod first. One old pod is removed, before its replacement is started.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: omamori
@@ -29,11 +36,13 @@ spec:
         app: omamori
     spec:
       {{- include "ainari.affinity" (list . "omamori" "omamori-node") | nindent 6 }}
+      {{- include "ainari.waitForMysql" . | nindent 6 }}
       containers:
       - name: omamori
         image: {{ include "ainari.image" .Values.omamori }}
         imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.omamori) }}
         env:
+        {{- include "ainari.mysqlPasswordEnv" "omamori" | nindent 8 }}
         - name: RUST_LOG
           value: "debug"
         - name: INTERNAL_API_KEY
@@ -42,8 +51,6 @@ spec:
               name: internal-api-key
               key: internal_api_key
         volumeMounts:
-        - name: data-volume
-          mountPath: /etc/ainari/omamori/
         - name: omamori-config
           mountPath: /etc/ainari/omamori.toml
           subPath: omamori.toml
@@ -70,26 +77,12 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
-      - name: tls-termination
-        image: nginx:latest
-        volumeMounts:
-        - name: tls-certs
-          mountPath: /etc/nginx/certs
-        - name: omamori-nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
+      {{- include "ainari.tlsSidecars" "omamori" | nindent 6 }}
 
       volumes:
         - name: omamori-config
           configMap:
             name: omamori-config
-        - name: data-volume
-          persistentVolumeClaim:
-            claimName: omamori-pvc
         - name: tls-certs
           secret:
             secretName: omamori-tls-secret

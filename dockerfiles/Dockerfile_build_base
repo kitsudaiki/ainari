@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:12.12-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706
+# Debian 13, because the MariaDB client-library of Debian 12 (Connector/C 3.3.19) returns wrong
+# results to diesel. The images of the components use the same version, so the bindings of the
+# client-library, which are selected at build-time, match the library at runtime.
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
 ARG DEBIAN_FRONTEND=noninteractive
 

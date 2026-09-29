@@ -78,6 +78,17 @@ pub async fn register_host_internal(
                 log::error!("Failed to update resources of host with UUID '{host_uuid}'.");
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
+
+            // the external address could have changed as well
+            host_table::update_host_external_address(
+                &host_uuid,
+                body.external_address.as_deref(),
+                &context,
+            )
+            .map_err(|_| {
+                log::error!("Failed to update external address of host with UUID '{host_uuid}'.");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
         }
         Err(_) => {
             // add new host to database if address not already exist
@@ -85,6 +96,7 @@ pub async fn register_host_internal(
                 &host_uuid,
                 &body.name,
                 &body.host_address,
+                body.external_address.as_deref(),
                 &resources,
                 &context,
             )

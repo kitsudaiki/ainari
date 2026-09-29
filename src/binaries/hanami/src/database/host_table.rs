@@ -42,6 +42,7 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
+        external_address -> Nullable<Varchar>,
     }
 }
 
@@ -88,6 +89,19 @@ pub struct HostEntry {
     pub deleted_at: Option<DateTime<Utc>>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
+    /// Address of the external api of the host, which is the target of its proxies on the torii
+    /// at the edge. None for hosts, which only have one address, so `address` is used instead.
+    pub external_address: Option<String>,
+}
+
+impl HostEntry {
+    /// Address, which the proxies of the host forward to.
+    ///
+    /// # Returns
+    /// The external address of the host, or its only address, if it has no external one
+    pub fn proxy_target_address(&self) -> &str {
+        self.external_address.as_deref().unwrap_or(&self.address)
+    }
 }
 
 /// Hardware-resources of a host, which are reported by the host itself at registration.
@@ -111,6 +125,7 @@ pub struct HostResources {
 /// * `host_uuid` - Unique identifier for the new host
 /// * `host_name` - Human-readable name for the host
 /// * `host_address` - Network address of the host
+/// * `host_external_address` - Address of the external api of the host, if it has one
 /// * `resources` - Hardware-resources of the host
 /// * `context` - User context containing information about the user performing the action
 ///
@@ -120,6 +135,7 @@ pub fn add_new_host(
     host_uuid: &Uuid,
     host_name: &str,
     host_address: &str,
+    host_external_address: Option<&str>,
     resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
@@ -140,6 +156,7 @@ pub fn add_new_host(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
+        external_address: host_external_address.map(str::to_owned),
     };
 
     add_host(host.clone())
@@ -171,6 +188,44 @@ pub fn update_host_resources(
             number_of_cores.eq(resources.number_of_cores),
             memory_size.eq(resources.memory_size),
             disk_space.eq(resources.disk_space),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Updates the address of the external api of an existing host.
+///
+/// This is used, when an already registered host registers itself again, because its external
+/// address could have changed, or it could have none before.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host to update
+/// * `host_external_address` - Address of the external api of the host, if it has one
+/// * `context` - User context containing information about the user performing the action
+///
+/// # Returns
+/// * Ok(()) if the host was successfully updated
+/// * DbError::NotFound if the host doesn't exist or is not active
+/// * DbError::InternalError if there was an error executing the query
+pub fn update_host_external_address(
+    host_uuid: &Uuid,
+    host_external_address: Option<&str>,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
+        .set((
+            external_address.eq(host_external_address),
             updated_at.eq(Utc::now().to_rfc3339()),
             updated_by.eq(context.user_id.clone()),
         ))
@@ -525,6 +580,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         hard_delete_host(&uuid1);
@@ -578,6 +634,7 @@ mod tests {
             &uuid1,
             "Alice",
             "http://127.0.0.1:11420",
+            None,
             &resources,
             &context,
         )
@@ -644,6 +701,7 @@ mod tests {
             &uuid1,
             "Alice",
             "http://127.0.0.1:11420",
+            None,
             &resources,
             &context,
         )
@@ -743,6 +801,7 @@ mod tests {
             &uuid1,
             "Alice",
             "http://127.0.0.1:11420",
+            None,
             &resources,
             &context,
         )
@@ -812,6 +871,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         let host2 = HostEntry {
@@ -831,6 +891,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         hard_delete_host(&uuid1);
@@ -876,6 +937,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         hard_delete_host(&uuid1);
@@ -910,6 +972,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         let host2 = HostEntry {
@@ -929,6 +992,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         let host3 = HostEntry {
@@ -948,6 +1012,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            external_address: None,
         };
 
         hard_delete_host(&uuid1);

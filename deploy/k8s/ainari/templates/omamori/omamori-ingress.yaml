@@ -32,7 +32,8 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: omamori-tls-service
+            # the clients reach only the external api
+            name: omamori-external
             port:
-              number: 8443
+              number: 11421
 {{- end }}

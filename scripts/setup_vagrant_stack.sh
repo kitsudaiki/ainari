@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Starts the setup of testing/vagrant: four virtual machines with nested virtualization and a
-# kubernetes-cluster (k3s), on which ansible deploys the helm-chart of deploy/k8s/ainari. The
-# images are built on the host and copied into the virtual machines.
+# Starts the setup of testing/vagrant: eight virtual machines with nested virtualization and a
+# kubernetes-cluster (k3s), on which ansible deploys the helm-chart of deploy/k8s/ainari. Miko,
+# hanami, ryokan and omamori run with one replica on each of the three management-machines and
+# share the mysql-server on the machine ainari-mysql. Onsen runs on its own machine ainari-onsen.
+# The images are built on the host and copied
+# into the virtual machines.
 #
 # Adding the route towards the floating ip-addresses on the host needs root, so the script asks
 # for it with sudo.
@@ -134,19 +137,21 @@ echo "    miko       https://$MGMT_VM_ADDRESS:11417"
 echo "    hanami     https://$MGMT_VM_ADDRESS:11418"
 echo "    ryokan     https://$MGMT_VM_ADDRESS:11416"
 echo "    omamori    https://$MGMT_VM_ADDRESS:11421"
-echo "    torii      https://$TORII_VM_ADDRESS:11419"
 echo "    dashboard  https://$MGMT_VM_ADDRESS:11422"
 echo ""
 echo "All certificates are signed by the CA $CA_CERT"
 echo "It stays the same over all runs, so it only has to be trusted once, see"
 echo "testing/local_stack/Readme.md."
 echo ""
+echo "Miko, hanami, ryokan and omamori run three times, on ainari-mgmt-1 to ainari-mgmt-3, and"
+echo "share the mysql-server on ainari-mysql. The api is reachable over every virtual machine."
+echo ""
 echo "The cluster can be inspected with"
 echo "    kubectl --kubeconfig $WORK_DIR/kubeconfig --namespace ainari get pods -o wide"
 echo "and the virtual machines with 'vagrant ssh <name>' in $VAGRANT_DIR."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    AINARI_MIKO_ADDRESS=https://$MGMT_VM_ADDRESS:11417 python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    AINARI_MIKO_ADDRESS=https://$MGMT_VM_ADDRESS:11417 python3 testing/ainari_test/vm_lifecycle_test.py"
 
 exit 0
 }

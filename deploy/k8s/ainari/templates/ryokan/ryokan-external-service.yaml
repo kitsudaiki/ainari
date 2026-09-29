@@ -13,4 +13,4 @@
 # limitations under the License.
 
 # publishes the tls-termination of ryokan outside of the cluster, see global.external_services in values.yaml
-{{- include "ainari.externalService" (list . "ryokan" (list (list 11416 8443))) }}
+{{ include "ainari.externalService" (list . "ryokan" (list (list 11416 9443))) }}

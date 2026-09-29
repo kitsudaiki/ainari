@@ -19,7 +19,7 @@ data:
   miko.toml: |+
     debug = true
     log_path = ""
-    database_type = "sqlite"
+    database_type = "mysql"
 
     [auth]
     token_key_path = "/etc/ainari/token_key"
@@ -31,8 +31,7 @@ data:
     internal_ip = "127.0.0.1"
     internal_port = 10417
 
-    [sqlite]
-    file_path = "/etc/ainari/miko/miko_db"
+    {{ include "ainari.mysqlConfig" (list . "miko") | indent 4 | trim }}
 
     [endpoints.hanami]
     public_address = "{{ include "ainari.publicAddress" (list . "hanami") }}"

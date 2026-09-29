@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if .Values.mysql.deploy }}
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service
 metadata:
-  name: ryokan-pvc
+  name: mysql
+  labels:
+    app: mysql
 spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ include "ainari.storageClass" (list . .Values.ryokan) }}
-  resources:
-    requests:
-      storage: 100Mi
+  selector:
+    app: mysql
+  ports:
+    - name: mysql
+      protocol: TCP
+      port: {{ .Values.mysql.port }}
+      targetPort: 3306
+  type: ClusterIP
+{{- end }}

@@ -19,7 +19,7 @@ flowchart TB
     subgraph node["kind-node ainari-control-plane (docker-container, mtu 1600)"]
         subgraph pods["pod-network 10.244.0.0/16"]
             public["pod torii-public<br/>torii + tls-sidecar<br/>floating ip-NAT, proxy-ports"]
-            control["pods miko, omamori, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar"]
+            control["pods miko, omamori, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar<br/>pod mysql-0 with the databases"]
             subgraph s0["pod sakura-0"]
                 vmm0["torii<br/>TAP-devices"]
                 sak0["sakura<br/>cloud-hypervisor"]
@@ -82,8 +82,9 @@ make down kind    # deletes the cluster and removes the veth-pair again
 ```
 
 `make up kind` builds the images, creates the cluster (`deploy/k8s/kind/cluster.yaml`), installs
-cert-manager and the helm-chart and connects the host to the edge-gateway. Every run starts with
-empty databases.
+cert-manager and the helm-chart and connects the host to the edge-gateway. Miko, hanami, ryokan
+and omamori store their data in the mysql-server `mysql-0`, which the chart deploys into the
+cluster. Every run starts with empty databases.
 
 The api is reachable on the host at:
 
@@ -93,8 +94,11 @@ The api is reachable on the host at:
 | hanami    | `https://127.0.0.1:11418` |
 | ryokan    | `https://127.0.0.1:11416` |
 | omamori   | `https://127.0.0.1:11421` |
-| torii     | `https://127.0.0.1:11419` |
 | dashboard | `https://127.0.0.1:11422` |
+
+The api of torii is only reachable within the cluster. The virtual machines and their sakura-hosts
+are reached over the proxy-ports of torii (`127.0.0.1:<proxy-port>`), and the proxies can be listed
+over hanami (`GET /v1alpha/proxy`).
 
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 
@@ -133,13 +137,13 @@ kubectl --context kind-ainari --namespace ainari get pods
 
 ## End-to-end test
 
-`testing/local_stack/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
+`testing/ainari_test/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
 from the ssh-key-pair up to the login into the virtual machines over ssh. It skips the
 verification of the certificates.
 
 ```bash
 make up kind
-AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 .venv/bin/python testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 .venv/bin/python testing/ainari_test/vm_lifecycle_test.py
 make down kind
 ```
 
@@ -181,7 +185,7 @@ host. The python of the container has the dependencies of the sdk already, and `
 
 ```bash
 make up kind
-AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/ainari_test/vm_lifecycle_test.py
 kubectl --namespace ainari get pods
 make down kind
 ```

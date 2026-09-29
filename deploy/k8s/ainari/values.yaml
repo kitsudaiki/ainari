@@ -56,14 +56,52 @@ secrets:
   sakura_registration_key: "my-super-secret-api-key"
 
 
+# Database of miko, hanami, ryokan and omamori. Each of them has its own database and user on the
+# same mysql-server, so all their replicas share their state.
+mysql:
+  # Deploys a mysql-server into the cluster, which runs on the node with the label
+  # 'mysql-node=true' (see global.strict_scheduling). If disabled, an already existing server is
+  # used, which is reached at 'host' and already has the databases and users below.
+  deploy: true
+  # address of the external server, only used if 'deploy' is disabled
+  host: ""
+  port: 3306
+  docker:
+    tag: "8.4"
+    repository: "mysql"
+    pull_policy: "IfNotPresent"
+  storage:
+    storage_class: local-path
+    size: 5Gi
+  # password of the root-user of the deployed server
+  root_password: "my-super-secret-root-password"
+  # Database, user and password of every component. The names may only contain letters, digits
+  # and underscores.
+  databases:
+    miko:
+      database: "miko"
+      user: "miko"
+      password: "my-super-secret-miko-password"
+    hanami:
+      database: "hanami"
+      user: "hanami"
+      password: "my-super-secret-hanami-password"
+    ryokan:
+      database: "ryokan"
+      user: "ryokan"
+      password: "my-super-secret-ryokan-password"
+    omamori:
+      database: "omamori"
+      user: "omamori"
+      password: "my-super-secret-omamori-password"
+
+
 miko:
   replica_count: 1
   docker:
     tag: "develop"
     repository: "kitsudaiki/miko"
     pull_policy: "Always"
-  storage:
-    storage_class: local-path
   api:
     domain: local-miko
     # address, which is handed out to the clients. Derived from the domain, if empty.
@@ -83,8 +121,6 @@ hanami:
     tag: "develop"
     repository: "kitsudaiki/hanami"
     pull_policy: "Always"
-  storage:
-    storage_class: local-path
   api:
     domain: local-hanami
     # address, which is handed out to the clients. Derived from the domain, if empty.
@@ -119,8 +155,6 @@ ryokan:
     tag: "develop"
     repository: "kitsudaiki/ryokan"
     pull_policy: "Always"
-  storage:
-    storage_class: local-path
   api:
     domain: local-ryokan
     # address, which is handed out to the clients. Derived from the domain, if empty.
@@ -133,8 +167,6 @@ omamori:
     tag: "develop"
     repository: "kitsudaiki/omamori"
     pull_policy: "Always"
-  storage:
-    storage_class: local-path
   api:
     domain: local-omamori
     # address, which is handed out to the clients. Derived from the domain, if empty.

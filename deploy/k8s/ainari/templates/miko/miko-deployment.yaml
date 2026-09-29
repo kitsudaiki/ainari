@@ -20,6 +20,13 @@ metadata:
     app: miko
 spec:
   replicas: {{ .Values.miko.replica_count }}
+  # Every node runs at most one replica of a component (see ainari.affinity), so an update can't
+  # start an additional pod first. One old pod is removed, before its replacement is started.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: miko
@@ -29,11 +36,13 @@ spec:
         app: miko
     spec:
       {{- include "ainari.affinity" (list . "miko" "miko-node") | nindent 6 }}
+      {{- include "ainari.waitForMysql" . | nindent 6 }}
       containers:
       - name: miko
         image: {{ include "ainari.image" .Values.miko }}
         imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.miko) }}
         env:
+        {{- include "ainari.mysqlPasswordEnv" "miko" | nindent 8 }}
         - name: AINARI_ADMIN_ID
           value: {{ required "user.id is required!" .Values.miko.user.id }}
         - name: AINARI_ADMIN_NAME
@@ -48,8 +57,6 @@ spec:
               name: internal-api-key
               key: internal_api_key
         volumeMounts:
-        - name: data-volume
-          mountPath: /etc/ainari/miko/
         - name: miko-config
           mountPath: /etc/ainari/miko.toml
           subPath: miko.toml
@@ -80,18 +87,7 @@ spec:
           timeoutSeconds: 2
           failureThreshold: 3
 
-      - name: tls-termination
-        image: nginx:latest
-        volumeMounts:
-        - name: tls-certs
-          mountPath: /etc/nginx/certs
-        - name: miko-nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
+      {{- include "ainari.tlsSidecars" "miko" | nindent 6 }}
 
       volumes:
         - name: miko-config
@@ -100,9 +96,6 @@ spec:
         - name: token-key
           secret:
             secretName: token-key
-        - name: data-volume
-          persistentVolumeClaim:
-            claimName: miko-pvc
         - name: tls-certs
           secret:
             secretName: miko-tls-secret
