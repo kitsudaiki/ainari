@@ -335,7 +335,9 @@ async fn check_auth_header(
         }
         Err(AinariError::Unauthorized(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::InvalidInput(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
-        Err(AinariError::InternalError(msg)) => {
+        // miko doesn't know the user of the token anymore
+        Err(AinariError::NotFound(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
+        Err(AinariError::Conflict(msg)) | Err(AinariError::InternalError(msg)) => {
             log::error!("Failed check token against Miko with error: '{msg}'");
             Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
         }

@@ -139,14 +139,14 @@ The admin-user is `asdf` with the passphrase `asdfasdf`; both can be overwritten
 
 ## End-to-end test
 
-`testing/local_stack/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
+`testing/ainari_test/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
 from the ssh-key-pair up to the login into the virtual machines over ssh. It creates two virtual
 machines out of the same image, with the same public key and within the same network, and gives
 every one of them its own floating ip-address.
 
 ```bash
 make up local
-.venv/bin/python testing/local_stack/vm_lifecycle_test.py
+.venv/bin/python testing/ainari_test/vm_lifecycle_test.py
 make down local
 ```
 
@@ -186,7 +186,7 @@ host. The python of the container has the dependencies of the sdk already:
 
 ```bash
 make up local
-python3 testing/local_stack/vm_lifecycle_test.py
+python3 testing/ainari_test/vm_lifecycle_test.py
 cd src/cli/ainarictl && go build . && cd -    # the cli, if needed
 make down local
 ```

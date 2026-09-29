@@ -37,7 +37,7 @@ Still within the container, create an ssh-key, an image, a network and two virtu
 floating ip-addresses:
 
 ```bash
-python3 testing/local_stack/vm_lifecycle_test.py
+python3 testing/ainari_test/vm_lifecycle_test.py
 ```
 
 ## Access the virtual machines

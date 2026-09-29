@@ -51,7 +51,6 @@ nav = [
       "deployer/config/onsen_config.md",
       "deployer/config/dashboard_config.md",
       "deployer/config/token_key.md",
-      "deployer/config/hanami_testing_config.md",
     ] },
     { "Database" = [
       "deployer/database/sakura_db.md",
@@ -73,6 +72,7 @@ nav = [
         "developer/local_testing/https_ca.md",
       ] },
       "developer/development.md",
+      "developer/test_guide.md",
       "developer/git_workflow.md",
   ] },
 ]

@@ -822,39 +822,6 @@ jobs:
   #         echo "$ingress_ip_omamori  local-omamori" | sudo tee -a /etc/hosts
   #         cat /etc/hosts
   #     -
-  #       name: Download mnist-files
-  #       run: |
-  #         cd /tmp/
-  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz
-  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz
-  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz
-  #         wget https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz
-  #         gzip -d train-images-idx3-ubyte.gz
-  #         gzip -d train-labels-idx1-ubyte.gz
-  #         gzip -d t10k-images-idx3-ubyte.gz
-  #         gzip -d t10k-labels-idx1-ubyte.gz
-  #     -
-  #       name: Prepare test-config
-  #       run: |
-  #         cd ${GITHUB_REPOSITORY#*/}
-  #         sudo cp -r ./example_configs/ainari /etc/
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11418/address = https:\/\/local-hanami/g' /etc/ainari/hanami_testing.conf
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11417/address = https:\/\/local-miko/g' /etc/ainari/hanami_testing.conf
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-ryokan/g' /etc/ainari/hanami_testing.conf
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-sakura/g' /etc/ainari/hanami_testing.conf
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-torii/g' /etc/ainari/hanami_testing.conf
-  #         sudo sed -i 's/address = http:\/\/127\.0\.0\.1:11416/address = https:\/\/local-omamori/g' /etc/ainari/hanami_testing.conf
-  #     -
-  #       name: Run test
-  #       run: |
-  #         cd ${GITHUB_REPOSITORY#*/}/testing/python_sdk_api
-  #         mkdir -p test_dir
-  #         cp sdk_api_test.py test_dir/
-  #         cp test_values.py test_dir/
-  #         cp csv_test.csv test_dir/
-  #         cd test_dir
-  #         /usr/bin/python3 sdk_api_test.py
-  #     -
   #       name: Print logs of the hanami-pod to make debugging easier in case of an error
   #       if: ${{ always() }}
   #       run: kubectl logs -c hanami $(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep '^hanami-')

@@ -87,7 +87,7 @@ grep -E 'CONFIG_BPF=|CONFIG_BPF_SYSCALL=|CONFIG_XDP_SOCKETS=' /boot/config-$(una
     the [config](../../deployer/config/sakura_config.md). The docker-image of sakura already
     contains both.
 
-## Run the tests
+## Run cargo tests
 
 - The tests read the example-configs from `/etc/ainari` and create their databases beside them, so
     the directory has to belong to the user, which runs the tests:

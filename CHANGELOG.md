@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### BREAKING-CHANGES
 
 - upgrade path for database-tables. just work AFTER this commit
+- Hanami now has the get port and list port endpoints and forward them to Torii, so Torii now has no external endpoints anymore
 
 ### Added
 
@@ -17,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   SQLite-database. The new config-value `database_type` selects between the config-groups
   `[sqlite]`, which replaces the old `[database]`-group, and `[mysql]`. The password of the
   MySQL-database is read from the env-variable `AINARI_MYSQL_PASSWORD`.
-- Redundant control plane in Kubernetes setup
+- Redundant control plane in Kubernetes setup für HA setups
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
+- new script collection to automatically all endpoints and ssh access automatically
 
 ### Changed
 
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - VMs powered of from within the VM were not be able to start by the IaaS again
+- fixed broken error-handling in tasks in Sakura, which resulted that internal 404 and 409 error were returned as 500
+
 
 ## v0.20.1
 

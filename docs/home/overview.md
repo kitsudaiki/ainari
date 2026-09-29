@@ -88,7 +88,7 @@ See [Dashboard docu](/user/dashboard/dashboard/)
 
 ### Python-SDK
 
-See [Python SDK docu](/cli_sdk/cli_sdk_docu/#__tabbed_2_2)
+See [Python SDK docu](/user/cli_sdk/cli_sdk_docu/#__tabbed_2_2)
 
 ### CLI
 

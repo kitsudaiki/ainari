@@ -319,7 +319,7 @@ echo "The two sakura-hosts (the pods sakura-0 and sakura-1, each with its own to
 echo "themselves in hanami, as soon as it is up."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/ainari_test/vm_lifecycle_test.py"
 echo "and the cli with 'ainarictl --insecure' and AINARI_ADDRESS=https://127.0.0.1:11417"
 
 exit 0

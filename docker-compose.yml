@@ -35,7 +35,7 @@
 #
 # Usage:
 #   sudo ./scripts/setup_local_stack.sh
-#   python3 testing/local_stack/vm_lifecycle_test.py
+#   python3 testing/ainari_test/vm_lifecycle_test.py
 
 services:
   miko:

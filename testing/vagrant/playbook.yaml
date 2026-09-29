@@ -182,7 +182,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   vars:
-    namespace: ainari
+    k8s_namespace: ainari
     release: ainari
     kvm_gid_host: "{{ groups['sakura'][0] }}"
   tasks:
@@ -267,29 +267,29 @@
     # databases and the new images, so a test never sees the virtual machines of a previous run.
     - name: Remove the previous deployment
       ansible.builtin.shell: |
-        helm status --namespace {{ namespace }} {{ release }} > /dev/null 2>&1 \
-          && helm uninstall --namespace {{ namespace }} {{ release }} --wait
-        kubectl delete namespace {{ namespace }} --ignore-not-found --wait
+        helm status --namespace {{ k8s_namespace }} {{ release }} > /dev/null 2>&1 \
+          && helm uninstall --namespace {{ k8s_namespace }} {{ release }} --wait
+        kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
       changed_when: true
 
     - name: Create the namespace with the CA
       ansible.builtin.shell: |
-        kubectl create namespace {{ namespace }}
-        kubectl --namespace {{ namespace }} create secret tls ainari-vagrant-ca \
+        kubectl create namespace {{ k8s_namespace }}
+        kubectl --namespace {{ k8s_namespace }} create secret tls ainari-vagrant-ca \
           --cert /opt/ainari/ainari-vagrant-ca.crt --key /opt/ainari/ainari-vagrant-ca.key
       changed_when: true
 
     - name: Install the helm-chart
       ansible.builtin.command: >
         helm install {{ release }} /opt/ainari/ainari
-        --namespace {{ namespace }}
+        --namespace {{ k8s_namespace }}
         --values /opt/ainari/values.yaml
         --set sakura.kvm_gid={{ kvm_gid.stdout }}
       changed_when: true
 
     - name: Wait for the components
       ansible.builtin.command: >
-        kubectl --namespace {{ namespace }} rollout status {{ item }} --timeout=600s
+        kubectl --namespace {{ k8s_namespace }} rollout status {{ item }} --timeout=600s
       loop:
         - statefulset/mysql
         - deployment/miko

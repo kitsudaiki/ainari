@@ -137,13 +137,13 @@ kubectl --context kind-ainari --namespace ainari get pods
 
 ## End-to-end test
 
-`testing/local_stack/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
+`testing/ainari_test/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
 from the ssh-key-pair up to the login into the virtual machines over ssh. It skips the
 verification of the certificates.
 
 ```bash
 make up kind
-AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 .venv/bin/python testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 .venv/bin/python testing/ainari_test/vm_lifecycle_test.py
 make down kind
 ```
 
@@ -185,7 +185,7 @@ host. The python of the container has the dependencies of the sdk already, and `
 
 ```bash
 make up kind
-AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://127.0.0.1:11417 python3 testing/ainari_test/vm_lifecycle_test.py
 kubectl --namespace ainari get pods
 make down kind
 ```

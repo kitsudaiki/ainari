@@ -163,4 +163,4 @@ echo "in hanami, as soon as it is up. The test waits for both of them, before it
 echo "virtual machine, which hanami then puts on one of them."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    python3 testing/ainari_test/vm_lifecycle_test.py"

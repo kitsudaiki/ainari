@@ -177,13 +177,13 @@ cd testing/vagrant && vagrant ssh ainari-mgmt-1    # kubectl and helm work there
 
 ## End-to-end test
 
-`testing/local_stack/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
+`testing/ainari_test/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,
 from the ssh-key-pair up to the login into the virtual machines over ssh. It skips the
 verification of the certificates.
 
 ```bash
 make up vagrant
-AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 .venv/bin/python testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 .venv/bin/python testing/ainari_test/vm_lifecycle_test.py
 make down vagrant
 ```
 
@@ -227,7 +227,7 @@ plugin `vagrant-libvirt` and `ansible` are available:
 
 ```bash
 make up vagrant
-AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 python3 testing/local_stack/vm_lifecycle_test.py
+AINARI_MIKO_ADDRESS=https://192.168.56.10:11417 python3 testing/ainari_test/vm_lifecycle_test.py
 kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get pods
 cd testing/vagrant && vagrant ssh ainari-mgmt-1
 make down vagrant

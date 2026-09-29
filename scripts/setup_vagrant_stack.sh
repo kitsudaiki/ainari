@@ -151,7 +151,7 @@ echo "    kubectl --kubeconfig $WORK_DIR/kubeconfig --namespace ainari get pods 
 echo "and the virtual machines with 'vagrant ssh <name>' in $VAGRANT_DIR."
 echo ""
 echo "Now the test can be started as a normal user:"
-echo "    AINARI_MIKO_ADDRESS=https://$MGMT_VM_ADDRESS:11417 python3 testing/local_stack/vm_lifecycle_test.py"
+echo "    AINARI_MIKO_ADDRESS=https://$MGMT_VM_ADDRESS:11417 python3 testing/ainari_test/vm_lifecycle_test.py"
 
 exit 0
 }

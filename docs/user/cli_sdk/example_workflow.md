@@ -3,7 +3,7 @@
 This chapter shows an example workflow for the current state of the project with the CLI-client:
 a virtual machine is created from an ubuntu-cloud-image and accessed over ssh through a floating
 IP. The same workflow is also used for automated testing within the project with the python-SDK
-(`testing/local_stack/vm_lifecycle_test.py`). See for further information the
+(`testing/ainari_test/vm_lifecycle_test.py`). See for further information the
 [CLI and SDK documentation](cli_sdk_docu.md).
 
 ## Preparation

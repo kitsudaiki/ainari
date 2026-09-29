@@ -26,7 +26,7 @@ See more in the [About-section](/home/about/) of the documentation.
 
     [:octicons-arrow-right-24: Features](/home/features/)
 
-    [:octicons-arrow-right-24: Overview](/home/home/overview/)
+    [:octicons-arrow-right-24: Overview](/home/overview/)
 
 - :material-clock-fast:{ .lg .middle } **Getting started**
 
