@@ -8,11 +8,17 @@ base capabilities of uploading resources and creating a virtual machine based on
     **IMPORTANT: even the implemented features are mostly currently just in a prototypical state.**
     **They work, but are not ready for productive usage yet.**
 
+!!! info
+
+    All implementation version stamps starting at least with v0.20.0, even when they were already
+    implemented in older version. But v0.20.0 was a reboot of the project, so the older versions
+    are not relevant in this overview here.
+
 ## Security
 
-### Image encryption
+### Encrypted Images
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 All uploaded images are always encrypted with AES-256-GCM before storing them within the storage
 backend. So even if the Storage Data Plane is compromised, the data within the images are safe and
@@ -20,7 +26,7 @@ can not be stolen or manipulated.
 
 ### Encrypted Snapshots
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 Snapshots of root disks of virtual machines are handled as images again and so they are also always
 AES-256-GCM encrypted before moving them from the compute host to the storage backend.
@@ -60,7 +66,7 @@ ip-addresses.
 
 ### "dumb" compute hosts
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 Every action on the compute-hosts is done with the context and token of the user, who triggered the
 action. In contrast to Openstack, the compute hosts have no own user with admin permissions or
@@ -105,6 +111,12 @@ provide the key directly themselves over an end-to-end encrypted path. In case o
 user gets a popup to enter the keys, whenever required by the backend. The keys are then only stored
 in the memory of the specific compute host and only as long as necessary for the task.
 
+### 2-factor authentication
+
+**Status: <span style="color:#e53935">planned</span>**
+
+To make logins much more secure, a second factor like OTP can be used as second login factor.
+
 ### Yubikey support for key management
 
 **Status: <span style="color:#e53935">planned</span>**
@@ -127,14 +139,14 @@ information. Besides this, it provides attestation features.
 
 ### Backend in Rust
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">Current state</span>**
 
 The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
 marked code too.
 
 ### Using Cloud-Hypervisor
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 To manage the virtual machine, the
 [Cloud-Hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor) is used. In contrast to
@@ -185,7 +197,7 @@ and which versions are affected by them.
 
 ### OpenAPI specs generated from source-code
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 OpenAPI specs are generated out of the source-code with the help of the
 [apistos](https://github.com/netwo-io/apistos) crates. This ensures, that the API documentation is
@@ -193,7 +205,7 @@ always up-to-date.
 
 ### Own network stack with eBPF
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 The stack doesn't rely on third party software for its software-defined network (SDN), like OVN, OVS
 or Linux-Bridges. The only Linux network element used are tap-devices, to connect the virtual
@@ -209,7 +221,7 @@ user-id and so on, to make problems of users easier to find and debug.
 
 ### Deployable on Kubernetes
 
-**Status: <span style="color:#4caf50">implemented</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 The whole stack is deployable on Kubernetes by providing helm charts and docker-images. See
 [Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
@@ -239,3 +251,16 @@ can also be deployed and live-debugged with breakpoints in VSCode/VSCodium, as s
 Compared to Openstack, there is no heavy message queue, like RabbitMQ. Instead of this, after a
 virtual machine was reserved on a compute-host, the user communicates directly with the compute host
 itself. So there is no high traffic through the control plane.
+
+### Monorepo
+
+**Status: <span style="color:#4caf50">Current state</span>**
+
+Monorepos can become quite fast very big, but they have the advantage to be easier to handle. Other 
+IaaS-projects, like Openstack and IronCore, have each component and library in a different git repo.
+Implementing new features over multiple components and repositories can easily become very frustrating. 
+You have multiple merge requests to approve, higher risks of conflicts and so on. Even this project was
+at one point in time split over 40 repositories. Dependency updates were a total time consuming pain.
+A Monorepo makes implementing new features and updating dependecies much easier. It is also easy to 
+identify which versions of the different components belong together. Based on my experiences I made,
+a Monorepo makes much more sense for this project, even it contains microservices.
