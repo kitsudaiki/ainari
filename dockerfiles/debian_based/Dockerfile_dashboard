@@ -1,0 +1,51 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+FROM node:24-alpine@sha256:c921b97d4b74f51744057454b306b418cf693865e73b8100559189605f6955b8 AS build
+
+WORKDIR /app
+
+# Accept build-time variable
+ARG VITE_MIKO_API_URL
+ENV VITE_MIKO_API_URL=$VITE_MIKO_API_URL
+
+# Install dependencies
+COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json* ./
+RUN npm install
+
+# Copy app source
+COPY ./src/dashboard/app .
+
+# Build the Vue app for production
+RUN npm run build
+
+# Step 2: Serve with Nginx
+FROM nginx:alpine
+
+# Copy the built files to Nginx html folder
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy a basic Nginx config (optional, we’ll just serve /)
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose HTTP port
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
+
+
+
+# build: docker build -t vue-dashboard-release .
+# run: docker run -p 80:80 vue-dashboard-release

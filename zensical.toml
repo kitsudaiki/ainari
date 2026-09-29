@@ -76,6 +76,7 @@ nav = [
       "developer/development.md",
       "developer/test_guide.md",
       "developer/git_workflow.md",
+      "developer/build_base_image.md",
   ] },
 ]
 

@@ -14,13 +14,13 @@
 
 # Image of the dashboard. The vue-app is built with node and served by nginx.
 #
-# node, nginx and all other packages of the image come from the flake of dockerfiles/nix, which
-# pins them in its flake.lock, and the dependencies of the app are pinned by its package-lock.json.
-# The image is built 'FROM scratch' and contains nothing else than the packages of
-# 'runtime-dashboard' of dockerfiles/nix/packages.nix and the built app. The list of these
-# packages is in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+# node, nginx and all other packages of the image come from the flake of dockerfiles/nix_based/nix,
+# which pins them in its flake.lock, and the dependencies of the app are pinned by its
+# package-lock.json. The image is built 'FROM scratch' and contains nothing else than the packages
+# of 'runtime-dashboard' of dockerfiles/nix_based/nix/packages.nix and the built app. The list of
+# these packages is in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
 #
-# build: docker build -f dockerfiles/Dockerfile_dashboard -t vue-dashboard-release .
+# build: docker build -f dockerfiles/nix_based/Dockerfile_dashboard -t vue-dashboard-release .
 # run:   docker run -p 80:80 vue-dashboard-release
 
 ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
@@ -30,8 +30,12 @@ ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c
 # ==========================================
 FROM ${NIX_IMAGE} AS nix
 
-RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-COPY dockerfiles/nix /nix-flake
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
 
 # ==========================================
 # build of the app

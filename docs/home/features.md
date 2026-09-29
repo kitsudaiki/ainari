@@ -186,12 +186,22 @@ task log it is visible which action (create, snapshot create, snapshot restore, 
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
 
+### Reproducable builds
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
+
+Rust already pins every package in its Cargo.lock to an absolute specific version.
+Additionally the rest of the published docker-images is build with [Nix](https://nixos.org/),
+to ensure, that all the other packages in the docker-images are pinned to specific
+versions too. For easier debugging, the local test-setups can use debian-based images
+instead.
+
 ### SBOM
 
-**Status: <span style="color:#e53935">planned</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
-An automatic summary of all packages with versions used by the entire stack, to keep track of CVEs
-and which versions are affected by them.
+An automatic summary of all packages with versions used within the Nix-based docker-images, 
+to keep track of CVEs and which versions are affected by them.
 
 ## Other
 

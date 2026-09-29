@@ -5,6 +5,7 @@ All scripts are started from the root of the repository.
 
 | Script | Purpose |
 | --- | --- |
+| [`build_ainari_base.sh`](#build_ainari_basesh) | builds and pushes the nix- and debian-based base-images for amd64 and arm64 |
 | [`build_docker_images.sh`](#build_docker_imagessh) | builds all images with the tag `local_test` and saves them in a tar-file |
 | [`build_local_images.sh`](#build_local_imagessh) | builds all images with the tag `local` for the kind- and vagrant-setup |
 | [`collect-api-specs.sh`](#collect-api-specssh) | downloads the openapi-specs of the running components into the docs |
@@ -16,6 +17,47 @@ All scripts are started from the root of the repository.
 | [`setup_vagrant_stack.sh`](#setup_vagrant_stacksh) | starts the whole stack on eight virtual machines |
 | [`update_version.sh`](#update_versionsh) | sets the version of all components |
 
+## build_ainari_base.sh
+
+### Purpose
+
+Builds the base-images with the toolchain of the rust-components, which the images of the
+components are built on, and pushes them to Docker Hub (see [Build base-image](build_base_image.md)):
+
+- `kitsudaiki/ainari_build_base_nix` of `dockerfiles/nix_based/Dockerfile_build_base`
+- `kitsudaiki/ainari_build_base_debian` of `dockerfiles/debian_based/Dockerfile_build_base`
+
+Both images are built for `linux/amd64` and `linux/arm64` and get the given version as tag. The
+platform, which is not the one of the host, is built with the emulation of QEMU. The script runs
+all steps of the manual build:
+
+1. registers QEMU for the other platform with `tonistiigi/binfmt` and checks, that QEMU is at least
+   version 10.1, which the nix-based build needs
+2. creates the buildx-builder `multi-builder` or restarts it, if it exists already, and checks,
+   that it supports both platforms
+3. logs in to Docker Hub with `docker login`, which asks for the credentials, if they are not
+   stored already
+4. builds both base-images for both platforms and pushes them
+
+### Usage
+
+```bash
+./scripts/build_ainari_base.sh <VERSION>
+./scripts/build_ainari_base.sh 0.5.0
+```
+
+### Limitations
+
+- The images are always pushed. An image for multiple platforms can't be loaded into the local
+  docker, as long as docker doesn't use the containerd image store. See
+  [Build base-image](build_base_image.md) to test the images locally without pushing them.
+- The tag of the base-images in `Dockerfile_services` of both variants and in the scripts of
+  `scripts/` is not changed and has to be updated manually to use the new version.
+- An existing tag on Docker Hub is overwritten without asking.
+- The registration of QEMU needs a privileged container and is lost with a reboot of the host.
+- The nix-based build of the other platform takes some minutes, because the packages, which are not
+  in the binary cache of nix, are compiled with the emulation.
+
 ## build_docker_images.sh
 
 ### Purpose
@@ -24,13 +66,17 @@ Builds the images of all components (`hanami`, `miko`, `omamori`, `onsen`, `ryok
 `torii` and the dashboard) with the `release`-profile of cargo and the tag `local_test`, for
 example `kitsudaiki/miko:local_test`. Afterwards all images are saved together in
 `temporary_files/ainari_docker_files.tar`, so they can be copied to another machine and loaded
-there with `docker load`. The base-image `kitsudaiki/ainari_build_base` is built locally before, so
-it doesn't have to be pulled from Docker Hub.
+there with `docker load`. The images are built from the nix-based Dockerfiles of
+`dockerfiles/nix_based` by default, like the images of the CI, or from the debian-based ones of
+`dockerfiles/debian_based` (see [Packages of the docker-images](docker_images.md)). The base-image
+of the variant (`kitsudaiki/ainari_build_base_nix` or `kitsudaiki/ainari_build_base_debian`) is
+built locally before, so it doesn't have to be pulled from Docker Hub.
 
 ### Usage
 
 ```bash
-./scripts/build_docker_images.sh
+./scripts/build_docker_images.sh            # nix-based images
+./scripts/build_docker_images.sh debian     # debian-based images
 ```
 
 On the other machine:
@@ -41,8 +87,6 @@ docker load -i ainari_docker_files.tar
 
 ### Limitations
 
-- The script doesn't stop at a failed build: the following images are still built and the
-  tar-file may contain an older image with the same tag or `docker save` fails.
 - The images are only built for the platform of the host.
 - Sakura is built with the default id `993` of the group `kvm`, see
   [build_local_images.sh](#build_local_imagessh) for images with the id of the host.
@@ -53,23 +97,31 @@ docker load -i ainari_docker_files.tar
 ### Purpose
 
 Builds the images of all components for the kubernetes-based local setups (kind and vagrant) with
-the tag `local`, for example `ainari/miko:local`. They are the same images as the ones of the
-docker-compose setup, but built without docker compose and with the faster `local`-profile of
-cargo. [setup_kind_stack.sh](#setup_kind_stacksh) and
-[setup_vagrant_stack.sh](#setup_vagrant_stacksh) call this script before every start, so it only
-has to be called directly to rebuild the images without restarting the setup.
+the tag `local`, for example `ainari/miko:local`. They are built without docker compose and with
+the faster `local`-profile of cargo. The argument selects the variant of the Dockerfiles (see
+[Packages of the docker-images](docker_images.md)):
+
+- `debian`: the Dockerfiles of `dockerfiles/debian_based`, which are easier to debug. They are the
+  same images as the ones of the docker-compose setup. [setup_kind_stack.sh](#setup_kind_stacksh)
+  uses them.
+- `nix`: the Dockerfiles of `dockerfiles/nix_based`, which are the same as the ones of the CI.
+  [setup_vagrant_stack.sh](#setup_vagrant_stacksh) uses them.
+
+Both setups call this script before every start, so it only has to be called directly to rebuild
+the images without restarting the setup.
 
 ### Usage
 
 ```bash
-./scripts/build_local_images.sh
+./scripts/build_local_images.sh debian    # for the kind-setup
+./scripts/build_local_images.sh nix       # for the vagrant-setup
 ```
 
 The id of the group of `/dev/kvm`, which sakura is built with, can be given with `KVM_GID`. It
 defaults to the one of the host:
 
 ```bash
-KVM_GID=108 ./scripts/build_local_images.sh
+KVM_GID=108 ./scripts/build_local_images.sh debian
 ```
 
 ### Limitations
@@ -110,8 +162,8 @@ SAKURA_ADDRESS=172.30.0.20:11420 ./scripts/collect-api-specs.sh
 - Only works with the docker-compose setup, because it uses plain http on `127.0.0.1` with the
   ports of `docker-compose.yml`. The kind- and vagrant-setup use https on other addresses.
 - `curl` and `jq` have to be installed on the host.
-- The script stops at the first component, which is not reachable, so the specs of the following
-  components are not updated.
+- A component, which is not reachable, doesn't stop the script, but its spec is not updated. The
+  script lists these components at the end and fails.
 - The specs describe the running images, so the images have to be built from the current state
   of the repository, which `setup_local_stack.sh` always does.
 
@@ -145,9 +197,10 @@ directly.
 
 ### Limitations
 
-- An existing CA is never changed: if the certificate and the key already exist, the script does
-  nothing, even if the common-name or the name-constraints are different. To create a new CA, the
-  two files have to be deleted before.
+- An existing CA is kept, as long as its common-name, its name-constraints and its key match. If
+  one of them is different, the CA is replaced and the new one has to be added to the trust-store
+  of the host again. The script prints a warning in this case.
+- Only the entries `permitted;` and `excluded;` of the name-constraints are compared.
 - The key is stored unencrypted. It is only readable by its owner, but should never be used
   outside of a local setup.
 - The CA is valid for 10 years and has no revocation.
@@ -163,9 +216,9 @@ the image, which are exactly the packages within the image, with their versions,
 patches, CPEs and purls. See [Packages of the docker-images](docker_images.md) for how the packages
 of the images are pinned.
 
-The SBOMs are generated out of the flake of `dockerfiles/nix`, so the images don't have to be built
-before. Nix doesn't have to be installed on the host, the script runs within the same image of nix
-like the Dockerfiles, and sbomnix itself is pinned by the flake as well.
+The SBOMs are generated out of the flake of `dockerfiles/nix_based/nix`, so the images don't have
+to be built before. Nix doesn't have to be installed on the host, the script runs within the same
+image of nix like the Dockerfiles, and sbomnix itself is pinned by the flake as well.
 
 ### Usage
 
@@ -196,7 +249,9 @@ docker volume rm ainari-sbom-nix
 - Only the packages of nix are listed. The rust-crates, which are compiled into the binaries of
   the components, and the npm-packages of the dashboard are not part of the SBOMs. They are pinned
   by `Cargo.lock` and `src/dashboard/app/package-lock.json`.
-- `dockerfiles/Dockerfile_local_test_tools` is not built with nix and has no SBOM.
+- Only the nix-based images of `dockerfiles/nix_based` have SBOMs. The debian-based images of
+  `dockerfiles/debian_based` and `dockerfiles/Dockerfile_local_test_tools` are not built with nix.
+  The SBOMs are only valid for the images of the CI and of the vagrant-setup.
 - The first run takes some minutes, because the packages, which are not in the binary cache of nix
   (like cloud-hypervisor and the client-library of MariaDB), are built from source.
 - Another platform than the one of the host needs QEMU (see
@@ -212,7 +267,8 @@ docker volume rm ainari-sbom-nix
 
 Starts the same setup as [setup_local_stack.sh](#setup_local_stacksh), but on a kind-cluster
 (kubernetes in docker) with the helm-chart of `deploy/k8s/ainari`, and connects the host to it. The
-images are built with [build_local_images.sh](#build_local_imagessh) and loaded into the cluster.
+debian-based images are built with [build_local_images.sh](#build_local_imagessh) and loaded into
+the cluster.
 The components talk https to each other with certificates of cert-manager, which are signed by the
 CA of [create_local_ca.sh](#create_local_cash). See [Kind setup](local_testing/kind_setup.md) for
 the details of the setup.
@@ -238,7 +294,8 @@ The binary of kind can be given with `KIND`. `make up kind` downloads kind into
   the setup can't run together with the docker-compose setup, the vagrant-setup or the uplink of
   [setup_single_node_uplink.sh](#setup_single_node_uplinksh).
 - The manifest of cert-manager is downloaded from GitHub, so the host needs access to the internet.
-- `--down` removes the NAT-rules, but `net.ipv4.ip_forward` stays enabled on the host.
+- `net.ipv4.ip_forward` stays enabled on the host after `--down`, because docker needs it for its
+  own networks as well.
 - The virtual machines only reach the internet over the first default-route of the host.
 
 ## setup_local_stack.sh
@@ -246,8 +303,9 @@ The binary of kind can be given with `KIND`. `make up kind` downloads kind into
 ### Purpose
 
 Starts the local docker-compose setup of `docker-compose.yml` with all components and two
-sakura-hosts and connects the host to it. The images are always rebuilt before, so the setup never
-runs an older version than the one of the working tree. The script injects a veth-pair into the
+sakura-hosts and connects the host to it. The images are built from the debian-based Dockerfiles
+of `dockerfiles/debian_based` and are always rebuilt before, so the setup never runs an older
+version than the one of the working tree. The script injects a veth-pair into the
 gateway at the edge (`torii-public`), so the host reaches the floating ip-addresses of the virtual
 machines, and lets the host forward and masquerade the traffic of the virtual machines towards the
 internet. See [Docker-compose setup](local_testing/docker_compose_setup.md) for the details of the
@@ -258,7 +316,6 @@ setup.
 ```bash
 make up local                             # or sudo ./scripts/setup_local_stack.sh
 make down local                           # or sudo ./scripts/setup_local_stack.sh --down
-python3 testing/ainari_test/vm_lifecycle_test.py
 ```
 
 ### Limitations
@@ -269,8 +326,8 @@ python3 testing/ainari_test/vm_lifecycle_test.py
 - The floating ip-addresses `10.0.0.0/24` must not be used by any other interface of the host, so
   the setup can't run together with the kind-setup, the vagrant-setup or the uplink of
   [setup_single_node_uplink.sh](#setup_single_node_uplinksh).
-- `--down` doesn't remove the NAT- and forward-rules of iptables and `net.ipv4.ip_forward` stays
-  enabled. The rules are replaced with the next start.
+- `net.ipv4.ip_forward` stays enabled on the host after `--down`, because docker needs it for its
+  own networks as well.
 - The virtual machines only reach the internet over the first default-route of the host.
 - The api is only reachable over plain http.
 
@@ -317,8 +374,9 @@ sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2
 Starts the setup of `testing/vagrant`: eight virtual machines with nested virtualization and a
 kubernetes-cluster (k3s), on which ansible deploys the helm-chart of `deploy/k8s/ainari`. Miko,
 hanami, ryokan and omamori run with one replica on each of the three management-machines and share
-the mysql-server on the machine `ainari-mysql`. The images are built with
-[build_local_images.sh](#build_local_imagessh) on the host and copied into the virtual machines.
+the mysql-server on the machine `ainari-mysql`. The nix-based images, the same as the ones of the
+CI, are built with [build_local_images.sh](#build_local_imagessh) on the host and copied into the
+virtual machines.
 The host reaches the floating ip-addresses over a route towards the virtual machine `ainari-torii`.
 See [Vagrant setup](local_testing/vagrant_setup.md) for the details of the setup.
 
@@ -376,6 +434,6 @@ A leading `v` is removed and the version has to be a semantic version.
 - `Cargo.lock` is only updated, if `cargo` is installed. Otherwise it is updated with the next
   build.
 - `src/dashboard/app/package-lock.json`, the `CHANGELOG.md` and the tag of the base-image
-  `kitsudaiki/ainari_build_base` are not updated.
+  `kitsudaiki/ainari_build_base_nix` and `kitsudaiki/ainari_build_base_debian` are not updated.
 - The version in `setup.py` is only the default, the CI overwrites it with the tag.
 - The script doesn't commit or tag anything.

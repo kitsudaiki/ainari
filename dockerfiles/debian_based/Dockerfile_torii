@@ -1,0 +1,111 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image of the torii, which is used for every gateway of the network. Which role a gateway has is
+# only a question of its config: the gateway at the edge has an uplink, the gateways in front of
+# the sakura-hosts have a default-gateway instead.
+
+# ==========================================
+# STAGE 1: Builder
+# ==========================================
+FROM ubuntu:24.04 AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git \
+    build-essential clang llvm libelf-dev zlib1g-dev \
+    linux-headers-generic \
+    pkg-config libssl-dev libsqlite3-dev protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# the eBPF-programs of the datapath are built with the nightly-toolchain and the bpf-linker
+RUN rustup toolchain install nightly --component rust-src
+RUN rustup default stable
+
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo binstall -y bpf-linker
+
+WORKDIR /build
+
+# only the workspace is copied, so a change of the docs or the scripts doesn't rebuild the torii
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY src src
+
+# cargo-profile of the build. The local docker-compose-setup uses the faster 'local'-profile.
+ARG CARGO_PROFILE=release
+
+RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
+    --mount=type=cache,target=/root/.cargo/git,sharing=locked \
+    --mount=type=cache,target=/build/target,id=ainari-torii-target,sharing=locked \
+    cargo build --profile "$CARGO_PROFILE" -p torii && \
+    mkdir -p /out && \
+    cp "/build/target/$CARGO_PROFILE/torii" /out/
+
+# ==========================================
+# STAGE 2: Minimal Runtime
+# ==========================================
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 openssh-client ethtool iputils-ping \
+    libssl3 libsqlite3-0 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /out/torii /app/torii
+
+COPY <<'EOF' /app/start.sh
+#!/bin/bash
+
+# The uplink of the gateway at the edge is a veth-pair, which is injected into this container by
+# scripts/setup_local_stack.sh. Without it the eBPF-programs have nothing to attach to, so the
+# gateway waits until the interface is there and carries its address.
+if [ -n "$WAIT_FOR_IFACE" ]; then
+    echo "Waiting for the host to inject $WAIT_FOR_IFACE ..."
+    while ! ip -4 addr show "$WAIT_FOR_IFACE" 2>/dev/null | grep -q "inet "; do sleep 1; done
+    ip link set "$WAIT_FOR_IFACE" up
+    ethtool -K "$WAIT_FOR_IFACE" tx off rx off
+
+    # The routes of the uplink are programmed with the mac-address of the next hop, which is
+    # resolved once, when torii starts. Without an answer to that arp-request every frame towards
+    # the host would leave the gateway unaddressed.
+    if [ -n "$UPLINK_NEXT_HOP" ]; then
+        echo "Resolving the next hop $UPLINK_NEXT_HOP ..."
+        for _ in $(seq 1 15); do
+            ping -c 1 -W 1 "$UPLINK_NEXT_HOP" > /dev/null 2>&1 && break
+            sleep 1
+        done
+        ip neigh show "$UPLINK_NEXT_HOP" | grep -q lladdr \
+            || echo "WARNING: $UPLINK_NEXT_HOP did not answer. Is another interface of the host in the same subnet?"
+    fi
+fi
+
+# No checksum offloading on the underlay: the datapath rewrites addresses with incremental
+# checksum updates, which are only correct on complete checksums.
+ethtool -K eth0 tx off rx off
+
+exec /app/torii
+EOF
+
+RUN chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]

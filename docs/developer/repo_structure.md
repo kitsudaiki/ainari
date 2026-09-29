@@ -11,6 +11,9 @@ easier for a new person to understand the code.
 ├── deploy
 │   └── k8s                     # helm-chart and kind-setup
 ├── dockerfiles
+│   ├── debian_based            # debian-based images for local debugging
+│   ├── files                   # start-scripts, shared by both variants
+│   └── nix_based               # nix-based images of the ci, with the nix-flake
 ├── docs
 ├── example_configs
 │   └── ainari
@@ -73,7 +76,10 @@ easier for a new person to understand the code.
 - **dockerfiles**
 
     Dockerfiles of the build-environment, of the services, of torii, of the dashboard, of the
-    documentation and of the container with the tools for the local testing.
+    documentation and of the container with the tools for the local testing. The Dockerfiles of the
+    images exist in two variants: `nix_based` with the packages pinned by nix, which the CI and the
+    vagrant-setup use, and `debian_based`, which is easier to debug and used by the docker-compose-
+    and kind-setup. See [Packages of the docker-images](docker_images.md).
 
 - **docs**
 

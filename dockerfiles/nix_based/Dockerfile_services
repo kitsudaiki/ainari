@@ -17,21 +17,24 @@
 # the workspace are only compiled once, and every component has its own runtime-stage, which is
 # selected with the target of the build:
 #
-#   docker build -f dockerfiles/Dockerfile_services --target miko -t kitsudaiki/miko:local_test .
+#   docker build -f dockerfiles/nix_based/Dockerfile_services --target miko \
+#       -t kitsudaiki/miko:local_test .
 #
 # To build a single image faster, the builder can be restricted to its component:
 #
-#   docker build -f dockerfiles/Dockerfile_services --target miko --build-arg BINARIES=miko ...
+#   docker build -f dockerfiles/nix_based/Dockerfile_services --target miko \
+#       --build-arg BINARIES=miko ...
 #
-# The toolchain and all packages of the images come from the flake of dockerfiles/nix, which pins
-# them in its flake.lock. Every image is built 'FROM scratch' and contains nothing else than the
-# packages of its runtime-environment of dockerfiles/nix/packages.nix and its binary. The list of
-# these packages is in /etc/nix-packages.txt of every image. See docs/developer/docker_images.md.
+# The toolchain and all packages of the images come from the flake of dockerfiles/nix_based/nix,
+# which pins them in its flake.lock. Every image is built 'FROM scratch' and contains nothing else
+# than the packages of its runtime-environment of dockerfiles/nix_based/nix/packages.nix and its
+# binary. The list of these packages is in /etc/nix-packages.txt of every image. See
+# docs/developer/docker_images.md.
 
-# Image with nix and the toolchain, which is built from dockerfiles/Dockerfile_build_base. The
-# scripts of the local setups build it locally with this tag, so it doesn't have to be published
+# Image with nix and the toolchain, which is built from dockerfiles/nix_based/Dockerfile_build_base.
+# The scripts of the local setups build it locally with this tag, so it doesn't have to be published
 # for them.
-ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.4.0
+ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base_nix:0.5.0
 
 # ==========================================
 # nix with the flake of this repository
@@ -40,7 +43,7 @@ ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.4.0
 # the one, which counts. If both are the same, nothing has to be downloaded.
 FROM ${BUILD_BASE_IMAGE} AS nix
 
-COPY dockerfiles/nix /nix-flake
+COPY dockerfiles/nix_based/nix /nix-flake
 
 # ==========================================
 # builder of all components
@@ -71,15 +74,27 @@ ARG BINARIES="miko omamori ryokan onsen hanami sakura"
 # The registry and the target-directory are cache-mounts, so they survive between builds and only
 # the changed crates are compiled again. The target-directory is not part of the image, so the
 # binaries have to be copied out of it within the same step.
+#
+# The compiled build-scripts and binaries within the cache are linked against the glibc and the
+# libraries of the toolchain, which built them. Cargo doesn't notice, when only these change and
+# not the version of rustc, and would run build-scripts, which can't be started anymore. So every
+# toolchain (the development-shell of the flake, identified by the hash of its store-path) gets
+# its own directory within the cache and the directories of all other toolchains are removed.
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=ainari-services-nix-target,sharing=locked \
+    --mount=type=cache,target=/app/target,id=ainari-services-target,sharing=locked \
+    TOOLCHAIN="$(nix eval --raw --impure --expr \
+        '(builtins.getFlake "path:/nix-flake").devShells.${builtins.currentSystem}.services.outPath' \
+        | cut -d/ -f4 | cut -c1-32)" && \
+    [ ${#TOOLCHAIN} -eq 32 ] && \
+    find /app/target -mindepth 1 -maxdepth 1 ! -name "$TOOLCHAIN" -exec rm -rf {} + && \
     packages="" && \
     for bin in $BINARIES; do packages="$packages -p $bin"; done && \
-    nix develop path:/nix-flake#services --command cargo build --profile "$CARGO_PROFILE" $packages && \
+    nix develop path:/nix-flake#services --command \
+        cargo build --target-dir "target/$TOOLCHAIN" --profile "$CARGO_PROFILE" $packages && \
     mkdir -p /out && \
     for bin in $BINARIES; do \
-        cp "target/$CARGO_PROFILE/$bin" /out/; \
+        cp "target/$TOOLCHAIN/$CARGO_PROFILE/$bin" /out/; \
     done
 
 # The development-shell puts all of its libraries into the RUNPATH of every binary, also the ones,
@@ -167,7 +182,7 @@ COPY dockerfiles/files/start_ryokan.sh /rootfs/home/ainari/start_ryokan.sh
 RUN /nix-flake/make_rootfs.sh /rootfs runtime-ryokan ainari && \
     # Allow the user to create the wireguard-connection. The wg-quick of the image doesn't set
     # 'net.ipv4.conf.all.src_valid_mark', which is not permitted within the pod, see
-    # dockerfiles/nix/packages.nix.
+    # dockerfiles/nix_based/nix/packages.nix.
     echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
     chmod 0440 /rootfs/etc/sudoers.d/ainari && \
     mkdir -p /rootfs/etc/ainari && \

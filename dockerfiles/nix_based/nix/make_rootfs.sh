@@ -14,15 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Builds the root-filesystem of an image out of a runtime-environment of dockerfiles/nix, which is
-# copied into an image, which is built 'FROM scratch'. So the image contains nothing else than the
-# packages of the environment and the files, which the Dockerfile adds to the root-filesystem.
+# Builds the root-filesystem of an image out of a runtime-environment of dockerfiles/nix_based/nix,
+# which is copied into an image, which is built 'FROM scratch'. So the image contains nothing else
+# than the packages of the environment and the files, which the Dockerfile adds to the
+# root-filesystem.
 #
 #   make_rootfs.sh <ROOTFS> <RUNTIME> [<USER>]
 #
 # ROOTFS   directory of the root-filesystem. Files, which the Dockerfile puts there before, like
 #          the compiled binaries, are kept.
-# RUNTIME  name of the runtime-environment within dockerfiles/nix/packages.nix, like 'runtime-miko'
+# RUNTIME  name of the runtime-environment within dockerfiles/nix_based/nix/packages.nix, like
+#          'runtime-miko'
 # USER     optional user with the id 1000, who gets a home-directory
 #
 # The compiled binaries are linked against libraries of the nix-store. If a file of the rootfs

@@ -69,10 +69,11 @@ two virtual machines on different hosts reach each other over it.
 
 ## Usage
 
-1. start the stack. It builds the images first. It needs root, because it creates the veth-pair
-   towards the edge-gateway and the NAT-rules for the floating ip-addresses. `docker compose up`
-   alone is not enough: `torii-public` waits for that uplink and the host has no route to a
-   virtual machine without it.
+1. start the stack. It builds the images first, from the debian-based Dockerfiles of
+   `dockerfiles/debian_based` (see [Packages of the docker-images](../docker_images.md)). It needs
+   root, because it creates the veth-pair towards the edge-gateway and the NAT-rules for the
+   floating ip-addresses. `docker compose up` alone is not enough: `torii-public` waits for that
+   uplink and the host has no route to a virtual machine without it.
 
     ```bash
     make up local    # runs: sudo ./scripts/setup_local_stack.sh

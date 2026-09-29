@@ -23,6 +23,7 @@ all required tools, for a test without installing them on the host.
 | Start / stop                        | `make up local` / `make down local`   | `make up kind` / `make down kind`               | `make up vagrant` / `make down vagrant`                 |
 | Setup-script                        | `scripts/setup_local_stack.sh`        | `scripts/setup_kind_stack.sh`                   | `scripts/setup_vagrant_stack.sh`                        |
 | Deployment                          | `docker-compose.yml`                  | helm-chart `deploy/k8s/ainari`                  | helm-chart `deploy/k8s/ainari`                          |
+| Docker-images                       | debian-based (`dockerfiles/debian_based`) | debian-based (`dockerfiles/debian_based`)   | nix-based (`dockerfiles/nix_based`), like the CI        |
 | Configuration                       | `testing/local_stack/configs`          | `deploy/k8s/kind/values.yaml`                   | `testing/vagrant/values.yaml`                           |
 | Runs on                             | docker-containers on the host         | one kubernetes-node in docker (kind)            | eight virtual machines with k3s (vagrant, libvirt)      |
 | Nodes                               | none                                  | 1                                               | 8 (3 management, mysql, onsen, gateway, 2 sakura-hosts) |

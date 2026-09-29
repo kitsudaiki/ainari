@@ -107,29 +107,46 @@ For the tests of the whole stack, see [Local test environments](local_testing/lo
 
 ## Build docker-images
 
-The packages of all images are pinned with nix, see [Packages of the docker-images](docker_images.md).
+There are two variants of the Dockerfiles, which build the same images (see
+[Packages of the docker-images](docker_images.md)):
+
+- `dockerfiles/nix_based`: the packages of the images are pinned with nix. The CI and
+  `make up vagrant` use these Dockerfiles.
+- `dockerfiles/debian_based`: the images are based on Debian and Ubuntu and are easier to debug.
+  `make up local` and `make up kind` use these Dockerfiles.
+
+The commands below are the same for both variants, only the directory `<VARIANT>` (`nix_based` or
+`debian_based`) and the name of the base-image (`ainari_build_base_nix` or
+`ainari_build_base_debian`) differ.
 
 All rust-services except torii are built from one Dockerfile, which compiles them together and has
 one target per service: `miko`, `hanami`, `sakura`, `ryokan`, `onsen` and `omamori`. It is built on
-the image of `dockerfiles/Dockerfile_build_base`, which has to be built first, if it is not pulled
-from Docker Hub:
+the image of `dockerfiles/<VARIANT>/Dockerfile_build_base`, which has to be built first, if it is
+not pulled from Docker Hub (see [Build base-image](build_base_image.md)):
 
 ```bash
-docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.4.0 .
+docker build -f dockerfiles/nix_based/Dockerfile_build_base \
+    -t kitsudaiki/ainari_build_base_nix:0.5.0 .
+docker build -f dockerfiles/debian_based/Dockerfile_build_base \
+    -t kitsudaiki/ainari_build_base_debian:0.5.0 .
 ```
 
-Run `docker build -f dockerfiles/Dockerfile_services --target <SERVICE> -t <DOCKER_IMAGE_NAME> .`
+Build a service with:
+
+```bash
+docker build -f dockerfiles/<VARIANT>/Dockerfile_services --target <SERVICE> -t <DOCKER_IMAGE_NAME> .
+```
 
 !!! example
 
     ```bash
-    docker build -f dockerfiles/Dockerfile_services --target sakura -t sakura:test .
+    docker build -f dockerfiles/debian_based/Dockerfile_services --target sakura -t sakura:test .
     ```
 
 Torii needs the toolchain for its eBPF-programs, so it has its own Dockerfile:
 
 ```bash
-docker build -f dockerfiles/Dockerfile_torii -t torii:test .
+docker build -f dockerfiles/<VARIANT>/Dockerfile_torii -t torii:test .
 ```
 
 Both Dockerfiles take the build-argument `CARGO_PROFILE`, which defaults to `release`. The local
@@ -138,14 +155,15 @@ test-environments use `--build-arg CARGO_PROFILE=local`, which is much faster to
 The dashboard has its own Dockerfile too:
 
 ```bash
-docker build -f dockerfiles/Dockerfile_dashboard -t dashboard:test .
+docker build -f dockerfiles/<VARIANT>/Dockerfile_dashboard -t dashboard:test .
 ```
 
 !!! info
 
-    `scripts/build_docker_images.sh` builds all images with the tag `local_test` and saves them in
-    `temporary_files/ainari_docker_files.tar`. `scripts/build_local_images.sh` builds the images
-    for the local test-environments with the tag `local`.
+    `scripts/build_docker_images.sh [debian|nix]` builds all images with the tag `local_test` and
+    saves them in `temporary_files/ainari_docker_files.tar`.
+    `scripts/build_local_images.sh <debian|nix>` builds the images for the local test-environments
+    with the tag `local`.
 
 ## Build CLI-client
 

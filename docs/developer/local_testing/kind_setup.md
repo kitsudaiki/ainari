@@ -86,6 +86,10 @@ cert-manager and the helm-chart and connects the host to the edge-gateway. Miko,
 and omamori store their data in the mysql-server `mysql-0`, which the chart deploys into the
 cluster. Every run starts with empty databases.
 
+The images are built from the debian-based Dockerfiles of `dockerfiles/debian_based`, which are
+easier to debug than the nix-based images of the CI (see
+[Packages of the docker-images](../docker_images.md)).
+
 The api is reachable on the host at:
 
 | Component | Address                   |

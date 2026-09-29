@@ -16,10 +16,11 @@
 # only a question of its config: the gateway at the edge has an uplink, the gateways in front of
 # the sakura-hosts have a default-gateway instead.
 #
-# The toolchain and all packages of the image come from the flake of dockerfiles/nix, which pins
-# them in its flake.lock. The image is built 'FROM scratch' and contains nothing else than the
-# packages of 'runtime-torii' of dockerfiles/nix/packages.nix and the torii. The list of these
-# packages is in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+# The toolchain and all packages of the image come from the flake of dockerfiles/nix_based/nix,
+# which pins them in its flake.lock. The image is built 'FROM scratch' and contains nothing else
+# than the packages of 'runtime-torii' of dockerfiles/nix_based/nix/packages.nix and the torii. The
+# list of these packages is in /etc/nix-packages.txt of the image. See
+# docs/developer/docker_images.md.
 
 ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
 
@@ -28,8 +29,12 @@ ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c
 # ==========================================
 FROM ${NIX_IMAGE} AS nix
 
-RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-COPY dockerfiles/nix /nix-flake
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
 
 # ==========================================
 # STAGE 1: Builder
@@ -50,12 +55,20 @@ COPY src src
 # cargo-profile of the build. The local docker-compose-setup uses the faster 'local'-profile.
 ARG CARGO_PROFILE=release
 
+# Every toolchain gets its own directory within the cache, because cargo doesn't notice, when only
+# the glibc or the libraries of the toolchain change, see dockerfiles/nix_based/Dockerfile_services.
 RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,target=/root/.cargo/git,sharing=locked \
-    --mount=type=cache,target=/build/target,id=ainari-torii-nix-target,sharing=locked \
-    nix develop path:/nix-flake#torii --command cargo build --profile "$CARGO_PROFILE" -p torii && \
+    --mount=type=cache,target=/build/target,id=ainari-torii-target,sharing=locked \
+    TOOLCHAIN="$(nix eval --raw --impure --expr \
+        '(builtins.getFlake "path:/nix-flake").devShells.${builtins.currentSystem}.torii.outPath' \
+        | cut -d/ -f4 | cut -c1-32)" && \
+    [ ${#TOOLCHAIN} -eq 32 ] && \
+    find /build/target -mindepth 1 -maxdepth 1 ! -name "$TOOLCHAIN" -exec rm -rf {} + && \
+    nix develop path:/nix-flake#torii --command \
+        cargo build --target-dir "target/$TOOLCHAIN" --profile "$CARGO_PROFILE" -p torii && \
     mkdir -p /out && \
-    cp "/build/target/$CARGO_PROFILE/torii" /out/
+    cp "/build/target/$TOOLCHAIN/$CARGO_PROFILE/torii" /out/
 
 # The eBPF-programs within the torii contain the paths of the sources of the standard-library,
 # which are compiled for the bpf-target, as plain text. They are not needed at runtime, but would

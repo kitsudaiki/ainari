@@ -125,6 +125,9 @@ over them and at last adds the route `10.0.0.0/24 via 192.168.56.11` on the host
 with empty databases, also when the virtual machines already exist; a run over existing virtual
 machines only skips their creation and the installation of k3s.
 
+The images are built from the nix-based Dockerfiles of `dockerfiles/nix_based`, so the setup runs
+the same images as the ones of the CI (see [Packages of the docker-images](../docker_images.md)).
+
 The api is reachable on the host at:
 
 | Component | Address                       |

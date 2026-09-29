@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Generates the SBOMs of all docker-images of dockerfiles/, which are built with nix. The SBOM of
-# an image lists all packages of its runtime-environment of dockerfiles/nix/packages.nix, which
-# dockerfiles/nix/make_rootfs.sh copies into the image, with their versions, licenses, patches,
-# CPEs and purls. It is generated with sbomnix out of the flake, so the images don't have to be
-# built before. Nix doesn't have to be installed, the script runs within the image of nix.
+# Generates the SBOMs of all docker-images of dockerfiles/nix_based/, which are built with nix.
+# The SBOM of an image lists all packages of its runtime-environment of
+# dockerfiles/nix_based/nix/packages.nix, which dockerfiles/nix_based/nix/make_rootfs.sh copies
+# into the image, with their versions, licenses, patches, CPEs and purls. It is generated with
+# sbomnix out of the flake, so the images don't have to be built before. Nix doesn't have to be
+# installed, the script runs within the image of nix.
 #
 #   ./scripts/generate_sbom.sh [--platform linux/amd64|linux/arm64] [<IMAGE>...]
 #
@@ -56,14 +57,16 @@ mkdir -p "$OUT_DIR"
 
 docker run --rm --platform "$PLATFORM" \
     -v ainari-sbom-nix:/nix \
-    -v "$REPO_DIR/dockerfiles/nix:/flake:ro" \
+    -v "$REPO_DIR/dockerfiles/nix_based/nix:/flake:ro" \
     -v "$OUT_DIR:/out" \
     -e IMAGES="$IMAGES" \
     -e HOST_IDS="$(id -u):$(id -g)" \
     "$NIX_IMAGE" \
     sh -c '
         set -eu
-        export NIX_CONFIG="experimental-features = nix-command flakes"
+        # filter-syscalls is not possible with the emulation of QEMU for another platform
+        export NIX_CONFIG="experimental-features = nix-command flakes
+filter-syscalls = false"
         echo "image,package,version" > /out/versions.csv
         for image in $IMAGES; do
             echo "=== $image"

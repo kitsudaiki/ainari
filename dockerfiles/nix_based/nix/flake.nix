@@ -49,7 +49,6 @@
           system:
           f (
             import ./packages.nix {
-              inherit nixpkgs;
               pkgs = import nixpkgs {
                 inherit system;
                 overlays = [ rust-overlay.overlays.default ];

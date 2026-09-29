@@ -15,7 +15,7 @@
 # Toolchains and runtime-environments of the docker-images. All packages come from the nixpkgs of
 # flake.lock. Packages, which are not taken as they are from there, are defined in the first
 # section together with the reason.
-{ pkgs, nixpkgs }:
+{ pkgs }:
 
 let
   inherit (pkgs) lib;
@@ -72,15 +72,22 @@ let
   # the library at runtime are always the same, because the toolchain and the images both take it
   # from here.
   mariadb-connector-c =
-    (pkgs.callPackage "${nixpkgs}/pkgs/servers/sql/mariadb/connector-c" {
+    # The recipe is taken as path out of the nixpkgs, which is already in the store. A string like
+    # "${nixpkgs}/pkgs/..." would copy the whole nixpkgs into the store a second time.
+    (pkgs.callPackage (pkgs.path + "/pkgs/servers/sql/mariadb/connector-c") {
       version = "3.4.11";
       hash = "sha256-8H+r45drPNKVgmgbQHFfPestlR6Spsdpb7FERoiHTO4=";
     }).overrideAttrs
-      {
+      (old: {
         # The recipe replaces the paths of mariadb_config by fixed strings, so the arguments of
         # their printf-calls are no longer used, which 3.4 treats as an error.
         env.NIX_CFLAGS_COMPILE = "-Wno-error=format-extra-args";
-      };
+        # Since 3.4 the certificate of the server is verified by default. The services don't get
+        # the CA of the mysql-server, which uses a self-signed certificate, so they can't verify
+        # it and fail to connect. Like the library of Debian, the connection is encrypted, but the
+        # certificate is not verified.
+        cmakeFlags = old.cmakeFlags ++ [ "-DDEFAULT_SSL_VERIFY_SERVER_CERT=OFF" ];
+      });
 
   # the hypervisor of sakura, nixpkgs has only 52.0
   cloud-hypervisor = pkgs.cloud-hypervisor.overrideAttrs (
@@ -131,11 +138,11 @@ let
   # runtime-environments
   # ==========================================
 
-  # Creates the environment of an image. The executables of the environment are linked into
-  # /usr/bin of the image and its configs into /etc by dockerfiles/nix/make_rootfs.sh, which also
-  # copies the whole closure of the environment into the image.
-  # Packages, which have nothing in /bin or /etc, like the libraries, are listed in a file of the
-  # environment, so they are part of its closure too.
+  # Creates the environment of an image. The executables of the environment are linked into /usr/bin
+  # of the image and its configs into /etc by dockerfiles/nix_based/nix/make_rootfs.sh, which also
+  # copies the whole closure of the environment into the image. Packages, which have nothing in /bin
+  # or /etc, like the libraries, are listed in a file of the environment, so they are part of its
+  # closure too.
   mkRuntime =
     name: paths:
     pkgs.buildEnv {
@@ -151,15 +158,25 @@ let
       '';
     };
 
-  # shell and basic tools, which every image has for the start-scripts and for debugging
+  # Shell and basic tools, which every image has for the start-scripts and for debugging. These
+  # are the tools, which the images of Debian and Ubuntu brought before, because the scripts of
+  # the helm-chart and the docker-compose-setup use them (like getent and awk in start_torii.sh of
+  # deploy/k8s/ainari/templates/torii/torii-config.yaml).
   basePackages = with pkgs; [
     bashInteractive
     coreutils
     findutils
     gnugrep
     gnused
+    gawk
+    diffutils
+    which
     gnutar
     gzip
+    getent
+    hostname-debian
+    procps
+    util-linuxMinimal
     cacert
     iana-etc
   ];
@@ -286,12 +303,12 @@ in
   };
 
   devShells = {
-    # toolchain of all rust-components except the torii (dockerfiles/Dockerfile_services)
+    # toolchain of all rust-components except the torii (dockerfiles/nix_based/Dockerfile_services)
     services = pkgs.mkShell {
       packages = [
         rustStable
         # removes the libraries, which are not needed, out of the RUNPATH of the binaries, see
-        # dockerfiles/Dockerfile_services
+        # dockerfiles/nix_based/Dockerfile_services
         pkgs.patchelf
         pkgs.protobuf
         pkgs.pkg-config
@@ -304,12 +321,13 @@ in
       ];
     };
 
-    # toolchain of the torii (dockerfiles/Dockerfile_torii)
+    # toolchain of the torii (dockerfiles/nix_based/Dockerfile_torii)
     torii = pkgs.mkShell {
       packages = [
         rustNightly
         bpf-linker
-        # removes the paths of the toolchain out of the torii, see dockerfiles/Dockerfile_torii
+        # removes the paths of the toolchain out of the torii, see
+        # dockerfiles/nix_based/Dockerfile_torii
         pkgs.removeReferencesTo
         pkgs.patchelf
         pkgs.protobuf
@@ -322,12 +340,12 @@ in
       ];
     };
 
-    # builds the dashboard (dockerfiles/Dockerfile_dashboard)
+    # builds the dashboard (dockerfiles/nix_based/Dockerfile_dashboard)
     dashboard = pkgs.mkShell {
       packages = [ pkgs.nodejs_24 ];
     };
 
-    # builds the documentation (dockerfiles/Dockerfile_docs)
+    # builds the documentation (dockerfiles/nix_based/Dockerfile_docs)
     docs = pkgs.mkShell {
       packages = [ pkgs.zensical ];
     };

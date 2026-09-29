@@ -56,9 +56,9 @@ See more in the [About-section](https://docs.ainari.cloud/home/about/) of the do
 
 - [Repository-Overview](https://docs.ainari.cloud/developer/repo_structure/)
 
-- [How to build](https://docs.ainari.cloud/developer/repo/build_guide/)
+- [How to build](https://docs.ainari.cloud/developer/build_guide/)
 
-- [Development-Guide](https://docs.ainari.cloud/developer/repo/development/)
+- [Development-Guide](https://docs.ainari.cloud/developer/development/)
 
 ## Pre-build objects
 

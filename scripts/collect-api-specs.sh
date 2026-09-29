@@ -42,9 +42,17 @@ collect_spec() {
     echo "collected openapi-spec of ${name}"
 }
 
-collect_spec miko 127.0.0.1:11417
-collect_spec ryokan 127.0.0.1:11416
-collect_spec hanami 127.0.0.1:11418
-collect_spec torii 127.0.0.1:11419
-collect_spec omamori 127.0.0.1:11421
-collect_spec sakura "${SAKURA_ADDRESS}"
+# An unreachable component doesn't stop the script, so the specs of all other components are
+# still updated. The failed ones are listed at the end and let the script fail.
+FAILED=()
+collect_spec miko 127.0.0.1:11417 || FAILED+=(miko)
+collect_spec ryokan 127.0.0.1:11416 || FAILED+=(ryokan)
+collect_spec hanami 127.0.0.1:11418 || FAILED+=(hanami)
+collect_spec torii 127.0.0.1:11419 || FAILED+=(torii)
+collect_spec omamori 127.0.0.1:11421 || FAILED+=(omamori)
+collect_spec sakura "${SAKURA_ADDRESS}" || FAILED+=(sakura)
+
+if [ ${#FAILED[@]} -gt 0 ]; then
+    echo "the openapi-specs of the following components were not updated: ${FAILED[*]}" >&2
+    exit 1
+fi

@@ -15,11 +15,11 @@
 # Image of the documentation, which is built with zensical and served by the http-server of
 # python.
 #
-# zensical, python and all other packages of the image come from the flake of dockerfiles/nix,
-# which pins them in its flake.lock. The image is built 'FROM scratch' and contains nothing else
-# than the packages of 'runtime-docs' of dockerfiles/nix/packages.nix and the built documentation.
-# The list of these packages is in /etc/nix-packages.txt of the image. See
-# docs/developer/docker_images.md.
+# zensical, python and all other packages of the image come from the flake of
+# dockerfiles/nix_based/nix, which pins them in its flake.lock. The image is built 'FROM scratch'
+# and contains nothing else than the packages of 'runtime-docs' of
+# dockerfiles/nix_based/nix/packages.nix and the built documentation. The list of these packages is
+# in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
 
 ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
 
@@ -28,8 +28,12 @@ ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c
 # ==========================================
 FROM ${NIX_IMAGE} AS nix
 
-RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
-COPY dockerfiles/nix /nix-flake
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
 
 # ==========================================
 # build of the documentation
