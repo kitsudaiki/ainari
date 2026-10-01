@@ -64,6 +64,8 @@ nav = [
   { "Development-Docu" = [
       "developer/repo_structure.md",
       "developer/build_guide.md",
+      "developer/docker_images.md",
+      "developer/scripts.md",
       { "Local test environments" = [
         "developer/local_testing/local_testing.md",
         "developer/local_testing/docker_compose_setup.md",
@@ -74,6 +76,7 @@ nav = [
       "developer/development.md",
       "developer/test_guide.md",
       "developer/git_workflow.md",
+      "developer/build_base_image.md",
   ] },
 ]
 

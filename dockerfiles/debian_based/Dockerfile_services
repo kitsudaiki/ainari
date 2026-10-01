@@ -17,15 +17,18 @@
 # the workspace are only compiled once, and every component has its own runtime-stage, which is
 # selected with the target of the build:
 #
-#   docker build -f dockerfiles/Dockerfile_services --target miko -t kitsudaiki/miko:local_test .
+#   docker build -f dockerfiles/debian_based/Dockerfile_services --target miko \
+#       -t kitsudaiki/miko:local_test .
 #
 # To build a single image faster, the builder can be restricted to its component:
 #
-#   docker build -f dockerfiles/Dockerfile_services --target miko --build-arg BINARIES=miko ...
+#   docker build -f dockerfiles/debian_based/Dockerfile_services --target miko \
+#       --build-arg BINARIES=miko ...
 
-# Image with the toolchain, which is built from dockerfiles/Dockerfile_build_base. The scripts of
-# the local setups build it locally with this tag, so it doesn't have to be published for them.
-ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base:0.3.0
+# Image with the toolchain, which is built from dockerfiles/debian_based/Dockerfile_build_base. The
+# scripts of the local setups build it locally with this tag, so it doesn't have to be published
+# for them.
+ARG BUILD_BASE_IMAGE=kitsudaiki/ainari_build_base_debian:0.5.0
 
 # ==========================================
 # builder of all components

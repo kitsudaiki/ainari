@@ -103,8 +103,8 @@ fi
 # build the images and the CA
 # ---------------------------------------------------------------------------------------------
 # Always rebuild first: starting with stale images silently runs a different version than the one
-# in this working tree.
-"$PROJECT_DIR/scripts/build_local_images.sh"
+# in this working tree. The nix-based images are used, which are the same as the ones of the CI.
+"$PROJECT_DIR/scripts/build_local_images.sh" nix
 
 echo "Saving the images for the virtual machines ..."
 mkdir -p "$IMAGE_DIR"

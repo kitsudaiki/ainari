@@ -42,7 +42,7 @@ services:
     image: ainari/miko:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: miko
       args:
         CARGO_PROFILE: local
@@ -68,7 +68,7 @@ services:
     image: ainari/omamori:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: omamori
       args:
         CARGO_PROFILE: local
@@ -91,7 +91,7 @@ services:
     image: ainari/ryokan:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: ryokan
       args:
         CARGO_PROFILE: local
@@ -116,7 +116,7 @@ services:
     image: ainari/onsen:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: onsen
       args:
         CARGO_PROFILE: local
@@ -139,7 +139,7 @@ services:
     image: ainari/hanami:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: hanami
       args:
         CARGO_PROFILE: local
@@ -166,7 +166,7 @@ services:
     image: ainari/torii:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_torii
+      dockerfile: dockerfiles/debian_based/Dockerfile_torii
       args:
         CARGO_PROFILE: local
     container_name: torii-public
@@ -230,7 +230,7 @@ services:
     image: ainari/sakura:local
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile_services
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
       target: sakura
       args:
         CARGO_PROFILE: local

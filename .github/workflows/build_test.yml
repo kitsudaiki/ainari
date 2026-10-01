@@ -546,7 +546,7 @@ jobs:
         uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
         with:
           context: ./ainari
-          file: ./ainari/dockerfiles/${{ matrix.builds.file }}
+          file: ./ainari/dockerfiles/nix_based/${{ matrix.builds.file }}
           # the rust-components share one Dockerfile, which has a target for every component.
           # Every image is built on its own runner, so only its own component is compiled.
           target: ${{ matrix.builds.target }}
@@ -922,7 +922,7 @@ jobs:
         name: Build docs
         run: |
           cd ${GITHUB_REPOSITORY#*/}
-          docker build -f dockerfiles/Dockerfile_docs \
+          docker build -f dockerfiles/nix_based/Dockerfile_docs \
                        -t ${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }} \
                        .
       -

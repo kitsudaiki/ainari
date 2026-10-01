@@ -36,21 +36,24 @@ GATEWAY_CONTAINER="torii-public"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# /dev/kvm belongs to a group, whose id differs between hosts. Sakura runs as a normal user, so
-# it needs that group to open the virtual machines.
-KVM_GID="$(stat -c '%g' /dev/kvm 2>/dev/null || echo "")"
-if [ -z "$KVM_GID" ]; then
-    echo "/dev/kvm not found. The host needs kvm to run the virtual machines."
-    exit 1
-fi
-export KVM_GID
-
 if [ "$EUID" -ne 0 ]; then
     echo "Please run as root (e.g. sudo ./scripts/setup_local_stack.sh)"
     exit 1
 fi
 
 cd "$PROJECT_DIR"
+
+# the interface of the default-route of the host, which the virtual machines reach the internet over
+DEFAULT_IF=$(ip route show default | awk '/default/ {print $5}' | head -n 1)
+
+# removes the rules for the traffic of the virtual machines. net.ipv4.ip_forward stays enabled,
+# because docker needs it for its own networks as well.
+remove_nat_rules() {
+    local default_if="$1"
+    iptables -t nat -D POSTROUTING -s "$FLOATING_IP_CIDR" -o "$default_if" -j MASQUERADE 2>/dev/null || true
+    iptables -D FORWARD -s "$FLOATING_IP_CIDR" -j ACCEPT 2>/dev/null || true
+    iptables -D FORWARD -d "$FLOATING_IP_CIDR" -j ACCEPT 2>/dev/null || true
+}
 
 # ---------------------------------------------------------------------------------------------
 # cleanup of a previous run
@@ -60,11 +63,23 @@ ip link delete veth-host > /dev/null 2>&1 || true
 
 if [ "$1" == "--down" ]; then
     docker compose down --remove-orphans
-    echo "Stack stopped and the veth-pair removed."
+    if [ -n "$DEFAULT_IF" ]; then
+        remove_nat_rules "$DEFAULT_IF"
+    fi
+    echo "Stack stopped, the veth-pair and the NAT-rules removed."
     exit 0
 fi
 
 docker compose down --remove-orphans > /dev/null 2>&1 || true
+
+# /dev/kvm belongs to a group, whose id differs between hosts. Sakura runs as a normal user, so
+# it needs that group to open the virtual machines.
+KVM_GID="$(stat -c '%g' /dev/kvm 2>/dev/null || echo "")"
+if [ -z "$KVM_GID" ]; then
+    echo "/dev/kvm not found. The host needs kvm to run the virtual machines."
+    exit 1
+fi
+export KVM_GID
 
 # ---------------------------------------------------------------------------------------------
 # check that nothing else on the host owns the floating ip-addresses
@@ -92,10 +107,12 @@ fi
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree.
 echo "Building the images ..."
-# The images of the components are built on the image with the toolchain, which is built locally
-# with the tag, which dockerfiles/Dockerfile_services uses by default, so it doesn't have to be
-# published before.
-docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.3.0 .
+# The images of the components are built from the debian-based Dockerfiles, which are easier to
+# debug than the nix-based ones. They are built on the image with the toolchain, which is built
+# locally with the tag, which dockerfiles/debian_based/Dockerfile_services uses by default, so it
+# doesn't have to be published before.
+docker build -f dockerfiles/debian_based/Dockerfile_build_base \
+    -t kitsudaiki/ainari_build_base_debian:0.5.0 .
 docker compose build
 
 echo "Starting the containers ..."
@@ -135,13 +152,9 @@ nsenter -t "$PID" -n ethtool -K veth-gw tx off rx off > /dev/null 2>&1 || true
 echo "Enabling forwarding and NAT for $FLOATING_IP_CIDR ..."
 sysctl -w net.ipv4.ip_forward=1 > /dev/null
 
-DEFAULT_IF=$(ip route show default | awk '/default/ {print $5}' | head -n 1)
-
 if [ -n "$DEFAULT_IF" ]; then
     # remove the rules of a previous run first, so they are not added twice
-    iptables -t nat -D POSTROUTING -s "$FLOATING_IP_CIDR" -o "$DEFAULT_IF" -j MASQUERADE 2>/dev/null || true
-    iptables -D FORWARD -s "$FLOATING_IP_CIDR" -j ACCEPT 2>/dev/null || true
-    iptables -D FORWARD -d "$FLOATING_IP_CIDR" -j ACCEPT 2>/dev/null || true
+    remove_nat_rules "$DEFAULT_IF"
 
     iptables -t nat -A POSTROUTING -s "$FLOATING_IP_CIDR" -o "$DEFAULT_IF" -j MASQUERADE
     iptables -A FORWARD -s "$FLOATING_IP_CIDR" -j ACCEPT

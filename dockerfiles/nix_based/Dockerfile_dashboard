@@ -1,0 +1,94 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image of the dashboard. The vue-app is built with node and served by nginx.
+#
+# node, nginx and all other packages of the image come from the flake of dockerfiles/nix_based/nix,
+# which pins them in its flake.lock, and the dependencies of the app are pinned by its
+# package-lock.json. The image is built 'FROM scratch' and contains nothing else than the packages
+# of 'runtime-dashboard' of dockerfiles/nix_based/nix/packages.nix and the built app. The list of
+# these packages is in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+#
+# build: docker build -f dockerfiles/nix_based/Dockerfile_dashboard -t vue-dashboard-release .
+# run:   docker run -p 80:80 vue-dashboard-release
+
+ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+FROM ${NIX_IMAGE} AS nix
+
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
+
+# ==========================================
+# build of the app
+# ==========================================
+FROM nix AS build
+
+RUN nix develop path:/nix-flake#dashboard --command true
+
+WORKDIR /app
+
+# Accept build-time variable
+ARG VITE_MIKO_API_URL
+ENV VITE_MIKO_API_URL=$VITE_MIKO_API_URL
+
+# Install exactly the dependencies of the package-lock.json
+COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json ./
+RUN nix develop path:/nix-flake#dashboard --command npm ci
+
+# Copy app source
+COPY ./src/dashboard/app .
+
+# Build the Vue app for production
+RUN nix develop path:/nix-flake#dashboard --command npm run build
+
+# ==========================================
+# root-filesystem of nginx
+# ==========================================
+FROM nix AS rootfs
+
+RUN nix build --no-link path:/nix-flake#runtime-dashboard
+
+# Copy the built files to Nginx html folder
+COPY --from=build /app/dist /rootfs/usr/share/nginx/html
+
+# The config of nginx (/etc/nginx/nginx.conf) is part of the runtime-environment. Its workers run
+# as user 'nginx' like in the official image of nginx and the compiled-in default of the log is
+# opened, before the config is read, so its directory has to exist.
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-dashboard && \
+    echo "nginx:x:101:101:nginx:/nonexistent:/bin/false" >> /rootfs/etc/passwd && \
+    echo "nginx:x:101:" >> /rootfs/etc/group && \
+    echo "nginx:!:1::::::" >> /rootfs/etc/shadow && \
+    mkdir -p /rootfs/var/log/nginx
+
+# ==========================================
+# Serve with Nginx
+# ==========================================
+FROM scratch
+
+COPY --from=rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin
+
+# Expose HTTP port
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]

@@ -1,0 +1,87 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image with the toolchain of the rust-components, which dockerfiles/nix_based/Dockerfile_services
+# is built on. It is only nix with the flake of dockerfiles/nix_based/nix and the development-shell
+# 'services' of it already downloaded, so the images of the components don't have to download it
+# again. The toolchain itself (rust, protobuf, the libraries of openssl, sqlite and mariadb, ...) is
+# pinned by dockerfiles/nix_based/nix/flake.lock. See docs/developer/docker_images.md.
+#
+# Build:
+#   docker build -f dockerfiles/nix_based/Dockerfile_build_base \
+#       -t kitsudaiki/ainari_build_base_nix:0.5.0 .
+# ==========================================
+# nix with the toolchain
+# ==========================================
+FROM nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c AS build
+
+# The configs of the image are links into the store, so they are replaced by real files, which
+# can be changed and don't depend on the store-path 'base-system' of the image, which is removed
+# below.
+#
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN for file in /etc/passwd /etc/group /etc/shadow /etc/nix/nix.conf; do \
+        cp --remove-destination "$(readlink -f "$file")" "$file" && chmod u+w "$file"; \
+    done && \
+    printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+
+COPY dockerfiles/nix_based/nix /nix-flake
+
+# The toolchain is kept as profile and the inputs of the flake (nixpkgs and rust-overlay) as
+# gc-roots, so the images, which are built on this image, don't have to download them again. Nix
+# itself, the shell of the image and the bash of nixpkgs, which 'nix develop' runs the shell with,
+# are kept as well. The development-shell is opened offline at the end, so the build fails, if
+# anything of it is missing.
+#
+# Everything else is removed: the channel of nixpkgs, which the image of nix brings along and
+# which is not used, because the flake has its own nixpkgs, and everything, which was only needed
+# to build the toolchain, like the downloaded archives of rust or cmake for the client-library of
+# MariaDB.
+RUN nix develop --profile /nix/var/nix/profiles/ainari-services path:/nix-flake#services \
+        --command true && \
+    for path in $(nix flake archive --json path:/nix-flake | grep -o '/nix/store/[^"]*' | sort -u) \
+                "$(readlink -f /nix/var/nix/profiles/ainari-services)" \
+                "$(readlink -f /nix/var/nix/profiles/default)" \
+                "$(readlink -f /bin/sh | cut -d/ -f1-4)" \
+                "$(readlink -f /usr/bin/env | cut -d/ -f1-4)"; do \
+        nix-store --add-root "/nix/var/nix/gcroots/ainari-$(basename "$path")" \
+            --realise "$path" > /dev/null; \
+    done && \
+    nix build --out-link /nix/var/nix/gcroots/ainari-bash --inputs-from path:/nix-flake \
+        "nixpkgs#bashInteractive^*" && \
+    rm -rf /root/.nix-channels /root/.nix-defexpr/channels \
+           /nix/var/nix/profiles/per-user/root/channels* /nix/var/nix/gcroots/docker && \
+    nix-collect-garbage && \
+    nix develop --offline path:/nix-flake#services --command true
+
+# ==========================================
+# base-image
+# ==========================================
+# The files, which were removed above, are still part of the layers of the image of nix. So the
+# result is copied into an empty image, which only contains the files, which are left.
+FROM scratch
+
+COPY --from=build / /
+
+# the same environment like in the image of nix, but without the channels in NIX_PATH
+ENV HOME=/root \
+    USER=root \
+    PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/nix/var/nix/profiles/default/sbin \
+    MANPATH=/root/.nix-profile/share/man:/nix/var/nix/profiles/default/share/man \
+    SSL_CERT_FILE=/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt \
+    NIX_SSL_CERT_FILE=/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt \
+    GIT_SSL_CAINFO=/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt

@@ -109,6 +109,8 @@ cluster_exists() {
     "$KIND" get clusters 2> /dev/null | grep -qx "$CLUSTER_NAME"
 }
 
+# removes the rules for the traffic of the virtual machines. net.ipv4.ip_forward stays enabled,
+# because docker needs it for its own networks as well.
 remove_nat_rules() {
     local default_if="$1"
     $SUDO iptables -t nat -D POSTROUTING -s "$FLOATING_IP_CIDR" -o "$default_if" -j MASQUERADE 2>/dev/null || true
@@ -168,8 +170,8 @@ fi
 # build the images
 # ---------------------------------------------------------------------------------------------
 # Always rebuild first: starting with stale images silently runs a different version than the one
-# in this working tree.
-KVM_GID="$KVM_GID" "$PROJECT_DIR/scripts/build_local_images.sh"
+# in this working tree. The debian-based images are used, because they are easier to debug.
+KVM_GID="$KVM_GID" "$PROJECT_DIR/scripts/build_local_images.sh" debian
 
 # ---------------------------------------------------------------------------------------------
 # create the cluster

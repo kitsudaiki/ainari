@@ -14,17 +14,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# the images of the components are built on this image, which Dockerfile_services uses by default
-docker build -f dockerfiles/Dockerfile_build_base -t kitsudaiki/ainari_build_base:0.3.0 .
+# Builds the images of all components with the tag 'local_test' and saves them in
+# temporary_files/ainari_docker_files.tar.
+#
+# Usage:
+#   ./scripts/build_docker_images.sh [debian|nix]
+#
+# The argument selects the Dockerfiles of dockerfiles/debian_based or dockerfiles/nix_based and
+# defaults to 'nix', like the images of the CI.
 
-docker build -f dockerfiles/Dockerfile_services --target hanami  -t kitsudaiki/hanami:local_test .
-docker build -f dockerfiles/Dockerfile_services --target miko    -t kitsudaiki/miko:local_test .
-docker build -f dockerfiles/Dockerfile_services --target omamori -t kitsudaiki/omamori:local_test .
-docker build -f dockerfiles/Dockerfile_services --target onsen   -t kitsudaiki/onsen:local_test .
-docker build -f dockerfiles/Dockerfile_services --target ryokan  -t kitsudaiki/ryokan:local_test .
-docker build -f dockerfiles/Dockerfile_services --target sakura  -t kitsudaiki/sakura:local_test .
-docker build -f dockerfiles/Dockerfile_torii     -t kitsudaiki/torii:local_test .
-docker build -f dockerfiles/Dockerfile_dashboard -t kitsudaiki/ainari_dashboard:local_test .
+# stop at the first failed build, so the tar-file never contains an older image with the same tag
+set -e
+
+BASE="${1:-nix}"
+case "$BASE" in
+    debian|nix) ;;
+    *) echo "Usage: $0 [debian|nix]"; exit 1 ;;
+esac
+DOCKERFILES="dockerfiles/${BASE}_based"
+
+# the images of the components are built on this image, which Dockerfile_services uses by default
+docker build -f "$DOCKERFILES/Dockerfile_build_base" -t "kitsudaiki/ainari_build_base_$BASE:0.5.0" .
+
+for target in hanami miko omamori onsen ryokan sakura; do
+    docker build -f "$DOCKERFILES/Dockerfile_services" --target "$target" \
+        -t "kitsudaiki/$target:local_test" .
+done
+docker build -f "$DOCKERFILES/Dockerfile_torii" -t kitsudaiki/torii:local_test .
+docker build -f "$DOCKERFILES/Dockerfile_dashboard" -t kitsudaiki/ainari_dashboard:local_test .
 
 mkdir -p temporary_files
 docker save -o temporary_files/ainari_docker_files.tar \

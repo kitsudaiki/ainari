@@ -1,0 +1,85 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image of the documentation, which is built with zensical and served by the http-server of
+# python.
+#
+# zensical, python and all other packages of the image come from the flake of
+# dockerfiles/nix_based/nix, which pins them in its flake.lock. The image is built 'FROM scratch'
+# and contains nothing else than the packages of 'runtime-docs' of
+# dockerfiles/nix_based/nix/packages.nix and the built documentation. The list of these packages is
+# in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+
+ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+FROM ${NIX_IMAGE} AS nix
+
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
+
+# ==========================================
+# build of the documentation
+# ==========================================
+FROM nix AS builder
+
+RUN nix develop path:/nix-flake#docs --command true
+
+WORKDIR /code
+
+# CHANGELOG.md and LICENSE have to sit beside the docs-directory, because 'docs/home/CHANGELOG.md'
+# and 'docs/home/license.md' are symlinks pointing to them
+COPY zensical.toml zensical.toml
+COPY CHANGELOG.md CHANGELOG.md
+COPY LICENSE LICENSE
+COPY docs docs
+
+# 'docs/example_configs' is a symlink to this directory and the '--8<--'-snippets of the
+# config-pages reference it relative to this working-directory, so it has to keep the same place
+# within the image as it has within the repository
+COPY example_configs example_configs
+
+RUN nix develop path:/nix-flake#docs --command zensical build --clean
+
+# ==========================================
+# root-filesystem of the runtime
+# ==========================================
+FROM nix AS rootfs
+
+RUN nix build --no-link path:/nix-flake#runtime-docs
+
+COPY --from=builder /code/site /rootfs/ainari_docs
+
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-docs ainari && \
+    chown -R 1000:1000 /rootfs/ainari_docs
+
+# ---------------------------------------------------
+
+FROM scratch
+
+COPY --from=rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin
+
+USER ainari
+WORKDIR /ainari_docs
+
+EXPOSE 8000
+
+CMD ["python3", "-m", "http.server", "8000"]

@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Image with the toolchain of the rust-components, which dockerfiles/debian_based/Dockerfile_services
+# is built on. See docs/developer/build_base_image.md.
+#
+# Build:
+#   docker build -f dockerfiles/debian_based/Dockerfile_build_base \
+#       -t kitsudaiki/ainari_build_base_debian:0.5.0 .
+#
 # Debian 13, because the MariaDB client-library of Debian 12 (Connector/C 3.3.19) returns wrong
 # results to diesel. The images of the components use the same version, so the bindings of the
 # client-library, which are selected at build-time, match the library at runtime.
