@@ -7,20 +7,105 @@
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL, RouteTarget};
+use torii_common::{
+    ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL, RouteKey, RouteTarget,
+};
 
 use uuid::Uuid;
 
 use crate::config::CONFIG;
 use crate::core::crypto::install_block_policies;
-use crate::core::models::TapInfo;
+use crate::core::models::{Route, RouteKeyPod, RouteTargetPod, TapInfo};
+use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::state::GatewayState;
 use crate::core::utils::{
     get_arp_mac, get_ifindex, get_local_ip, get_mac_address, get_next_hop, parse_mac, run_ip,
     with_table,
 };
 
+use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
+
+impl From<&Route> for RouteReq {
+    fn from(route: &Route) -> Self {
+        RouteReq {
+            dest_ip: route.dest_ip,
+            target_iface: route.target_iface.clone(),
+            vni: route.vni,
+            gateway_ip: route.gateway_ip,
+            next_hop_ip: route.next_hop_ip,
+            next_hop_mac: route.next_hop_mac.clone(),
+            encrypted: route.encrypted,
+        }
+    }
+}
+
+/// Programs a new route into the eBPF maps of the datapath.
+///
+/// The route is stored under `(vni, dest_ip)`, so the same destination may exist once per
+/// tenant. The UUID is given by the caller, so a route restored at startup keeps the UUID the
+/// control plane and the packet filters know it by.
+///
+/// # Arguments
+/// * `route_uuid` - UUID of the new route
+/// * `req` - The already validated route request with a resolved target interface
+///
+/// # Returns
+/// The programmed route, `NotFound` if the target interface does not exist, `Conflict` if the
+/// route collides with another tenant, `BadRequest` if no target could be built for it, or
+/// `InternalError` if the eBPF map refused the entry
+pub async fn add_route(route_uuid: Uuid, req: &RouteReq) -> Result<Route, ErrorResponse> {
+    let route_key = RouteKey::new(req.vni, u32::from(req.dest_ip));
+
+    if get_ifindex(&req.target_iface) == 0 {
+        return Err(ErrorResponse::NotFound(format!(
+            "Interface {} not found",
+            req.target_iface
+        )));
+    }
+
+    // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
+    // the target construction does not block the rest of the gateway.
+    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
+
+    {
+        let st = GATEWAY_STATE_HANDLE.lock().await;
+        check_route_tenant(&st, req, None).map_err(ErrorResponse::Conflict)?;
+    }
+
+    let target = match build_route_target(req, &taps) {
+        Ok(target) => target,
+        Err(err) => {
+            log::debug!("Failed to build target of route to {}: {err}", req.dest_ip);
+            return Err(ErrorResponse::BadRequest("Invalid Input".to_string()));
+        }
+    };
+
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+
+    let route = Route {
+        uuid: route_uuid,
+        vni: req.vni,
+        dest_ip: req.dest_ip,
+        target_iface: req.target_iface.clone(),
+        gateway_ip: req.gateway_ip,
+        next_hop_ip: req.next_hop_ip,
+        next_hop_mac: req.next_hop_mac.clone(),
+        encrypted: req.encrypted,
+    };
+
+    st.routes.insert(route_uuid, route.clone());
+    if st
+        .route_map
+        .insert(RouteKeyPod(route_key), RouteTargetPod(target), 0)
+        .is_err()
+    {
+        log::error!("eBPF Map error");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+    }
+
+    Ok(route)
+}
 
 /// Checks that a route may be created in the tenant it names.
 ///

@@ -17,9 +17,6 @@ mod config;
 mod core;
 mod database;
 
-use core::proxy_handler::*;
-use core::routing_interface::*;
-
 /// Entrypoint of the torii.
 ///
 /// Gateway with its routes, proxies, packet-filters and NAT-configuration.
@@ -27,8 +24,9 @@ use core::routing_interface::*;
 /// Sets up the logging, initializes the database and then hands over to the http-server,
 /// which blocks until the service is stopped.
 ///
-/// The proxy-handler and the routing-state are restored from the database on startup, so the
-/// gateway serves the connections, which already existed before the restart.
+/// The proxy-handler and the routing-state (interfaces, TAP-devices, routes, packet-filters and
+/// floating IPs) are restored from the database on startup, so the gateway serves the
+/// connections, which already existed before the restart.
 ///
 /// # Returns
 ///
@@ -40,12 +38,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     database::init_database()?;
 
-    let mut proxy_handler = PROXY_HANDLER.write().await;
-    proxy_handler.fill_proxy_handler().await?;
-    drop(proxy_handler);
-
-    let route_handler = GATEWAY_STATE_HANDLE.lock().await;
-    drop(route_handler);
+    // restarts the proxies, loads the eBPF-datapath and re-programs everything, which was
+    // configured over the endpoints before the restart
+    core::restore::restore_gateway_state().await?;
 
     api::http_server::run_server().await?;
 

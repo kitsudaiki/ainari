@@ -23,9 +23,12 @@ use crate::core::crypto::remove_block_policies;
 use crate::core::models::RouteKeyPod;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{run_ip, with_table};
+use crate::database::{network_filter_table, route_table};
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "route",
@@ -41,7 +44,7 @@ loses its fail-closed block policies and its kernel host-route."###,
 )]
 pub async fn delete_route_internal(
     route_uuid: Path<Uuid>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
@@ -56,6 +59,15 @@ pub async fn delete_route_internal(
     // The filter guards the route, so it dies with it.
     let _ = st.filter_map.remove(&dest_key);
     st.filters.remove(&route_uuid);
+
+    // drop the route and its packet-filter from the database as well. The routes, which the
+    // gateway derives from its own config at startup, have no entry there.
+    if let Err(enums::DbError::InternalError) = route_table::delete_route(&route_uuid, &context) {
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+    }
+    network_filter_table::delete_filter_rules(&route_uuid, &context).map_err(|e| {
+        map_internal_error(&format!("delete packet-filter of route '{route_uuid}'"), e)
+    })?;
 
     if route.encrypted {
         // Drop the fail-closed policies together with the route they guard.

@@ -14,9 +14,12 @@
 
 pub mod crypto;
 pub mod filter;
+pub mod floating_ip;
+pub mod interface;
 pub mod models;
 pub mod proxy;
 pub mod proxy_handler;
+pub mod restore;
 pub mod routing;
 pub mod routing_interface;
 pub mod state;

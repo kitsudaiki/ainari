@@ -19,7 +19,9 @@ use validator::Validate;
 
 use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::database::network_filter_table;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -42,7 +44,7 @@ this list; it is governed by the IP ranges alone."###,
 pub async fn add_filter_port_internal(
     route_uuid: Path<Uuid>,
     body: Json<FilterPortReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -74,6 +76,11 @@ pub async fn add_filter_port_internal(
     }
 
     apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
+
+    // persist the new include-lists, so they are restored after a restart of the gateway
+    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    network_filter_table::set_filter_rules(&route_uuid, &rules, &context)
+        .map_err(|e| map_internal_error("persist packet-filter", e))?;
 
     let message = format!(
         "{} port(s) added, {} in the include-list of {}",

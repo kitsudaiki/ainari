@@ -15,18 +15,15 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use torii_common::RouteKey;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::routing_interface::*;
-
 use crate::config::CONFIG;
-use crate::core::models::Route;
-use crate::core::models::{RouteKeyPod, RouteTargetPod};
-use crate::core::routing::{build_route_target, check_route_tenant};
-use crate::core::utils::{get_ifindex, validate_vni};
+use crate::core::routing::add_route;
+use crate::core::utils::validate_vni;
+use crate::database::route_table;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -46,7 +43,7 @@ tenant every setup that does not care about isolation runs in."###,
 )]
 pub async fn register_route_internal(
     body: Json<RouteReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<CreatedJson<RouteResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -60,55 +57,14 @@ pub async fn register_route_internal(
         body.target_iface = CONFIG.network.underlay_iface.clone();
     }
 
-    let route_key = RouteKey::new(body.vni, u32::from(body.dest_ip));
+    let route = add_route(Uuid::new_v4(), &body).await?;
 
-    if get_ifindex(&body.target_iface) == 0 {
-        return Err(ErrorResponse::NotFound(format!(
-            "Interface {} not found",
-            body.target_iface
-        )));
-    }
-
-    // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
-    // the target construction does not block the rest of the gateway.
-    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
-
-    {
-        let st = GATEWAY_STATE_HANDLE.lock().await;
-        check_route_tenant(&st, &body, None).map_err(ErrorResponse::Conflict)?;
-    }
-
-    let target = match build_route_target(&body, &taps) {
-        Ok(target) => target,
-        Err(_err) => return Err(ErrorResponse::BadRequest("Invalid Input".to_string())),
-    };
-
-    let route_uuid = Uuid::new_v4();
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-
-    let route = Route {
-        uuid: route_uuid,
-        vni: body.vni,
-        dest_ip: body.dest_ip,
-        target_iface: body.target_iface.clone(),
-        gateway_ip: body.gateway_ip,
-        next_hop_ip: body.next_hop_ip,
-        next_hop_mac: body.next_hop_mac.clone(),
-        encrypted: body.encrypted,
-    };
-
-    st.routes.insert(route_uuid, route.clone());
-    if st
-        .route_map
-        .insert(RouteKeyPod(route_key), RouteTargetPod(target), 0)
-        .is_err()
-    {
-        log::error!("eBPF Map error");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-    }
+    // persist the route, so it is restored after a restart of the gateway
+    route_table::add_new_route(&route, &context)
+        .map_err(|e| map_internal_error(&format!("persist route '{}'", route.uuid), e))?;
 
     let route = RouteResp {
-        uuid: route_uuid,
+        uuid: route.uuid,
         vni: body.vni,
         dest_ip: body.dest_ip,
         target_iface: body.target_iface.clone(),

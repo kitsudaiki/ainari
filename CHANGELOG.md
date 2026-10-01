@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redundant control plane in Kubernetes setup for HA setups
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 - new script collection to automatically all endpoints and ssh access automatically
+- Torii now stores all data in its database and can restore the old eBPF-state after a reboot
 
 ### Changed
 

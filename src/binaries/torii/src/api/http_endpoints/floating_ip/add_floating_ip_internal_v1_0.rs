@@ -15,14 +15,15 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use torii_common::{FipTarget, RouteKey};
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::models::{FipTargetPod, FloatingIp, RouteKeyPod};
+use crate::core::floating_ip::add_floating_ip;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::validate_vni;
+use crate::database::floating_ip_table;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -48,7 +49,7 @@ repeat across tenants."###,
 )]
 pub async fn register_floating_ip_internal(
     body: Json<FloatingIpInternalCreateReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<CreatedJson<FloatingIpInternalResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -56,48 +57,15 @@ pub async fn register_floating_ip_internal(
     validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
     let uuid = Uuid::new_v4();
-    let mut state = GATEWAY_STATE_HANDLE.lock().await;
 
-    // A floating IP names one VM of one tenant. Handing the same one to a second
-    // tenant would make the inbound direction ambiguous, so it is refused.
-    if let Some(existing) = state.floating_ips.get(&body.floating_ip)
-        && (existing.vni != body.vni || existing.internal_ip != body.internal_ip)
     {
-        return Err(ErrorResponse::Conflict(format!(
-            "{} already points at {} in tenant {}",
-            body.floating_ip, existing.internal_ip, existing.vni
-        )));
-    }
+        let mut state = GATEWAY_STATE_HANDLE.lock().await;
+        add_floating_ip(&mut state, body.floating_ip, body.vni, body.internal_ip)?;
 
-    state.floating_ips.insert(
-        body.floating_ip,
-        FloatingIp {
-            vni: body.vni,
-            internal_ip: body.internal_ip,
-        },
-    );
-
-    let target = FipTarget {
-        vni: body.vni,
-        ip: u32::from(body.internal_ip),
-    };
-    if state
-        .fip_dnat_map
-        .insert(u32::from(body.floating_ip), FipTargetPod(target), 0)
-        .is_err()
-    {
-        log::error!("eBPF Map error (DNAT)");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-    }
-
-    let snat_key = RouteKeyPod(RouteKey::new(body.vni, u32::from(body.internal_ip)));
-    if state
-        .fip_snat_map
-        .insert(snat_key, u32::from(body.floating_ip), 0)
-        .is_err()
-    {
-        log::error!("eBPF Map error (SNAT)");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        // persist the floating ip, so it is restored after a restart of the gateway
+        floating_ip_table::set_floating_ip(&uuid, &body, &context).map_err(|e| {
+            map_internal_error(&format!("persist floating ip '{}'", body.floating_ip), e)
+        })?;
     }
 
     let resp = FloatingIpInternalResp {

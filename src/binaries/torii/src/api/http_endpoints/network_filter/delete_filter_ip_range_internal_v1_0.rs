@@ -19,6 +19,7 @@ use validator::Validate;
 
 use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::database::network_filter_table;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -41,7 +42,7 @@ last range opens the route for every address again."###,
 pub async fn delete_filter_ip_range_internal(
     route_uuid: Path<Uuid>,
     body: Json<FilterIpRangeReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -71,6 +72,11 @@ pub async fn delete_filter_ip_range_internal(
 
     apply_filter(&mut st, route_uuid, dest_key, rules)
         .map_err(|e| map_internal_error("apply packet-filter", e))?;
+
+    // persist the new include-lists, so they are restored after a restart of the gateway
+    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    network_filter_table::set_filter_rules(&route_uuid, &rules, &context)
+        .map_err(|e| map_internal_error("persist packet-filter", e))?;
 
     let remaining = st
         .filters

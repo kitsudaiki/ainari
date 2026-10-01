@@ -24,11 +24,13 @@ use crate::core::models::{RouteKeyPod, RouteTargetPod};
 use crate::core::routing::{build_route_target, check_route_tenant};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{get_ifindex, validate_vni};
+use crate::database::route_table;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "route",
@@ -46,7 +48,7 @@ remain unaffected."###,
 pub async fn update_route_internal(
     route_uuid: Path<Uuid>,
     body: Json<RouteReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<RouteResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -118,6 +120,20 @@ pub async fn update_route_internal(
         let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
         apply_filter(&mut st, route_uuid, route_key, rules)
             .map_err(|e| map_internal_error("move packet-filter of route", e))?;
+    }
+
+    // persist the update, so it survives a restart of the gateway. The routes, which the gateway
+    // derives from its own config at startup, have no entry yet and get one with their first
+    // update.
+    match route_table::update_route(&updated_route, &context) {
+        Ok(()) => {}
+        Err(enums::DbError::NotFound) => {
+            route_table::add_new_route(&updated_route, &context)
+                .map_err(|e| map_internal_error(&format!("persist route '{route_uuid}'"), e))?;
+        }
+        Err(enums::DbError::InternalError) => {
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
     }
 
     let updated_route = RouteResp {

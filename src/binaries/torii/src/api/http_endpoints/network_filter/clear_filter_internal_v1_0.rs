@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use crate::core::filter::{apply_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::database::network_filter_table;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
@@ -38,7 +39,7 @@ unrestricted default state."###,
 )]
 pub async fn clear_filter_internal(
     route_uuid: Path<Uuid>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
@@ -50,6 +51,11 @@ pub async fn clear_filter_internal(
 
     apply_filter(&mut st, route_uuid, dest_key, RouteFilterRules::default())
         .map_err(|e| map_internal_error("clear packet-filter", e))?;
+
+    // persist the new include-lists, so they are restored after a restart of the gateway
+    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    network_filter_table::set_filter_rules(&route_uuid, &rules, &context)
+        .map_err(|e| map_internal_error("persist packet-filter", e))?;
 
     let message = format!(
         "Packet filter of {} cleared, every address and port allowed",
