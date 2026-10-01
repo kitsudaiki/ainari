@@ -17,8 +17,8 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::core::interface::register_tap;
-use crate::core::utils::validate_vni;
+use crate::core::interface::{register_tap, rollback_tap, validate_tap_req};
+use crate::core::utils::{get_ifindex, validate_vni};
 use crate::database::tap_table;
 
 use ainari_api::common_functions::map_internal_error;
@@ -63,11 +63,26 @@ pub async fn register_tap_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
     validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
-    register_tap(&body).await?;
+    validate_tap_req(&body)?;
+
+    // The previous registration is read up front, so a registration, which fails or can not be
+    // persisted, can be reverted to it.
+    let previous = tap_table::get_tap(&body.tap_name)
+        .map_err(|e| map_internal_error(&format!("get TAP '{}'", body.tap_name), e))?
+        .map(TapReq::from);
+    let existed = get_ifindex(&body.tap_name) > 0;
 
     // persist the registration, so the TAP is restored after a restart of the gateway
-    tap_table::set_tap(&body, &context)
-        .map_err(|e| map_internal_error(&format!("persist TAP '{}'", body.tap_name), e))?;
+    let result = match register_tap(&body).await {
+        Ok(()) => tap_table::set_tap(&body, &context)
+            .map(|_| ())
+            .map_err(|e| map_internal_error(&format!("persist TAP '{}'", body.tap_name), e)),
+        Err(e) => Err(e),
+    };
+    if let Err(e) = result {
+        rollback_tap(&body, previous.as_ref(), existed).await;
+        return Err(e);
+    }
 
     let resp = TapResp {
         success: true,

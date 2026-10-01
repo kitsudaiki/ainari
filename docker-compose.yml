@@ -29,6 +29,12 @@
 #     cloud-hypervisor                  cloud-hypervisor
 #   ================================   ================================
 #
+# Every gateway runs in a network-namespace, which is owned by a small holder-container
+# (torii-public-netns, torii-vmm-netns, torii-vmm-2-netns), like the pause-container of a pod in
+# kubernetes. The gateway and its sakura-host only join it. This way a gateway can be restarted
+# without losing its network: the veth-pair of the uplink, the TAP-devices and the virtual
+# machines stay where they are, and the restarted gateway restores its state from its database.
+#
 # Hanami picks one of the two sakura-hosts for every new virtual machine, so which host runs a
 # virtual machine is not fixed. Both hosts share the subnet of a network: the edge-gateway routes
 # every address to the torii of the host, which really runs that virtual machine.
@@ -160,6 +166,27 @@ services:
       ainari-net:
         ipv4_address: 172.30.0.6
 
+  # owner of the network-namespace of torii-public. It only sleeps, so it never has to be
+  # restarted, and the veth-pair injected by scripts/setup_local_stack.sh survives a restart of
+  # the gateway.
+  torii-public-netns:
+    # the image is built once by torii-public
+    image: ainari/torii:local
+    pull_policy: never
+    container_name: torii-public-netns
+    restart: unless-stopped
+    init: true
+    command: ["sleep", "infinity"]
+    ports:
+      - "11419:11419"
+      # proxy-ports, which make the api of the sakura-hosts reachable from the host
+      - "10042-10053:10042-10053"
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.10
+        aliases:
+          - torii-public
+
   # gateway at the edge of the network: it serves the floating ip-addresses on the veth-pair
   # towards the host and proxies the api of the sakura-hosts
   torii-public:
@@ -182,15 +209,30 @@ services:
     volumes:
       - ./testing/local_stack/configs/torii_public.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
-    ports:
-      - "11419:11419"
-      # proxy-ports, which make the api of the sakura-hosts reachable from the host
-      - "10042-10053:10042-10053"
+    network_mode: "service:torii-public-netns"
     depends_on:
       - miko
+      - torii-public-netns
+
+  # owner of the network-namespace of torii-vmm and sakura, so the TAP-devices and the virtual
+  # machines survive a restart of the gateway
+  torii-vmm-netns:
+    # the image is built once by torii-public
+    image: ainari/torii:local
+    pull_policy: never
+    container_name: torii-vmm-netns
+    restart: unless-stopped
+    init: true
+    command: ["sleep", "infinity"]
     networks:
       ainari-net:
-        ipv4_address: 172.30.0.10
+        ipv4_address: 172.30.0.20
+        # The sakura-host in this network-namespace has no network of its own, so it has no
+        # name in the dns of docker. This alias gives it one: it is the address, which sakura
+        # registers in hanami, and hanami derives the address of this gateway from it again.
+        aliases:
+          - sakura
+          - torii-vmm
 
   # gateway in front of the first sakura-host: it owns the TAP-devices of the virtual machines
   # of that host
@@ -211,21 +253,16 @@ services:
       # address on the underlay, which they get from docker
       - ./testing/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
+    network_mode: "service:torii-vmm-netns"
     depends_on:
       - miko
       - torii-public
-    networks:
-      ainari-net:
-        ipv4_address: 172.30.0.20
-        # The sakura-host in this network-namespace has no network of its own, so it has no
-        # name in the dns of docker. This alias gives it one: it is the address, which sakura
-        # registers in hanami, and hanami derives the address of this gateway from it again.
-        aliases:
-          - sakura
+      - torii-vmm-netns
 
   # the first host, which runs the virtual machines. It shares the network-namespace of
   # torii-vmm, so cloud-hypervisor can attach the virtual machines to the TAP-devices of that
-  # gateway.
+  # gateway. It joins the holder of that namespace instead of torii-vmm itself, so it isn't cut
+  # off, when the gateway restarts.
   sakura:
     image: ainari/sakura:local
     build:
@@ -246,7 +283,7 @@ services:
       - NET_ADMIN
     group_add:
       - "${KVM_GID:-993}"
-    network_mode: "service:torii-vmm"
+    network_mode: "service:torii-vmm-netns"
     environment:
       - CONFIG_FILE=/etc/ainari/sakura.toml
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
@@ -261,6 +298,22 @@ services:
       - hanami
       - ryokan
       - torii-vmm
+
+  # owner of the network-namespace of torii-vmm-2 and sakura-2
+  torii-vmm-2-netns:
+    # the image is built once by torii-public
+    image: ainari/torii:local
+    pull_policy: never
+    container_name: torii-vmm-2-netns
+    restart: unless-stopped
+    init: true
+    command: ["sleep", "infinity"]
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.21
+        aliases:
+          - sakura-2
+          - torii-vmm-2
 
   # gateway in front of the second sakura-host, with the same role and the same config as
   # torii-vmm, only on another address of the underlay
@@ -279,14 +332,11 @@ services:
     volumes:
       - ./testing/local_stack/configs/torii_vmm.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
+    network_mode: "service:torii-vmm-2-netns"
     depends_on:
       - miko
       - torii-public
-    networks:
-      ainari-net:
-        ipv4_address: 172.30.0.21
-        aliases:
-          - sakura-2
+      - torii-vmm-2-netns
 
   # the second host, which runs the virtual machines. It is the same as sakura, but registers
   # itself in hanami as 'sakura-2', the alias of its own gateway, so hanami can tell the two
@@ -302,7 +352,7 @@ services:
       - NET_ADMIN
     group_add:
       - "${KVM_GID:-993}"
-    network_mode: "service:torii-vmm-2"
+    network_mode: "service:torii-vmm-2-netns"
     environment:
       - CONFIG_FILE=/etc/ainari/sakura.toml
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}

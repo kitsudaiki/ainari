@@ -143,20 +143,10 @@ pub fn set_filter_rules(
     })
 }
 
-/// Marks all rules of the packet filter of a route as deleted.
-///
-/// # Arguments
-/// * `filter_route_uuid` - UUID of the route the filter belongs to
-/// * `context` - User context to record who performed the deletion
-///
-/// # Returns
-/// * `QueryResult<usize>` with the number of deleted rules
-pub fn delete_filter_rules(filter_route_uuid: &Uuid, context: &UserContext) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    delete_filter_rules_in(&mut conn, filter_route_uuid, context)
-}
-
 /// Marks all rules of the packet filter of a route as deleted on an already locked connection.
+///
+/// It takes the connection, so the deletion can be part of a bigger transaction, like the one,
+/// which deletes the route itself.
 ///
 /// # Arguments
 /// * `conn` - The locked database connection
@@ -165,7 +155,7 @@ pub fn delete_filter_rules(filter_route_uuid: &Uuid, context: &UserContext) -> Q
 ///
 /// # Returns
 /// * `QueryResult<usize>` with the number of deleted rules
-fn delete_filter_rules_in(
+pub fn delete_filter_rules_in(
     conn: &mut diesel::sqlite::SqliteConnection,
     filter_route_uuid: &Uuid,
     context: &UserContext,
@@ -294,7 +284,12 @@ mod tests {
         };
         set_filter_rules(&route_uuid1, &rules, &test_context()).unwrap();
         assert_eq!(
-            delete_filter_rules(&route_uuid1, &test_context()).unwrap(),
+            delete_filter_rules_in(
+                &mut db_handle::DB_CONN.lock().expect("mutex poisoned"),
+                &route_uuid1,
+                &test_context()
+            )
+            .unwrap(),
             1
         );
         assert!(!list_filter_rules().unwrap().contains_key(&route_uuid1));

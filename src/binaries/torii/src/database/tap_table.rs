@@ -140,6 +140,23 @@ pub fn set_tap(req: &TapReq, context: &UserContext) -> QueryResult<usize> {
     })
 }
 
+/// Retrieves the active registration of a TAP device.
+///
+/// # Arguments
+/// * `name` - Name of the TAP device
+///
+/// # Returns
+/// * `QueryResult<Option<TapEntry>>` with the registration, or `None` if the device has none
+pub fn get_tap(name: &str) -> QueryResult<Option<TapEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::taps::dsl::*;
+
+    taps.filter(tap_name.eq(name).and(status.eq("ACTIVE")))
+        .select(TapEntry::as_select())
+        .first(&mut *conn)
+        .optional()
+}
+
 /// Lists all active TAP devices, ordered by their creation.
 ///
 /// # Returns
@@ -197,9 +214,11 @@ mod tests {
             vm_mac: Some("52:54:00:12:34:56".to_string()),
             vm_ip: Some(Ipv4Addr::new(192, 168, 100, 5)),
         };
+        assert!(get_tap(name).unwrap().is_none());
         set_tap(&req, &test_context()).unwrap();
         let entries = active_entries(name);
         assert_eq!(entries.len(), 1);
+        assert_eq!(get_tap(name).unwrap(), Some(entries[0].clone()));
         let restored: TapReq = entries[0].clone().into();
         assert_eq!(restored.vni, req.vni);
         assert_eq!(restored.vm_mac, req.vm_mac);

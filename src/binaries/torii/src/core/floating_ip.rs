@@ -25,11 +25,58 @@ use crate::core::state::GatewayState;
 
 use ainari_api::errors::ErrorResponse;
 
-/// Points a floating IP at the internal address of a VM.
+/// Points a floating IP at the internal address of a VM and persists it.
 ///
 /// Both NAT maps are updated: the inbound direction is keyed by the floating IP alone and carries
 /// the tenant of the VM in its value, the outbound direction is keyed by `(vni, internal_ip)`,
 /// because the internal address is precisely the thing that may repeat across tenants.
+///
+/// `persist` is called after both maps are programmed. If it or one of the maps fails, a newly
+/// added floating IP is removed again. A repeated registration of an existing floating IP writes
+/// the very same values, so there is nothing to revert in that case.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `floating_ip` - The public address
+/// * `vni` - Tenant of the internal address
+/// * `internal_ip` - Address of the VM behind the floating IP
+/// * `persist` - Writes the floating IP to the database
+///
+/// # Returns
+/// `Ok(())` once both maps are programmed and the floating IP is persisted, `Conflict` if the
+/// floating IP already points at another VM, or `InternalError` if an eBPF map refused the entry
+/// or `persist` failed
+pub fn add_floating_ip(
+    st: &mut GatewayState,
+    floating_ip: Ipv4Addr,
+    vni: u32,
+    internal_ip: Ipv4Addr,
+    persist: impl FnOnce() -> Result<(), ErrorResponse>,
+) -> Result<(), ErrorResponse> {
+    // A floating IP names one VM of one tenant. Handing the same one to a second
+    // tenant would make the inbound direction ambiguous, so it is refused.
+    let existed = match st.floating_ips.get(&floating_ip) {
+        Some(existing) if existing.vni != vni || existing.internal_ip != internal_ip => {
+            return Err(ErrorResponse::Conflict(format!(
+                "{} already points at {} in tenant {}",
+                floating_ip, existing.internal_ip, existing.vni
+            )));
+        }
+        Some(_) => true,
+        None => false,
+    };
+
+    st.floating_ips
+        .insert(floating_ip, FloatingIp { vni, internal_ip });
+
+    let result = program_floating_ip(st, floating_ip, vni, internal_ip).and_then(|_| persist());
+    if result.is_err() && !existed {
+        remove_floating_ip(st, floating_ip);
+    }
+    result
+}
+
+/// Writes a floating IP into both NAT maps.
 ///
 /// # Arguments
 /// * `st` - The locked gateway state
@@ -38,28 +85,13 @@ use ainari_api::errors::ErrorResponse;
 /// * `internal_ip` - Address of the VM behind the floating IP
 ///
 /// # Returns
-/// `Ok(())` once both maps are programmed, `Conflict` if the floating IP already points at
-/// another VM, or `InternalError` if an eBPF map refused the entry
-pub fn add_floating_ip(
+/// `Ok(())` once both maps are programmed, otherwise `InternalError`
+fn program_floating_ip(
     st: &mut GatewayState,
     floating_ip: Ipv4Addr,
     vni: u32,
     internal_ip: Ipv4Addr,
 ) -> Result<(), ErrorResponse> {
-    // A floating IP names one VM of one tenant. Handing the same one to a second
-    // tenant would make the inbound direction ambiguous, so it is refused.
-    if let Some(existing) = st.floating_ips.get(&floating_ip)
-        && (existing.vni != vni || existing.internal_ip != internal_ip)
-    {
-        return Err(ErrorResponse::Conflict(format!(
-            "{} already points at {} in tenant {}",
-            floating_ip, existing.internal_ip, existing.vni
-        )));
-    }
-
-    st.floating_ips
-        .insert(floating_ip, FloatingIp { vni, internal_ip });
-
     let target = FipTarget {
         vni,
         ip: u32::from(internal_ip),

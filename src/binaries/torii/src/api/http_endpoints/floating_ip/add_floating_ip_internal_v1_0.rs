@@ -60,12 +60,24 @@ pub async fn register_floating_ip_internal(
 
     {
         let mut state = GATEWAY_STATE_HANDLE.lock().await;
-        add_floating_ip(&mut state, body.floating_ip, body.vni, body.internal_ip)?;
-
-        // persist the floating ip, so it is restored after a restart of the gateway
-        floating_ip_table::set_floating_ip(&uuid, &body, &context).map_err(|e| {
-            map_internal_error(&format!("persist floating ip '{}'", body.floating_ip), e)
-        })?;
+        // the floating ip is persisted, so it is restored after a restart of the gateway. If that
+        // fails, it is removed from the datapath again.
+        add_floating_ip(
+            &mut state,
+            body.floating_ip,
+            body.vni,
+            body.internal_ip,
+            || {
+                floating_ip_table::set_floating_ip(&uuid, &body, &context)
+                    .map(|_| ())
+                    .map_err(|e| {
+                        map_internal_error(
+                            &format!("persist floating ip '{}'", body.floating_ip),
+                            e,
+                        )
+                    })
+            },
+        )?;
     }
 
     let resp = FloatingIpInternalResp {

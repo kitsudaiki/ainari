@@ -53,11 +53,14 @@ pub async fn config_interface_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
     validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
-    configure_interface(&body).await?;
-
-    // persist the configuration, so it is restored after a restart of the gateway
-    network_interface_table::set_network_interface(&body, &context)
-        .map_err(|e| map_internal_error(&format!("persist interface '{}'", body.iface_name), e))?;
+    // the configuration is persisted, so it is restored after a restart of the gateway. If that
+    // fails, the interface is reverted to its previous configuration.
+    configure_interface(&body, || {
+        network_interface_table::set_network_interface(&body, &context)
+            .map(|_| ())
+            .map_err(|e| map_internal_error(&format!("persist interface '{}'", body.iface_name), e))
+    })
+    .await?;
 
     let resp = IfaceConfigResp {
         iface_name: body.iface_name.clone(),

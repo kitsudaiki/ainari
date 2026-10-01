@@ -14,16 +14,11 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use torii_common::RouteKey;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::apply_filter;
-use crate::core::models::Route;
-use crate::core::models::{RouteKeyPod, RouteTargetPod};
-use crate::core::routing::{build_route_target, check_route_tenant};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::utils::{get_ifindex, validate_vni};
+use crate::core::routing::update_route;
+use crate::core::utils::validate_vni;
 use crate::database::route_table;
 
 use ainari_api::common_functions::map_internal_error;
@@ -57,84 +52,21 @@ pub async fn update_route_internal(
 
     let route_uuid = route_uuid.into_inner();
 
-    // the destination address together with the tenant is the key of the eBPF route map
-    let route_key = RouteKey::new(body.vni, u32::from(body.dest_ip));
-
-    // resolve the new target interface and its link layer details
-    if get_ifindex(&body.target_iface) == 0 {
-        return Err(ErrorResponse::NotFound(format!(
-            "Interface {} not found",
-            body.target_iface
-        )));
-    }
-
-    // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
-    // the target construction does not block the rest of the gateway.
-    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
-
-    {
-        let st = GATEWAY_STATE_HANDLE.lock().await;
-        check_route_tenant(&st, &body, Some(route_uuid)).map_err(ErrorResponse::Conflict)?;
-    }
-
-    let target = build_route_target(&body, &taps).map_err(ErrorResponse::BadRequest)?;
-
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-
-    let previous_key = match st.routes.get(&route_uuid) {
-        Some(route) => RouteKey::new(route.vni, u32::from(route.dest_ip)),
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
-
-    let updated_route = Route {
-        uuid: route_uuid,
-        vni: body.vni,
-        dest_ip: body.dest_ip,
-        target_iface: body.target_iface.clone(),
-        gateway_ip: body.gateway_ip,
-        next_hop_ip: body.next_hop_ip,
-        next_hop_mac: body.next_hop_mac.clone(),
-        encrypted: body.encrypted,
-    };
-
-    // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
-    // without a delete/create gap.
-    if st
-        .route_map
-        .insert(RouteKeyPod(route_key), RouteTargetPod(target), 0)
-        .is_err()
-    {
-        log::error!("eBPF Map error on update");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-    }
-
-    st.routes.insert(route_uuid, updated_route.clone());
-
-    // A route that changed its destination *or its tenant* has to take its packet
-    // filter with it, otherwise the new key would be reachable unfiltered while
-    // the old one keeps an orphaned entry behind. The stale routing entry goes
-    // away for exactly the same reason.
-    if previous_key != route_key {
-        let _ = st.route_map.remove(&RouteKeyPod(previous_key));
-        let _ = st.filter_map.remove(&RouteKeyPod(previous_key));
-        let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-        apply_filter(&mut st, route_uuid, route_key, rules)
-            .map_err(|e| map_internal_error("move packet-filter of route", e))?;
-    }
-
-    // persist the update, so it survives a restart of the gateway. The routes, which the gateway
-    // derives from its own config at startup, have no entry yet and get one with their first
-    // update.
-    match route_table::update_route(&updated_route, &context) {
-        Ok(()) => {}
-        Err(enums::DbError::NotFound) => {
-            route_table::add_new_route(&updated_route, &context)
-                .map_err(|e| map_internal_error(&format!("persist route '{route_uuid}'"), e))?;
+    // The update is persisted, so it survives a restart of the gateway. The routes, which the
+    // gateway derives from its own config at startup, have no entry yet and get one with their
+    // first update. If persisting fails, the previous version of the route is programmed again.
+    update_route(route_uuid, &body, |route| {
+        match route_table::update_route(route, &context) {
+            Ok(()) => Ok(()),
+            Err(enums::DbError::NotFound) => route_table::add_new_route(route, &context)
+                .map(|_| ())
+                .map_err(|e| map_internal_error(&format!("persist route '{route_uuid}'"), e)),
+            Err(enums::DbError::InternalError) => {
+                Err(ErrorResponse::InternalError("Internal Error".to_string()))
+            }
         }
-        Err(enums::DbError::InternalError) => {
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    })
+    .await?;
 
     let updated_route = RouteResp {
         uuid: route_uuid,

@@ -17,7 +17,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, route_filter_key};
+use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
@@ -60,7 +60,8 @@ pub async fn delete_filter_port_internal(
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
 
-    let mut rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let mut rules = previous.clone();
     let before = rules.ports.len();
     rules.ports.retain(|existing| {
         !body
@@ -73,10 +74,12 @@ pub async fn delete_filter_port_internal(
     apply_filter(&mut st, route_uuid, dest_key, rules)
         .map_err(|e| map_internal_error("apply packet-filter", e))?;
 
-    // persist the new include-lists, so they are restored after a restart of the gateway
-    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-    network_filter_table::set_filter_rules(&route_uuid, &rules, &context)
-        .map_err(|e| map_internal_error("persist packet-filter", e))?;
+    // persist the new include-lists, so they are restored after a restart of the gateway. If
+    // that fails, the previous include-lists are applied again.
+    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
+        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+            .map_err(|e| map_internal_error("persist packet-filter", e))
+    })?;
 
     let remaining = st
         .filters

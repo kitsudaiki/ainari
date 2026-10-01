@@ -1,3 +1,17 @@
+// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Small helpers around the network configuration of the host.
 //!
 //! These wrap the pieces of system state the gateway has to read or change -
@@ -25,6 +39,23 @@ pub fn get_ifindex(name: &str) -> u32 {
         .trim()
         .parse()
         .unwrap_or(0)
+}
+
+/// Checks, if a network interface is administratively up.
+///
+/// This function reads the `/sys/class/net/{name}/flags` file and checks the `IFF_UP` flag.
+///
+/// # Arguments
+/// * `name` - The name of the network interface
+///
+/// # Returns
+/// True, if the interface exists and is up
+pub fn is_iface_up(name: &str) -> bool {
+    let path = format!("/sys/class/net/{}/flags", name);
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|flags| u32::from_str_radix(flags.trim().trim_start_matches("0x"), 16).ok())
+        .is_some_and(|flags| flags & 0x1 != 0)
 }
 
 /// Retrieves the MAC address of a network interface.

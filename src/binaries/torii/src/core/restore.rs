@@ -30,7 +30,7 @@ use crate::core::floating_ip::add_floating_ip;
 use crate::core::interface::{configure_interface, register_tap};
 use crate::core::models::Route;
 use crate::core::proxy_handler::PROXY_HANDLER;
-use crate::core::routing::add_route;
+use crate::core::routing::{add_route, update_route};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::{
     floating_ip_table, network_filter_table, network_interface_table, route_table, tap_table,
@@ -72,7 +72,7 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
 
     for entry in interfaces {
         let req: IfaceConfigReq = entry.into();
-        if let Err(e) = configure_interface(&req).await {
+        if let Err(e) = configure_interface(&req, || Ok(())).await {
             log::error!("Failed to restore interface '{}': {e}", req.iface_name);
         }
     }
@@ -88,7 +88,20 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
         let route: Route = entry.into();
         let route_uuid = route.uuid;
         let req = RouteReq::from(&route);
-        if let Err(e) = add_route(route_uuid, &req).await {
+        // A route, which the gateway built from its own config at startup, already exists with
+        // the same UUID. Its persisted version is an update of it, which may have moved it to
+        // another destination, so it is applied as an update.
+        let exists = GATEWAY_STATE_HANDLE
+            .lock()
+            .await
+            .routes
+            .contains_key(&route_uuid);
+        let result = if exists {
+            update_route(route_uuid, &req, |_| Ok(())).await
+        } else {
+            add_route(route_uuid, &req, |_| Ok(())).await
+        };
+        if let Err(e) = result {
             log::error!(
                 "Failed to restore route '{route_uuid}' to {} in tenant {}: {e}",
                 req.dest_ip,
@@ -110,7 +123,13 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
     }
 
     for entry in floating_ips {
-        if let Err(e) = add_floating_ip(&mut st, entry.floating_ip, entry.vni, entry.internal_ip) {
+        if let Err(e) = add_floating_ip(
+            &mut st,
+            entry.floating_ip,
+            entry.vni,
+            entry.internal_ip,
+            || Ok(()),
+        ) {
             log::error!("Failed to restore floating ip '{}': {e}", entry.floating_ip);
         }
     }

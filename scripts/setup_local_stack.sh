@@ -31,8 +31,10 @@ HOST_ADDRESS="10.0.0.1/24"
 # address of the gateway on the other end of the veth-pair. The floating ip-addresses are served
 # on that interface, so it sits in the same subnet as the host.
 GATEWAY_ADDRESS="10.0.0.254/24"
-# the gateway at the edge of the network, which the veth-pair is injected into
-GATEWAY_CONTAINER="torii-public"
+# owner of the network-namespace of the gateway at the edge of the network, which the veth-pair
+# is injected into. It is not the gateway itself, so the veth-pair survives a restart of the
+# gateway.
+GATEWAY_CONTAINER="torii-public-netns"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

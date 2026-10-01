@@ -45,18 +45,21 @@ pub async fn delete_floating_ip_internal(
 
     {
         let mut state = GATEWAY_STATE_HANDLE.lock().await;
-        if remove_floating_ip(&mut state, floating_ip).is_none() {
+        if !state.floating_ips.contains_key(&floating_ip) {
             return Err(ErrorResponse::NotFound("Floating IP not found".to_string()));
         }
 
-        // a floating ip, which was registered before its persistence was introduced, has no
-        // entry in the database, which is not an error here
+        // The floating ip is dropped from the database first, so a failing database leaves it
+        // untouched in the datapath. A floating ip, which was registered before its persistence
+        // was introduced, has no entry in the database, which is not an error here.
         match floating_ip_table::delete_floating_ip(&floating_ip, &context) {
             Ok(()) | Err(enums::DbError::NotFound) => {}
             Err(enums::DbError::InternalError) => {
                 return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
         }
+
+        remove_floating_ip(&mut state, floating_ip);
     }
 
     Ok(NoContent)

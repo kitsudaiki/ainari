@@ -1,3 +1,17 @@
+// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Translation of route requests into the targets consumed by the eBPF maps.
 //!
 //! This is where the decision is made how a destination is reached: through the
@@ -14,7 +28,8 @@ use torii_common::{
 use uuid::Uuid;
 
 use crate::config::CONFIG;
-use crate::core::crypto::install_block_policies;
+use crate::core::crypto::{install_block_policies, remove_block_policies};
+use crate::core::filter::apply_filter;
 use crate::core::models::{Route, RouteKeyPod, RouteTargetPod, TapInfo};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::state::GatewayState;
@@ -40,22 +55,31 @@ impl From<&Route> for RouteReq {
     }
 }
 
-/// Programs a new route into the eBPF maps of the datapath.
+/// Programs a new route into the eBPF maps of the datapath and persists it.
 ///
 /// The route is stored under `(vni, dest_ip)`, so the same destination may exist once per
 /// tenant. The UUID is given by the caller, so a route restored at startup keeps the UUID the
 /// control plane and the packet filters know it by.
 ///
+/// `persist` is called while the gateway state is still locked, right after the datapath was
+/// programmed. If it fails, the route is removed from the datapath again, so the datapath never
+/// holds a route the database doesn't know about.
+///
 /// # Arguments
 /// * `route_uuid` - UUID of the new route
 /// * `req` - The already validated route request with a resolved target interface
+/// * `persist` - Writes the new route to the database
 ///
 /// # Returns
 /// The programmed route, `NotFound` if the target interface does not exist, `Conflict` if the
 /// route collides with another tenant, `BadRequest` if no target could be built for it, or
-/// `InternalError` if the eBPF map refused the entry
-pub async fn add_route(route_uuid: Uuid, req: &RouteReq) -> Result<Route, ErrorResponse> {
-    let route_key = RouteKey::new(req.vni, u32::from(req.dest_ip));
+/// `InternalError` if the eBPF map refused the entry or `persist` failed
+pub async fn add_route(
+    route_uuid: Uuid,
+    req: &RouteReq,
+    persist: impl FnOnce(&Route) -> Result<(), ErrorResponse>,
+) -> Result<Route, ErrorResponse> {
+    let route_key = RouteKeyPod(RouteKey::new(req.vni, u32::from(req.dest_ip)));
 
     if get_ifindex(&req.target_iface) == 0 {
         return Err(ErrorResponse::NotFound(format!(
@@ -94,17 +118,246 @@ pub async fn add_route(route_uuid: Uuid, req: &RouteReq) -> Result<Route, ErrorR
         encrypted: req.encrypted,
     };
 
+    // Another route of the same tenant may already own the key. Its target is kept, so a
+    // rollback can hand the key back to it instead of leaving it unrouted.
+    let previous_target = st.route_map.get(&route_key, 0).ok();
+
     st.routes.insert(route_uuid, route.clone());
-    if st
+    let result = st
         .route_map
-        .insert(RouteKeyPod(route_key), RouteTargetPod(target), 0)
-        .is_err()
-    {
-        log::error!("eBPF Map error");
-        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        .insert(route_key, RouteTargetPod(target), 0)
+        .map_err(|e| {
+            log::error!("eBPF Map error: {e}");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })
+        .and_then(|_| persist(&route));
+
+    if let Err(e) = result {
+        undo_add_route(&mut st, &route_uuid, previous_target);
+        return Err(e);
     }
 
     Ok(route)
+}
+
+/// Reverts `add_route` for a route, which could not be completed.
+///
+/// If the key of the route belonged to another route before, it is handed back to that route
+/// and everything the kernel holds for the destination is left in place, because it is shared
+/// with that route. Otherwise the route is removed completely.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - UUID of the route to revert
+/// * `previous_target` - Target, which the key of the route had before
+fn undo_add_route(
+    st: &mut GatewayState,
+    route_uuid: &Uuid,
+    previous_target: Option<RouteTargetPod>,
+) {
+    match previous_target {
+        Some(previous_target) => {
+            if let Some(route) = st.routes.remove(route_uuid) {
+                let route_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
+                if let Err(e) = st.route_map.insert(route_key, previous_target, 0) {
+                    log::error!(
+                        "Failed to restore the previous target of {}: {e}",
+                        route.dest_ip
+                    );
+                }
+            }
+        }
+        None => {
+            remove_route(st, route_uuid);
+        }
+    }
+}
+
+/// Updates an existing route in the eBPF maps of the datapath and persists the update.
+///
+/// Because eBPF map updates are atomic, active connections pivot to the new target without
+/// dropping packets. A route, which changed its destination or its tenant, takes its packet
+/// filter with it.
+///
+/// `persist` is called while the gateway state is still locked. If it fails, the previous version
+/// of the route is programmed again.
+///
+/// # Arguments
+/// * `route_uuid` - UUID of the route to update
+/// * `req` - The already validated route request
+/// * `persist` - Writes the updated route to the database
+///
+/// # Returns
+/// The updated route, `NotFound` if the route or the target interface does not exist,
+/// `Conflict` if the route collides with another tenant, `BadRequest` if no target could be
+/// built for it, or `InternalError` if the eBPF map refused the entry or `persist` failed
+pub async fn update_route(
+    route_uuid: Uuid,
+    req: &RouteReq,
+    persist: impl FnOnce(&Route) -> Result<(), ErrorResponse>,
+) -> Result<Route, ErrorResponse> {
+    // resolve the new target interface and its link layer details
+    if get_ifindex(&req.target_iface) == 0 {
+        return Err(ErrorResponse::NotFound(format!(
+            "Interface {} not found",
+            req.target_iface
+        )));
+    }
+
+    // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
+    // the target construction does not block the rest of the gateway.
+    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
+
+    {
+        let st = GATEWAY_STATE_HANDLE.lock().await;
+        check_route_tenant(&st, req, Some(route_uuid)).map_err(ErrorResponse::Conflict)?;
+    }
+
+    let target = build_route_target(req, &taps).map_err(ErrorResponse::BadRequest)?;
+
+    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+
+    let previous_route = match st.routes.get(&route_uuid) {
+        Some(route) => route.clone(),
+        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
+    };
+    // The previous target is read before it is overwritten, because rebuilding it for a rollback
+    // could fail on its own, for example on a failed ARP-resolution.
+    let previous_key = RouteKeyPod(RouteKey::new(
+        previous_route.vni,
+        u32::from(previous_route.dest_ip),
+    ));
+    let previous_target = st.route_map.get(&previous_key, 0).ok();
+
+    let updated_route = Route {
+        uuid: route_uuid,
+        vni: req.vni,
+        dest_ip: req.dest_ip,
+        target_iface: req.target_iface.clone(),
+        gateway_ip: req.gateway_ip,
+        next_hop_ip: req.next_hop_ip,
+        next_hop_mac: req.next_hop_mac.clone(),
+        encrypted: req.encrypted,
+    };
+
+    // A new key may already belong to another route of the same tenant, which gets it back on a
+    // rollback.
+    let updated_key = RouteKeyPod(RouteKey::new(req.vni, u32::from(req.dest_ip)));
+    let overwritten_target = if updated_key.0 != previous_key.0 {
+        st.route_map.get(&updated_key, 0).ok()
+    } else {
+        None
+    };
+
+    let result = program_route(
+        &mut st,
+        &previous_route,
+        &updated_route,
+        RouteTargetPod(target),
+    )
+    .and_then(|_| persist(&updated_route));
+
+    if let Err(e) = result {
+        // program the previous version of the route again
+        let previous_target = match previous_target {
+            Some(previous_target) => Ok(previous_target),
+            None => {
+                build_route_target(&RouteReq::from(&previous_route), &st.taps).map(RouteTargetPod)
+            }
+        };
+        let rollback = previous_target
+            .map_err(ErrorResponse::InternalError)
+            .and_then(|target| program_route(&mut st, &updated_route, &previous_route, target));
+        if let Err(rollback_err) = rollback {
+            log::error!("Failed to roll back the update of route '{route_uuid}': {rollback_err}");
+        }
+        if let Some(overwritten_target) = overwritten_target
+            && let Err(map_err) = st.route_map.insert(updated_key, overwritten_target, 0)
+        {
+            log::error!("Failed to restore the target of {}: {map_err}", req.dest_ip);
+        }
+        return Err(e);
+    }
+
+    Ok(updated_route)
+}
+
+/// Switches a route in the datapath from one version to another.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `from` - The version of the route, which is currently programmed
+/// * `to` - The version of the route, which is programmed from now on
+/// * `target` - The eBPF target of the new version
+///
+/// # Returns
+/// `Ok(())` once the new version is programmed, otherwise `InternalError`
+fn program_route(
+    st: &mut GatewayState,
+    from: &Route,
+    to: &Route,
+    target: RouteTargetPod,
+) -> Result<(), ErrorResponse> {
+    let from_key = RouteKey::new(from.vni, u32::from(from.dest_ip));
+    let to_key = RouteKey::new(to.vni, u32::from(to.dest_ip));
+
+    // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
+    // without a delete/create gap.
+    if let Err(e) = st.route_map.insert(RouteKeyPod(to_key), target, 0) {
+        log::error!("eBPF Map error on update: {e}");
+        return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+    }
+
+    st.routes.insert(to.uuid, to.clone());
+
+    // A route that changed its destination *or its tenant* has to take its packet
+    // filter with it, otherwise the new key would be reachable unfiltered while
+    // the old one keeps an orphaned entry behind. The stale routing entry goes
+    // away for exactly the same reason.
+    if from_key != to_key {
+        let _ = st.route_map.remove(&RouteKeyPod(from_key));
+        let _ = st.filter_map.remove(&RouteKeyPod(from_key));
+        let rules = st.filters.get(&to.uuid).cloned().unwrap_or_default();
+        apply_filter(st, to.uuid, to_key, rules).map_err(|e| {
+            log::error!("Failed to move packet-filter of route '{}': {e}", to.uuid);
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Removes a route from the bookkeeping and from the datapath.
+///
+/// The packet filter guarding the route dies with it, and an encrypted route also loses its
+/// fail-closed block policies and its kernel host-route.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - UUID of the route to remove
+///
+/// # Returns
+/// The removed route, or `None` if no such route exists
+pub fn remove_route(st: &mut GatewayState, route_uuid: &Uuid) -> Option<Route> {
+    let route = st.routes.remove(route_uuid)?;
+
+    let dest_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
+    let _ = st.route_map.remove(&dest_key);
+    // The filter guards the route, so it dies with it.
+    let _ = st.filter_map.remove(&dest_key);
+    st.filters.remove(route_uuid);
+
+    if route.encrypted {
+        // Drop the fail-closed policies together with the route they guard.
+        remove_block_policies(route.dest_ip);
+        let dest = format!("{}/32", route.dest_ip);
+        let table = CONFIG.network.tenant_table(route.vni);
+        let mut args = vec!["route", "del", dest.as_str()];
+        with_table(&mut args, &table);
+        let _ = run_ip(&args);
+    }
+
+    Some(route)
 }
 
 /// Checks that a route may be created in the tenant it names.

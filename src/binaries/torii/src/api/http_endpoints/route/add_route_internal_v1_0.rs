@@ -57,11 +57,14 @@ pub async fn register_route_internal(
         body.target_iface = CONFIG.network.underlay_iface.clone();
     }
 
-    let route = add_route(Uuid::new_v4(), &body).await?;
-
-    // persist the route, so it is restored after a restart of the gateway
-    route_table::add_new_route(&route, &context)
-        .map_err(|e| map_internal_error(&format!("persist route '{}'", route.uuid), e))?;
+    // the route is persisted, so it is restored after a restart of the gateway. If that fails,
+    // it is removed from the datapath again.
+    let route = add_route(Uuid::new_v4(), &body, |route| {
+        route_table::add_new_route(route, &context)
+            .map(|_| ())
+            .map_err(|e| map_internal_error(&format!("persist route '{}'", route.uuid), e))
+    })
+    .await?;
 
     let route = RouteResp {
         uuid: route.uuid,

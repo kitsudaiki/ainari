@@ -18,7 +18,7 @@ use std::net::Ipv4Addr;
 use uuid::Uuid;
 
 use crate::core::models::Route;
-use crate::database::db_handle;
+use crate::database::{db_handle, network_filter_table};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -239,25 +239,33 @@ pub fn update_route(route: &Route, context: &UserContext) -> Result<(), enums::D
     }
 }
 
-/// Marks a route as deleted in the database.
+/// Marks a route and all rules of its packet filter as deleted in the database.
+///
+/// Both happen within one transaction, so a route is never deleted without its filter or the
+/// other way around.
 ///
 /// # Arguments
 /// * `route_uuid` - UUID of the route to delete
 /// * `context` - User context to record who performed the deletion
 ///
 /// # Returns
-/// * `Result<(), enums::DbError>` indicating success or failure
+/// * `Result<(), enums::DbError>` indicating success or failure. `NotFound` means, that the
+///   route itself had no active entry. Its filter-rules are deleted nevertheless.
 pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::routes::dsl::*;
-    match diesel::update(routes.filter(uuid.eq(route_uuid.to_string()).and(status.eq("ACTIVE"))))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    let result = conn.transaction(|conn| {
+        network_filter_table::delete_filter_rules_in(conn, route_uuid, context)?;
+        use self::routes::dsl::*;
+        diesel::update(routes.filter(uuid.eq(route_uuid.to_string()).and(status.eq("ACTIVE"))))
+            .set((
+                status.eq("DELETED"),
+                deleted_at.eq(Utc::now().to_rfc3339()),
+                deleted_by.eq(context.user_id.clone()),
+            ))
+            .execute(conn)
+    });
+
+    match result {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
         Err(e) => {
@@ -270,6 +278,7 @@ pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_api_structs::network_filter_structs::RouteFilterRules;
     use serial_test::serial;
 
     fn hard_delete_route(route_uuid: &Uuid) {
@@ -355,9 +364,17 @@ mod tests {
 
         add_new_route(&test_route(route_uuid), &test_context()).unwrap();
         assert!(list_routes().unwrap().iter().any(|r| r.uuid == route_uuid));
+        let rules = RouteFilterRules {
+            ip_ranges: vec!["10.0.0.0/24".parse().unwrap()],
+            ports: vec!["22".parse().unwrap()],
+        };
+        network_filter_table::set_filter_rules(&route_uuid, &rules, &test_context()).unwrap();
 
+        // the packet-filter is deleted together with its route
         assert!(delete_route(&route_uuid, &test_context()).is_ok());
         assert!(get_route(&route_uuid).is_err());
+        let filters = network_filter_table::list_filter_rules().unwrap();
+        assert!(!filters.contains_key(&route_uuid));
         assert!(!list_routes().unwrap().iter().any(|r| r.uuid == route_uuid));
         assert!(delete_route(&route_uuid, &test_context()).is_err());
 
