@@ -40,23 +40,5 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     lazy_static::initialize(&db_handle::DB_CONN);
     log::info!("Applied all database-migrations");
 
-    // Clear all virtual_machine from the database. This is necessary because after a restart,
-    // all virtual_machines are broken and the database doesn't match the real world.
-    // To "fix" this issue, all virtual_machines have to be removed from the database as well.
-    match virtual_machine_table::delete_all_virtual_machine() {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            let msg = "Error while deleting all virtual_machine from DB".to_string();
-            log::error!("{msg}");
-            let error = io::Error::other(msg);
-            return Err(Box::new(error));
-        }
-        Err(enums::DbError::NotFound) => {
-            // Treat NotFound as a recoverable error by returning an empty error message
-            let error = io::Error::other("".to_string());
-            return Err(Box::new(error));
-        }
-    }
-
     Ok(())
 }
