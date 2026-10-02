@@ -271,7 +271,6 @@ pub fn delete_mapping(
 /// # Returns
 ///
 /// Returns a vector of all active mappings of the user.
-#[allow(dead_code)]
 pub fn list_mappings_of_user(
     mapping_user_id: &String,
 ) -> QueryResult<Vec<UserProjectMappingEntry>> {

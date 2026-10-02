@@ -55,6 +55,14 @@ def token_context(context) -> dict:
     return login.validate_token(context)["context"]
 
 
+def invited_projects(context) -> dict:
+    """
+    Returns the projects of the user of the context as mapping from the project-id to the role.
+    """
+    return {entry["project_id"]: entry["project_role"]
+            for entry in user.list_invited_projects(context)["projects"]}
+
+
 @suite.test("create user and project", provides=("project_user", "project"))
 def create_user_and_project(ctx):
     user_id = project_user_id(ctx)
@@ -153,6 +161,20 @@ def assign_project(ctx):
     ctx.state["assigned"] = True
 
 
+@suite.test("list invited projects", requires=("assigned",))
+def list_invited_projects(ctx):
+    # the list is the same for every token of the user, no matter for which project it was created
+    expected = {f"default-{ctx.state['project_user']}": "admin", ctx.state["project"]: "member"}
+    check_equal(invited_projects(login_project_user(ctx)), expected,
+                "invited projects with the token of the default-project")
+    check_equal(invited_projects(login_project_user(ctx, ctx.state["project"])), expected,
+                "invited projects with the token of the assigned project")
+
+    # the admin of the test is not assigned to the project of this suite
+    check_not_in(ctx.state["project"], invited_projects(ctx.api),
+                 "project of the suite in the invited projects of the admin")
+
+
 @suite.test("invalid assignments are rejected", requires=("assigned",))
 def invalid_assignments(ctx):
     user_id = ctx.state["project_user"]
@@ -231,6 +253,8 @@ def set_project_role(ctx):
 
     context = token_context(login_project_user(ctx, assigned_project))
     check_equal(context["project_role"], "observer", "role in the token")
+    check_equal(invited_projects(login_project_user(ctx)).get(assigned_project), "observer",
+                "role in the list of invited projects")
     ctx.state["observer"] = True
 
 
@@ -272,6 +296,8 @@ def unassign_project(ctx):
                  assigned_project, "admin")
     expect_error(ainari_exceptions.UnauthorizedException, login_project_user, ctx,
                  assigned_project)
+    check_equal(list(invited_projects(login_project_user(ctx))),
+                [f"default-{user_id}"], "invited projects after the unassignment")
 
     # after the unassignment, the user can be assigned again
     result = user.assign_project(ctx.api, user_id, assigned_project, "admin")

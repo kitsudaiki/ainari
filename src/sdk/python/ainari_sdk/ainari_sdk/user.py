@@ -123,3 +123,16 @@ def set_project_role(context: AccessContext,
                                            context.miko_address,
                                            path,
                                            json_body)
+
+
+def list_invited_projects(context: AccessContext) -> dict:
+    """
+    Returns all projects, to which the user of the access-context is assigned, together with the
+    role of the user within each of these projects:
+    {"projects": [{"project_id": ..., "project_role": ...}]}
+    """
+    path = "/v1alpha/user/invited_projects"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")

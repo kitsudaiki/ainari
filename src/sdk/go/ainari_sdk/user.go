@@ -89,3 +89,11 @@ func SetProjectRole(context AccessContext, userId, projectId, projectRole string
 	}
 	return SendPut(context, context.MikoAddress, path, jsonBody)
 }
+
+// ListInvitedProjects returns all projects, to which the user of the current access-context is
+// assigned, together with the role of the user within each of these projects.
+func ListInvitedProjects(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/user/invited_projects"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}

@@ -825,6 +825,39 @@
         ]
       }
     },
+    "/v1alpha/user/invited_projects": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "List invited projects",
+        "description": "List all projects, to which the user of the token is assigned, together with the role of the user within each of these projects.\\\n\\\nThe default-project of the user is part of the list as well.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectInvitedListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/quota": {
       "get": {
         "tags": [
@@ -1076,6 +1109,36 @@
             "type": "string",
             "maxLength": 127,
             "minLength": 4
+          }
+        }
+      },
+      "ProjectInvitedListResp": {
+        "title": "ProjectInvitedListResp",
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectInvitedResp"
+            }
+          }
+        }
+      },
+      "ProjectInvitedResp": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_role"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
           }
         }
       },

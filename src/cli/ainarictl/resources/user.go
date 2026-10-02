@@ -203,6 +203,25 @@ var setProjectRoleCmd = &cobra.Command{
 	},
 }
 
+var listInvitedProjectsCmd = &cobra.Command{
+	Use:   "list_invited_projects",
+	Short: "List all projects, to which the own user is assigned, together with the role in each of them.",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListInvitedProjects(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintList(content["projects"].([]interface{}))
+	},
+}
+
 var userCmd = &cobra.Command{
 	Use:   "user",
 	Short: "Manage user.",
@@ -233,4 +252,6 @@ func Init_User_Commands(rootCmd *cobra.Command) {
 	userCmd.AddCommand(unassignProjectCmd)
 
 	userCmd.AddCommand(setProjectRoleCmd)
+
+	userCmd.AddCommand(listInvitedProjectsCmd)
 }

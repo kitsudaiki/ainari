@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 - new script collection to automatically all endpoints and ssh access automatically
 - Torii now stores all data in its database and can restore the old eBPF-state after a reboot
-- new endpoints in Miko: assign_project, unassign_project and set_project_role
+- new endpoints in Miko: assign_project, unassign_project, set_project_role and list invited projects
 - in the login, a user can now define the project to login
 - new project-roles: admin, member and observer
 

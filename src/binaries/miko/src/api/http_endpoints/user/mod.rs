@@ -16,6 +16,7 @@ pub mod assign_project_admin_v1_0;
 pub mod create_user_admin_v1_0;
 pub mod delete_user_admin_v1_0;
 pub mod get_user_admin_v1_0;
+pub mod list_invited_projects_v1_0;
 pub mod list_user_admin_v1_0;
 pub mod set_project_role_admin_v1_0;
 pub mod unassign_project_admin_v1_0;

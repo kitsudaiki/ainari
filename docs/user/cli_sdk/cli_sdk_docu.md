@@ -905,6 +905,9 @@ Projects are used for logical separation of the resources of users.
     ainarictl user assign_project <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
     ainarictl user unassign_project <USER_ID> <PROJECT_ID>
     ainarictl user set_project_role <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
+
+    # every user, not only admins: own projects and the role in each of them
+    ainarictl user list_invited_projects
     ```
 
     `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. A user can be assigned to the same
@@ -947,6 +950,10 @@ Projects are used for logical separation of the resources of users.
     # {"user_id": "my_user", "project_id": "my_project", "project_role": "member"}
     user.set_project_role(context, "my_user", "my_project", "observer")
     user.unassign_project(context, "my_user", "my_project")
+
+    # every user, not only admins: own projects and the role in each of them
+    user.list_invited_projects(context)
+    # {"projects": [{"project_id": "default-my_user", "project_role": "admin"}, ...]}
     ```
 
 ## Quotas
