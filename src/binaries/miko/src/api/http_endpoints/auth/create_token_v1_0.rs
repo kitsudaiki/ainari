@@ -18,13 +18,10 @@ use validator::Validate;
 
 use crate::api::token_handling;
 use crate::config;
-use crate::database::project_table;
-use crate::database::user_project_mapping_table;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::auth_structs::*;
-use ainari_common::enums::DbError;
 use ainari_common::functions::sha256_hash;
 
 #[api_operation(
@@ -79,28 +76,12 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
         .project_id
         .unwrap_or_else(|| format!("default-{}", user.id));
 
-    // check if the project exist. A missing project and a missing mapping give the same error, so
-    // the response doesn't reveal, which projects exist.
-    let no_access_msg = format!("User has no access to project '{project_id}'");
-    project_table::get_auth_project(&project_id).map_err(|e| match e {
-        DbError::NotFound | DbError::PermissionDenied => {
-            ErrorResponse::Unauthorized(no_access_msg.clone())
-        }
-        DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
-    })?;
-
-    // get the role of the user within the project
-    let mapping =
-        user_project_mapping_table::get_mapping(&project_id, &user.id).map_err(|e| match e {
-            DbError::NotFound | DbError::PermissionDenied => {
-                ErrorResponse::Unauthorized(no_access_msg.clone())
-            }
-            DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
-        })?;
+    // get the role of the user within the project, which also checks the access to it
+    let project_role = super::get_project_role_for_token(&user.id, &project_id)?;
 
     // create token based for the user
     let token =
-        token_handling::create_token(&user.id, &project_id, &user.is_admin, mapping.role.as_str())
+        token_handling::create_token(&user.id, &project_id, &user.is_admin, project_role.as_str())
             .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 
     let response = UserTokenResp {

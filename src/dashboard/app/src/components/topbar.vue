@@ -24,6 +24,7 @@
                 {{ avatarLetter }}
             </div>
             <div class="topbar-dropdown" v-if="open">
+                <button @click="switchProject">Switch Project</button>
                 <button @click="logout">Logout</button>
             </div>
         </div>
@@ -33,7 +34,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 
-const emit = defineEmits<{ (e: "logout"): void }>();
+const emit = defineEmits<{
+    (e: "logout"): void;
+    (e: "switch-project"): void;
+}>();
 const open = ref(false);
 const props = defineProps<{ username: string | null }>();
 
@@ -43,6 +47,12 @@ const avatarLetter = computed(() => {
 // toggle dropdown on avatar click
 function toggleDropdown() {
     open.value = !open.value;
+}
+
+// open the modal to switch into another project of the user
+function switchProject() {
+    emit("switch-project");
+    open.value = false;
 }
 
 // logout

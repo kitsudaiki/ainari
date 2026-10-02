@@ -26,6 +26,14 @@ pub struct UserTokenResp {
     pub expires: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct TokenRenewReq {
+    /// Project, for which the new token is created. If not set, the project of the current token
+    /// is used.
+    #[validate(length(min = 4, max = 127))]
+    pub project_id: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct OAuth2Request {
     pub token_format: String,

@@ -30,7 +30,17 @@
 
         <!-- Dashboard -->
         <template v-else>
-            <Topbar :username="username" @logout="handleLogout" />
+            <Topbar
+                :username="username"
+                @logout="handleLogout"
+                @switch-project="showProjectSwitch = true"
+            />
+            <ProjectSwitchModal
+                v-if="showProjectSwitch"
+                :icons="{ acceptIcon, cancelIcon }"
+                @accept="handleProjectSwitch"
+                @cancel="showProjectSwitch = false"
+            />
             <div class="main">
                 <Sidebar
                     :isAdmin="isAdmin"
@@ -44,8 +54,11 @@
                 <div class="content">
                     <!-- @change-view="currentView = $event" right here provides each loaded 
                      component the ability to change the component, like the sidebar does -->
+                    <!-- the key is changed by a project-switch, which reloads the view with the
+                     resources of the new project -->
                     <component
                         :is="components[currentView]"
+                        :key="viewKey"
                         :id="currentId"
                         @change-view="
                             ({ view, id }) => {
@@ -75,6 +88,7 @@ import { ref, provide, onMounted, onUnmounted } from "vue";
 import Sidebar from "@/components/sidebar.vue";
 import Topbar from "@/components/topbar.vue";
 import Login from "@/components/login.vue";
+import ProjectSwitchModal from "@/components/project_switch_modal.vue";
 import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
@@ -87,7 +101,11 @@ import SecuritySecret from "@/components/security/secret/secret_overview.vue";
 import SecurityPublicKey from "@/components/security/public_key/public_key_overview.vue";
 import WorkloadVirtualMachine from "@/components/workload/virtual_machine/virtual_machine_overview.vue";
 import WorkloadTask from "@/components/workload/task/task_overview.vue";
-import { getAuthContext } from "@/auth_context";
+import {
+    getAuthContext,
+    getExpireTimesamp,
+    getIsAdminFromJwt,
+} from "@/auth_context";
 
 // Import all CSS styles for the application
 import "@/styles/base.css";
@@ -109,6 +127,9 @@ const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
 const username = ref<string | null>(localStorage.getItem("username"));
 const isAdmin = ref<boolean>(getAuthContext().is_admin === "true");
 const tokenExpireError = ref<string>("");
+const showProjectSwitch = ref<boolean>(false);
+// changed with each project-switch to remount the current view
+const viewKey = ref<number>(0);
 var expiryInterval: number | undefined;
 
 // Object containing all the available view components
@@ -161,6 +182,34 @@ function handleLoginSuccess(
     startTokenExpiryWatcher(expire_timestamp - 30, handleLogout);
 
     // Update the login state to true to disable the login-modal
+}
+
+/**
+ * Handles a successful switch into another project
+ *
+ * The modal has already replaced the token in the auth-context, so all following requests are
+ * done within the new project. Only the state, which is derived from the token, is updated here.
+ *
+ * @param newToken - The new token for the selected project
+ */
+function handleProjectSwitch(newToken: string) {
+    showProjectSwitch.value = false;
+    isAdmin.value = getIsAdminFromJwt(newToken) === "true";
+
+    // the new token has its own expiration-time
+    const expire_timestamp = getExpireTimesamp(newToken);
+    if (expire_timestamp !== null) {
+        startTokenExpiryWatcher(expire_timestamp - 30, handleLogout);
+    }
+
+    // a detail-view shows a resource of the old project, which is not accessible anymore
+    if (currentId.value !== null) {
+        currentView.value = "Overview";
+        currentId.value = null;
+    }
+
+    // remount the current view, so it loads the resources of the new project
+    viewKey.value++;
 }
 
 /**

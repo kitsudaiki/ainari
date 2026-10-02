@@ -72,6 +72,29 @@ export function getIsAdminFromJwt(token: string): string | null {
 }
 
 /**
+ * Extracts the project, for which a JWT token was created
+ *
+ * @param {string | null} token - The JWT token to parse
+ *
+ * @returns {string | null} The ID of the project, or null if parsing fails
+ */
+export function getProjectIdFromJwt(token: string | null): string | null {
+    try {
+        const payloadBase64 = token?.split(".")[1];
+        if (!payloadBase64) return null;
+
+        const payloadJson = atob(
+            payloadBase64.replace(/-/g, "+").replace(/_/g, "/"),
+        );
+
+        const payload = JSON.parse(payloadJson);
+        return payload.project_id ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Extracts the expiration timestamp from a JWT token
  *
  * @param {string} token - The JWT token to parse

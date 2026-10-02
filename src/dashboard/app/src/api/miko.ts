@@ -18,14 +18,30 @@ import { mikoClient } from "./client";
 import type {
     ProjectBasicResp,
     ProjectCreateReq,
+    ProjectInvitedResp,
     ProjectResp,
     QuotaBasicResp,
     QuotaResp,
     QuotaSetReq,
+    TokenRenewReq,
     UserBasicResp,
     UserCreateReq,
     UserResp,
+    UserTokenResp,
 } from "./types";
+
+//=============================================================================
+// token
+//=============================================================================
+
+/**
+ * `PUT /v1alpha/token` - new token for the user of the current token. With a project-id, the
+ * new token is created for this project, which switches the project without a new login.
+ */
+export async function renewToken(body: TokenRenewReq): Promise<UserTokenResp> {
+    const resp = await mikoClient().put("/v1alpha/token", body);
+    return resp.data;
+}
 
 //=============================================================================
 // project
@@ -57,6 +73,12 @@ export async function deleteProject(projectId: string): Promise<void> {
 //=============================================================================
 // user
 //=============================================================================
+
+/** `GET /v1alpha/user/invited_projects` - projects of the user, who is currently logged in. */
+export async function listInvitedProjects(): Promise<ProjectInvitedResp[]> {
+    const resp = await mikoClient().get("/v1alpha/user/invited_projects");
+    return resp.data.projects;
+}
 
 /** `GET /v1alpha/user/admin` */
 export async function listUsers(): Promise<UserBasicResp[]> {

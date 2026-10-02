@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new endpoints in Miko: assign_project, unassign_project, set_project_role and list invited projects
 - in the login, a user can now define the project to login
 - new project-roles: admin, member and observer
+- new option in the dashboard to switch to another project after login
 
 ### Changed
 
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dockerfiles/nix_based` for the CI and the vagrant-setup and `dockerfiles/debian_based` for the
   easier debugging in the docker-compose- and kind-setup. The base-image is split into
   `kitsudaiki/ainari_build_base_nix` and `kitsudaiki/ainari_build_base_debian`.
+- Token renew-endpoint now optionally takes a project-id to switch to another project
 
 ### Fixed
 

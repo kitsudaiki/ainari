@@ -82,7 +82,17 @@
           "auth"
         ],
         "summary": "Renew Token",
-        "description": "Create a new access-token for the user of the current token,\\\n\\\nin order to extend the session.",
+        "description": "Create a new access-token for the user of the current token, in order to extend the session.\\\n\\\nWith `project_id` in the body, the new token is created for this project instead of the project of the current token, which switches the project without a new login. The user must be assigned to the project. The role within the project is read again in both cases, so changes of the role are applied with the renewal.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRenewReq"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "201": {
             "description": "",
@@ -112,6 +122,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request"
           },
           "401": {
             "description": "Unauthorized"
@@ -1354,6 +1367,19 @@
       "Secret": {
         "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
         "type": "string"
+      },
+      "TokenRenewReq": {
+        "title": "TokenRenewReq",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "description": "Project, for which the new token is created. If not set, the project of the current token is used.",
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4,
+            "nullable": true
+          }
+        }
       },
       "UserAssignProjectReq": {
         "title": "UserAssignProjectReq",

@@ -61,6 +61,12 @@ export interface UserTokenResp {
     expires: number;
 }
 
+/** Mirror of `auth_structs::TokenRenewReq`. */
+export interface TokenRenewReq {
+    /** if not set, the new token is created for the project of the current token */
+    project_id?: string;
+}
+
 //=============================================================================
 // user / project / quota (miko)
 //=============================================================================
@@ -106,6 +112,15 @@ export interface ProjectResp extends ProjectBasicResp {
 export interface ProjectCreateReq {
     id: string;
     name: string;
+}
+
+/** Mirror of `enums::ProjectRole`. */
+export type ProjectRole = "admin" | "member" | "observer";
+
+/** Mirror of `project_structs::ProjectInvitedResp`. */
+export interface ProjectInvitedResp {
+    project_id: string;
+    project_role: ProjectRole;
 }
 
 /** Mirror of `quota_structs::QuotaSetReq`. */
