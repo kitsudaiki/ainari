@@ -176,10 +176,6 @@ onMounted(fetchVirtualMachines);
     width: 32rem;
 }
 
-/* is not found when I put this in one of the css files. Don't know why... */
-.invalid_input {
-    border-bottom: 2px solid #ff4d4f;
-}
 
 .hint-msg {
     font-size: 0.8rem;

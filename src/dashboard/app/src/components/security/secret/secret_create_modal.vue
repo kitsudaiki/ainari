@@ -166,9 +166,4 @@ function isSelected(tab: "generate" | "manual") {
     margin-top: 0.5rem;
     height: 7rem;
 }
-
-/* is not found when I put this in one of the css files. Don't know why... */
-.invalid_input {
-    border-bottom: 2px solid #ff4d4f;
-}
 </style>
