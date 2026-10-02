@@ -18,6 +18,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use ainari_common::enums::ProjectRole;
 use ainari_common::secret::Secret;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -52,4 +53,38 @@ pub struct UserBasicResp {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserListResp {
     pub users: Vec<UserBasicResp>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct UserAssignProjectReq {
+    #[validate(length(min = 4, max = 127))]
+    pub project_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct UserAssignProjectResp {
+    pub user_id: String,
+    pub project_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct UserUnassignProjectReq {
+    #[validate(length(min = 4, max = 127))]
+    pub project_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct UserSetProjectRoleReq {
+    #[validate(length(min = 4, max = 127))]
+    pub project_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct UserSetProjectRoleResp {
+    pub user_id: String,
+    pub project_id: String,
+    pub project_role: ProjectRole,
 }

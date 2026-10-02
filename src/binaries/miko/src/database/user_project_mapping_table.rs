@@ -162,6 +162,109 @@ pub fn get_mapping(
     }
 }
 
+/// Sets the role of the active mapping of a user to a project.
+///
+/// Only an already existing active mapping is updated, so no new mapping is created here.
+///
+/// # Arguments
+///
+/// * `mapping_project_id` - The ID of the project
+/// * `mapping_user_id` - The ID of the user
+/// * `mapping_role` - The new role of the user within the project
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns Ok(()) if the role was set, DbError::NotFound if there is no active mapping
+/// or the user lacks permissions, or DbError::InternalError if there was an internal error.
+pub fn set_mapping_role(
+    mapping_project_id: &String,
+    mapping_user_id: &String,
+    mapping_role: ProjectRole,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::user_project_mapping::dsl::*;
+    match diesel::update(
+        user_project_mapping.filter(
+            project_id
+                .eq(mapping_project_id)
+                .and(user_id.eq(mapping_user_id))
+                .and(status.eq("ACTIVE")),
+        ),
+    )
+    .set((
+        role.eq(DbProjectRole::from(mapping_role)),
+        updated_at.eq(Utc::now().to_rfc3339()),
+        updated_by.eq(context.user_id.clone()),
+    ))
+    .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Deletes the active mapping of a user to a project.
+///
+/// This function marks the mapping as "DELETED" in the database. Older, already deleted
+/// mappings of the same pair are not touched.
+///
+/// # Arguments
+///
+/// * `mapping_project_id` - The ID of the project
+/// * `mapping_user_id` - The ID of the user
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns Ok(()) if the mapping was deleted, DbError::NotFound if there is no active mapping
+/// or the user lacks permissions, or DbError::InternalError if there was an internal error.
+pub fn delete_mapping(
+    mapping_project_id: &String,
+    mapping_user_id: &String,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::user_project_mapping::dsl::*;
+    match diesel::update(
+        user_project_mapping.filter(
+            project_id
+                .eq(mapping_project_id)
+                .and(user_id.eq(mapping_user_id))
+                .and(status.eq("ACTIVE")),
+        ),
+    )
+    .set((
+        status.eq("DELETED"),
+        deleted_at.eq(Utc::now().to_rfc3339()),
+        deleted_by.eq(context.user_id.clone()),
+    ))
+    .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Lists all active mappings of a specific user.
 ///
 /// # Arguments
@@ -511,6 +614,69 @@ mod tests {
             &admin_observer,
         )
         .unwrap();
+
+        hard_delete_mappings_of_user(&user_id);
+    }
+
+    #[test]
+    #[serial]
+    fn test_delete_mapping() {
+        let context = test_context();
+        let user_id = "test-mapping-user-10".to_string();
+        let project_id1 = "test-mapping-project-11".to_string();
+        let project_id2 = "test-mapping-project-12".to_string();
+        hard_delete_mappings_of_user(&user_id);
+
+        add_new_mapping(&project_id1, &user_id, ProjectRole::Member, &context).unwrap();
+        add_new_mapping(&project_id2, &user_id, ProjectRole::Member, &context).unwrap();
+
+        // only the mapping of the given pair is deleted
+        assert!(delete_mapping(&project_id1, &user_id, &context).is_ok());
+        let mappings = list_mappings_of_user(&user_id).unwrap();
+        assert_eq!(mappings.len(), 1);
+        assert_eq!(mappings[0].project_id, project_id2);
+
+        // deleting it a second time finds no active mapping anymore
+        assert!(matches!(
+            delete_mapping(&project_id1, &user_id, &context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        // the pair can be assigned again after it was deleted
+        add_new_mapping(&project_id1, &user_id, ProjectRole::Observer, &context).unwrap();
+        assert!(get_mapping(&project_id1, &user_id).is_ok());
+
+        hard_delete_mappings_of_user(&user_id);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_mapping_role() {
+        let context = test_context();
+        let user_id = "test-mapping-user-11".to_string();
+        let project_id = "test-mapping-project-13".to_string();
+        hard_delete_mappings_of_user(&user_id);
+
+        // without an existing mapping, nothing is created
+        assert!(matches!(
+            set_mapping_role(&project_id, &user_id, ProjectRole::Admin, &context),
+            Err(enums::DbError::NotFound)
+        ));
+        assert!(get_mapping(&project_id, &user_id).is_err());
+
+        add_new_mapping(&project_id, &user_id, ProjectRole::Observer, &context).unwrap();
+        assert!(set_mapping_role(&project_id, &user_id, ProjectRole::Member, &context).is_ok());
+        let Ok(mapping) = get_mapping(&project_id, &user_id) else {
+            panic!("mapping was not found");
+        };
+        assert_eq!(mapping.role, ProjectRole::Member);
+
+        // a deleted mapping can not be changed anymore
+        assert!(delete_mapping(&project_id, &user_id, &context).is_ok());
+        assert!(matches!(
+            set_mapping_role(&project_id, &user_id, ProjectRole::Admin, &context),
+            Err(enums::DbError::NotFound)
+        ));
 
         hard_delete_mappings_of_user(&user_id);
     }

@@ -72,6 +72,18 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{user_id}/admin")
                         .route(get().to(get_user_admin_v1_0::get_user_admin))
                         .route(delete().to(delete_user_admin_v1_0::delete_user_admin)),
+                )
+                .service(
+                    resource("/{user_id}/assign_project/admin")
+                        .route(post().to(assign_project_admin_v1_0::assign_project_admin)),
+                )
+                .service(
+                    resource("/{user_id}/unassign_project/admin")
+                        .route(post().to(unassign_project_admin_v1_0::unassign_project_admin)),
+                )
+                .service(
+                    resource("/{user_id}/set_project_role/admin")
+                        .route(put().to(set_project_role_admin_v1_0::set_project_role_admin)),
                 ),
         )
         .service(

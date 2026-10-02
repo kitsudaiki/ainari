@@ -103,13 +103,15 @@ impl FromRequest for UserContext {
         match decode_jwt_payload(token) {
             Ok(context) => ready(Ok(context)),
             Err(_) => {
-                // should never be the case, because the middleware already checks the token
+                // requests without a jwt are only let through by the middleware for the internal
+                // endpoints, which are protected by the internal api-key instead. Their context must
+                // not be read-only, because they have to write into the database.
                 ready(Ok(UserContext {
                     token: "".to_string(),
                     user_id: "".to_string(),
                     project_id: "".to_string(),
                     is_admin: false.to_string(),
-                    project_role: ProjectRole::Observer.to_string(),
+                    project_role: ProjectRole::Member.to_string(),
                 }))
             }
         }
