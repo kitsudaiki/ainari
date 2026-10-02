@@ -136,6 +136,14 @@ pub fn add_new_quota(
     max_floating_ip: i32,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
@@ -273,6 +281,11 @@ pub fn set_quota(
     max_new_floating_ip: i32,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
@@ -313,6 +326,11 @@ pub fn set_quota(
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
 pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }

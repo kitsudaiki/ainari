@@ -139,6 +139,14 @@ pub fn add_new_host(
     resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let host = HostEntry {
         uuid: *host_uuid,
         name: host_name.to_owned(),
@@ -181,6 +189,11 @@ pub fn update_host_resources(
     resources: &HostResources,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
     match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
@@ -221,6 +234,11 @@ pub fn update_host_external_address(
     host_external_address: Option<&str>,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
     match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
@@ -363,6 +381,11 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 /// * DbError::NotFound if the host doesn't exist or is already deleted
 /// * DbError::InternalError if there was an error executing the query
 pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     get_host(host_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

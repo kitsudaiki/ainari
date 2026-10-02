@@ -122,6 +122,14 @@ impl From<RouteEntry> for Route {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of rows affected
 pub fn add_new_route(route: &Route, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let entry = RouteEntry {
         uuid: route.uuid,
         vni: route.vni,

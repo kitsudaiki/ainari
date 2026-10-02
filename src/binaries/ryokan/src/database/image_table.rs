@@ -111,6 +111,14 @@ pub fn add_new_image(
     is_snapshot: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     // Create a new ImageEntry with the provided parameters
     let image = ImageEntry {
         uuid: *image_uuid,
@@ -258,6 +266,11 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
 /// # Returns
 /// * `Result<(), enums::DbError>` - Success or an error
 pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // First verify that the image exists and is accessible to the user
     get_image(image_uuid, context)?;
 

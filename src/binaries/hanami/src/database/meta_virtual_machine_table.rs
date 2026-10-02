@@ -102,6 +102,14 @@ pub fn add_new_meta_virtual_machine(
     resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let meta_virtual_machine = MetaVirtualMachineEntry {
         uuid: *meta_virtual_machine_uuid,
         name: virtual_machine_name.to_string().clone(),
@@ -297,6 +305,11 @@ pub fn delete_meta_virtual_machine(
     meta_virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // Verify the meta virtual_machine exists and the user has permission to delete it
     get_meta_virtual_machine(meta_virtual_machine_uuid, context)?;
 

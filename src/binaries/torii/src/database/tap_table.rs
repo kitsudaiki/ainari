@@ -109,6 +109,14 @@ impl From<TapEntry> for TapReq {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of inserted rows
 pub fn set_tap(req: &TapReq, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let entry = TapEntry {
         uuid: Uuid::new_v4(),
         tap_name: req.tap_name.clone(),

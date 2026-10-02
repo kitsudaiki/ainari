@@ -90,6 +90,8 @@ pub enum FloatingIpReserveError {
     AlreadyUsed,
     /// All floating IP-addresses of the CIDR are already used
     NoFreeAddress,
+    /// The user has no permission to reserve a floating IP-address
+    PermissionDenied,
     /// Any other database-error
     InternalError,
 }
@@ -132,6 +134,11 @@ pub fn add_new_floating_ip(
     floating_cidr: &str,
     context: &UserContext,
 ) -> Result<(Uuid, Ipv4Addr), FloatingIpReserveError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(FloatingIpReserveError::PermissionDenied);
+    }
+
     let (first_floating_ip, last_floating_ip) = match assignable_ip_range(floating_cidr) {
         Some(range) => range,
         None => {
@@ -445,6 +452,11 @@ pub fn delete_floating_ip(
     floating_ip_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // Verify the meta floating_ip_addr exists and the user has permission to delete it
     get_floating_ip(floating_ip_uuid, context)?;
 
@@ -502,6 +514,11 @@ pub fn attach_floating_ip(
     attach_internal_ip: &Ipv4Addr,
     context: &UserContext,
 ) -> Result<FloatingIpEntry, FloatingIpAttachError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(FloatingIpAttachError::NotFound);
+    }
+
     // Verify the floating IP-address exists and the user has permission to attach it
     get_floating_ip(floating_ip_uuid, context).map_err(|e| match e {
         enums::DbError::NotFound => FloatingIpAttachError::NotFound,
@@ -558,6 +575,11 @@ pub fn detach_floating_ip(
     floating_ip_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
     match diesel::update(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))

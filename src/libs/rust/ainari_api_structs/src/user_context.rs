@@ -35,6 +35,19 @@ pub struct UserContext {
     pub project_role: String,
 }
 
+impl UserContext {
+    /// Checks if the context is only allowed to read entries.
+    ///
+    /// Observers of a project can only read, as long as they are not admins of the whole system.
+    ///
+    /// # Returns
+    ///
+    /// True, if any adding, updating or deleting of entries has to be blocked, else false.
+    pub fn is_read_only(&self) -> bool {
+        self.is_admin != true.to_string() && self.project_role == ProjectRole::Observer.as_str()
+    }
+}
+
 /// Default for the token-field, which is not part of the payload of the jwt itself, but filled
 /// in afterwards.
 fn default_token() -> String {
@@ -100,5 +113,31 @@ impl FromRequest for UserContext {
                 }))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn new_context(is_admin: bool, project_role: ProjectRole) -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: is_admin.to_string(),
+            project_role: project_role.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_is_read_only() {
+        // only an observer, who is not admin, is restricted to reading
+        assert!(new_context(false, ProjectRole::Observer).is_read_only());
+
+        assert!(!new_context(true, ProjectRole::Observer).is_read_only());
+        assert!(!new_context(false, ProjectRole::Member).is_read_only());
+        assert!(!new_context(false, ProjectRole::Admin).is_read_only());
+        assert!(!new_context(true, ProjectRole::Admin).is_read_only());
     }
 }

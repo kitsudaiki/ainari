@@ -111,6 +111,14 @@ impl From<NetworkInterfaceEntry> for IfaceConfigReq {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of inserted rows
 pub fn set_network_interface(req: &IfaceConfigReq, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let entry = NetworkInterfaceEntry {
         uuid: Uuid::new_v4(),
         iface_name: req.iface_name.clone(),

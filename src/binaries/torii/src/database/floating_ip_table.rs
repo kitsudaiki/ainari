@@ -110,6 +110,14 @@ pub fn set_floating_ip(
     req: &FloatingIpInternalCreateReq,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let entry = FloatingIpEntry {
         uuid: *fip_uuid,
         name: req.name.clone(),
@@ -163,6 +171,11 @@ pub fn list_floating_ips() -> QueryResult<Vec<FloatingIpEntry>> {
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure
 pub fn delete_floating_ip(ip: &Ipv4Addr, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     match delete_floating_ip_in(&mut conn, ip, context) {
         Ok(0) => Err(enums::DbError::NotFound),

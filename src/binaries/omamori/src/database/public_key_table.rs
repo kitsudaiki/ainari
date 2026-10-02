@@ -88,6 +88,14 @@ pub fn add_new_public_key(
     fingerprint: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let new_public_key = PublicKeyEntry {
         uuid: *public_key_uuid,
         name: name.to_string(),
@@ -268,6 +276,11 @@ pub fn delete_public_key(
     public_key_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // Verify the public-key exists and the user has permission to delete it
     get_public_key(public_key_uuid, context)?;
 
@@ -638,5 +651,30 @@ mod tests {
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
         hard_delete_public_key(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_observer_can_not_change_public_keys() {
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let observer = new_context("test-user", "test-project", false, ProjectRole::Observer);
+        let admin_observer = new_context("test-user", "test-project", true, ProjectRole::Observer);
+
+        hard_delete_public_key(&uuid1);
+        hard_delete_public_key(&uuid2);
+
+        // an observer can neither add nor delete, but still read
+        assert!(add_new_public_key(&uuid1, "key", PUBLIC_KEY, FINGERPRINT, &observer).is_err());
+        assert_not_found(get_public_key(&uuid1, &observer));
+        add_public_key(new_entry(&uuid2, "test-user", "test-project", "ACTIVE")).unwrap();
+        assert!(delete_public_key(&uuid2, &observer).is_err());
+        expect_entry(get_public_key(&uuid2, &observer));
+
+        // an admin is not restricted, even as observer of the project
+        assert!(delete_public_key(&uuid2, &admin_observer).is_ok());
+
+        hard_delete_public_key(&uuid1);
+        hard_delete_public_key(&uuid2);
     }
 }

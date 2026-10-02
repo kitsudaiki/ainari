@@ -92,6 +92,14 @@ pub fn add_new_host(
     host_address: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let host = HostEntry {
         uuid: *host_uuid,
         name: host_name.to_owned(),
@@ -235,6 +243,11 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 ///
 /// * `Result<(), enums::DbError>` - Ok if successful, or an error
 pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     get_host(host_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

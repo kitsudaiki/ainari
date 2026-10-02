@@ -105,6 +105,14 @@ pub fn set_filter_rules(
     rules: &RouteFilterRules,
     context: &UserContext,
 ) -> QueryResult<()> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let ip_ranges = rules
         .ip_ranges
         .iter()
@@ -160,6 +168,14 @@ pub fn delete_filter_rules_in(
     filter_route_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     use self::network_filters::dsl::*;
     diesel::update(
         network_filters.filter(

@@ -78,6 +78,14 @@ pub fn add_new_project(
     project_name: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
@@ -244,6 +252,11 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 /// * `DbError::NotFound` if the project doesn't exist or the user lacks permissions
 /// * `DbError::InternalError` if a database error occurs
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }

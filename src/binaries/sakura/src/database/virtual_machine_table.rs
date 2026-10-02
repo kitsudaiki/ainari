@@ -173,6 +173,14 @@ pub fn add_new_virtual_machine(
     new_virtual_machine: NewVirtualMachine,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     // Create the new virtual_machine entry
     let virtual_machine = VirtualMachineEntry {
         uuid: new_virtual_machine.uuid,
@@ -334,6 +342,11 @@ pub fn set_virtual_machine_image(
     new_public_key_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -380,6 +393,11 @@ pub fn update_virtual_machine(
     new_root_disk_path: Option<String>,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -422,6 +440,11 @@ pub fn update_virtual_machine_state(
     new_vm_state: &VirtualMachineState,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -458,6 +481,11 @@ pub fn delete_virtual_machine(
     virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to delete it
     get_virtual_machine(virtual_machine_uuid, context)?;
 

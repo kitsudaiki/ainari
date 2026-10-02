@@ -80,6 +80,14 @@ pub struct SecretEntry {
 ///
 /// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let secret = SecretEntry {
         uuid: *secret_uuid,
         name: name.to_owned(),
@@ -231,6 +239,11 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 ///
 /// A Result indicating success or failure
 pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::NotFound);
+    }
+
     get_secret(secret_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

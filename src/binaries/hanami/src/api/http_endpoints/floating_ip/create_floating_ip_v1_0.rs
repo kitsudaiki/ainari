@@ -111,6 +111,9 @@ fn map_reserve_error(
         FloatingIpReserveError::NoFreeAddress => {
             ErrorResponse::Conflict("No free floating ip left.".to_string())
         }
+        FloatingIpReserveError::PermissionDenied => {
+            ErrorResponse::Forbidden("Permission denied.".to_string())
+        }
         FloatingIpReserveError::InvalidCidr | FloatingIpReserveError::InternalError => {
             log::error!("Failed to add new floating_ip to database.");
             ErrorResponse::InternalError("Internal Error".to_string())

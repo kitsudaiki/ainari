@@ -82,6 +82,14 @@ pub fn add_new_mapping(
     mapping_role: ProjectRole,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("Permission denied.".to_string()),
+        ));
+    }
+
     let mapping = UserProjectMappingEntry {
         project_id: mapping_project_id.to_owned(),
         user_id: mapping_user_id.to_owned(),
@@ -461,6 +469,48 @@ mod tests {
         // deleted mappings are not returned anymore
         assert!(delete_mappings_of_user(&user_id).is_ok());
         assert!(get_mapping(&project_id, &user_id).is_err());
+
+        hard_delete_mappings_of_user(&user_id);
+    }
+
+    #[test]
+    #[serial]
+    fn test_observer_can_not_add_mapping() {
+        let user_id = "test-mapping-user-9".to_string();
+        let observer = UserContext {
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Observer.to_string(),
+            ..test_context()
+        };
+        let admin_observer = UserContext {
+            is_admin: true.to_string(),
+            ..observer.clone()
+        };
+        hard_delete_mappings_of_user(&user_id);
+
+        let result = add_new_mapping(
+            "test-mapping-project-10",
+            &user_id,
+            ProjectRole::Admin,
+            &observer,
+        );
+        assert!(matches!(
+            result,
+            Err(diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::CheckViolation,
+                _
+            ))
+        ));
+        assert!(list_mappings_of_user(&user_id).unwrap().is_empty());
+
+        // an admin is not restricted, even as observer of the project
+        add_new_mapping(
+            "test-mapping-project-10",
+            &user_id,
+            ProjectRole::Admin,
+            &admin_observer,
+        )
+        .unwrap();
 
         hard_delete_mappings_of_user(&user_id);
     }
