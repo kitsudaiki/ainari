@@ -105,6 +105,7 @@ mod tests {
         CloudHypervisorVirtualMachineCreateInfo, Task, TaskMeta, TaskVariant,
     };
     use ainari_api_structs::user_context::UserContext;
+    use ainari_common::enums::ProjectRole;
 
     fn test_context() -> UserContext {
         UserContext {
@@ -112,7 +113,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         }
     }
 

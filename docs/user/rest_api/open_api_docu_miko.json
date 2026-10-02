@@ -1113,18 +1113,18 @@
         "type": "object",
         "required": [
           "is_admin",
-          "is_project_admin",
           "project_id",
+          "project_role",
           "user_id"
         ],
         "properties": {
           "is_admin": {
             "type": "string"
           },
-          "is_project_admin": {
+          "project_id": {
             "type": "string"
           },
-          "project_id": {
+          "project_role": {
             "type": "string"
           },
           "token": {

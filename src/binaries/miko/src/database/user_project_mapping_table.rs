@@ -116,6 +116,44 @@ pub fn add_mapping(mapping: UserProjectMappingEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves the active mapping of a user to a project.
+///
+/// The permissions are not checked here, so this has to be done by the caller.
+///
+/// # Arguments
+///
+/// * `mapping_project_id` - The ID of the project
+/// * `mapping_user_id` - The ID of the user
+///
+/// # Returns
+///
+/// Returns the mapping if found, or an appropriate DbError if not found
+/// or if there's an internal error.
+pub fn get_mapping(
+    mapping_project_id: &String,
+    mapping_user_id: &String,
+) -> Result<UserProjectMappingEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::user_project_mapping::dsl::*;
+    match user_project_mapping
+        .filter(
+            project_id
+                .eq(mapping_project_id)
+                .and(user_id.eq(mapping_user_id))
+                .and(status.eq("ACTIVE")),
+        )
+        .select(UserProjectMappingEntry::as_select())
+        .first::<UserProjectMappingEntry>(&mut *conn)
+    {
+        Ok(mapping) => Ok(mapping),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Lists all active mappings of a specific user.
 ///
 /// # Arguments
@@ -205,7 +243,7 @@ mod tests {
             user_id: "admin".to_string(),
             project_id: "test-project-1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         }
     }
 
@@ -402,5 +440,28 @@ mod tests {
 
         hard_delete_mappings_of_user(&user_id1);
         hard_delete_mappings_of_user(&user_id2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_mapping() {
+        let context = test_context();
+        let user_id = "test-mapping-user-8".to_string();
+        let project_id = "test-mapping-project-9".to_string();
+        hard_delete_mappings_of_user(&user_id);
+
+        assert!(get_mapping(&project_id, &user_id).is_err());
+
+        add_new_mapping(&project_id, &user_id, ProjectRole::Observer, &context).unwrap();
+        let Ok(mapping) = get_mapping(&project_id, &user_id) else {
+            panic!("mapping was not found");
+        };
+        assert_eq!(mapping.role, ProjectRole::Observer);
+
+        // deleted mappings are not returned anymore
+        assert!(delete_mappings_of_user(&user_id).is_ok());
+        assert!(get_mapping(&project_id, &user_id).is_err());
+
+        hard_delete_mappings_of_user(&user_id);
     }
 }

@@ -279,6 +279,7 @@ pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 mod tests {
     use super::*;
     use ainari_api_structs::network_filter_structs::RouteFilterRules;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_route(route_uuid: &Uuid) {
@@ -293,7 +294,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

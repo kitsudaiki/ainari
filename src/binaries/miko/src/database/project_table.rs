@@ -131,6 +131,37 @@ pub fn add_project(project: ProjectEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Retrieves a project for the authentication from the database.
+///
+/// This function fetches a project by its ID, ensuring the project is active.
+/// Unlike get_project, this function doesn't check for admin privileges.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project to retrieve
+///
+/// # Returns
+///
+/// * `Ok(ProjectEntry)` if the project is found
+/// * `DbError::NotFound` if the project doesn't exist
+/// * `DbError::InternalError` if a database error occurs
+pub fn get_auth_project(project_id: &String) -> Result<ProjectEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::projects::dsl::*;
+    match projects
+        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
+        .select(ProjectEntry::as_select())
+        .first::<ProjectEntry>(&mut *conn)
+    {
+        Ok(project) => Ok(project),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Retrieves a project from the database.
 ///
 /// This function fetches a project by its ID, checking for admin permissions.
@@ -235,6 +266,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_project(project_id: &String) {
@@ -253,7 +285,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project = ProjectEntry {
@@ -295,7 +327,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id1.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project1 = ProjectEntry {
@@ -345,7 +377,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project = ProjectEntry {

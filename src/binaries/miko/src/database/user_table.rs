@@ -89,7 +89,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         user_id: "AINARI_INIT".to_string(),
         project_id: "AINARI_INIT".to_string(),
         is_admin: true.to_string(),
-        is_project_admin: false.to_string(),
+        project_role: ProjectRole::Member.to_string(),
     };
 
     let users = list_users(&fake_admin_context).unwrap();
@@ -389,7 +389,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user = UserEntry {
@@ -437,7 +437,7 @@ mod tests {
             user_id: owner_id1.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user1 = UserEntry {
@@ -493,7 +493,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user = UserEntry {
@@ -529,7 +529,7 @@ mod tests {
             user_id: "admin".to_string(),
             project_id: "test-project-1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         hard_delete_user(&user_id);

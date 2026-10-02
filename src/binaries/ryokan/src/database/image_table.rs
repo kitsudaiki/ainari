@@ -21,6 +21,7 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 
 use ainari_common::enums;
+use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema
@@ -173,7 +174,7 @@ pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry,
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
+        if context.project_role != ProjectRole::Admin.as_str() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -212,7 +213,7 @@ pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
+        if context.project_role != ProjectRole::Admin.as_str() {
             query = query.filter(owner_id.eq(context.user_id.clone()));
         }
     }
@@ -306,7 +307,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image = ImageEntry {
@@ -361,7 +362,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image1 = ImageEntry {
@@ -425,7 +426,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image = ImageEntry {
@@ -471,7 +472,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image1 = ImageEntry {
@@ -621,7 +622,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 1);
@@ -632,7 +633,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 2);
@@ -643,7 +644,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 3);
@@ -654,7 +655,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_image(&uuid1, &context) {
             Ok(retrieved_image) => {
@@ -671,7 +672,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -683,7 +684,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

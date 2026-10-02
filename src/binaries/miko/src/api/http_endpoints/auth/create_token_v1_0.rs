@@ -18,16 +18,19 @@ use validator::Validate;
 
 use crate::api::token_handling;
 use crate::config;
+use crate::database::project_table;
+use crate::database::user_project_mapping_table;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::auth_structs::*;
+use ainari_common::enums::DbError;
 use ainari_common::functions::sha256_hash;
 
 #[api_operation(
     tag = "auth",
     summary = "Create Token",
-    description = r###"Create a new access-token for the given user-credentials."###,
+    description = r###"Create a new access-token for the given user-credentials. The token is scoped to the project given by the optional `project_id`, or to the default-project of the user, if not set. The user must be assigned to the project."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
@@ -71,14 +74,30 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
         ));
     }
 
+    // use the requested project, or the default-project of the user, if none was requested
+    let project_id = parsed
+        .project_id
+        .unwrap_or_else(|| format!("default-{}", user.id));
+
+    // check if the project exist. A missing project and a missing mapping give the same error, so
+    // the response doesn't reveal, which projects exist.
+    let no_access_msg = format!("User has no access to project '{project_id}'");
+    project_table::get_auth_project(&project_id).map_err(|e| match e {
+        DbError::NotFound => ErrorResponse::Unauthorized(no_access_msg.clone()),
+        DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
+    })?;
+
+    // get the role of the user within the project
+    let mapping =
+        user_project_mapping_table::get_mapping(&project_id, &user.id).map_err(|e| match e {
+            DbError::NotFound => ErrorResponse::Unauthorized(no_access_msg.clone()),
+            DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
+        })?;
+
     // create token based for the user
-    let token = token_handling::create_token(
-        &user.id,
-        &"".to_string(),
-        &user.is_admin,
-        &false.to_string(),
-    )
-    .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
+    let token =
+        token_handling::create_token(&user.id, &project_id, &user.is_admin, mapping.role.as_str())
+            .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 
     let response = UserTokenResp {
         access_token: token,

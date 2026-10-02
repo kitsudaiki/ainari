@@ -289,6 +289,7 @@ pub fn delete_all_host() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_host(host_uuid: &Uuid) {
@@ -309,7 +310,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let host = HostEntry {
@@ -359,7 +360,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let host1 = HostEntry {
@@ -411,7 +412,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let host = HostEntry {
@@ -495,7 +496,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let hosts = list_hosts(&context).unwrap();
         assert_eq!(hosts.len(), 3);
@@ -506,7 +507,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_host(&uuid1, &context) {
             Ok(retrieved_host) => {

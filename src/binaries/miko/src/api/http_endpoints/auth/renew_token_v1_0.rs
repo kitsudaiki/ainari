@@ -37,7 +37,7 @@ pub async fn renew_token(
         &context.user_id,
         &context.project_id,
         &context.is_admin,
-        &context.is_project_admin,
+        &context.project_role,
     )
     .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
 

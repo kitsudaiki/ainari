@@ -23,6 +23,7 @@ use crate::core::proxy::Proxy;
 use crate::database::proxy_table;
 
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::enums::ProjectRole;
 use ainari_common::error::AinariError;
 
 lazy_static::lazy_static! {
@@ -139,7 +140,7 @@ impl ProxyHandler {
             user_id: "dummy".to_string(),
             project_id: "dummy".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
 
         // Retrieve the list of proxies from the database

@@ -21,6 +21,7 @@ use futures::future::{Ready, ready};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use ainari_common::enums::ProjectRole;
 use ainari_common::functions::split_bearer_token;
 
 #[derive(ApiSecurity, Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -31,7 +32,7 @@ pub struct UserContext {
     pub user_id: String,
     pub project_id: String,
     pub is_admin: String,
-    pub is_project_admin: String,
+    pub project_role: String,
 }
 
 /// Default for the token-field, which is not part of the payload of the jwt itself, but filled
@@ -95,7 +96,7 @@ impl FromRequest for UserContext {
                     user_id: "".to_string(),
                     project_id: "".to_string(),
                     is_admin: false.to_string(),
-                    is_project_admin: false.to_string(),
+                    project_role: ProjectRole::Observer.to_string(),
                 }))
             }
         }
