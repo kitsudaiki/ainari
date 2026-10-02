@@ -115,6 +115,25 @@ var deleteProjectCmd = &cobra.Command{
 	},
 }
 
+var listProjectMembersCmd = &cobra.Command{
+	Use:   "list_members",
+	Short: "List all users of the project of the current login, together with their role.",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListProjectMembers(context)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintList(content["members"].([]interface{}))
+	},
+}
+
 var projectCmd = &cobra.Command{
 	Use:   "project",
 	Short: "Manage project.",
@@ -132,4 +151,6 @@ func Init_Project_Commands(rootCmd *cobra.Command) {
 	projectCmd.AddCommand(listProjectCmd)
 
 	projectCmd.AddCommand(deleteProjectCmd)
+
+	projectCmd.AddCommand(listProjectMembersCmd)
 }

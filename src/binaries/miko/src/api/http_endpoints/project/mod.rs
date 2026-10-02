@@ -15,4 +15,5 @@
 pub mod create_project_admin_v1_0;
 pub mod delete_project_admin_v1_0;
 pub mod get_project_admin_v1_0;
+pub mod list_members_v1_0;
 pub mod list_project_admin_v1_0;

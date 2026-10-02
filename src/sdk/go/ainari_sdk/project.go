@@ -50,3 +50,11 @@ func DeleteProject(context AccessContext, projectId string) (map[string]interfac
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.MikoAddress, path, vars)
 }
+
+// ListProjectMembers returns all users of the project of the current access-context, together
+// with the role of each user within this project.
+func ListProjectMembers(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/project/members"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}

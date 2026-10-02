@@ -56,6 +56,18 @@ def delete_project(context: AccessContext,
                                        "")
 
 
+def list_members(context: AccessContext) -> dict:
+    """
+    Returns all users of the project of the access-context, together with the role of each user
+    within this project: {"members": [{"user_id": ..., "project_role": ...}]}
+    """
+    path = "/v1alpha/project/members"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
+
+
 def delete_all_projects(context: AccessContext):
     body = list_projects(context)["projects"]
     for entry in body:

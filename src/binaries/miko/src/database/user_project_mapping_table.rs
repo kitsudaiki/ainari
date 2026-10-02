@@ -262,6 +262,26 @@ pub fn delete_mapping(
     }
 }
 
+/// Lists all active mappings of a specific project.
+///
+/// # Arguments
+///
+/// * `mapping_project_id` - The ID of the project, whose mappings should be listed
+///
+/// # Returns
+///
+/// Returns a vector of all active mappings of the project.
+pub fn list_mappings_of_project(
+    mapping_project_id: &String,
+) -> QueryResult<Vec<UserProjectMappingEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::user_project_mapping::dsl::*;
+    user_project_mapping
+        .filter(project_id.eq(mapping_project_id).and(status.eq("ACTIVE")))
+        .select(UserProjectMappingEntry::as_select())
+        .load(&mut *conn)
+}
+
 /// Lists all active mappings of a specific user.
 ///
 /// # Arguments
@@ -669,5 +689,36 @@ mod tests {
         ));
 
         hard_delete_mappings_of_user(&user_id);
+    }
+
+    #[test]
+    #[serial]
+    fn test_list_mappings_of_project() {
+        let context = test_context();
+        let project_id = "test-mapping-project-14".to_string();
+        let user_id1 = "test-mapping-user-12".to_string();
+        let user_id2 = "test-mapping-user-13".to_string();
+        hard_delete_mappings_of_user(&user_id1);
+        hard_delete_mappings_of_user(&user_id2);
+
+        add_new_mapping(&project_id, &user_id1, ProjectRole::Admin, &context).unwrap();
+        add_new_mapping(&project_id, &user_id2, ProjectRole::Observer, &context).unwrap();
+        add_new_mapping(
+            "test-mapping-project-15",
+            &user_id1,
+            ProjectRole::Member,
+            &context,
+        )
+        .unwrap();
+
+        // only the active mappings of the given project are listed
+        assert!(delete_mapping(&project_id, &user_id2, &context).is_ok());
+        let mappings = list_mappings_of_project(&project_id).unwrap();
+        assert_eq!(mappings.len(), 1);
+        assert_eq!(mappings[0].user_id, user_id1);
+        assert_eq!(mappings[0].role, ProjectRole::Admin);
+
+        hard_delete_mappings_of_user(&user_id1);
+        hard_delete_mappings_of_user(&user_id2);
     }
 }

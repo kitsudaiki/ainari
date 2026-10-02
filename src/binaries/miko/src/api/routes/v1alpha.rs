@@ -55,6 +55,7 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(create_project_admin_v1_0::create_project_admin))
                         .route(get().to(list_project_admin_v1_0::list_project_admin)),
                 )
+                .service(resource("/members").route(get().to(list_members_v1_0::list_members)))
                 .service(
                     resource("/{project_id}/admin")
                         .route(get().to(get_project_admin_v1_0::get_project_admin))

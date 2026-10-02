@@ -63,6 +63,14 @@ def invited_projects(context) -> dict:
             for entry in user.list_invited_projects(context)["projects"]}
 
 
+def project_members(context) -> dict:
+    """
+    Returns the members of the project of the context as mapping from the user-id to the role.
+    """
+    return {entry["user_id"]: entry["project_role"]
+            for entry in project.list_members(context)["members"]}
+
+
 @suite.test("create user and project", provides=("project_user", "project"))
 def create_user_and_project(ctx):
     user_id = project_user_id(ctx)
@@ -175,6 +183,16 @@ def list_invited_projects(ctx):
                  "project of the suite in the invited projects of the admin")
 
 
+@suite.test("list members of the project", requires=("assigned",))
+def list_members(ctx):
+    user_id = ctx.state["project_user"]
+    # the members are taken from the project of the token
+    check_equal(project_members(login_project_user(ctx, ctx.state["project"])),
+                {user_id: "member"}, "members of the assigned project")
+    check_equal(project_members(login_project_user(ctx)), {user_id: "admin"},
+                "members of the default-project")
+
+
 @suite.test("invalid assignments are rejected", requires=("assigned",))
 def invalid_assignments(ctx):
     user_id = ctx.state["project_user"]
@@ -255,6 +273,8 @@ def set_project_role(ctx):
     check_equal(context["project_role"], "observer", "role in the token")
     check_equal(invited_projects(login_project_user(ctx)).get(assigned_project), "observer",
                 "role in the list of invited projects")
+    check_equal(project_members(login_project_user(ctx, assigned_project)).get(user_id),
+                "observer", "role in the list of members of the project")
     ctx.state["observer"] = True
 
 

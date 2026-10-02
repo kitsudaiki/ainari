@@ -850,7 +850,8 @@ Projects are used for logical separation of the resources of users.
 
 !!! info
 
-    Only admins are allowed to manage projects.
+    Only admins are allowed to manage projects. Listing the members of the project of the current
+    login is allowed for every user of this project.
 
 === "CLI"
 
@@ -859,6 +860,9 @@ Projects are used for logical separation of the resources of users.
     ainarictl project list
     ainarictl project get <PROJECT_ID>
     ainarictl project delete <PROJECT_ID>
+
+    # users of the project of the current login and the role of each of them
+    ainarictl project list_members
     ```
 
     example:
@@ -887,6 +891,10 @@ Projects are used for logical separation of the resources of users.
     project.get_project(context, "my_project")
     project.delete_project(context, "my_project")
     project.delete_all_projects(context)
+
+    # users of the project of the context and the role of each of them
+    project.list_members(context)
+    # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
     ```
 
 ## Users

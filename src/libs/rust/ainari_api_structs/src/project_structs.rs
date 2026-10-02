@@ -59,3 +59,14 @@ pub struct ProjectInvitedResp {
 pub struct ProjectInvitedListResp {
     pub projects: Vec<ProjectInvitedResp>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectMemberResp {
+    pub user_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectMemberListResp {
+    pub members: Vec<ProjectMemberResp>,
+}

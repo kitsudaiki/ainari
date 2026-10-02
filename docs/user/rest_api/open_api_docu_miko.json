@@ -342,6 +342,39 @@
         ]
       }
     },
+    "/v1alpha/project/members": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List members",
+        "description": "List all users, which are assigned to the project of the token, together with the role of each user within this project.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMemberListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/project/{project_id}/admin": {
       "get": {
         "tags": [
@@ -1167,6 +1200,36 @@
             "items": {
               "$ref": "#/components/schemas/ProjectBasicResp"
             }
+          }
+        }
+      },
+      "ProjectMemberListResp": {
+        "title": "ProjectMemberListResp",
+        "type": "object",
+        "required": [
+          "members"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectMemberResp"
+            }
+          }
+        }
+      },
+      "ProjectMemberResp": {
+        "type": "object",
+        "required": [
+          "project_role",
+          "user_id"
+        ],
+        "properties": {
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "user_id": {
+            "type": "string"
           }
         }
       },
