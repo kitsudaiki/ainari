@@ -113,10 +113,7 @@ pub fn add_new_image(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     // Create a new ImageEntry with the provided parameters
@@ -268,7 +265,7 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
 pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // First verify that the image exists and is accessible to the user

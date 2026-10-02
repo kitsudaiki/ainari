@@ -454,7 +454,7 @@ pub fn delete_floating_ip(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // Verify the meta floating_ip_addr exists and the user has permission to delete it
@@ -484,6 +484,8 @@ pub fn delete_floating_ip(
 pub enum FloatingIpAttachError {
     /// The floating IP-address doesn't exist or the user has no permission to access it
     NotFound,
+    /// The user is not allowed to change the floating IP-address
+    PermissionDenied,
     /// The floating IP-address is already attached to a virtual_machine
     AlreadyAttached,
     /// The virtual_machine already has another floating IP-address
@@ -516,13 +518,14 @@ pub fn attach_floating_ip(
 ) -> Result<FloatingIpEntry, FloatingIpAttachError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(FloatingIpAttachError::NotFound);
+        return Err(FloatingIpAttachError::PermissionDenied);
     }
 
     // Verify the floating IP-address exists and the user has permission to attach it
     get_floating_ip(floating_ip_uuid, context).map_err(|e| match e {
         enums::DbError::NotFound => FloatingIpAttachError::NotFound,
         enums::DbError::InternalError => FloatingIpAttachError::InternalError,
+        enums::DbError::PermissionDenied => FloatingIpAttachError::PermissionDenied,
     })?;
 
     let result = {
@@ -577,7 +580,7 @@ pub fn detach_floating_ip(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

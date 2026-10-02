@@ -23,7 +23,7 @@ use crate::core::routing::add_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -62,7 +62,7 @@ pub async fn register_route_internal(
     let route = add_route(Uuid::new_v4(), &body, |route| {
         route_table::add_new_route(route, &context)
             .map(|_| ())
-            .map_err(|e| map_internal_error(&format!("persist route '{}'", route.uuid), e))
+            .map_err(|e| map_db_write_error(&format!("persist route '{}'", route.uuid), e))
     })
     .await?;
 

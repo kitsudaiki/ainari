@@ -103,9 +103,12 @@ where
             };
 
             match resp.status() {
-                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                StatusCode::UNAUTHORIZED => {
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
+                // the called service blocked the change, for example because the user is only
+                // observer of the project
+                StatusCode::FORBIDDEN => Err(AinariError::Forbidden(body_str)),
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
                 StatusCode::NOT_FOUND => Err(AinariError::NotFound(body_str)),
                 StatusCode::CONFLICT => Err(AinariError::Conflict(body_str)),
@@ -175,9 +178,12 @@ pub async fn handle_empty_response(
             };
 
             match resp.status() {
-                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                StatusCode::UNAUTHORIZED => {
                     Err(AinariError::Unauthorized("Invalid token".to_string()))
                 }
+                // the called service blocked the change, for example because the user is only
+                // observer of the project
+                StatusCode::FORBIDDEN => Err(AinariError::Forbidden(body_str)),
                 StatusCode::BAD_REQUEST => Err(AinariError::InvalidInput(body_str)),
                 StatusCode::NOT_FOUND => Err(AinariError::NotFound(body_str)),
                 StatusCode::CONFLICT => Err(AinariError::Conflict(body_str)),

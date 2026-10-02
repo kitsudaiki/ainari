@@ -213,7 +213,7 @@ pub fn reserve_new_address(
 ) -> Result<AddressEntry, enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let (first_internal_ip, last_internal_ip) = match assignable_ip_range(internal_cidr) {
@@ -527,10 +527,7 @@ pub fn add_new_address(
 ) -> QueryResult<AddressEntry> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let address = AddressEntry {
@@ -824,7 +821,7 @@ pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
 pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // Verify the address exists

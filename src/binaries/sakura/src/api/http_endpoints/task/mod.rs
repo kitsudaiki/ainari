@@ -20,6 +20,7 @@ use crate::core::processing::tasks::Task;
 use crate::core::processing::worker_handler::*;
 use crate::database::task_table;
 
+use ainari_api::common_functions::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::TaskType;
 use ainari_api_structs::user_context::UserContext;
@@ -50,11 +51,10 @@ pub fn add_task(
         context,
     )
     .map_err(|e| {
-        log::error!(
-            "Failed to add task with UUID '{}' to database with error: {e}.",
-            task.uuid
-        );
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add task with UUID '{}' to database", task.uuid),
+            e,
+        )
     })?;
 
     add_task_to_queue(task);

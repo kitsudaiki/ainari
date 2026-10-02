@@ -82,10 +82,7 @@ pub struct SecretEntry {
 pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let secret = SecretEntry {
@@ -241,7 +238,7 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     get_secret(secret_uuid, context)?;

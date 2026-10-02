@@ -51,8 +51,10 @@ pub async fn create_network(
     // add new network to database
     network_table::add_new_network(&network_uuid, &body.name, &body.subnet, &context).map_err(
         |e| {
-            log::error!("Failed to add network with UUID '{network_uuid}' to database.: {e}");
-            ErrorResponse::InternalError("Internal Error".to_string())
+            map_db_write_error(
+                &format!("add network with UUID '{network_uuid}' to database"),
+                e,
+            )
         },
     )?;
 

@@ -67,8 +67,10 @@ pub async fn upload_public_key(
         &context,
     )
     .map_err(|e| {
-        log::error!("Failed to add public-key with UUID '{public_key_uuid}' to database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add public-key with UUID '{public_key_uuid}' to database"),
+            e,
+        )
     })?;
 
     // get new created public-key from database to get additional information

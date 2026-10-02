@@ -107,10 +107,7 @@ pub fn set_filter_rules(
 ) -> QueryResult<()> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(ainari_common::enums::permission_denied_error());
     }
 
     let ip_ranges = rules
@@ -170,10 +167,7 @@ pub fn delete_filter_rules_in(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(ainari_common::enums::permission_denied_error());
     }
 
     use self::network_filters::dsl::*;

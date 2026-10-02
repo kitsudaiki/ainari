@@ -57,6 +57,7 @@ pub async fn set_project_role_admin(
             DbError::NotFound => ErrorResponse::NotFound(format!(
                 "User '{user_id}' is not assigned to project '{project_id}'."
             )),
+            DbError::PermissionDenied => permission_denied_response(),
             DbError::InternalError => {
                 log::error!(
                     "Failed to set role of user '{user_id}' in project '{project_id}' in database."

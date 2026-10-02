@@ -104,10 +104,7 @@ pub fn add_new_proxy(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     // Create a new ProxyEntry with the provided parameters and current timestamps
@@ -269,7 +266,7 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
 pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // Verify the proxy exists and the user has permission to delete it

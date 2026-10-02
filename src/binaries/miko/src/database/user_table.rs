@@ -161,10 +161,7 @@ pub fn add_new_user(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     if context.is_admin != true.to_string() {
@@ -359,7 +356,7 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     if context.is_admin != true.to_string() {

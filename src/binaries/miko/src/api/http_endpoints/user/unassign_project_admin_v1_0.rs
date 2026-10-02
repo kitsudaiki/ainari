@@ -58,6 +58,7 @@ pub async fn unassign_project_admin(
             DbError::NotFound => ErrorResponse::NotFound(format!(
                 "User '{user_id}' is not assigned to project '{project_id}'."
             )),
+            DbError::PermissionDenied => permission_denied_response(),
             DbError::InternalError => {
                 log::error!(
                     "Failed to unassign project '{project_id}' from user '{user_id}' in database."

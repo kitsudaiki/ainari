@@ -24,6 +24,44 @@ use std::str::FromStr;
 pub enum DbError {
     NotFound,
     InternalError,
+    /// The user of the context is not allowed to change the entry, for example because it is
+    /// only observer of the project
+    PermissionDenied,
+}
+
+/// Message of the error, which marks a blocked write-access within the database-functions.
+const PERMISSION_DENIED_MSG: &str = "Permission denied.";
+
+/// Creates the error, which the database-functions with a `QueryResult` return, if the user of
+/// the context is not allowed to change the entry.
+///
+/// # Returns
+///
+/// A diesel-error, which is recognized by `is_permission_denied`.
+pub fn permission_denied_error() -> diesel::result::Error {
+    diesel::result::Error::DatabaseError(
+        diesel::result::DatabaseErrorKind::CheckViolation,
+        Box::new(PERMISSION_DENIED_MSG.to_string()),
+    )
+}
+
+/// Checks if a diesel-error was created by `permission_denied_error`.
+///
+/// # Arguments
+///
+/// * `error` - Error returned by a database-function
+///
+/// # Returns
+///
+/// True, if the error marks a blocked write-access, else false.
+pub fn is_permission_denied(error: &diesel::result::Error) -> bool {
+    match error {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            info,
+        ) => info.message() == PERMISSION_DENIED_MSG,
+        _ => false,
+    }
 }
 
 // ==================================================================================================
@@ -185,3 +223,21 @@ impl FromStr for ProjectRole {
 }
 
 // ==================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_permission_denied() {
+        assert!(is_permission_denied(&permission_denied_error()));
+
+        // other errors, also with the same kind, are not taken as blocked access
+        assert!(!is_permission_denied(&diesel::result::Error::NotFound));
+        let other_check = diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("CHECK constraint failed".to_string()),
+        );
+        assert!(!is_permission_denied(&other_check));
+    }
+}

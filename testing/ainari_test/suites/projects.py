@@ -198,18 +198,15 @@ def observer_read_only(ctx):
     listed = [entry["uuid"] for entry in secret.list_secrets(observer)["secrets"]]
     check_in(secret_uuid, listed, "secret in the list of the observer")
 
-    # creating is blocked. Not every endpoint reports this with the same status-code yet, so
-    # every rejection is accepted, as long as nothing was created.
-    rejected = (ainari_exceptions.UnauthorizedException, ainari_exceptions.NotFoundException,
-                ainari_exceptions.BadRequestException,
-                ainari_exceptions.InternalServerErrorException)
+    # creating is blocked
     name = ctx.name("prj-observer-secret")
-    expect_error(rejected, secret.create_secret, observer, name, "test-payload")
+    expect_error(ainari_exceptions.ForbiddenException, secret.create_secret, observer, name,
+                 "test-payload")
     check_not_in(name, [entry["name"] for entry in secret.list_secrets(ctx.api)["secrets"]],
                  "secret of the observer in list")
 
     # deleting is blocked as well
-    expect_error(ainari_exceptions.NotFoundException, secret.delete_secret, observer,
+    expect_error(ainari_exceptions.ForbiddenException, secret.delete_secret, observer,
                  secret_uuid)
     check_equal(secret.get_secret(ctx.api, secret_uuid)["uuid"], secret_uuid,
                 "secret still exists after the delete of the observer")

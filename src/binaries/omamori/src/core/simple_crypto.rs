@@ -211,6 +211,9 @@ impl CryptoModule for SimpleCrypto {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
                 return Err(AinariError::InvalidInput(msg));
             }
+            Err(enums::DbError::PermissionDenied) => {
+                return Err(AinariError::Forbidden("Permission denied.".to_string()));
+            }
         };
 
         let key_b64 = &config::CONFIG.simple_crypto.key_b64;
@@ -236,6 +239,9 @@ impl CryptoModule for SimpleCrypto {
             Err(enums::DbError::NotFound) => {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
                 Err(AinariError::InvalidInput(msg))
+            }
+            Err(enums::DbError::PermissionDenied) => {
+                Err(AinariError::Forbidden("Permission denied.".to_string()))
             }
         }
     }

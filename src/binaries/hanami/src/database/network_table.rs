@@ -86,10 +86,7 @@ pub fn add_new_network(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let network = NetworkEntry {
@@ -266,7 +263,7 @@ pub fn force_delete_network(network_uuid: &Uuid) -> Result<(), enums::DbError> {
 pub fn delete_network(network_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // Verify the meta network exists and the user has permission to delete it

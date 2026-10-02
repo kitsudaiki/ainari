@@ -141,10 +141,7 @@ pub fn add_new_host(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let host = HostEntry {
@@ -191,7 +188,7 @@ pub fn update_host_resources(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -236,7 +233,7 @@ pub fn update_host_external_address(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -383,7 +380,7 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     get_host(host_uuid, context)?;

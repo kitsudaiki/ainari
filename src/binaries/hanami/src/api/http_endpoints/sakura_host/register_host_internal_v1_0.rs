@@ -101,10 +101,7 @@ pub async fn register_host_internal(
                 &context,
             )
             .map_err(|e| {
-                log::error!(
-                    "Failed to add host with UUID '{host_uuid}' to database with error: {e}."
-                );
-                ErrorResponse::InternalError("Internal Error".to_string())
+                map_db_write_error(&format!("add host with UUID '{host_uuid}' to database"), e)
             })?;
         }
     };

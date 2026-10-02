@@ -21,7 +21,7 @@ use crate::core::interface::{register_tap, rollback_tap, validate_tap_req};
 use crate::core::utils::{get_ifindex, validate_vni};
 use crate::database::tap_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::{map_db_write_error, map_internal_error};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -76,7 +76,7 @@ pub async fn register_tap_internal(
     let result = match register_tap(&body).await {
         Ok(()) => tap_table::set_tap(&body, &context)
             .map(|_| ())
-            .map_err(|e| map_internal_error(&format!("persist TAP '{}'", body.tap_name), e)),
+            .map_err(|e| map_db_write_error(&format!("persist TAP '{}'", body.tap_name), e)),
         Err(e) => Err(e),
     };
     if let Err(e) = result {

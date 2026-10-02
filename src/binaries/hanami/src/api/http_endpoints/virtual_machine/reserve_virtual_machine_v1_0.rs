@@ -119,10 +119,10 @@ pub async fn reserve_virtual_machine(
         &context,
     )
     .map_err(|e| {
-        log::error!(
-            "Failed to add virtual_machine with UUID '{virtual_machine_uuid}' to database with error: {e}."
-        );
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add virtual_machine with UUID '{virtual_machine_uuid}' to database"),
+            e,
+        )
     })?;
 
     Ok(CreatedJson(virtual_machine_resp))
@@ -171,6 +171,7 @@ fn select_host(
                 "No host with enough free resources for the virtual_machine.".to_string(),
             ))
         }
+        Err(DbError::PermissionDenied) => Err(permission_denied_response()),
         Err(DbError::InternalError) => {
             log::error!("Failed to select host for new virtual_machine from database.");
             Err(ErrorResponse::InternalError("Internal Error".to_string()))

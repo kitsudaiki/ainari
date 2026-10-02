@@ -83,14 +83,18 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     // the response doesn't reveal, which projects exist.
     let no_access_msg = format!("User has no access to project '{project_id}'");
     project_table::get_auth_project(&project_id).map_err(|e| match e {
-        DbError::NotFound => ErrorResponse::Unauthorized(no_access_msg.clone()),
+        DbError::NotFound | DbError::PermissionDenied => {
+            ErrorResponse::Unauthorized(no_access_msg.clone())
+        }
         DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
     })?;
 
     // get the role of the user within the project
     let mapping =
         user_project_mapping_table::get_mapping(&project_id, &user.id).map_err(|e| match e {
-            DbError::NotFound => ErrorResponse::Unauthorized(no_access_msg.clone()),
+            DbError::NotFound | DbError::PermissionDenied => {
+                ErrorResponse::Unauthorized(no_access_msg.clone())
+            }
             DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
         })?;
 

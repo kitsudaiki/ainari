@@ -112,10 +112,7 @@ pub fn set_floating_ip(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let entry = FloatingIpEntry {
@@ -173,7 +170,7 @@ pub fn list_floating_ips() -> QueryResult<Vec<FloatingIpEntry>> {
 pub fn delete_floating_ip(ip: &Ipv4Addr, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");

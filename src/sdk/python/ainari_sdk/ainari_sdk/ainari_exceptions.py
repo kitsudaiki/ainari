@@ -25,6 +25,12 @@ class UnauthorizedException(Exception):
         super().__init__(message)
 
 
+class ForbiddenException(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(message)
+
+
 class BadRequestException(Exception):
     def __init__(self, message):
         self.message = message

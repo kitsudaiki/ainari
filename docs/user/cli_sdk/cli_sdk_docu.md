@@ -85,7 +85,7 @@ returns the addresses of all other components, so only the address of miko is re
 Each user has its own project `default-<USER_ID>`, in which the user is admin. The token is only
 created, if the user is assigned to the requested project, and contains the role of the user
 within this project. The role is one of `admin`, `member` or `observer`. Observers, which are not
-admins, can only read resources and are not allowed to create, change or delete them.
+admins, can only read resources. Creating, changing or deleting them is rejected with `403`.
 
 ## Exceptions
 
@@ -101,6 +101,8 @@ admins, can only read resources and are not allowed to create, change or delete 
     except ainari_exceptions.BadRequestException as e:        # 400
         print(e)
     except ainari_exceptions.UnauthorizedException as e:      # 401
+        print(e)
+    except ainari_exceptions.ForbiddenException as e:         # 403
         print(e)
     except ainari_exceptions.NotFoundException as e:          # 404
         print(e)

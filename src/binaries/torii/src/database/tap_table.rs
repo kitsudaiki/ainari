@@ -111,10 +111,7 @@ impl From<TapEntry> for TapReq {
 pub fn set_tap(req: &TapReq, context: &UserContext) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(ainari_common::enums::permission_denied_error());
     }
 
     let entry = TapEntry {

@@ -51,8 +51,10 @@ pub async fn create_user_admin(
 
     // add new quota for the user to database
     quota_table::add_new_quota(user_id, 10, 10, 10, 10, 10, &context).map_err(|e| {
-        log::error!("Failed to add quota for user with ID '{user_id}' to database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add quota for user with ID '{user_id}' to database"),
+            e,
+        )
     })?;
 
     // add new user to database
@@ -66,8 +68,7 @@ pub async fn create_user_admin(
     .map_err(|e| {
         // delete quota again, if adding of the user failed, to avoid inconsistent database
         quota_table::hard_delete_quota(user_id, &context);
-        log::error!("Failed to add user with ID '{user_id}' to database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(&format!("add user with ID '{user_id}' to database"), e)
     })?;
 
     // get new created user from database to get additional information

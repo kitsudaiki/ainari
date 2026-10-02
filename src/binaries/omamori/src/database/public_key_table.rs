@@ -90,10 +90,7 @@ pub fn add_new_public_key(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let new_public_key = PublicKeyEntry {
@@ -278,7 +275,7 @@ pub fn delete_public_key(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     // Verify the public-key exists and the user has permission to delete it
@@ -665,10 +662,14 @@ mod tests {
         hard_delete_public_key(&uuid2);
 
         // an observer can neither add nor delete, but still read
-        assert!(add_new_public_key(&uuid1, "key", PUBLIC_KEY, FINGERPRINT, &observer).is_err());
+        let result = add_new_public_key(&uuid1, "key", PUBLIC_KEY, FINGERPRINT, &observer);
+        assert!(matches!(result, Err(e) if enums::is_permission_denied(&e)));
         assert_not_found(get_public_key(&uuid1, &observer));
         add_public_key(new_entry(&uuid2, "test-user", "test-project", "ACTIVE")).unwrap();
-        assert!(delete_public_key(&uuid2, &observer).is_err());
+        assert!(matches!(
+            delete_public_key(&uuid2, &observer),
+            Err(enums::DbError::PermissionDenied)
+        ));
         expect_entry(get_public_key(&uuid2, &observer));
 
         // an admin is not restricted, even as observer of the project

@@ -84,10 +84,7 @@ pub fn add_new_mapping(
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::CheckViolation,
-            Box::new("Permission denied.".to_string()),
-        ));
+        return Err(enums::permission_denied_error());
     }
 
     let mapping = UserProjectMappingEntry {
@@ -185,7 +182,7 @@ pub fn set_mapping_role(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -236,7 +233,7 @@ pub fn delete_mapping(
 ) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
-        return Err(enums::DbError::NotFound);
+        return Err(enums::DbError::PermissionDenied);
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -597,13 +594,7 @@ mod tests {
             ProjectRole::Admin,
             &observer,
         );
-        assert!(matches!(
-            result,
-            Err(diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::CheckViolation,
-                _
-            ))
-        ));
+        assert!(matches!(result, Err(e) if enums::is_permission_denied(&e)));
         assert!(list_mappings_of_user(&user_id).unwrap().is_empty());
 
         // an admin is not restricted, even as observer of the project

@@ -63,12 +63,10 @@ pub async fn assign_project_admin(
             Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _) => ErrorResponse::Conflict(
                 format!("User '{user_id}' is already assigned to project '{project_id}'."),
             ),
-            e => {
-                log::error!(
-                    "Failed to assign project '{project_id}' to user '{user_id}' in database.: {e}"
-                );
-                ErrorResponse::InternalError("Internal Error".to_string())
-            }
+            e => map_db_write_error(
+                &format!("assign project '{project_id}' to user '{user_id}' in database"),
+                e,
+            ),
         })?;
 
     // get new created mapping from database to get the stored values
