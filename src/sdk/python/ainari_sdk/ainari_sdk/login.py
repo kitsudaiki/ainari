@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import requests
 from . import ainari_exceptions
 from . import ainari_request
@@ -23,7 +25,8 @@ from .access_context import AccessContext
 def request_context(address: str,
                     user_id: str,
                     passphrase: str,
-                    verify_connection: bool = True) -> AccessContext:
+                    verify_connection: bool = True,
+                    project_id: Optional[str] = None) -> AccessContext:
     """
     Authenticates with the API and retrieves the necessary context for making subsequent requests.
 
@@ -32,6 +35,8 @@ def request_context(address: str,
         user_id: The client ID for authentication.
         passphrase: The client secret for authentication.
         verify_connection: Whether to verify the SSL certificate (default: True).
+        project_id: The project, for which the token is created. If not set, the default-project
+            of the user is used.
 
     Returns:
         AccessContext: An object containing the authentication token and endpoint addresses.
@@ -44,8 +49,14 @@ def request_context(address: str,
         ainari_exceptions.InternalServerErrorException: If the response status code is 500.
     """
     auth_url = f'{address}/v1alpha/token'
-    body = "token_format=jwt&grant_type=client_credentials" \
-           f'&client_id={user_id}&client_secret={passphrase}'
+    body = {
+        "token_format": "jwt",
+        "grant_type": "client_credentials",
+        "client_id": user_id,
+        "client_secret": passphrase,
+    }
+    if project_id is not None:
+        body["project_id"] = project_id
 
     resp = requests.post(auth_url, data=body, verify=verify_connection)
     token = ""

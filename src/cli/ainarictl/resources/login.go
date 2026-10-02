@@ -32,6 +32,8 @@ func Login() (ainari_sdk.AccessContext, error) {
 	user := os.Getenv("AINARI_USER")
 	passphrase := os.Getenv("AINARI_PASSPHRASE")
 	address := os.Getenv("AINARI_ADDRESS")
+	// optional, the default-project of the user is used, if not set
+	project := os.Getenv("AINARI_PROJECT")
 
 	if user == "" {
 		panic("AINARI_USER is not set")
@@ -43,5 +45,5 @@ func Login() (ainari_sdk.AccessContext, error) {
 		panic("AINARI_ADDRESS is not set")
 	}
 
-	return ainari_sdk.RequestContext(address, user, passphrase, ainarictl_common.DisableTlsVerification)
+	return ainari_sdk.RequestContext(address, user, passphrase, project, ainarictl_common.DisableTlsVerification)
 }

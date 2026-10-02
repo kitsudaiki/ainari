@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - upgrade path for database-tables (just work after this release, so now it is still a DB breaking change)
 - Hanami now has the get port and list port endpoints and forward them to Torii, so Torii now has no external endpoints anymore
+- is_project_admin was now changed into project_role
 
 ### Added
 
@@ -22,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 - new script collection to automatically all endpoints and ssh access automatically
 - Torii now stores all data in its database and can restore the old eBPF-state after a reboot
+- new endpoints in Miko: assign_project, unassign_project and set_project_role
+- in the login, a user can now define the project to login
+- new project-roles: admin, member and observer
 
 ### Changed
 

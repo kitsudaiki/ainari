@@ -49,6 +49,8 @@ returns the addresses of all other components, so only the address of miko is re
     export AINARI_ADDRESS=http://127.0.0.1:11417
     export AINARI_USER=asdf
     export AINARI_PASSPHRASE=asdfasdf
+    # optional, the default-project of the user is used, if not set
+    export AINARI_PROJECT=my_project
     ```
 
     Global flags, which are available for all commands:
@@ -72,6 +74,18 @@ returns the addresses of all other components, so only the address of miko is re
     ```python
     context = login.request_context(address, user_id, passphrase, verify_connection=False)
     ```
+
+    By default, the token is created for the default-project of the user. To use another project,
+    to which the user is assigned, add `project_id`:
+
+    ```python
+    context = login.request_context(address, user_id, passphrase, project_id="my_project")
+    ```
+
+Each user has its own project `default-<USER_ID>`, in which the user is admin. The token is only
+created, if the user is assigned to the requested project, and contains the role of the user
+within this project. The role is one of `admin`, `member` or `observer`. Observers, which are not
+admins, can only read resources and are not allowed to create, change or delete them.
 
 ## Exceptions
 
@@ -886,7 +900,14 @@ Projects are used for logical separation of the resources of users.
     ainarictl user list
     ainarictl user get <USER_ID>
     ainarictl user delete <USER_ID>
+    ainarictl user assign_project <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
+    ainarictl user unassign_project <USER_ID> <PROJECT_ID>
+    ainarictl user set_project_role <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
     ```
+
+    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. A user can be assigned to the same
+    project only once at the same time. `set_project_role` only changes the role of an already
+    existing assignment.
 
     Without `-p <PASSPHRASE>` the passphrase is requested interactively. The flag should only be
     used for automated testing, because the passphrase is visible in the command-line and the
@@ -919,6 +940,11 @@ Projects are used for logical separation of the resources of users.
     user.get_user(context, "my_user")
     user.delete_user(context, "my_user")
     user.delete_all_user(context)
+
+    user.assign_project(context, "my_user", "my_project", "member")
+    # {"user_id": "my_user", "project_id": "my_project", "project_role": "member"}
+    user.set_project_role(context, "my_user", "my_project", "observer")
+    user.unassign_project(context, "my_user", "my_project")
     ```
 
 ## Quotas

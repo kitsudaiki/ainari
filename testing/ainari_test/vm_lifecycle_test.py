@@ -26,6 +26,7 @@ It runs the suites of ./suites against a running stack:
     ssh               ssh-access and the hardware within the virtual machines
     networking        traffic between the virtual machines and moving floating ip-addresses
     users             second user and the isolation between the users
+    projects          default-projects, project-roles and project-assignments
     power             reboot, stop and start
     snapshots         save and restore a snapshot of the root-disk
     tasks             the tasks, which were created on the sakura-hosts

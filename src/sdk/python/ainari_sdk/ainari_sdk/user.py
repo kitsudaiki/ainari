@@ -70,3 +70,56 @@ def delete_all_user(context: AccessContext):
             # when a user tries to delete himself, then an exception
             # is raised, which is catched here.
             pass
+
+
+def assign_project(context: AccessContext,
+                   user_id: str,
+                   project_id: str,
+                   project_role: str) -> dict:
+    """
+    Assigns a project to a user. project_role is one of "admin", "member" or "observer".
+    """
+    path = f'/v1alpha/user/{user_id}/assign_project/admin'
+    json_body = {
+        "project_id": project_id,
+        "project_role": project_role,
+    }
+    return ainari_request.send_post_request(context,
+                                            context.miko_address,
+                                            path,
+                                            json_body)
+
+
+def unassign_project(context: AccessContext,
+                     user_id: str,
+                     project_id: str):
+    """
+    Removes the assignment of a project from a user.
+    """
+    path = f'/v1alpha/user/{user_id}/unassign_project/admin'
+    json_body = {
+        "project_id": project_id,
+    }
+    ainari_request.send_post_request(context,
+                                     context.miko_address,
+                                     path,
+                                     json_body)
+
+
+def set_project_role(context: AccessContext,
+                     user_id: str,
+                     project_id: str,
+                     project_role: str) -> dict:
+    """
+    Sets the role of a user within a project, to which the user is already assigned.
+    project_role is one of "admin", "member" or "observer".
+    """
+    path = f'/v1alpha/user/{user_id}/set_project_role/admin'
+    json_body = {
+        "project_id": project_id,
+        "project_role": project_role,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.miko_address,
+                                           path,
+                                           json_body)
