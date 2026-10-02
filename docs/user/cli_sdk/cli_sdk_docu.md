@@ -951,19 +951,21 @@ Projects are used for logical separation of the resources of users.
 
 ## Quotas
 
-Maximum number of resources per user. Every user can see the own quota, only admins can see and
-set the quotas of other users.
+Maximum number of resources per project. The resources of all users of a project count against the
+same quota. Every project gets a quota with a limit of 10 for each resource, when it is created.
+Every user can see the quota of the project of the current login, only admins can see and set the
+quotas of other projects.
 
 === "CLI"
 
     ```bash
-    # own quota
+    # quota of the project of the current login
     ainarictl quota show
 
     # admin only
     ainarictl quota list
-    ainarictl quota get <USER_ID>
-    ainarictl quota set <USER_ID> \
+    ainarictl quota get <PROJECT_ID>
+    ainarictl quota set <PROJECT_ID> \
         --max_virtual_machine <N> --max_image <N> --max_secret <N> \
         --max_network <N> --max_floating_ip <N>
     ```
@@ -973,12 +975,12 @@ set the quotas of other users.
     ```bash
     ainarictl quota list
 
-    ┌─────────────────┬───────────┬─────────────┬────────────┬─────────────────────┬─────────┐
-    │ MAX FLOATING IP │ MAX IMAGE │ MAX NETWORK │ MAX SECRET │ MAX VIRTUAL MACHINE │ USER ID │
-    ├─────────────────┼───────────┼─────────────┼────────────┼─────────────────────┼─────────┤
-    │ 10              │ 10        │ 10          │ 10         │ 10                  │ asdf    │
-    │ 2               │ 5         │ 2           │ 5          │ 5                   │ my_user │
-    └─────────────────┴───────────┴─────────────┴────────────┴─────────────────────┴─────────┘
+    ┌─────────────────┬───────────┬─────────────┬────────────┬─────────────────────┬──────────────┐
+    │ MAX FLOATING IP │ MAX IMAGE │ MAX NETWORK │ MAX SECRET │ MAX VIRTUAL MACHINE │ PROJECT ID   │
+    ├─────────────────┼───────────┼─────────────┼────────────┼─────────────────────┼──────────────┤
+    │ 10              │ 10        │ 10          │ 10         │ 10                  │ default-asdf │
+    │ 2               │ 5         │ 2           │ 5          │ 5                   │ my_project   │
+    └─────────────────┴───────────┴─────────────┴────────────┴─────────────────────┴──────────────┘
     ```
 
 === "Python-SDK"
@@ -990,8 +992,8 @@ set the quotas of other users.
 
     # admin only
     quota.list_quotas(context)    # {"quotas": [...]}
-    quota.get_quota(context, "my_user")
-    quota.set_quota(context, "my_user",
+    quota.get_quota(context, "my_project")
+    quota.set_quota(context, "my_project",
                     5,    # max_virtual_machine
                     5,    # max_image
                     5,    # max_secret

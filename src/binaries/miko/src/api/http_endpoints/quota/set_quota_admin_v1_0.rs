@@ -26,7 +26,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "quota",
     summary = "Set quota",
-    description = r###"Update the quota of a specific user.
+    description = r###"Update the quota of a specific project.
 
 Only the values, which are not 0, are applied, so single limits can be changed
 without providing all of them. This can only be done by an admin."###,
@@ -36,16 +36,16 @@ without providing all of them. This can only be done by an admin."###,
     error_code = 500
 )]
 pub async fn set_quota_admin(
-    quota_id: Path<String>,
+    project_id: Path<String>,
     body: Json<QuotaSetReq>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
     // validate request
     check_admin_context(&context)?;
 
-    // get current quota of user from database
-    let mut current_quota = quota_table::get_quota(&quota_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
+    // get current quota of the project from database
+    let mut current_quota = quota_table::get_quota(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
 
     // update values to set
     if body.max_virtual_machine != 0 {
@@ -66,7 +66,7 @@ pub async fn set_quota_admin(
 
     // update values in database
     quota_table::set_quota(
-        &quota_id,
+        &project_id,
         current_quota.max_virtual_machine,
         current_quota.max_image,
         current_quota.max_secret,
@@ -74,14 +74,14 @@ pub async fn set_quota_admin(
         current_quota.max_floating_ip,
         &context,
     )
-    .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
+    .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
 
-    // get new quota of user from database
-    let quota = quota_table::get_quota(&quota_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
+    // get new quota of the project from database
+    let quota = quota_table::get_quota(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
 
     let resp = QuotaResp {
-        user_id: quota.id,
+        project_id: quota.id,
         max_virtual_machine: quota.max_virtual_machine,
         max_image: quota.max_image,
         max_secret: quota.max_secret,

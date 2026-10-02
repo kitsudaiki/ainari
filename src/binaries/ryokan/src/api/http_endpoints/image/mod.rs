@@ -51,7 +51,7 @@ fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
     Ok(())
 }
 
-/// Checks if the user has reached their image quota limit.
+/// Checks if the project has reached its image quota limit.
 ///
 /// # Arguments
 ///
@@ -59,16 +59,16 @@ fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the user is within their image quota limit
+/// * `Ok(())` - If the project is within its image quota limit
 ///
 /// * `Err(ErrorResponse::Unauthorized)` - If the user is not authorized to check their quota
 /// * `Err(ErrorResponse::BadRequest)` - If the input to the quota check is invalid
-/// * `Err(ErrorResponse::Conflict)` - If the user has exceeded their image quota
+/// * `Err(ErrorResponse::Conflict)` - If the project has exceeded its image quota
 /// * `Err(ErrorResponse::InternalError)` - If there was an internal error checking the quota
 ///
 async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of images of the user
-    let current_number_of_images = image_table::count_images(context).map_err(|e| {
+    // get number of images of the whole project
+    let current_number_of_images = image_table::count_images_of_project(context).map_err(|e| {
         log::error!("Failed to count images in database.: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
@@ -78,7 +78,7 @@ async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     let quota = get_quota(
         miko_endpoint,
         &context.token,
-        &context.user_id,
+        &context.project_id,
         config::CONFIG.skip_tls_verification,
     )
     .await

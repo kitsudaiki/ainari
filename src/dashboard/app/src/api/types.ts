@@ -119,7 +119,7 @@ export interface QuotaSetReq {
 
 /** Mirror of `quota_structs::QuotaBasicResp`. */
 export interface QuotaBasicResp extends QuotaSetReq {
-    user_id: string;
+    project_id: string;
 }
 
 /** Mirror of `quota_structs::QuotaResp`. */

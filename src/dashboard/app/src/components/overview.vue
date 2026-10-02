@@ -138,7 +138,7 @@ async function fetchVirtualMachines() {
 }
 
 /**
- * Fetches the quota-limits of the user from the miko
+ * Fetches the quota-limits of the project of the login from the miko
  */
 async function fetchQuotas() {
     try {

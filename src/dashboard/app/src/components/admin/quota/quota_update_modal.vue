@@ -18,7 +18,7 @@
     <div class="modal-overlay" @click.self="cancel">
         <div class="modal quota-update-modal">
             <div class="modal-topbar">
-                <span>Update quota of user: {{ quota?.user_id }}</span>
+                <span>Update quota of project: {{ quota?.project_id }}</span>
             </div>
 
             <div class="modal-content">
@@ -119,7 +119,7 @@ async function handleAccept() {
     }
 
     try {
-        await miko.setQuota(props.quota.user_id, { ...values });
+        await miko.setQuota(props.quota.project_id, { ...values });
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to update quota");

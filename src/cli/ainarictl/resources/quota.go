@@ -39,8 +39,8 @@ var (
 )
 
 var setQuotaCmd = &cobra.Command{
-	Use:   "set USER_ID",
-	Short: "Set new quota for a user.",
+	Use:   "set PROJECT_ID",
+	Short: "Set new quota for a project.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -48,9 +48,9 @@ var setQuotaCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		userId := args[0]
+		projectId := args[0]
 
-		content, err := ainari_sdk.SetQuota(context, userId, maxVirtualMachine, maxImage, maxSecret, maxNetwork, maxFloatingIp)
+		content, err := ainari_sdk.SetQuota(context, projectId, maxVirtualMachine, maxImage, maxSecret, maxNetwork, maxFloatingIp)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -60,8 +60,8 @@ var setQuotaCmd = &cobra.Command{
 }
 
 var getQuotaCmd = &cobra.Command{
-	Use:   "get USER_ID",
-	Short: "Get information of a specific quota.",
+	Use:   "get PROJECT_ID",
+	Short: "Get the quota of a specific project.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -69,8 +69,8 @@ var getQuotaCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		userId := args[0]
-		content, err := ainari_sdk.GetQuota(context, userId)
+		projectId := args[0]
+		content, err := ainari_sdk.GetQuota(context, projectId)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -99,7 +99,7 @@ var listQuotaCmd = &cobra.Command{
 
 var getOwnQuotaCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Get the quota of the own user.",
+	Short: "Get the quota of the project of the current login.",
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {

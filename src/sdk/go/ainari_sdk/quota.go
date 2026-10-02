@@ -24,15 +24,16 @@ import (
 	"fmt"
 )
 
-// GetOwnQuota returns the quota of the user of the current access-context.
+// GetOwnQuota returns the quota of the project, for which the token of the access-context was created.
 func GetOwnQuota(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/quota"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func GetQuota(context AccessContext, userId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
+// GetQuota returns the quota of the given project. Only admins are allowed to do this.
+func GetQuota(context AccessContext, projectId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/quota/%s/admin", projectId)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
@@ -43,8 +44,9 @@ func ListQuota(context AccessContext) (map[string]interface{}, error) {
 	return SendGet(context, context.MikoAddress, path, vars)
 }
 
-func SetQuota(context AccessContext, userId string, maxVirtualMachine, maxImage, maxSecret, maxNetwork, maxFloatingIp int) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/quota/%s/admin", userId)
+// SetQuota sets new limits for the given project. Only admins are allowed to do this.
+func SetQuota(context AccessContext, projectId string, maxVirtualMachine, maxImage, maxSecret, maxNetwork, maxFloatingIp int) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/quota/%s/admin", projectId)
 	jsonBody := map[string]interface{}{
 		"max_virtual_machine": maxVirtualMachine,
 		"max_image":           maxImage,

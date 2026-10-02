@@ -23,6 +23,7 @@ import uuid
 from ainari_sdk import ainari_exceptions
 from ainari_sdk import login
 from ainari_sdk import project
+from ainari_sdk import quota
 from ainari_sdk import secret
 from ainari_sdk import user
 
@@ -98,6 +99,31 @@ def default_project(ctx):
     check_equal(context["project_id"], default_project_id, "project of the explicit token")
 
 
+@suite.test("each project has its own quota", requires=("project_user", "project"))
+def project_quota(ctx):
+    project_quota_id = ctx.state["project"]
+    result = quota.get_quota(ctx.api, project_quota_id)
+    check_equal(result["project_id"], project_quota_id, "project of the quota")
+    check_in(project_quota_id,
+             [entry["project_id"] for entry in quota.list_quotas(ctx.api)["quotas"]],
+             "quota of the new project in list")
+
+    # the default-project of a new user gets a quota as well
+    default_project_id = f"default-{ctx.state['project_user']}"
+    check_equal(quota.get_quota(ctx.api, default_project_id)["project_id"], default_project_id,
+                "project of the quota of the default-project")
+
+    # the quota of the token is the one of the project, for which the token was created
+    own = quota.get_own_quota(login_project_user(ctx))
+    check_equal(own["project_id"], default_project_id, "project of the own quota")
+
+    # changing the quota of one project doesn't touch the others
+    changed = quota.set_quota(ctx.api, project_quota_id, 3, 3, 3, 3, 3)
+    check_equal(changed["max_secret"], 3, "changed limit of the quota")
+    check_equal(quota.get_quota(ctx.api, default_project_id)["max_secret"], own["max_secret"],
+                "limit of the quota of the default-project after the change of another project")
+
+
 @suite.test("project-ids with the prefix 'default-' are reserved")
 def reserved_prefix(ctx):
     expect_error(ainari_exceptions.BadRequestException, project.create_project, ctx.api,
@@ -171,6 +197,27 @@ def member_creates(ctx):
                     lambda: exists(secret.get_secret, ctx.api, secret_uuid))
     check_equal(result["name"], name, "name of the secret")
     ctx.state["project_secret"] = secret_uuid
+
+
+@suite.test("quota of the project is enforced", requires=("project_secret",))
+def project_quota_enforced(ctx):
+    # the project contains one secret, so a limit of one secret allows no further secret
+    quota.set_quota(ctx.api, ctx.state["project"], 3, 3, 1, 3, 3)
+    member = login_project_user(ctx, ctx.state["project"])
+    expect_error(ainari_exceptions.ConflictException, secret.create_secret, member,
+                 ctx.name("prj-secret-over-quota"), "test-payload")
+
+    # the quota of the default-project of the same user is not affected
+    own = login_project_user(ctx)
+    name = ctx.name("prj-default-secret")
+    result = secret.create_secret(own, name, "test-payload")
+    secret_uuid = result["uuid"]
+    ctx.cleanup.add("secret", secret_uuid, name,
+                    lambda: secret.delete_secret(ctx.api, secret_uuid),
+                    lambda: exists(secret.get_secret, ctx.api, secret_uuid))
+
+    # the following tests create resources in the project again
+    quota.set_quota(ctx.api, ctx.state["project"], 3, 3, 3, 3, 3)
 
 
 @suite.test("set project-role", requires=("assigned",), provides=("observer",))

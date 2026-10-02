@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - upgrade path for database-tables (just work after this release, so now it is still a DB breaking change)
 - Hanami now has the get port and list port endpoints and forward them to Torii, so Torii now has no external endpoints anymore
 - is_project_admin was now changed into project_role
+- quota's are now bound to projects instead of users
 
 ### Added
 

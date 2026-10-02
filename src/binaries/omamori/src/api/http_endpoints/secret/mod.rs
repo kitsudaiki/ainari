@@ -30,8 +30,8 @@ use ainari_clients::quota::get_quota;
 
 /// Checks if the user is still allowed to create another secret.
 ///
-/// The current number of secrets of the user is counted in the database and compared against the
-/// maximum, which is defined by the quota of the user in the miko.
+/// The current number of secrets of the whole project is counted in the database and compared
+/// against the maximum, which is defined by the quota of the project in the miko.
 ///
 /// # Arguments
 ///
@@ -39,12 +39,12 @@ use ainari_clients::quota::get_quota;
 ///
 /// # Returns
 ///
-/// * `Ok(())` - The user is still below the limit.
-/// * `Err(ErrorResponse::Conflict)` - The quota of the user is already exhausted.
+/// * `Ok(())` - The project is still below the limit.
+/// * `Err(ErrorResponse::Conflict)` - The quota of the project is already exhausted.
 /// * `Err(ErrorResponse)` - The secrets could not be counted or the quota not be read.
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // get number of secrets of the user
-    let current_number_of_secrets = secret_table::count_secrets(context)
+    // get number of secrets of the whole project
+    let current_number_of_secrets = secret_table::count_secrets_of_project(context)
         .inspect_err(|e| {
             log::error!("Failed to count secrets in database.: {e}");
         })
@@ -56,7 +56,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     let quota = get_quota(
         miko_endpoint,
         &context.token,
-        &context.user_id,
+        &context.project_id,
         config::CONFIG.skip_tls_verification,
     )
     .await

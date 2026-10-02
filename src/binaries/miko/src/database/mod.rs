@@ -59,14 +59,5 @@ fn init_admin_entries() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e);
         }
     };
-
-    // Create the quota of the initial admin, if the quota-table is still empty
-    match quota_table::init_admin_quota() {
-        Ok(_) => log::info!("Initialized admin-quota"),
-        Err(e) => {
-            log::error!("Failed to initialize admin-quota: {e}");
-            return Err(e);
-        }
-    };
     Ok(())
 }

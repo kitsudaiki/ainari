@@ -831,7 +831,7 @@
           "quota"
         ],
         "summary": "Get quota",
-        "description": "Get information of user-quota from the database.",
+        "description": "Get the quota of the project of the token from the database.",
         "responses": {
           "200": {
             "description": "",
@@ -894,16 +894,16 @@
         ]
       }
     },
-    "/v1alpha/quota/{user_id}/admin": {
+    "/v1alpha/quota/{project_id}/admin": {
       "get": {
         "tags": [
           "quota"
         ],
         "summary": "Get quota",
-        "description": "Get information of the quota of a specific user from the database.",
+        "description": "Get information of the quota of a specific project from the database.",
         "parameters": [
           {
-            "name": "user_id",
+            "name": "project_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -948,10 +948,10 @@
           "quota"
         ],
         "summary": "Set quota",
-        "description": "Update the quota of a specific user.\\\n\\\nOnly the values, which are not 0, are applied, so single limits can be changed\\\nwithout providing all of them. This can only be done by an admin.",
+        "description": "Update the quota of a specific project.\\\n\\\nOnly the values, which are not 0, are applied, so single limits can be changed\\\nwithout providing all of them. This can only be done by an admin.",
         "parameters": [
           {
-            "name": "user_id",
+            "name": "project_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -1145,7 +1145,7 @@
           "max_network",
           "max_secret",
           "max_virtual_machine",
-          "user_id"
+          "project_id"
         ],
         "properties": {
           "max_floating_ip": {
@@ -1168,7 +1168,7 @@
             "type": "integer",
             "format": "int32"
           },
-          "user_id": {
+          "project_id": {
             "type": "string"
           }
         }
@@ -1199,9 +1199,9 @@
           "max_network",
           "max_secret",
           "max_virtual_machine",
+          "project_id",
           "updated_at",
-          "updated_by",
-          "user_id"
+          "updated_by"
         ],
         "properties": {
           "created_at": {
@@ -1231,14 +1231,14 @@
             "type": "integer",
             "format": "int32"
           },
+          "project_id": {
+            "type": "string"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
           "updated_by": {
-            "type": "string"
-          },
-          "user_id": {
             "type": "string"
           }
         }

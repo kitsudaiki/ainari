@@ -381,6 +381,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::quota_table;
     use serial_test::serial;
 
     fn hard_delete_user(user_id: &String) {
@@ -545,6 +546,7 @@ mod tests {
         hard_delete_user(&user_id);
         let _ = project_table::delete_project(&default_project_id, &context);
         let _ = user_project_mapping_table::delete_mappings_of_user(&user_id);
+        quota_table::hard_delete_quota(&default_project_id, &context);
 
         add_new_user(
             &user_id,
@@ -557,6 +559,7 @@ mod tests {
 
         assert!(get_user(&user_id, &context).is_ok());
         assert!(project_table::get_project(&default_project_id, &context).is_ok());
+        assert!(quota_table::get_quota(&default_project_id, &context).is_ok());
         let mappings = user_project_mapping_table::list_mappings_of_user(&user_id).unwrap();
         assert_eq!(mappings.len(), 1);
         assert_eq!(mappings[0].project_id, default_project_id);
@@ -565,5 +568,6 @@ mod tests {
         let _ = delete_user(&user_id, &context);
         let _ = project_table::delete_project(&default_project_id, &context);
         let _ = user_project_mapping_table::delete_mappings_of_user(&user_id);
+        quota_table::hard_delete_quota(&default_project_id, &context);
     }
 }

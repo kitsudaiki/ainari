@@ -16,7 +16,6 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::database::quota_table;
 use crate::database::user_table;
 
 use ainari_api::common_functions::*;
@@ -44,10 +43,6 @@ pub async fn delete_user_admin(
             "A user can not delete himself.".to_string(),
         ));
     }
-
-    // delete quota of user from database
-    quota_table::delete_quota(&user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &user_id, e))?;
 
     // delete user from database
     user_table::delete_user(&user_id, &context)

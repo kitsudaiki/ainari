@@ -85,7 +85,7 @@ export async function deleteUser(userId: string): Promise<void> {
 // quota
 //=============================================================================
 
-/** `GET /v1alpha/quota` - quota of the user, who is currently logged in. */
+/** `GET /v1alpha/quota` - quota of the project, for which the user is currently logged in. */
 export async function getOwnQuota(): Promise<QuotaResp> {
     const resp = await mikoClient().get("/v1alpha/quota");
     return resp.data;
@@ -97,14 +97,14 @@ export async function listQuotas(): Promise<QuotaBasicResp[]> {
     return resp.data.quotas;
 }
 
-/** `GET /v1alpha/quota/{user_id}/admin` */
-export async function getQuota(userId: string): Promise<QuotaResp> {
-    const resp = await mikoClient().get(`/v1alpha/quota/${userId}/admin`);
+/** `GET /v1alpha/quota/{project_id}/admin` */
+export async function getQuota(projectId: string): Promise<QuotaResp> {
+    const resp = await mikoClient().get(`/v1alpha/quota/${projectId}/admin`);
     return resp.data;
 }
 
-/** `PUT /v1alpha/quota/{user_id}/admin` */
-export async function setQuota(userId: string, body: QuotaSetReq): Promise<QuotaResp> {
-    const resp = await mikoClient().put(`/v1alpha/quota/${userId}/admin`, body);
+/** `PUT /v1alpha/quota/{project_id}/admin` */
+export async function setQuota(projectId: string, body: QuotaSetReq): Promise<QuotaResp> {
+    const resp = await mikoClient().put(`/v1alpha/quota/${projectId}/admin`, body);
     return resp.data;
 }

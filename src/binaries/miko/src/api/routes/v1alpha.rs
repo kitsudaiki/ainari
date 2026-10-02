@@ -93,7 +93,7 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/admin").route(get().to(list_quota_admin_v1_0::list_quota_admin)),
                 )
                 .service(
-                    resource("/{user_id}/admin")
+                    resource("/{project_id}/admin")
                         .route(get().to(get_quota_admin_v1_0::get_quota_admin))
                         .route(put().to(set_quota_admin_v1_0::set_quota_admin)),
                 ),

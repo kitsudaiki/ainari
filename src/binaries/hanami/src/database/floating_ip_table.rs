@@ -406,6 +406,29 @@ pub fn count_floating_ips(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Counts the number of floating IP-addresses of the whole project of the context.
+///
+/// Unlike `count_floating_ips`, the floating IP-addresses of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of floating IP-addresses as an i64
+pub fn count_floating_ips_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::floating_ips::dsl::*;
+
+    floating_ips
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+}
+
 /// Force deletes a meta floating_ip_addr from the database.
 ///
 /// This function marks a meta floating_ip_addr as deleted without checking permissions.

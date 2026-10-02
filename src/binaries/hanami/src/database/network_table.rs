@@ -218,6 +218,29 @@ pub fn count_networks(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Counts the number of networks of the whole project of the context.
+///
+/// Unlike `count_networks`, the networks of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of networks as an i64
+pub fn count_networks_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    networks
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+}
+
 /// Force deletes a meta network from the database.
 ///
 /// This function marks a meta network as deleted without checking permissions.

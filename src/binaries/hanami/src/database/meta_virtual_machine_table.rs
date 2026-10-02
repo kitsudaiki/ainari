@@ -253,6 +253,29 @@ pub fn count_meta_virtual_machines(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Counts the number of virtual machines of the whole project of the context.
+///
+/// Unlike `count_meta_virtual_machines`, the virtual machines of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of virtual machines as an i64
+pub fn count_meta_virtual_machines_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+
+    meta_virtual_machines
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+}
+
 /// Force deletes a meta virtual_machine from the database.
 ///
 /// This function marks a meta virtual_machine as deleted without checking permissions.

@@ -15,8 +15,6 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use std::env;
-use std::error::Error;
 
 use crate::database::db_handle;
 
@@ -26,7 +24,7 @@ use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for the quotas table
-// This table stores quota information for users including maximum limits
+// This table stores quota information for projects including maximum limits
 // for various resources and their status.
 table! {
     quotas (id) {
@@ -48,7 +46,8 @@ table! {
 
 /// Represents a quota entry in the database.
 ///
-/// This struct contains information about resource limits for a user
+/// This struct contains information about resource limits for a project. The `id` is the ID of
+/// the project
 /// including maximum allowed virtual_machines, images, snapshots, secrets, and task queues.
 /// It also tracks the status, creation, update, and deletion information.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
@@ -72,51 +71,13 @@ pub struct QuotaEntry {
     pub deleted_by: Option<String>,
 }
 
-/// Initializes the admin quota with default values.
-///
-/// This function checks if there are existing quotas in the database.
-/// If none are found, it creates a new admin quota with default values
-/// using the provided environment variable for the admin ID.
-///
-/// # Returns
-/// - `Ok(())` if the admin quota was initialized successfully or already exists
-/// - An error if the initialization fails or the environment variable is not found
-pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
-    let fake_admin_context = UserContext {
-        token: "".to_string(),
-        user_id: "AINARI_INIT".to_string(),
-        project_id: "AINARI_INIT".to_string(),
-        is_admin: true.to_string(),
-        project_role: ProjectRole::Member.to_string(),
-    };
-
-    let quotas = list_quotas(&fake_admin_context).unwrap();
-    if !quotas.is_empty() {
-        log::debug!("Already existing user found, so no new admin will be created.");
-        return Ok(());
-    }
-    log::info!("No user found in user-table -> Create a new initial admin.");
-
-    let admin_id: String = match env::var("AINARI_ADMIN_ID") {
-        Ok(val) => val,
-        Err(_) => {
-            log::error!("couldn't find env-variable: AINARI_ADMIN_ID");
-            return Err("An error occurred while initializing new admin-user".into());
-        }
-    };
-
-    add_new_quota(&admin_id, 10, 10, 10, 10, 10, &fake_admin_context)?;
-
-    Ok(())
-}
-
 /// Adds a new quota entry to the database.
 ///
 /// This function creates a new quota entry with the provided parameters.
-/// It checks if the user is an admin and if a quota already exists for the user ID.
+/// It checks if the user is an admin and if a quota already exists for the project ID.
 ///
 /// # Arguments
-/// * `user_id` - The ID of the user to create the quota for
+/// * `project_id` - The ID of the project to create the quota for
 /// * `max_virtual_machine` - Maximum number of virtual_machines allowed
 /// * `max_image` - Maximum number of images allowed
 /// * `max_secret` - Maximum number of secrets allowed
@@ -128,7 +89,7 @@ pub fn init_admin_quota() -> Result<(), Box<dyn Error>> {
 /// - `Ok(usize)` with the number of rows affected if successful
 /// - An error if the user is not an admin, if the quota already exists, or if the insertion fails
 pub fn add_new_quota(
-    user_id: &String,
+    project_id: &String,
     max_virtual_machine: i32,
     max_image: i32,
     max_secret: i32,
@@ -150,15 +111,17 @@ pub fn add_new_quota(
 
     // check if quota already exists in the database
     // The same id is allowed multiple times in the table, but only one time active.
-    if get_quota(user_id, context).is_ok() {
+    if get_quota(project_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::UniqueViolation,
-            Box::new(format!("User with ID '{user_id}' already exist.")),
+            Box::new(format!(
+                "Quota of project with ID '{project_id}' already exist."
+            )),
         ));
     };
 
     let quota = QuotaEntry {
-        id: user_id.clone(),
+        id: project_id.clone(),
         max_virtual_machine,
         max_image,
         max_secret,
@@ -196,24 +159,24 @@ pub fn add_quota(quota: QuotaEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
-/// Retrieves a quota entry from the database for a specific user.
+/// Retrieves a quota entry from the database for a specific project.
 ///
 /// This function queries the database for an active quota entry
-/// associated with the provided user ID.
+/// associated with the provided project ID.
 ///
 /// # Arguments
-/// * `user_id` - The ID of the user to retrieve the quota for
+/// * `project_id` - The ID of the project to retrieve the quota for
 /// * `_` - The user context (unused, but kept for consistency with the other tables)
 ///
 /// # Returns
 /// - `Ok(QuotaEntry)` if the quota is found
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while querying the database
-pub fn get_quota(user_id: &String, _: &UserContext) -> Result<QuotaEntry, enums::DbError> {
+pub fn get_quota(project_id: &String, _: &UserContext) -> Result<QuotaEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
     match quotas
-        .filter(id.eq(user_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
         .select(QuotaEntry::as_select())
         .first::<QuotaEntry>(&mut *conn)
     {
@@ -257,7 +220,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// Only admin users can access this function.
 ///
 /// # Arguments
-/// * `user_id` - The ID of the user to update the quota for
+/// * `project_id` - The ID of the project to update the quota for
 /// * `new_max_virtual_machine` - New maximum number of virtual_machines allowed
 /// * `new_max_image` - New maximum number of images allowed
 /// * `new_max_secret` - New maximum number of secrets allowed
@@ -270,7 +233,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
 pub fn set_quota(
-    user_id: &String,
+    project_id: &String,
     new_max_virtual_machine: i32,
     new_max_image: i32,
     new_max_secret: i32,
@@ -290,7 +253,7 @@ pub fn set_quota(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
 
-    match diesel::update(quotas.filter(id.eq(user_id.to_string())))
+    match diesel::update(quotas.filter(id.eq(project_id.to_string())))
         .set((
             max_virtual_machine.eq(new_max_virtual_machine),
             max_image.eq(new_max_image),
@@ -315,14 +278,14 @@ pub fn set_quota(
 /// Only admin users can access this function.
 ///
 /// # Arguments
-/// * `user_id` - The ID of the user to delete the quota for
+/// * `project_id` - The ID of the project to delete the quota for
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// - `Ok(())` if the quota was marked as deleted successfully
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
-pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+pub fn delete_quota(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
         return Err(enums::DbError::PermissionDenied);
@@ -334,7 +297,7 @@ pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
-    match diesel::update(quotas.filter(id.eq(user_id)))
+    match diesel::update(quotas.filter(id.eq(project_id)))
         .set(status.eq("DELETED"))
         .execute(&mut *conn)
     {
@@ -353,16 +316,16 @@ pub fn delete_quota(user_id: &String, context: &UserContext) -> Result<(), enums
 /// Only admin users can access this function.
 ///
 /// # Arguments
-/// * `user_id` - The ID of the user to permanently delete the quota for
+/// * `project_id` - The ID of the project to permanently delete the quota for
 /// * `context` - The user context containing authentication information
-pub fn hard_delete_quota(user_id: &String, context: &UserContext) {
+pub fn hard_delete_quota(project_id: &String, context: &UserContext) {
     if context.is_admin != true.to_string() {
         return;
     }
 
     use self::quotas::dsl::*;
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    let _ = diesel::delete(quotas.filter(id.eq(user_id.to_string()))).execute(&mut *conn);
+    let _ = diesel::delete(quotas.filter(id.eq(project_id.to_string()))).execute(&mut *conn);
 }
 
 #[cfg(test)]

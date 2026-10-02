@@ -13,7 +13,7 @@ Log in with the ID and the passphrase of your user.
 ## Overview
 
 After the login the overview shows, how many resources of each type exist compared to the quota of
-the user, and a list of the virtual machines.
+the project, and a list of the virtual machines.
 
 ![Overview](img/overview.jpg)
 
@@ -179,7 +179,7 @@ These pages are only available for admins.
 
     ![Projects](img/admin_project.jpg)
 
-- **Quota** lists the maximum number of resources of each user. **Change Quota** sets new limits.
+- **Quota** lists the maximum number of resources of each project. **Change Quota** sets new limits.
 
     ![Quotas](img/admin_quota.jpg)
 
