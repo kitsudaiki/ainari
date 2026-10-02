@@ -1,3 +1,17 @@
+// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! Parsing and translation of the packet filter include-lists.
 //!
 //! A route filter is kept twice: as the textual rules the control plane hands
@@ -18,6 +32,8 @@ use ainari_api_structs::network_filter_structs::*;
 
 use crate::core::models::{RouteFilterPod, RouteKeyPod};
 use crate::core::state::GatewayState;
+
+use ainari_api::errors::ErrorResponse;
 
 /// Translates the textual rules of a route into the struct the datapath reads.
 ///
@@ -117,6 +133,39 @@ pub fn apply_filter(
         .insert(RouteKeyPod(dest_key), RouteFilterPod(filter), 0)
         .map_err(|_| "eBPF Map error (filter)".to_string())?;
     st.filters.insert(route_uuid, rules);
+    Ok(())
+}
+
+/// Persists the packet filter, which was just applied to a route, or rolls it back.
+///
+/// If `persist` fails, the include-lists the route had before are applied again, so the
+/// datapath never holds a filter the database doesn't know about.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - The UUID of the route the filter belongs to
+/// * `dest_key` - The `(vni, destination)` eBPF map key of that route
+/// * `previous` - The include-lists the route had before
+/// * `persist` - Writes the current include-lists of the route to the database
+///
+/// # Returns
+/// `Ok(())` once the filter is persisted, otherwise the error of `persist`
+pub fn persist_filter(
+    st: &mut GatewayState,
+    route_uuid: Uuid,
+    dest_key: RouteKey,
+    previous: RouteFilterRules,
+    persist: impl FnOnce(&RouteFilterRules) -> Result<(), ErrorResponse>,
+) -> Result<(), ErrorResponse> {
+    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    if let Err(e) = persist(&rules) {
+        if let Err(rollback_err) = apply_filter(st, route_uuid, dest_key, previous) {
+            log::error!(
+                "Failed to roll back the packet-filter of route '{route_uuid}': {rollback_err}"
+            );
+        }
+        return Err(e);
+    }
     Ok(())
 }
 

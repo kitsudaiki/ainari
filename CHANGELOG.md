@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redundant control plane in Kubernetes setup for HA setups
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 - new script collection to automatically all endpoints and ssh access automatically
+- Torii now stores all data in its database and can restore the old eBPF-state after a reboot
 
 ### Changed
 
@@ -34,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - VMs powered off from within the VM were not be able to start by the IaaS again
 - fixed broken error-handling in tasks in Sakura, which resulted that internal 404 and 409 error were returned as 500
-
+- the old cleanup of the Torii- and Sakura-DB in case of a restart was removed
 
 ## v0.20.0
 

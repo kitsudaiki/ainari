@@ -13,7 +13,12 @@
 // limitations under the License.
 
 pub mod db_handle;
+pub mod floating_ip_table;
+pub mod network_filter_table;
+pub mod network_interface_table;
 pub mod proxy_table;
+pub mod route_table;
+pub mod tap_table;
 
 use std::io;
 
@@ -38,23 +43,6 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
     // This is done explicitly here, so a broken database is already detected at startup.
     lazy_static::initialize(&db_handle::DB_CONN);
     log::info!("Applied all database-migrations");
-
-    // clear all proxy from the database. This is necessary, because after a restart,
-    // all proxy are broken and so the database doesn't match the real world.
-    // To "fix" this issue, all proxy have to be removed from the database as well.
-    match proxy_table::delete_all_proxy() {
-        Ok(_) => {}
-        Err(enums::DbError::InternalError) => {
-            let msg = "Error while deleting all proxy from DB".to_string();
-            log::error!("{msg}");
-            let error = io::Error::other(msg);
-            return Err(Box::new(error));
-        }
-        Err(enums::DbError::NotFound) => {
-            let error = io::Error::other("".to_string());
-            return Err(Box::new(error));
-        }
-    }
 
     Ok(())
 }

@@ -131,6 +131,7 @@ pub fn init_routing() -> GatewayState {
         routes: HashMap::new(),
         floating_ips: HashMap::new(),
         taps: HashMap::new(),
+        tap_xdp_links: HashMap::new(),
         crypto_keys: HashMap::new(),
         connections: HashMap::new(),
         filters: HashMap::new(),
@@ -166,6 +167,26 @@ pub fn init_routing() -> GatewayState {
     state
 }
 
+/// Derives the UUID of a route, which the gateway builds from its own config.
+///
+/// These routes are created again with every start, so their UUID is derived from their
+/// `(vni, dest_ip)`-key instead of being random. That way it stays the same across restarts, and
+/// everything persisted for the route - an update of it or its packet filter - still finds it.
+///
+/// # Arguments
+/// * `vni` - Tenant of the route
+/// * `dest_ip` - Destination address of the route
+///
+/// # Returns
+/// A version 8 UUID, which carries the tenant and the destination of the route
+pub fn config_route_uuid(vni: u32, dest_ip: Ipv4Addr) -> Uuid {
+    let mut bytes = [0u8; 16];
+    bytes[0..4].copy_from_slice(&vni.to_be_bytes());
+    // bytes 6 and 8 carry the version and the variant, so the address is placed behind them
+    bytes[10..14].copy_from_slice(&dest_ip.octets());
+    uuid::Builder::from_custom_bytes(bytes).into_uuid()
+}
+
 /// Points the default route of this gateway to the gateway at the edge of the network.
 ///
 /// Everything, which doesn't match one of the routes of this gateway, is encapsulated and sent
@@ -199,7 +220,7 @@ fn setup_default_route(
         0,
     )?;
 
-    let route_uuid = Uuid::new_v4();
+    let route_uuid = config_route_uuid(req.vni, Ipv4Addr::UNSPECIFIED);
     state.routes.insert(
         route_uuid,
         Route {
@@ -302,7 +323,7 @@ fn setup_uplink(
             0,
         )?;
 
-        let route_uuid = Uuid::new_v4();
+        let route_uuid = config_route_uuid(req.vni, dest_ip);
         state.routes.insert(
             route_uuid,
             Route {
@@ -324,4 +345,24 @@ fn setup_uplink(
         next_hop
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_route_uuids_are_stable_and_unique_per_key() {
+        let default_route = config_route_uuid(VNI_DEFAULT, Ipv4Addr::UNSPECIFIED);
+        assert_eq!(
+            default_route,
+            config_route_uuid(VNI_DEFAULT, Ipv4Addr::UNSPECIFIED)
+        );
+        assert_eq!(default_route.get_version(), Some(uuid::Version::Custom));
+
+        let next_hop = config_route_uuid(VNI_DEFAULT, Ipv4Addr::new(10, 0, 0, 1));
+        let other_tenant = config_route_uuid(5, Ipv4Addr::new(10, 0, 0, 1));
+        assert_ne!(default_route, next_hop);
+        assert_ne!(next_hop, other_tenant);
+    }
 }

@@ -17,9 +17,11 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, route_filter_key};
+use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::database::network_filter_table;
 
+use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -42,7 +44,7 @@ that is already present is a no-op rather than an error."###,
 pub async fn add_filter_ip_range_internal(
     route_uuid: Path<Uuid>,
     body: Json<FilterIpRangeReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
@@ -60,7 +62,8 @@ pub async fn add_filter_ip_range_internal(
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
 
-    let mut rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let mut rules = previous.clone();
     let mut added = 0;
     for rule in body.ranges.iter().cloned() {
         let known = rules
@@ -74,6 +77,13 @@ pub async fn add_filter_ip_range_internal(
     }
 
     apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
+
+    // persist the new include-lists, so they are restored after a restart of the gateway. If
+    // that fails, the previous include-lists are applied again.
+    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
+        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+            .map_err(|e| map_internal_error("persist packet-filter", e))
+    })?;
 
     let message = format!(
         "{} IP range(s) added, {} in the include-list of {}",

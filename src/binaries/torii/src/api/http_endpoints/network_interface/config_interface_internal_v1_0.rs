@@ -16,15 +16,14 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::core::models::IfaceConfigPod;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::utils::{get_ifindex, validate_vni};
+use crate::core::interface::configure_interface;
+use crate::core::utils::validate_vni;
+use crate::database::network_interface_table;
 
 use ainari_api::common_functions::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use torii_common::{IFACE_FLAG_FIP, IfaceConfig};
 
 #[api_operation(
     tag = "network_interface",
@@ -47,53 +46,21 @@ reaching another tenant by addressing its floating IP."###,
 )]
 pub async fn config_interface_internal(
     body: Json<IfaceConfigReq>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<IfaceConfigResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
     validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
-    let name = &body.iface_name;
-
-    if body.up {
-        std::process::Command::new("ip")
-            .args(["link", "set", name, "up"])
-            .status()
-            .map_err(|e| map_internal_error(&format!("bring interface '{name}' up"), e))?;
-    }
-    if let Some(ip) = &body.ip_cidr {
-        let _ = std::process::Command::new("ip")
-            .args(["addr", "add", ip, "dev", name])
-            .status();
-    }
-
-    let ifindex = get_ifindex(name);
-    if ifindex == 0 {
-        return Err(ErrorResponse::NotFound(format!(
-            "Interface {name} not found"
-        )));
-    }
-
-    // Place the port into its tenant. An interface the control plane never
-    // registered keeps behaving like a port of the shared tenant that translates
-    // floating IPs, which is how the datapath worked before tenants existed.
-    let flags = if body.fip_port { IFACE_FLAG_FIP } else { 0 };
-    let cfg = IfaceConfig {
-        vni: body.vni,
-        flags,
-    };
-    {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
-        if st
-            .iface_map
-            .insert(ifindex, IfaceConfigPod(cfg), 0)
-            .is_err()
-        {
-            log::error!("eBPF Map error (interface)");
-            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
-        }
-    }
+    // the configuration is persisted, so it is restored after a restart of the gateway. If that
+    // fails, the interface is reverted to its previous configuration.
+    configure_interface(&body, || {
+        network_interface_table::set_network_interface(&body, &context)
+            .map(|_| ())
+            .map_err(|e| map_internal_error(&format!("persist interface '{}'", body.iface_name), e))
+    })
+    .await?;
 
     let resp = IfaceConfigResp {
         iface_name: body.iface_name.clone(),

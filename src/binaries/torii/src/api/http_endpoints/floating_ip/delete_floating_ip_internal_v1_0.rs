@@ -16,13 +16,14 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::core::models::RouteKeyPod;
+use crate::core::floating_ip::remove_floating_ip;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::database::floating_ip_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use torii_common::RouteKey;
+use ainari_common::enums;
 
 #[api_operation(
     tag = "floating_ip",
@@ -38,22 +39,28 @@ both eBPF NAT maps, which terminates the external access."###,
 )]
 pub async fn delete_floating_ip_internal(
     floating_ip: Path<FloatingIpPath>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let floating_ip = floating_ip.into_inner().ip;
 
-    let mut state = GATEWAY_STATE_HANDLE.lock().await;
+    {
+        let mut state = GATEWAY_STATE_HANDLE.lock().await;
+        if !state.floating_ips.contains_key(&floating_ip) {
+            return Err(ErrorResponse::NotFound("Floating IP not found".to_string()));
+        }
 
-    let entry = match state.floating_ips.remove(&floating_ip) {
-        Some(entry) => entry,
-        None => return Err(ErrorResponse::NotFound("Floating IP not found".to_string())),
-    };
+        // The floating ip is dropped from the database first, so a failing database leaves it
+        // untouched in the datapath. A floating ip, which was registered before its persistence
+        // was introduced, has no entry in the database, which is not an error here.
+        match floating_ip_table::delete_floating_ip(&floating_ip, &context) {
+            Ok(()) | Err(enums::DbError::NotFound) => {}
+            Err(enums::DbError::InternalError) => {
+                return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+            }
+        }
 
-    let _ = state.fip_dnat_map.remove(&u32::from(floating_ip));
-    let _ = state.fip_snat_map.remove(&RouteKeyPod(RouteKey::new(
-        entry.vni,
-        u32::from(entry.internal_ip),
-    )));
+        remove_floating_ip(&mut state, floating_ip);
+    }
 
     Ok(NoContent)
 }
