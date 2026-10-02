@@ -31,7 +31,7 @@ The default-project of the user is part of the list as well."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_invited_projects(
+pub async fn list_user_projects(
     context: UserContext,
 ) -> Result<Json<ProjectInvitedListResp>, ErrorResponse> {
     // get all active assignments of the user of the token from database

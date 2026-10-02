@@ -87,8 +87,8 @@ pub fn v1alpha_routes() -> Scope {
                         .route(put().to(set_project_role_admin_v1_0::set_project_role_admin)),
                 )
                 .service(
-                    resource("/invited_projects")
-                        .route(get().to(list_invited_projects_v1_0::list_invited_projects)),
+                    resource("/user_projects")
+                        .route(get().to(list_user_projects_v1_0::list_user_projects)),
                 ),
         )
         .service(

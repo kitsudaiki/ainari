@@ -21,7 +21,6 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema
@@ -179,9 +178,6 @@ pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry,
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and handle the result
@@ -218,9 +214,6 @@ pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the results
@@ -318,6 +311,7 @@ pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_image(image_uuid: &Uuid) {
@@ -658,7 +652,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let images = list_images(&context).unwrap();
-        assert_eq!(images.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(images.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

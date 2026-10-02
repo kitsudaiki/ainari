@@ -22,7 +22,6 @@ use crate::database::db_handle;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 table! {
@@ -161,9 +160,6 @@ pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<TaskEntry, en
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and handle the result
@@ -204,9 +200,6 @@ pub fn list_tasks(
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     if let Some(filter_uuid) = filter_resource_uuid {
@@ -343,6 +336,7 @@ pub fn is_aborted(task_uuid: &Uuid) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_task(task_uuid: &Uuid) {
@@ -546,7 +540,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let tasks = list_tasks(&context, None).unwrap();
-        assert_eq!(tasks.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(tasks.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

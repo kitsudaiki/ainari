@@ -22,7 +22,6 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for the proxys table
@@ -162,9 +161,6 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -247,9 +243,6 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(ProxyEntry::as_select()).load(&mut *conn)
@@ -291,35 +284,10 @@ pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     }
 }
 
-/// Marks all active proxies as deleted in the database.
-///
-/// This is typically used for cleanup operations.
-///
-/// # Returns
-/// * `Result<(), enums::DbError>` indicating success or failure
-pub fn delete_all_proxy() -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    match diesel::update(proxys.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HANAMI_START"),
-        ))
-        .execute(&mut *conn)
-    {
-        Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
-        Err(e) => {
-            log::error!("Database-error: {e:?}");
-            Err(enums::DbError::InternalError)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_proxy(proxy_uuid: &Uuid) {
@@ -563,7 +531,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(proxys.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

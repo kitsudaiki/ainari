@@ -21,7 +21,6 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for the secrets table
@@ -148,9 +147,6 @@ pub fn get_secret(
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -169,9 +165,8 @@ pub fn get_secret(
 /// Lists all secrets that the user has access to
 ///
 /// This function returns all active secrets that are visible to the user
-/// based on their permissions. Admins can see all secrets, project admins
-/// can see all secrets in their project, and regular users can only see
-/// their own secrets.
+/// based on their permissions. Admins can see all secrets, all other users can see all secrets
+/// of their project, also the ones of other users.
 ///
 /// # Arguments
 ///
@@ -189,9 +184,6 @@ pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(SecretEntry::as_select()).load(&mut *conn)
@@ -317,6 +309,7 @@ pub fn delete_all_secret() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_secret(secret_uuid: &Uuid) {
@@ -616,7 +609,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let secrets = list_secrets(&context).unwrap();
-        assert_eq!(secrets.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(secrets.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

@@ -20,7 +20,6 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for the quotas table
@@ -331,6 +330,7 @@ pub fn hard_delete_quota(project_id: &String, context: &UserContext) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_quota(user_id: &String) {

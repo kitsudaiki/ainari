@@ -23,7 +23,6 @@ use crate::database::{assignable_ip_range, db_handle, is_unique_violation_of};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for floating_ips table
@@ -337,9 +336,6 @@ pub fn get_floating_ip(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -375,35 +371,9 @@ pub fn list_floating_ips(context: &UserContext) -> QueryResult<Vec<FloatingIpEnt
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(FloatingIpEntry::as_select()).load(&mut *conn)
-}
-
-/// Counts the number of meta floating_ips that the user has access to.
-///
-/// This function counts all active meta floating_ips and applies permission-based filtering.
-/// The count is filtered based on the user's role and project membership.
-///
-/// # Arguments
-/// * `context` - The user context containing information about the user and their permissions
-///
-/// # Returns
-/// A QueryResult containing the count of meta floating_ips as an i64
-pub fn count_floating_ips(context: &UserContext) -> QueryResult<i64> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::floating_ips::dsl::*;
-
-    let mut query = floating_ips.filter(status.eq("ACTIVE")).into_boxed();
-
-    // Apply permission-based filtering
-    query = query.filter(project_id.eq(context.project_id.clone()));
-    query = query.filter(owner_id.eq(context.user_id.clone()));
-
-    query.select(count_star()).first::<i64>(&mut *conn)
 }
 
 /// Counts the number of floating IP-addresses of the whole project of the context.
@@ -692,6 +662,7 @@ pub fn delete_all_floating_ip() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     use std::sync::LazyLock;
@@ -1312,7 +1283,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_count_floating_ips() {
+    fn test_count_floating_ips_of_project() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -1326,14 +1297,15 @@ mod tests {
             "test-project",
             "ACTIVE",
         );
+        // entries of other projects are not counted
         let entry2 = new_entry(
             &uuid2,
             &network_uuid1,
             "test-user",
-            "test-project",
+            "other-project",
             "ACTIVE",
         );
-        // neither DELETED entries nor entries of other owners are counted
+        // entries of other users of the same project are counted as well
         let entry3 = new_entry(
             &uuid3,
             &network_uuid1,
@@ -1350,7 +1322,7 @@ mod tests {
         add_floating_ip(entry2).unwrap();
         add_floating_ip(entry3).unwrap();
 
-        assert_eq!(count_floating_ips(&context).unwrap(), 2);
+        assert_eq!(count_floating_ips_of_project(&context).unwrap(), 2);
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -1402,7 +1374,8 @@ mod tests {
             false,
             ProjectRole::Member,
         );
-        assert_eq!(list_floating_ips(&context).unwrap().len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 2);
 
         // list-test project-admin
         let context = new_context(
@@ -1432,8 +1405,9 @@ mod tests {
         let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
         assert_eq!(retrieved.uuid, uuid1);
 
-        // get-test normal user, entry of another user within the same project
-        assert!(get_floating_ip(&uuid2, &context).is_err());
+        // get-test normal user, entry of another user within the same project, which is visible
+        // for all members of the project
+        assert_eq!(expect_entry(get_floating_ip(&uuid2, &context)).uuid, uuid2);
 
         // get-test normal user, entry of another project
         assert!(get_floating_ip(&uuid3, &context).is_err());

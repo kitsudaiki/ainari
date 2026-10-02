@@ -21,7 +21,6 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for networks table
@@ -149,9 +148,6 @@ pub fn get_network(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -187,35 +183,9 @@ pub fn list_networks(context: &UserContext) -> QueryResult<Vec<NetworkEntry>> {
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(NetworkEntry::as_select()).load(&mut *conn)
-}
-
-/// Counts the number of meta networks that the user has access to.
-///
-/// This function counts all active meta networks and applies permission-based filtering.
-/// The count is filtered based on the user's role and project membership.
-///
-/// # Arguments
-/// * `context` - The user context containing information about the user and their permissions
-///
-/// # Returns
-/// A QueryResult containing the count of meta networks as an i64
-pub fn count_networks(context: &UserContext) -> QueryResult<i64> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::networks::dsl::*;
-
-    let mut query = networks.filter(status.eq("ACTIVE")).into_boxed();
-
-    // Apply permission-based filtering
-    query = query.filter(project_id.eq(context.project_id.clone()));
-    query = query.filter(owner_id.eq(context.user_id.clone()));
-
-    query.select(count_star()).first::<i64>(&mut *conn)
 }
 
 /// Counts the number of networks of the whole project of the context.
@@ -342,6 +312,7 @@ pub fn delete_all_network() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_network(network_uuid: &Uuid) {
@@ -507,7 +478,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_count_networks() {
+    fn test_count_networks_of_project() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -543,7 +514,7 @@ mod tests {
             uuid: uuid2,
             name: name.clone(),
             subnet: subnet.clone(),
-            owner_id: owner_id.clone(),
+            owner_id: "other-user".to_string(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
@@ -559,7 +530,7 @@ mod tests {
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
+            project_id: "other-project".to_string(),
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -577,8 +548,9 @@ mod tests {
         add_network(network2).unwrap();
         add_network(network3).unwrap();
 
-        let number = count_networks(&context).unwrap();
-        assert_eq!(number, 3);
+        // the networks of all users of the project are counted, but not the ones of other projects
+        let number = count_networks_of_project(&context).unwrap();
+        assert_eq!(number, 2);
 
         hard_delete_network(&uuid1);
         hard_delete_network(&uuid2);
@@ -656,7 +628,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let networks = list_networks(&context).unwrap();
-        assert_eq!(networks.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(networks.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

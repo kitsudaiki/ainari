@@ -22,7 +22,6 @@ use crate::database::host_table::HostResources;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for meta_virtual_machines table
@@ -176,9 +175,6 @@ pub fn get_meta_virtual_machine(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -218,9 +214,6 @@ pub fn list_meta_virtual_machines(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query
@@ -385,6 +378,7 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_meta_virtual_machine(meta_virtual_machine_uuid: &Uuid) {
@@ -780,7 +774,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
-        assert_eq!(meta_virtual_machines.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(meta_virtual_machines.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

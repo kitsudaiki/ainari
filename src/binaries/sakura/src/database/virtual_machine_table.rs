@@ -22,7 +22,6 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for the virtual_machines table
@@ -252,9 +251,6 @@ pub fn get_virtual_machine(
     // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the result
@@ -307,9 +303,6 @@ pub fn list_virtual_machines(context: &UserContext) -> QueryResult<Vec<VirtualMa
     // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the results
@@ -507,36 +500,10 @@ pub fn delete_virtual_machine(
     }
 }
 
-/// Marks all active virtual_machines as deleted in the database
-///
-/// # Returns
-/// * `Ok(())` on success
-/// * `Err(enums::DbError)` with an appropriate error on failure
-pub fn delete_all_virtual_machine() -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::virtual_machines::dsl::*;
-
-    // Update all active virtual_machines to have "DELETED" status with a system user as the deleter
-    match diesel::update(virtual_machines.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
-        Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
-        Err(e) => {
-            log::error!("Database-error: {e:?}");
-            Err(enums::DbError::InternalError)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_virtual_machine(virtual_machine_uuid: &Uuid) {
@@ -951,7 +918,8 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
         let virtual_machines = list_virtual_machines(&context).unwrap();
-        assert_eq!(virtual_machines.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(virtual_machines.len(), 2);
 
         // list-test project-admin
         let context = UserContext {

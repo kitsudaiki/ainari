@@ -204,7 +204,7 @@ var setProjectRoleCmd = &cobra.Command{
 }
 
 var listInvitedProjectsCmd = &cobra.Command{
-	Use:   "list_invited_projects",
+	Use:   "list_user_projects",
 	Short: "List all projects, to which the own user is assigned, together with the role in each of them.",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {

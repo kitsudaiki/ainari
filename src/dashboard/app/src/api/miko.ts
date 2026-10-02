@@ -74,9 +74,9 @@ export async function deleteProject(projectId: string): Promise<void> {
 // user
 //=============================================================================
 
-/** `GET /v1alpha/user/invited_projects` - projects of the user, who is currently logged in. */
+/** `GET /v1alpha/user/user_projects` - projects of the user, who is currently logged in. */
 export async function listInvitedProjects(): Promise<ProjectInvitedResp[]> {
-    const resp = await mikoClient().get("/v1alpha/user/invited_projects");
+    const resp = await mikoClient().get("/v1alpha/user/user_projects");
     return resp.data.projects;
 }
 

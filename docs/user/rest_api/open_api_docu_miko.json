@@ -871,7 +871,7 @@
         ]
       }
     },
-    "/v1alpha/user/invited_projects": {
+    "/v1alpha/user/user_projects": {
       "get": {
         "tags": [
           "user"

@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - assign_project
     - unassign_project
     - set_project_role 
-    - list_invited_projects
+    - list_user_projects
     - list_members
 - in the login, a user can now define the project to login
 - new project-roles: admin, member and observer

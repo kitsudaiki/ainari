@@ -20,10 +20,6 @@ pub mod proxy_table;
 pub mod route_table;
 pub mod tap_table;
 
-use std::io;
-
-use ainari_common::enums;
-
 /// Opens the database of the service and applies all pending migrations of the
 /// `migrations`-directory, which create and update the database-tables.
 /// Afterwards all existing proxys are removed from the database to ensure consistency after a

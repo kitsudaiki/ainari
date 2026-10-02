@@ -21,7 +21,6 @@ use crate::database::db_handle;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
-use ainari_common::enums::ProjectRole;
 use ainari_common::objects::*;
 
 // Define the schema for public_keys table
@@ -157,9 +156,6 @@ pub fn get_public_key(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -195,9 +191,6 @@ pub fn list_public_keys(context: &UserContext) -> QueryResult<Vec<PublicKeyEntry
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.project_role != ProjectRole::Admin.as_str() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(PublicKeyEntry::as_select()).load(&mut *conn)
@@ -331,6 +324,7 @@ pub fn delete_all_public_key() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     const PUBLIC_KEY: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForUnitTests test-key";
@@ -580,7 +574,8 @@ mod tests {
             false,
             ProjectRole::Member,
         );
-        assert_eq!(list_public_keys(&context).unwrap().len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(list_public_keys(&context).unwrap().len(), 2);
 
         // list-test project-admin
         let context = new_context(
@@ -610,8 +605,9 @@ mod tests {
         let retrieved = expect_entry(get_public_key(&uuid1, &context));
         assert_eq!(retrieved.uuid, uuid1);
 
-        // get-test normal user, entry of another user within the same project
-        assert!(get_public_key(&uuid2, &context).is_err());
+        // get-test normal user, entry of another user within the same project, which is visible
+        // for all members of the project
+        assert_eq!(expect_entry(get_public_key(&uuid2, &context)).uuid, uuid2);
 
         // get-test normal user, entry of another project
         assert!(get_public_key(&uuid3, &context).is_err());
