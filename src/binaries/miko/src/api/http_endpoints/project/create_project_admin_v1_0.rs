@@ -27,7 +27,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "project",
     summary = "Create new project",
-    description = r###"Create new project. This can only be done by an admin."###,
+    description = r###"Create new project. This can only be done by an admin. Project-IDs starting with 'default-' are reserved for the default-projects of the users and are rejected."###,
     error_code = 400,
     error_code = 401,
     error_code = 409,
@@ -43,6 +43,14 @@ pub async fn create_project_admin(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let project_id = &body.id;
+
+    // the prefix is reserved for the default-projects, which are created together with each
+    // user, so a project created here could otherwise conflict with them
+    if project_id.starts_with("default-") {
+        return Err(ErrorResponse::BadRequest(
+            "Project-IDs starting with 'default-' are reserved.".to_string(),
+        ));
+    }
 
     // check if project-id already exist
     check_if_id_exist_in_db(

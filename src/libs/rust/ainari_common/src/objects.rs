@@ -22,11 +22,13 @@ use diesel::sql_types::Integer;
 use diesel::sql_types::Nullable;
 use diesel::sql_types::Varchar;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::net::{AddrParseError, Ipv4Addr};
 use uuid::Uuid;
 
 use super::constants::UNINIT_POINT_32;
+use super::enums::ProjectRole;
 
 //===================================================================================================
 
@@ -173,6 +175,50 @@ impl TryFrom<DbDateTime> for DateTime<Utc> {
 
 //===================================================================================================
 
+/// Bridge-type to store a `ProjectRole` in a `Varchar`-column.
+///
+/// The role is held in its lowercase string-form, for the same lifetime-reason as described for
+/// `DbUuid`.
+#[derive(Debug, Clone, PartialEq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = Varchar)]
+pub struct DbProjectRole(String);
+
+impl<DB: Backend> ToSql<Varchar, DB> for DbProjectRole
+where
+    String: ToSql<Varchar, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB: Backend> FromSql<Varchar, DB> for DbProjectRole
+where
+    String: FromSql<Varchar, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let s = String::from_sql(bytes)?;
+        Ok(DbProjectRole(s))
+    }
+}
+
+impl From<ProjectRole> for DbProjectRole {
+    fn from(role: ProjectRole) -> Self {
+        DbProjectRole(role.to_string())
+    }
+}
+
+// a value within the database, which is none of the known roles, is rejected here
+impl TryFrom<DbProjectRole> for ProjectRole {
+    type Error = String;
+
+    fn try_from(db_role: DbProjectRole) -> Result<Self, Self::Error> {
+        db_role.0.parse()
+    }
+}
+
+//===================================================================================================
+
 /// Bridge-type to store an `Option<DateTime<Utc>>` in a nullable `Varchar`-column.
 ///
 /// Works like `DbDateTime`, but keeps the null-case. It implements `Queryable` instead of
@@ -268,6 +314,55 @@ impl TryFrom<DbVecString> for Vec<String> {
 
     fn try_from(db_vec: DbVecString) -> Result<Self, Self::Error> {
         serde_json::from_str(&db_vec.0)
+    }
+}
+
+//===================================================================================================
+
+/// Bridge-type to store a `HashMap<String, String>` in a single `Varchar`-column.
+///
+/// The map is serialized as JSON-object, so it can be kept in one column instead of requiring an
+/// additional table.
+#[derive(Debug, Clone, AsExpression)]
+#[diesel(sql_type = Varchar)]
+pub struct DbMapString(pub String);
+
+impl<DB: Backend> Queryable<Varchar, DB> for DbMapString
+where
+    String: Queryable<Varchar, DB>,
+{
+    type Row = <String as Queryable<Varchar, DB>>::Row;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        let s = String::build(row)?;
+        Ok(DbMapString(s))
+    }
+}
+
+impl<DB: Backend> ToSql<Varchar, DB> for DbMapString
+where
+    String: ToSql<Varchar, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl From<HashMap<String, String>> for DbMapString {
+    fn from(map: HashMap<String, String>) -> Self {
+        // serializing a HashMap<String, String> has no failure-case, so the error is not
+        // propagated here
+        let json_string =
+            serde_json::to_string(&map).expect("Failed to serialize HashMap<String, String>");
+        DbMapString(json_string)
+    }
+}
+
+impl TryFrom<DbMapString> for HashMap<String, String> {
+    type Error = serde_json::Error;
+
+    fn try_from(db_map: DbMapString) -> Result<Self, Self::Error> {
+        serde_json::from_str(&db_map.0)
     }
 }
 

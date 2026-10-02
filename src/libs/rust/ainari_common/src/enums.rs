@@ -14,6 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 
 // ==================================================================================================
 
@@ -131,6 +132,53 @@ impl ObjectType {
             5 => Some(ObjectType::OutputBlock),
             6 => Some(ObjectType::OutputBuffer),
             _ => None,
+        }
+    }
+}
+
+// ==================================================================================================
+
+/// Role of a user within a project.
+///
+/// The role is stored as lowercase string, which is the same representation as used by serde.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProjectRole {
+    Admin,
+    Member,
+    Observer,
+}
+
+impl ProjectRole {
+    /// Converts the role into its string-representation.
+    ///
+    /// # Returns
+    ///
+    /// The lowercase name of the role.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProjectRole::Admin => "admin",
+            ProjectRole::Member => "member",
+            ProjectRole::Observer => "observer",
+        }
+    }
+}
+
+impl fmt::Display for ProjectRole {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl FromStr for ProjectRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "admin" => Ok(ProjectRole::Admin),
+            "member" => Ok(ProjectRole::Member),
+            "observer" => Ok(ProjectRole::Observer),
+            _ => Err(format!("Unknown project-role '{s}'")),
         }
     }
 }

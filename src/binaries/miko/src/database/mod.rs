@@ -15,6 +15,7 @@
 pub mod db_handle;
 pub mod project_table;
 pub mod quota_table;
+pub mod user_project_mapping_table;
 pub mod user_table;
 
 /// Opens the database of the service and applies all pending migrations of the
