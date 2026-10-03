@@ -42,6 +42,11 @@
                                     v-if="openDropdown === project.id"
                                     class="table-dropdown-menu"
                                 >
+                                    <button
+                                        @click="switchToMembers(project.id)"
+                                    >
+                                        Show members
+                                    </button>
                                     <button @click="openDeleteModal(project)">
                                         Delete
                                     </button>
@@ -93,6 +98,10 @@ const openDropdown = ref<string | null>(null);
 const projectToDelete = ref<ProjectBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
+const emit = defineEmits<{
+    (e: "change-view", payload: { view: string; id: string }): void;
+}>();
+
 async function fetchProjects() {
     try {
         projects.value = await miko.listProjects();
@@ -119,6 +128,13 @@ function handleClickOutside(event: MouseEvent) {
     if (!clickedInside) {
         openDropdown.value = null; // close the dropdown
     }
+}
+
+//=============================================================================
+// Switch to the members of a project
+//=============================================================================
+function switchToMembers(project_id: string) {
+    emit("change-view", { view: "AdminProjectMember", id: project_id });
 }
 
 //=============================================================================

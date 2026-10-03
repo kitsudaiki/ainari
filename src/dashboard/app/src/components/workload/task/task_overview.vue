@@ -18,6 +18,11 @@
     <div class="card">
         <div class="card-label">Tasks</div>
         <div class="card-content">
+            <!-- Back button -->
+            <button class="back-button" @click="switchToVirtualMachines">
+                ←
+            </button>
+
             <table class="overview-table" v-if="tasks.length > 0">
                 <thead>
                     <tr>
@@ -134,6 +139,10 @@ const showAbortModal = ref(false);
 // the torii-port of the virtual-machine, which is needed to reach its sakura
 const torii_port = ref<number>(0);
 
+const emit = defineEmits<{
+    (e: "change-view", payload: { view: string; id: string | null }): void;
+}>();
+
 // tasks change their state in the background, so the list is polled
 let refreshInterval: number | undefined;
 
@@ -177,6 +186,13 @@ async function fetchTasks() {
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load tasks");
     }
+}
+
+//=============================================================================
+// Switch back to the list of virtual machines
+//=============================================================================
+function switchToVirtualMachines() {
+    emit("change-view", { view: "WorkloadVirtualMachine", id: null });
 }
 
 //=============================================================================

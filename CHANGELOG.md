@@ -25,14 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new script collection to automatically all endpoints and ssh access automatically
 - Torii now stores all data in its database and can restore the old eBPF-state after a reboot
 - new endpoints in Miko: 
-    - assign_project
-    - unassign_project
+    - add_user_to_project
+    - remove_user_from_project
     - set_project_role 
     - list_user_projects
-    - list_members
+    - list_users_in_project
+    - list_users_in_project_admin
 - in the login, a user can now define the project to login
 - new project-roles: admin, member and observer
 - new option in the dashboard to switch to another project after login
+- new member overview for projects was added for the admin, where the admin can add
+  and remove users to and from project and switch their roles within a project
 
 ### Changed
 

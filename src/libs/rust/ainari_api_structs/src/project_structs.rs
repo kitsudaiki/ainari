@@ -70,3 +70,23 @@ pub struct ProjectMemberResp {
 pub struct ProjectMemberListResp {
     pub members: Vec<ProjectMemberResp>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ProjectAddUserReq {
+    #[validate(length(min = 4, max = 127))]
+    pub user_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectAddUserResp {
+    pub user_id: String,
+    pub project_id: String,
+    pub project_role: ProjectRole,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ProjectRemoveUserReq {
+    #[validate(length(min = 4, max = 127))]
+    pub user_id: String,
+}

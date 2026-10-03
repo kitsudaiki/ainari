@@ -16,9 +16,13 @@
 
 import { mikoClient } from "./client";
 import type {
+    ProjectAddUserReq,
+    ProjectAddUserResp,
     ProjectBasicResp,
     ProjectCreateReq,
     ProjectInvitedResp,
+    ProjectMemberResp,
+    ProjectRemoveUserReq,
     ProjectResp,
     QuotaBasicResp,
     QuotaResp,
@@ -27,6 +31,8 @@ import type {
     UserBasicResp,
     UserCreateReq,
     UserResp,
+    UserSetProjectRoleReq,
+    UserSetProjectRoleResp,
     UserTokenResp,
 } from "./types";
 
@@ -70,6 +76,29 @@ export async function deleteProject(projectId: string): Promise<void> {
     await mikoClient().delete(`/v1alpha/project/${projectId}/admin`);
 }
 
+/** `GET /v1alpha/project/{project_id}/users/admin` */
+export async function listUsersInProject(projectId: string): Promise<ProjectMemberResp[]> {
+    const resp = await mikoClient().get(`/v1alpha/project/${projectId}/users/admin`);
+    return resp.data.members;
+}
+
+/** `POST /v1alpha/project/{project_id}/add_user/admin` */
+export async function addUserToProject(
+    projectId: string,
+    body: ProjectAddUserReq,
+): Promise<ProjectAddUserResp> {
+    const resp = await mikoClient().post(`/v1alpha/project/${projectId}/add_user/admin`, body);
+    return resp.data;
+}
+
+/** `POST /v1alpha/project/{project_id}/remove_user/admin` */
+export async function removeUserFromProject(
+    projectId: string,
+    body: ProjectRemoveUserReq,
+): Promise<void> {
+    await mikoClient().post(`/v1alpha/project/${projectId}/remove_user/admin`, body);
+}
+
 //=============================================================================
 // user
 //=============================================================================
@@ -101,6 +130,15 @@ export async function createUser(body: UserCreateReq): Promise<UserResp> {
 /** `DELETE /v1alpha/user/{user_id}/admin` */
 export async function deleteUser(userId: string): Promise<void> {
     await mikoClient().delete(`/v1alpha/user/${userId}/admin`);
+}
+
+/** `PUT /v1alpha/user/{user_id}/set_project_role/admin` */
+export async function setProjectRole(
+    userId: string,
+    body: UserSetProjectRoleReq,
+): Promise<UserSetProjectRoleResp> {
+    const resp = await mikoClient().put(`/v1alpha/user/${userId}/set_project_role/admin`, body);
+    return resp.data;
 }
 
 //=============================================================================

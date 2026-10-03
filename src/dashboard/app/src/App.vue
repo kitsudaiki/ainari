@@ -92,6 +92,7 @@ import ProjectSwitchModal from "@/components/project_switch_modal.vue";
 import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
+import AdminProjectMember from "@/components/admin/project/project_member_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import AdminHost from "@/components/admin/host/host_overview.vue";
 import StorageImage from "@/components/storage/image/image_overview.vue";
@@ -138,6 +139,7 @@ const components = {
     Overview,
     AdminUser,
     AdminProject,
+    AdminProjectMember,
     AdminQuota,
     AdminHost,
     StorageImage,
