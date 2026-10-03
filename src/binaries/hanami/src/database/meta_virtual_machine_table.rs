@@ -101,6 +101,11 @@ pub fn add_new_meta_virtual_machine(
     resources: &HostResources,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let meta_virtual_machine = MetaVirtualMachineEntry {
         uuid: *meta_virtual_machine_uuid,
         name: virtual_machine_name.to_string().clone(),
@@ -170,9 +175,6 @@ pub fn get_meta_virtual_machine(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -212,9 +214,6 @@ pub fn list_meta_virtual_machines(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query
@@ -245,6 +244,29 @@ pub fn count_meta_virtual_machines(context: &UserContext) -> QueryResult<i64> {
     query = query.filter(owner_id.eq(context.user_id.clone()));
 
     query.select(count_star()).first::<i64>(&mut *conn)
+}
+
+/// Counts the number of virtual machines of the whole project of the context.
+///
+/// Unlike `count_meta_virtual_machines`, the virtual machines of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of virtual machines as an i64
+pub fn count_meta_virtual_machines_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+
+    meta_virtual_machines
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
 }
 
 /// Force deletes a meta virtual_machine from the database.
@@ -296,6 +318,11 @@ pub fn delete_meta_virtual_machine(
     meta_virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the meta virtual_machine exists and the user has permission to delete it
     get_meta_virtual_machine(meta_virtual_machine_uuid, context)?;
 
@@ -351,6 +378,7 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_meta_virtual_machine(meta_virtual_machine_uuid: &Uuid) {
@@ -377,7 +405,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let meta_virtual_machine = MetaVirtualMachineEntry {
@@ -472,7 +500,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let meta_virtual_machine1 = MetaVirtualMachineEntry {
@@ -539,7 +567,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let meta_virtual_machine = MetaVirtualMachineEntry {
@@ -586,7 +614,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let meta_virtual_machine1 = MetaVirtualMachineEntry {
@@ -743,10 +771,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
-        assert_eq!(meta_virtual_machines.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(meta_virtual_machines.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -754,7 +783,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
         assert_eq!(meta_virtual_machines.len(), 2);
@@ -765,7 +794,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
         assert_eq!(meta_virtual_machines.len(), 3);
@@ -776,7 +805,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_meta_virtual_machine(&uuid1, &context) {
             Ok(retrieved_meta_virtual_machine) => {
@@ -793,7 +822,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_meta_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -805,7 +834,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_meta_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

@@ -62,8 +62,10 @@ pub async fn register_proxy_internal(
         &context,
     )
     .map_err(|e| {
-        log::error!("Failed to add proxy with UUID '{proxy_uuid}' to database with error: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add proxy with UUID '{proxy_uuid}' to database"),
+            e,
+        )
     })?;
 
     // create new proxy and add it to the handler

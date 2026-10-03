@@ -51,8 +51,10 @@ pub async fn create_network(
     // add new network to database
     network_table::add_new_network(&network_uuid, &body.name, &body.subnet, &context).map_err(
         |e| {
-            log::error!("Failed to add network with UUID '{network_uuid}' to database.: {e}");
-            ErrorResponse::InternalError("Internal Error".to_string())
+            map_db_write_error(
+                &format!("add network with UUID '{network_uuid}' to database"),
+                e,
+            )
         },
     )?;
 
@@ -73,11 +75,11 @@ pub async fn create_network(
     Ok(CreatedJson(resp))
 }
 
-/// Asynchronously checks if the user's current number of networks is within their quota limit.
+/// Asynchronously checks if the project's current number of networks is within its quota limit.
 ///
 /// This function performs two main operations:
-/// 1. Counts the current number of networks for the given user
-/// 2. Retrieves the user's quota from the Miko endpoint and verifies if the quota is exceeded
+/// 1. Counts the current number of networks for the project of the context
+/// 2. Retrieves the project's quota from the Miko endpoint and verifies if the quota is exceeded
 ///
 /// # Arguments
 ///
@@ -85,7 +87,7 @@ pub async fn create_network(
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the quota check passes (user is within their limit)
+/// * `Ok(())` - If the quota check passes (project is within its limit)
 /// * `Err(ErrorResponse)` - If there's an error during the check or if the quota is exceeded
 ///
 /// # Errors
@@ -93,22 +95,23 @@ pub async fn create_network(
 /// This function will return an error in the following cases:
 /// - Database error when counting networks
 /// - Network error when communicating with the Miko endpoint
-/// - If the user has exceeded their network quota limit
+/// - If the project has exceeded its network quota limit
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // Get the current number of networks for the user from the database
-    // This count is used to compare against the user's quota limit
-    let current_number_of_networks = network_table::count_networks(context).map_err(|e| {
-        log::error!("Failed to count networks in database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
+    // Get the current number of networks of the whole project from the database
+    // This count is used to compare against the project's quota limit
+    let current_number_of_networks =
+        network_table::count_networks_of_project(context).map_err(|e| {
+            log::error!("Failed to count networks in database.: {e}");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
 
-    // Retrieve the user's quota information from the Miko endpoint
+    // Retrieve the project's quota information from the Miko endpoint
     // The miko_endpoint is configured in the application settings
     let miko_endpoint = &config::CONFIG.miko;
     let quota = get_quota(
         miko_endpoint,
         &context.token,
-        &context.user_id,
+        &context.project_id,
         config::CONFIG.skip_tls_verification,
     )
     .await
@@ -117,7 +120,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // Convert the quota's maximum network count to i64 for comparison
     let max_number_of_networks = quota.max_network as i64;
 
-    // Check if the user has already exceeded their quota
+    // Check if the project has already exceeded its quota
     // If exceeded, return a Conflict error response
     if current_number_of_networks as i64 >= max_number_of_networks {
         return Err(ErrorResponse::Conflict(

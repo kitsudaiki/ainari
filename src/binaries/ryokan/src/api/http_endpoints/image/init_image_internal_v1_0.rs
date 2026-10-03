@@ -67,10 +67,7 @@ pub async fn init_image(
         body.is_snapshot,
         &context,
     )
-    .map_err(|e| {
-        log::error!("Failed to add image to database: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
+    .map_err(|e| map_db_write_error("add image to database", e))?;
 
     let image_data = image_table::get_image(image_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", image_uuid, e))?;

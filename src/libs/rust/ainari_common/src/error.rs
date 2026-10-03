@@ -22,6 +22,8 @@ pub enum AinariError {
     NotFound(String),
     /// The request conflicts with existing resources of the called service, like a quota
     Conflict(String),
+    /// The user is not allowed to change the object, for example because it is only observer
+    Forbidden(String),
     InternalError(String),
 }
 
@@ -32,6 +34,7 @@ impl fmt::Display for AinariError {
             AinariError::InvalidInput(ref msg) => write!(f, "Invalid input: {msg}"),
             AinariError::NotFound(ref msg) => write!(f, "Not found: {msg}"),
             AinariError::Conflict(ref msg) => write!(f, "Conflict: {msg}"),
+            AinariError::Forbidden(ref msg) => write!(f, "Forbidden: {msg}"),
             AinariError::InternalError(ref msg) => write!(f, "Internal error: {msg}"),
         }
     }
@@ -50,6 +53,7 @@ impl PartialEq<&str> for AinariError {
             | AinariError::InvalidInput(s)
             | AinariError::NotFound(s)
             | AinariError::Conflict(s)
+            | AinariError::Forbidden(s)
             | AinariError::InternalError(s) => s == other,
         }
     }

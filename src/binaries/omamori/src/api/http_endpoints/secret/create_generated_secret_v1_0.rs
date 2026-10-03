@@ -65,8 +65,10 @@ pub async fn create_secret(
 
     // add new secret to database
     secret_table::add_new_secret(&secret_uuid, &body.name, &context).map_err(|e| {
-        log::error!("Failed to add secret with UUID '{secret_uuid}' to database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add secret with UUID '{secret_uuid}' to database"),
+            e,
+        )
     })?;
 
     // get new created secret from database to get additional information

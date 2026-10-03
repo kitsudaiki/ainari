@@ -97,7 +97,8 @@ const user_info = ref<UserResp | null>(null);
 const errorPopupMsg = ref<string>("");
 
 interface Props {
-    user: UserBasicResp | null;
+    // only the id is needed, because all other infos are loaded by the modal itself
+    user: Pick<UserBasicResp, "id"> | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 const props = defineProps<Props>();

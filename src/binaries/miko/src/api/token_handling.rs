@@ -35,7 +35,7 @@ pub struct Claims {
     pub user_id: String,
     pub project_id: String,
     pub is_admin: String,
-    pub is_project_admin: String,
+    pub project_role: String,
     /// Expiration time (as UTC timestamp in seconds)
     pub exp: usize,
     /// Issued at time (as UTC timestamp in seconds)
@@ -86,7 +86,7 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
 /// * `user_id` - The unique identifier for the user
 /// * `project_id` - The unique identifier for the project
 /// * `is_admin` - Flag indicating if the user has admin privileges
-/// * `is_project_admin` - Flag indicating if the user has admin privileges for the specific project
+/// * `project_role` - Role of the user in the selected project
 ///
 /// # Returns
 ///
@@ -96,7 +96,7 @@ pub fn create_token(
     user_id: &String,
     project_id: &String,
     is_admin: &str,
-    is_project_admin: &str,
+    project_role: &str,
 ) -> Result<String, ()> {
     let token_expire_time = config::CONFIG.auth.token_expire_time;
 
@@ -114,7 +114,7 @@ pub fn create_token(
         user_id: user_id.clone(),
         project_id: project_id.clone(),
         is_admin: is_admin.to_string(),
-        is_project_admin: is_project_admin.to_string(),
+        project_role: project_role.to_string(),
         exp: expiration as usize,
         iat: current as usize,
         iss: "miko".to_string(),

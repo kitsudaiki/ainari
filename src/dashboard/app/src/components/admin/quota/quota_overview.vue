@@ -21,7 +21,7 @@
             <table class="overview-table" v-if="quotas.length > 0">
                 <thead>
                     <tr>
-                        <th>User-ID</th>
+                        <th>Project-ID</th>
                         <th>Max Virtual Machines</th>
                         <th>Max Images</th>
                         <th>Max Secrets</th>
@@ -31,8 +31,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="quota in quotas" :key="quota.user_id">
-                        <td>{{ quota.user_id }}</td>
+                    <tr v-for="quota in quotas" :key="quota.project_id">
+                        <td>{{ quota.project_id }}</td>
                         <td>{{ quota.max_virtual_machine }}</td>
                         <td>{{ quota.max_image }}</td>
                         <td>{{ quota.max_secret }}</td>
@@ -42,11 +42,11 @@
                             <!-- Dropdown menu -->
                             <div
                                 class="table-dropdown"
-                                @click.stop="toggleDropdown(quota.user_id)"
+                                @click.stop="toggleDropdown(quota.project_id)"
                             >
                                 ⋮
                                 <div
-                                    v-if="openDropdown === quota.user_id"
+                                    v-if="openDropdown === quota.project_id"
                                     class="table-dropdown-menu"
                                 >
                                     <button @click="openUpdateModal(quota)">
@@ -102,8 +102,8 @@ async function fetchQuotas() {
 //=============================================================================
 // Dropdown in table
 //=============================================================================
-function toggleDropdown(user_id: string) {
-    openDropdown.value = openDropdown.value === user_id ? null : user_id;
+function toggleDropdown(project_id: string) {
+    openDropdown.value = openDropdown.value === project_id ? null : project_id;
 }
 
 function handleClickOutside(event: MouseEvent) {

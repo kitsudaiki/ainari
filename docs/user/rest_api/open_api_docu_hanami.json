@@ -357,6 +357,90 @@
         ]
       }
     },
+    "/v1alpha/proxy": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "List proxies",
+        "description": "List basic information of all proxies, which make the sakura-hosts reachable over the ports of the torii at the edge.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/proxy/{proxy_uuid}": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Get proxy",
+        "description": "Get information of a proxy, which makes a sakura-host reachable over a port of the torii at the edge.",
+        "parameters": [
+          {
+            "name": "proxy_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/network": {
       "post": {
         "tags": [
@@ -1383,6 +1467,94 @@
           }
         }
       },
+      "ProxyBasicResp": {
+        "type": "object",
+        "required": [
+          "port",
+          "target_address",
+          "uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProxyListResp": {
+        "title": "ProxyListResp",
+        "type": "object",
+        "required": [
+          "proxys"
+        ],
+        "properties": {
+          "proxys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProxyBasicResp"
+            }
+          }
+        }
+      },
+      "ProxyResp": {
+        "title": "ProxyResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "port",
+          "target_address",
+          "updated_at",
+          "updated_by",
+          "uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ReadyResp": {
         "title": "ReadyResp",
         "type": "object",
@@ -1478,6 +1650,14 @@
             "type": "integer",
             "format": "uint64",
             "minimum": 0.0
+          },
+          "external_address": {
+            "description": "Address of the external api of the host, which the proxies forward to. Hosts without it are reached over `host_address` by the proxies as well.",
+            "default": null,
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4,
+            "nullable": true
           },
           "host_address": {
             "type": "string",

@@ -111,6 +111,11 @@ impl From<NetworkInterfaceEntry> for IfaceConfigReq {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of inserted rows
 pub fn set_network_interface(req: &IfaceConfigReq, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(ainari_common::enums::permission_denied_error());
+    }
+
     let entry = NetworkInterfaceEntry {
         uuid: Uuid::new_v4(),
         iface_name: req.iface_name.clone(),
@@ -170,6 +175,7 @@ pub fn list_network_interfaces() -> QueryResult<Vec<NetworkInterfaceEntry>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_interface(name: &str) {
@@ -184,7 +190,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

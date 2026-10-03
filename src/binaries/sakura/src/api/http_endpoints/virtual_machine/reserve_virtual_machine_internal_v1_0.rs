@@ -67,10 +67,10 @@ pub async fn reserve_virtual_machine_internal(
     };
 
     virtual_machine_table::add_new_virtual_machine(new_virtual_machine, &context).map_err(|e| {
-        log::error!(
-            "Failed to add virtual-machine with UUID '{virtual_machine_uuid}' to database.: {e}"
-        );
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add virtual-machine with UUID '{virtual_machine_uuid}' to database"),
+            e,
+        )
     })?;
 
     let virtual_machine_data =

@@ -15,24 +15,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-.add-button {
+.add-button,
+.back-button {
     background-color: var(--color-highlight);
     color: var(--color-on-highlight);
     border: 1px solid var(--color-border);
     width: 2rem;
     height: 2rem;
     margin-top: -1rem;
-    float: right;
     position: relative; /* necessary for the z-index */
     z-index: 1;
     box-shadow: var(--box-shadow);
-    /* the "+" of the text is hidden and drawn by the pseudo-elements below instead,
+    /* the "+" or "←" of the text is hidden and drawn by the pseudo-elements below instead,
     because the position of the glyph depends on the font and is never exactly centered */
     font-size: 0;
     cursor: pointer;
     transition:
         box-shadow 150ms,
         filter 150ms;
+}
+
+.add-button {
+    float: right;
+}
+
+.back-button {
+    float: left;
 }
 
 .add-button::before,
@@ -57,7 +65,36 @@ limitations under the License.
     height: 0.9rem;
 }
 
-.add-button:hover {
+/* shaft of the arrow */
+.back-button::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0.9rem;
+    height: 2px;
+    background: currentColor;
+    transform: translate(-50%, -50%);
+}
+
+/* head of the arrow, which is the rotated corner of a square */
+.back-button::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    /* the rotated corner reaches ~0.1rem further to the left than the square itself, so the
+    square is shifted to the right to let the tip end at the shaft */
+    left: calc(50% - 0.35rem);
+    width: 0.45rem;
+    height: 0.45rem;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-50%) rotate(45deg);
+    box-sizing: border-box;
+}
+
+.add-button:hover,
+.back-button:hover {
     filter: brightness(110%);
     box-shadow: 0 0 0.6rem var(--color-highlight-glow);
 }

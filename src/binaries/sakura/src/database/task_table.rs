@@ -96,6 +96,11 @@ pub fn add_new_task(
     task_type: &TaskType,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     // Create a new TaskEntry with the provided parameters
     let task = TaskEntry {
         uuid: *task_uuid,
@@ -155,9 +160,6 @@ pub fn get_task(task_uuid: &Uuid, context: &UserContext) -> Result<TaskEntry, en
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and handle the result
@@ -198,9 +200,6 @@ pub fn list_tasks(
     // Apply access control filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     if let Some(filter_uuid) = filter_resource_uuid {
@@ -337,6 +336,7 @@ pub fn is_aborted(task_uuid: &Uuid) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_task(task_uuid: &Uuid) {
@@ -359,7 +359,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let task = TaskEntry {
@@ -407,7 +407,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let task1 = TaskEntry {
@@ -537,10 +537,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let tasks = list_tasks(&context, None).unwrap();
-        assert_eq!(tasks.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(tasks.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -548,7 +549,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 2);
@@ -559,7 +560,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let tasks = list_tasks(&context, None).unwrap();
         assert_eq!(tasks.len(), 3);
@@ -570,7 +571,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_task(&uuid1, &context) {
             Ok(retrieved_task) => {
@@ -587,7 +588,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_task(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -612,7 +613,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let task = TaskEntry {
@@ -704,7 +705,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let task = TaskEntry {

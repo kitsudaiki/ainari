@@ -16,10 +16,6 @@ pub mod db_handle;
 pub mod task_table;
 pub mod virtual_machine_table;
 
-use std::io;
-
-use ainari_common::enums;
-
 /// Opens the database of the service and applies all pending migrations of the
 /// `migrations`-directory, which create and update the database-tables.
 /// Afterwards all existing virtual_machines are removed from the database to ensure consistency

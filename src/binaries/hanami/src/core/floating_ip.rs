@@ -70,6 +70,7 @@ pub async fn attach_floating_ip(
         FloatingIpAttachError::NotFound => {
             ErrorResponse::NotFound(format!("Floating ip '{floating_ip_uuid}' not found."))
         }
+        FloatingIpAttachError::PermissionDenied => permission_denied_response(),
         FloatingIpAttachError::AlreadyAttached => ErrorResponse::Conflict(format!(
             "Floating ip '{floating_ip_uuid}' is already attached to a virtual_machine."
         )),

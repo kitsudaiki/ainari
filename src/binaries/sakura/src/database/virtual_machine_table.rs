@@ -172,6 +172,11 @@ pub fn add_new_virtual_machine(
     new_virtual_machine: NewVirtualMachine,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     // Create the new virtual_machine entry
     let virtual_machine = VirtualMachineEntry {
         uuid: new_virtual_machine.uuid,
@@ -246,9 +251,6 @@ pub fn get_virtual_machine(
     // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the result
@@ -301,9 +303,6 @@ pub fn list_virtual_machines(context: &UserContext) -> QueryResult<Vec<VirtualMa
     // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the results
@@ -333,6 +332,11 @@ pub fn set_virtual_machine_image(
     new_public_key_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -379,6 +383,11 @@ pub fn update_virtual_machine(
     new_root_disk_path: Option<String>,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -421,6 +430,11 @@ pub fn update_virtual_machine_state(
     new_vm_state: &VirtualMachineState,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to update it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -457,6 +471,11 @@ pub fn delete_virtual_machine(
     virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // First verify that the virtual_machine exists and the user has permission to delete it
     get_virtual_machine(virtual_machine_uuid, context)?;
 
@@ -481,36 +500,10 @@ pub fn delete_virtual_machine(
     }
 }
 
-/// Marks all active virtual_machines as deleted in the database
-///
-/// # Returns
-/// * `Ok(())` on success
-/// * `Err(enums::DbError)` with an appropriate error on failure
-pub fn delete_all_virtual_machine() -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::virtual_machines::dsl::*;
-
-    // Update all active virtual_machines to have "DELETED" status with a system user as the deleter
-    match diesel::update(virtual_machines.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
-        Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
-        Err(e) => {
-            log::error!("Database-error: {e:?}");
-            Err(enums::DbError::InternalError)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_virtual_machine(virtual_machine_uuid: &Uuid) {
@@ -532,7 +525,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let virtual_machine = VirtualMachineEntry {
@@ -654,7 +647,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let virtual_machine1 = VirtualMachineEntry {
@@ -732,7 +725,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let virtual_machine = VirtualMachineEntry {
@@ -779,7 +772,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         hard_delete_virtual_machine(&uuid1);
@@ -922,10 +915,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let virtual_machines = list_virtual_machines(&context).unwrap();
-        assert_eq!(virtual_machines.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(virtual_machines.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -933,7 +927,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let virtual_machines = list_virtual_machines(&context).unwrap();
         assert_eq!(virtual_machines.len(), 2);
@@ -944,7 +938,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let virtual_machines = list_virtual_machines(&context).unwrap();
         assert_eq!(virtual_machines.len(), 3);
@@ -955,7 +949,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_virtual_machine(&uuid1, &context) {
             Ok(retrieved_virtual_machine) => {
@@ -972,7 +966,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -984,7 +978,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

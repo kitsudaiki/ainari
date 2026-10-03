@@ -23,7 +23,7 @@ use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::validate_vni;
 use crate::database::floating_ip_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -71,7 +71,7 @@ pub async fn register_floating_ip_internal(
                 floating_ip_table::set_floating_ip(&uuid, &body, &context)
                     .map(|_| ())
                     .map_err(|e| {
-                        map_internal_error(
+                        map_db_write_error(
                             &format!("persist floating ip '{}'", body.floating_ip),
                             e,
                         )

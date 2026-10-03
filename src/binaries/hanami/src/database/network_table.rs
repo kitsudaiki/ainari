@@ -83,6 +83,11 @@ pub fn add_new_network(
     subnet: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let network = NetworkEntry {
         uuid: *network_uuid,
         name: network_name.to_string().clone(),
@@ -143,9 +148,6 @@ pub fn get_network(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -181,35 +183,32 @@ pub fn list_networks(context: &UserContext) -> QueryResult<Vec<NetworkEntry>> {
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(NetworkEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the number of meta networks that the user has access to.
+/// Counts the number of networks of the whole project of the context.
 ///
-/// This function counts all active meta networks and applies permission-based filtering.
-/// The count is filtered based on the user's role and project membership.
+/// Unlike `count_networks`, the networks of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
-/// * `context` - The user context containing information about the user and their permissions
+///
+/// * `context` - The user context, whose project is counted
 ///
 /// # Returns
-/// A QueryResult containing the count of meta networks as an i64
-pub fn count_networks(context: &UserContext) -> QueryResult<i64> {
+///
+/// A QueryResult containing the count of networks as an i64
+pub fn count_networks_of_project(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::networks::dsl::*;
 
-    let mut query = networks.filter(status.eq("ACTIVE")).into_boxed();
-
-    // Apply permission-based filtering
-    query = query.filter(project_id.eq(context.project_id.clone()));
-    query = query.filter(owner_id.eq(context.user_id.clone()));
-
-    query.select(count_star()).first::<i64>(&mut *conn)
+    networks
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
 }
 
 /// Force deletes a meta network from the database.
@@ -255,6 +254,11 @@ pub fn force_delete_network(network_uuid: &Uuid) -> Result<(), enums::DbError> {
 /// # Returns
 /// A Result indicating success or an error
 pub fn delete_network(network_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the meta network exists and the user has permission to delete it
     get_network(network_uuid, context)?;
 
@@ -308,6 +312,7 @@ pub fn delete_all_network() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_network(network_uuid: &Uuid) {
@@ -331,7 +336,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let network = NetworkEntry {
@@ -387,7 +392,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let network1 = NetworkEntry {
@@ -445,7 +450,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let network = NetworkEntry {
@@ -473,7 +478,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_count_networks() {
+    fn test_count_networks_of_project() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
@@ -487,7 +492,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let network1 = NetworkEntry {
@@ -509,7 +514,7 @@ mod tests {
             uuid: uuid2,
             name: name.clone(),
             subnet: subnet.clone(),
-            owner_id: owner_id.clone(),
+            owner_id: "other-user".to_string(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
@@ -525,7 +530,7 @@ mod tests {
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
-            project_id: project_id.clone(),
+            project_id: "other-project".to_string(),
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -543,8 +548,9 @@ mod tests {
         add_network(network2).unwrap();
         add_network(network3).unwrap();
 
-        let number = count_networks(&context).unwrap();
-        assert_eq!(number, 3);
+        // the networks of all users of the project are counted, but not the ones of other projects
+        let number = count_networks_of_project(&context).unwrap();
+        assert_eq!(number, 2);
 
         hard_delete_network(&uuid1);
         hard_delete_network(&uuid2);
@@ -619,10 +625,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let networks = list_networks(&context).unwrap();
-        assert_eq!(networks.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(networks.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -630,7 +637,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let networks = list_networks(&context).unwrap();
         assert_eq!(networks.len(), 2);
@@ -641,7 +648,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let networks = list_networks(&context).unwrap();
         assert_eq!(networks.len(), 3);
@@ -652,7 +659,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_network(&uuid1, &context) {
             Ok(retrieved_network) => {
@@ -669,7 +676,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_network(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -681,7 +688,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_network(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

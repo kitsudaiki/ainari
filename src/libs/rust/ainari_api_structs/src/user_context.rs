@@ -21,6 +21,7 @@ use futures::future::{Ready, ready};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use ainari_common::enums::ProjectRole;
 use ainari_common::functions::split_bearer_token;
 
 #[derive(ApiSecurity, Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -31,7 +32,20 @@ pub struct UserContext {
     pub user_id: String,
     pub project_id: String,
     pub is_admin: String,
-    pub is_project_admin: String,
+    pub project_role: String,
+}
+
+impl UserContext {
+    /// Checks if the context is only allowed to read entries.
+    ///
+    /// Observers of a project can only read, as long as they are not admins of the whole system.
+    ///
+    /// # Returns
+    ///
+    /// True, if any adding, updating or deleting of entries has to be blocked, else false.
+    pub fn is_read_only(&self) -> bool {
+        self.is_admin != true.to_string() && self.project_role == ProjectRole::Observer.as_str()
+    }
 }
 
 /// Default for the token-field, which is not part of the payload of the jwt itself, but filled
@@ -89,15 +103,43 @@ impl FromRequest for UserContext {
         match decode_jwt_payload(token) {
             Ok(context) => ready(Ok(context)),
             Err(_) => {
-                // should never be the case, because the middleware already checks the token
+                // requests without a jwt are only let through by the middleware for the internal
+                // endpoints, which are protected by the internal api-key instead. Their context must
+                // not be read-only, because they have to write into the database.
                 ready(Ok(UserContext {
                     token: "".to_string(),
                     user_id: "".to_string(),
                     project_id: "".to_string(),
                     is_admin: false.to_string(),
-                    is_project_admin: false.to_string(),
+                    project_role: ProjectRole::Member.to_string(),
                 }))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn new_context(is_admin: bool, project_role: ProjectRole) -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: is_admin.to_string(),
+            project_role: project_role.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_is_read_only() {
+        // only an observer, who is not admin, is restricted to reading
+        assert!(new_context(false, ProjectRole::Observer).is_read_only());
+
+        assert!(!new_context(true, ProjectRole::Observer).is_read_only());
+        assert!(!new_context(false, ProjectRole::Member).is_read_only());
+        assert!(!new_context(false, ProjectRole::Admin).is_read_only());
+        assert!(!new_context(true, ProjectRole::Admin).is_read_only());
     }
 }

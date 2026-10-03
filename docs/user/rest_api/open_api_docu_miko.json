@@ -82,7 +82,17 @@
           "auth"
         ],
         "summary": "Renew Token",
-        "description": "Create a new access-token for the user of the current token,\\\n\\\nin order to extend the session.",
+        "description": "Create a new access-token for the user of the current token, in order to extend the session.\\\n\\\nWith `project_id` in the body, the new token is created for this project instead of the project of the current token, which switches the project without a new login. The user must be assigned to the project. The role within the project is read again in both cases, so changes of the role are applied with the renewal.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRenewReq"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "201": {
             "description": "",
@@ -113,6 +123,9 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request"
+          },
           "401": {
             "description": "Unauthorized"
           },
@@ -132,7 +145,7 @@
           "auth"
         ],
         "summary": "Create Token",
-        "description": "Create a new access-token for the given user-credentials.",
+        "description": "Create a new access-token for the given user-credentials. The token is scoped to the project given by the optional `project_id`, or to the default-project of the user, if not set. The user must be assigned to the project.",
         "responses": {
           "200": {
             "description": "",
@@ -224,7 +237,7 @@
           "project"
         ],
         "summary": "Create new project",
-        "description": "Create new project. This can only be done by an admin.",
+        "description": "Create new project. This can only be done by an admin. Project-IDs starting with 'default-' are reserved for the default-projects of the users and are rejected.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -316,6 +329,216 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/users": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List users in project",
+        "description": "List all users, which are assigned to the project of the token, together with the role of each user within this project.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMemberListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/users/admin": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List users in project",
+        "description": "List all users within a project, together with the role of each user within this project. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMemberListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/add_user/admin": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Add user to project",
+        "description": "Add a user with a specific role to a project. A user can be added to the same project only once at the same time. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectAddUserReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ProjectAddUserResp",
+                  "type": "object",
+                  "required": [
+                    "project_id",
+                    "project_role",
+                    "user_id"
+                  ],
+                  "properties": {
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "project_role": {
+                      "$ref": "#/components/schemas/ProjectRole"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/remove_user/admin": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Remove user from project",
+        "description": "Remove a user from a project. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRemoveUserReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -632,13 +855,106 @@
         ]
       }
     },
+    "/v1alpha/user/{user_id}/set_project_role/admin": {
+      "put": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Set project-role of user",
+        "description": "Set the role of a user within a project. The user must already be assigned to the project. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSetProjectRoleReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSetProjectRoleResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/user/user_projects": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "List invited projects",
+        "description": "List all projects, to which the user of the token is assigned, together with the role of the user within each of these projects.\\\n\\\nThe default-project of the user is part of the list as well.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectInvitedListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/quota": {
       "get": {
         "tags": [
           "quota"
         ],
         "summary": "Get quota",
-        "description": "Get information of user-quota from the database.",
+        "description": "Get the quota of the project of the token from the database.",
         "responses": {
           "200": {
             "description": "",
@@ -701,16 +1017,16 @@
         ]
       }
     },
-    "/v1alpha/quota/{user_id}/admin": {
+    "/v1alpha/quota/{project_id}/admin": {
       "get": {
         "tags": [
           "quota"
         ],
         "summary": "Get quota",
-        "description": "Get information of the quota of a specific user from the database.",
+        "description": "Get information of the quota of a specific project from the database.",
         "parameters": [
           {
-            "name": "user_id",
+            "name": "project_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -755,10 +1071,10 @@
           "quota"
         ],
         "summary": "Set quota",
-        "description": "Update the quota of a specific user.\\\n\\\nOnly the values, which are not 0, are applied, so single limits can be changed\\\nwithout providing all of them. This can only be done by an admin.",
+        "description": "Update the quota of a specific project.\\\n\\\nOnly the values, which are not 0, are applied, so single limits can be changed\\\nwithout providing all of them. This can only be done by an admin.",
         "parameters": [
           {
-            "name": "user_id",
+            "name": "project_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -851,6 +1167,44 @@
           }
         }
       },
+      "ProjectAddUserReq": {
+        "title": "ProjectAddUserReq",
+        "type": "object",
+        "required": [
+          "project_role",
+          "user_id"
+        ],
+        "properties": {
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "user_id": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
+      },
+      "ProjectAddUserResp": {
+        "title": "ProjectAddUserResp",
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_role",
+          "user_id"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
       "ProjectBasicResp": {
         "type": "object",
         "required": [
@@ -886,6 +1240,36 @@
           }
         }
       },
+      "ProjectInvitedListResp": {
+        "title": "ProjectInvitedListResp",
+        "type": "object",
+        "required": [
+          "projects"
+        ],
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectInvitedResp"
+            }
+          }
+        }
+      },
+      "ProjectInvitedResp": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_role"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        }
+      },
       "ProjectListResp": {
         "title": "ProjectListResp",
         "type": "object",
@@ -898,6 +1282,50 @@
             "items": {
               "$ref": "#/components/schemas/ProjectBasicResp"
             }
+          }
+        }
+      },
+      "ProjectMemberListResp": {
+        "title": "ProjectMemberListResp",
+        "type": "object",
+        "required": [
+          "members"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectMemberResp"
+            }
+          }
+        }
+      },
+      "ProjectMemberResp": {
+        "type": "object",
+        "required": [
+          "project_role",
+          "user_id"
+        ],
+        "properties": {
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectRemoveUserReq": {
+        "title": "ProjectRemoveUserReq",
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
           }
         }
       },
@@ -935,6 +1363,15 @@
           }
         }
       },
+      "ProjectRole": {
+        "description": "Role of a user within a project.\n\nThe role is stored as lowercase string, which is the same representation as used by serde.",
+        "type": "string",
+        "enum": [
+          "admin",
+          "member",
+          "observer"
+        ]
+      },
       "QuotaBasicResp": {
         "type": "object",
         "required": [
@@ -943,7 +1380,7 @@
           "max_network",
           "max_secret",
           "max_virtual_machine",
-          "user_id"
+          "project_id"
         ],
         "properties": {
           "max_floating_ip": {
@@ -966,7 +1403,7 @@
             "type": "integer",
             "format": "int32"
           },
-          "user_id": {
+          "project_id": {
             "type": "string"
           }
         }
@@ -997,9 +1434,9 @@
           "max_network",
           "max_secret",
           "max_virtual_machine",
+          "project_id",
           "updated_at",
-          "updated_by",
-          "user_id"
+          "updated_by"
         ],
         "properties": {
           "created_at": {
@@ -1029,14 +1466,14 @@
             "type": "integer",
             "format": "int32"
           },
+          "project_id": {
+            "type": "string"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
           "updated_by": {
-            "type": "string"
-          },
-          "user_id": {
             "type": "string"
           }
         }
@@ -1090,6 +1527,19 @@
         "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
         "type": "string"
       },
+      "TokenRenewReq": {
+        "title": "TokenRenewReq",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "description": "Project, for which the new token is created. If not set, the project of the current token is used.",
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4,
+            "nullable": true
+          }
+        }
+      },
       "UserBasicResp": {
         "type": "object",
         "required": [
@@ -1113,18 +1563,18 @@
         "type": "object",
         "required": [
           "is_admin",
-          "is_project_admin",
           "project_id",
+          "project_role",
           "user_id"
         ],
         "properties": {
           "is_admin": {
             "type": "string"
           },
-          "is_project_admin": {
+          "project_id": {
             "type": "string"
           },
-          "project_id": {
+          "project_role": {
             "type": "string"
           },
           "token": {
@@ -1221,6 +1671,44 @@
             "format": "date-time"
           },
           "updated_by": {
+            "type": "string"
+          }
+        }
+      },
+      "UserSetProjectRoleReq": {
+        "title": "UserSetProjectRoleReq",
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_role"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        }
+      },
+      "UserSetProjectRoleResp": {
+        "title": "UserSetProjectRoleResp",
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_role",
+          "user_id"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "project_role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "user_id": {
             "type": "string"
           }
         }

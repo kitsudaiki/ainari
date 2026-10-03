@@ -79,6 +79,11 @@ pub struct SecretEntry {
 ///
 /// A QueryResult indicating the number of rows affected by the insert operation
 pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let secret = SecretEntry {
         uuid: *secret_uuid,
         name: name.to_owned(),
@@ -142,9 +147,6 @@ pub fn get_secret(
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -163,9 +165,8 @@ pub fn get_secret(
 /// Lists all secrets that the user has access to
 ///
 /// This function returns all active secrets that are visible to the user
-/// based on their permissions. Admins can see all secrets, project admins
-/// can see all secrets in their project, and regular users can only see
-/// their own secrets.
+/// based on their permissions. Admins can see all secrets, all other users can see all secrets
+/// of their project, also the ones of other users.
 ///
 /// # Arguments
 ///
@@ -183,9 +184,6 @@ pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(SecretEntry::as_select()).load(&mut *conn)
@@ -215,6 +213,29 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Counts the number of secrets of the whole project of the context.
+///
+/// Unlike `count_secrets`, the secrets of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of secrets as an i64
+pub fn count_secrets_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::secrets::dsl::*;
+
+    secrets
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+}
+
 /// Deletes a secret from the database
 ///
 /// This function marks a secret as deleted by updating its status and
@@ -230,6 +251,11 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 ///
 /// A Result indicating success or failure
 pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     get_secret(secret_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -283,6 +309,7 @@ pub fn delete_all_secret() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_secret(secret_uuid: &Uuid) {
@@ -305,7 +332,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let secret = SecretEntry {
@@ -359,7 +386,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let secret1 = SecretEntry {
@@ -414,7 +441,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let secret = SecretEntry {
@@ -454,7 +481,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let secret1 = SecretEntry {
@@ -579,10 +606,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let secrets = list_secrets(&context).unwrap();
-        assert_eq!(secrets.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(secrets.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -590,7 +618,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let secrets = list_secrets(&context).unwrap();
         assert_eq!(secrets.len(), 2);
@@ -601,7 +629,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let secrets = list_secrets(&context).unwrap();
         assert_eq!(secrets.len(), 3);
@@ -612,7 +640,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_secret(&uuid1, &context) {
             Ok(retrieved_secret) => {
@@ -629,7 +657,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_secret(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -641,7 +669,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_secret(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

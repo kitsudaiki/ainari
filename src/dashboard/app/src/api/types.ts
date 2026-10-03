@@ -61,6 +61,12 @@ export interface UserTokenResp {
     expires: number;
 }
 
+/** Mirror of `auth_structs::TokenRenewReq`. */
+export interface TokenRenewReq {
+    /** if not set, the new token is created for the project of the current token */
+    project_id?: string;
+}
+
 //=============================================================================
 // user / project / quota (miko)
 //=============================================================================
@@ -88,6 +94,19 @@ export interface UserCreateReq {
     is_admin: string;
 }
 
+/** Mirror of `user_structs::UserSetProjectRoleReq`. */
+export interface UserSetProjectRoleReq {
+    project_id: string;
+    project_role: ProjectRole;
+}
+
+/** Mirror of `user_structs::UserSetProjectRoleResp`. */
+export interface UserSetProjectRoleResp {
+    user_id: string;
+    project_id: string;
+    project_role: ProjectRole;
+}
+
 /** Mirror of `project_structs::ProjectBasicResp`. */
 export interface ProjectBasicResp {
     id: string;
@@ -108,6 +127,39 @@ export interface ProjectCreateReq {
     name: string;
 }
 
+/** Mirror of `enums::ProjectRole`. */
+export type ProjectRole = "admin" | "member" | "observer";
+
+/** Mirror of `project_structs::ProjectInvitedResp`. */
+export interface ProjectInvitedResp {
+    project_id: string;
+    project_role: ProjectRole;
+}
+
+/** Mirror of `project_structs::ProjectAddUserReq`. */
+export interface ProjectAddUserReq {
+    user_id: string;
+    project_role: ProjectRole;
+}
+
+/** Mirror of `project_structs::ProjectAddUserResp`. */
+export interface ProjectAddUserResp {
+    user_id: string;
+    project_id: string;
+    project_role: ProjectRole;
+}
+
+/** Mirror of `project_structs::ProjectRemoveUserReq`. */
+export interface ProjectRemoveUserReq {
+    user_id: string;
+}
+
+/** Mirror of `project_structs::ProjectMemberResp`. */
+export interface ProjectMemberResp {
+    user_id: string;
+    project_role: ProjectRole;
+}
+
 /** Mirror of `quota_structs::QuotaSetReq`. */
 export interface QuotaSetReq {
     max_virtual_machine: number;
@@ -119,7 +171,7 @@ export interface QuotaSetReq {
 
 /** Mirror of `quota_structs::QuotaBasicResp`. */
 export interface QuotaBasicResp extends QuotaSetReq {
-    user_id: string;
+    project_id: string;
 }
 
 /** Mirror of `quota_structs::QuotaResp`. */

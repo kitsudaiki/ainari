@@ -26,25 +26,25 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "quota",
     summary = "Get quota",
-    description = r###"Get information of the quota of a specific user from the database."###,
+    description = r###"Get information of the quota of a specific project from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn get_quota_admin(
-    user_id: Path<String>,
+    project_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<QuotaResp>, ErrorResponse> {
     // validate request
     check_admin_context(&context)?;
 
-    // get quota of user from database
-    let quota = quota_table::get_quota(&user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &user_id, e))?;
+    // get quota of the project from database
+    let quota = quota_table::get_quota(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
 
     let resp = QuotaResp {
-        user_id: quota.id,
+        project_id: quota.id,
         max_virtual_machine: quota.max_virtual_machine,
         max_image: quota.max_image,
         max_secret: quota.max_secret,

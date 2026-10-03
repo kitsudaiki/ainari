@@ -20,6 +20,7 @@ use crate::core::floating_ip::remove_floating_ip;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::floating_ip_table;
 
+use ainari_api::common_functions::permission_denied_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -56,6 +57,9 @@ pub async fn delete_floating_ip_internal(
             Ok(()) | Err(enums::DbError::NotFound) => {}
             Err(enums::DbError::InternalError) => {
                 return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+            }
+            Err(enums::DbError::PermissionDenied) => {
+                return Err(permission_denied_response());
             }
         }
 

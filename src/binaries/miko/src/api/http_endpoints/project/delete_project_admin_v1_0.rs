@@ -17,6 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 
 use crate::database::project_table;
+use crate::database::quota_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -41,6 +42,10 @@ pub async fn delete_project_admin(
     // delete project from database
     project_table::delete_project(&project_id, &context)
         .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
+
+    // delete quota of the project from database
+    quota_table::delete_quota(&project_id, &context)
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
 
     Ok(NoContent)
 }

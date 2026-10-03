@@ -6,14 +6,23 @@ or `http://localhost:5173` for a [local build](../../developer/build_guide.md#bu
 
 ## Login
 
-Log in with the ID and the passphrase of your user.
+Log in with the ID and the passphrase of your user. The optional project-ID selects the project,
+in which you want to work. Without it, you are logged in into your default-project. An invalid
+project-ID, or a project, to which you are not assigned, is rejected with an `Unauthorized` error.
 
 ![Login](img/login.jpg)
+
+## Switch project
+
+**Switch Project** in the menu behind the avatar in the upper right corner lists all projects, to
+which you are assigned, together with your role in each of them. Select a project in the table and
+accept, to continue within this project without a new login. All pages show the resources of the
+selected project afterwards.
 
 ## Overview
 
 After the login the overview shows, how many resources of each type exist compared to the quota of
-the user, and a list of the virtual machines.
+the project, and a list of the virtual machines.
 
 ![Overview](img/overview.jpg)
 
@@ -179,7 +188,7 @@ These pages are only available for admins.
 
     ![Projects](img/admin_project.jpg)
 
-- **Quota** lists the maximum number of resources of each user. **Change Quota** sets new limits.
+- **Quota** lists the maximum number of resources of each project. **Change Quota** sets new limits.
 
     ![Quotas](img/admin_quota.jpg)
 

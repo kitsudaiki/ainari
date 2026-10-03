@@ -21,7 +21,7 @@
 package ainari_sdk
 
 import (
-	"fmt"
+	"net/url"
 	"strings"
 	//b64 "encoding/base64"
 )
@@ -30,13 +30,24 @@ import (
 // It retrieves an access token and service endpoints using the provided credentials.
 // The function returns an AccessContext populated with the authentication token and service addresses.
 // The skipTlsVerification parameter allows bypassing TLS verification for testing or development purposes.
-func RequestContext(address, user, passphrase string, skipTlsVerification bool) (AccessContext, error){
+// RequestContext authenticates at the backend and returns the context for all further requests.
+// The token is scoped to the project with the ID projectId. If projectId is empty, the
+// default-project of the user is used.
+func RequestContext(address, user, passphrase, projectId string, skipTlsVerification bool) (AccessContext, error){
 	var context AccessContext
 
 	path := "v1alpha/token"
 	//b64.StdEncoding.EncodeToString([]byte(passphrase))
 	// create OAuth2 request body
-	var body = fmt.Sprintf("token_format=jwt&grant_type=client_credentials&client_id=%s&client_secret=%s", user, passphrase)
+	form := url.Values{}
+	form.Set("token_format", "jwt")
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_id", user)
+	form.Set("client_secret", passphrase)
+	if projectId != "" {
+		form.Set("project_id", projectId)
+	}
+	var body = form.Encode()
 
 	// authenticate at the server
 	content, err := sendAuthRequest(address, path, body, skipTlsVerification)

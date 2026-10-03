@@ -56,6 +56,65 @@ def delete_project(context: AccessContext,
                                        "")
 
 
+def list_users_in_project(context: AccessContext) -> dict:
+    """
+    Returns all users of the project of the access-context, together with the role of each user
+    within this project: {"members": [{"user_id": ..., "project_role": ...}]}
+    """
+    path = "/v1alpha/project/users"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
+
+
+def list_users_in_project_admin(context: AccessContext,
+                                project_id: str) -> dict:
+    """
+    Returns all users of the given project, together with the role of each user within this
+    project: {"members": [{"user_id": ..., "project_role": ...}]}
+    """
+    path = f"/v1alpha/project/{project_id}/users/admin"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")
+
+
+def add_user_to_project(context: AccessContext,
+                        project_id: str,
+                        user_id: str,
+                        project_role: str) -> dict:
+    """
+    Adds a user to a project. project_role is one of "admin", "member" or "observer".
+    """
+    path = f"/v1alpha/project/{project_id}/add_user/admin"
+    json_body = {
+        "user_id": user_id,
+        "project_role": project_role,
+    }
+    return ainari_request.send_post_request(context,
+                                            context.miko_address,
+                                            path,
+                                            json_body)
+
+
+def remove_user_from_project(context: AccessContext,
+                             project_id: str,
+                             user_id: str):
+    """
+    Removes a user from a project.
+    """
+    path = f"/v1alpha/project/{project_id}/remove_user/admin"
+    json_body = {
+        "user_id": user_id,
+    }
+    ainari_request.send_post_request(context,
+                                     context.miko_address,
+                                     path,
+                                     json_body)
+
+
 def delete_all_projects(context: AccessContext):
     body = list_projects(context)["projects"]
     for entry in body:

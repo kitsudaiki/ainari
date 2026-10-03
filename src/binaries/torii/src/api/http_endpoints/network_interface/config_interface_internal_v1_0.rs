@@ -20,7 +20,7 @@ use crate::core::interface::configure_interface;
 use crate::core::utils::validate_vni;
 use crate::database::network_interface_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -58,7 +58,7 @@ pub async fn config_interface_internal(
     configure_interface(&body, || {
         network_interface_table::set_network_interface(&body, &context)
             .map(|_| ())
-            .map_err(|e| map_internal_error(&format!("persist interface '{}'", body.iface_name), e))
+            .map_err(|e| map_db_write_error(&format!("persist interface '{}'", body.iface_name), e))
     })
     .await?;
 

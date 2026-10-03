@@ -119,10 +119,10 @@ pub async fn reserve_virtual_machine(
         &context,
     )
     .map_err(|e| {
-        log::error!(
-            "Failed to add virtual_machine with UUID '{virtual_machine_uuid}' to database with error: {e}."
-        );
-        ErrorResponse::InternalError("Internal Error".to_string())
+        map_db_write_error(
+            &format!("add virtual_machine with UUID '{virtual_machine_uuid}' to database"),
+            e,
+        )
     })?;
 
     Ok(CreatedJson(virtual_machine_resp))
@@ -171,6 +171,7 @@ fn select_host(
                 "No host with enough free resources for the virtual_machine.".to_string(),
             ))
         }
+        Err(DbError::PermissionDenied) => Err(permission_denied_response()),
         Err(DbError::InternalError) => {
             log::error!("Failed to select host for new virtual_machine from database.");
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
@@ -456,11 +457,11 @@ async fn connect_to_virtual_machines_of_network(
     Ok(())
 }
 
-/// Asynchronously checks if the user's current number of meta_virtual_machines is within their quota limit.
+/// Asynchronously checks if the project's current number of meta_virtual_machines is within its quota limit.
 ///
 /// This function performs two main operations:
-/// 1. Counts the current number of meta_virtual_machines for the given user
-/// 2. Retrieves the user's quota from the Miko endpoint and verifies if the quota is exceeded
+/// 1. Counts the current number of meta_virtual_machines for the project of the context
+/// 2. Retrieves the project's quota from the Miko endpoint and verifies if the quota is exceeded
 ///
 /// # Arguments
 ///
@@ -468,7 +469,7 @@ async fn connect_to_virtual_machines_of_network(
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the quota check passes (user is within their limit)
+/// * `Ok(())` - If the quota check passes (project is within its limit)
 /// * `Err(ErrorResponse)` - If there's an error during the check or if the quota is exceeded
 ///
 /// # Errors
@@ -476,23 +477,25 @@ async fn connect_to_virtual_machines_of_network(
 /// This function will return an error in the following cases:
 /// - Database error when counting meta_virtual_machines
 /// - Network error when communicating with the Miko endpoint
-/// - If the user has exceeded their meta_virtual_machine quota limit
+/// - If the project has exceeded its meta_virtual_machine quota limit
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // Get the current number of meta_virtual_machines for the user from the database
-    // This count is used to compare against the user's quota limit
+    // Get the current number of meta_virtual_machines of the whole project from the database
+    // This count is used to compare against the project's quota limit
     let current_number_of_meta_virtual_machines =
-        meta_virtual_machine_table::count_meta_virtual_machines(context).map_err(|e| {
-            log::error!("Failed to count meta_virtual_machines in database.: {e}");
-            ErrorResponse::InternalError("Internal Error".to_string())
-        })?;
+        meta_virtual_machine_table::count_meta_virtual_machines_of_project(context).map_err(
+            |e| {
+                log::error!("Failed to count meta_virtual_machines in database.: {e}");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            },
+        )?;
 
-    // Retrieve the user's quota information from the Miko endpoint
+    // Retrieve the project's quota information from the Miko endpoint
     // The miko_endpoint is configured in the application settings
     let miko_endpoint = &config::CONFIG.miko;
     let quota = get_quota(
         miko_endpoint,
         &context.token,
-        &context.user_id,
+        &context.project_id,
         config::CONFIG.skip_tls_verification,
     )
     .await

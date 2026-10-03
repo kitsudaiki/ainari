@@ -211,6 +211,11 @@ pub fn reserve_new_address(
     host_address: &str,
     context: &UserContext,
 ) -> Result<AddressEntry, enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     let (first_internal_ip, last_internal_ip) = match assignable_ip_range(internal_cidr) {
         Some(range) => range,
         None => {
@@ -520,6 +525,11 @@ pub fn add_new_address(
     host_address: &str,
     context: &UserContext,
 ) -> QueryResult<AddressEntry> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let address = AddressEntry {
         uuid: Uuid::new_v4(),
         mac_address: mac_address.to_string(),
@@ -809,6 +819,11 @@ pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
 /// A Result indicating success or an error
 #[allow(dead_code)]
 pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the address exists
     get_address(address_uuid)?;
 
@@ -862,6 +877,7 @@ pub fn delete_all_addresses() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     const INTERNAL_IP: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 2);
@@ -955,14 +971,14 @@ mod tests {
         user_id: &str,
         project_id: &str,
         is_admin: bool,
-        is_project_admin: bool,
+        project_role: ProjectRole,
     ) -> UserContext {
         UserContext {
             token: "".to_string(),
             user_id: user_id.to_string(),
             project_id: project_id.to_string(),
             is_admin: is_admin.to_string(),
-            is_project_admin: is_project_admin.to_string(),
+            project_role: project_role.to_string(),
         }
     }
 
@@ -1033,7 +1049,7 @@ mod tests {
     #[serial]
     fn test_add_new_address() {
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let tap_name = "tap-test-1";
         hard_delete_mac_address(MAC_1);
@@ -1074,7 +1090,7 @@ mod tests {
         let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let deleted1 = new_entry(
             &uuid1,
@@ -1133,7 +1149,7 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let active1 = new_entry(
             &uuid1,
@@ -1282,7 +1298,7 @@ mod tests {
     fn test_reserve_new_address() {
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // the first address of a new network gets the first internal IP-address
         let first = expect_entry(reserve_new_address(
@@ -1359,7 +1375,7 @@ mod tests {
     #[serial]
     fn test_reserve_new_address_invalid_cidr() {
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let result =
             reserve_new_address(&network_uuid1, "10.0.0.0/31", TEST_HOST_ADDRESS, &context);
@@ -1371,7 +1387,7 @@ mod tests {
     fn test_reserve_new_address_range_of_cidr() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // an existing address below the range of the CIDR doesn't move the start of the range
         let mut below = new_entry(
@@ -1574,7 +1590,7 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate other requests in another network, which already reserved the first two MAC-addresses
         let base = mac_address_to_number(MAC_1).unwrap();
@@ -1634,7 +1650,7 @@ mod tests {
     fn test_reserve_address_retry_on_ip_conflict() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate another request, which already reserved the first internal IP-address
         let mut other = new_entry(
@@ -1680,7 +1696,7 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate other requests in another network, which already reserved the first two tap-device names
         let mut taken1 = new_entry(
@@ -1736,7 +1752,7 @@ mod tests {
     #[serial]
     fn test_reserve_address_range_exhausted() {
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let result = reserve_address_from(
             LAST_MAC_ADDRESS + 1,
@@ -1875,7 +1891,7 @@ mod tests {
         ));
 
         // a deleted address doesn't belong to a running virtual_machine any more
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
         assert!(delete_address(&uuid1, &context).is_ok());
         assert_not_found(get_address_by_internal_ip(
             &network_uuid1,
@@ -1951,7 +1967,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(
             &uuid1,
@@ -2069,7 +2085,7 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(
             &uuid1,
@@ -2166,7 +2182,7 @@ mod tests {
         }
 
         // a normal user can delete an address of another project
-        let context = new_context("test-user-42", "test_project_1", false, false);
+        let context = new_context("test-user-42", "test_project_1", false, ProjectRole::Member);
         assert!(delete_address(&uuid3, &context).is_ok());
         assert_not_found(get_address(&uuid3));
 
@@ -2181,7 +2197,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let virtual_machine_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(
             &uuid1,

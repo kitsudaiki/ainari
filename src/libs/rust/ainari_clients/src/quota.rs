@@ -19,17 +19,18 @@ use ainari_common::error::AinariError;
 use crate::handle_response;
 use crate::prepare_client;
 
-/// Retrieves the quota information for a specific user from the Miko endpoint.
+/// Retrieves the quota information for a specific project from the Miko endpoint.
 ///
 /// This function makes an HTTP GET request to the Miko endpoint's quota API
-/// to fetch the current quota status for the specified user. The response
+/// to fetch the current quota status for the project of the token. The response
 /// is parsed and returned as a `QuotaResp` struct.
 ///
 /// # Arguments
 ///
 /// * `miko_endpoint` - Reference to the Miko endpoint configuration containing the address.
 /// * `token` - Authentication token for the API request.
-/// * `user_id` - The ID of the user whose quota information is being requested.
+/// * `project_id` - The ID of the project, for which the token was created. It is only used for
+///   the error-messages, because miko takes the project from the token.
 /// * `insecure_client` - Boolean flag indicating whether to use an insecure (non-SSL) client.
 ///
 /// # Returns
@@ -38,7 +39,7 @@ use crate::prepare_client;
 pub async fn get_quota(
     miko_endpoint: &ainari_config::MikoEndpoint,
     token: &String,
-    user_id: &str,
+    project_id: &str,
     insecure_client: bool,
 ) -> Result<QuotaResp, AinariError> {
     let address = miko_endpoint.address.clone();
@@ -51,6 +52,6 @@ pub async fn get_quota(
         .send()
         .await;
 
-    let resp: Result<QuotaResp, AinariError> = handle_response(response, "quota", user_id).await;
+    let resp: Result<QuotaResp, AinariError> = handle_response(response, "quota", project_id).await;
     resp
 }

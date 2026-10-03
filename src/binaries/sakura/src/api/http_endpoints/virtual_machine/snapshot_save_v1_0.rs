@@ -38,7 +38,7 @@ use ainari_clients::image::init_image_in_ryokan;
     description = r###"Create a new task, which saves the root-disk of a virtual_machine as new snapshot.
 
 The snapshot is registered in ryokan as image, which is marked as snapshot, before the task is
-queued, so the image-quota of the user is checked immediately. The task encrypts the root-disk
+queued, so the image-quota of the project is checked immediately. The task encrypts the root-disk
 and uploads it into the onsen.
 
 The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly

@@ -18,7 +18,7 @@ from .access_context import AccessContext
 
 def get_own_quota(context: AccessContext) -> dict:
     """
-    Returns the quota of the user of the current access-context.
+    Returns the quota of the project, for which the token of the access-context was created.
     """
     path = "/v1alpha/quota"
     return ainari_request.send_get_request(context,
@@ -28,8 +28,11 @@ def get_own_quota(context: AccessContext) -> dict:
 
 
 def get_quota(context: AccessContext,
-              user_id: str) -> dict:
-    path = f'/v1alpha/quota/{user_id}/admin'
+              project_id: str) -> dict:
+    """
+    Returns the quota of the given project. Only admins are allowed to do this.
+    """
+    path = f'/v1alpha/quota/{project_id}/admin'
     return ainari_request.send_get_request(context,
                                            context.miko_address,
                                            path,
@@ -45,13 +48,13 @@ def list_quotas(context: AccessContext) -> dict:
 
 
 def set_quota(context: AccessContext,
-              user_id: str,
+              project_id: str,
               max_virtual_machine: int,
               max_image: int,
               max_secret: int,
               max_network: int,
               max_floating_ip: int) -> dict:
-    path = f"/v1alpha/quota/{user_id}/admin"
+    path = f"/v1alpha/quota/{project_id}/admin"
     json_body = {
         "max_virtual_machine": max_virtual_machine,
         "max_image": max_image,

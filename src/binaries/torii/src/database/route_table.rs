@@ -122,6 +122,11 @@ impl From<RouteEntry> for Route {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of rows affected
 pub fn add_new_route(route: &Route, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let entry = RouteEntry {
         uuid: route.uuid,
         vni: route.vni,
@@ -279,6 +284,7 @@ pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 mod tests {
     use super::*;
     use ainari_api_structs::network_filter_structs::RouteFilterRules;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_route(route_uuid: &Uuid) {
@@ -293,7 +299,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

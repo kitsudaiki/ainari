@@ -109,6 +109,11 @@ impl From<TapEntry> for TapReq {
 /// # Returns
 /// * `QueryResult<usize>` indicating the number of inserted rows
 pub fn set_tap(req: &TapReq, context: &UserContext) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(ainari_common::enums::permission_denied_error());
+    }
+
     let entry = TapEntry {
         uuid: Uuid::new_v4(),
         tap_name: req.tap_name.clone(),
@@ -176,6 +181,7 @@ pub fn list_taps() -> QueryResult<Vec<TapEntry>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_tap(name: &str) {
@@ -190,7 +196,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

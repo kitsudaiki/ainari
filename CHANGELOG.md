@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - upgrade path for database-tables (just work after this release, so now it is still a DB breaking change)
 - Hanami now has the get port and list port endpoints and forward them to Torii, so Torii now has no external endpoints anymore
+- is_project_admin was now changed into project_role
+- quota's are now bound to projects instead of users
 
 ### Added
 
@@ -22,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - in kubernetes setup, now it is checked if the internal requests really coming from internal components
 - new script collection to automatically all endpoints and ssh access automatically
 - Torii now stores all data in its database and can restore the old eBPF-state after a reboot
+- new endpoints in Miko: 
+    - add_user_to_project
+    - remove_user_from_project
+    - set_project_role 
+    - list_user_projects
+    - list_users_in_project
+    - list_users_in_project_admin
+- in the login, a user can now define the project to login
+- new project-roles: admin, member and observer
+- new option in the dashboard to switch to another project after login
+- new member overview for projects was added for the admin, where the admin can add
+  and remove users to and from project and switch their roles within a project
 
 ### Changed
 
@@ -30,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dockerfiles/nix_based` for the CI and the vagrant-setup and `dockerfiles/debian_based` for the
   easier debugging in the docker-compose- and kind-setup. The base-image is split into
   `kitsudaiki/ainari_build_base_nix` and `kitsudaiki/ainari_build_base_debian`.
+- Token renew-endpoint now optionally takes a project-id to switch to another project
 
 ### Fixed
 

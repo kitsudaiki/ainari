@@ -20,59 +20,91 @@ limitations under the License.
     white-space: pre-wrap;
 }
 
+/* message below an input-field, in the same style as the error-popup: dark surface with a red
+tint and a red accent-bar on the left side */
 .error-msg {
-    background-color: #ffc8c8;
-    color: #000;
-    border: 1px solid #ff4d4d;
-    padding: 0.5rem 0.75rem;
-    margin-top: 0.5rem;
+    background:
+        linear-gradient(90deg, var(--color-error-tint) 0%, transparent 85%),
+        var(--glass-bg-strong);
+    border: 1px solid var(--color-border-soft);
+    box-shadow: inset 0.25rem 0 0 var(--color-error);
+    color: var(--color-text);
+
+    font-size: 0.9rem;
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+
+    padding: 0.45rem 0.75rem 0.45rem 1rem;
+    margin: 0.5rem 0 0 0;
     width: 100%;
-    text-align: center;
     box-sizing: border-box;
 }
 
+/* frosted glass like the bars and modals, with a red accent-bar on the left side like the
+highlight-bars of the titles. It is placed below the topbar, so it doesn't cover the menu of the
+user in the upper right corner. */
 .error-popup {
     position: fixed;
-    top: 1rem;
+    top: 5rem;
     right: 1rem;
 
-    background-color: #ffdddd;
-    color: #000;
-    border: 1px solid #ff4d4d;
-    padding: 0.75rem 1rem 0.75rem 1rem;
+    background:
+        var(--glass-sheen),
+        linear-gradient(90deg, var(--color-error-tint) 0%, transparent 70%),
+        var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-border-soft);
+    box-shadow:
+        var(--box-shadow),
+        var(--glass-edge),
+        inset 0.3rem 0 0 var(--color-error);
 
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    color: var(--color-text);
+    font-size: 0.95rem;
+    line-height: 1.4;
+    padding: 0.8rem 2.5rem 0.8rem 1.4rem;
+
+    /* the messages come from the api and can contain long ids without spaces */
+    max-width: 26rem;
+    overflow-wrap: anywhere;
+
     z-index: 9999;
 
     opacity: 0;
     animation: popin 0.2s forwards;
-
-    position: fixed;
-    max-width: 300px;
 }
 
-.invalid_input {
-    border-bottom: 2px solid #ff4d4f;
+/* The element is part of the selector, because otherwise the rules for the input-types in
+base.css, like input[type="text"], are more specific and override the border. */
+input.invalid_input,
+select.invalid_input,
+textarea.invalid_input {
+    border-bottom: 2px solid var(--color-error);
 }
 
 /* little ✕ button in the corner */
 .error-close-btn {
     position: absolute;
-    top: 4px;
-    right: 6px;
+    top: 0.45rem;
+    right: 0.5rem;
 
     background: none;
     border: none;
+    padding: 0.1rem 0.35rem;
     cursor: pointer;
 
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
+    line-height: 1;
 
-    color: #333;
+    color: var(--color-text-light);
 }
 
 .error-close-btn:hover {
-    color: #000;
+    color: var(--color-text);
+    background: var(--color-error-tint);
 }
 
 @keyframes popin {

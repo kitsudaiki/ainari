@@ -15,6 +15,7 @@
 pub mod db_handle;
 pub mod project_table;
 pub mod quota_table;
+pub mod user_project_mapping_table;
 pub mod user_table;
 
 /// Opens the database of the service and applies all pending migrations of the
@@ -55,15 +56,6 @@ fn init_admin_entries() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => log::info!("Initialized admin-user"),
         Err(e) => {
             log::error!("Failed to initialize admin-user: {e}");
-            return Err(e);
-        }
-    };
-
-    // Create the quota of the initial admin, if the quota-table is still empty
-    match quota_table::init_admin_quota() {
-        Ok(_) => log::info!("Initialized admin-quota"),
-        Err(e) => {
-            log::error!("Failed to initialize admin-quota: {e}");
             return Err(e);
         }
     };

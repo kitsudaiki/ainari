@@ -50,3 +50,39 @@ func DeleteProject(context AccessContext, projectId string) (map[string]interfac
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.MikoAddress, path, vars)
 }
+
+// ListUsersInProject returns all users of the project of the current access-context, together
+// with the role of each user within this project.
+func ListUsersInProject(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/project/users"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}
+
+// ListUsersInProjectAdmin returns all users of the given project, together with the role of
+// each user within this project.
+func ListUsersInProjectAdmin(context AccessContext, projectId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/project/%s/users/admin", projectId)
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}
+
+// AddUserToProject adds a user with the given role to a project.
+// Valid roles are "admin", "member" and "observer".
+func AddUserToProject(context AccessContext, projectId, userId, projectRole string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/project/%s/add_user/admin", projectId)
+	jsonBody := map[string]interface{}{
+		"user_id":      userId,
+		"project_role": projectRole,
+	}
+	return SendPost(context, context.MikoAddress, path, jsonBody)
+}
+
+// RemoveUserFromProject removes a user from a project.
+func RemoveUserFromProject(context AccessContext, projectId, userId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/project/%s/remove_user/admin", projectId)
+	jsonBody := map[string]interface{}{
+		"user_id": userId,
+	}
+	return SendPost(context, context.MikoAddress, path, jsonBody)
+}

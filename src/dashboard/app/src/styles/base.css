@@ -48,6 +48,10 @@ limitations under the License.
     --color-usage-warning: #e6b800;
     --color-usage-critical: #e53935;
 
+    /* errors use the same red as the critical usage-level */
+    --color-error: var(--color-usage-critical);
+    --color-error-tint: rgb(from var(--color-error) r g b / 0.18);
+
     /* frosted glass for panels, which lie above the background */
     --glass-bg: rgba(38, 41, 46, 0.55);
     --glass-bg-strong: rgba(22, 24, 27, 0.72);

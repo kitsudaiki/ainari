@@ -72,6 +72,11 @@ def delete_users(ctx):
     delete_kind(ctx, "user")
 
 
+@suite.test("delete projects")
+def delete_projects(ctx):
+    delete_kind(ctx, "project")
+
+
 @suite.test("delete secrets")
 def delete_secrets(ctx):
     delete_kind(ctx, "secret")

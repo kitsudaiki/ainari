@@ -21,7 +21,7 @@ use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -82,7 +82,7 @@ pub async fn add_filter_ip_range_internal(
     // that fails, the previous include-lists are applied again.
     persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
         network_filter_table::set_filter_rules(&route_uuid, rules, &context)
-            .map_err(|e| map_internal_error("persist packet-filter", e))
+            .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
     let message = format!(

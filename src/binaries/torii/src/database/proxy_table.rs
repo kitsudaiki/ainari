@@ -101,6 +101,11 @@ pub fn add_new_proxy(
     virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     // Create a new ProxyEntry with the provided parameters and current timestamps
     let proxy = ProxyEntry {
         uuid: *proxy_uuid,
@@ -156,9 +161,6 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -241,9 +243,6 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(ProxyEntry::as_select()).load(&mut *conn)
@@ -258,6 +257,11 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure
 pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the proxy exists and the user has permission to delete it
     get_proxy(proxy_uuid, context)?;
 
@@ -280,35 +284,10 @@ pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     }
 }
 
-/// Marks all active proxies as deleted in the database.
-///
-/// This is typically used for cleanup operations.
-///
-/// # Returns
-/// * `Result<(), enums::DbError>` indicating success or failure
-pub fn delete_all_proxy() -> Result<(), enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    match diesel::update(proxys.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HANAMI_START"),
-        ))
-        .execute(&mut *conn)
-    {
-        Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
-        Err(e) => {
-            log::error!("Database-error: {e:?}");
-            Err(enums::DbError::InternalError)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_proxy(proxy_uuid: &Uuid) {
@@ -331,7 +310,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let proxy = ProxyEntry {
@@ -391,7 +370,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let proxy1 = ProxyEntry {
@@ -451,7 +430,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let proxy = ProxyEntry {
@@ -549,10 +528,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let proxys = list_proxys(&context).unwrap();
-        assert_eq!(proxys.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(proxys.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -560,7 +540,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let proxys = list_proxys(&context).unwrap();
         assert_eq!(proxys.len(), 2);
@@ -571,7 +551,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let proxys = list_proxys(&context).unwrap();
         assert_eq!(proxys.len(), 3);
@@ -582,7 +562,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_proxy(&proxy_uuid1, &context) {
             Ok(retrieved_proxy) => {
@@ -599,7 +579,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_proxy(&proxy_uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -611,7 +591,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_proxy(&proxy_uuid3, &context).is_ok() {
             assert_eq!(true, false);

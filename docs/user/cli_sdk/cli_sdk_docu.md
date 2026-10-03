@@ -49,6 +49,8 @@ returns the addresses of all other components, so only the address of miko is re
     export AINARI_ADDRESS=http://127.0.0.1:11417
     export AINARI_USER=asdf
     export AINARI_PASSPHRASE=asdfasdf
+    # optional, the default-project of the user is used, if not set
+    export AINARI_PROJECT=my_project
     ```
 
     Global flags, which are available for all commands:
@@ -73,6 +75,18 @@ returns the addresses of all other components, so only the address of miko is re
     context = login.request_context(address, user_id, passphrase, verify_connection=False)
     ```
 
+    By default, the token is created for the default-project of the user. To use another project,
+    to which the user is assigned, add `project_id`:
+
+    ```python
+    context = login.request_context(address, user_id, passphrase, project_id="my_project")
+    ```
+
+Each user has its own project `default-<USER_ID>`, in which the user is admin. The token is only
+created, if the user is assigned to the requested project, and contains the role of the user
+within this project. The role is one of `admin`, `member` or `observer`. Observers, which are not
+admins, can only read resources. Creating, changing or deleting them is rejected with `403`.
+
 ## Exceptions
 
 === "Python-SDK"
@@ -87,6 +101,8 @@ returns the addresses of all other components, so only the address of miko is re
     except ainari_exceptions.BadRequestException as e:        # 400
         print(e)
     except ainari_exceptions.UnauthorizedException as e:      # 401
+        print(e)
+    except ainari_exceptions.ForbiddenException as e:         # 403
         print(e)
     except ainari_exceptions.NotFoundException as e:          # 404
         print(e)
@@ -834,7 +850,8 @@ Projects are used for logical separation of the resources of users.
 
 !!! info
 
-    Only admins are allowed to manage projects.
+    Only admins are allowed to manage projects and their users. Listing the users of the project
+    of the current login is allowed for every user of this project.
 
 === "CLI"
 
@@ -843,7 +860,17 @@ Projects are used for logical separation of the resources of users.
     ainarictl project list
     ainarictl project get <PROJECT_ID>
     ainarictl project delete <PROJECT_ID>
+    ainarictl project add_user_to_project <PROJECT_ID> <USER_ID> <PROJECT_ROLE>
+    ainarictl project remove_user_from_project <PROJECT_ID> <USER_ID>
+    ainarictl project list_users_in_project_admin <PROJECT_ID>
+
+    # every user, not only admins: users of the project of the current login and the role of
+    # each of them
+    ainarictl project list_users_in_project
     ```
+
+    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. A user can be added to the same
+    project only once at the same time.
 
     example:
 
@@ -871,6 +898,17 @@ Projects are used for logical separation of the resources of users.
     project.get_project(context, "my_project")
     project.delete_project(context, "my_project")
     project.delete_all_projects(context)
+
+    project.add_user_to_project(context, "my_project", "my_user", "member")
+    # {"user_id": "my_user", "project_id": "my_project", "project_role": "member"}
+    project.list_users_in_project_admin(context, "my_project")
+    # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
+    project.remove_user_from_project(context, "my_project", "my_user")
+
+    # every user, not only admins: users of the project of the context and the role of each of
+    # them
+    project.list_users_in_project(context)
+    # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
     ```
 
 ## Users
@@ -886,7 +924,14 @@ Projects are used for logical separation of the resources of users.
     ainarictl user list
     ainarictl user get <USER_ID>
     ainarictl user delete <USER_ID>
+    ainarictl user set_project_role <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
+
+    # every user, not only admins: own projects and the role in each of them
+    ainarictl user list_user_projects
     ```
+
+    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. `set_project_role` only changes the
+    role of a user, who was already added to the project.
 
     Without `-p <PASSPHRASE>` the passphrase is requested interactively. The flag should only be
     used for automated testing, because the passphrase is visible in the command-line and the
@@ -919,23 +964,31 @@ Projects are used for logical separation of the resources of users.
     user.get_user(context, "my_user")
     user.delete_user(context, "my_user")
     user.delete_all_user(context)
+
+    user.set_project_role(context, "my_user", "my_project", "observer")
+
+    # every user, not only admins: own projects and the role in each of them
+    user.list_user_projects(context)
+    # {"projects": [{"project_id": "default-my_user", "project_role": "admin"}, ...]}
     ```
 
 ## Quotas
 
-Maximum number of resources per user. Every user can see the own quota, only admins can see and
-set the quotas of other users.
+Maximum number of resources per project. The resources of all users of a project count against the
+same quota. Every project gets a quota with a limit of 10 for each resource, when it is created.
+Every user can see the quota of the project of the current login, only admins can see and set the
+quotas of other projects.
 
 === "CLI"
 
     ```bash
-    # own quota
+    # quota of the project of the current login
     ainarictl quota show
 
     # admin only
     ainarictl quota list
-    ainarictl quota get <USER_ID>
-    ainarictl quota set <USER_ID> \
+    ainarictl quota get <PROJECT_ID>
+    ainarictl quota set <PROJECT_ID> \
         --max_virtual_machine <N> --max_image <N> --max_secret <N> \
         --max_network <N> --max_floating_ip <N>
     ```
@@ -945,12 +998,12 @@ set the quotas of other users.
     ```bash
     ainarictl quota list
 
-    ┌─────────────────┬───────────┬─────────────┬────────────┬─────────────────────┬─────────┐
-    │ MAX FLOATING IP │ MAX IMAGE │ MAX NETWORK │ MAX SECRET │ MAX VIRTUAL MACHINE │ USER ID │
-    ├─────────────────┼───────────┼─────────────┼────────────┼─────────────────────┼─────────┤
-    │ 10              │ 10        │ 10          │ 10         │ 10                  │ asdf    │
-    │ 2               │ 5         │ 2           │ 5          │ 5                   │ my_user │
-    └─────────────────┴───────────┴─────────────┴────────────┴─────────────────────┴─────────┘
+    ┌─────────────────┬───────────┬─────────────┬────────────┬─────────────────────┬──────────────┐
+    │ MAX FLOATING IP │ MAX IMAGE │ MAX NETWORK │ MAX SECRET │ MAX VIRTUAL MACHINE │ PROJECT ID   │
+    ├─────────────────┼───────────┼─────────────┼────────────┼─────────────────────┼──────────────┤
+    │ 10              │ 10        │ 10          │ 10         │ 10                  │ default-asdf │
+    │ 2               │ 5         │ 2           │ 5          │ 5                   │ my_project   │
+    └─────────────────┴───────────┴─────────────┴────────────┴─────────────────────┴──────────────┘
     ```
 
 === "Python-SDK"
@@ -962,8 +1015,8 @@ set the quotas of other users.
 
     # admin only
     quota.list_quotas(context)    # {"quotas": [...]}
-    quota.get_quota(context, "my_user")
-    quota.set_quota(context, "my_user",
+    quota.get_quota(context, "my_project")
+    quota.set_quota(context, "my_project",
                     5,    # max_virtual_machine
                     5,    # max_image
                     5,    # max_secret

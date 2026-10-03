@@ -51,6 +51,23 @@
                         Password must be at least 8 characters
                     </p>
                 </div>
+
+                <div class="login-field-spacing">
+                    <input
+                        v-model="project_id"
+                        type="text"
+                        id="login_project_field"
+                        placeholder="Project-ID (optional)"
+                        @keyup.enter="login"
+                        :class="{ invalid_input: projectIdError }"
+                    />
+                    <p v-if="projectIdError" class="error-msg">
+                        Project-ID must be between 4 and 127 characters
+                    </p>
+                </div>
+
+                <!-- Rejected login, for example an invalid project-id -->
+                <p v-if="error" class="error-msg">{{ error }}</p>
             </div>
 
             <!-- Modal bottombar -->
@@ -64,6 +81,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import axios from "axios";
+
+import { handleAxiosError, responseMessage } from "@/handleAxiosError";
 
 import {
     createAuthContext,
@@ -86,9 +105,12 @@ const emit = defineEmits<{
 // Reactive references to store user input and validation states
 const user_id = ref("");
 const password = ref("");
+// optional, if empty, the backend uses the default-project of the user
+const project_id = ref("");
 const error = ref("");
 const userIdError = ref(false);
 const passwordError = ref(false);
+const projectIdError = ref(false);
 
 /**
  * Validates the user input before attempting login
@@ -97,7 +119,11 @@ const passwordError = ref(false);
 function validateInput(): boolean {
     userIdError.value = user_id.value.length < 4;
     passwordError.value = password.value.length < 8;
-    return !(userIdError.value || passwordError.value);
+    // the project-id is optional, so only a given one is checked
+    const projectId = project_id.value.trim();
+    projectIdError.value =
+        projectId.length > 0 && (projectId.length < 4 || projectId.length > 127);
+    return !(userIdError.value || passwordError.value || projectIdError.value);
 }
 
 /**
@@ -120,6 +146,11 @@ async function login() {
         params.append("token_format", "jwt");
         params.append("client_id", user_id.value);
         params.append("client_secret", password.value);
+        // without a project-id, the backend creates the token for the default-project
+        const projectId = project_id.value.trim();
+        if (projectId.length > 0) {
+            params.append("project_id", projectId);
+        }
 
         // Configure axios instance with base URL of Miko from the config
         const { apiUrl } = getConfig();
@@ -147,8 +178,14 @@ async function login() {
         // Notify parent components of successful login
         emit("login-success", token, user_id.value, is_admin, expire_timestamp);
     } catch (err: any) {
-        // Handle authentication errors
-        error.value = "Login failed. Please try again.";
+        // Wrong credentials and a project, which doesn't exist or to which the user is not
+        // assigned, are all rejected with 401. The reason is given by the backend.
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+            const reason = responseMessage(err.response.data) ?? "Login failed";
+            error.value = `Unauthorized: ${reason}`;
+        } else {
+            error.value = handleAxiosError(err, "Login failed");
+        }
     }
 }
 </script>
@@ -171,10 +208,5 @@ async function login() {
 
 .login-field-spacing {
     margin-top: 1rem;
-}
-
-/* is not found when I put this in one of the css files. Don't know why... */
-.invalid_input {
-    border-bottom: 2px solid #ff4d4f;
 }
 </style>

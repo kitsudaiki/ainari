@@ -21,7 +21,7 @@ use crate::core::routing::update_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::common_functions::{map_db_write_error, permission_denied_response};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -60,10 +60,11 @@ pub async fn update_route_internal(
             Ok(()) => Ok(()),
             Err(enums::DbError::NotFound) => route_table::add_new_route(route, &context)
                 .map(|_| ())
-                .map_err(|e| map_internal_error(&format!("persist route '{route_uuid}'"), e)),
+                .map_err(|e| map_db_write_error(&format!("persist route '{route_uuid}'"), e)),
             Err(enums::DbError::InternalError) => {
                 Err(ErrorResponse::InternalError("Internal Error".to_string()))
             }
+            Err(enums::DbError::PermissionDenied) => Err(permission_denied_response()),
         }
     })
     .await?;

@@ -184,6 +184,7 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
         AinariError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
         AinariError::NotFound(msg) => ErrorResponse::NotFound(msg),
         AinariError::Conflict(msg) => ErrorResponse::Conflict(msg),
+        AinariError::Forbidden(msg) => ErrorResponse::Forbidden(msg),
         AinariError::InternalError(msg) => {
             log::error!("{msg}");
             ErrorResponse::InternalError("Internal Error".to_string())
@@ -229,6 +230,7 @@ pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError)
         enums::DbError::NotFound => {
             ErrorResponse::NotFound(format!("{obj_type} with ID '{id}' not found."))
         }
+        enums::DbError::PermissionDenied => permission_denied_response(),
     }
 }
 
@@ -298,6 +300,7 @@ pub fn map_db_uuid_get_delete_error(
         enums::DbError::NotFound => {
             ErrorResponse::NotFound(format!("{obj_type} with UUID '{uuid}' not found."))
         }
+        enums::DbError::PermissionDenied => permission_denied_response(),
     }
 }
 
@@ -329,6 +332,9 @@ pub fn map_db_uuid_get_delete_ainari_error(
         enums::DbError::NotFound => {
             AinariError::InvalidInput(format!("{obj_type} with UUID '{uuid}' not found."))
         }
+        enums::DbError::PermissionDenied => {
+            AinariError::Forbidden("Permission denied.".to_string())
+        }
     }
 }
 
@@ -359,6 +365,37 @@ pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorRespo
 /// An ErrorResponse object corresponding to the database error.
 pub fn map_db_count_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
     log::error!("Failed to count {obj_type} with error: '{e}'");
+    ErrorResponse::InternalError("Internal Error".to_string())
+}
+
+/// Response for a request, which was blocked by the database, because the user of the context is
+/// not allowed to change the entry, for example because it is only observer of the project.
+///
+/// # Returns
+///
+/// An ErrorResponse with status 403.
+pub fn permission_denied_response() -> ErrorResponse {
+    ErrorResponse::Forbidden("Permission denied.".to_string())
+}
+
+/// Maps database errors for adding or changing operations to appropriate ErrorResponse.
+///
+/// A blocked write-access is reported to the client, all other errors are only logged, because
+/// they must not be exposed to the client.
+///
+/// # Arguments
+///
+/// * `action` - A string slice describing the action, which has failed.
+/// * `e` - A diesel::result::Error object indicating the database error.
+///
+/// # Returns
+///
+/// An ErrorResponse with status 403 for a blocked write-access, else the generic internal error.
+pub fn map_db_write_error(action: &str, e: diesel::result::Error) -> ErrorResponse {
+    if enums::is_permission_denied(&e) {
+        return permission_denied_response();
+    }
+    log::error!("Failed to {action} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -405,6 +442,9 @@ pub fn check_if_id_exist_in_db<T>(
         }
         Err(enums::DbError::NotFound) => {
             // it is desired, that the object not already exist, so this error will be ignored
+        }
+        Err(enums::DbError::PermissionDenied) => {
+            return Err(permission_denied_response());
         }
     };
 

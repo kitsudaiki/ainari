@@ -87,6 +87,11 @@ pub fn add_new_public_key(
     fingerprint: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let new_public_key = PublicKeyEntry {
         uuid: *public_key_uuid,
         name: name.to_string(),
@@ -151,9 +156,6 @@ pub fn get_public_key(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -189,9 +191,6 @@ pub fn list_public_keys(context: &UserContext) -> QueryResult<Vec<PublicKeyEntry
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(PublicKeyEntry::as_select()).load(&mut *conn)
@@ -267,6 +266,11 @@ pub fn delete_public_key(
     public_key_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the public-key exists and the user has permission to delete it
     get_public_key(public_key_uuid, context)?;
 
@@ -320,6 +324,7 @@ pub fn delete_all_public_key() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     const PUBLIC_KEY: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKeyForUnitTests test-key";
@@ -361,14 +366,14 @@ mod tests {
         user_id: &str,
         project_id: &str,
         is_admin: bool,
-        is_project_admin: bool,
+        project_role: ProjectRole,
     ) -> UserContext {
         UserContext {
             token: "".to_string(),
             user_id: user_id.to_string(),
             project_id: project_id.to_string(),
             is_admin: is_admin.to_string(),
-            is_project_admin: is_project_admin.to_string(),
+            project_role: project_role.to_string(),
         }
     }
 
@@ -390,7 +395,7 @@ mod tests {
     #[serial]
     fn test_add_get_public_key() {
         let uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
 
@@ -420,7 +425,7 @@ mod tests {
     #[serial]
     fn test_get_public_key_not_found() {
         let uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         hard_delete_public_key(&uuid1);
 
@@ -432,7 +437,7 @@ mod tests {
     fn test_list_public_keys() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
         let entry2 = new_entry(&uuid2, "test-user", "test-project", "DELETED");
@@ -458,7 +463,7 @@ mod tests {
     #[serial]
     fn test_delete_public_key() {
         let uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
 
@@ -476,7 +481,7 @@ mod tests {
     #[serial]
     fn test_force_delete_public_key() {
         let uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // the entry belongs to another project, so only the force-delete can remove it
         let entry = new_entry(&uuid1, "other-user", "other-project", "ACTIVE");
@@ -496,7 +501,7 @@ mod tests {
     fn test_delete_all_public_key() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", true, false);
+        let context = new_context("test-user", "test-project", true, ProjectRole::Member);
 
         let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
         let entry2 = new_entry(&uuid2, "other-user", "other-project", "ACTIVE");
@@ -521,7 +526,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
         let entry2 = new_entry(&uuid2, "test-user", "test-project", "ACTIVE");
@@ -563,44 +568,110 @@ mod tests {
         add_public_key(entry3).unwrap();
 
         // list-test normal user
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
-        assert_eq!(list_public_keys(&context).unwrap().len(), 1);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(list_public_keys(&context).unwrap().len(), 2);
 
         // list-test project-admin
-        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Admin,
+        );
         assert_eq!(list_public_keys(&context).unwrap().len(), 2);
 
         // list-test admin
-        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            true,
+            ProjectRole::Member,
+        );
         assert_eq!(list_public_keys(&context).unwrap().len(), 3);
 
         // get-test normal user
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
         let retrieved = expect_entry(get_public_key(&uuid1, &context));
         assert_eq!(retrieved.uuid, uuid1);
 
-        // get-test normal user, entry of another user within the same project
-        assert!(get_public_key(&uuid2, &context).is_err());
+        // get-test normal user, entry of another user within the same project, which is visible
+        // for all members of the project
+        assert_eq!(expect_entry(get_public_key(&uuid2, &context)).uuid, uuid2);
 
         // get-test normal user, entry of another project
         assert!(get_public_key(&uuid3, &context).is_err());
 
         // get-test project-admin, entry of another user within the same project
-        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Admin,
+        );
         let retrieved = expect_entry(get_public_key(&uuid2, &context));
         assert_eq!(retrieved.uuid, uuid2);
 
         // get-test admin, entry of another project
-        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            true,
+            ProjectRole::Member,
+        );
         let retrieved = expect_entry(get_public_key(&uuid3, &context));
         assert_eq!(retrieved.uuid, uuid3);
 
         // delete-test normal user, entry of another project
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
         assert!(delete_public_key(&uuid3, &context).is_err());
 
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
         hard_delete_public_key(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_observer_can_not_change_public_keys() {
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let observer = new_context("test-user", "test-project", false, ProjectRole::Observer);
+        let admin_observer = new_context("test-user", "test-project", true, ProjectRole::Observer);
+
+        hard_delete_public_key(&uuid1);
+        hard_delete_public_key(&uuid2);
+
+        // an observer can neither add nor delete, but still read
+        let result = add_new_public_key(&uuid1, "key", PUBLIC_KEY, FINGERPRINT, &observer);
+        assert!(matches!(result, Err(e) if enums::is_permission_denied(&e)));
+        assert_not_found(get_public_key(&uuid1, &observer));
+        add_public_key(new_entry(&uuid2, "test-user", "test-project", "ACTIVE")).unwrap();
+        assert!(matches!(
+            delete_public_key(&uuid2, &observer),
+            Err(enums::DbError::PermissionDenied)
+        ));
+        expect_entry(get_public_key(&uuid2, &observer));
+
+        // an admin is not restricted, even as observer of the project
+        assert!(delete_public_key(&uuid2, &admin_observer).is_ok());
+
+        hard_delete_public_key(&uuid1);
+        hard_delete_public_key(&uuid2);
     }
 }

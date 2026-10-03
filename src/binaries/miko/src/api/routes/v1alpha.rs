@@ -56,6 +56,23 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(list_project_admin_v1_0::list_project_admin)),
                 )
                 .service(
+                    resource("/users")
+                        .route(get().to(list_users_in_project_v1_0::list_users_in_project)),
+                )
+                .service(
+                    resource("/{project_id}/users/admin").route(
+                        get().to(list_users_in_project_admin_v1_0::list_users_in_project_admin),
+                    ),
+                )
+                .service(
+                    resource("/{project_id}/add_user/admin").route(
+                        post().to(add_user_to_project_admin_v1_0::add_user_to_project_admin),
+                    ),
+                )
+                .service(resource("/{project_id}/remove_user/admin").route(
+                    post().to(remove_user_from_project_admin_v1_0::remove_user_from_project_admin),
+                ))
+                .service(
                     resource("/{project_id}/admin")
                         .route(get().to(get_project_admin_v1_0::get_project_admin))
                         .route(delete().to(delete_project_admin_v1_0::delete_project_admin)),
@@ -72,6 +89,14 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{user_id}/admin")
                         .route(get().to(get_user_admin_v1_0::get_user_admin))
                         .route(delete().to(delete_user_admin_v1_0::delete_user_admin)),
+                )
+                .service(
+                    resource("/{user_id}/set_project_role/admin")
+                        .route(put().to(set_project_role_admin_v1_0::set_project_role_admin)),
+                )
+                .service(
+                    resource("/user_projects")
+                        .route(get().to(list_user_projects_v1_0::list_user_projects)),
                 ),
         )
         .service(
@@ -81,7 +106,7 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/admin").route(get().to(list_quota_admin_v1_0::list_quota_admin)),
                 )
                 .service(
-                    resource("/{user_id}/admin")
+                    resource("/{project_id}/admin")
                         .route(get().to(get_quota_admin_v1_0::get_quota_admin))
                         .route(put().to(set_quota_admin_v1_0::set_quota_admin)),
                 ),

@@ -17,6 +17,7 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 
 use crate::database::db_handle;
+use crate::database::quota_table;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
@@ -60,8 +61,9 @@ pub struct ProjectEntry {
 
 /// Adds a new project to the database.
 ///
-/// This function creates a new project entry with the provided parameters.
-/// It checks for admin permissions and ensures the project ID doesn't already exist.
+/// This function creates a new project entry with the provided parameters, together with the
+/// quota of the project. It checks for admin permissions and ensures the project ID doesn't
+/// already exist.
 ///
 /// # Arguments
 ///
@@ -78,6 +80,11 @@ pub fn add_new_project(
     project_name: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
@@ -94,6 +101,9 @@ pub fn add_new_project(
         ));
     };
 
+    // the quota limits the resources of the project, so each project gets its own one
+    quota_table::add_new_quota(project_id, 10, 10, 10, 10, 10, context)?;
+
     let project = ProjectEntry {
         id: project_id.clone(),
         name: project_name.to_owned(),
@@ -106,7 +116,10 @@ pub fn add_new_project(
         deleted_by: None,
     };
 
-    add_project(project.clone())
+    // delete quota again, if adding of the project failed, to avoid inconsistent database
+    add_project(project).inspect_err(|_| {
+        quota_table::hard_delete_quota(project_id, context);
+    })
 }
 
 /// Adds a project to the database.
@@ -129,6 +142,37 @@ pub fn add_project(project: ProjectEntry) -> QueryResult<usize> {
     diesel::insert_into(projects)
         .values(project)
         .execute(&mut *conn)
+}
+
+/// Retrieves a project for the authentication from the database.
+///
+/// This function fetches a project by its ID, ensuring the project is active.
+/// Unlike get_project, this function doesn't check for admin privileges.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project to retrieve
+///
+/// # Returns
+///
+/// * `Ok(ProjectEntry)` if the project is found
+/// * `DbError::NotFound` if the project doesn't exist
+/// * `DbError::InternalError` if a database error occurs
+pub fn get_auth_project(project_id: &String) -> Result<ProjectEntry, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::projects::dsl::*;
+    match projects
+        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
+        .select(ProjectEntry::as_select())
+        .first::<ProjectEntry>(&mut *conn)
+    {
+        Ok(project) => Ok(project),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
 }
 
 /// Retrieves a project from the database.
@@ -213,6 +257,11 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 /// * `DbError::NotFound` if the project doesn't exist or the user lacks permissions
 /// * `DbError::InternalError` if a database error occurs
 pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
@@ -235,6 +284,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_project(project_id: &String) {
@@ -253,7 +303,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project = ProjectEntry {
@@ -295,7 +345,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id1.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project1 = ProjectEntry {
@@ -345,7 +395,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let project = ProjectEntry {
@@ -366,5 +416,35 @@ mod tests {
         let _ = delete_project(&project_id, &context);
         let result = get_project(&project_id, &context);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_project_creates_quota() {
+        let project_id = "test-project-quota".to_string();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "admin".to_string(),
+            project_id: project_id.clone(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_project(&project_id);
+        quota_table::hard_delete_quota(&project_id, &context);
+
+        add_new_project(&project_id, "Quota", &context).unwrap();
+        let Ok(quota) = quota_table::get_quota(&project_id, &context) else {
+            panic!("quota of the new project was not created");
+        };
+        assert_eq!(quota.id, project_id);
+        assert_eq!(quota.max_secret, 10);
+
+        // a second project with the same ID is rejected and doesn't touch the existing quota
+        assert!(add_new_project(&project_id, "Quota", &context).is_err());
+        assert!(quota_table::get_quota(&project_id, &context).is_ok());
+
+        hard_delete_project(&project_id);
+        quota_table::hard_delete_quota(&project_id, &context);
     }
 }

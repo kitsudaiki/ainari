@@ -110,6 +110,11 @@ pub fn set_floating_ip(
     req: &FloatingIpInternalCreateReq,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     let entry = FloatingIpEntry {
         uuid: *fip_uuid,
         name: req.name.clone(),
@@ -163,6 +168,11 @@ pub fn list_floating_ips() -> QueryResult<Vec<FloatingIpEntry>> {
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure
 pub fn delete_floating_ip(ip: &Ipv4Addr, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     match delete_floating_ip_in(&mut conn, ip, context) {
         Ok(0) => Err(enums::DbError::NotFound),
@@ -201,6 +211,7 @@ fn delete_floating_ip_in(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_floating_ip(ip: &Ipv4Addr) {
@@ -216,7 +227,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

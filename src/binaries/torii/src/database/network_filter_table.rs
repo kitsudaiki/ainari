@@ -105,6 +105,11 @@ pub fn set_filter_rules(
     rules: &RouteFilterRules,
     context: &UserContext,
 ) -> QueryResult<()> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(ainari_common::enums::permission_denied_error());
+    }
+
     let ip_ranges = rules
         .ip_ranges
         .iter()
@@ -160,6 +165,11 @@ pub fn delete_filter_rules_in(
     filter_route_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(ainari_common::enums::permission_denied_error());
+    }
+
     use self::network_filters::dsl::*;
     diesel::update(
         network_filters.filter(
@@ -216,6 +226,7 @@ pub fn list_filter_rules() -> QueryResult<HashMap<Uuid, RouteFilterRules>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_filter(filter_route_uuid: &Uuid) {
@@ -232,7 +243,7 @@ mod tests {
             user_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         }
     }
 

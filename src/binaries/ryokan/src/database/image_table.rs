@@ -110,6 +110,11 @@ pub fn add_new_image(
     is_snapshot: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     // Create a new ImageEntry with the provided parameters
     let image = ImageEntry {
         uuid: *image_uuid,
@@ -173,9 +178,6 @@ pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry,
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and handle the result
@@ -212,9 +214,6 @@ pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     // Execute the query and return the results
@@ -245,6 +244,29 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Counts the number of images of the whole project of the context.
+///
+/// Unlike `count_images`, the images of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
+///
+/// # Arguments
+///
+/// * `context` - The user context, whose project is counted
+///
+/// # Returns
+///
+/// A QueryResult containing the count of images as an i64
+pub fn count_images_of_project(context: &UserContext) -> QueryResult<i64> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    images
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+}
+
 /// Deletes an image from the database.
 ///
 /// This function marks an image as deleted by updating its status and setting
@@ -257,6 +279,11 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
 /// # Returns
 /// * `Result<(), enums::DbError>` - Success or an error
 pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // First verify that the image exists and is accessible to the user
     get_image(image_uuid, context)?;
 
@@ -284,6 +311,7 @@ pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     fn hard_delete_image(image_uuid: &Uuid) {
@@ -306,7 +334,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image = ImageEntry {
@@ -361,7 +389,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image1 = ImageEntry {
@@ -425,7 +453,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image = ImageEntry {
@@ -471,7 +499,7 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let image1 = ImageEntry {
@@ -621,10 +649,11 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let images = list_images(&context).unwrap();
-        assert_eq!(images.len(), 1);
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(images.len(), 2);
 
         // list-test project-admin
         let context = UserContext {
@@ -632,7 +661,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
         };
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 2);
@@ -643,7 +672,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 3);
@@ -654,7 +683,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         match get_image(&uuid1, &context) {
             Ok(retrieved_image) => {
@@ -671,7 +700,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if get_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
@@ -683,7 +712,7 @@ mod tests {
             user_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             is_admin: false.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
         if delete_image(&uuid3, &context).is_ok() {
             assert_eq!(true, false);

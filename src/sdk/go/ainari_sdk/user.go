@@ -58,3 +58,22 @@ func DeleteUser(context AccessContext, userId string) (map[string]interface{}, e
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.MikoAddress, path, vars)
 }
+
+// SetProjectRole changes the role of a user within a project, to which the user is already assigned.
+// Valid roles are "admin", "member" and "observer".
+func SetProjectRole(context AccessContext, userId, projectId, projectRole string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/user/%s/set_project_role/admin", userId)
+	jsonBody := map[string]interface{}{
+		"project_id":   projectId,
+		"project_role": projectRole,
+	}
+	return SendPut(context, context.MikoAddress, path, jsonBody)
+}
+
+// ListInvitedProjects returns all projects, to which the user of the current access-context is
+// assigned, together with the role of the user within each of these projects.
+func ListInvitedProjects(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/user/user_projects"
+	vars := map[string]interface{}{}
+	return SendGet(context, context.MikoAddress, path, vars)
+}

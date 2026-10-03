@@ -89,6 +89,8 @@ pub enum FloatingIpReserveError {
     AlreadyUsed,
     /// All floating IP-addresses of the CIDR are already used
     NoFreeAddress,
+    /// The user has no permission to reserve a floating IP-address
+    PermissionDenied,
     /// Any other database-error
     InternalError,
 }
@@ -131,6 +133,11 @@ pub fn add_new_floating_ip(
     floating_cidr: &str,
     context: &UserContext,
 ) -> Result<(Uuid, Ipv4Addr), FloatingIpReserveError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(FloatingIpReserveError::PermissionDenied);
+    }
+
     let (first_floating_ip, last_floating_ip) = match assignable_ip_range(floating_cidr) {
         Some(range) => range,
         None => {
@@ -329,9 +336,6 @@ pub fn get_floating_ip(
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     match query
@@ -367,35 +371,32 @@ pub fn list_floating_ips(context: &UserContext) -> QueryResult<Vec<FloatingIpEnt
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
-        if context.is_project_admin != true.to_string() {
-            query = query.filter(owner_id.eq(context.user_id.clone()));
-        }
     }
 
     query.select(FloatingIpEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the number of meta floating_ips that the user has access to.
+/// Counts the number of floating IP-addresses of the whole project of the context.
 ///
-/// This function counts all active meta floating_ips and applies permission-based filtering.
-/// The count is filtered based on the user's role and project membership.
+/// Unlike `count_floating_ips`, the floating IP-addresses of all users of the project are counted, because the quota,
+/// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
-/// * `context` - The user context containing information about the user and their permissions
+///
+/// * `context` - The user context, whose project is counted
 ///
 /// # Returns
-/// A QueryResult containing the count of meta floating_ips as an i64
-pub fn count_floating_ips(context: &UserContext) -> QueryResult<i64> {
+///
+/// A QueryResult containing the count of floating IP-addresses as an i64
+pub fn count_floating_ips_of_project(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
 
-    let mut query = floating_ips.filter(status.eq("ACTIVE")).into_boxed();
-
-    // Apply permission-based filtering
-    query = query.filter(project_id.eq(context.project_id.clone()));
-    query = query.filter(owner_id.eq(context.user_id.clone()));
-
-    query.select(count_star()).first::<i64>(&mut *conn)
+    floating_ips
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(context.project_id.clone()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
 }
 
 /// Force deletes a meta floating_ip_addr from the database.
@@ -444,6 +445,11 @@ pub fn delete_floating_ip(
     floating_ip_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     // Verify the meta floating_ip_addr exists and the user has permission to delete it
     get_floating_ip(floating_ip_uuid, context)?;
 
@@ -471,6 +477,8 @@ pub fn delete_floating_ip(
 pub enum FloatingIpAttachError {
     /// The floating IP-address doesn't exist or the user has no permission to access it
     NotFound,
+    /// The user is not allowed to change the floating IP-address
+    PermissionDenied,
     /// The floating IP-address is already attached to a virtual_machine
     AlreadyAttached,
     /// The virtual_machine already has another floating IP-address
@@ -501,10 +509,16 @@ pub fn attach_floating_ip(
     attach_internal_ip: &Ipv4Addr,
     context: &UserContext,
 ) -> Result<FloatingIpEntry, FloatingIpAttachError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(FloatingIpAttachError::PermissionDenied);
+    }
+
     // Verify the floating IP-address exists and the user has permission to attach it
     get_floating_ip(floating_ip_uuid, context).map_err(|e| match e {
         enums::DbError::NotFound => FloatingIpAttachError::NotFound,
         enums::DbError::InternalError => FloatingIpAttachError::InternalError,
+        enums::DbError::PermissionDenied => FloatingIpAttachError::PermissionDenied,
     })?;
 
     let result = {
@@ -557,6 +571,11 @@ pub fn detach_floating_ip(
     floating_ip_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
     match diesel::update(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
@@ -643,6 +662,7 @@ pub fn delete_all_floating_ip() -> Result<(), enums::DbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
     use std::sync::LazyLock;
@@ -725,14 +745,14 @@ mod tests {
         user_id: &str,
         project_id: &str,
         is_admin: bool,
-        is_project_admin: bool,
+        project_role: ProjectRole,
     ) -> UserContext {
         UserContext {
             token: "".to_string(),
             user_id: user_id.to_string(),
             project_id: project_id.to_string(),
             is_admin: is_admin.to_string(),
-            is_project_admin: is_project_admin.to_string(),
+            project_role: project_role.to_string(),
         }
     }
 
@@ -753,7 +773,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip() {
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let (uuid1, floating_ip1) =
             add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
@@ -835,7 +855,7 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(
             &uuid1,
@@ -977,7 +997,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate other requests in another network, which already reserved the first two addresses
         let base = u32::from(Ipv4Addr::new(192, 0, 2, 100));
@@ -1020,7 +1040,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_reserve_floating_ip_range_exhausted() {
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let last = u32::from(LAST_TEST_IP);
         let result = reserve_floating_ip_from(last + 1, last, true, FLOATING_IP_NAME, &context);
@@ -1030,7 +1050,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip_requested() {
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // an own range, so no other entries of the table are within it
         let cidr = "192.0.2.0/24";
@@ -1075,7 +1095,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_new_floating_ip_invalid_cidr() {
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         for cidr in ["203.0.113.0/31", "203.0.113.0", "no-cidr/24"] {
             let result = add_new_floating_ip(FLOATING_IP_NAME, None, cidr, &context);
@@ -1088,7 +1108,7 @@ mod tests {
     fn test_add_get_floating_ip() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(
             &uuid1,
@@ -1124,7 +1144,7 @@ mod tests {
     #[serial]
     fn test_get_floating_ip_not_found() {
         let uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         hard_delete_floating_ip(&uuid1);
 
@@ -1137,7 +1157,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(
             &uuid1,
@@ -1178,7 +1198,7 @@ mod tests {
     fn test_delete_floating_ip() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry = new_entry(
             &uuid1,
@@ -1203,7 +1223,7 @@ mod tests {
     fn test_force_delete_floating_ip() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // the entry belongs to another project, so only the force-delete can remove it
         let entry = new_entry(
@@ -1230,7 +1250,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", true, false);
+        let context = new_context("test-user", "test-project", true, ProjectRole::Member);
 
         let entry1 = new_entry(
             &uuid1,
@@ -1263,12 +1283,12 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_count_floating_ips() {
+    fn test_count_floating_ips_of_project() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
-        let context = new_context("test-user", "test-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         let entry1 = new_entry(
             &uuid1,
@@ -1277,14 +1297,15 @@ mod tests {
             "test-project",
             "ACTIVE",
         );
+        // entries of other projects are not counted
         let entry2 = new_entry(
             &uuid2,
             &network_uuid1,
             "test-user",
-            "test-project",
+            "other-project",
             "ACTIVE",
         );
-        // neither DELETED entries nor entries of other owners are counted
+        // entries of other users of the same project are counted as well
         let entry3 = new_entry(
             &uuid3,
             &network_uuid1,
@@ -1301,7 +1322,7 @@ mod tests {
         add_floating_ip(entry2).unwrap();
         add_floating_ip(entry3).unwrap();
 
-        assert_eq!(count_floating_ips(&context).unwrap(), 2);
+        assert_eq!(count_floating_ips_of_project(&context).unwrap(), 2);
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -1347,40 +1368,77 @@ mod tests {
         add_floating_ip(entry3).unwrap();
 
         // list-test normal user
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
-        assert_eq!(list_floating_ips(&context).unwrap().len(), 1);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
+        // members see all entries of their project, also the ones of other users
+        assert_eq!(list_floating_ips(&context).unwrap().len(), 2);
 
         // list-test project-admin
-        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Admin,
+        );
         assert_eq!(list_floating_ips(&context).unwrap().len(), 2);
 
         // list-test admin
-        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            true,
+            ProjectRole::Member,
+        );
         assert_eq!(list_floating_ips(&context).unwrap().len(), 3);
 
         // get-test normal user
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
         let retrieved = expect_entry(get_floating_ip(&uuid1, &context));
         assert_eq!(retrieved.uuid, uuid1);
 
-        // get-test normal user, entry of another user within the same project
-        assert!(get_floating_ip(&uuid2, &context).is_err());
+        // get-test normal user, entry of another user within the same project, which is visible
+        // for all members of the project
+        assert_eq!(expect_entry(get_floating_ip(&uuid2, &context)).uuid, uuid2);
 
         // get-test normal user, entry of another project
         assert!(get_floating_ip(&uuid3, &context).is_err());
 
         // get-test project-admin, entry of another user within the same project
-        let context = new_context("test-user-42", "test_permissions_1", false, true);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Admin,
+        );
         let retrieved = expect_entry(get_floating_ip(&uuid2, &context));
         assert_eq!(retrieved.uuid, uuid2);
 
         // get-test admin, entry of another project
-        let context = new_context("test-user-42", "test_permissions_1", true, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            true,
+            ProjectRole::Member,
+        );
         let retrieved = expect_entry(get_floating_ip(&uuid3, &context));
         assert_eq!(retrieved.uuid, uuid3);
 
         // delete-test normal user, entry of another project
-        let context = new_context("test-user-42", "test_permissions_1", false, false);
+        let context = new_context(
+            "test-user-42",
+            "test_permissions_1",
+            false,
+            ProjectRole::Member,
+        );
         assert!(delete_floating_ip(&uuid3, &context).is_err());
 
         hard_delete_floating_ip(&uuid1);
@@ -1394,8 +1452,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let internal_ip1 = next_internal_ip();
         let internal_ip2 = next_internal_ip();
-        let context = new_context("test-user", "test-project", false, false);
-        let other_context = new_context("other-user", "other-project", false, false);
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
+        let other_context = new_context("other-user", "other-project", false, ProjectRole::Member);
 
         let (uuid1, _) = add_new_floating_ip(FLOATING_IP_NAME, None, TEST_CIDR, &context)
             .unwrap_or_else(|_| panic!("reservation failed"));

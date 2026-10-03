@@ -58,7 +58,7 @@ export function handleAxiosError(
  *
  * @returns The error message, or undefined if the body contains none
  */
-function responseMessage(data: unknown): string | undefined {
+export function responseMessage(data: unknown): string | undefined {
     if (typeof data === "string") {
         return data.trim() !== "" ? data.trim() : undefined;
     }

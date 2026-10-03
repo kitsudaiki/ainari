@@ -34,6 +34,7 @@ def _handle_response(response) -> str:
     Raises:
         ainari_exceptions.BadRequestException: If the response status code is 400.
         ainari_exceptions.UnauthorizedException: If the response status code is 401.
+        ainari_exceptions.ForbiddenException: If the response status code is 403.
         ainari_exceptions.NotFoundException: If the response status code is 404.
         ainari_exceptions.ConflictException: If the response status code is 409.
         ainari_exceptions.InternalServerErrorException: If the response status code is 500.
@@ -47,6 +48,8 @@ def _handle_response(response) -> str:
         raise ainari_exceptions.BadRequestException(response.content)
     if response.status_code == 401:
         raise ainari_exceptions.UnauthorizedException(response.content)
+    if response.status_code == 403:
+        raise ainari_exceptions.ForbiddenException(response.content)
     if response.status_code == 404:
         raise ainari_exceptions.NotFoundException(response.content)
     if response.status_code == 409:

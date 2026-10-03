@@ -70,3 +70,35 @@ def delete_all_user(context: AccessContext):
             # when a user tries to delete himself, then an exception
             # is raised, which is catched here.
             pass
+
+
+def set_project_role(context: AccessContext,
+                     user_id: str,
+                     project_id: str,
+                     project_role: str) -> dict:
+    """
+    Sets the role of a user within a project, to which the user is already assigned.
+    project_role is one of "admin", "member" or "observer".
+    """
+    path = f'/v1alpha/user/{user_id}/set_project_role/admin'
+    json_body = {
+        "project_id": project_id,
+        "project_role": project_role,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.miko_address,
+                                           path,
+                                           json_body)
+
+
+def list_user_projects(context: AccessContext) -> dict:
+    """
+    Returns all projects, to which the user of the access-context is assigned, together with the
+    role of the user within each of these projects:
+    {"projects": [{"project_id": ..., "project_role": ...}]}
+    """
+    path = "/v1alpha/user/user_projects"
+    return ainari_request.send_get_request(context,
+                                           context.miko_address,
+                                           path,
+                                           "")

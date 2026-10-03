@@ -20,9 +20,12 @@ use std::env;
 use std::error::Error;
 
 use crate::database::db_handle;
+use crate::database::project_table;
+use crate::database::user_project_mapping_table;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
+use ainari_common::enums::ProjectRole;
 use ainari_common::functions::sha256_hash;
 use ainari_common::objects::*;
 use ainari_common::secret::Secret;
@@ -32,7 +35,6 @@ table! {
     users (id) {
         id -> Varchar,
         name -> Varchar,
-        projects -> Text,
         is_admin -> Varchar,
         pw_hash -> Varchar,
         salt -> Varchar,
@@ -56,7 +58,6 @@ table! {
 pub struct UserEntry {
     pub id: String,
     pub name: String,
-    pub projects: String,
     pub is_admin: String,
     pub pw_hash: String,
     pub salt: String,
@@ -88,7 +89,7 @@ pub fn init_admin() -> Result<(), Box<dyn Error>> {
         user_id: "AINARI_INIT".to_string(),
         project_id: "AINARI_INIT".to_string(),
         is_admin: true.to_string(),
-        is_project_admin: false.to_string(),
+        project_role: ProjectRole::Member.to_string(),
     };
 
     let users = list_users(&fake_admin_context).unwrap();
@@ -158,6 +159,11 @@ pub fn add_new_user(
     is_admin: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::permission_denied_error());
+    }
+
     if context.is_admin != true.to_string() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::CheckViolation,
@@ -185,10 +191,13 @@ pub fn add_new_user(
     // create sha256-hash from the salted passphrase to store the hash in the database
     let pw_hash = sha256_hash(salted_passphrase.reveal());
 
+    // each user gets its own default-project, in which the user is admin
+    let default_project_id = format!("default-{user_id}");
+    project_table::add_new_project(&default_project_id, &default_project_id, context)?;
+
     let user = UserEntry {
         id: user_id.clone(),
         name: user_name.to_owned(),
-        projects: "[]".to_string(),
         is_admin: is_admin.to_string(),
         pw_hash,
         salt,
@@ -201,7 +210,23 @@ pub fn add_new_user(
         deleted_by: None,
     };
 
-    add_user(user.clone())
+    // rollback the default-project, if the user itself could not be written
+    if let Err(e) = add_user(user) {
+        let _ = project_table::delete_project(&default_project_id, context);
+        return Err(e);
+    }
+
+    // rollback the user and the default-project, if the user could not be assigned to it
+    user_project_mapping_table::add_new_mapping(
+        &default_project_id,
+        user_id,
+        ProjectRole::Admin,
+        context,
+    )
+    .inspect_err(|_| {
+        let _ = delete_user(user_id, context);
+        let _ = project_table::delete_project(&default_project_id, context);
+    })
 }
 
 /// Inserts a user into the database.
@@ -329,6 +354,11 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 /// Returns Ok(()) if the user was successfully deleted, or an appropriate
 /// DbError if the user wasn't found or if there was an internal error.
 pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
     if context.is_admin != true.to_string() {
         return Err(enums::DbError::NotFound);
     }
@@ -351,6 +381,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::quota_table;
     use serial_test::serial;
 
     fn hard_delete_user(user_id: &String) {
@@ -369,13 +400,12 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
-            projects: "ProjectA".to_string(),
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
@@ -394,7 +424,6 @@ mod tests {
         if let Ok(retrieved_user) = get_user(&owner_id, &context) {
             assert_eq!(retrieved_user.id, user.id);
             assert_eq!(retrieved_user.name, user.name);
-            assert_eq!(retrieved_user.projects, user.projects);
             assert_eq!(retrieved_user.is_admin, user.is_admin);
             assert_eq!(retrieved_user.pw_hash, user.pw_hash);
             assert_eq!(retrieved_user.salt, user.salt);
@@ -419,13 +448,12 @@ mod tests {
             user_id: owner_id1.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user1 = UserEntry {
             id: owner_id1.clone(),
             name: "Alice".to_string(),
-            projects: "ProjectA".to_string(),
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
@@ -441,7 +469,6 @@ mod tests {
         let user2 = UserEntry {
             id: owner_id2.clone(),
             name: "Bob".to_string(),
-            projects: "ProjectB".to_string(),
             is_admin: false.to_string(),
             pw_hash: "hash456".to_string(),
             salt: "salt456".to_string(),
@@ -477,13 +504,12 @@ mod tests {
             user_id: owner_id.clone(),
             project_id: project_id.clone(),
             is_admin: true.to_string(),
-            is_project_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
         };
 
         let user = UserEntry {
             id: owner_id.clone(),
             name: "Alice".to_string(),
-            projects: "ProjectA".to_string(),
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
@@ -502,5 +528,46 @@ mod tests {
         let _ = delete_user(&owner_id, &context);
         let result = get_user(&owner_id, &context);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_new_user_creates_default_project() {
+        let user_id = "test-user-5".to_string();
+        let default_project_id = format!("default-{user_id}");
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "admin".to_string(),
+            project_id: "test-project-1".to_string(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_user(&user_id);
+        let _ = project_table::delete_project(&default_project_id, &context);
+        let _ = user_project_mapping_table::delete_mappings_of_user(&user_id);
+        quota_table::hard_delete_quota(&default_project_id, &context);
+
+        add_new_user(
+            &user_id,
+            "Carol",
+            &Secret::from("passphrase".to_string()),
+            &false.to_string(),
+            &context,
+        )
+        .unwrap();
+
+        assert!(get_user(&user_id, &context).is_ok());
+        assert!(project_table::get_project(&default_project_id, &context).is_ok());
+        assert!(quota_table::get_quota(&default_project_id, &context).is_ok());
+        let mappings = user_project_mapping_table::list_mappings_of_user(&user_id).unwrap();
+        assert_eq!(mappings.len(), 1);
+        assert_eq!(mappings[0].project_id, default_project_id);
+        assert_eq!(mappings[0].role, ProjectRole::Admin);
+
+        let _ = delete_user(&user_id, &context);
+        let _ = project_table::delete_project(&default_project_id, &context);
+        let _ = user_project_mapping_table::delete_mappings_of_user(&user_id);
+        quota_table::hard_delete_quota(&default_project_id, &context);
     }
 }
