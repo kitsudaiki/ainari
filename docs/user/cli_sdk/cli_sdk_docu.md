@@ -1041,6 +1041,12 @@ Projects are used for logical separation of the resources of users.
     assignments of all of its users. The user is removed from all other projects, but these
     projects are never deleted, also if the user was the only user there.
 
+!!! info "Changing the passphrase"
+
+    Every user can change its own passphrase by providing the old and the new passphrase. An admin
+    can set a new passphrase for any user without the old passphrase. The new passphrase is used
+    for all future logins, already existing tokens stay valid.
+
 === "CLI"
 
     ```bash
@@ -1050,16 +1056,22 @@ Projects are used for logical separation of the resources of users.
     ainarictl user delete <USER_ID>
     ainarictl user set_project_role <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
 
+    ainarictl user change_passphrase_admin <USER_ID>
+
     # every user, not only admins: own projects and the role in each of them
     ainarictl user list_user_projects
+
+    # every user, not only admins: change the own passphrase
+    ainarictl user change_passphrase
     ```
 
     `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. `set_project_role` only changes the
     role of a user, who was already added to the project.
 
-    Without `-p <PASSPHRASE>` the passphrase is requested interactively. The flag should only be
-    used for automated testing, because the passphrase is visible in the command-line and the
-    shell-history.
+    Without `-p <PASSPHRASE>` the passphrase is requested interactively, where a new passphrase has
+    to be entered two times. For `change_passphrase` the old passphrase is requested as well, if
+    not given by `--old_passphrase <OLD_PASSPHRASE>`. These flags should only be used for automated
+    testing, because the passphrase is visible in the command-line and the shell-history.
 
     example:
 
@@ -1090,10 +1102,14 @@ Projects are used for logical separation of the resources of users.
     user.delete_all_user(context)
 
     user.set_project_role(context, "my_user", "my_project", "observer")
+    user.change_passphrase_admin(context, "my_user", "new-passphrase")
 
     # every user, not only admins: own projects and the role in each of them
     user.list_user_projects(context)
     # {"projects": [{"project_id": "default-my_user", "project_role": "admin"}, ...]}
+
+    # every user, not only admins: change the own passphrase
+    user.change_passphrase(context, "old-passphrase", "new-passphrase")
     ```
 
 ## Quotas

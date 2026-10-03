@@ -1,0 +1,153 @@
+<!-- 
+// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License. 
+-->
+
+<template>
+    <div class="modal-overlay" @click.self="cancel">
+        <div class="modal passphrase-change-modal">
+            <!-- Modal topbar -->
+            <div class="modal-topbar">
+                <span>Change passphrase</span>
+            </div>
+
+            <!-- Modal content -->
+            <div class="modal-content">
+                <div>
+                    <div>
+                        <input
+                            v-model="form.oldPassword"
+                            type="password"
+                            placeholder="Old password"
+                            :class="{ invalid_input: oldPasswordError }"
+                        />
+                        <p v-if="oldPasswordError" class="error-msg">
+                            Old password must be at least 8 characters
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <input
+                            v-model="form.password"
+                            type="password"
+                            placeholder="New password"
+                            :class="{ invalid_input: passwordError }"
+                        />
+                        <p v-if="passwordError" class="error-msg">
+                            Password must be at least 8 characters
+                        </p>
+                    </div>
+                    <br />
+                    <div>
+                        <input
+                            v-model="form.confirmPassword"
+                            type="password"
+                            placeholder="Confirm new password"
+                            :class="{ invalid_input: passwordConfirmError }"
+                        />
+                        <p v-if="passwordConfirmError" class="error-msg">
+                            Password did not match
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal bottombar -->
+            <div class="modal-bottombar">
+                <div class="modal-actions">
+                    <button class="icon-button" @click="handleAccept">
+                        <img :src="icons.acceptIcon" alt="Accept" />
+                    </button>
+                    <button class="icon-button" @click="cancel">
+                        <img :src="icons.cancelIcon" alt="Cancel" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div v-if="errorPopupMsg" class="error-popup">
+        <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
+        {{ errorPopupMsg }}
+    </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, reactive, computed } from "vue";
+
+import { miko } from "@/api";
+import { handleAxiosError } from "@/handleAxiosError";
+
+interface Props {
+    icons: { acceptIcon: string; cancelIcon: string };
+}
+defineProps<Props>();
+const emit = defineEmits<{
+    (e: "accept"): void;
+    (e: "cancel"): void;
+}>();
+
+const form = reactive({
+    oldPassword: "",
+    password: "",
+    confirmPassword: "",
+});
+
+const errorPopupMsg = ref<string>("");
+const oldPasswordError = ref(false);
+const passwordError = ref(false);
+const passwordConfirmError = computed(() =>
+    form.password !== form.confirmPassword ? true : false,
+);
+
+/**
+ * Changes the passphrase of the user, who is currently logged in. The current token stays valid,
+ * so the user stays logged in.
+ */
+async function handleAccept() {
+    oldPasswordError.value = form.oldPassword.length < 8;
+    passwordError.value = form.password.length < 8;
+
+    if (
+        oldPasswordError.value ||
+        passwordError.value ||
+        passwordConfirmError.value
+    ) {
+        return;
+    }
+    try {
+        await miko.changePassphrase({
+            old_passphrase: form.oldPassword,
+            new_passphrase: form.password,
+        });
+
+        emit("accept");
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(
+            err,
+            "Failed to change passphrase",
+        );
+    }
+}
+
+function cancel() {
+    emit("cancel");
+}
+</script>
+
+<style scoped>
+.passphrase-change-modal {
+    width: 30em;
+    margin-bottom: 5rem;
+}
+</style>

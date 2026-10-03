@@ -67,6 +67,18 @@ export interface TokenRenewReq {
     project_id?: string;
 }
 
+/** Mirror of `auth_structs::PassphraseChangeReq`. */
+export interface PassphraseChangeReq {
+    old_passphrase: string;
+    new_passphrase: string;
+}
+
+/** Mirror of `auth_structs::PassphraseChangeAdminReq`. */
+export interface PassphraseChangeAdminReq {
+    user_id: string;
+    new_passphrase: string;
+}
+
 //=============================================================================
 // user / project / quota (miko)
 //=============================================================================

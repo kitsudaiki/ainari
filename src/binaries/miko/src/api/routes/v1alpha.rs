@@ -45,6 +45,14 @@ pub fn v1alpha_routes() -> Scope {
             ),
         )
         .service(
+            scope("/passphrase")
+                .service(resource("").route(put().to(change_passphrase_v1_0::change_passphrase)))
+                .service(
+                    resource("/admin")
+                        .route(put().to(change_passphrase_admin_v1_0::change_passphrase_admin)),
+                ),
+        )
+        .service(
             scope("/endpoints")
                 .service(resource("").route(get().to(get_endpoints_v1_0::get_endpoints))),
         )

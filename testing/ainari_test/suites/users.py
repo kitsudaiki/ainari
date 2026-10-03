@@ -29,7 +29,7 @@ from ainari_sdk import vm_type
 from ainari_test.checks import check_equal, check_in, check_not_in, exists, expect_error
 from ainari_test.framework import Suite
 
-suite = Suite("users", "second user and isolation between users")
+suite = Suite("users", "second user, isolation between users and passphrase-changes")
 
 
 @suite.test("create second user", provides=("second_user",))
@@ -57,6 +57,81 @@ def create_user(ctx):
 def no_admin(ctx):
     expect_error(ainari_exceptions.UnauthorizedException, user.list_users,
                  ctx.state["second_user"])
+
+
+@suite.test("create temporary passphrase user", provides=("passphrase_user",))
+def create_passphrase_user(ctx):
+    # the passphrase-tests use their own temporary user, so the passphrase of the user, which runs
+    # the tests, is never touched, also not by a broken permission-check
+    user_id = f"lst-pw-{ctx.test_id}"
+    passphrase = str(uuid.uuid4())
+    user.create_user(ctx.api, user_id, f"local-stack-test passphrase {ctx.test_id}", passphrase,
+                     False)
+    ctx.cleanup.add("user", user_id, user_id,
+                    lambda: user.delete_user(ctx.api, user_id),
+                    lambda: exists(user.get_user, ctx.api, user_id))
+    ctx.state["passphrase_user"] = login.request_context(ctx.config.miko_address, user_id,
+                                                         passphrase, verify_connection=False)
+    ctx.state["passphrase_user_passphrase"] = passphrase
+
+
+@suite.test("user changes own passphrase", requires=("passphrase_user",))
+def change_own_passphrase(ctx):
+    user_id = f"lst-pw-{ctx.test_id}"
+    pw_user = ctx.state["passphrase_user"]
+    old_passphrase = ctx.state["passphrase_user_passphrase"]
+    new_passphrase = str(uuid.uuid4())
+
+    expect_error(ainari_exceptions.UnauthorizedException, user.change_passphrase, pw_user,
+                 old_passphrase + "-wrong", new_passphrase)
+    expect_error(ainari_exceptions.BadRequestException, user.change_passphrase, pw_user,
+                 old_passphrase, "short")
+
+    user.change_passphrase(pw_user, old_passphrase, new_passphrase)
+    ctx.state["passphrase_user_passphrase"] = new_passphrase
+
+    # the existing token stays valid, but only the new passphrase is accepted for a new login
+    check_equal(login.validate_token(pw_user)["context"]["user_id"], user_id,
+                "user of the token after the passphrase-change")
+    expect_error(ainari_exceptions.UnauthorizedException, login.request_context,
+                 ctx.config.miko_address, user_id, old_passphrase, verify_connection=False)
+    renewed = login.request_context(ctx.config.miko_address, user_id, new_passphrase,
+                                    verify_connection=False)
+    check_equal(login.validate_token(renewed)["context"]["user_id"], user_id,
+                "user of the token with the new passphrase")
+
+
+@suite.test("admin changes passphrase of user", requires=("passphrase_user",))
+def change_passphrase_admin(ctx):
+    user_id = f"lst-pw-{ctx.test_id}"
+    pw_user = ctx.state["passphrase_user"]
+    old_passphrase = ctx.state["passphrase_user_passphrase"]
+    new_passphrase = str(uuid.uuid4())
+
+    # only admins can use the admin-endpoint. The temporary user is the target here as well, so a
+    # broken check can not change the passphrase of any other user.
+    expect_error(ainari_exceptions.UnauthorizedException, user.change_passphrase_admin, pw_user,
+                 user_id, new_passphrase)
+    expect_error(ainari_exceptions.NotFoundException, user.change_passphrase_admin, ctx.api,
+                 f"unknown-{ctx.test_id}", new_passphrase)
+
+    user.change_passphrase_admin(ctx.api, user_id, new_passphrase)
+    ctx.state["passphrase_user_passphrase"] = new_passphrase
+
+    expect_error(ainari_exceptions.UnauthorizedException, login.request_context,
+                 ctx.config.miko_address, user_id, old_passphrase, verify_connection=False)
+    renewed = login.request_context(ctx.config.miko_address, user_id, new_passphrase,
+                                    verify_connection=False)
+    check_equal(login.validate_token(renewed)["context"]["user_id"], user_id,
+                "user of the token with the passphrase set by the admin")
+
+
+@suite.test("delete temporary passphrase user", requires=("passphrase_user",))
+def delete_passphrase_user(ctx):
+    user_id = f"lst-pw-{ctx.test_id}"
+    user.delete_user(ctx.api, user_id)
+    ctx.cleanup.discard(user_id)
+    expect_error(ainari_exceptions.NotFoundException, user.get_user, ctx.api, user_id)
 
 
 @suite.test("second user can use, but not change the vm-type",

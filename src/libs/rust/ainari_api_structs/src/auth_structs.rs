@@ -19,6 +19,8 @@ use validator::Validate;
 
 use crate::user_context::UserContext;
 
+use ainari_common::secret::Secret;
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserTokenResp {
     pub access_token: String,
@@ -54,4 +56,20 @@ pub struct OAuth2Request {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserTokenValidateResp {
     pub context: UserContext,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct PassphraseChangeReq {
+    #[validate(length(min = 8, max = 4096))]
+    pub old_passphrase: Secret,
+    #[validate(length(min = 8, max = 4096))]
+    pub new_passphrase: Secret,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct PassphraseChangeAdminReq {
+    #[validate(length(min = 4, max = 127))]
+    pub user_id: String,
+    #[validate(length(min = 8, max = 4096))]
+    pub new_passphrase: Secret,
 }

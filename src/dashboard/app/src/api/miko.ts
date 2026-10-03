@@ -16,6 +16,8 @@
 
 import { mikoClient } from "./client";
 import type {
+    PassphraseChangeAdminReq,
+    PassphraseChangeReq,
     ProjectAddUserReq,
     ProjectAddUserResp,
     ProjectBasicResp,
@@ -47,6 +49,20 @@ import type {
 export async function renewToken(body: TokenRenewReq): Promise<UserTokenResp> {
     const resp = await mikoClient().put("/v1alpha/token", body);
     return resp.data;
+}
+
+//=============================================================================
+// passphrase
+//=============================================================================
+
+/** `PUT /v1alpha/passphrase` - change the passphrase of the user, who is currently logged in. */
+export async function changePassphrase(body: PassphraseChangeReq): Promise<void> {
+    await mikoClient().put("/v1alpha/passphrase", body);
+}
+
+/** `PUT /v1alpha/passphrase/admin` - set a new passphrase for any user. */
+export async function changePassphraseAdmin(body: PassphraseChangeAdminReq): Promise<void> {
+    await mikoClient().put("/v1alpha/passphrase/admin", body);
 }
 
 //=============================================================================

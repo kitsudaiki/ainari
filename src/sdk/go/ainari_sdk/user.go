@@ -77,3 +77,25 @@ func ListInvitedProjects(context AccessContext) (map[string]interface{}, error) 
 	vars := map[string]interface{}{}
 	return SendGet(context, context.MikoAddress, path, vars)
 }
+
+// ChangePassphrase changes the passphrase of the user of the current access-context for all future
+// logins. Already existing tokens stay valid.
+func ChangePassphrase(context AccessContext, oldPassphrase, newPassphrase string) (map[string]interface{}, error) {
+	path := "v1alpha/passphrase"
+	jsonBody := map[string]interface{}{
+		"old_passphrase": oldPassphrase,
+		"new_passphrase": newPassphrase,
+	}
+	return SendPut(context, context.MikoAddress, path, jsonBody)
+}
+
+// ChangePassphraseAdmin sets a new passphrase for any user, without the need of the old passphrase.
+// Already existing tokens of the user stay valid. This can only be done by an admin.
+func ChangePassphraseAdmin(context AccessContext, userId, newPassphrase string) (map[string]interface{}, error) {
+	path := "v1alpha/passphrase/admin"
+	jsonBody := map[string]interface{}{
+		"user_id":        userId,
+		"new_passphrase": newPassphrase,
+	}
+	return SendPut(context, context.MikoAddress, path, jsonBody)
+}

@@ -49,6 +49,9 @@
                                     <button @click="openInfoModal(user)">
                                         Info
                                     </button>
+                                    <button @click="openPassphraseModal(user)">
+                                        Change Passphrase
+                                    </button>
                                     <!-- a user can not delete himself -->
                                     <button
                                         v-if="user.id !== ownUserId"
@@ -87,6 +90,14 @@
             :icons="icons"
             @cancel="cancelInfoModal"
         />
+
+        <UserPassphraseModal
+            v-if="showPassphraseModal"
+            :user="userToPassphrase"
+            :icons="icons"
+            @accept="cancelPassphraseModal"
+            @cancel="cancelPassphraseModal"
+        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -103,6 +114,7 @@ import type { UserBasicResp } from "@/api";
 import UserCreateModal from "./user_create_modal.vue";
 import UserDeleteModal from "./user_delete_modal.vue";
 import UserInfoModal from "./user_info_modal.vue";
+import UserPassphraseModal from "./user_passphrase_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
 // id of the logged-in user, which is stored at the login
@@ -112,9 +124,11 @@ const users = ref<UserBasicResp[]>([]);
 const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const showInfoModal = ref(false);
+const showPassphraseModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const userToDelete = ref<UserBasicResp | null>(null);
 const userToInfo = ref<UserBasicResp | null>(null);
+const userToPassphrase = ref<UserBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 async function fetchUsers() {
@@ -189,6 +203,20 @@ function openInfoModal(user: UserBasicResp) {
 function cancelInfoModal() {
     showInfoModal.value = false;
     userToInfo.value = null;
+    openDropdown.value = null; // close any open action dropdown
+}
+
+//=============================================================================
+// Passphrase modal
+//=============================================================================
+function openPassphraseModal(user: UserBasicResp) {
+    userToPassphrase.value = user;
+    showPassphraseModal.value = true;
+    openDropdown.value = null;
+}
+function cancelPassphraseModal() {
+    showPassphraseModal.value = false;
+    userToPassphrase.value = null;
     openDropdown.value = null; // close any open action dropdown
 }
 
