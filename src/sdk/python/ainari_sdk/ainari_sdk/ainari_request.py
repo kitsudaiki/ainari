@@ -185,6 +185,33 @@ def send_delete_request(context: AccessContext,
     _handle_response(response)
 
 
+def send_delete_request_with_body(context: AccessContext,
+                                  address: str,
+                                  path: str,
+                                  body: dict) -> dict:
+    """
+    Sends a DELETE request to the specified address and path with the given body. It is used by
+    the endpoints, which describe what has to be removed in the body.
+
+    Args:
+        context: The AccessContext object containing authentication and connection settings.
+        address: The base URL of the API.
+        path: The path to append to the base URL.
+        body: The dictionary to be sent as the request body.
+
+    Returns:
+        dict: The parsed JSON response from the server.
+    """
+    body_str = json.dumps(body)
+    url = f'{address}{path}'
+    bearer_token = "Bearer " + context.token
+    headers = {'Authorization': bearer_token,
+               'content-type': 'application/json'}
+    response = requests.delete(url, data=body_str, headers=headers,
+                               verify=context.verify_connection)
+    return json.loads(_handle_response(response))
+
+
 def upload_files(context: AccessContext,
                  address: str,
                  path: str,

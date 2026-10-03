@@ -55,14 +55,10 @@ Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encrypt
 
 ### Filter for network traffic
 
-**Status: <span style="color:#e6b800">partially implemented</span>**
-
-!!! info
-
-    Implemented in the network stack, but not provided to the API at the moment
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
 Network rules can be set, to limit incoming and outgoing network traffic to specific ports and
-ip-addresses.
+ip-address ranges.
 
 ### "dumb" compute hosts
 

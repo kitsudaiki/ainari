@@ -14,4 +14,5 @@
 
 pub mod delete_watcher;
 pub mod floating_ip;
+pub mod network_filter;
 pub mod routing;

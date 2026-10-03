@@ -102,7 +102,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No {{ selectedTab }}-hosts found</p>
+            <NoEntries v-else :text="`No ${selectedTab}-hosts found`" />
         </div>
 
         <HostDeleteModal
@@ -128,6 +128,7 @@ import type { HostBasicResp, SakuraHostBasicResp } from "@/api";
 import HostDeleteModal from "./host_delete_modal.vue";
 import UsageBar from "@/components/usage_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 /** The sakura-hosts are known by the hanami, the onsen-hosts by the ryokan. */
 type HostKind = "sakura" | "onsen";

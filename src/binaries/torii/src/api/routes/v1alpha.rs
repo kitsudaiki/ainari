@@ -72,14 +72,21 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{route_uuid}/internal")
                         .route(put().to(update_route_internal_v1_0::update_route_internal))
                         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
+                ),
+        )
+        .service(
+            scope("/network_filter")
+                .service(
+                    resource("/internal")
+                        .route(get().to(list_filter_internal_v1_0::list_filter_internal)),
                 )
                 .service(
-                    resource("/{route_uuid}/filter/internal")
+                    resource("/{vni}/{ip}/{direction}/internal")
                         .route(get().to(get_filter_internal_v1_0::get_filter_internal))
                         .route(delete().to(clear_filter_internal_v1_0::clear_filter_internal)),
                 )
                 .service(
-                    resource("/{route_uuid}/filter/ip_range/internal")
+                    resource("/{vni}/{ip}/{direction}/ip_range/internal")
                         .route(
                             post().to(
                                 add_filter_ip_range_internal_v1_0::add_filter_ip_range_internal,
@@ -90,18 +97,13 @@ pub fn v1alpha_routes() -> Scope {
                         )),
                 )
                 .service(
-                    resource("/{route_uuid}/filter/port/internal")
+                    resource("/{vni}/{ip}/{direction}/port/internal")
                         .route(post().to(add_filter_port_internal_v1_0::add_filter_port_internal))
                         .route(
                             delete()
                                 .to(delete_filter_port_internal_v1_0::delete_filter_port_internal),
                         ),
                 ),
-        )
-        .service(
-            scope("/network_filter").service(
-                resource("").route(get().to(list_filter_internal_v1_0::list_filter_internal)),
-            ),
         )
         .service(
             scope("/network_crypto")

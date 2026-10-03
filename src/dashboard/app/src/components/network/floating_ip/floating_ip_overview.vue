@@ -75,7 +75,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No floating IPs found</p>
+            <NoEntries v-else text="No floating IPs found" />
         </div>
 
         <FloatingIpCreateModal
@@ -125,6 +125,7 @@ import FloatingIpCreateModal from "./floating_ip_create_modal.vue";
 import FloatingIpDeleteModal from "./floating_ip_delete_modal.vue";
 import FloatingIpDetachModal from "./floating_ip_detach_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const floatingIps = ref<FloatingIpBasicResp[]>([]);

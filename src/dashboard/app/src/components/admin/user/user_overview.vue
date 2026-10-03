@@ -66,7 +66,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No users found</p>
+            <NoEntries v-else text="No users found" />
         </div>
 
         <UserCreateModal
@@ -116,6 +116,7 @@ import UserDeleteModal from "./user_delete_modal.vue";
 import UserInfoModal from "./user_info_modal.vue";
 import UserPassphraseModal from "./user_passphrase_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 // id of the logged-in user, which is stored at the login
 const ownUserId = localStorage.getItem("username");

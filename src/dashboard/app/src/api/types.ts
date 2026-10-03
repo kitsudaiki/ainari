@@ -339,6 +339,44 @@ export interface FloatingIpResp extends FloatingIpBasicResp {
 }
 
 //=============================================================================
+// network-filter
+//=============================================================================
+
+/**
+ * Mirror of `network_filter_structs::FilterDirection`. `ingress` filters the
+ * traffic towards a virtual machine by its source, `egress` the traffic of the
+ * virtual machine by its destination.
+ */
+export type FilterDirection = "ingress" | "egress";
+
+/** Mirror of `network_filter_structs::FilterIpRangeReq`. */
+export interface FilterIpRangeReq {
+    /** Single addresses, subnets in CIDR notation or ranges `first-last`. */
+    ranges: string[];
+}
+
+/** Mirror of `network_filter_structs::FilterPortReq`. */
+export interface FilterPortReq {
+    /** Single ports or ranges `first-last`. */
+    ports: string[];
+}
+
+/** Mirror of `network_filter_structs::NetworkFilterResp`. */
+export interface NetworkFilterResp {
+    uuid: string;
+    virtual_machine_uuid: string;
+    direction: FilterDirection;
+    /** Include-list of the ip-ranges in their canonical notation. */
+    ip_ranges: string[];
+    /** Include-list of the ports in their canonical notation. */
+    ports: string[];
+    created_at: string;
+    created_by: string;
+    updated_at: string;
+    updated_by: string;
+}
+
+//=============================================================================
 // image (ryokan)
 //=============================================================================
 

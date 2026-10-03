@@ -322,7 +322,7 @@
           "virtual_machine"
         ],
         "summary": "Delete virtual_machine",
-        "description": "Delete a virtual_machine.\\\n\\\nIt is deleted on its sakura-host in the background. A watcher releases its cores, memory and\\\ndisk-space on the host, as soon as the sakura-host has finished the deletion. Its metadata is removed from the database, the\\\nproxy, which is connected to it, is deleted on the torii and the routes from and\\\nto the virtual_machine are removed from the gateways of its network.",
+        "description": "Delete a virtual_machine.\\\n\\\nIt is deleted on its sakura-host in the background. A watcher releases its cores, memory and\\\ndisk-space on the host, as soon as the sakura-host has finished the deletion. Its metadata is removed from the database, the\\\nproxy, which is connected to it, is deleted on the torii and the routes from and\\\nto the virtual_machine are removed from the gateways of its network, together with its\\\npacket-filters.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -637,6 +637,429 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter": {
+      "get": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "List network_filters",
+        "description": "List the packet filters of all virtual_machines from the database.\\\n\\\nDirections of virtual_machines without a filter are unrestricted and not listed.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter/{virtual_machine_uuid}/{direction}": {
+      "get": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Get network_filter",
+        "description": "Get the packet filter of one direction of a virtual_machine from the database.\\\n\\\nA direction without a filter is unrestricted and reported as not found.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Delete network_filter",
+        "description": "Delete the packet filter of one direction of a virtual_machine.\\\n\\\nBoth include-lists are emptied in one step on the torii of the host of the virtual_machine, which\\\nputs this direction back into its unrestricted default state.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter/{virtual_machine_uuid}/{direction}/ip_range": {
+      "post": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Add network_filter ip-ranges",
+        "description": "Add ip-ranges to the packet filter of one direction of a virtual_machine.\\\n\\\nThe include-list starts out empty, which means \"every address is allowed\". The first entry flips\\\nthat around: from then on only packets are carried, whose address is named by one of the ranges.\\\nFor the `ingress` filter this is the source address of the traffic towards the virtual_machine,\\\nfor the `egress` filter the destination address of the traffic sent by the virtual_machine.\\\nEntries may be written as a single address, as a subnet in CIDR notation or as an explicit range\\\n`first-last`, and adding one that is already present is a no-op rather than an error.\\\n\\\nThe change is forwarded to the torii of the host of the virtual_machine.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterIpRangeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Remove network_filter ip-ranges",
+        "description": "Remove ip-ranges from the packet filter of one direction of a virtual_machine.\\\n\\\nAn entry is identified by the addresses it covers, not by the way it was written down:\\\n`10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the last range opens this\\\ndirection for every address again. A filter, whose include-lists are both empty, is removed.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterIpRangeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter/{virtual_machine_uuid}/{direction}/port": {
+      "post": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Add network_filter ports",
+        "description": "Add ports to the packet filter of one direction of a virtual_machine.\\\n\\\nAs long as the include-list is empty every port is allowed. Once it holds an entry, only TCP and\\\nUDP packets with a matching source *or* destination port are carried - matching either side is\\\nwhat lets the answers of an allowed service back through the stateless filter. Traffic without\\\nports (ICMP and friends) is not affected by this list; it is governed by the ip-ranges alone.\\\n\\\nThe change is forwarded to the torii of the host of the virtual_machine.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterPortReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Remove network_filter ports",
+        "description": "Remove ports from the packet filter of one direction of a virtual_machine.\\\n\\\nEntries are matched by the ports they cover, so `22` removes the single port entry and\\\n`8000-8100` the range. Removing the last entry opens this direction for every port again. A\\\nfilter, whose include-lists are both empty, is removed.",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilterPortReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkFilterResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
           },
           "404": {
             "description": "Requested object not found"
@@ -1531,6 +1954,59 @@
           }
         }
       },
+      "FilterDirection": {
+        "description": "Direction of the traffic of a virtual_machine, which a packet filter applies to.\n\nA virtual_machine has exactly one filter per direction, so the direction is part of what identifies a filter.",
+        "oneOf": [
+          {
+            "title": "ingress",
+            "description": "Filters the traffic towards the virtual_machine by its source",
+            "type": "string",
+            "enum": [
+              "ingress"
+            ]
+          },
+          {
+            "title": "egress",
+            "description": "Filters the traffic leaving the virtual_machine by its destination",
+            "type": "string",
+            "enum": [
+              "egress"
+            ]
+          }
+        ]
+      },
+      "FilterIpRangeReq": {
+        "title": "FilterIpRangeReq",
+        "type": "object",
+        "required": [
+          "ranges"
+        ],
+        "properties": {
+          "ranges": {
+            "description": "Single address, CIDR subnet or explicit `first-last` range",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FilterPortReq": {
+        "title": "FilterPortReq",
+        "type": "object",
+        "required": [
+          "ports"
+        ],
+        "properties": {
+          "ports": {
+            "description": "Single port or explicit `first-last` range",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "FloatingIpAttachReq": {
         "title": "FloatingIpAttachReq",
         "type": "object",
@@ -1733,6 +2209,78 @@
           },
           "subnet": {
             "type": "string"
+          }
+        }
+      },
+      "NetworkFilterListResp": {
+        "title": "NetworkFilterListResp",
+        "type": "object",
+        "required": [
+          "network_filters"
+        ],
+        "properties": {
+          "network_filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFilterResp"
+            }
+          }
+        }
+      },
+      "NetworkFilterResp": {
+        "title": "NetworkFilterResp",
+        "description": "Packet filter of one direction of a virtual_machine, as it is stored by hanami.",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "direction",
+          "ip_ranges",
+          "ports",
+          "updated_at",
+          "updated_by",
+          "uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/FilterDirection"
+          },
+          "ip_ranges": {
+            "description": "Include-list of the ip-ranges, in their canonical notation",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ports": {
+            "description": "Include-list of the ports, in their canonical notation",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },

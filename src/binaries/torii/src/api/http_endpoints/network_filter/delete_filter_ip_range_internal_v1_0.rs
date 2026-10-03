@@ -14,10 +14,10 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
+use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
+use crate::core::models::FilterKey;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
@@ -29,18 +29,18 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "network_filter",
     summary = "Remove filter ip-ranges",
-    description = r###"Remove IP ranges from the include-list of one route.
+    description = r###"Remove IP ranges from the include-list of one direction of an address.
 
 An entry is identified by the addresses it covers, not by the way it was written
 down: `10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the
-last range opens the route for every address again."###,
+last range opens the traffic of this direction for every address again."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn delete_filter_ip_range_internal(
-    route_uuid: Path<Uuid>,
+    path: Path<FilterPath>,
     body: Json<FilterIpRangeReq>,
     context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
@@ -48,19 +48,16 @@ pub async fn delete_filter_ip_range_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let route_uuid = route_uuid.into_inner();
+    let key = FilterKey::from(path.into_inner());
 
     if body.ranges.is_empty() {
         return Err(ErrorResponse::BadRequest("No IP range given".to_string()));
     }
 
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    let (vni, dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
-        Some(key) => key,
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
+    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
 
-    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let previous = st.filters.get(&key).cloned().unwrap_or_default();
     let mut rules = previous.clone();
     let before = rules.ip_ranges.len();
     rules.ip_ranges.retain(|existing| {
@@ -71,40 +68,34 @@ pub async fn delete_filter_ip_range_internal(
     });
     let removed = before - rules.ip_ranges.len();
 
-    apply_filter(&mut st, route_uuid, dest_key, rules)
+    apply_filter(&mut st, key, slot, rules)
         .map_err(|e| map_internal_error("apply packet-filter", e))?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
-        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+    persist_filter(&mut st, key, slot, previous, |rules| {
+        network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
-    let remaining = st
-        .filters
-        .get(&route_uuid)
-        .map_or(0, |rules| rules.ip_ranges.len());
-    let message = if remaining == 0 {
-        format!(
-            "{} IP range(s) removed, {} accepts every address again",
-            removed, dest_ip
-        )
+    let resp = filter_resp(&st, key);
+    let remaining = resp.filter.ip_ranges.len();
+    if remaining == 0 {
+        log::debug!(
+            "{} IP range(s) removed, {} {} accepts every address again",
+            removed,
+            key.direction,
+            key.ip
+        );
     } else {
-        format!(
-            "{} IP range(s) removed, {} left in the include-list of {}",
-            removed, remaining, dest_ip
-        )
-    };
-    log::debug!("{}", message);
-
-    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-    let resp = FilterResp {
-        route_uuid,
-        vni,
-        dest_ip,
-        filter: rules,
-    };
+        log::debug!(
+            "{} IP range(s) removed, {} left in the {} include-list of {}",
+            removed,
+            remaining,
+            key.direction,
+            key.ip
+        );
+    }
 
     Ok(Json(resp))
 }

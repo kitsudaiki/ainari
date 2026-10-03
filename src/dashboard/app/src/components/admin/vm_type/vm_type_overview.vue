@@ -64,7 +64,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No vm-types found</p>
+            <NoEntries v-else text="No vm-types found" />
         </div>
 
         <VmTypeCreateModal
@@ -114,6 +114,7 @@ import VmTypeEditModal from "./vm_type_edit_modal.vue";
 import VmTypeDeleteModal from "./vm_type_delete_modal.vue";
 import VmTypeInfoModal from "./vm_type_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const vmTypes = ref<VmTypeBasicResp[]>([]);

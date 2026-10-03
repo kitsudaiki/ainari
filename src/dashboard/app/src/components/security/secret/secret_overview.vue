@@ -57,7 +57,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No secrets found</p>
+            <NoEntries v-else text="No secrets found" />
         </div>
 
         <SecretCreateModal
@@ -97,6 +97,7 @@ import SecretCreateModal from "./secret_create_modal.vue";
 import SecretPayloadModal from "./secret_payload_modal.vue";
 import SecretDeleteModal from "./secret_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const secrets = ref<SecretBasicResp[]>([]);

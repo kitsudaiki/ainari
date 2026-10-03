@@ -14,10 +14,10 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
+use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
+use crate::core::models::FilterKey;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
@@ -29,20 +29,22 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "network_filter",
     summary = "Add filter ip-ranges",
-    description = r###"Add IP ranges to the include-list of one route.
+    description = r###"Add IP ranges to the include-list of one direction of an address.
 
-The list starts out empty, which means "every address is allowed". The first
-entry flips that around: from then on the route only carries packets whose
-source address is named by one of its ranges. Entries may be written as a single
-address, as a subnet in CIDR notation or as an explicit range, and adding one
-that is already present is a no-op rather than an error."###,
+The address is the one of a virtual machine within its tenant. The list starts
+out empty, which means "every address is allowed". The first entry flips that
+around: from then on only packets are carried, whose address is named by one of
+the ranges - the source address for the ingress filter, the destination address
+for the egress filter. Entries may be written as a single address, as a subnet
+in CIDR notation or as an explicit range, and adding one that is already present
+is a no-op rather than an error."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn add_filter_ip_range_internal(
-    route_uuid: Path<Uuid>,
+    path: Path<FilterPath>,
     body: Json<FilterIpRangeReq>,
     context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
@@ -50,19 +52,16 @@ pub async fn add_filter_ip_range_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let route_uuid = route_uuid.into_inner();
+    let key = FilterKey::from(path.into_inner());
 
     if body.ranges.is_empty() {
         return Err(ErrorResponse::BadRequest("No IP range given".to_string()));
     }
 
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    let (vni, dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
-        Some(key) => key,
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
+    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
 
-    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let previous = st.filters.get(&key).cloned().unwrap_or_default();
     let mut rules = previous.clone();
     let mut added = 0;
     for rule in body.ranges.iter().cloned() {
@@ -76,31 +75,23 @@ pub async fn add_filter_ip_range_internal(
         }
     }
 
-    apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
+    apply_filter(&mut st, key, slot, rules).map_err(ErrorResponse::BadRequest)?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
-        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+    persist_filter(&mut st, key, slot, previous, |rules| {
+        network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
-    let message = format!(
-        "{} IP range(s) added, {} in the include-list of {}",
+    let resp = filter_resp(&st, key);
+    log::debug!(
+        "{} IP range(s) added, {} in the {} include-list of {}",
         added,
-        st.filters
-            .get(&route_uuid)
-            .map_or(0, |rules| rules.ip_ranges.len()),
-        dest_ip
+        resp.filter.ip_ranges.len(),
+        key.direction,
+        key.ip
     );
-    log::debug!("{}", message);
-
-    let resp = FilterResp {
-        route_uuid,
-        vni,
-        dest_ip,
-        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
-    };
 
     Ok(Json(resp))
 }

@@ -13,12 +13,79 @@
 // limitations under the License.
 
 use apistos::ApiComponent;
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
+
+/// Direction of the traffic of a virtual_machine, which a packet filter applies to.
+///
+/// A virtual_machine has exactly one filter per direction, so the direction is
+/// part of what identifies a filter.
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    JsonSchema,
+    ApiComponent,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum FilterDirection {
+    /// Filters the traffic towards the virtual_machine by its source
+    Ingress,
+    /// Filters the traffic leaving the virtual_machine by its destination
+    Egress,
+}
+
+impl fmt::Display for FilterDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            FilterDirection::Ingress => "ingress",
+            FilterDirection::Egress => "egress",
+        };
+        write!(f, "{s}")
+    }
+}
+
+impl FromStr for FilterDirection {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ingress" => Ok(FilterDirection::Ingress),
+            "egress" => Ok(FilterDirection::Egress),
+            other => Err(format!(
+                "Unknown direction '{other}', expected ingress or egress"
+            )),
+        }
+    }
+}
+
+/// Addresses the packet filter of one address of a tenant on a torii.
+#[derive(Debug, Deserialize, JsonSchema, ApiComponent)]
+pub struct FilterPath {
+    pub vni: u32,
+    pub ip: Ipv4Addr,
+    pub direction: FilterDirection,
+}
+
+/// Addresses the packet filter of one virtual_machine in hanami.
+#[derive(Debug, Deserialize, JsonSchema, ApiComponent)]
+pub struct NetworkFilterPath {
+    pub virtual_machine_uuid: Uuid,
+    pub direction: FilterDirection,
+}
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterIpRangeReq {
@@ -34,18 +101,40 @@ pub struct FilterPortReq {
     pub ports: Vec<PortRangeRule>,
 }
 
+/// Packet filter of one address of a tenant on a torii.
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterResp {
-    pub route_uuid: Uuid,
     pub vni: u32,
-    pub dest_ip: Ipv4Addr,
+    pub ip: Ipv4Addr,
+    pub direction: FilterDirection,
     pub filter: RouteFilterRules,
 }
 
-/// Response payload for listing the packet filters of all routes.
+/// Response payload for listing the packet filters of a torii.
 #[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct FilterListResponse {
-    pub filters: Vec<FilterEntry>,
+    pub filters: Vec<FilterResp>,
+}
+
+/// Packet filter of one direction of a virtual_machine, as it is stored by hanami.
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent)]
+pub struct NetworkFilterResp {
+    pub uuid: Uuid,
+    pub virtual_machine_uuid: Uuid,
+    pub direction: FilterDirection,
+    /// Include-list of the ip-ranges, in their canonical notation
+    pub ip_ranges: Vec<String>,
+    /// Include-list of the ports, in their canonical notation
+    pub ports: Vec<String>,
+    pub created_at: DateTime<Utc>,
+    pub created_by: String,
+    pub updated_at: DateTime<Utc>,
+    pub updated_by: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent)]
+pub struct NetworkFilterListResp {
+    pub network_filters: Vec<NetworkFilterResp>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
@@ -55,7 +144,7 @@ pub struct RouteFilterRules {
 }
 
 impl RouteFilterRules {
-    /// Reports whether this route is unfiltered, i.e. both include-lists are empty.
+    /// Reports whether this filter is unrestricted, i.e. both include-lists are empty.
     ///
     /// # Arguments
     /// None
@@ -67,16 +156,7 @@ impl RouteFilterRules {
     }
 }
 
-/// One entry of the filter overview.
-#[derive(Debug, Deserialize, Serialize, JsonSchema, ApiComponent, Validate)]
-pub struct FilterEntry {
-    pub route_uuid: Uuid,
-    pub vni: u32,
-    pub dest_ip: Ipv4Addr,
-    pub filter: RouteFilterRules,
-}
-
-/// One entry of the ip include-list of a route, as an inclusive range.
+/// One entry of the ip include-list of a filter, as an inclusive range.
 #[derive(Debug, Clone, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct IpRangeRule {
     pub spec: String,
@@ -130,7 +210,7 @@ impl<'de> Deserialize<'de> for IpRangeRule {
     }
 }
 
-/// One entry of the port include-list of a route, as an inclusive range.
+/// One entry of the port include-list of a filter, as an inclusive range.
 #[derive(Debug, Clone, Serialize, JsonSchema, ApiComponent, Validate)]
 pub struct PortRangeRule {
     pub spec: String,
@@ -305,6 +385,18 @@ mod tests {
     fn ip(spec: &str) -> (String, u32, u32) {
         let rule = parse_ip_range(spec).expect(spec);
         (rule.spec, u32::from(rule.first), u32::from(rule.last))
+    }
+
+    #[test]
+    fn directions_are_written_in_lowercase() {
+        assert_eq!("ingress".parse(), Ok(FilterDirection::Ingress));
+        assert_eq!("egress".parse(), Ok(FilterDirection::Egress));
+        assert!("Ingress".parse::<FilterDirection>().is_err());
+        assert_eq!(FilterDirection::Egress.to_string(), "egress");
+        assert_eq!(
+            serde_json::to_string(&FilterDirection::Ingress).unwrap(),
+            r#""ingress""#
+        );
     }
 
     #[test]

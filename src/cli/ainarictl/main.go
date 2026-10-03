@@ -47,6 +47,7 @@ func init() {
 	ainari_resources.Init_Proxy_Commands(rootCmd)
 	ainari_resources.Init_Network_Commands(rootCmd)
 	ainari_resources.Init_FloatingIp_Commands(rootCmd)
+	ainari_resources.Init_NetworkFilter_Commands(rootCmd)
 	ainari_resources.Init_Host_Commands(rootCmd)
 	ainari_resources.Init_Secret_Commands(rootCmd)
 	ainari_resources.Init_PublicKey_Commands(rootCmd)

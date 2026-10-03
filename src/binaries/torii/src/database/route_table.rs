@@ -212,29 +212,48 @@ pub fn list_routes() -> QueryResult<Vec<RouteEntry>> {
 
 /// Overwrites the values of an active route in the database.
 ///
+/// A route, which changed its destination or its tenant, takes the rules of its packet filters
+/// with it. Both happen within one transaction. The rules are moved even if the route itself has
+/// no active entry yet, like a route, which the gateway derives from its own config, so they are
+/// not lost when the route is added afterwards.
+///
 /// # Arguments
+/// * `previous` - The version of the route before the update
 /// * `route` - The updated route, which was programmed into the datapath
 /// * `context` - User context to record who performed the update
 ///
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure
-pub fn update_route(route: &Route, context: &UserContext) -> Result<(), enums::DbError> {
+pub fn update_route(
+    previous: &Route,
+    route: &Route,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::routes::dsl::*;
-    match diesel::update(routes.filter(uuid.eq(route.uuid.to_string()).and(status.eq("ACTIVE"))))
-        .set((
-            vni.eq(route.vni as i32),
-            dest_ip.eq(route.dest_ip.to_string()),
-            target_iface.eq(route.target_iface.clone()),
-            gateway_ip.eq(route.gateway_ip.map(|ip| ip.to_string())),
-            next_hop_ip.eq(route.next_hop_ip.map(|ip| ip.to_string())),
-            next_hop_mac.eq(route.next_hop_mac.clone()),
-            encrypted.eq(route.encrypted),
-            updated_at.eq(Utc::now().to_rfc3339()),
-            updated_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    let result = conn.transaction(|conn| {
+        network_filter_table::move_filter_rules_in(
+            conn,
+            (previous.vni, previous.dest_ip),
+            (route.vni, route.dest_ip),
+            context,
+        )?;
+        use self::routes::dsl::*;
+        diesel::update(routes.filter(uuid.eq(route.uuid.to_string()).and(status.eq("ACTIVE"))))
+            .set((
+                vni.eq(route.vni as i32),
+                dest_ip.eq(route.dest_ip.to_string()),
+                target_iface.eq(route.target_iface.clone()),
+                gateway_ip.eq(route.gateway_ip.map(|ip| ip.to_string())),
+                next_hop_ip.eq(route.next_hop_ip.map(|ip| ip.to_string())),
+                next_hop_mac.eq(route.next_hop_mac.clone()),
+                encrypted.eq(route.encrypted),
+                updated_at.eq(Utc::now().to_rfc3339()),
+                updated_by.eq(context.user_id.clone()),
+            ))
+            .execute(conn)
+    });
+
+    match result {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
         Err(e) => {
@@ -244,24 +263,31 @@ pub fn update_route(route: &Route, context: &UserContext) -> Result<(), enums::D
     }
 }
 
-/// Marks a route and all rules of its packet filter as deleted in the database.
+/// Marks a route and all rules of the packet filters of its destination as deleted in the
+/// database.
 ///
-/// Both happen within one transaction, so a route is never deleted without its filter or the
+/// Both happen within one transaction, so a route is never deleted without its filters or the
 /// other way around.
 ///
 /// # Arguments
-/// * `route_uuid` - UUID of the route to delete
+/// * `route` - The route to delete
 /// * `context` - User context to record who performed the deletion
 ///
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure. `NotFound` means, that the
 ///   route itself had no active entry. Its filter-rules are deleted nevertheless.
-pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+pub fn delete_route(route: &Route, context: &UserContext) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     let result = conn.transaction(|conn| {
-        network_filter_table::delete_filter_rules_in(conn, route_uuid, context)?;
+        network_filter_table::delete_filter_rules_in(
+            conn,
+            route.vni,
+            route.dest_ip,
+            None,
+            context,
+        )?;
         use self::routes::dsl::*;
-        diesel::update(routes.filter(uuid.eq(route_uuid.to_string()).and(status.eq("ACTIVE"))))
+        diesel::update(routes.filter(uuid.eq(route.uuid.to_string()).and(status.eq("ACTIVE"))))
             .set((
                 status.eq("DELETED"),
                 deleted_at.eq(Utc::now().to_rfc3339()),
@@ -283,7 +309,8 @@ pub fn delete_route(route_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ainari_api_structs::network_filter_structs::RouteFilterRules;
+    use crate::core::models::FilterKey;
+    use ainari_api_structs::network_filter_structs::{FilterDirection, RouteFilterRules};
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
@@ -347,17 +374,47 @@ mod tests {
         hard_delete_route(&route_uuid);
 
         add_new_route(&route, &test_context()).unwrap();
+        let previous = route.clone();
+        let filter_key = |route: &Route| FilterKey {
+            vni: route.vni,
+            ip: route.dest_ip,
+            direction: FilterDirection::Egress,
+        };
+        let rules = RouteFilterRules {
+            ip_ranges: Vec::new(),
+            ports: vec!["22".parse().unwrap()],
+        };
+        network_filter_table::set_filter_rules(&filter_key(&previous), &rules, &test_context())
+            .unwrap();
+
         route.dest_ip = Ipv4Addr::new(192, 168, 100, 6);
         route.gateway_ip = None;
         route.encrypted = false;
-        assert!(update_route(&route, &test_context()).is_ok());
+        assert!(update_route(&previous, &route, &test_context()).is_ok());
 
         let entry = get_route(&route_uuid).ok().unwrap();
         assert_eq!(entry.dest_ip, route.dest_ip);
         assert_eq!(entry.gateway_ip, None);
         assert!(!entry.encrypted);
 
-        assert!(update_route(&test_route(Uuid::new_v4()), &test_context()).is_err());
+        // the packet-filter moved with the route to its new destination
+        let filters = network_filter_table::list_filter_rules().unwrap();
+        assert!(!filters.contains_key(&filter_key(&previous)));
+        assert_eq!(filters.get(&filter_key(&route)).unwrap().ports.len(), 1);
+        {
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            network_filter_table::delete_filter_rules_in(
+                &mut conn,
+                route.vni,
+                route.dest_ip,
+                None,
+                &test_context(),
+            )
+            .unwrap();
+        }
+
+        let unknown = test_route(Uuid::new_v4());
+        assert!(update_route(&unknown, &unknown, &test_context()).is_err());
 
         hard_delete_route(&route_uuid);
     }
@@ -368,21 +425,32 @@ mod tests {
         let route_uuid = Uuid::new_v4();
         hard_delete_route(&route_uuid);
 
-        add_new_route(&test_route(route_uuid), &test_context()).unwrap();
+        let route = test_route(route_uuid);
+        add_new_route(&route, &test_context()).unwrap();
         assert!(list_routes().unwrap().iter().any(|r| r.uuid == route_uuid));
         let rules = RouteFilterRules {
             ip_ranges: vec!["10.0.0.0/24".parse().unwrap()],
             ports: vec!["22".parse().unwrap()],
         };
-        network_filter_table::set_filter_rules(&route_uuid, &rules, &test_context()).unwrap();
+        let filter_keys =
+            [FilterDirection::Ingress, FilterDirection::Egress].map(|direction| FilterKey {
+                vni: route.vni,
+                ip: route.dest_ip,
+                direction,
+            });
+        for filter_key in &filter_keys {
+            network_filter_table::set_filter_rules(filter_key, &rules, &test_context()).unwrap();
+        }
 
-        // the packet-filter is deleted together with its route
-        assert!(delete_route(&route_uuid, &test_context()).is_ok());
+        // both packet-filters of the destination are deleted together with the route
+        assert!(delete_route(&route, &test_context()).is_ok());
         assert!(get_route(&route_uuid).is_err());
         let filters = network_filter_table::list_filter_rules().unwrap();
-        assert!(!filters.contains_key(&route_uuid));
+        for filter_key in &filter_keys {
+            assert!(!filters.contains_key(filter_key));
+        }
         assert!(!list_routes().unwrap().iter().any(|r| r.uuid == route_uuid));
-        assert!(delete_route(&route_uuid, &test_context()).is_err());
+        assert!(delete_route(&route, &test_context()).is_err());
 
         hard_delete_route(&route_uuid);
     }

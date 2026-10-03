@@ -97,6 +97,14 @@ pub fn init_routing() -> GatewayState {
     let filter_map: AyaHashMap<_, RouteKeyPod, RouteFilterPod> =
         AyaHashMap::try_from(filter_map_data).unwrap();
 
+    // The egress filters are keyed by the TAP device the VM sends on, not by an address the VM
+    // could choose itself.
+    let egress_filter_map_data = bpf
+        .take_map("EGRESS_FILTER_MAP")
+        .expect("Missing EGRESS_FILTER_MAP");
+    let egress_filter_map: AyaHashMap<_, u32, RouteFilterPod> =
+        AyaHashMap::try_from(egress_filter_map_data).unwrap();
+
     // STATIC eBPF ATTACHMENT (Safely skips if interface doesn't exist yet)
     let overlay: &mut Xdp = bpf
         .program_mut("overlay_ingress")
@@ -137,6 +145,7 @@ pub fn init_routing() -> GatewayState {
         filters: HashMap::new(),
         route_map,
         filter_map,
+        egress_filter_map,
         fip_dnat_map,
         fip_snat_map,
         arp_proxy_map,
@@ -171,7 +180,7 @@ pub fn init_routing() -> GatewayState {
 ///
 /// These routes are created again with every start, so their UUID is derived from their
 /// `(vni, dest_ip)`-key instead of being random. That way it stays the same across restarts, and
-/// everything persisted for the route - an update of it or its packet filter - still finds it.
+/// everything persisted for the route - like an update of it - still finds it.
 ///
 /// # Arguments
 /// * `vni` - Tenant of the route

@@ -30,7 +30,7 @@ use ainari_common::enums;
     summary = "Delete route",
     description = r###"Delete a route and purge it from the eBPF maps.
 
-The packet filter guarding the route dies with it, and an encrypted route also
+The packet filters of its destination die with it, and an encrypted route also
 loses its fail-closed block policies and its kernel host-route."###,
     error_code = 400,
     error_code = 401,
@@ -44,14 +44,15 @@ pub async fn delete_route_internal(
     let route_uuid = route_uuid.into_inner();
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
-    if !st.routes.contains_key(&route_uuid) {
-        return Err(ErrorResponse::NotFound("Route not found".to_string()));
-    }
+    let route = match st.routes.get(&route_uuid) {
+        Some(route) => route.clone(),
+        None => return Err(ErrorResponse::NotFound("Route not found".to_string())),
+    };
 
-    // The route and its packet-filter are dropped from the database first, so a failing database
+    // The route and its packet-filters are dropped from the database first, so a failing database
     // leaves the route untouched in the datapath. The routes, which the gateway derives from its
     // own config at startup, have no entry there.
-    if let Err(enums::DbError::InternalError) = route_table::delete_route(&route_uuid, &context) {
+    if let Err(enums::DbError::InternalError) = route_table::delete_route(&route, &context) {
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 

@@ -59,7 +59,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No quotas found</p>
+            <NoEntries v-else text="No quotas found" />
         </div>
 
         <QuotaUpdateModal
@@ -83,6 +83,7 @@ import { miko } from "@/api";
 import type { QuotaBasicResp } from "@/api";
 import QuotaUpdateModal from "./quota_update_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const quotas = ref<QuotaBasicResp[]>([]);

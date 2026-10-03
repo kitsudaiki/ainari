@@ -19,7 +19,7 @@ use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL};
 use arp::handle_arp_request;
 use decap::{is_tunnel_packet, process_tunnel_packet};
 use encap::encap_and_redirect;
-use filter::filter_allows;
+use filter::{egress_filter_allows, filter_allows};
 use forward::redirect_local;
 use maps::{is_floating_ip, is_uplink, lookup_iface, lookup_route, uplink_mode};
 use nat::{apply_dnat, apply_snat, destination_ip};
@@ -50,10 +50,12 @@ use utils::ptr_at;
 /// the ESP transformation lives in the kernel, so those packets have to take
 /// the regular forwarding path. Everything else stays in the eBPF datapath.
 ///
-/// Every matched route is guarded by its packet filter. A route whose
+/// Every matched route is guarded by its ingress packet filter. A route whose
 /// include-lists are empty carries everything, which is the state a freshly
 /// created route is in; as soon as the control plane adds an IP range or a port
 /// to a route, packets that are named by none of its entries are dropped here.
+/// What a VM sends is checked against the egress filter of its TAP device
+/// before anything else happens with it.
 ///
 /// In the single gateway setup (uplink mode) the same program also serves the
 /// uplink towards the outside. There the floating IP NAT is done in both
@@ -87,6 +89,13 @@ pub fn overlay_ingress(ctx: XdpContext) -> u32 {
     // Answer ARP requests locally on every interface served by the responder.
     if let Some(action) = handle_arp_request(&ctx, eth_type, iface.vni) {
         return action;
+    }
+
+    // A packet sent by a VM has to pass the egress filter of the VM first. The
+    // filter is keyed by the TAP device the packet came in on, so every other
+    // interface, including the uplink, has none.
+    if !egress_filter_allows(&ctx, eth_type, ctx.ingress_ifindex() as u32) {
+        return xdp_action::XDP_DROP;
     }
 
     // Single gateway setup: from the uplink only the floating IPs lead into the

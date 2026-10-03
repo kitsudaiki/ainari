@@ -29,7 +29,7 @@ use uuid::Uuid;
 
 use crate::config::CONFIG;
 use crate::core::crypto::{install_block_policies, remove_block_policies};
-use crate::core::filter::apply_filter;
+use crate::core::filter::{move_filters, remove_filters_of_route};
 use crate::core::models::{Route, RouteKeyPod, RouteTargetPod, TapInfo};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::state::GatewayState;
@@ -177,7 +177,7 @@ fn undo_add_route(
 ///
 /// Because eBPF map updates are atomic, active connections pivot to the new target without
 /// dropping packets. A route, which changed its destination or its tenant, takes its packet
-/// filter with it.
+/// filters with it.
 ///
 /// `persist` is called while the gateway state is still locked. If it fails, the previous version
 /// of the route is programmed again.
@@ -185,7 +185,8 @@ fn undo_add_route(
 /// # Arguments
 /// * `route_uuid` - UUID of the route to update
 /// * `req` - The already validated route request
-/// * `persist` - Writes the updated route to the database
+/// * `persist` - Writes the updated route to the database. It gets the previous and the updated
+///   version of the route.
 ///
 /// # Returns
 /// The updated route, `NotFound` if the route or the target interface does not exist,
@@ -194,7 +195,7 @@ fn undo_add_route(
 pub async fn update_route(
     route_uuid: Uuid,
     req: &RouteReq,
-    persist: impl FnOnce(&Route) -> Result<(), ErrorResponse>,
+    persist: impl FnOnce(&Route, &Route) -> Result<(), ErrorResponse>,
 ) -> Result<Route, ErrorResponse> {
     // resolve the new target interface and its link layer details
     if get_ifindex(&req.target_iface) == 0 {
@@ -255,7 +256,7 @@ pub async fn update_route(
         &updated_route,
         RouteTargetPod(target),
     )
-    .and_then(|_| persist(&updated_route));
+    .and_then(|_| persist(&previous_route, &updated_route));
 
     if let Err(e) = result {
         // program the previous version of the route again
@@ -310,26 +311,24 @@ fn program_route(
 
     st.routes.insert(to.uuid, to.clone());
 
-    // A route that changed its destination *or its tenant* has to take its packet
-    // filter with it, otherwise the new key would be reachable unfiltered while
-    // the old one keeps an orphaned entry behind. The stale routing entry goes
-    // away for exactly the same reason.
+    // A route that changed its destination *or its tenant* leaves a stale routing entry behind,
+    // which has to go away.
     if from_key != to_key {
         let _ = st.route_map.remove(&RouteKeyPod(from_key));
-        let _ = st.filter_map.remove(&RouteKeyPod(from_key));
-        let rules = st.filters.get(&to.uuid).cloned().unwrap_or_default();
-        apply_filter(st, to.uuid, to_key, rules).map_err(|e| {
-            log::error!("Failed to move packet-filter of route '{}': {e}", to.uuid);
-            ErrorResponse::InternalError("Internal Error".to_string())
-        })?;
     }
+
+    // The packet filters belong to the address the route leads to, so they move with the route.
+    move_filters(st, from, to).map_err(|e| {
+        log::error!("Failed to move packet-filters of route '{}': {e}", to.uuid);
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     Ok(())
 }
 
 /// Removes a route from the bookkeeping and from the datapath.
 ///
-/// The packet filter guarding the route dies with it, and an encrypted route also loses its
+/// The packet filters guarding the route die with it, and an encrypted route also loses its
 /// fail-closed block policies and its kernel host-route.
 ///
 /// # Arguments
@@ -343,9 +342,8 @@ pub fn remove_route(st: &mut GatewayState, route_uuid: &Uuid) -> Option<Route> {
 
     let dest_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
     let _ = st.route_map.remove(&dest_key);
-    // The filter guards the route, so it dies with it.
-    let _ = st.filter_map.remove(&dest_key);
-    st.filters.remove(route_uuid);
+    // The filters guard the route and the VM behind it, so they die with it.
+    remove_filters_of_route(st, &route);
 
     if route.encrypted {
         // Drop the fail-closed policies together with the route they guard.

@@ -28,6 +28,15 @@ pub static ARP_PROXY_MAP: HashMap<u32, ArpProxy> = HashMap::with_max_entries(102
 #[map]
 pub static FILTER_MAP: HashMap<RouteKey, RouteFilter> = HashMap::with_max_entries(1024, 0);
 
+/// Egress packet filters of the VMs, keyed by the ifindex of their TAP device.
+///
+/// The key is the port a packet arrived on and not its source address, because
+/// the source address is written by the VM itself - a VM could otherwise slip
+/// past its own filter just by sending with another address. A TAP device
+/// without an entry is unfiltered.
+#[map]
+pub static EGRESS_FILTER_MAP: HashMap<u32, RouteFilter> = HashMap::with_max_entries(1024, 0);
+
 /// Tenant and behaviour of every interface the overlay program is attached to.
 ///
 /// This is the only place a packet entering from a VM can get its tenant from -
@@ -183,6 +192,19 @@ pub fn lookup_iface(ifindex: u32) -> IfaceConfig {
 #[inline(always)]
 pub fn lookup_filter(route_key: RouteKey) -> Option<&'static RouteFilter> {
     unsafe { FILTER_MAP.get(route_key) }
+}
+
+/// Looks up the egress packet filter of the VM behind an interface.
+///
+/// # Arguments
+/// * `ifindex` - The kernel interface index the packet was received on
+///
+/// # Returns
+/// A reference to the `RouteFilter` of the VM, or `None` when its traffic is
+/// unfiltered.
+#[inline(always)]
+pub fn lookup_egress_filter(ifindex: u32) -> Option<&'static RouteFilter> {
+    unsafe { EGRESS_FILTER_MAP.get(ifindex) }
 }
 
 /// Tells whether the gateway runs in the single gateway (uplink) mode.

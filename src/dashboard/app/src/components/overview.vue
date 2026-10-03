@@ -88,7 +88,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No virtual machines found</p>
+            <NoEntries v-else text="No virtual machines found" />
         </div>
     </div>
     
@@ -106,6 +106,7 @@ import { hanami, miko, omamori, ryokan } from "@/api";
 import type { VirtualMachineBasicResp } from "@/api";
 import GaugeChart from "@/components/gauge_chart.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
 const torii_base_address = ref<string | null>("");

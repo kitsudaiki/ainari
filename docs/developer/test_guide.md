@@ -73,6 +73,7 @@ run was aborted.
 | `floating_ips`     | create+attach and attach separately, get/list, duplicate/out-of-range rejected, detach and re-attach |
 | `ssh`              | ssh into each virtual machine, checks number of cores, memory, disk-size, internal ip, writable root-filesystem |
 | `networking`       | ping and tcp between the virtual machines, default-route, a detached floating ip stops answering, swapping floating ip-addresses between virtual machines (checked via machine-id) |
+| `network_filters`  | invalid filter-requests rejected, add/get/list/remove of ip-ranges and ports incl. canonical notation, ingress ip-ranges and ports and egress ip-ranges block and allow the traffic between the virtual machines, filters of deleted virtual machines are gone |
 | `users`            | second user: no admin-access, can't see or use the virtual machines, network or floating ip-addresses of the other user; deleted afterwards |
 | `power`            | reboot (new boot-id), stop (unreachable), stop twice, other virtual machines unaffected, start, start while running |
 | `snapshots`        | write a marker-file → save snapshot → listed as snapshot-image → change the disk → restore → marker is back and the later file is gone; invalid restores rejected |

@@ -25,6 +25,7 @@ use uuid::Uuid;
 use torii_common::{ArpProxy, FipTarget, IfaceConfig, RouteFilter, RouteKey, RouteTarget};
 
 use ainari_api_structs::network_crypto_structs::CryptoDirection;
+use ainari_api_structs::network_filter_structs::{FilterDirection, FilterPath};
 
 /// Wrapper for passing RouteKey to Aya eBPF maps safely.
 #[derive(Clone, Copy)]
@@ -131,4 +132,25 @@ pub struct Route {
     pub next_hop_ip: Option<Ipv4Addr>,
     pub next_hop_mac: Option<String>,
     pub encrypted: bool,
+}
+
+/// Identifies the packet filter of one direction of an address within a tenant.
+///
+/// The address is the one of a VM, so the ingress filter guards the route towards the VM and the
+/// egress filter the TAP device the VM sends on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FilterKey {
+    pub vni: u32,
+    pub ip: Ipv4Addr,
+    pub direction: FilterDirection,
+}
+
+impl From<FilterPath> for FilterKey {
+    fn from(path: FilterPath) -> Self {
+        FilterKey {
+            vni: path.vni,
+            ip: path.ip,
+            direction: path.direction,
+        }
+    }
 }

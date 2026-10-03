@@ -17,7 +17,8 @@
 //! The eBPF maps start out empty with every start of the torii, so everything the control plane
 //! configured over the endpoints is read back from the database and programmed again. The order
 //! matters: interfaces and TAP devices come first, because routes resolve the MAC of the VM and
-//! the tenant of the port from the TAP registry, and the packet filters need their routes.
+//! the tenant of the port from the TAP registry, and the packet filters need their routes and
+//! the TAP devices behind them.
 //!
 //! A single entry, which can not be restored anymore (for example because its interface is
 //! gone), is logged and skipped, so it doesn't keep the rest of the network down.
@@ -25,7 +26,7 @@
 //! The proxies are restored as well. They don't depend on the datapath, but belong to the state
 //! the control plane configured over the endpoints.
 
-use crate::core::filter::{apply_filter, route_filter_key};
+use crate::core::filter::{apply_filter, filter_slot};
 use crate::core::floating_ip::add_floating_ip;
 use crate::core::interface::{configure_interface, register_tap};
 use crate::core::models::Route;
@@ -97,7 +98,7 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
             .routes
             .contains_key(&route_uuid);
         let result = if exists {
-            update_route(route_uuid, &req, |_| Ok(())).await
+            update_route(route_uuid, &req, |_, _| Ok(())).await
         } else {
             add_route(route_uuid, &req, |_| Ok(())).await
         };
@@ -112,13 +113,16 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
 
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
 
-    for (route_uuid, rules) in filters {
-        let Some((_, _, dest_key)) = route_filter_key(&st, &route_uuid) else {
-            log::error!("Failed to restore packet-filter: route '{route_uuid}' doesn't exist");
-            continue;
-        };
-        if let Err(e) = apply_filter(&mut st, route_uuid, dest_key, rules) {
-            log::error!("Failed to restore packet-filter of route '{route_uuid}': {e}");
+    for (key, rules) in filters {
+        let result =
+            filter_slot(&st, &key).and_then(|slot| apply_filter(&mut st, key, slot, rules));
+        if let Err(e) = result {
+            log::error!(
+                "Failed to restore the {} packet-filter of {} in tenant {}: {e}",
+                key.direction,
+                key.ip,
+                key.vni
+            );
         }
     }
 

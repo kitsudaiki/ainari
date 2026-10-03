@@ -165,3 +165,38 @@ Unique indexes:
 MySQL has no partial indexes, so there the unique indexes are built on generated columns
 `active_<column>`, which contain the value of the column, if `status = 'ACTIVE'`, and NULL
 otherwise.
+
+## network_filters
+
+The view of hanami on the packet filters of the virtual machines, one entry per virtual machine
+and direction (`ingress` or `egress`). The filters are applied by the torii of the host of the
+virtual machine. `ip_ranges` and `ports` contain the include-lists in their canonical notation,
+separated by commas, like `10.0.0.0/24,10.0.1.5` or `22,8000-8100`. A filter, whose lists are both
+empty, is marked as deleted.
+
+| field                | type         | is primary | constraints           |
+| -------------------- | ------------ | ---------- | --------------------- |
+| uuid                 | VARCHAR(40)  | x          |                       |
+| virtual_machine_uuid | VARCHAR(40)  |            |                       |
+| direction            | VARCHAR(8)   |            |                       |
+| ip_ranges            | TEXT         |            | `NOT NULL DEFAULT ''` |
+| ports                | TEXT         |            | `NOT NULL DEFAULT ''` |
+| owner_id             | VARCHAR(256) |            |                       |
+| project_id           | VARCHAR(256) |            |                       |
+| status               | VARCHAR(8)   |            |                       |
+| created_at           | VARCHAR(64)  |            |                       |
+| created_by           | VARCHAR(256) |            |                       |
+| updated_at           | VARCHAR(64)  |            |                       |
+| updated_by           | VARCHAR(256) |            |                       |
+| deleted_at           | VARCHAR(64)  |            |                       |
+| deleted_by           | VARCHAR(256) |            |                       |
+
+Unique indexes:
+
+- `network_filters_active_virtual_machine_direction`: `(virtual_machine_uuid, direction)` where
+  `status = 'ACTIVE'`
+
+MySQL has no partial indexes, so there the unique index is built on the generated column
+`active_virtual_machine_uuid`, which contains the value of the column, if `status = 'ACTIVE'`,
+and NULL otherwise. MySQL also has no defaults for `TEXT`-columns, so there `ip_ranges` and
+`ports` are only `NOT NULL`.

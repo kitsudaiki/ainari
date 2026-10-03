@@ -109,6 +109,15 @@
                                     </button>
                                     <button
                                         @click="
+                                            switchToNetworkFilter(
+                                                virtualMachine.uuid,
+                                            )
+                                        "
+                                    >
+                                        Show network filter
+                                    </button>
+                                    <button
+                                        @click="
                                             changePowerState(
                                                 virtualMachine,
                                                 'start',
@@ -165,7 +174,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No virtual machines found</p>
+            <NoEntries v-else text="No virtual machines found" />
         </div>
 
         <VirtualMachineCreateModal
@@ -231,6 +240,7 @@ import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
 import SnapshotSaveModal from "./snapshot_save_modal.vue";
 import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
@@ -286,6 +296,13 @@ const emit = defineEmits<{
 
 function switchToTasks(virtual_machine_uuid: string) {
     emit("change-view", { view: "WorkloadTask", id: virtual_machine_uuid });
+}
+
+function switchToNetworkFilter(virtual_machine_uuid: string) {
+    emit("change-view", {
+        view: "WorkloadNetworkFilter",
+        id: virtual_machine_uuid,
+    });
 }
 
 //=============================================================================

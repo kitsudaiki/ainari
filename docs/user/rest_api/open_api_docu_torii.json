@@ -615,7 +615,7 @@
           "route"
         ],
         "summary": "Delete route",
-        "description": "Delete a route and purge it from the eBPF maps.\\\n\\\nThe packet filter guarding the route dies with it, and an encrypted route also\\\nloses its fail-closed block policies and its kernel host-route.",
+        "description": "Delete a route and purge it from the eBPF maps.\\\n\\\nThe packet filters of its destination die with it, and an encrypted route also\\\nloses its fail-closed block policies and its kernel host-route.",
         "parameters": [
           {
             "name": "route_uuid",
@@ -653,22 +653,72 @@
         ]
       }
     },
-    "/v1alpha/route/{route_uuid}/filter/internal": {
+    "/v1alpha/network_filter/internal": {
       "get": {
         "tags": [
           "network_filter"
         ],
-        "summary": "Get route filter",
-        "description": "Show the packet filter currently attached to one route.",
+        "summary": "List filters",
+        "description": "List every packet filter of the gateway.\\\n\\\nAddresses without any include-list are left out: they carry everything and have\\\nno entry in the eBPF filter maps either.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/network_filter/{vni}/{ip}/{direction}/internal": {
+      "get": {
+        "tags": [
+          "network_filter"
+        ],
+        "summary": "Get filter",
+        "description": "Show the packet filter currently attached to one direction of an address.\\\n\\\nAn address without a filter is reported with two empty include-lists.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -707,17 +757,34 @@
         "tags": [
           "network_filter"
         ],
-        "summary": "Clear route filter",
-        "description": "Drop the whole packet filter of one route.\\\n\\\nBoth include-lists are emptied in one step, which puts the route back into its\\\nunrestricted default state.",
+        "summary": "Clear filter",
+        "description": "Drop the whole packet filter of one direction of an address.\\\n\\\nBoth include-lists are emptied in one step, which puts the traffic of this\\\ndirection back into its unrestricted default state.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -753,22 +820,39 @@
         ]
       }
     },
-    "/v1alpha/route/{route_uuid}/filter/ip_range/internal": {
+    "/v1alpha/network_filter/{vni}/{ip}/{direction}/ip_range/internal": {
       "post": {
         "tags": [
           "network_filter"
         ],
         "summary": "Add filter ip-ranges",
-        "description": "Add IP ranges to the include-list of one route.\\\n\\\nThe list starts out empty, which means \"every address is allowed\". The first\\\nentry flips that around: from then on the route only carries packets whose\\\nsource address is named by one of its ranges. Entries may be written as a single\\\naddress, as a subnet in CIDR notation or as an explicit range, and adding one\\\nthat is already present is a no-op rather than an error.",
+        "description": "Add IP ranges to the include-list of one direction of an address.\\\n\\\nThe address is the one of a virtual machine within its tenant. The list starts\\\nout empty, which means \"every address is allowed\". The first entry flips that\\\naround: from then on only packets are carried, whose address is named by one of\\\nthe ranges - the source address for the ingress filter, the destination address\\\nfor the egress filter. Entries may be written as a single address, as a subnet\\\nin CIDR notation or as an explicit range, and adding one that is already present\\\nis a no-op rather than an error.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -818,16 +902,33 @@
           "network_filter"
         ],
         "summary": "Remove filter ip-ranges",
-        "description": "Remove IP ranges from the include-list of one route.\\\n\\\nAn entry is identified by the addresses it covers, not by the way it was written\\\ndown: `10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the\\\nlast range opens the route for every address again.",
+        "description": "Remove IP ranges from the include-list of one direction of an address.\\\n\\\nAn entry is identified by the addresses it covers, not by the way it was written\\\ndown: `10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the\\\nlast range opens the traffic of this direction for every address again.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -873,22 +974,39 @@
         ]
       }
     },
-    "/v1alpha/route/{route_uuid}/filter/port/internal": {
+    "/v1alpha/network_filter/{vni}/{ip}/{direction}/port/internal": {
       "post": {
         "tags": [
           "network_filter"
         ],
         "summary": "Add filter ports",
-        "description": "Add ports to the include-list of one route.\\\n\\\nAs long as the list is empty every port is allowed. Once it holds an entry, only\\\nTCP and UDP packets with a matching source *or* destination port are carried -\\\nmatching either side is what lets the answers of an allowed service back through\\\nthe reverse route. Traffic without ports (ICMP and friends) is not affected by\\\nthis list; it is governed by the IP ranges alone.",
+        "description": "Add ports to the include-list of one direction of an address.\\\n\\\nAs long as the list is empty every port is allowed. Once it holds an entry, only\\\nTCP and UDP packets with a matching source *or* destination port are carried -\\\nmatching either side is what lets the answers of an allowed service back through\\\na stateless filter. Traffic without ports (ICMP and friends) is not affected by\\\nthis list; it is governed by the IP ranges alone.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -938,16 +1056,33 @@
           "network_filter"
         ],
         "summary": "Remove filter ports",
-        "description": "Remove ports from the include-list of one route.\\\n\\\nEntries are matched by the ports they cover, so `22` removes the single port\\\nentry and `8000-8100` the range. Removing the last entry opens the route for\\\nevery port again.",
+        "description": "Remove ports from the include-list of one direction of an address.\\\n\\\nEntries are matched by the ports they cover, so `22` removes the single port\\\nentry and `8000-8100` the range. Removing the last entry opens the traffic of\\\nthis direction for every port again.",
         "parameters": [
           {
-            "name": "route_uuid",
+            "name": "direction",
             "in": "path",
             "required": true,
             "schema": {
-              "title": "Uuid",
+              "$ref": "#/components/schemas/FilterDirection"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "ipv4"
+            }
+          },
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
           }
         ],
@@ -980,39 +1115,6 @@
           },
           "404": {
             "description": "Requested object not found"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/network_filter": {
-      "get": {
-        "tags": [
-          "network_filter"
-        ],
-        "summary": "List filters",
-        "description": "List the packet filters of every route that has one.\\\n\\\nRoutes without any include-list are left out: they carry everything and have no\\\nentry in the eBPF filter map either.",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FilterListResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
           },
           "500": {
             "description": "Internal error"
@@ -1637,33 +1739,26 @@
           }
         }
       },
-      "FilterEntry": {
-        "description": "One entry of the filter overview.",
-        "type": "object",
-        "required": [
-          "dest_ip",
-          "filter",
-          "route_uuid",
-          "vni"
-        ],
-        "properties": {
-          "dest_ip": {
+      "FilterDirection": {
+        "description": "Direction of the traffic of a virtual_machine, which a packet filter applies to.\n\nA virtual_machine has exactly one filter per direction, so the direction is part of what identifies a filter.",
+        "oneOf": [
+          {
+            "title": "ingress",
+            "description": "Filters the traffic towards the virtual_machine by its source",
             "type": "string",
-            "format": "ipv4"
+            "enum": [
+              "ingress"
+            ]
           },
-          "filter": {
-            "$ref": "#/components/schemas/RouteFilterRules"
-          },
-          "route_uuid": {
+          {
+            "title": "egress",
+            "description": "Filters the traffic leaving the virtual_machine by its destination",
             "type": "string",
-            "format": "uuid"
-          },
-          "vni": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
+            "enum": [
+              "egress"
+            ]
           }
-        }
+        ]
       },
       "FilterIpRangeReq": {
         "title": "FilterIpRangeReq",
@@ -1683,7 +1778,7 @@
       },
       "FilterListResponse": {
         "title": "FilterListResponse",
-        "description": "Response payload for listing the packet filters of all routes.",
+        "description": "Response payload for listing the packet filters of a torii.",
         "type": "object",
         "required": [
           "filters"
@@ -1692,7 +1787,7 @@
           "filters": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/FilterEntry"
+              "$ref": "#/components/schemas/FilterResp"
             }
           }
         }
@@ -1715,24 +1810,24 @@
       },
       "FilterResp": {
         "title": "FilterResp",
+        "description": "Packet filter of one address of a tenant on a torii.",
         "type": "object",
         "required": [
-          "dest_ip",
+          "direction",
           "filter",
-          "route_uuid",
+          "ip",
           "vni"
         ],
         "properties": {
-          "dest_ip": {
-            "type": "string",
-            "format": "ipv4"
+          "direction": {
+            "$ref": "#/components/schemas/FilterDirection"
           },
           "filter": {
             "$ref": "#/components/schemas/RouteFilterRules"
           },
-          "route_uuid": {
+          "ip": {
             "type": "string",
-            "format": "uuid"
+            "format": "ipv4"
           },
           "vni": {
             "type": "integer",
@@ -1875,7 +1970,7 @@
         }
       },
       "IpRangeRule": {
-        "description": "One entry of the ip include-list of a route, as an inclusive range.",
+        "description": "One entry of the ip include-list of a filter, as an inclusive range.",
         "type": "object",
         "required": [
           "first",
@@ -1897,7 +1992,7 @@
         }
       },
       "PortRangeRule": {
-        "description": "One entry of the port include-list of a route, as an inclusive range.",
+        "description": "One entry of the port include-list of a filter, as an inclusive range.",
         "type": "object",
         "required": [
           "first",

@@ -255,9 +255,11 @@ pub struct PortRange {
 ///   every address, a route without ports accepts every port
 /// * a **non-empty** list allows only what it names
 ///
-/// The lists are matched against different parts of the packet. `ip_ranges`
-/// checks the *source* address: the destination is already pinned by the route
-/// key itself, so the only open question is who is allowed to use the route.
+/// The lists are matched against different parts of the packet. In the ingress
+/// filter of a route `ip_ranges` checks the *source* address: the destination is
+/// already pinned by the route key itself, so the only open question is who is
+/// allowed to use the route. In the egress filter of a TAP device it checks the
+/// *destination* address, because the source is the VM behind the device.
 /// `port_ranges` checks the source *and* the destination port and accepts the
 /// packet when either of them is listed, which is what keeps the answers of an
 /// allowed service flowing back through the reverse route of a stateless
