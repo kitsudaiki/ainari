@@ -21,6 +21,7 @@ pub mod file_structs;
 pub mod floating_ip_structs;
 pub mod host_structs;
 pub mod image_structs;
+pub mod mls_structs;
 pub mod network_crypto_structs;
 pub mod network_filter_structs;
 pub mod network_interface_structs;

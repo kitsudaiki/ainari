@@ -715,7 +715,6 @@ pub fn get_address_by_internal_ip(
 ///
 /// # Returns
 /// A QueryResult containing a vector of AddressEntry objects
-#[allow(dead_code)]
 pub fn list_addresses() -> QueryResult<Vec<AddressEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;

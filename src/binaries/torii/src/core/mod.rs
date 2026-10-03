@@ -16,6 +16,7 @@ pub mod crypto;
 pub mod filter;
 pub mod floating_ip;
 pub mod interface;
+pub mod mls;
 pub mod models;
 pub mod proxy;
 pub mod proxy_handler;

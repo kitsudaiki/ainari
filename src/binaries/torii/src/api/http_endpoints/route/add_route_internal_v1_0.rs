@@ -19,6 +19,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config::CONFIG;
+use crate::core::mls::refresh_network_keys;
 use crate::core::routing::add_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;
@@ -65,6 +66,10 @@ pub async fn register_route_internal(
             .map_err(|e| map_db_write_error(&format!("persist route '{}'", route.uuid), e))
     })
     .await?;
+
+    // a new VM of the network, local or remote, gets the keys of its connections from the
+    // MLS-group of the network
+    refresh_network_keys(route.vni).await;
 
     let route = RouteResp {
         uuid: route.uuid,

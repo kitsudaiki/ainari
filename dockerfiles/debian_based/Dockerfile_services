@@ -52,7 +52,7 @@ ARG CARGO_PROFILE=release
 # Components, which are compiled. All of them are compiled by default, so the images of all
 # components share this stage. A build of a single image, like in the CI, where every image is
 # built on its own runner, can restrict it to the component of that image.
-ARG BINARIES="miko omamori ryokan onsen hanami sakura"
+ARG BINARIES="miko omamori izakaya ryokan onsen hanami sakura"
 
 # The registry and the target-directory are cache-mounts, so they survive between builds and only
 # the changed crates are compiled again. The target-directory is not part of the image, so the
@@ -126,6 +126,28 @@ RUN useradd -m ainari && \
 
 USER ainari
 CMD [ "omamori" ]
+
+# ==========================================
+# izakaya
+# ==========================================
+FROM debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS izakaya
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y curl openssl libsqlite3-0 libmariadb3 && \
+    apt-get clean autoclean &&\
+    apt-get autoremove --yes
+
+COPY --from=builder /out/izakaya /usr/bin/izakaya
+RUN useradd -m ainari && \
+    mkdir -p /etc/ainari && \
+    chown ainari:ainari /etc/ainari && \
+    chown ainari:ainari /usr/bin/izakaya && \
+    chmod +x /usr/bin/izakaya
+
+USER ainari
+CMD [ "izakaya" ]
 
 # ==========================================
 # hanami

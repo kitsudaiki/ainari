@@ -13,16 +13,11 @@
 // limitations under the License.
 
 use std::fmt;
-use std::net::Ipv4Addr;
 use std::str::FromStr;
 
-use ainari_common::secret::Secret;
 use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
-
-use crate::common_structs::default_vni;
 
 /// The direction a crypto-key protects, which is what separates an outbound
 /// Security Association from an inbound one.
@@ -75,78 +70,14 @@ impl FromStr for CryptoDirection {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKeyReq {
-    pub direction: CryptoDirection,
-    pub local_ip: Ipv4Addr,
-    pub remote_ip: Ipv4Addr,
-    pub peer_gateway_ip: Ipv4Addr,
-    /// Tenant the two VM-addresses are valid in. The kernel's xfrm selectors know
-    /// nothing about tenants, so a second tenant that wants to protect the very
-    /// same address-pair is refused instead of silently overwriting the first one.
-    #[serde(default = "default_vni")]
-    pub vni: u32,
-    pub spi: u32,
-    pub key: Secret,
-}
-
-/// Addresses one installed key, which is identified by its direction together
-/// with its Security-Parameter-Index.
-#[derive(Debug, Deserialize, JsonSchema, ApiComponent)]
-pub struct CryptoKeyPath {
-    pub direction: CryptoDirection,
-    pub spi: u32,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKeyListResp {
-    pub keys: Vec<CryptoKeyResp>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoKeyResp {
-    pub direction: CryptoDirection,
-    pub vni: u32,
-    pub local_ip: Ipv4Addr,
-    pub remote_ip: Ipv4Addr,
-    pub peer_gateway_ip: Ipv4Addr,
-    pub spi: u32,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoToggleReq {
-    pub local_ip: Ipv4Addr,
-    pub remote_ip: Ipv4Addr,
-    #[serde(default = "default_vni")]
-    pub vni: u32,
-    #[serde(default)]
-    pub peer_gateway_ip: Option<Ipv4Addr>,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct CryptoToggleResp {
-    pub local_ip: Ipv4Addr,
-    pub remote_ip: Ipv4Addr,
-    pub vni: u32,
-    #[serde(default)]
-    pub peer_gateway_ip: Option<Ipv4Addr>,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct ConnectionListResp {
-    pub connections: Vec<ConnectionResp>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct ConnectionResp {
-    pub vni: u32,
-    pub local_ip: Ipv4Addr,
-    pub remote_ip: Ipv4Addr,
-    pub peer_gateway_ip: Ipv4Addr,
-    pub enabled: bool,
-    pub active_egress_spi: Option<u32>,
+/// Identity of a gateway within the MLS-groups of the networks
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent)]
+pub struct MlsIdentityResp {
+    /// Identity of the gateway, which is its underlay-address
+    pub client_id: String,
+    /// Base64-encoded public MLS signature-key of the gateway. hanami pins it and names it in
+    /// every membership-grant of the gateway.
+    pub signature_key: String,
 }
 
 #[cfg(test)]

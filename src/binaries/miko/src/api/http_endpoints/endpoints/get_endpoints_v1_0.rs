@@ -48,6 +48,10 @@ pub async fn get_endpoints(_: UserContext) -> Result<Json<EndpontsResp>, ErrorRe
             public_address: enpoint_config.omamori.public_address.clone(),
             internal_address: enpoint_config.omamori.internal_address.clone(),
         },
+        izakaya: EndpointField {
+            public_address: enpoint_config.izakaya.public_address.clone(),
+            internal_address: enpoint_config.izakaya.internal_address.clone(),
+        },
     };
 
     Ok(Json(response))

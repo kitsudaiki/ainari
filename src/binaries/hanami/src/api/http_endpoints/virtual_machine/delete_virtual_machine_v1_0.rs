@@ -22,12 +22,14 @@ use uuid::Uuid;
 use crate::config;
 use crate::core::delete_watcher::spawn_delete_watcher;
 use crate::core::floating_ip::detach_floating_ip;
-use crate::core::routing::{delete_routes_to, torii_of_host};
+use crate::core::mls::{network_encrypted, revoke_membership};
+use crate::core::routing::{delete_routes_to, resolve_address, torii_of_host};
 use crate::database::address_table;
 use crate::database::floating_ip_table;
 use crate::database::host_table::{self, HostResources};
 use crate::database::meta_virtual_machine_table;
 use crate::database::network_filter_table;
+use crate::database::network_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -321,5 +323,45 @@ async fn cleanup_network(
         .await?;
     }
 
+    // the torii of the host must not be able to derive the following keys of the network anymore
+    // a network with disabled encryption has no MLS-group. A network, which is gone already,
+    // still gets the revocation, which costs nothing, if there is no grant.
+    let encrypted = match network_table::is_encryption_disabled(network_uuid) {
+        Ok(disabled) => network_encrypted(disabled),
+        Err(_) => config::CONFIG.network.mls_encryption,
+    };
+    if encrypted {
+        leave_group_of_network(endpoints, &address.host_address, address.vni).await?;
+    }
+
     Ok(())
+}
+
+/// Takes the membership in the MLS-group of a network away from the torii of a host, after the
+/// last virtual_machine of the network on that host was deleted.
+///
+/// izakaya removes the torii from the group, which rotates the keys of the remaining members.
+///
+/// # Arguments
+/// * `endpoints` - Endpoints of the components, which contains the izakaya
+/// * `host_address` - Address of the host, which has no virtual_machine of the network anymore
+/// * `vni` - Tenant of the network
+///
+/// # Returns
+/// * `Ok(())` if the membership is revoked
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+async fn leave_group_of_network(
+    endpoints: &Endpoints,
+    host_address: &str,
+    vni: u32,
+) -> Result<(), ErrorResponse> {
+    let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
+    let host_ip = resolve_address(host_address).await?;
+
+    // the torii at the edge of the network is never a member of a group
+    if host_ip == external_torii_ip {
+        return Ok(());
+    }
+
+    revoke_membership(endpoints, host_ip, vni).await
 }

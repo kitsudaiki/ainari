@@ -18,14 +18,19 @@ from .access_context import AccessContext
 
 def create_network(context: AccessContext,
                    name: str,
-                   subnet: str) -> dict:
+                   subnet: str,
+                   disable_encryption: bool = False) -> dict:
     """
     Creates a new network with the given name for the given subnet in CIDR-notation.
+
+    The traffic between the virtual machines of the network on different hosts is encrypted,
+    unless disable_encryption is set.
     """
     path = "/v1alpha/network"
     json_body = {
         "name": name,
         "subnet": subnet,
+        "disable_encryption": disable_encryption,
     }
     return ainari_request.send_post_request(context,
                                             context.hanami_address,

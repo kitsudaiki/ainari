@@ -23,8 +23,8 @@ use crate::config::CONFIG;
 use crate::core::models::{ArpProxyPod, IfaceConfigPod, TapInfo};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::{
-    bind_iface_to_table, enable_forwarding, get_ifindex, get_mac_address, is_iface_up, parse_mac,
-    run_ip, unbind_iface_from_table, with_table,
+    bind_iface_to_table, enable_forwarding, exempt_from_rp_filter, get_ifindex, get_mac_address,
+    is_iface_up, parse_mac, run_ip, unbind_iface_from_table, with_table,
 };
 
 use ainari_api::common_functions::map_internal_error;
@@ -225,9 +225,19 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         with_table(&mut args, &table);
         run_ip(&args).map_err(|e| map_internal_error(&format!("add host-route '{route}'"), e))?;
 
-        bind_iface_to_table(name, &table).map_err(|e| {
+        bind_iface_to_table(name, &table, Ipv4Addr::from(vm_ip)).map_err(|e| {
             map_internal_error(&format!("bind '{name}' to the table of its tenant"), e)
         })?;
+
+        // The kernel can't check the source of the unnumbered TAP and would drop everything the
+        // VM sends towards an encrypted destination. In a tenant with a table of its own the rule
+        // above checks the source instead. The shared tenant keeps the filter: the route of the
+        // VM in `main` leads back over the TAP, which satisfies it.
+        if table.is_some() {
+            exempt_from_rp_filter(name).map_err(|e| {
+                map_internal_error(&format!("exempt '{name}' from the reverse-path filter"), e)
+            })?;
+        }
 
         if let Some(mac) = vm_mac {
             let mac_str = format!(

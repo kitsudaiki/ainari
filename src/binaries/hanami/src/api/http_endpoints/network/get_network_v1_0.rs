@@ -44,6 +44,7 @@ pub async fn get_network(
         uuid: network_data.uuid,
         name: network_data.name,
         subnet: network_data.subnet,
+        disable_encryption: network_data.disable_encryption,
         created_by: network_data.created_by,
         created_at: network_data.created_at,
         updated_by: network_data.updated_by,

@@ -93,6 +93,29 @@ services:
       ainari-net:
         ipv4_address: 172.30.0.3
 
+  izakaya:
+    image: ainari/izakaya:local
+    build:
+      context: .
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
+      target: izakaya
+      args:
+        CARGO_PROFILE: local
+    container_name: izakaya
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/izakaya.toml
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    volumes:
+      - ./testing/local_stack/configs/izakaya.toml:/etc/ainari/izakaya.toml:ro
+    ports:
+      - "11423:11423"
+    depends_on:
+      - miko
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.7
+
   ryokan:
     image: ainari/ryokan:local
     build:
@@ -155,6 +178,9 @@ services:
       - CONFIG_FILE=/etc/ainari/hanami.toml
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
+      # signs the membership-grants of the MLS-groups. Its public key is in the configs of
+      # izakaya and the torii of the hosts.
+      - MLS_GRANT_SIGNING_KEY=${MLS_GRANT_SIGNING_KEY:-Veuv2tBnfEjOJwFRdf6rDF9CymxxQwvHvAb3vey8Xoo=}
     volumes:
       - ./testing/local_stack/configs/hanami.toml:/etc/ainari/hanami.toml:ro
     ports:
@@ -162,6 +188,7 @@ services:
     depends_on:
       - miko
       - omamori
+      - izakaya
     networks:
       ainari-net:
         ipv4_address: 172.30.0.6

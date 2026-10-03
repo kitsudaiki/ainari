@@ -17,6 +17,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::core::mls::refresh_network_keys;
 use crate::core::routing::update_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;
@@ -55,10 +56,10 @@ pub async fn update_route_internal(
     // The update is persisted, so it survives a restart of the gateway. The routes, which the
     // gateway derives from its own config at startup, have no entry yet and get one with their
     // first update. If persisting fails, the previous version of the route is programmed again.
-    update_route(
-        route_uuid,
-        &body,
-        |previous, route| match route_table::update_route(previous, route, &context) {
+    let mut previous_vni = None;
+    update_route(route_uuid, &body, |previous, route| {
+        previous_vni = Some(previous.vni);
+        match route_table::update_route(previous, route, &context) {
             Ok(()) => Ok(()),
             Err(enums::DbError::NotFound) => route_table::add_new_route(route, &context)
                 .map(|_| ())
@@ -67,9 +68,18 @@ pub async fn update_route_internal(
                 Err(ErrorResponse::InternalError("Internal Error".to_string()))
             }
             Err(enums::DbError::PermissionDenied) => Err(permission_denied_response()),
-        },
-    )
+        }
+    })
     .await?;
+
+    // the connections of the route may have moved to another tenant, peer or encryption-state,
+    // so the keys of both tenants are brought in line with it
+    if let Some(previous_vni) = previous_vni
+        && previous_vni != body.vni
+    {
+        refresh_network_keys(previous_vni).await;
+    }
+    refresh_network_keys(body.vni).await;
 
     let updated_route = RouteResp {
         uuid: route_uuid,

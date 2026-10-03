@@ -44,6 +44,13 @@
                         Subnet must be given in CIDR-notation
                     </p>
                 </div>
+                <br />
+                <div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" v-model="form.disableEncryption" />
+                        Disable encryption
+                    </label>
+                </div>
             </div>
 
             <div class="modal-bottombar">
@@ -86,6 +93,7 @@ const subnetError = ref(false);
 const form = reactive({
     name: "",
     subnet: "",
+    disableEncryption: false,
 });
 
 // IPv4-subnet in CIDR-notation, for example 10.0.0.0/24. The backend validates this
@@ -104,6 +112,7 @@ async function handleAccept() {
         await hanami.createNetwork({
             name: form.name,
             subnet: form.subnet,
+            disable_encryption: form.disableEncryption,
         });
 
         emit("accept");

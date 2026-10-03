@@ -23,6 +23,10 @@ use validator::Validate;
 pub struct NetworkCreateReq {
     pub name: String,
     pub subnet: String,
+    /// Don't encrypt the traffic between the virtual machines of the network, which run on
+    /// different hosts. The network gets neither IPsec-encryption nor a MLS-group then.
+    #[serde(default)]
+    pub disable_encryption: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -30,6 +34,7 @@ pub struct NetworkResp {
     pub uuid: Uuid,
     pub name: String,
     pub subnet: String,
+    pub disable_encryption: bool,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -41,6 +46,7 @@ pub struct NetworkBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub subnet: String,
+    pub disable_encryption: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

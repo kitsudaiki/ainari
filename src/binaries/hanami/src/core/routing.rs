@@ -117,6 +117,8 @@ pub async fn resolve_address(address: &str) -> Result<Ipv4Addr, ErrorResponse> {
 /// * `dest_ip` - Internal address of the virtual_machine, which the route leads to
 /// * `gateway_ip` - Underlay-address of the sakura-host, which runs that virtual_machine
 /// * `vni` - Tenant of the network, which the destination belongs to
+/// * `encrypted` - Protect the route with IPsec, whose keys the torii derives from the MLS-group
+///   of the network
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -127,6 +129,7 @@ pub async fn create_overlay_route(
     dest_ip: Ipv4Addr,
     gateway_ip: Ipv4Addr,
     vni: u32,
+    encrypted: bool,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     route_clients::create_route(
@@ -140,7 +143,7 @@ pub async fn create_overlay_route(
             gateway_ip: Some(gateway_ip),
             next_hop_ip: None,
             next_hop_mac: None,
-            encrypted: false,
+            encrypted,
         },
         config::CONFIG.skip_tls_verification,
     )

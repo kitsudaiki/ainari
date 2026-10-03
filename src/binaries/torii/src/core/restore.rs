@@ -29,6 +29,7 @@
 use crate::core::filter::{apply_filter, filter_slot};
 use crate::core::floating_ip::add_floating_ip;
 use crate::core::interface::{configure_interface, register_tap};
+use crate::core::mls::restore_network_keys;
 use crate::core::models::Route;
 use crate::core::proxy_handler::PROXY_HANDLER;
 use crate::core::routing::{add_route, update_route};
@@ -145,6 +146,11 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
         st.filters.len(),
         st.floating_ips.len()
     );
+    drop(st);
+
+    // the keys of the encrypted routes are derived from the MLS-groups, which are restored with
+    // the first access, so they can only be installed after the routes are back
+    restore_network_keys().await;
 
     Ok(())
 }

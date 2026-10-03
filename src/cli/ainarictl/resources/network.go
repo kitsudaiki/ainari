@@ -30,7 +30,8 @@ import (
 )
 
 var (
-	networkSubnet string
+	networkSubnet            string
+	networkDisableEncryption bool
 )
 
 var createNetworkCmd = &cobra.Command{
@@ -44,7 +45,7 @@ var createNetworkCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		networkName := args[0]
-		content, err := ainari_sdk.CreateNetwork(context, networkName, networkSubnet)
+		content, err := ainari_sdk.CreateNetwork(context, networkName, networkSubnet, networkDisableEncryption)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -124,6 +125,7 @@ func Init_Network_Commands(rootCmd *cobra.Command) {
 
 	networkCmd.AddCommand(createNetworkCmd)
 	createNetworkCmd.Flags().StringVarP(&networkSubnet, "subnet", "s", "", "Subnet of the network in CIDR-notation (mandatory)")
+	createNetworkCmd.Flags().BoolVar(&networkDisableEncryption, "disable-encryption", false, "Don't encrypt the traffic between the virtual machines of the network on different hosts")
 	createNetworkCmd.MarkFlagRequired("subnet")
 
 	networkCmd.AddCommand(getNetworkCmd)

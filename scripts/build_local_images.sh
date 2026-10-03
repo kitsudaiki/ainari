@@ -48,7 +48,7 @@ echo "Building the $BASE-based images ..."
 # with the tag, which $DOCKERFILES/Dockerfile_services uses by default, so it doesn't have to be
 # published before.
 docker build -f "$DOCKERFILES/Dockerfile_build_base" -t "kitsudaiki/ainari_build_base_$BASE:0.5.0" .
-for target in miko omamori ryokan onsen hanami; do
+for target in miko omamori izakaya ryokan onsen hanami; do
     docker build -f "$DOCKERFILES/Dockerfile_services" --target "$target" \
         --build-arg CARGO_PROFILE=local -t "ainari/$target:local" .
 done

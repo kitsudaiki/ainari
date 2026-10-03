@@ -106,6 +106,8 @@ pub struct CryptoKey {
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,
     pub spi: u32,
+    /// Epoch of the MLS-group of the tenant, which the key was derived from
+    pub mls_epoch: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -114,8 +116,8 @@ pub struct Connection {
     pub local_ip: Ipv4Addr,
     pub remote_ip: Ipv4Addr,
     pub peer_gateway_ip: Ipv4Addr,
-    pub enabled: bool,
-    pub active_egress_spi: Option<u32>,
+    /// SPI of the egress key, which the outbound policy of the connection is pinned to
+    pub active_egress_spi: u32,
 }
 
 /// Internal representation of a network route.

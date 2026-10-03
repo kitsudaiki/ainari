@@ -27,6 +27,7 @@
                         <th>UUID</th>
                         <th>Name</th>
                         <th>Subnet</th>
+                        <th>Encrypted</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -35,6 +36,7 @@
                         <td>{{ network.uuid }}</td>
                         <td>{{ network.name }}</td>
                         <td>{{ network.subnet }}</td>
+                        <td>{{ network.disable_encryption ? "no" : "yes" }}</td>
                         <td>
                             <!-- Dropdown menu -->
                             <div

@@ -43,6 +43,7 @@ table! {
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
         external_address -> Nullable<Varchar>,
+        mls_signature_key -> Nullable<Varchar>,
     }
 }
 
@@ -247,6 +248,67 @@ pub fn update_host_external_address(
         .execute(&mut *conn)
     {
         Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Returns the MLS signature-key of the torii of a host, which was pinned with the first
+/// membership-grant of the host.
+///
+/// The key is not part of `HostEntry`, because only the membership-grants care about it.
+///
+/// # Arguments
+/// * `host_uuid` - UUID of the host
+///
+/// # Returns
+/// The pinned key, `None` if no key is pinned yet, or `NotFound` if the host doesn't exist
+pub fn get_mls_signature_key(host_uuid: &Uuid) -> Result<Option<String>, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    match hosts
+        .filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")))
+        .select(mls_signature_key)
+        .first::<Option<String>>(&mut *conn)
+    {
+        Ok(key) => Ok(key),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Pins the MLS signature-key of the torii of a host, if none is pinned yet.
+///
+/// The key is only set, if the host has none yet, so two parallel requests can't pin different
+/// keys. The caller reads the pinned key afterwards to see, which one won.
+///
+/// # Arguments
+/// * `host_uuid` - UUID of the host
+/// * `key` - Base64-encoded signature-key
+///
+/// # Returns
+/// `Ok(())`, also if another key was pinned before
+pub fn pin_mls_signature_key(host_uuid: &Uuid, key: &str) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    match diesel::update(
+        hosts.filter(
+            uuid.eq(host_uuid.to_string())
+                .and(status.eq("ACTIVE"))
+                .and(mls_signature_key.is_null()),
+        ),
+    )
+    .set(mls_signature_key.eq(key))
+    .execute(&mut *conn)
+    {
         Ok(_) => Ok(()),
         Err(e) => {
             log::error!("Database-error: {e:?}");

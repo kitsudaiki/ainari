@@ -46,6 +46,7 @@ pub async fn list_network(context: UserContext) -> Result<Json<NetworkListResp>,
             uuid: network.uuid,
             name: network.name,
             subnet: network.subnet,
+            disable_encryption: network.disable_encryption,
         };
 
         resp.networks.push(obj);
