@@ -63,7 +63,7 @@ Sakura is the compute hosts of this IaaS stack. It manage the cloud hypervisor V
 
 Hanami manage the Sakura-hosts. Whenever a new virtual machine is requested by the user, this request goes
 against Hanami, which selects the Sakura-host of the new model and configures the Torii for the
-new connection. Also the handling of networks and floating ips is done by Hanami.
+new connection. Also the handling of networks, floating ips and network filters is done by Hanami.
 
 ### Torii
 

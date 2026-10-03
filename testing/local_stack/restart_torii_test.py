@@ -19,8 +19,8 @@ Every torii persists the routes, packet-filters, floating ip-addresses, interfac
 and proxies, which are configured over its api, and restores them, when it starts again. This
 test restarts the gateways one after another and checks, that nothing got lost:
 
-    0. every route towards a virtual machine gets a packet-filter, which allows everything, so the
-       restore of the filters is covered as well, without blocking any traffic
+    0. every virtual machine, which the gateway has a route to, gets packet-filters, which allow
+       everything, so the restore of the filters is covered as well, without blocking any traffic
     1. the state of the gateway is taken: its routes, packet-filters and proxies over its api,
        and its TAP-devices, XDP-attachments, policy-rules, routes and permanent neighbours from
        the kernel
@@ -121,34 +121,53 @@ def api_call(method: str, gateway: str, token: str, path: str, body: dict = None
     return resp.json() if resp.content else {}
 
 
-# include-list, which allows every source-address, so the test-filter blocks nothing
+# include-list, which allows every address, so the test-filter blocks nothing
 ALLOW_ALL = "0.0.0.0/0"
+
+
+def filter_path(vni: int, ip: str, direction: str) -> str:
+    """
+    Returns the path of the packet-filter of one direction of an address within a tenant.
+    """
+    return f"/network_filter/{vni}/{ip}/{direction}"
 
 
 def add_test_filters(gateway: str, token: str, internal_ips: list) -> list:
     """
-    Adds a packet-filter, which allows everything, to every route of the gateway towards a
-    virtual machine, which has no filter yet.
+    Adds packet-filters, which allow everything, to every address of a virtual machine, which the
+    gateway has a route to and which has no filter yet. Every such address gets an ingress-filter,
+    the ones behind a TAP-device of the gateway an egress-filter as well.
 
-    Returns the UUIDs of the routes, which got a filter.
+    Returns the tenant, the address and the direction of every filter, which was added.
     """
-    filters = api_get(gateway, token, "/network_filter")["filters"]
-    filtered = {entry["route_uuid"] for entry in filters}
-    route_uuids = []
+    filters = api_get(gateway, token, "/network_filter/internal")["filters"]
+    filtered = {(entry["vni"], entry["ip"], entry["direction"]) for entry in filters}
+    added = []
     for route in api_get(gateway, token, "/route/internal")["routes"]:
-        if route["dest_ip"] in internal_ips and route["uuid"] not in filtered:
-            api_call("POST", gateway, token, f"/route/{route['uuid']}/filter/ip_range/internal",
-                     {"ranges": [ALLOW_ALL]})
-            route_uuids.append(route["uuid"])
-    return route_uuids
+        if route["dest_ip"] not in internal_ips:
+            continue
+        for direction in ("ingress", "egress"):
+            key = (route["vni"], route["dest_ip"], direction)
+            if key in filtered or key in added:
+                continue
+            try:
+                api_call("POST", gateway, token, filter_path(*key) + "/ip_range/internal",
+                         {"ranges": [ALLOW_ALL]})
+            except requests.HTTPError as error:
+                # only the addresses behind a TAP-device of the gateway have an egress-filter
+                if direction == "egress" and error.response.status_code == 404:
+                    continue
+                raise
+            added.append(key)
+    return added
 
 
-def remove_test_filters(gateway: str, token: str, route_uuids: list):
+def remove_test_filters(gateway: str, token: str, filter_keys: list):
     """
     Drops the packet-filters again, which were added by the test.
     """
-    for route_uuid in route_uuids:
-        api_call("DELETE", gateway, token, f"/route/{route_uuid}/filter/internal")
+    for key in filter_keys:
+        api_call("DELETE", gateway, token, filter_path(*key) + "/internal")
 
 
 def docker_exec(container: str, command: str) -> str:
@@ -213,7 +232,7 @@ def gateway_state(gateway: str, token: str) -> dict:
     Returns the whole state of a gateway, which has to survive a restart.
     """
     routes = api_get(gateway, token, "/route/internal")["routes"]
-    filters = api_get(gateway, token, "/network_filter")["filters"]
+    filters = api_get(gateway, token, "/network_filter/internal")["filters"]
     proxies = api_get(gateway, token, "/proxy").get("proxys", [])
     return {
         "routes": sorted(json.dumps(route, sort_keys=True) for route in routes),
@@ -326,7 +345,7 @@ def main() -> int:
     for gateway in gateways:
         log(f"=== {gateway}")
         test_filters = add_test_filters(gateway, token, internal_ips)
-        log(f"    added a test-filter to {len(test_filters)} route(s)")
+        log(f"    added {len(test_filters)} test-filter(s)")
         database = read_database(gateway)
         log("    persisted: " + ", ".join(f"{len(rows)} {table}"
                                           for table, rows in database.items()))

@@ -18,6 +18,7 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::floating_ip::*;
 use crate::api::http_endpoints::network::*;
+use crate::api::http_endpoints::network_filter::*;
 use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::sakura_host::*;
@@ -73,6 +74,37 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{network_uuid}")
                         .route(get().to(get_network_v1_0::get_network))
                         .route(delete().to(delete_network_v1_0::delete_network)),
+                ),
+        )
+        .service(
+            // the packet filters are applied by the torii of the host of the virtual_machine, but
+            // read from the database of hanami
+            scope("/network_filter")
+                .service(
+                    resource("").route(get().to(list_network_filter_v1_0::list_network_filter)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/{direction}")
+                        .route(get().to(get_network_filter_v1_0::get_network_filter))
+                        .route(delete().to(delete_network_filter_v1_0::delete_network_filter)),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/{direction}/ip_range")
+                        .route(
+                            post()
+                                .to(add_network_filter_ip_range_v1_0::add_network_filter_ip_range),
+                        )
+                        .route(delete().to(
+                            delete_network_filter_ip_range_v1_0::delete_network_filter_ip_range,
+                        )),
+                )
+                .service(
+                    resource("/{virtual_machine_uuid}/{direction}/port")
+                        .route(post().to(add_network_filter_port_v1_0::add_network_filter_port))
+                        .route(
+                            delete()
+                                .to(delete_network_filter_port_v1_0::delete_network_filter_port),
+                        ),
                 ),
         )
         .service(

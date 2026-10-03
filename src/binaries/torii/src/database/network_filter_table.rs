@@ -15,24 +15,28 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 use uuid::Uuid;
 
+use crate::core::models::FilterKey;
 use crate::database::db_handle;
 
-use ainari_api_structs::network_filter_structs::RouteFilterRules;
+use ainari_api_structs::network_filter_structs::{FilterDirection, RouteFilterRules};
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::objects::*;
 
-/// Rule-type of an entry of the IP-range include-list of a route.
+/// Rule-type of an entry of the IP-range include-list of a filter.
 const RULE_TYPE_IP_RANGE: &str = "IP_RANGE";
-/// Rule-type of an entry of the port include-list of a route.
+/// Rule-type of an entry of the port include-list of a filter.
 const RULE_TYPE_PORT: &str = "PORT";
 
 // Define the schema for the network_filters table
 table! {
     network_filters (uuid) {
         uuid -> Varchar,
-        route_uuid -> Varchar,
+        vni -> Integer,
+        ip -> Varchar,
+        direction -> Varchar,
         rule_type -> Varchar,
         spec -> Varchar,
         owner_id -> Varchar,
@@ -48,11 +52,14 @@ table! {
 }
 
 /// Represents a single entry in the network_filters table.
-/// Each entry is one rule of the include-lists of the packet filter of a route.
+/// Each entry is one rule of the include-lists of the packet filter of one direction of an
+/// address within a tenant.
 ///
 /// # Fields
 /// * `uuid` - Unique identifier of the rule
-/// * `route_uuid` - UUID of the route the rule belongs to
+/// * `vni` - Tenant of the address the rule belongs to
+/// * `ip` - Address the rule belongs to
+/// * `direction` - Direction of the filter the rule belongs to (ingress or egress)
 /// * `rule_type` - Include-list the rule belongs to (IP_RANGE or PORT)
 /// * `spec` - Canonical textual form of the rule, like `10.0.0.0/24` or `8000-8100`
 /// * `owner_id` - User ID of the rule owner
@@ -69,8 +76,11 @@ table! {
 pub struct NetworkFilterEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
-    #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
-    pub route_uuid: Uuid,
+    #[diesel(serialize_as = DbVni, deserialize_as = DbVni)]
+    pub vni: u32,
+    #[diesel(serialize_as = DbIpv4Addr, deserialize_as = DbIpv4Addr)]
+    pub ip: Ipv4Addr,
+    pub direction: String,
     pub rule_type: String,
     pub spec: String,
     pub owner_id: String,
@@ -87,21 +97,22 @@ pub struct NetworkFilterEntry {
     pub deleted_by: Option<String>,
 }
 
-/// Replaces the persisted packet filter of a route by a new set of include-lists.
+/// Replaces the persisted packet filter of one direction of an address by a new set of
+/// include-lists.
 ///
-/// All active rules of the route are marked as deleted and the new rules are inserted within one
+/// All active rules of the filter are marked as deleted and the new rules are inserted within one
 /// transaction, so the database never holds a half-written filter. Empty include-lists leave the
-/// route without any active rule, which is the unfiltered state.
+/// filter without any active rule, which is the unfiltered state.
 ///
 /// # Arguments
-/// * `filter_route_uuid` - UUID of the route the filter belongs to
-/// * `rules` - The include-lists the route has from now on
+/// * `key` - Tenant, address and direction of the filter
+/// * `rules` - The include-lists the filter has from now on
 /// * `context` - User context containing ownership and project information
 ///
 /// # Returns
 /// * `QueryResult<()>` indicating success or failure
 pub fn set_filter_rules(
-    filter_route_uuid: &Uuid,
+    key: &FilterKey,
     rules: &RouteFilterRules,
     context: &UserContext,
 ) -> QueryResult<()> {
@@ -122,7 +133,9 @@ pub fn set_filter_rules(
         .chain(ports)
         .map(|(filter_rule_type, filter_spec)| NetworkFilterEntry {
             uuid: Uuid::new_v4(),
-            route_uuid: *filter_route_uuid,
+            vni: key.vni,
+            ip: key.ip,
+            direction: key.direction.to_string(),
             rule_type: filter_rule_type.to_string(),
             spec: filter_spec,
             owner_id: context.user_id.clone(),
@@ -139,7 +152,7 @@ pub fn set_filter_rules(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.transaction(|conn| {
-        delete_filter_rules_in(conn, filter_route_uuid, context)?;
+        delete_filter_rules_in(conn, key.vni, key.ip, Some(key.direction), context)?;
         use self::network_filters::dsl::*;
         diesel::insert_into(network_filters)
             .values(entries)
@@ -148,21 +161,26 @@ pub fn set_filter_rules(
     })
 }
 
-/// Marks all rules of the packet filter of a route as deleted on an already locked connection.
+/// Marks the rules of the packet filters of an address as deleted on an already locked
+/// connection.
 ///
 /// It takes the connection, so the deletion can be part of a bigger transaction, like the one,
-/// which deletes the route itself.
+/// which deletes the route towards the address.
 ///
 /// # Arguments
 /// * `conn` - The locked database connection
-/// * `filter_route_uuid` - UUID of the route the filter belongs to
+/// * `filter_vni` - Tenant of the address
+/// * `filter_ip` - The address
+/// * `filter_direction` - Direction of the filter, whose rules are deleted, or `None` for both
 /// * `context` - User context to record who performed the deletion
 ///
 /// # Returns
 /// * `QueryResult<usize>` with the number of deleted rules
 pub fn delete_filter_rules_in(
     conn: &mut diesel::sqlite::SqliteConnection,
-    filter_route_uuid: &Uuid,
+    filter_vni: u32,
+    filter_ip: Ipv4Addr,
+    filter_direction: Option<FilterDirection>,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
@@ -171,29 +189,78 @@ pub fn delete_filter_rules_in(
     }
 
     use self::network_filters::dsl::*;
+    let mut query = network_filters
+        .filter(
+            vni.eq(filter_vni as i32)
+                .and(ip.eq(filter_ip.to_string()))
+                .and(status.eq("ACTIVE")),
+        )
+        .into_boxed();
+    if let Some(filter_direction) = filter_direction {
+        query = query.filter(direction.eq(filter_direction.to_string()));
+    }
+    let rule_uuids: Vec<String> = query.select(uuid).load(conn)?;
+
+    diesel::update(network_filters.filter(uuid.eq_any(rule_uuids)))
+        .set((
+            status.eq("DELETED"),
+            deleted_at.eq(Utc::now().to_rfc3339()),
+            deleted_by.eq(context.user_id.clone()),
+        ))
+        .execute(conn)
+}
+
+/// Moves the rules of the packet filters of an address to another address on an already locked
+/// connection.
+///
+/// This follows a route, which changed its destination or its tenant, because the filters move
+/// with it. Active rules, which the new address had before, are replaced.
+///
+/// # Arguments
+/// * `conn` - The locked database connection
+/// * `from` - Tenant and address the rules belong to
+/// * `to` - Tenant and address the rules belong to from now on
+/// * `context` - User context to record who performed the update
+///
+/// # Returns
+/// * `QueryResult<usize>` with the number of moved rules
+pub fn move_filter_rules_in(
+    conn: &mut diesel::sqlite::SqliteConnection,
+    from: (u32, Ipv4Addr),
+    to: (u32, Ipv4Addr),
+    context: &UserContext,
+) -> QueryResult<usize> {
+    if from == to {
+        return Ok(0);
+    }
+
+    delete_filter_rules_in(conn, to.0, to.1, None, context)?;
+
+    use self::network_filters::dsl::*;
     diesel::update(
         network_filters.filter(
-            route_uuid
-                .eq(filter_route_uuid.to_string())
+            vni.eq(from.0 as i32)
+                .and(ip.eq(from.1.to_string()))
                 .and(status.eq("ACTIVE")),
         ),
     )
     .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
+        vni.eq(to.0 as i32),
+        ip.eq(to.1.to_string()),
+        updated_at.eq(Utc::now().to_rfc3339()),
+        updated_by.eq(context.user_id.clone()),
     ))
     .execute(conn)
 }
 
-/// Lists the persisted packet filters of all routes.
+/// Lists the persisted packet filters.
 ///
 /// The textual rules are parsed back into their include-lists. A rule, which can not be parsed
-/// anymore, is skipped with an error-log instead of dropping the whole filter of its route.
+/// anymore, is skipped with an error-log instead of dropping the whole filter.
 ///
 /// # Returns
-/// * `QueryResult<HashMap<Uuid, RouteFilterRules>>` with the filter of every route, which has one
-pub fn list_filter_rules() -> QueryResult<HashMap<Uuid, RouteFilterRules>> {
+/// * `QueryResult<HashMap<FilterKey, RouteFilterRules>>` with every filter, which has a rule
+pub fn list_filter_rules() -> QueryResult<HashMap<FilterKey, RouteFilterRules>> {
     let entries = {
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         use self::network_filters::dsl::*;
@@ -203,9 +270,21 @@ pub fn list_filter_rules() -> QueryResult<HashMap<Uuid, RouteFilterRules>> {
             .load(&mut *conn)?
     };
 
-    let mut filters: HashMap<Uuid, RouteFilterRules> = HashMap::new();
+    let mut filters: HashMap<FilterKey, RouteFilterRules> = HashMap::new();
     for entry in entries {
-        let rules = filters.entry(entry.route_uuid).or_default();
+        let filter_direction = match entry.direction.parse() {
+            Ok(filter_direction) => filter_direction,
+            Err(e) => {
+                log::error!("Skip filter-rule '{}' of {}: {e}", entry.spec, entry.ip);
+                continue;
+            }
+        };
+        let key = FilterKey {
+            vni: entry.vni,
+            ip: entry.ip,
+            direction: filter_direction,
+        };
+        let rules = filters.entry(key).or_default();
         let parsed = match entry.rule_type.as_str() {
             RULE_TYPE_IP_RANGE => entry.spec.parse().map(|rule| rules.ip_ranges.push(rule)),
             RULE_TYPE_PORT => entry.spec.parse().map(|rule| rules.ports.push(rule)),
@@ -213,9 +292,10 @@ pub fn list_filter_rules() -> QueryResult<HashMap<Uuid, RouteFilterRules>> {
         };
         if let Err(e) = parsed {
             log::error!(
-                "Skip filter-rule '{}' of route '{}': {e}",
+                "Skip filter-rule '{}' of {} in tenant {}: {e}",
                 entry.spec,
-                entry.route_uuid
+                entry.ip,
+                entry.vni
             );
         }
     }
@@ -229,12 +309,20 @@ mod tests {
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
-    fn hard_delete_filter(filter_route_uuid: &Uuid) {
+    /// Every test uses its own tenant, so the tests don't see the rules of each other.
+    fn test_key(filter_vni: u32, filter_direction: FilterDirection) -> FilterKey {
+        FilterKey {
+            vni: filter_vni,
+            ip: Ipv4Addr::new(10, 0, 0, 5),
+            direction: filter_direction,
+        }
+    }
+
+    fn hard_delete_filters(filter_vni: u32) {
         use self::network_filters::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ =
-            diesel::delete(network_filters.filter(route_uuid.eq(filter_route_uuid.to_string())))
-                .execute(&mut *conn);
+            diesel::delete(network_filters.filter(vni.eq(filter_vni as i32))).execute(&mut *conn);
     }
 
     fn test_context() -> UserContext {
@@ -250,8 +338,9 @@ mod tests {
     #[test]
     #[serial]
     fn test_set_and_list_filter_rules() {
-        let route_uuid1 = Uuid::new_v4();
-        hard_delete_filter(&route_uuid1);
+        let ingress = test_key(9001, FilterDirection::Ingress);
+        let egress = test_key(9001, FilterDirection::Egress);
+        hard_delete_filters(ingress.vni);
 
         let rules = RouteFilterRules {
             ip_ranges: vec![
@@ -260,56 +349,131 @@ mod tests {
             ],
             ports: vec!["22".parse().unwrap(), "8000-8100".parse().unwrap()],
         };
-        set_filter_rules(&route_uuid1, &rules, &test_context()).unwrap();
+        set_filter_rules(&ingress, &rules, &test_context()).unwrap();
 
         let filters = list_filter_rules().unwrap();
-        let restored = filters.get(&route_uuid1).unwrap();
+        let restored = filters.get(&ingress).unwrap();
         let ip_specs: Vec<&str> = restored.ip_ranges.iter().map(|r| r.spec.as_str()).collect();
         let port_specs: Vec<&str> = restored.ports.iter().map(|r| r.spec.as_str()).collect();
         assert_eq!(ip_specs, vec!["10.0.0.0/24", "10.0.1.5-10.0.1.9"]);
         assert_eq!(port_specs, vec!["22", "8000-8100"]);
+        // the other direction of the same address is not affected
+        assert!(!filters.contains_key(&egress));
 
         // a new set replaces the old one completely
         let rules = RouteFilterRules {
             ip_ranges: Vec::new(),
             ports: vec!["443".parse().unwrap()],
         };
-        set_filter_rules(&route_uuid1, &rules, &test_context()).unwrap();
+        set_filter_rules(&ingress, &rules, &test_context()).unwrap();
+        set_filter_rules(&egress, &rules, &test_context()).unwrap();
         let filters = list_filter_rules().unwrap();
-        let restored = filters.get(&route_uuid1).unwrap();
+        let restored = filters.get(&ingress).unwrap();
         assert!(restored.ip_ranges.is_empty());
         assert_eq!(restored.ports.len(), 1);
+        assert_eq!(filters.get(&egress).unwrap().ports.len(), 1);
 
-        hard_delete_filter(&route_uuid1);
+        hard_delete_filters(ingress.vni);
     }
 
     #[test]
     #[serial]
     fn test_delete_filter_rules() {
-        let route_uuid1 = Uuid::new_v4();
-        hard_delete_filter(&route_uuid1);
+        let ingress = test_key(9002, FilterDirection::Ingress);
+        let egress = test_key(9002, FilterDirection::Egress);
+        hard_delete_filters(ingress.vni);
 
         let rules = RouteFilterRules {
             ip_ranges: vec!["10.0.0.7".parse().unwrap()],
             ports: Vec::new(),
         };
-        set_filter_rules(&route_uuid1, &rules, &test_context()).unwrap();
+        set_filter_rules(&ingress, &rules, &test_context()).unwrap();
+        set_filter_rules(&egress, &rules, &test_context()).unwrap();
+
+        // only the given direction is deleted ...
         assert_eq!(
             delete_filter_rules_in(
                 &mut db_handle::DB_CONN.lock().expect("mutex poisoned"),
-                &route_uuid1,
+                ingress.vni,
+                ingress.ip,
+                Some(FilterDirection::Egress),
                 &test_context()
             )
             .unwrap(),
             1
         );
-        assert!(!list_filter_rules().unwrap().contains_key(&route_uuid1));
+        let filters = list_filter_rules().unwrap();
+        assert!(filters.contains_key(&ingress));
+        assert!(!filters.contains_key(&egress));
+
+        // ... or both of them
+        set_filter_rules(&egress, &rules, &test_context()).unwrap();
+        assert_eq!(
+            delete_filter_rules_in(
+                &mut db_handle::DB_CONN.lock().expect("mutex poisoned"),
+                ingress.vni,
+                ingress.ip,
+                None,
+                &test_context()
+            )
+            .unwrap(),
+            2
+        );
+        let filters = list_filter_rules().unwrap();
+        assert!(!filters.contains_key(&ingress));
+        assert!(!filters.contains_key(&egress));
 
         // an empty filter leaves no active rule behind
-        set_filter_rules(&route_uuid1, &rules, &test_context()).unwrap();
-        set_filter_rules(&route_uuid1, &RouteFilterRules::default(), &test_context()).unwrap();
-        assert!(!list_filter_rules().unwrap().contains_key(&route_uuid1));
+        set_filter_rules(&ingress, &rules, &test_context()).unwrap();
+        set_filter_rules(&ingress, &RouteFilterRules::default(), &test_context()).unwrap();
+        assert!(!list_filter_rules().unwrap().contains_key(&ingress));
 
-        hard_delete_filter(&route_uuid1);
+        hard_delete_filters(ingress.vni);
+    }
+
+    #[test]
+    #[serial]
+    fn test_move_filter_rules() {
+        let from = test_key(9003, FilterDirection::Ingress);
+        let to = FilterKey {
+            vni: 9004,
+            ip: Ipv4Addr::new(10, 0, 0, 6),
+            direction: FilterDirection::Ingress,
+        };
+        hard_delete_filters(from.vni);
+        hard_delete_filters(to.vni);
+
+        let rules = RouteFilterRules {
+            ip_ranges: vec!["10.0.0.7".parse().unwrap()],
+            ports: vec!["22".parse().unwrap()],
+        };
+        let old_rules = RouteFilterRules {
+            ip_ranges: Vec::new(),
+            ports: vec!["443".parse().unwrap()],
+        };
+        set_filter_rules(&from, &rules, &test_context()).unwrap();
+        set_filter_rules(&to, &old_rules, &test_context()).unwrap();
+
+        assert_eq!(
+            move_filter_rules_in(
+                &mut db_handle::DB_CONN.lock().expect("mutex poisoned"),
+                (from.vni, from.ip),
+                (to.vni, to.ip),
+                &test_context()
+            )
+            .unwrap(),
+            2
+        );
+
+        // the moved rules replace the ones, which the new address had before
+        let filters = list_filter_rules().unwrap();
+        assert!(!filters.contains_key(&from));
+        let moved = filters.get(&to).unwrap();
+        assert_eq!(moved.ip_ranges.len(), 1);
+        assert_eq!(moved.ports.len(), 1);
+        assert_eq!(moved.ports[0].spec, "22");
+
+        hard_delete_filters(from.vni);
+        hard_delete_filters(to.vni);
     }
 }

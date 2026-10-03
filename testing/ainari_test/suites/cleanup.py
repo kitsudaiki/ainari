@@ -17,6 +17,7 @@ Deletion of all resources of the run. Every deletion is verified, so this suite 
 delete-endpoints as well. It runs always, also after an abort, unless --keep is given.
 """
 
+from ainari_sdk import network_filter
 from ainari_sdk import virtual_machine
 from ainari_sdk import vm_type
 
@@ -55,6 +56,15 @@ def delete_virtual_machines(ctx):
               for entry in virtual_machine.list_virtual_machines(ctx.api)["virtual_machines"]]
     for entry in entries:
         check_not_in(entry.uuid, listed, "deleted virtual machine in list")
+
+
+@suite.test("network-filters of the deleted virtual machines are gone",
+            requires=("network_filter_left",))
+def network_filters_deleted(ctx):
+    listed = [entry["uuid"]
+              for entry in network_filter.list_network_filters(ctx.api)["network_filters"]]
+    check_not_in(ctx.state["network_filter_left"], listed,
+                 "network-filter of a deleted virtual machine in list")
 
 
 @suite.test("host-resources are released", requires=("host_usage_baseline",))

@@ -23,7 +23,7 @@ use aya::programs::xdp::XdpLinkId;
 use uuid::Uuid;
 
 use crate::core::models::{
-    ArpProxyPod, Connection, CryptoKey, FipTargetPod, FloatingIp, IfaceConfigPod, Route,
+    ArpProxyPod, Connection, CryptoKey, FilterKey, FipTargetPod, FloatingIp, IfaceConfigPod, Route,
     RouteFilterPod, RouteKeyPod, RouteTargetPod, TapInfo,
 };
 
@@ -43,9 +43,10 @@ pub struct GatewayState {
     pub tap_xdp_links: HashMap<String, XdpLinkId>, // overlay programs attached to TAP devices
     pub crypto_keys: HashMap<(CryptoDirection, u32), CryptoKey>, // installed IPsec keys, by direction and spi
     pub connections: HashMap<String, Connection>, // VM-to-VM connections, by "vni:local->remote"
-    pub filters: HashMap<Uuid, RouteFilterRules>, // packet filters, by route uuid
+    pub filters: HashMap<FilterKey, RouteFilterRules>, // packet filters, by address and direction
     pub route_map: AyaHashMap<MapData, RouteKeyPod, RouteTargetPod>,
-    pub filter_map: AyaHashMap<MapData, RouteKeyPod, RouteFilterPod>,
+    pub filter_map: AyaHashMap<MapData, RouteKeyPod, RouteFilterPod>, // ingress, by route key
+    pub egress_filter_map: AyaHashMap<MapData, u32, RouteFilterPod>,  // egress, by TAP ifindex
     pub fip_dnat_map: AyaHashMap<MapData, u32, FipTargetPod>,
     pub fip_snat_map: AyaHashMap<MapData, RouteKeyPod, u32>,
     pub arp_proxy_map: AyaHashMap<MapData, u32, ArpProxyPod>,

@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   user can list them, only admins can create, update and delete them. They are available in the
   sdks, the cli and in a new admin-page of the dashboard.
 - added endpoints to change the passphrase of a user
+- made network filter rules now available for the user
 
 ### Changed
 

@@ -112,7 +112,7 @@ easier for a new person to understand the code.
         | Binary       | Description                                                                                          |
         | ------------ | ---------------------------------------------------------------------------------------------------- |
         | `miko`       | authentication, users, projects and quotas; entry-point for the clients                              |
-        | `hanami`     | manages the sakura-hosts, schedules the virtual machines on them, the networks and the floating IPs  |
+        | `hanami`     | manages the sakura-hosts, schedules the VMs on them, networks, floating IPs and network filters      |
         | `sakura`     | runs and supervises the virtual machines of a single host with cloud-hypervisor                      |
         | `torii`      | gateway with the routes, proxies, packet-filters and NAT of the virtual networks                     |
         | `torii-ebpf` | eBPF/XDP-programs of the datapath of torii                                                           |

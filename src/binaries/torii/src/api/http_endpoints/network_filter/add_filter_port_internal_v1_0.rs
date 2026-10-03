@@ -14,10 +14,10 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
+use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
+use crate::core::models::FilterKey;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
@@ -29,12 +29,12 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "network_filter",
     summary = "Add filter ports",
-    description = r###"Add ports to the include-list of one route.
+    description = r###"Add ports to the include-list of one direction of an address.
 
 As long as the list is empty every port is allowed. Once it holds an entry, only
 TCP and UDP packets with a matching source *or* destination port are carried -
 matching either side is what lets the answers of an allowed service back through
-the reverse route. Traffic without ports (ICMP and friends) is not affected by
+a stateless filter. Traffic without ports (ICMP and friends) is not affected by
 this list; it is governed by the IP ranges alone."###,
     error_code = 400,
     error_code = 401,
@@ -42,7 +42,7 @@ this list; it is governed by the IP ranges alone."###,
     error_code = 500
 )]
 pub async fn add_filter_port_internal(
-    route_uuid: Path<Uuid>,
+    path: Path<FilterPath>,
     body: Json<FilterPortReq>,
     context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
@@ -50,19 +50,16 @@ pub async fn add_filter_port_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let route_uuid = route_uuid.into_inner();
+    let key = FilterKey::from(path.into_inner());
 
     if body.ports.is_empty() {
         return Err(ErrorResponse::BadRequest("No port given".to_string()));
     }
 
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    let (vni, dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
-        Some(key) => key,
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
+    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
 
-    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+    let previous = st.filters.get(&key).cloned().unwrap_or_default();
     let mut rules = previous.clone();
     let mut added = 0;
     for rule in body.ports.iter().cloned() {
@@ -76,31 +73,23 @@ pub async fn add_filter_port_internal(
         }
     }
 
-    apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
+    apply_filter(&mut st, key, slot, rules).map_err(ErrorResponse::BadRequest)?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
-        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+    persist_filter(&mut st, key, slot, previous, |rules| {
+        network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
-    let message = format!(
-        "{} port(s) added, {} in the include-list of {}",
+    let resp = filter_resp(&st, key);
+    log::debug!(
+        "{} port(s) added, {} in the {} include-list of {}",
         added,
-        st.filters
-            .get(&route_uuid)
-            .map_or(0, |rules| rules.ports.len()),
-        dest_ip
+        resp.filter.ports.len(),
+        key.direction,
+        key.ip
     );
-    log::debug!("{}", message);
-
-    let resp = FilterResp {
-        route_uuid,
-        vni,
-        dest_ip,
-        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
-    };
 
     Ok(Json(resp))
 }

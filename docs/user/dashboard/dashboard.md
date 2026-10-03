@@ -123,6 +123,7 @@ The menu in the column **Actions** provides:
 | --------------------- | --------------------------------------------------------------------- |
 | Info                  | all details of the virtual machine                                    |
 | Show tasks            | the tasks of the virtual machine, see below                           |
+| Show network filter   | the network filter of the virtual machine, see below                  |
 | Start, Stop, Reboot   | change the power-state of the virtual machine                         |
 | Save snapshot         | save the root-disk of the virtual machine as new image                |
 | Restore from snapshot | reset the root-disk of the virtual machine to a snapshot              |
@@ -145,6 +146,30 @@ start, stop and snapshots, with their state and time-stamps. **Info** shows the 
 for example the reason of an error, and **Abort** stops a task, which is still waiting.
 
 ![Tasks](img/task_overview.jpg)
+
+### Network filter
+
+**Show network filter** in the menu of a virtual machine lists the rules of its network filter. A
+rule belongs to one direction: **Ingress** filters the traffic towards the virtual machine by its
+source, **Egress** the traffic of the virtual machine by its destination. As long as a direction
+has no IP range, all addresses are allowed, and as long as it has no port, all ports are allowed.
+As soon as it has one, only the listed ones are allowed. Traffic without ports, like ping, is only
+checked against the IP ranges.
+
+The **+** button opens a dialog to add new rules. Several IP ranges or ports can be added at once,
+separated by commas or spaces. An IP range is a single address, a subnet like `10.0.0.0/24` or a
+range like `10.0.0.5-10.0.0.9`, a port a single port like `22` or a range like `8000-8100`.
+**Remove** in the menu of a rule deletes it again. The **←** button leads back to the virtual
+machines.
+
+![Network filter](img/network_filter_overview.jpg)
+
+![Add filter rules](img/network_filter_add.jpg)
+
+!!! info
+
+    The filter is stateless. If both directions are filtered, the answers of an allowed connection
+    have to be allowed in the other direction as well.
 
 ### Image
 

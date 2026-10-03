@@ -4,23 +4,24 @@ use network_types::ip::IpProto;
 use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, RouteFilter, RouteKey};
 
 use crate::headers::{Ipv4Hdr, TcpHdr, UdpHdr};
-use crate::maps::lookup_filter;
+use crate::maps::{lookup_egress_filter, lookup_filter};
 use crate::utils::ptr_at;
 
-/// Checks whether a source address is named by the IP include-list.
+/// Checks whether an address is named by the IP include-list.
 ///
-/// An empty list means "no restriction", which is the state every route starts
+/// An empty list means "no restriction", which is the state every filter starts
 /// in. As soon as one range is added the list becomes exclusive: only addresses
-/// inside one of its ranges are carried by the route.
+/// inside one of its ranges are carried.
 ///
 /// # Arguments
-/// * `filter` - The filter of the route the packet was matched to
-/// * `src_ip` - Source address of the packet in host byte order
+/// * `filter` - The filter the packet is checked against
+/// * `ip` - Source address (ingress) or destination address (egress) of the
+///   packet in host byte order
 ///
 /// # Returns
 /// `true` when the list is empty or one of its ranges contains the address
 #[inline(always)]
-fn ip_allowed(filter: &RouteFilter, src_ip: u32) -> bool {
+fn ip_allowed(filter: &RouteFilter, ip: u32) -> bool {
     if filter.ip_range_count == 0 {
         return true;
     }
@@ -30,7 +31,7 @@ fn ip_allowed(filter: &RouteFilter, src_ip: u32) -> bool {
             break;
         }
         let range = filter.ip_ranges[i];
-        if src_ip >= range.start && src_ip <= range.end {
+        if ip >= range.start && ip <= range.end {
             return true;
         }
     }
@@ -46,7 +47,7 @@ fn ip_allowed(filter: &RouteFilter, src_ip: u32) -> bool {
 /// through and drop the reply.
 ///
 /// # Arguments
-/// * `filter` - The filter of the route the packet was matched to
+/// * `filter` - The filter the packet is checked against
 /// * `src_port` - Source port of the packet in host byte order
 /// * `dst_port` - Destination port of the packet in host byte order
 ///
@@ -111,23 +112,13 @@ fn read_ports(
     }
 }
 
-/// Applies the packet filter of a route to a packet that matched it.
+/// Applies the ingress packet filter of a route to a packet that matched it.
 ///
 /// The check runs directly before the forwarding decision is carried out, so it
 /// sees the packet the way it will leave the gateway - floating IP translation
-/// has already happened at that point.
-///
-/// Three things pass unconditionally:
-///
-/// * routes without a filter, which is every route until the control plane
-///   attaches one
-/// * everything that is not IPv4, i.e. the ARP traffic the datapath needs to
-///   keep the unnumbered links alive
-/// * protocols without ports (ICMP and friends) with respect to the *port*
-///   list; they are still matched against the IP list
-///
-/// A packet whose IPv4 header cannot be parsed while a filter is installed is
-/// rejected: a filter that cannot be evaluated must not turn into a hole.
+/// has already happened at that point. The IP include-list is matched against
+/// the source address of the packet. Routes without a filter, which is every
+/// route until the control plane attaches one, carry everything.
 ///
 /// # Arguments
 /// * `ctx` - The XDP context of the packet
@@ -138,21 +129,77 @@ fn read_ports(
 /// `true` when the packet may be forwarded, `false` when it has to be dropped
 #[inline(always)]
 pub fn filter_allows(ctx: &XdpContext, eth_type: EtherType, route_key: RouteKey) -> bool {
+    match lookup_filter(route_key) {
+        Some(filter) => packet_allowed(ctx, eth_type, filter, false),
+        None => true,
+    }
+}
+
+/// Applies the egress packet filter of a VM to a packet the VM has sent.
+///
+/// The check runs as soon as the packet arrived on the TAP device of the VM,
+/// before anything is translated, so it sees the packet the way the VM wrote
+/// it. The IP include-list is matched against the destination address of the
+/// packet. A TAP device without a filter carries everything.
+///
+/// # Arguments
+/// * `ctx` - The XDP context of the packet
+/// * `eth_type` - The already parsed EtherType of the frame
+/// * `ifindex` - The interface the packet arrived on
+///
+/// # Returns
+/// `true` when the packet may be forwarded, `false` when it has to be dropped
+#[inline(always)]
+pub fn egress_filter_allows(ctx: &XdpContext, eth_type: EtherType, ifindex: u32) -> bool {
+    match lookup_egress_filter(ifindex) {
+        Some(filter) => packet_allowed(ctx, eth_type, filter, true),
+        None => true,
+    }
+}
+
+/// Checks a packet against a packet filter.
+///
+/// Two things pass unconditionally:
+///
+/// * everything that is not IPv4, i.e. the ARP traffic the datapath needs to
+///   keep the unnumbered links alive
+/// * protocols without ports (ICMP and friends) with respect to the *port*
+///   list; they are still matched against the IP list
+///
+/// A packet whose IPv4 header cannot be parsed is rejected: a filter that
+/// cannot be evaluated must not turn into a hole.
+///
+/// # Arguments
+/// * `ctx` - The XDP context of the packet
+/// * `eth_type` - The already parsed EtherType of the frame
+/// * `filter` - The filter the packet is checked against
+/// * `match_destination` - `true` to match the IP list against the destination
+///   address of the packet, `false` to match it against its source address
+///
+/// # Returns
+/// `true` when the packet may be forwarded, `false` when it has to be dropped
+#[inline(always)]
+fn packet_allowed(
+    ctx: &XdpContext,
+    eth_type: EtherType,
+    filter: &RouteFilter,
+    match_destination: bool,
+) -> bool {
     if eth_type != EtherType::Ipv4 {
         return true;
     }
-
-    let filter = match lookup_filter(route_key) {
-        Some(filter) => filter,
-        None => return true,
-    };
 
     let ipv4 = match ptr_at::<Ipv4Hdr>(ctx, EthHdr::LEN) {
         Ok(ptr) => unsafe { core::ptr::read_unaligned(ptr) },
         Err(_) => return false,
     };
 
-    if !ip_allowed(filter, u32::from_be(ipv4.src_addr)) {
+    let ip = if match_destination {
+        ipv4.dst_addr
+    } else {
+        ipv4.src_addr
+    };
+    if !ip_allowed(filter, u32::from_be(ip)) {
         return false;
     }
 

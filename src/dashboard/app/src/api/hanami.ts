@@ -16,12 +16,16 @@
 
 import { hanamiClient } from "./client";
 import type {
+    FilterDirection,
+    FilterIpRangeReq,
+    FilterPortReq,
     FloatingIpAttachReq,
     FloatingIpBasicResp,
     FloatingIpCreateReq,
     FloatingIpResp,
     HostResp,
     NetworkBasicResp,
+    NetworkFilterResp,
     NetworkCreateReq,
     NetworkResp,
     ProxyBasicResp,
@@ -189,6 +193,105 @@ export async function detachFloatingIp(uuid: string): Promise<FloatingIpResp> {
 /** `DELETE /v1alpha/floating_ip/{floating_ip_uuid}` */
 export async function deleteFloatingIp(uuid: string): Promise<void> {
     await hanamiClient().delete(`/v1alpha/floating_ip/${uuid}`);
+}
+
+//=============================================================================
+// network-filter
+//=============================================================================
+
+/** Path of the filter of one direction of a virtual machine. */
+function networkFilterPath(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+): string {
+    return `/v1alpha/network_filter/${virtualMachineUuid}/${direction}`;
+}
+
+/**
+ * `GET /v1alpha/network_filter`
+ *
+ * Directions of virtual machines without a filter are unrestricted and not
+ * listed.
+ */
+export async function listNetworkFilters(): Promise<NetworkFilterResp[]> {
+    const resp = await hanamiClient().get("/v1alpha/network_filter");
+    return resp.data.network_filters;
+}
+
+/** `GET /v1alpha/network_filter/{virtual_machine_uuid}/{direction}` */
+export async function getNetworkFilter(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+): Promise<NetworkFilterResp> {
+    const resp = await hanamiClient().get(
+        networkFilterPath(virtualMachineUuid, direction),
+    );
+    return resp.data;
+}
+
+/**
+ * `DELETE /v1alpha/network_filter/{virtual_machine_uuid}/{direction}`
+ *
+ * Removes all entries of the filter, which allows all traffic of this direction
+ * again.
+ */
+export async function deleteNetworkFilter(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+): Promise<void> {
+    await hanamiClient().delete(networkFilterPath(virtualMachineUuid, direction));
+}
+
+/** `POST /v1alpha/network_filter/{virtual_machine_uuid}/{direction}/ip_range` */
+export async function addNetworkFilterIpRanges(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+    body: FilterIpRangeReq,
+): Promise<NetworkFilterResp> {
+    const resp = await hanamiClient().post(
+        `${networkFilterPath(virtualMachineUuid, direction)}/ip_range`,
+        body,
+    );
+    return resp.data;
+}
+
+/** `DELETE /v1alpha/network_filter/{virtual_machine_uuid}/{direction}/ip_range` */
+export async function deleteNetworkFilterIpRanges(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+    body: FilterIpRangeReq,
+): Promise<NetworkFilterResp> {
+    const resp = await hanamiClient().delete(
+        `${networkFilterPath(virtualMachineUuid, direction)}/ip_range`,
+        { data: body },
+    );
+    return resp.data;
+}
+
+/** `POST /v1alpha/network_filter/{virtual_machine_uuid}/{direction}/port` */
+export async function addNetworkFilterPorts(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+    body: FilterPortReq,
+): Promise<NetworkFilterResp> {
+    const resp = await hanamiClient().post(
+        `${networkFilterPath(virtualMachineUuid, direction)}/port`,
+        body,
+    );
+    return resp.data;
+}
+
+/** `DELETE /v1alpha/network_filter/{virtual_machine_uuid}/{direction}/port` */
+export async function deleteNetworkFilterPorts(
+    virtualMachineUuid: string,
+    direction: FilterDirection,
+    body: FilterPortReq,
+): Promise<NetworkFilterResp> {
+    const resp = await hanamiClient().delete(
+        `${networkFilterPath(virtualMachineUuid, direction)}/port`,
+        { data: body },
+    );
+    return resp.data;
 }
 
 //=============================================================================

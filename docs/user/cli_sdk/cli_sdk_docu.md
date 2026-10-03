@@ -735,6 +735,114 @@ Floating IPs make a virtual machine reachable from the network behind the uplink
 
     A specific floating IP can be requested with `floating_ip="10.0.0.10"`.
 
+## Network filters
+
+Network filters restrict the traffic of a virtual machine. Every virtual machine has two of them,
+one per direction:
+
+- `ingress` filters the traffic towards the virtual machine by its **source** address
+- `egress` filters the traffic, which the virtual machine sends, by its **destination** address
+
+A filter consists of two include-lists, ip-ranges and ports. As long as a list is empty, it
+allows everything. As soon as it has an entry, only the listed addresses or ports are allowed:
+
+- An ip-range is a single address (`10.0.0.7`), a subnet in CIDR notation (`10.0.0.0/24`) or an
+  explicit range (`10.0.0.5-10.0.0.9`). Ranges are stored in their shortest notation, so
+  `10.0.0.0-10.0.0.255` becomes `10.0.0.0/24`, and can be removed with every notation, which
+  covers the same addresses.
+- A port is a single port (`22`) or an explicit range (`8000-8100`). A TCP- or UDP-packet is
+  allowed, if its source- *or* its destination-port is listed. Traffic without ports, like ICMP,
+  is only checked against the ip-ranges.
+
+The filters are stateless, so the answers of an allowed connection have to be allowed in the
+other direction of the virtual machine as well, if this direction is filtered too. A filter,
+whose lists are both empty again, is removed. The filters of a virtual machine are deleted
+together with the virtual machine.
+
+=== "CLI"
+
+    ```bash
+    ainarictl network_filter add_ip_range <VIRTUAL_MACHINE_UUID> <DIRECTION> <IP_RANGE> [<IP_RANGE> ...]
+    ainarictl network_filter remove_ip_range <VIRTUAL_MACHINE_UUID> <DIRECTION> <IP_RANGE> [<IP_RANGE> ...]
+    ainarictl network_filter add_port <VIRTUAL_MACHINE_UUID> <DIRECTION> <PORT> [<PORT> ...]
+    ainarictl network_filter remove_port <VIRTUAL_MACHINE_UUID> <DIRECTION> <PORT> [<PORT> ...]
+    ainarictl network_filter list
+    ainarictl network_filter get <VIRTUAL_MACHINE_UUID> <DIRECTION>
+    ainarictl network_filter delete <VIRTUAL_MACHINE_UUID> <DIRECTION>
+    ```
+
+    `<DIRECTION>` is `ingress` or `egress`.
+
+    example:
+
+    ```bash
+    ainarictl network_filter add_ip_range a49ee919-6546-4081-9ee0-11e89f23f826 egress 0.0.0.0/0 10.0.0.0-10.0.0.255
+
+    ┌──────────────────────┬──────────────────────────────────────┐
+    │ CREATED AT           │ 2026-10-03T19:05:17.536720096Z       │
+    │ CREATED BY           │ asdf                                 │
+    │ DIRECTION            │ egress                               │
+    │ IP RANGES            │ [0.0.0.0/0 10.0.0.0/24]              │
+    │ PORTS                │ []                                   │
+    │ UPDATED AT           │ 2026-10-03T19:05:17.536720597Z       │
+    │ UPDATED BY           │ asdf                                 │
+    │ UUID                 │ b7814a3a-97d7-4455-83b8-807d35252158 │
+    │ VIRTUAL MACHINE UUID │ a49ee919-6546-4081-9ee0-11e89f23f826 │
+    └──────────────────────┴──────────────────────────────────────┘
+
+    ainarictl network_filter add_port a49ee919-6546-4081-9ee0-11e89f23f826 ingress 22 8000-8100
+
+    ┌──────────────────────┬──────────────────────────────────────┐
+    │ CREATED AT           │ 2026-10-03T19:05:17.484982382Z       │
+    │ CREATED BY           │ asdf                                 │
+    │ DIRECTION            │ ingress                              │
+    │ IP RANGES            │ []                                   │
+    │ PORTS                │ [22 8000-8100]                       │
+    │ UPDATED AT           │ 2026-10-03T19:05:17.484982933Z       │
+    │ UPDATED BY           │ asdf                                 │
+    │ UUID                 │ a899d8a6-1e42-4140-8ccc-161ea3036c11 │
+    │ VIRTUAL MACHINE UUID │ a49ee919-6546-4081-9ee0-11e89f23f826 │
+    └──────────────────────┴──────────────────────────────────────┘
+
+    ainarictl network_filter delete a49ee919-6546-4081-9ee0-11e89f23f826 egress
+
+    successfully deleted egress network filter of virtual machine 'a49ee919-6546-4081-9ee0-11e89f23f826'
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import network_filter
+
+    result = network_filter.add_network_filter_ip_ranges(context, virtual_machine_uuid, "egress",
+                                                         ["0.0.0.0/0", "10.0.0.0-10.0.0.255"])
+    result = network_filter.delete_network_filter_ip_ranges(context, virtual_machine_uuid,
+                                                            "egress", ["10.0.0.0/24"])
+    result = network_filter.add_network_filter_ports(context, virtual_machine_uuid, "ingress",
+                                                     ["22", "8000-8100"])
+    result = network_filter.delete_network_filter_ports(context, virtual_machine_uuid, "ingress",
+                                                        ["8000-8100"])
+
+    network_filter.list_network_filters(context)    # {"network_filters": [...]}
+    network_filter.get_network_filter(context, virtual_machine_uuid, "ingress")
+    network_filter.delete_network_filter(context, virtual_machine_uuid, "ingress")
+    network_filter.delete_all_network_filters(context)
+
+    # example-content of result:
+    #
+    # {
+    #     "uuid": "b7814a3a-97d7-4455-83b8-807d35252158",
+    #     "virtual_machine_uuid": "a49ee919-6546-4081-9ee0-11e89f23f826",
+    #     "direction": "egress",
+    #     "ip_ranges": ["0.0.0.0/0", "10.0.0.0/24"],
+    #     "ports": [],
+    #     ...
+    # }
+    ```
+
+    `get_network_filter` raises a `NotFoundException`, if the direction of the virtual machine
+    has no filter.
+
 ## Tasks
 
 Actions, which take longer, run as tasks in the background on the sakura-host of a virtual machine:

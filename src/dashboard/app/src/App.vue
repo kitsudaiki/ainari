@@ -111,6 +111,7 @@ import SecuritySecret from "@/components/security/secret/secret_overview.vue";
 import SecurityPublicKey from "@/components/security/public_key/public_key_overview.vue";
 import WorkloadVirtualMachine from "@/components/workload/virtual_machine/virtual_machine_overview.vue";
 import WorkloadTask from "@/components/workload/task/task_overview.vue";
+import WorkloadNetworkFilter from "@/components/workload/network_filter/network_filter_overview.vue";
 import {
     getAuthContext,
     getExpireTimesamp,
@@ -160,6 +161,7 @@ const components = {
     SecurityPublicKey,
     WorkloadVirtualMachine,
     WorkloadTask,
+    WorkloadNetworkFilter,
 };
 
 // URLs for the accept and cancel icons used throughout the application

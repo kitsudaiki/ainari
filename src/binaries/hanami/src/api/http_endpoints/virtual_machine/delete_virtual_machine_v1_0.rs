@@ -27,6 +27,7 @@ use crate::database::address_table;
 use crate::database::floating_ip_table;
 use crate::database::host_table::{self, HostResources};
 use crate::database::meta_virtual_machine_table;
+use crate::database::network_filter_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -44,7 +45,8 @@ use ainari_common::config::Endpoints;
 It is deleted on its sakura-host in the background. A watcher releases its cores, memory and
 disk-space on the host, as soon as the sakura-host has finished the deletion. Its metadata is removed from the database, the
 proxy, which is connected to it, is deleted on the torii and the routes from and
-to the virtual_machine are removed from the gateways of its network."###,
+to the virtual_machine are removed from the gateways of its network, together with its
+packet-filters."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -125,6 +127,21 @@ pub async fn delete_virtual_machine(
         .map_err(|e| {
             map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
         })?;
+
+    // the torii drops the packet-filters of the virtual_machine together with the route towards
+    // it, which is deleted below, so only the view of hanami on them is removed here. A failure
+    // must not stop the cleanup of the network of the virtual_machine.
+    if network_filter_table::delete_network_filters_of_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .is_err()
+    {
+        log::error!(
+            "Failed to delete the network-filters of virtual_machine '{virtual_machine_uuid}' \
+             from database."
+        );
+    }
 
     // send request to torii to delete the proxy, which is connected to the virtual_machine
     proxy_clients::delete_proxy(

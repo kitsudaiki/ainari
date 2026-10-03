@@ -14,9 +14,9 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::core::filter::route_filter_key;
+use crate::core::filter::{filter_resp, filter_slot};
+use crate::core::models::FilterKey;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -25,44 +25,23 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "network_filter",
-    summary = "Get route filter",
-    description = r###"Show the packet filter currently attached to one route."###,
+    summary = "Get filter",
+    description = r###"Show the packet filter currently attached to one direction of an address.
+
+An address without a filter is reported with two empty include-lists."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn get_filter_internal(
-    route_uuid: Path<Uuid>,
+    path: Path<FilterPath>,
     _context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
-    let route_uuid = route_uuid.into_inner();
+    let key = FilterKey::from(path.into_inner());
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
-    let (vni, dest_ip, _) = match route_filter_key(&st, &route_uuid) {
-        Some(key) => key,
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
+    filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
 
-    let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-    let message = if rules.is_empty() {
-        format!("{} is unfiltered", dest_ip)
-    } else {
-        format!(
-            "{} allows {} IP range(s) and {} port(s)",
-            dest_ip,
-            rules.ip_ranges.len(),
-            rules.ports.len()
-        )
-    };
-    log::debug!("{}", message);
-
-    let resp = FilterResp {
-        route_uuid,
-        vni,
-        dest_ip,
-        filter: rules,
-    };
-
-    Ok(Json(resp))
+    Ok(Json(filter_resp(&st, key)))
 }

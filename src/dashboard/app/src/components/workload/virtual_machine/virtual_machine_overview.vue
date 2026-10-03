@@ -109,6 +109,15 @@
                                     </button>
                                     <button
                                         @click="
+                                            switchToNetworkFilter(
+                                                virtualMachine.uuid,
+                                            )
+                                        "
+                                    >
+                                        Show network filter
+                                    </button>
+                                    <button
+                                        @click="
                                             changePowerState(
                                                 virtualMachine,
                                                 'start',
@@ -286,6 +295,13 @@ const emit = defineEmits<{
 
 function switchToTasks(virtual_machine_uuid: string) {
     emit("change-view", { view: "WorkloadTask", id: virtual_machine_uuid });
+}
+
+function switchToNetworkFilter(virtual_machine_uuid: string) {
+    emit("change-view", {
+        view: "WorkloadNetworkFilter",
+        id: virtual_machine_uuid,
+    });
 }
 
 //=============================================================================

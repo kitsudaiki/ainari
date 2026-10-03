@@ -14,9 +14,9 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
-use uuid::Uuid;
 
-use crate::core::filter::{apply_filter, persist_filter, route_filter_key};
+use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
+use crate::core::models::FilterKey;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
@@ -27,51 +27,40 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "network_filter",
-    summary = "Clear route filter",
-    description = r###"Drop the whole packet filter of one route.
+    summary = "Clear filter",
+    description = r###"Drop the whole packet filter of one direction of an address.
 
-Both include-lists are emptied in one step, which puts the route back into its
-unrestricted default state."###,
+Both include-lists are emptied in one step, which puts the traffic of this
+direction back into its unrestricted default state."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
 pub async fn clear_filter_internal(
-    route_uuid: Path<Uuid>,
+    path: Path<FilterPath>,
     context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
-    let route_uuid = route_uuid.into_inner();
+    let key = FilterKey::from(path.into_inner());
     let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
 
-    let (vni, dest_ip, dest_key) = match route_filter_key(&st, &route_uuid) {
-        Some(key) => key,
-        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
-    };
-
-    let previous = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-    apply_filter(&mut st, route_uuid, dest_key, RouteFilterRules::default())
+    let previous = st.filters.get(&key).cloned().unwrap_or_default();
+    apply_filter(&mut st, key, slot, RouteFilterRules::default())
         .map_err(|e| map_internal_error("clear packet-filter", e))?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, route_uuid, dest_key, previous, |rules| {
-        network_filter_table::set_filter_rules(&route_uuid, rules, &context)
+    persist_filter(&mut st, key, slot, previous, |rules| {
+        network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
-    let message = format!(
-        "Packet filter of {} cleared, every address and port allowed",
-        dest_ip
+    log::debug!(
+        "{} packet filter of {} cleared, every address and port allowed",
+        key.direction,
+        key.ip
     );
-    log::debug!("{}", message);
 
-    let resp = FilterResp {
-        route_uuid,
-        vni,
-        dest_ip,
-        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
-    };
-
-    Ok(Json(resp))
+    Ok(Json(filter_resp(&st, key)))
 }

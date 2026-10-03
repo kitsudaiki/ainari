@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use crate::core::filter::filter_resp;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
@@ -24,10 +25,10 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "network_filter",
     summary = "List filters",
-    description = r###"List the packet filters of every route that has one.
+    description = r###"List every packet filter of the gateway.
 
-Routes without any include-list are left out: they carry everything and have no
-entry in the eBPF filter map either."###,
+Addresses without any include-list are left out: they carry everything and have
+no entry in the eBPF filter maps either."###,
     error_code = 401,
     error_code = 500
 )]
@@ -36,20 +37,12 @@ pub async fn list_filter_internal(
 ) -> Result<Json<FilterListResponse>, ErrorResponse> {
     let st = GATEWAY_STATE_HANDLE.lock().await;
 
-    let mut filters: Vec<FilterEntry> = st
+    let mut filters: Vec<FilterResp> = st
         .filters
-        .iter()
-        .filter_map(|(route_uuid, rules)| {
-            let route = st.routes.get(route_uuid)?;
-            Some(FilterEntry {
-                route_uuid: *route_uuid,
-                vni: route.vni,
-                dest_ip: route.dest_ip,
-                filter: rules.clone(),
-            })
-        })
+        .keys()
+        .map(|key| filter_resp(&st, *key))
         .collect();
-    filters.sort_by_key(|entry| (entry.vni, entry.dest_ip));
+    filters.sort_by_key(|entry| (entry.vni, entry.ip, entry.direction));
 
     Ok(Json(FilterListResponse { filters }))
 }
