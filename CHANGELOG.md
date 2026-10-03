@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hanami now has the get port and list port endpoints and forward them to Torii, so Torii now has no external endpoints anymore
 - is_project_admin was now changed into project_role
 - quota's are now bound to projects instead of users
+- the number of cores and the memory of a new virtual machine are now defined by a vm-type, whose
+  UUID replaces `number_of_cores` and `memory_size` in the request to reserve a virtual machine
 
 ### Added
 
@@ -36,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new option in the dashboard to switch to another project after login
 - new member overview for projects was added for the admin, where the admin can add
   and remove users to and from project and switch their roles within a project
+- vm-types in hanami, which define the number of cores and the memory of virtual machines. Every
+  user can list them, only admins can create, update and delete them. They are available in the
+  sdks, the cli and in a new admin-page of the dashboard.
 
 ### Changed
 

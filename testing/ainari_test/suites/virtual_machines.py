@@ -23,12 +23,14 @@ import uuid
 
 from ainari_sdk import ainari_exceptions
 from ainari_sdk import virtual_machine
+from ainari_sdk import vm_type
 
 from ainari_test.checks import check, check_equal, check_in, exists, expect_error
 from ainari_test.framework import Suite
 from ainari_test.waiting import wait_for_vm_state
 
 from . import hosts
+from .resources import register_vm_type
 
 suite = Suite("virtual_machines", "reserve and create virtual machines",
               depends=("hosts", "resources"))
@@ -40,7 +42,7 @@ def register_virtual_machine(ctx, name: str, vm_uuid: str):
                     lambda: exists(virtual_machine.get_virtual_machine, ctx.api, vm_uuid))
 
 
-@suite.test("reserve virtual machines", requires=("hosts", "network"),
+@suite.test("reserve virtual machines", requires=("hosts", "network", "vm_type"),
             provides=("reserved",))
 def reserve(ctx):
     config = ctx.config
@@ -49,8 +51,7 @@ def reserve(ctx):
         name = ctx.name(str(number))
         result = virtual_machine.reserve_virtual_machine(ctx.api,
                                                          name,
-                                                         config.number_of_cores,
-                                                         config.memory_size,
+                                                         ctx.state["vm_type"],
                                                          config.disk_size,
                                                          ctx.state["network"])
         register_virtual_machine(ctx, name, result["uuid"])
@@ -92,11 +93,21 @@ def reservation_allocates_resources(ctx):
 @suite.test("too large virtual machine is rejected", requires=("network",))
 def too_large(ctx):
     # no host has that many cores, so hanami can not find a host for it
+    name = ctx.name("too-large")
+    vm_type_uuid = vm_type.create_vm_type(ctx.api, name, 100000, ctx.config.memory_size)["uuid"]
+    register_vm_type(ctx, name, vm_type_uuid)
     error = expect_error(ainari_exceptions.ConflictException,
                          virtual_machine.reserve_virtual_machine, ctx.api,
-                         ctx.name("too-large"), 100000, ctx.config.memory_size,
-                         ctx.config.disk_size, ctx.state["network"])
+                         name, vm_type_uuid, ctx.config.disk_size, ctx.state["network"])
     ctx.log(f"rejected: {error}")
+
+
+@suite.test("unknown vm-type is rejected", requires=("network",))
+def unknown_vm_type(ctx):
+    expect_error(ainari_exceptions.NotFoundException,
+                 virtual_machine.reserve_virtual_machine, ctx.api,
+                 ctx.name("unknown-type"), str(uuid.uuid4()), ctx.config.disk_size,
+                 ctx.state["network"])
 
 
 @suite.test("create virtual machines on their sakura-hosts",

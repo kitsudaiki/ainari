@@ -391,6 +391,79 @@ Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
     network.delete_all_networks(context)
     ```
 
+## VM types
+
+A vm-type defines the number of cores and the amount of memory of a virtual machine, which is
+created with it. The vm-types are shared by all projects, so every user can list them and use them
+for new virtual machines.
+
+!!! info
+
+    Only admins are allowed to create, update and delete vm-types.
+
+=== "CLI"
+
+    ```bash
+    ainarictl vm_type list
+    ainarictl vm_type get <VM_TYPE_UUID>
+
+    # admin only
+    ainarictl vm_type create -c <NUMBER_OF_CORES> -m <AMOUNT_OF_MEMORY> <NAME>
+    ainarictl vm_type update [-n <NAME>] [-c <NUMBER_OF_CORES>] [-m <AMOUNT_OF_MEMORY>] <VM_TYPE_UUID>
+    ainarictl vm_type delete <VM_TYPE_UUID>
+    ```
+
+    `vm_type update` only changes the values, which are given.
+
+    example:
+
+    ```bash
+    ainarictl vm_type create -c 1 -m 1024 small
+
+    ┌──────────────────┬──────────────────────────────────────┐
+    │ AMOUNT OF MEMORY │ 1024                                 │
+    │ CREATED AT       │ 2026-10-03T16:20:11.512834114Z       │
+    │ CREATED BY       │ asdf                                 │
+    │ NAME             │ small                                │
+    │ NUMBER OF CORES  │ 1                                    │
+    │ UPDATED AT       │ 2026-10-03T16:20:11.512834325Z       │
+    │ UPDATED BY       │ asdf                                 │
+    │ UUID             │ 3c1f0d7e-5a2b-4e8f-9d61-7b4a2c9e1f05 │
+    └──────────────────┴──────────────────────────────────────┘
+
+    ainarictl vm_type list
+
+    ┌──────────────────┬────────┬─────────────────┬──────────────────────────────────────┐
+    │ AMOUNT OF MEMORY │  NAME  │ NUMBER OF CORES │                 UUID                 │
+    ├──────────────────┼────────┼─────────────────┼──────────────────────────────────────┤
+    │ 1024             │ small  │ 1               │ 3c1f0d7e-5a2b-4e8f-9d61-7b4a2c9e1f05 │
+    │ 8192             │ large  │ 8               │ a87e42b1-0c3d-4f59-8e16-d2b05f7c4a93 │
+    └──────────────────┴────────┴─────────────────┴──────────────────────────────────────┘
+    ```
+
+    Memory is given in MiB.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import vm_type
+
+    vm_type.list_vm_types(context)    # {"vm_types": [{"uuid": ..., "name": ..., "number_of_cores": ..., "amount_of_memory": ...}]}
+    vm_type.get_vm_type(context, vm_type_uuid)
+
+    # admin only
+    result = vm_type.create_vm_type(context,
+                                    "small",
+                                    1,       # number of cores
+                                    1024)    # memory in MiB
+
+    # only the given values are changed
+    vm_type.update_vm_type(context, vm_type_uuid, number_of_cores=4)
+    vm_type.update_vm_type(context, vm_type_uuid, name="medium", amount_of_memory=4096)
+
+    vm_type.delete_vm_type(context, vm_type_uuid)
+    ```
+
 ## Virtual machines
 
 A virtual machine is reserved on one of the sakura-hosts first. Afterwards the image and the public
@@ -412,18 +485,18 @@ The state of the virtual machine is shown in `vm_state`:
 
 === "CLI"
 
-    `vm create` does both steps, the reservation and the creation. Memory is given in MiB, the
-    disk in GiB.
+    `vm create` does both steps, the reservation and the creation. The number of cores and the
+    memory are taken from the [vm-type](#vm-types), the disk is given in GiB.
 
     ```bash
-    ainarictl vm create -c <NUMBER_OF_CORES> -m <MEMORY_SIZE> -d <DISK_SIZE> \
+    ainarictl vm create -t <VM_TYPE_UUID> -d <DISK_SIZE> \
         -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> <NAME>
     ```
 
     example:
 
     ```bash
-    ainarictl vm create -c 1 -m 1024 -d 5 \
+    ainarictl vm create -t 3c1f0d7e-5a2b-4e8f-9d61-7b4a2c9e1f05 -d 5 \
         -u 1769874d-07e4-4bea-a11f-3ea09caa9ef4 \
         -i 0fefb138-6077-489a-930c-afad9c5c54bf \
         -k bd9f3a6b-df8f-42cc-803b-21f997feea96 \
@@ -458,8 +531,7 @@ The state of the virtual machine is shown in `vm_state`:
     # 1. reserve the virtual machine on one of the sakura-hosts
     reserved = virtual_machine.reserve_virtual_machine(context,
                                                        "my-vm",
-                                                       1,        # number of cores
-                                                       1024,     # memory in MiB
+                                                       vm_type_uuid,
                                                        5,        # disk in GiB
                                                        network_uuid)
 

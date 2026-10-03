@@ -35,35 +35,32 @@
                 </div>
                 <br />
                 <div class="field-row">
-                    <label for="numberOfCores">Number of cores: </label>
-                    <input
-                        class="number-input"
-                        id="numberOfCores"
-                        v-model.number="form.number_of_cores"
-                        type="number"
-                        :min="1"
+                    <label for="vmType">VM-type: </label>
+                    <select
+                        id="vmType"
+                        v-model="form.vm_type_uuid"
+                        class="select-dropdown"
                         :disabled="reservedVirtualMachine !== null"
-                        :class="{ invalid_input: coresError }"
-                    />
+                        :class="{ invalid_input: vmTypeError }"
+                    >
+                        <option value="" disabled>
+                            Select a vm-type (name | cores | memory in MiB)
+                        </option>
+                        <option
+                            v-for="vmType in vmTypes"
+                            :key="vmType.uuid"
+                            :value="vmType.uuid"
+                        >
+                            {{ vmType.name }} | {{ vmType.number_of_cores }} |
+                            {{ vmType.amount_of_memory }}
+                        </option>
+                    </select>
                 </div>
-                <p v-if="coresError" class="error-msg">
-                    Number of cores must be at least 1
-                </p>
-                <br />
-                <div class="field-row">
-                    <label for="memorySize">Memory size (MiB): </label>
-                    <input
-                        class="number-input"
-                        id="memorySize"
-                        v-model.number="form.memory_size"
-                        type="number"
-                        :min="1"
-                        :disabled="reservedVirtualMachine !== null"
-                        :class="{ invalid_input: memoryError }"
-                    />
-                </div>
-                <p v-if="memoryError" class="error-msg">
-                    Memory size must be at least 1 MiB
+                <p v-if="vmTypeError" class="error-msg">
+                    <template v-if="vmTypes.length === 0">
+                        No vm-types available. An admin has to create one first.
+                    </template>
+                    <template v-else>A vm-type must be selected</template>
                 </p>
                 <br />
                 <div class="field-row">
@@ -187,6 +184,7 @@ import type {
     NetworkBasicResp,
     PublicKeyBasicResp,
     VirtualMachineResp,
+    VmTypeBasicResp,
 } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
@@ -202,13 +200,13 @@ const emit = defineEmits<{
 
 const errorPopupMsg = ref<string>("");
 const nameError = ref(false);
-const coresError = ref(false);
-const memoryError = ref(false);
+const vmTypeError = ref(false);
 const diskError = ref(false);
 const networkError = ref(false);
 const imageError = ref(false);
 const publicKeyError = ref(false);
 
+const vmTypes = ref<VmTypeBasicResp[]>([]);
 const networks = ref<NetworkBasicResp[]>([]);
 const images = ref<ImageBasicResp[]>([]);
 const publicKeys = ref<PublicKeyBasicResp[]>([]);
@@ -217,9 +215,8 @@ const selectedPublicKeyUuid = ref<string>("");
 
 const form = reactive({
     name: "",
-    number_of_cores: 1,
-    // in MiB
-    memory_size: 1024,
+    // defines the number of cores and the memory
+    vm_type_uuid: "",
     // in GiB
     disk_size: 10,
     network_uuid: "",
@@ -230,6 +227,12 @@ const form = reactive({
 const reservedVirtualMachine = ref<VirtualMachineResp | null>(null);
 
 async function fetchSelectableResources() {
+    try {
+        vmTypes.value = await hanami.listVmTypes();
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load vm-types");
+    }
+
     try {
         networks.value = await hanami.listNetworks();
     } catch (err) {
@@ -254,8 +257,7 @@ async function fetchSelectableResources() {
 
 async function handleAccept() {
     nameError.value = form.name.length < 4;
-    coresError.value = form.number_of_cores < 1;
-    memoryError.value = form.memory_size < 1;
+    vmTypeError.value = form.vm_type_uuid === "";
     diskError.value = form.disk_size < 1;
     networkError.value = form.network_uuid === "";
     imageError.value = selectedImageUuid.value === "";
@@ -263,8 +265,7 @@ async function handleAccept() {
 
     if (
         nameError.value ||
-        coresError.value ||
-        memoryError.value ||
+        vmTypeError.value ||
         diskError.value ||
         networkError.value ||
         imageError.value ||
@@ -278,8 +279,7 @@ async function handleAccept() {
         try {
             reservedVirtualMachine.value = await hanami.reserveVirtualMachine({
                 name: form.name,
-                number_of_cores: form.number_of_cores,
-                memory_size: form.memory_size,
+                vm_type_uuid: form.vm_type_uuid,
                 disk_size: form.disk_size,
                 network_uuid: form.network_uuid,
             });

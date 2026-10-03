@@ -78,6 +78,27 @@ Virtual networks with their subnet.
 | deleted_at | VARCHAR(64)  |            |             |
 | deleted_by | VARCHAR(256) |            |             |
 
+## vm_types
+
+Vm-types, which define the number of cores and the amount of memory in MiB of a virtual machine.
+They are not bound to a project, so every user can use them, but only admins can change them.
+
+| field            | type         | is primary | constraints                                        |
+| ---------------- | ------------ | ---------- | -------------------------------------------------- |
+| uuid             | VARCHAR(40)  | x          |                                                    |
+| name             | VARCHAR(256) |            |                                                    |
+| number_of_cores  | INTEGER      |            | `NOT NULL DEFAULT 0 CHECK (number_of_cores >= 0)`  |
+| amount_of_memory | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (amount_of_memory >= 0)` |
+| owner_id         | VARCHAR(256) |            |                                                    |
+| project_id       | VARCHAR(256) |            |                                                    |
+| status           | VARCHAR(8)   |            |                                                    |
+| created_at       | VARCHAR(64)  |            |                                                    |
+| created_by       | VARCHAR(256) |            |                                                    |
+| updated_at       | VARCHAR(64)  |            |                                                    |
+| updated_by       | VARCHAR(256) |            |                                                    |
+| deleted_at       | VARCHAR(64)  |            |                                                    |
+| deleted_by       | VARCHAR(256) |            |                                                    |
+
 ## addresses
 
 Addresses reserved in a network for the port of a virtual machine: internal IP, MAC-address,

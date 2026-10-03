@@ -30,8 +30,7 @@ import (
 )
 
 var (
-	virtual_machineNumberOfCores int32
-	virtual_machineMemorySize    int64
+	virtual_machineVmTypeUuid    string
 	virtual_machineDiskSize      int64
 	virtual_machineNetworkUuid   string
 	virtual_machineImageUuid     string
@@ -41,7 +40,7 @@ var (
 )
 
 var createVirtualMachineCmd = &cobra.Command{
-	Use:   "create -c NUMBER_OF_CORES -m MEMORY_SIZE -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID NAME",
+	Use:   "create -t VM_TYPE_UUID -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID NAME",
 	Short: "Create a new virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -55,8 +54,7 @@ var createVirtualMachineCmd = &cobra.Command{
 		// reserve the virtual machine on one of the sakura-hosts
 		content, err := ainari_sdk.ReserveVirtualMachine(context,
 			virtual_machineName,
-			virtual_machineNumberOfCores,
-			virtual_machineMemorySize,
+			virtual_machineVmTypeUuid,
 			virtual_machineDiskSize,
 			virtual_machineNetworkUuid)
 		if err != nil {
@@ -248,14 +246,12 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(virtual_machineCmd)
 
 	virtual_machineCmd.AddCommand(createVirtualMachineCmd)
-	createVirtualMachineCmd.Flags().Int32VarP(&virtual_machineNumberOfCores, "cores", "c", 0, "Number of cpu-cores of the virtual machine (mandatory)")
-	createVirtualMachineCmd.Flags().Int64VarP(&virtual_machineMemorySize, "memory", "m", 0, "Amount of memory in MiB of the virtual machine (mandatory)")
+	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineVmTypeUuid, "vm_type", "t", "", "UUID of the vm-type, which defines the cores and memory of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().Int64VarP(&virtual_machineDiskSize, "disk", "d", 0, "Size of the disk in GiB of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineNetworkUuid, "network", "u", "", "UUID of the network of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineImageUuid, "image", "i", "", "UUID of the image of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machinePublicKeyUuid, "public_key", "k", "", "UUID of the public-key, which is deployed in the virtual machine (mandatory)")
-	createVirtualMachineCmd.MarkFlagRequired("cores")
-	createVirtualMachineCmd.MarkFlagRequired("memory")
+	createVirtualMachineCmd.MarkFlagRequired("vm_type")
 	createVirtualMachineCmd.MarkFlagRequired("disk")
 	createVirtualMachineCmd.MarkFlagRequired("network")
 	createVirtualMachineCmd.MarkFlagRequired("image")

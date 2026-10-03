@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::Ipv4Addr;
-
 use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -22,48 +20,35 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct VirtualMachineCreateReq {
+pub struct VmTypeCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
-    /// vm-type, which defines the number of cores and the memory of the virtual_machine
-    pub vm_type_uuid: Uuid,
-    /// size of the disk of the virtual_machine in GiB
     #[validate(range(min = 1))]
-    pub disk_size: i64,
-    pub network_uuid: Uuid,
+    pub number_of_cores: i32,
+    /// memory of the vm-type in MiB
+    #[validate(range(min = 1))]
+    pub amount_of_memory: i64,
 }
 
+/// Only the values, which are set, are updated.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct VirtualMachineInternalCreateReq {
+pub struct VmTypeUpdateReq {
     #[validate(length(min = 4, max = 127))]
-    pub name: String,
-    pub network_uuid: Uuid,
-    pub number_of_cores: i32,
-    /// memory of the virtual_machine in bytes
-    pub memory_size: i64,
-    /// size of the disk of the virtual_machine in GiB
+    pub name: Option<String>,
     #[validate(range(min = 1))]
-    pub disk_size: i64,
-    pub internal_ip: Ipv4Addr,
-    pub tap_name: String,
-    pub mac_address: String,
+    pub number_of_cores: Option<i32>,
+    /// memory of the vm-type in MiB
+    #[validate(range(min = 1))]
+    pub amount_of_memory: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct VirtualMachineResp {
+pub struct VmTypeResp {
     pub uuid: Uuid,
     pub name: String,
-    /// Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR
-    pub vm_state: String,
     pub number_of_cores: i32,
-    /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
-    pub memory_size: i64,
-    /// size of the disk of the virtual_machine in GiB
-    pub disk_size: i64,
-    pub image_uuid: Uuid,
-    pub network_uuid: Uuid,
-    pub internal_ip: Ipv4Addr,
-    pub torii_port: u16,
+    /// memory of the vm-type in MiB
+    pub amount_of_memory: i64,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -71,18 +56,15 @@ pub struct VirtualMachineResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct VirtualMachineBasicResp {
+pub struct VmTypeBasicResp {
     pub uuid: Uuid,
     pub name: String,
-    pub proxy_port: u16,
     pub number_of_cores: i32,
-    /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
-    pub memory_size: i64,
-    /// size of the disk of the virtual_machine in GiB
-    pub disk_size: i64,
+    /// memory of the vm-type in MiB
+    pub amount_of_memory: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct VirtualMachineListResp {
-    pub virtual_machines: Vec<VirtualMachineBasicResp>,
+pub struct VmTypeListResp {
+    pub vm_types: Vec<VmTypeBasicResp>,
 }

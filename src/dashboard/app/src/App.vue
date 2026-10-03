@@ -95,6 +95,7 @@ import AdminProject from "@/components/admin/project/project_overview.vue";
 import AdminProjectMember from "@/components/admin/project/project_member_overview.vue";
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import AdminHost from "@/components/admin/host/host_overview.vue";
+import AdminVmType from "@/components/admin/vm_type/vm_type_overview.vue";
 import StorageImage from "@/components/storage/image/image_overview.vue";
 import NetworkNetwork from "@/components/network/network/network_overview.vue";
 import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
@@ -142,6 +143,7 @@ const components = {
     AdminProjectMember,
     AdminQuota,
     AdminHost,
+    AdminVmType,
     StorageImage,
     NetworkNetwork,
     NetworkFloatingIp,

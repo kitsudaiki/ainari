@@ -18,6 +18,7 @@ delete-endpoints as well. It runs always, also after an abort, unless --keep is 
 """
 
 from ainari_sdk import virtual_machine
+from ainari_sdk import vm_type
 
 from ainari_test.checks import check, check_equal, check_not_in
 from ainari_test.framework import Suite
@@ -80,6 +81,14 @@ def delete_images(ctx):
 @suite.test("delete network")
 def delete_network(ctx):
     delete_kind(ctx, "network")
+
+
+@suite.test("delete vm-types")
+def delete_vm_types(ctx):
+    entries = delete_kind(ctx, "vm_type")
+    listed = [entry["uuid"] for entry in vm_type.list_vm_types(ctx.api)["vm_types"]]
+    for entry in entries:
+        check_not_in(entry.uuid, listed, "deleted vm-type in list")
 
 
 @suite.test("delete public key")

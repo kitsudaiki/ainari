@@ -22,6 +22,7 @@ use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::sakura_host::*;
 use crate::api::http_endpoints::virtual_machine::*;
+use crate::api::http_endpoints::vm_type::*;
 
 /// Builds the `/v1alpha`-scope with all endpoints of the hanami.
 ///
@@ -106,6 +107,21 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{host_uuid}/admin")
                         .route(get().to(get_host_admin_v1_0::get_host_admin))
                         .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
+                ),
+        )
+        .service(
+            // vm-types are global and can be read by all users, but only be changed by admins
+            scope("/vm_type")
+                .service(resource("").route(get().to(list_vm_type_v1_0::list_vm_type)))
+                .service(
+                    resource("/admin")
+                        .route(post().to(create_vm_type_admin_v1_0::create_vm_type_admin)),
+                )
+                .service(resource("/{vm_type_uuid}").route(get().to(get_vm_type_v1_0::get_vm_type)))
+                .service(
+                    resource("/{vm_type_uuid}/admin")
+                        .route(put().to(update_vm_type_admin_v1_0::update_vm_type_admin))
+                        .route(delete().to(delete_vm_type_admin_v1_0::delete_vm_type_admin)),
                 ),
         )
         .service(scope("/project").service(

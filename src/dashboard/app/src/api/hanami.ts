@@ -30,6 +30,10 @@ import type {
     VirtualMachineBasicResp,
     VirtualMachineCreateReq,
     VirtualMachineResp,
+    VmTypeBasicResp,
+    VmTypeCreateReq,
+    VmTypeResp,
+    VmTypeUpdateReq,
 } from "./types";
 
 //=============================================================================
@@ -71,6 +75,46 @@ export async function deleteVirtualMachine(uuid: string): Promise<void> {
 export async function getVirtualMachineCount(): Promise<number> {
     const resp = await hanamiClient().get("/v1alpha/virtual_machine/count");
     return resp.data.number_of_items;
+}
+
+//=============================================================================
+// vm-type
+//=============================================================================
+
+/** `GET /v1alpha/vm_type` */
+export async function listVmTypes(): Promise<VmTypeBasicResp[]> {
+    const resp = await hanamiClient().get("/v1alpha/vm_type");
+    return resp.data.vm_types;
+}
+
+/** `GET /v1alpha/vm_type/{vm_type_uuid}` */
+export async function getVmType(uuid: string): Promise<VmTypeResp> {
+    const resp = await hanamiClient().get(`/v1alpha/vm_type/${uuid}`);
+    return resp.data;
+}
+
+/** `POST /v1alpha/vm_type/admin` */
+export async function createVmType(body: VmTypeCreateReq): Promise<VmTypeResp> {
+    const resp = await hanamiClient().post("/v1alpha/vm_type/admin", body);
+    return resp.data;
+}
+
+/**
+ * `PUT /v1alpha/vm_type/{vm_type_uuid}/admin`
+ *
+ * Only the values, which are set in the body, are changed.
+ */
+export async function updateVmType(
+    uuid: string,
+    body: VmTypeUpdateReq,
+): Promise<VmTypeResp> {
+    const resp = await hanamiClient().put(`/v1alpha/vm_type/${uuid}/admin`, body);
+    return resp.data;
+}
+
+/** `DELETE /v1alpha/vm_type/{vm_type_uuid}/admin` */
+export async function deleteVmType(uuid: string): Promise<void> {
+    await hanamiClient().delete(`/v1alpha/vm_type/${uuid}/admin`);
 }
 
 //=============================================================================
