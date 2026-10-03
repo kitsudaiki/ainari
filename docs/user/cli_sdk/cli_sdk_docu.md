@@ -850,8 +850,8 @@ Projects are used for logical separation of the resources of users.
 
 !!! info
 
-    Only admins are allowed to manage projects. Listing the members of the project of the current
-    login is allowed for every user of this project.
+    Only admins are allowed to manage projects and their users. Listing the users of the project
+    of the current login is allowed for every user of this project.
 
 === "CLI"
 
@@ -860,10 +860,17 @@ Projects are used for logical separation of the resources of users.
     ainarictl project list
     ainarictl project get <PROJECT_ID>
     ainarictl project delete <PROJECT_ID>
+    ainarictl project add_user_to_project <PROJECT_ID> <USER_ID> <PROJECT_ROLE>
+    ainarictl project remove_user_from_project <PROJECT_ID> <USER_ID>
+    ainarictl project list_users_in_project_admin <PROJECT_ID>
 
-    # users of the project of the current login and the role of each of them
-    ainarictl project list_members
+    # every user, not only admins: users of the project of the current login and the role of
+    # each of them
+    ainarictl project list_users_in_project
     ```
+
+    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. A user can be added to the same
+    project only once at the same time.
 
     example:
 
@@ -892,8 +899,15 @@ Projects are used for logical separation of the resources of users.
     project.delete_project(context, "my_project")
     project.delete_all_projects(context)
 
-    # users of the project of the context and the role of each of them
-    project.list_members(context)
+    project.add_user_to_project(context, "my_project", "my_user", "member")
+    # {"user_id": "my_user", "project_id": "my_project", "project_role": "member"}
+    project.list_users_in_project_admin(context, "my_project")
+    # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
+    project.remove_user_from_project(context, "my_project", "my_user")
+
+    # every user, not only admins: users of the project of the context and the role of each of
+    # them
+    project.list_users_in_project(context)
     # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
     ```
 
@@ -910,17 +924,14 @@ Projects are used for logical separation of the resources of users.
     ainarictl user list
     ainarictl user get <USER_ID>
     ainarictl user delete <USER_ID>
-    ainarictl user assign_project <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
-    ainarictl user unassign_project <USER_ID> <PROJECT_ID>
     ainarictl user set_project_role <USER_ID> <PROJECT_ID> <PROJECT_ROLE>
 
     # every user, not only admins: own projects and the role in each of them
     ainarictl user list_user_projects
     ```
 
-    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. A user can be assigned to the same
-    project only once at the same time. `set_project_role` only changes the role of an already
-    existing assignment.
+    `<PROJECT_ROLE>` is one of `admin`, `member` or `observer`. `set_project_role` only changes the
+    role of a user, who was already added to the project.
 
     Without `-p <PASSPHRASE>` the passphrase is requested interactively. The flag should only be
     used for automated testing, because the passphrase is visible in the command-line and the
@@ -954,10 +965,7 @@ Projects are used for logical separation of the resources of users.
     user.delete_user(context, "my_user")
     user.delete_all_user(context)
 
-    user.assign_project(context, "my_user", "my_project", "member")
-    # {"user_id": "my_user", "project_id": "my_project", "project_role": "member"}
     user.set_project_role(context, "my_user", "my_project", "observer")
-    user.unassign_project(context, "my_user", "my_project")
 
     # every user, not only admins: own projects and the role in each of them
     user.list_user_projects(context)

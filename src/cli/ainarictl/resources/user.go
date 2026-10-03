@@ -144,46 +144,6 @@ var deleteUserCmd = &cobra.Command{
 	},
 }
 
-var assignProjectCmd = &cobra.Command{
-	Use:   "assign_project USER_ID PROJECT_ID PROJECT_ROLE",
-	Short: "Assign a project to a user. PROJECT_ROLE is one of: admin, member, observer.",
-	Args:  cobra.ExactArgs(3),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		content, err := ainari_sdk.AssignProject(context, args[0], args[1], args[2])
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		ainarictl_common.PrintSingle(content)
-	},
-}
-
-var unassignProjectCmd = &cobra.Command{
-	Use:   "unassign_project USER_ID PROJECT_ID",
-	Short: "Remove the assignment of a project from a user.",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		context, err := Login()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		userId := args[0]
-		projectId := args[1]
-		_, err = ainari_sdk.UnassignProject(context, userId, projectId)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		fmt.Printf("successfully unassigned project '%v' from user '%v'\n", projectId, userId)
-	},
-}
-
 var setProjectRoleCmd = &cobra.Command{
 	Use:   "set_project_role USER_ID PROJECT_ID PROJECT_ROLE",
 	Short: "Set the role of a user within an assigned project. PROJECT_ROLE is one of: admin, member, observer.",
@@ -246,10 +206,6 @@ func Init_User_Commands(rootCmd *cobra.Command) {
 	userCmd.AddCommand(listUserCmd)
 
 	userCmd.AddCommand(deleteUserCmd)
-
-	userCmd.AddCommand(assignProjectCmd)
-
-	userCmd.AddCommand(unassignProjectCmd)
 
 	userCmd.AddCommand(setProjectRoleCmd)
 

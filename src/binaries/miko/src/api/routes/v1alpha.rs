@@ -55,7 +55,23 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(create_project_admin_v1_0::create_project_admin))
                         .route(get().to(list_project_admin_v1_0::list_project_admin)),
                 )
-                .service(resource("/members").route(get().to(list_members_v1_0::list_members)))
+                .service(
+                    resource("/users")
+                        .route(get().to(list_users_in_project_v1_0::list_users_in_project)),
+                )
+                .service(
+                    resource("/{project_id}/users/admin").route(
+                        get().to(list_users_in_project_admin_v1_0::list_users_in_project_admin),
+                    ),
+                )
+                .service(
+                    resource("/{project_id}/add_user/admin").route(
+                        post().to(add_user_to_project_admin_v1_0::add_user_to_project_admin),
+                    ),
+                )
+                .service(resource("/{project_id}/remove_user/admin").route(
+                    post().to(remove_user_from_project_admin_v1_0::remove_user_from_project_admin),
+                ))
                 .service(
                     resource("/{project_id}/admin")
                         .route(get().to(get_project_admin_v1_0::get_project_admin))
@@ -73,14 +89,6 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{user_id}/admin")
                         .route(get().to(get_user_admin_v1_0::get_user_admin))
                         .route(delete().to(delete_user_admin_v1_0::delete_user_admin)),
-                )
-                .service(
-                    resource("/{user_id}/assign_project/admin")
-                        .route(post().to(assign_project_admin_v1_0::assign_project_admin)),
-                )
-                .service(
-                    resource("/{user_id}/unassign_project/admin")
-                        .route(post().to(unassign_project_admin_v1_0::unassign_project_admin)),
                 )
                 .service(
                     resource("/{user_id}/set_project_role/admin")

@@ -24,12 +24,12 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "project",
-    summary = "List members",
+    summary = "List users in project",
     description = r###"List all users, which are assigned to the project of the token, together with the role of each user within this project."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_members(
+pub async fn list_users_in_project(
     context: UserContext,
 ) -> Result<Json<ProjectMemberListResp>, ErrorResponse> {
     // get all active assignments of the project of the token from database

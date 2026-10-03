@@ -68,7 +68,7 @@ def project_members(context) -> dict:
     Returns the members of the project of the context as mapping from the user-id to the role.
     """
     return {entry["user_id"]: entry["project_role"]
-            for entry in project.list_members(context)["members"]}
+            for entry in project.list_users_in_project(context)["members"]}
 
 
 @suite.test("create user and project", provides=("project_user", "project"))
@@ -154,11 +154,11 @@ def token_not_assigned(ctx):
                  f"lst-unknown-{ctx.test_id}")
 
 
-@suite.test("assign project", requires=("project_user", "project"), provides=("assigned",))
-def assign_project(ctx):
+@suite.test("add user to project", requires=("project_user", "project"), provides=("assigned",))
+def add_user_to_project(ctx):
     user_id = ctx.state["project_user"]
     assigned_project = ctx.state["project"]
-    result = user.assign_project(ctx.api, user_id, assigned_project, "member")
+    result = project.add_user_to_project(ctx.api, assigned_project, user_id, "member")
     check_equal(result["user_id"], user_id, "user of the assignment")
     check_equal(result["project_id"], assigned_project, "project of the assignment")
     check_equal(result["project_role"], "member", "role of the assignment")
@@ -183,8 +183,8 @@ def list_user_projects(ctx):
                  "project of the suite in the invited projects of the admin")
 
 
-@suite.test("list members of the project", requires=("assigned",))
-def list_members(ctx):
+@suite.test("list users in project", requires=("assigned",))
+def list_users_in_project(ctx):
     user_id = ctx.state["project_user"]
     # the members are taken from the project of the token
     check_equal(project_members(login_project_user(ctx, ctx.state["project"])),
@@ -192,20 +192,28 @@ def list_members(ctx):
     check_equal(project_members(login_project_user(ctx)), {user_id: "admin"},
                 "members of the default-project")
 
+    # an admin can list the members of any project, also without being assigned to it
+    members = {entry["user_id"]: entry["project_role"]
+               for entry in project.list_users_in_project_admin(
+                   ctx.api, ctx.state["project"])["members"]}
+    check_equal(members, {user_id: "member"}, "members of the project listed by the admin")
+    expect_error(ainari_exceptions.UnauthorizedException, project.list_users_in_project_admin,
+                 login_project_user(ctx), ctx.state["project"])
+
 
 @suite.test("invalid assignments are rejected", requires=("assigned",))
 def invalid_assignments(ctx):
     user_id = ctx.state["project_user"]
     assigned_project = ctx.state["project"]
     # a user can be assigned to the same project only once at the same time
-    expect_error(ainari_exceptions.ConflictException, user.assign_project, ctx.api, user_id,
-                 assigned_project, "admin")
-    expect_error(ainari_exceptions.BadRequestException, user.assign_project, ctx.api, user_id,
-                 assigned_project, "superuser")
-    expect_error(ainari_exceptions.NotFoundException, user.assign_project, ctx.api, user_id,
-                 f"lst-unknown-{ctx.test_id}", "member")
-    expect_error(ainari_exceptions.NotFoundException, user.assign_project, ctx.api,
-                 f"lst-unknown-{ctx.test_id}", assigned_project, "member")
+    expect_error(ainari_exceptions.ConflictException, project.add_user_to_project, ctx.api,
+                 assigned_project, user_id, "admin")
+    expect_error(ainari_exceptions.BadRequestException, project.add_user_to_project, ctx.api,
+                 assigned_project, user_id, "superuser")
+    expect_error(ainari_exceptions.NotFoundException, project.add_user_to_project, ctx.api,
+                 f"lst-unknown-{ctx.test_id}", user_id, "member")
+    expect_error(ainari_exceptions.NotFoundException, project.add_user_to_project, ctx.api,
+                 assigned_project, f"lst-unknown-{ctx.test_id}", "member")
     expect_error(ainari_exceptions.BadRequestException, user.set_project_role, ctx.api,
                  user_id, assigned_project, "superuser")
 
@@ -216,12 +224,12 @@ def assignments_admin_only(ctx):
     assigned_project = ctx.state["project"]
     # even as admin of the project, the user is no admin of the whole system
     own = login_project_user(ctx)
-    expect_error(ainari_exceptions.UnauthorizedException, user.assign_project, own, user_id,
-                 assigned_project, "admin")
+    expect_error(ainari_exceptions.UnauthorizedException, project.add_user_to_project, own,
+                 assigned_project, user_id, "admin")
     expect_error(ainari_exceptions.UnauthorizedException, user.set_project_role, own, user_id,
                  assigned_project, "admin")
-    expect_error(ainari_exceptions.UnauthorizedException, user.unassign_project, own, user_id,
-                 assigned_project)
+    expect_error(ainari_exceptions.UnauthorizedException, project.remove_user_from_project, own,
+                 assigned_project, user_id)
 
 
 @suite.test("member can create resources in the project", requires=("assigned",),
@@ -303,15 +311,15 @@ def observer_read_only(ctx):
                 "secret still exists after the delete of the observer")
 
 
-@suite.test("unassign project", requires=("assigned",))
-def unassign_project(ctx):
+@suite.test("remove user from project", requires=("assigned",))
+def remove_user_from_project(ctx):
     user_id = ctx.state["project_user"]
     assigned_project = ctx.state["project"]
-    user.unassign_project(ctx.api, user_id, assigned_project)
+    project.remove_user_from_project(ctx.api, assigned_project, user_id)
     del ctx.state["assigned"]
 
-    expect_error(ainari_exceptions.NotFoundException, user.unassign_project, ctx.api, user_id,
-                 assigned_project)
+    expect_error(ainari_exceptions.NotFoundException, project.remove_user_from_project, ctx.api,
+                 assigned_project, user_id)
     expect_error(ainari_exceptions.NotFoundException, user.set_project_role, ctx.api, user_id,
                  assigned_project, "admin")
     expect_error(ainari_exceptions.UnauthorizedException, login_project_user, ctx,
@@ -320,6 +328,6 @@ def unassign_project(ctx):
                 [f"default-{user_id}"], "invited projects after the unassignment")
 
     # after the unassignment, the user can be assigned again
-    result = user.assign_project(ctx.api, user_id, assigned_project, "admin")
+    result = project.add_user_to_project(ctx.api, assigned_project, user_id, "admin")
     check_equal(result["project_role"], "admin", "role of the new assignment")
-    user.unassign_project(ctx.api, user_id, assigned_project)
+    project.remove_user_from_project(ctx.api, assigned_project, user_id)

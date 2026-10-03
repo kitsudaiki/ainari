@@ -115,8 +115,8 @@ var deleteProjectCmd = &cobra.Command{
 	},
 }
 
-var listProjectMembersCmd = &cobra.Command{
-	Use:   "list_members",
+var listUsersInProjectCmd = &cobra.Command{
+	Use:   "list_users_in_project",
 	Short: "List all users of the project of the current login, together with their role.",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -125,12 +125,71 @@ var listProjectMembersCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		content, err := ainari_sdk.ListProjectMembers(context)
+		content, err := ainari_sdk.ListUsersInProject(context)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		ainarictl_common.PrintList(content["members"].([]interface{}))
+	},
+}
+
+var listUsersInProjectAdminCmd = &cobra.Command{
+	Use:   "list_users_in_project_admin PROJECT_ID",
+	Short: "List all users of a project, together with their role.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.ListUsersInProjectAdmin(context, args[0])
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintList(content["members"].([]interface{}))
+	},
+}
+
+var addUserToProjectCmd = &cobra.Command{
+	Use:   "add_user_to_project PROJECT_ID USER_ID PROJECT_ROLE",
+	Short: "Add a user to a project. PROJECT_ROLE is one of: admin, member, observer.",
+	Args:  cobra.ExactArgs(3),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.AddUserToProject(context, args[0], args[1], args[2])
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
+}
+
+var removeUserFromProjectCmd = &cobra.Command{
+	Use:   "remove_user_from_project PROJECT_ID USER_ID",
+	Short: "Remove a user from a project.",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		projectId := args[0]
+		userId := args[1]
+		_, err = ainari_sdk.RemoveUserFromProject(context, projectId, userId)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Printf("successfully removed user '%v' from project '%v'\n", userId, projectId)
 	},
 }
 
@@ -152,5 +211,11 @@ func Init_Project_Commands(rootCmd *cobra.Command) {
 
 	projectCmd.AddCommand(deleteProjectCmd)
 
-	projectCmd.AddCommand(listProjectMembersCmd)
+	projectCmd.AddCommand(listUsersInProjectCmd)
+
+	projectCmd.AddCommand(listUsersInProjectAdminCmd)
+
+	projectCmd.AddCommand(addUserToProjectCmd)
+
+	projectCmd.AddCommand(removeUserFromProjectCmd)
 }
