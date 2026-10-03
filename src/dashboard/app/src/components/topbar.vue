@@ -16,8 +16,7 @@
 
 <template>
     <header class="topbar">
-        <!-- <h1>Ainari Dashboard</h1> -->
-        <h1></h1>
+        <img :src="logo" class="topbar-logo" alt="Ainari" />
 
         <div class="profile-menu" @click.stop="toggleDropdown">
             <div class="avatar">
@@ -33,6 +32,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+
+const logo = new URL("../assets/ainari_logo_mini_transparent.png", import.meta.url).href;
 
 const emit = defineEmits<{
     (e: "logout"): void;
@@ -121,6 +122,12 @@ function stringToHslColor(str: string): string {
     justify-content: space-between;
     padding: 0 1rem;
     position: relative;
+}
+
+.topbar-logo {
+    height: 2.8rem;
+    width: auto;
+    user-select: none;
 }
 
 .profile-menu {
