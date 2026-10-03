@@ -46,7 +46,7 @@ pub async fn create_project_admin(
 
     // the prefix is reserved for the default-projects, which are created together with each
     // user, so a project created here could otherwise conflict with them
-    if project_id.starts_with("default-") {
+    if project_table::is_default_project(project_id) {
         return Err(ErrorResponse::BadRequest(
             "Project-IDs starting with 'default-' are reserved.".to_string(),
         ));

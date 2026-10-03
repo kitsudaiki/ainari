@@ -18,6 +18,7 @@ use validator::Validate;
 
 use crate::api::token_handling;
 use crate::config;
+use crate::database::project_table;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
@@ -74,7 +75,7 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     // use the requested project, or the default-project of the user, if none was requested
     let project_id = parsed
         .project_id
-        .unwrap_or_else(|| format!("default-{}", user.id));
+        .unwrap_or_else(|| project_table::default_project_id(&user.id));
 
     // get the role of the user within the project, which also checks the access to it
     let project_role = super::get_project_role_for_token(&user.id, &project_id)?;

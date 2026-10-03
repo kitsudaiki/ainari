@@ -695,6 +695,50 @@
           }
         ]
       }
+    },
+    "/v1alpha/project/{project_id}/resource_count/internal": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Count resources of project (internal)",
+        "description": "Count the images of a project, which still exist. It is used by miko to check, if a project is empty, before it is deleted. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResourceCountInternalResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -974,6 +1018,23 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ProjectResourceCountInternalResp": {
+        "title": "ProjectResourceCountInternalResp",
+        "type": "object",
+        "required": [
+          "resource_counts"
+        ],
+        "properties": {
+          "resource_counts": {
+            "description": "number of the existing resources of the project, by the type of the resource",
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
           }
         }
       },

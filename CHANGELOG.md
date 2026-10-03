@@ -39,6 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- deleting a project is only allowed, if the project contains no resources anymore and no user
+  with the role admin or member is assigned to it. Together with
+  the project, its quota and the assignments of its users are deleted.
+- deleting a user is only allowed, if its default-project contains no resources anymore. Before
+  the delete, all admins and members of the default-project are made observers, to prevent the
+  creation of new resources during the delete. The user is deleted together with its
+  default-project and removed from all other projects, which are never deleted.
+- tokens are checked against the current state of miko with every request, so they are
+  invalidated immediately, when their user is deleted, removed from the project of the token or
+  gets another role within the project.
+- the default-project of a user can only be deleted together with the user, which always deletes
+  it. A user can also not be removed from its own default-project or made an observer there.
 - VMs are now gracefully shutdown
 - Dockercontainers are now using Nix. The Dockerfiles exist in two variants:
   `dockerfiles/nix_based` for the CI and the vagrant-setup and `dockerfiles/debian_based` for the

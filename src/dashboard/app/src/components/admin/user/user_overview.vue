@@ -49,7 +49,11 @@
                                     <button @click="openInfoModal(user)">
                                         Info
                                     </button>
-                                    <button @click="openDeleteModal(user)">
+                                    <!-- a user can not delete himself -->
+                                    <button
+                                        v-if="user.id !== ownUserId"
+                                        @click="openDeleteModal(user)"
+                                    >
                                         Delete
                                     </button>
                                 </div>
@@ -101,6 +105,8 @@ import UserDeleteModal from "./user_delete_modal.vue";
 import UserInfoModal from "./user_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 
+// id of the logged-in user, which is stored at the login
+const ownUserId = localStorage.getItem("username");
 const errorPopupMsg = ref<string>("");
 const users = ref<UserBasicResp[]>([]);
 const showAddModal = ref(false);

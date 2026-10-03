@@ -68,10 +68,11 @@ fn check_image_type(image_type: &String) -> Result<(), ErrorResponse> {
 ///
 async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of images of the whole project
-    let current_number_of_images = image_table::count_images_of_project(context).map_err(|e| {
-        log::error!("Failed to count images in database.: {e}");
-        ErrorResponse::InternalError("Internal Error".to_string())
-    })?;
+    let current_number_of_images = image_table::count_images_of_project(&context.project_id)
+        .map_err(|e| {
+            log::error!("Failed to count images in database.: {e}");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
 
     // check the maximum number of images defined in miko
     let miko_endpoint = &config::CONFIG.miko;

@@ -4,6 +4,7 @@ log_type = "stdout"
 log_path = "/var/log/"
 # "sqlite" or "mysql", which selects the group below, which is used to connect to the database
 database_type = "sqlite"
+skip_tls_verification = true
 
 [api]
 public_ip = "0.0.0.0"

@@ -241,6 +241,35 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
         .load(&mut *conn)
 }
 
+/// Prefix of the default-projects, which are created together with each user.
+const DEFAULT_PROJECT_PREFIX: &str = "default-";
+
+/// Builds the ID of the default-project of a user.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user
+///
+/// # Returns
+///
+/// The ID of the default-project of the user
+pub fn default_project_id(user_id: &str) -> String {
+    format!("{DEFAULT_PROJECT_PREFIX}{user_id}")
+}
+
+/// Checks if a project-ID belongs to the reserved IDs of the default-projects.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+///
+/// # Returns
+///
+/// True, if the ID starts with the prefix of the default-projects
+pub fn is_default_project(project_id: &str) -> bool {
+    project_id.starts_with(DEFAULT_PROJECT_PREFIX)
+}
+
 /// Deletes a project from the database.
 ///
 /// This function marks a project as deleted by changing its status to "DELETED".

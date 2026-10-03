@@ -125,12 +125,21 @@ async fn check_auth_header(req: &ServiceRequest) -> Result<(), actix_web::Error>
     };
 
     // check token
-    match token_handling::validate_token(token) {
-        Ok(_) => {}
+    let context = match token_handling::validate_token(token) {
+        Ok(context) => context,
         Err(e) => {
             log::debug!("{e}");
             return Err(ErrorResponse::Unauthorized(e).into());
         }
+    };
+
+    // The renewal of a token reads the project and the role again from the database, so it is
+    // still allowed, after they were changed. All other requests need a token, which matches the
+    // current state of the database.
+    let is_renewal = uri == "/v1alpha/token" && *req.method() == Method::PUT;
+    if let Err(e) = token_handling::check_token_against_database(&context, !is_renewal) {
+        log::debug!("{e}");
+        return Err(ErrorResponse::Unauthorized(e).into());
     }
 
     Ok(())

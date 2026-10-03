@@ -376,25 +376,25 @@ pub fn list_floating_ips(context: &UserContext) -> QueryResult<Vec<FloatingIpEnt
     query.select(FloatingIpEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the number of floating IP-addresses of the whole project of the context.
+/// Counts the number of floating IP-addresses of a whole project.
 ///
 /// Unlike `count_floating_ips`, the floating IP-addresses of all users of the project are counted, because the quota,
 /// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
 ///
-/// * `context` - The user context, whose project is counted
+/// * `project` - The ID of the project, which is counted
 ///
 /// # Returns
 ///
 /// A QueryResult containing the count of floating IP-addresses as an i64
-pub fn count_floating_ips_of_project(context: &UserContext) -> QueryResult<i64> {
+pub fn count_floating_ips_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
 
     floating_ips
         .filter(status.eq("ACTIVE"))
-        .filter(project_id.eq(context.project_id.clone()))
+        .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }
@@ -1322,7 +1322,10 @@ mod tests {
         add_floating_ip(entry2).unwrap();
         add_floating_ip(entry3).unwrap();
 
-        assert_eq!(count_floating_ips_of_project(&context).unwrap(), 2);
+        assert_eq!(
+            count_floating_ips_of_project(&context.project_id).unwrap(),
+            2
+        );
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);

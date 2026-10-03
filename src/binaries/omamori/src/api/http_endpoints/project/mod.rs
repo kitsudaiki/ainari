@@ -12,6 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod project;
-pub mod public_key;
-pub mod secret;
+pub mod get_project_resource_count_internal_v1_0;

@@ -8,6 +8,7 @@ rust-version.workspace = true
 ainari_common = { path = "../../libs/rust/ainari_common", features = ["mysql"] }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
+ainari_clients = { path = "../../libs/rust/ainari_clients" }
 # web-server
 actix-web = "4"
 actix-multipart = "0.8"

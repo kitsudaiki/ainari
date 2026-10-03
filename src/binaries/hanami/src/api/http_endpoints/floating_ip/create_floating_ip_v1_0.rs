@@ -145,8 +145,8 @@ fn map_reserve_error(
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // Get the current number of floating_ips of the whole project from the database
     // This count is used to compare against the project's quota limit
-    let current_number_of_floating_ips = floating_ip_table::count_floating_ips_of_project(context)
-        .map_err(|e| {
+    let current_number_of_floating_ips =
+        floating_ip_table::count_floating_ips_of_project(&context.project_id).map_err(|e| {
             log::error!("Failed to count floating_ips in database.: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;

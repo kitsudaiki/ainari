@@ -188,25 +188,25 @@ pub fn list_networks(context: &UserContext) -> QueryResult<Vec<NetworkEntry>> {
     query.select(NetworkEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the number of networks of the whole project of the context.
+/// Counts the number of networks of a whole project.
 ///
 /// Unlike `count_networks`, the networks of all users of the project are counted, because the quota,
 /// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
 ///
-/// * `context` - The user context, whose project is counted
+/// * `project` - The ID of the project, which is counted
 ///
 /// # Returns
 ///
 /// A QueryResult containing the count of networks as an i64
-pub fn count_networks_of_project(context: &UserContext) -> QueryResult<i64> {
+pub fn count_networks_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::networks::dsl::*;
 
     networks
         .filter(status.eq("ACTIVE"))
-        .filter(project_id.eq(context.project_id.clone()))
+        .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }
@@ -549,7 +549,7 @@ mod tests {
         add_network(network3).unwrap();
 
         // the networks of all users of the project are counted, but not the ones of other projects
-        let number = count_networks_of_project(&context).unwrap();
+        let number = count_networks_of_project(&context.project_id).unwrap();
         assert_eq!(number, 2);
 
         hard_delete_network(&uuid1);

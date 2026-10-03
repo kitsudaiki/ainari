@@ -33,6 +33,9 @@ pub struct Config {
     pub log_path: String,
     /// Type of the database, which also selects the database-group, which is used
     pub database_type: ainari_config::DatabaseType,
+    /// Flag to skip TLS verification (insecure) for the requests against the other components
+    #[serde(default)]
+    pub skip_tls_verification: bool,
     // groups
     pub auth: Auth,
     pub api: ainari_config::Api,

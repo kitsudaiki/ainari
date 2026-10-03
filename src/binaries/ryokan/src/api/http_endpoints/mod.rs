@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod image;
-pub mod onsen_host;
-
 use uuid::Uuid;
 
 use crate::config;
@@ -74,3 +71,7 @@ async fn generate_new_key(
         Secret::from(secret_payload.secret_payload),
     ))
 }
+
+pub mod image;
+pub mod onsen_host;
+pub mod project;

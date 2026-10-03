@@ -16,6 +16,7 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::public_key::*;
 use crate::api::http_endpoints::secret::*;
 
@@ -74,4 +75,11 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(get_public_key_internal_v1_0::get_public_key_internal)),
                 ),
         )
+        .service(scope("/project").service(
+            resource("/{project_id}/resource_count/internal").route(
+                get().to(
+                    get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+                ),
+            ),
+        ))
 }
