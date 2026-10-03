@@ -28,6 +28,7 @@ use crate::database::host_table;
 use crate::database::host_table::{HostEntry, HostResources};
 use crate::database::meta_virtual_machine_table;
 use crate::database::network_table;
+use crate::database::vm_type_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -61,11 +62,13 @@ use ainari_common::enums::DbError;
     summary = "Reserve new virtual_machine",
     description = r###"Reserve a new virtual_machine together with its address within the given network.
 
-The virtual_machine is placed on a random sakura-host, which has enough free cores, memory and
+The number of cores and the memory of the virtual_machine are taken from the given vm-type. The
+virtual_machine is placed on a random sakura-host, which has enough free cores, memory and
 disk-space for it. The image and the public-key are not set here, but by the following
 create-call."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 409,
     error_code = 500
 )]
@@ -77,18 +80,27 @@ pub async fn reserve_virtual_machine(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
+    // the vm-type defines the number of cores and the memory of the virtual_machine
+    let vm_type = vm_type_table::get_vm_type(&body.vm_type_uuid)
+        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &body.vm_type_uuid, e))?;
+
     // the sakura-host expects the memory in bytes
-    let memory_size_bytes = body.memory_size.checked_mul(1024 * 1024).ok_or_else(|| {
-        ErrorResponse::BadRequest("Invalid input: memory_size is too large".to_string())
-    })?;
+    let memory_size_bytes = vm_type
+        .amount_of_memory
+        .checked_mul(1024 * 1024)
+        .ok_or_else(|| {
+            ErrorResponse::BadRequest(
+                "Invalid input: amount_of_memory of vm-type is too large".to_string(),
+            )
+        })?;
 
     check_quota(&context).await?;
 
     // TODO: add check if network-, image- and public-key-uuid exist
 
     let (selected_host, allocated_resources) = select_host(
-        body.number_of_cores,
-        body.memory_size,
+        vm_type.number_of_cores,
+        vm_type.amount_of_memory,
         body.disk_size,
         &context,
     )?;
@@ -97,16 +109,23 @@ pub async fn reserve_virtual_machine(
     let sakura_uuid = selected_host.uuid;
 
     // give the allocated resources back to the host, if the virtual_machine can not be reserved
-    let (virtual_machine_resp, proxy_uuid) =
-        match prepare_selected_host(&selected_host, &body, memory_size_bytes, &context).await {
-            Ok(result) => result,
-            Err(e) => {
-                if host_table::release_host_resources(&sakura_uuid, &allocated_resources).is_err() {
-                    log::error!("Failed to release resources of host with UUID '{sakura_uuid}'.");
-                }
-                return Err(e);
+    let (virtual_machine_resp, proxy_uuid) = match prepare_selected_host(
+        &selected_host,
+        &body,
+        vm_type.number_of_cores,
+        memory_size_bytes,
+        &context,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            if host_table::release_host_resources(&sakura_uuid, &allocated_resources).is_err() {
+                log::error!("Failed to release resources of host with UUID '{sakura_uuid}'.");
             }
-        };
+            return Err(e);
+        }
+    };
 
     // add new virtual_machine to database
     let virtual_machine_uuid = virtual_machine_resp.uuid;
@@ -197,6 +216,7 @@ fn select_host(
 async fn prepare_selected_host(
     selected_host: &HostEntry,
     body: &Json<VirtualMachineCreateReq>,
+    number_of_cores: i32,
     memory_size_bytes: i64,
     context: &UserContext,
 ) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
@@ -234,7 +254,7 @@ async fn prepare_selected_host(
         &config::INTERNAL_API_KEY,
         &body.name,
         &body.network_uuid,
-        body.number_of_cores,
+        number_of_cores,
         memory_size_bytes,
         body.disk_size,
         &vm_address.internal_ip,

@@ -25,16 +25,15 @@ import (
 )
 
 // ReserveVirtualMachine reserves a new virtual machine on one of the sakura-hosts. The image and
-// the public-key are not deployed here, but by the task of CreateVirtualMachine. The memorySize
-// is given in MiB and the diskSize in GiB.
-func ReserveVirtualMachine(context AccessContext, name string, numberOfCores int32, memorySize int64, diskSize int64, networkUuid string) (map[string]interface{}, error) {
+// the public-key are not deployed here, but by the task of CreateVirtualMachine. The number of
+// cores and the memory are taken from the vm-type and the diskSize is given in GiB.
+func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string, diskSize int64, networkUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
-		"number_of_cores": numberOfCores,
-		"memory_size":     memorySize,
-		"disk_size":       diskSize,
-		"name":            name,
-		"network_uuid":    networkUuid,
+		"vm_type_uuid": vmTypeUuid,
+		"disk_size":    diskSize,
+		"name":         name,
+		"network_uuid": networkUuid,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

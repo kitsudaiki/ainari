@@ -20,7 +20,7 @@ It walks through the whole life-cycle of two virtual machines with the python-sd
     0. wait until all sakura-hosts of the setup are registered in hanami
     1. generate a ssh-key-pair and upload the public key to omamori
     2. download an ubuntu-cloud-image and upload it to ryokan
-    3. create a network
+    3. create a network and a vm-type with the cores and the memory of the virtual machines
     4. reserve the virtual machines in hanami
     5. create the reserved virtual machines on their sakura-hosts
     6. give every virtual machine its own floating ip-address. The first one gets it attached
@@ -56,6 +56,7 @@ from ainari_sdk import login         # noqa: E402
 from ainari_sdk import network       # noqa: E402
 from ainari_sdk import public_key    # noqa: E402
 from ainari_sdk import virtual_machine  # noqa: E402
+from ainari_sdk import vm_type       # noqa: E402
 
 import urllib3  # noqa: E402
 
@@ -162,6 +163,7 @@ def wait_for_sakura_hosts(context) -> list:
 def reserve_and_create_virtual_machine(context,
                                        name: str,
                                        network_uuid: str,
+                                       vm_type_uuid: str,
                                        image_uuid: str,
                                        public_key_uuid: str) -> dict:
     """
@@ -170,8 +172,7 @@ def reserve_and_create_virtual_machine(context,
     """
     reserved = virtual_machine.reserve_virtual_machine(context,
                                                        name,
-                                                       NUMBER_OF_CORES,
-                                                       MEMORY_SIZE,
+                                                       vm_type_uuid,
                                                        DISK_SIZE,
                                                        network_uuid)
     virtual_machine_data = {
@@ -292,6 +293,14 @@ def main() -> int:
     network_uuid = network_data["uuid"]
     log(f"network: {network_uuid}")
 
+    log(f"creating vm-type with {NUMBER_OF_CORES} cores and {MEMORY_SIZE} MiB memory")
+    vm_type_data = vm_type.create_vm_type(context,
+                                          f"local-stack-test-{test_id}",
+                                          NUMBER_OF_CORES,
+                                          MEMORY_SIZE)
+    vm_type_uuid = vm_type_data["uuid"]
+    log(f"vm-type: {vm_type_uuid}")
+
     # 4. + 5. reserve the virtual machines and create them on their sakura-hosts
     log(f"reserving {NUMBER_OF_VIRTUAL_MACHINES} virtual machines with {NUMBER_OF_CORES} cores "
         f"and {MEMORY_SIZE} MiB memory each")
@@ -301,6 +310,7 @@ def main() -> int:
             reserve_and_create_virtual_machine(context,
                                                f"local-stack-test-{test_id}-{number}",
                                                network_uuid,
+                                               vm_type_uuid,
                                                image_uuid,
                                                public_key_uuid))
 

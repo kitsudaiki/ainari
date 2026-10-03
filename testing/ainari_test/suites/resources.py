@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-The resources, which the virtual machines are built from: public key, image and network. Secrets
-are tested here as well, because they live in omamori next to the public keys.
+The resources, which the virtual machines are built from: public key, image, network and
+vm-type. Secrets are tested here as well, because they live in omamori next to the public keys.
 """
 
 import os
@@ -26,13 +26,14 @@ from ainari_sdk import image
 from ainari_sdk import network
 from ainari_sdk import public_key
 from ainari_sdk import secret
+from ainari_sdk import vm_type
 
 from ainari_test.checks import (check, check_equal, check_in, check_keys, exists,
                                 expect_error)
 from ainari_test.framework import Suite
 from ainari_test.waiting import wait_until
 
-suite = Suite("resources", "public key, image, network and secrets")
+suite = Suite("resources", "public key, image, network, vm-type and secrets")
 
 
 @suite.test("generate and upload ssh public key", provides=("public_key",))
@@ -147,6 +148,82 @@ def get_network(ctx):
 @suite.test("unknown network is not found")
 def unknown_network(ctx):
     expect_error(ainari_exceptions.NotFoundException, network.get_network, ctx.api,
+                 str(uuid.uuid4()))
+
+
+def register_vm_type(ctx, name: str, vm_type_uuid: str):
+    ctx.cleanup.add("vm_type", vm_type_uuid, name,
+                    lambda: vm_type.delete_vm_type(ctx.api, vm_type_uuid),
+                    lambda: exists(vm_type.get_vm_type, ctx.api, vm_type_uuid))
+
+
+@suite.test("create vm-type", provides=("vm_type",))
+def create_vm_type(ctx):
+    name = ctx.name("type")
+    result = vm_type.create_vm_type(ctx.api, name, ctx.config.number_of_cores,
+                                    ctx.config.memory_size)
+    vm_type_uuid = result["uuid"]
+    register_vm_type(ctx, name, vm_type_uuid)
+    ctx.state["vm_type"] = vm_type_uuid
+
+    check_equal(result["name"], name, "name of the vm-type")
+    check_equal(result["number_of_cores"], ctx.config.number_of_cores, "cores of the vm-type")
+    check_equal(result["amount_of_memory"], ctx.config.memory_size, "memory of the vm-type")
+    ctx.log(f"vm-type {vm_type_uuid} ({result['number_of_cores']} cores, "
+            f"{result['amount_of_memory']} MiB)")
+
+
+@suite.test("get and list vm-type", requires=("vm_type",))
+def get_vm_type(ctx):
+    vm_type_uuid = ctx.state["vm_type"]
+    result = vm_type.get_vm_type(ctx.api, vm_type_uuid)
+    check_equal(result["name"], ctx.name("type"), "name of the vm-type")
+    check_equal(result["number_of_cores"], ctx.config.number_of_cores, "cores of the vm-type")
+    check_equal(result["amount_of_memory"], ctx.config.memory_size, "memory of the vm-type")
+    check_in(vm_type_uuid, [entry["uuid"] for entry in vm_type.list_vm_types(ctx.api)
+                            ["vm_types"]], "vm-type in list")
+
+
+@suite.test("update and delete vm-type")
+def update_vm_type(ctx):
+    # an own vm-type, so the one of the virtual machines keeps its values
+    name = ctx.name("type-update")
+    vm_type_uuid = vm_type.create_vm_type(ctx.api, name, 1, 512)["uuid"]
+    register_vm_type(ctx, name, vm_type_uuid)
+
+    # only the given values are changed
+    result = vm_type.update_vm_type(ctx.api, vm_type_uuid, number_of_cores=4)
+    check_equal(result["name"], name, "unchanged name of the vm-type")
+    check_equal(result["number_of_cores"], 4, "updated cores of the vm-type")
+    check_equal(result["amount_of_memory"], 512, "unchanged memory of the vm-type")
+
+    new_name = ctx.name("type-updated")
+    result = vm_type.update_vm_type(ctx.api, vm_type_uuid, name=new_name, amount_of_memory=1024)
+    check_equal(result["name"], new_name, "updated name of the vm-type")
+    check_equal(result["number_of_cores"], 4, "unchanged cores of the vm-type")
+    check_equal(result["amount_of_memory"], 1024, "updated memory of the vm-type")
+    check_equal(vm_type.get_vm_type(ctx.api, vm_type_uuid), result, "updated vm-type")
+
+    expect_error(ainari_exceptions.BadRequestException, vm_type.update_vm_type, ctx.api,
+                 vm_type_uuid, number_of_cores=0)
+
+    vm_type.delete_vm_type(ctx.api, vm_type_uuid)
+    ctx.cleanup.discard(vm_type_uuid)
+    expect_error(ainari_exceptions.NotFoundException, vm_type.get_vm_type, ctx.api,
+                 vm_type_uuid)
+
+
+@suite.test("invalid vm-type is rejected")
+def invalid_vm_type(ctx):
+    expect_error(ainari_exceptions.BadRequestException, vm_type.create_vm_type, ctx.api,
+                 ctx.name("no-cores"), 0, ctx.config.memory_size)
+    expect_error(ainari_exceptions.BadRequestException, vm_type.create_vm_type, ctx.api,
+                 ctx.name("no-memory"), ctx.config.number_of_cores, 0)
+
+
+@suite.test("unknown vm-type is not found")
+def unknown_vm_type(ctx):
+    expect_error(ainari_exceptions.NotFoundException, vm_type.get_vm_type, ctx.api,
                  str(uuid.uuid4()))
 
 

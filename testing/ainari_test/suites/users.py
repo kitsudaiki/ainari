@@ -24,6 +24,7 @@ from ainari_sdk import login
 from ainari_sdk import network
 from ainari_sdk import user
 from ainari_sdk import virtual_machine
+from ainari_sdk import vm_type
 
 from ainari_test.checks import check_equal, check_in, check_not_in, exists, expect_error
 from ainari_test.framework import Suite
@@ -56,6 +57,25 @@ def create_user(ctx):
 def no_admin(ctx):
     expect_error(ainari_exceptions.UnauthorizedException, user.list_users,
                  ctx.state["second_user"])
+
+
+@suite.test("second user can use, but not change the vm-type",
+            requires=("second_user", "vm_type"))
+def shared_vm_type(ctx):
+    # vm-types are global, so every user sees them, but only admins can change them
+    second = ctx.state["second_user"]
+    vm_type_uuid = ctx.state["vm_type"]
+    listed = [entry["uuid"] for entry in vm_type.list_vm_types(second)["vm_types"]]
+    check_in(vm_type_uuid, listed, "vm-type in list of the second user")
+    check_equal(vm_type.get_vm_type(second, vm_type_uuid)["uuid"], vm_type_uuid,
+                "vm-type of the second user")
+
+    expect_error(ainari_exceptions.UnauthorizedException, vm_type.create_vm_type, second,
+                 ctx.name("foreign-type"), 1, 512)
+    expect_error(ainari_exceptions.UnauthorizedException, vm_type.update_vm_type, second,
+                 vm_type_uuid, number_of_cores=1)
+    expect_error(ainari_exceptions.UnauthorizedException, vm_type.delete_vm_type, second,
+                 vm_type_uuid)
 
 
 @suite.test("second user can not see the virtual machines",

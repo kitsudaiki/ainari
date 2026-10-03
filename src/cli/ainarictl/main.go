@@ -51,6 +51,7 @@ func init() {
 	ainari_resources.Init_Secret_Commands(rootCmd)
 	ainari_resources.Init_PublicKey_Commands(rootCmd)
 	ainari_resources.Init_Quota_Commands(rootCmd)
+	ainari_resources.Init_VmType_Commands(rootCmd)
 }
 
 func main() {

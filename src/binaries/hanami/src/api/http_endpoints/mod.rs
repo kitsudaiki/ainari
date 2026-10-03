@@ -18,3 +18,4 @@ pub mod project;
 pub mod proxy;
 pub mod sakura_host;
 pub mod virtual_machine;
+pub mod vm_type;

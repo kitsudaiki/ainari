@@ -11,28 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#![forbid(unsafe_code)]
-
-pub mod auth_structs;
-pub mod common_structs;
-pub mod endpoints_structs;
-pub mod file_structs;
-pub mod floating_ip_structs;
-pub mod host_structs;
-pub mod image_structs;
-pub mod network_crypto_structs;
-pub mod network_filter_structs;
-pub mod network_interface_structs;
-pub mod network_structs;
-pub mod project_structs;
-pub mod proxy_structs;
-pub mod public_key_structs;
-pub mod quota_structs;
-pub mod route_structs;
-pub mod secret_structs;
-pub mod task_structs;
-pub mod user_context;
-pub mod user_structs;
-pub mod virtual_machine_structs;
-pub mod vm_type_structs;
+pub mod create_vm_type_admin_v1_0;
+pub mod delete_vm_type_admin_v1_0;
+pub mod get_vm_type_v1_0;
+pub mod list_vm_type_v1_0;
+pub mod update_vm_type_admin_v1_0;

@@ -80,9 +80,9 @@ CIDR-notation. The first address of the subnet is the gateway of the virtual mac
 
 ### 4. Create the virtual machine
 
-Go to **Workload > Virtual Machines** and click **+**. Enter a name, the number of cores, the
-memory in MiB and the disk-size in GiB, and select the network, the image and the public key of
-the previous steps:
+Go to **Workload > Virtual Machines** and click **+**. Enter a name and the disk-size in GiB,
+select the vm-type, which defines the number of cores and the memory of the virtual machine, and
+select the network, the image and the public key of the previous steps:
 
 ![Create virtual machine](img/virtual_machine_create.jpg)
 
@@ -191,6 +191,15 @@ These pages are only available for admins.
 - **Quota** lists the maximum number of resources of each project. **Change Quota** sets new limits.
 
     ![Quotas](img/admin_quota.jpg)
+
+- **VM Types** lists the vm-types with their number of cores and their memory in MiB. **+**
+    creates a new vm-type with name, number of cores and memory. **Info** shows the details of a
+    vm-type, **Edit** changes its values and **Delete** removes it. Every user can select the
+    vm-types, when creating a virtual machine.
+
+    ![VM types](img/admin_vm_type.jpg)
+
+    ![Create vm-type](img/admin_vm_type_create.jpg)
 
 - **Host** lists the hosts with their usage in the tab **SAKURA**, which run the virtual machines,
     and the hosts in the tab **ONSEN**, which store the images. **Delete** removes a host.

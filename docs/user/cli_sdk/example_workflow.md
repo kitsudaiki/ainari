@@ -72,13 +72,27 @@ IP. The same workflow is also used for automated testing within the project with
     ./ainarictl network create -s 192.168.100.1/24 my-network
     ```
 
-1. **Create a virtual machine**
+1. **Choose a vm-type**
 
-    With 2 cores, 2048 MiB memory and a disk of 10 GiB. The UUIDs are the ones of the previous
-    steps:
+    The vm-type defines the number of cores and the amount of memory of the virtual machine:
 
     ```bash
-    ./ainarictl vm create -c 2 -m 2048 -d 10 \
+    ./ainarictl vm_type list
+    ```
+
+    If there is no suitable one yet, an admin can create a vm-type with 2 cores and 2048 MiB memory:
+
+    ```bash
+    ./ainarictl vm_type create -c 2 -m 2048 small
+    ```
+
+1. **Create a virtual machine**
+
+    With the cores and memory of the vm-type and a disk of 10 GiB. The UUIDs are the ones of the
+    previous steps:
+
+    ```bash
+    ./ainarictl vm create -t <VM_TYPE_UUID> -d 10 \
         -u <NETWORK_UUID> \
         -i <IMAGE_UUID> \
         -k <PUBLIC_KEY_UUID> \

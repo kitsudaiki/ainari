@@ -189,9 +189,8 @@ export interface QuotaResp extends QuotaBasicResp {
 /** Mirror of `virtual_machine_structs::VirtualMachineCreateReq`. */
 export interface VirtualMachineCreateReq {
     name: string;
-    number_of_cores: number;
-    /** memory in MiB */
-    memory_size: number;
+    /** vm-type, which defines the number of cores and the memory */
+    vm_type_uuid: string;
     /** disk-size in GiB */
     disk_size: number;
     network_uuid: string;
@@ -232,6 +231,38 @@ export interface VirtualMachineResp {
     network_uuid: string;
     internal_ip: string;
     torii_port: number;
+    created_at: string;
+    created_by: string;
+    updated_at: string;
+    updated_by: string;
+}
+
+//=============================================================================
+// vm-type (hanami)
+//=============================================================================
+
+/** Mirror of `vm_type_structs::VmTypeCreateReq`. */
+export interface VmTypeCreateReq {
+    name: string;
+    number_of_cores: number;
+    /** memory in MiB */
+    amount_of_memory: number;
+}
+
+/**
+ * Mirror of `vm_type_structs::VmTypeUpdateReq`.
+ *
+ * Only the values, which are set, are updated.
+ */
+export type VmTypeUpdateReq = Partial<VmTypeCreateReq>;
+
+/** Mirror of `vm_type_structs::VmTypeBasicResp`. */
+export interface VmTypeBasicResp extends VmTypeCreateReq {
+    uuid: string;
+}
+
+/** Mirror of `vm_type_structs::VmTypeResp`. */
+export interface VmTypeResp extends VmTypeBasicResp {
     created_at: string;
     created_by: string;
     updated_at: string;

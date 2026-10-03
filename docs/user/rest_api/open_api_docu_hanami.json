@@ -82,7 +82,7 @@
           "virtual_machine"
         ],
         "summary": "Reserve new virtual_machine",
-        "description": "Reserve a new virtual_machine together with its address within the given network.\\\n\\\nThe virtual_machine is placed on a random sakura-host, which has enough free cores, memory and\\\ndisk-space for it. The image and the public-key are not set here, but by the following\\\ncreate-call.",
+        "description": "Reserve a new virtual_machine together with its address within the given network.\\\n\\\nThe number of cores and the memory of the virtual_machine are taken from the given vm-type. The\\\nvirtual_machine is placed on a random sakura-host, which has enough free cores, memory and\\\ndisk-space for it. The image and the public-key are not set here, but by the following\\\ncreate-call.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -184,6 +184,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "409": {
             "description": "Conflict with existing resources"
@@ -1191,6 +1194,282 @@
         ]
       }
     },
+    "/v1alpha/vm_type": {
+      "get": {
+        "tags": [
+          "vm_type"
+        ],
+        "summary": "List vm-types",
+        "description": "List basic information of all vm-types from the database.\\\n\\\nThe amount of memory is given in MiB.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VmTypeListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/vm_type/admin": {
+      "post": {
+        "tags": [
+          "vm_type"
+        ],
+        "summary": "Create new vm-type",
+        "description": "Create a new vm-type, which defines the number of cores and the amount of\\\nmemory in MiB of a virtual-machine. This can only be done by an admin.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VmTypeCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "VmTypeResp",
+                  "type": "object",
+                  "required": [
+                    "amount_of_memory",
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "number_of_cores",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "amount_of_memory": {
+                      "description": "memory of the vm-type in MiB",
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "number_of_cores": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/vm_type/{vm_type_uuid}": {
+      "get": {
+        "tags": [
+          "vm_type"
+        ],
+        "summary": "Get vm-type",
+        "description": "Get information of a vm-type from the database.\\\n\\\nThe amount of memory is given in MiB.",
+        "parameters": [
+          {
+            "name": "vm_type_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VmTypeResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/vm_type/{vm_type_uuid}/admin": {
+      "put": {
+        "tags": [
+          "vm_type"
+        ],
+        "summary": "Update vm-type",
+        "description": "Update the values of a vm-type.\\\n\\\nOnly the values, which are set in the request, are applied, so single values can be changed\\\nwithout providing all of them. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "vm_type_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VmTypeUpdateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VmTypeResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "vm_type"
+        ],
+        "summary": "Delete vm-type",
+        "description": "Delete a vm-type from the database. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "vm_type_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/project/{project_id}/resource_count/internal": {
       "get": {
         "tags": [
@@ -1853,20 +2132,13 @@
         "type": "object",
         "required": [
           "disk_size",
-          "memory_size",
           "name",
           "network_uuid",
-          "number_of_cores"
+          "vm_type_uuid"
         ],
         "properties": {
           "disk_size": {
             "description": "size of the disk of the virtual_machine in GiB",
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1.0
-          },
-          "memory_size": {
-            "description": "memory of the virtual_machine in MiB",
             "type": "integer",
             "format": "int64",
             "minimum": 1.0
@@ -1880,10 +2152,10 @@
             "type": "string",
             "format": "uuid"
           },
-          "number_of_cores": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1.0
+          "vm_type_uuid": {
+            "description": "vm-type, which defines the number of cores and the memory of the virtual_machine",
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -1977,6 +2249,147 @@
           "vm_state": {
             "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
             "type": "string"
+          }
+        }
+      },
+      "VmTypeBasicResp": {
+        "type": "object",
+        "required": [
+          "amount_of_memory",
+          "name",
+          "number_of_cores",
+          "uuid"
+        ],
+        "properties": {
+          "amount_of_memory": {
+            "description": "memory of the vm-type in MiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VmTypeCreateReq": {
+        "title": "VmTypeCreateReq",
+        "type": "object",
+        "required": [
+          "amount_of_memory",
+          "name",
+          "number_of_cores"
+        ],
+        "properties": {
+          "amount_of_memory": {
+            "description": "memory of the vm-type in MiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1.0
+          }
+        }
+      },
+      "VmTypeListResp": {
+        "title": "VmTypeListResp",
+        "type": "object",
+        "required": [
+          "vm_types"
+        ],
+        "properties": {
+          "vm_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VmTypeBasicResp"
+            }
+          }
+        }
+      },
+      "VmTypeResp": {
+        "title": "VmTypeResp",
+        "type": "object",
+        "required": [
+          "amount_of_memory",
+          "created_at",
+          "created_by",
+          "name",
+          "number_of_cores",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "amount_of_memory": {
+            "description": "memory of the vm-type in MiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VmTypeUpdateReq": {
+        "title": "VmTypeUpdateReq",
+        "description": "Only the values, which are set, are updated.",
+        "type": "object",
+        "properties": {
+          "amount_of_memory": {
+            "description": "memory of the vm-type in MiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0,
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4,
+            "nullable": true
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1.0,
+            "nullable": true
           }
         }
       }

@@ -18,21 +18,20 @@ from .access_context import AccessContext
 
 def reserve_virtual_machine(context: AccessContext,
                             name: str,
-                            number_of_cores: int,
-                            memory_size: int,
+                            vm_type_uuid: str,
                             disk_size: int,
                             network_uuid: str) -> dict:
     """
     Reserves a new virtual machine on one of the sakura-hosts. The image and the public-key are
     not deployed here, but by the task of create_virtual_machine.
 
-    The memory_size is given in MiB and the disk_size in GiB.
+    The number of cores and the memory are taken from the given vm-type. The disk_size is given
+    in GiB.
     """
     path = "/v1alpha/virtual_machine"
     json_body = {
         "name": name,
-        "number_of_cores": number_of_cores,
-        "memory_size": memory_size,
+        "vm_type_uuid": vm_type_uuid,
         "disk_size": disk_size,
         "network_uuid": network_uuid,
     }
