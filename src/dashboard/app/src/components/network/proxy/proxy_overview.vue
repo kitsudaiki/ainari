@@ -59,7 +59,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No proxy entries found</p>
+            <NoEntries v-else text="No proxy entries found" />
         </div>
 
         <ProxyInfoModal
@@ -83,6 +83,7 @@ import { hanami } from "@/api";
 import type { ProxyBasicResp, VirtualMachineBasicResp } from "@/api";
 import ProxyInfoModal from "./proxy_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const proxies = ref<ProxyBasicResp[]>([]);

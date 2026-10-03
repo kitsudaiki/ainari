@@ -56,7 +56,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No networks found</p>
+            <NoEntries v-else text="No networks found" />
         </div>
 
         <NetworkCreateModal
@@ -88,6 +88,7 @@ import type { NetworkBasicResp } from "@/api";
 import NetworkCreateModal from "./network_create_modal.vue";
 import NetworkDeleteModal from "./network_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const networks = ref<NetworkBasicResp[]>([]);

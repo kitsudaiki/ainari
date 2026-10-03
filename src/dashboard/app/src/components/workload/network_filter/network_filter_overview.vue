@@ -60,7 +60,10 @@
                 </tbody>
             </table>
 
-            <p v-else>No filter rules found, all traffic is allowed</p>
+            <NoEntries
+                v-else
+                text="No filter rules found, all traffic is allowed"
+            />
         </div>
 
         <NetworkFilterAddModal
@@ -95,6 +98,7 @@ import NetworkFilterAddModal from "./network_filter_add_modal.vue";
 import NetworkFilterRemoveModal from "./network_filter_remove_modal.vue";
 import type { FilterRule, FilterRuleType } from "./network_filter_rule";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const props = defineProps<{
     id: string | null;

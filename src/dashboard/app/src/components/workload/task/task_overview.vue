@@ -85,7 +85,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No tasks found</p>
+            <NoEntries v-else text="No tasks found" />
         </div>
 
         <TaskInfoModal
@@ -122,6 +122,7 @@ import TaskInfoModal from "./task_info_modal.vue";
 import TaskAbortModal from "./task_abort_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import common from "@/common";
+import NoEntries from "@/components/no_entries.vue";
 
 const props = defineProps<{
     id: string | null;

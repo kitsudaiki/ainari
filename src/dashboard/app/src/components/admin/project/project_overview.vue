@@ -62,7 +62,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No projects found</p>
+            <NoEntries v-else text="No projects found" />
         </div>
 
         <ProjectCreateModal
@@ -94,6 +94,7 @@ import type { ProjectBasicResp } from "@/api";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const projects = ref<ProjectBasicResp[]>([]);

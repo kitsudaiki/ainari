@@ -67,7 +67,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No members found</p>
+            <NoEntries v-else text="No members found" />
         </div>
 
         <ProjectMemberAddModal
@@ -120,6 +120,7 @@ import ProjectMemberRoleModal from "./project_member_role_modal.vue";
 import ProjectMemberUnassignModal from "./project_member_unassign_modal.vue";
 import UserInfoModal from "../user/user_info_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const props = defineProps<{
     id: string | null;

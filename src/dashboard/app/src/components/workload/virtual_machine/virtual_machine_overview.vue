@@ -174,7 +174,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No virtual machines found</p>
+            <NoEntries v-else text="No virtual machines found" />
         </div>
 
         <VirtualMachineCreateModal
@@ -240,6 +240,7 @@ import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
 import SnapshotSaveModal from "./snapshot_save_modal.vue";
 import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);

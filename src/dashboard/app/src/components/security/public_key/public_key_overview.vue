@@ -56,7 +56,7 @@
                 </tbody>
             </table>
 
-            <p v-else>No public keys found</p>
+            <NoEntries v-else text="No public keys found" />
         </div>
 
         <PublicKeyUploadModal
@@ -88,6 +88,7 @@ import type { PublicKeyBasicResp } from "@/api";
 import PublicKeyUploadModal from "./public_key_upload_modal.vue";
 import PublicKeyDeleteModal from "./public_key_delete_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
+import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const publicKeys = ref<PublicKeyBasicResp[]>([]);
