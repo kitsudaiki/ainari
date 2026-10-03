@@ -25,7 +25,7 @@ It runs the suites of ./suites against a running stack:
     floating_ips      create, attach, detach, get and list floating ip-addresses
     ssh               ssh-access and the hardware within the virtual machines
     networking        traffic between the virtual machines and moving floating ip-addresses
-    users             second user and the isolation between the users
+    users             second user, the isolation between the users and the passphrase-changes
     projects          default-projects, project-roles and project-assignments
     power             reboot, stop and start
     snapshots         save and restore a snapshot of the root-disk

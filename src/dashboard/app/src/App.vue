@@ -34,12 +34,19 @@
                 :username="username"
                 @logout="handleLogout"
                 @switch-project="showProjectSwitch = true"
+                @change-passphrase="showPassphraseChange = true"
             />
             <ProjectSwitchModal
                 v-if="showProjectSwitch"
                 :icons="{ acceptIcon, cancelIcon }"
                 @accept="handleProjectSwitch"
                 @cancel="showProjectSwitch = false"
+            />
+            <PassphraseChangeModal
+                v-if="showPassphraseChange"
+                :icons="{ acceptIcon, cancelIcon }"
+                @accept="showPassphraseChange = false"
+                @cancel="showPassphraseChange = false"
             />
             <div class="main">
                 <Sidebar
@@ -89,6 +96,7 @@ import Sidebar from "@/components/sidebar.vue";
 import Topbar from "@/components/topbar.vue";
 import Login from "@/components/login.vue";
 import ProjectSwitchModal from "@/components/project_switch_modal.vue";
+import PassphraseChangeModal from "@/components/passphrase_change_modal.vue";
 import Overview from "@/components/overview.vue";
 import AdminUser from "@/components/admin/user/user_overview.vue";
 import AdminProject from "@/components/admin/project/project_overview.vue";
@@ -130,6 +138,7 @@ const username = ref<string | null>(localStorage.getItem("username"));
 const isAdmin = ref<boolean>(getAuthContext().is_admin === "true");
 const tokenExpireError = ref<string>("");
 const showProjectSwitch = ref<boolean>(false);
+const showPassphraseChange = ref<boolean>(false);
 // changed with each project-switch to remount the current view
 const viewKey = ref<number>(0);
 var expiryInterval: number | undefined;

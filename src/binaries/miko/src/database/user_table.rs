@@ -180,16 +180,7 @@ pub fn add_new_user(
         ));
     };
 
-    // salt passphrase
-    let salt: String = rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(64)
-        .map(char::from)
-        .collect();
-    let salted_passphrase = Secret::from(format!("{}{salt}", passphrase.reveal()));
-
-    // create sha256-hash from the salted passphrase to store the hash in the database
-    let pw_hash = sha256_hash(salted_passphrase.reveal());
+    let (pw_hash, salt) = hash_new_passphrase(passphrase);
 
     // each user gets its own default-project, in which the user is admin
     let default_project_id = project_table::default_project_id(user_id);
@@ -227,6 +218,89 @@ pub fn add_new_user(
         let _ = delete_user(user_id, context);
         let _ = project_table::delete_project(&default_project_id, context);
     })
+}
+
+/// Creates a new random salt and hashes the passphrase together with it.
+///
+/// # Arguments
+///
+/// * `passphrase` - The plain passphrase
+///
+/// # Returns
+///
+/// The sha256-hash of the salted passphrase together with the salt, which both have to be stored
+/// in the database.
+fn hash_new_passphrase(passphrase: &Secret) -> (String, String) {
+    let salt: String = rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(64)
+        .map(char::from)
+        .collect();
+    let salted_passphrase = Secret::from(format!("{}{salt}", passphrase.reveal()));
+
+    (sha256_hash(salted_passphrase.reveal()), salt)
+}
+
+/// Checks, if a passphrase matches the stored passphrase-hash of a user.
+///
+/// # Arguments
+///
+/// * `user` - The user from the database
+/// * `passphrase` - The plain passphrase to check
+///
+/// # Returns
+///
+/// True, if the passphrase is correct.
+pub fn verify_passphrase(user: &UserEntry, passphrase: &Secret) -> bool {
+    let salted_passphrase = Secret::from(format!("{}{}", passphrase.reveal(), user.salt));
+    sha256_hash(salted_passphrase.reveal()) == user.pw_hash
+}
+
+/// Sets a new passphrase for a user.
+///
+/// A new salt is created together with the new hash. A user can only change its own
+/// passphrase, while an admin can change the passphrase of every user. Because the passphrase
+/// belongs to the user and not to a project, the project-role of the context is not relevant.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user, whose passphrase should be changed
+/// * `passphrase` - The new plain passphrase
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// Returns Ok(()) if the passphrase was successfully changed, or an appropriate
+/// DbError if the user wasn't found or if there was an internal error.
+pub fn update_passphrase(
+    user_id: &String,
+    passphrase: &Secret,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    if context.is_admin != true.to_string() && context.user_id != *user_id {
+        return Err(enums::DbError::NotFound);
+    }
+
+    let (new_pw_hash, new_salt) = hash_new_passphrase(passphrase);
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::users::dsl::*;
+    match diesel::update(users.filter(id.eq(user_id).and(status.eq("ACTIVE"))))
+        .set((
+            pw_hash.eq(new_pw_hash),
+            salt.eq(new_salt),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(&context.user_id),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
 }
 
 /// Inserts a user into the database.
@@ -569,5 +643,80 @@ mod tests {
         let _ = project_table::delete_project(&default_project_id, &context);
         let _ = user_project_mapping_table::delete_mappings_of_user(&user_id);
         quota_table::hard_delete_quota(&default_project_id, &context);
+    }
+
+    #[test]
+    #[serial]
+    fn test_update_passphrase() {
+        let user_id = "test-user-6".to_string();
+        let admin_context = UserContext {
+            token: "".to_string(),
+            user_id: "admin".to_string(),
+            project_id: "test-project-1".to_string(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let own_context = UserContext {
+            user_id: user_id.clone(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Observer.to_string(),
+            ..admin_context.clone()
+        };
+        let other_context = UserContext {
+            user_id: "test-user-7".to_string(),
+            ..own_context.clone()
+        };
+
+        let old_passphrase = Secret::from("old-passphrase");
+        let new_passphrase = Secret::from("new-passphrase");
+        let admin_passphrase = Secret::from("admin-passphrase");
+
+        hard_delete_user(&user_id);
+        let (old_pw_hash, old_salt) = hash_new_passphrase(&old_passphrase);
+        let user = UserEntry {
+            id: user_id.clone(),
+            name: "Dave".to_string(),
+            is_admin: false.to_string(),
+            pw_hash: old_pw_hash,
+            salt: old_salt,
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "admin".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+        add_user(user).unwrap();
+        let user = get_auth_user(&user_id).ok().expect("user not found");
+        assert!(verify_passphrase(&user, &old_passphrase));
+        assert!(!verify_passphrase(&user, &new_passphrase));
+
+        // another non-admin user can not change the passphrase
+        assert!(matches!(
+            update_passphrase(&user_id, &new_passphrase, &other_context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        // the user itself can change its own passphrase, even as observer
+        assert!(update_passphrase(&user_id, &new_passphrase, &own_context).is_ok());
+        let user = get_auth_user(&user_id).ok().expect("user not found");
+        assert!(!verify_passphrase(&user, &old_passphrase));
+        assert!(verify_passphrase(&user, &new_passphrase));
+        assert_eq!(user.updated_by, user_id);
+
+        // an admin can change the passphrase of any user
+        assert!(update_passphrase(&user_id, &admin_passphrase, &admin_context).is_ok());
+        let user = get_auth_user(&user_id).ok().expect("user not found");
+        assert!(verify_passphrase(&user, &admin_passphrase));
+        assert_eq!(user.updated_by, "admin");
+
+        // unknown users are not found
+        assert!(matches!(
+            update_passphrase(&"unknown-user".to_string(), &new_passphrase, &admin_context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        hard_delete_user(&user_id);
     }
 }

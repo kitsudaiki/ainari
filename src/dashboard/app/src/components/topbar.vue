@@ -24,6 +24,7 @@
             </div>
             <div class="topbar-dropdown" v-if="open">
                 <button @click="switchProject">Switch Project</button>
+                <button @click="changePassphrase">Change Passphrase</button>
                 <button @click="logout">Logout</button>
             </div>
         </div>
@@ -38,6 +39,7 @@ const logo = new URL("../assets/ainari_logo_mini_transparent.png", import.meta.u
 const emit = defineEmits<{
     (e: "logout"): void;
     (e: "switch-project"): void;
+    (e: "change-passphrase"): void;
 }>();
 const open = ref(false);
 const props = defineProps<{ username: string | null }>();
@@ -53,6 +55,12 @@ function toggleDropdown() {
 // open the modal to switch into another project of the user
 function switchProject() {
     emit("switch-project");
+    open.value = false;
+}
+
+// open the modal to change the passphrase of the own user
+function changePassphrase() {
+    emit("change-passphrase");
     open.value = false;
 }
 
@@ -107,7 +115,10 @@ function stringToHslColor(str: string): string {
     -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--color-border);
     box-shadow: var(--box-shadow-header);
-    z-index: 1;
+    /* The topbar is its own stacking-context, so the z-index of the avatar-dropdown only counts
+    within it. It has to be above all elements of the page (add-buttons, table-dropdowns, ...),
+    but below the modals (1000) and the error-popups (9999). */
+    z-index: 100;
 
     height: 4.2rem;
     width: 100%;

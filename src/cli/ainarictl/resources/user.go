@@ -34,10 +34,35 @@ import (
 )
 
 var (
-	userName   string
-	passphrase string
-	isAdmin    bool
+	userName      string
+	passphrase    string
+	oldPassphrase string
+	isAdmin       bool
 )
+
+// readPassphrase reads a passphrase from the terminal without showing the input.
+func readPassphrase(prompt string) string {
+	fmt.Print(prompt)
+	bytePassphrase, err := term.ReadPassword(syscall.Stdin)
+	fmt.Print("\n")
+	if err != nil {
+		fmt.Println("Failed to read passphrase input")
+		os.Exit(1)
+	}
+	return strings.TrimSpace(string(bytePassphrase))
+}
+
+// readNewPassphrase reads a new passphrase two times from the terminal and exits, if both inputs
+// are not equal.
+func readNewPassphrase() string {
+	passphrase1 := readPassphrase("Enter new Passphrase: ")
+	passphrase2 := readPassphrase("Enter new Passphrase again: ")
+	if passphrase1 != passphrase2 {
+		fmt.Println("Mismatch between the two entered passphrases")
+		os.Exit(1)
+	}
+	return passphrase1
+}
 
 var createUserCmd = &cobra.Command{
 	Use:   "create USER_ID",
@@ -50,30 +75,7 @@ var createUserCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if len(passphrase) == 0 {
-			fmt.Print("Enter Passphrase: ")
-			bytePassphrase1, err := term.ReadPassword(syscall.Stdin)
-			if err != nil {
-				fmt.Println("Failed to read passphrase input")
-				os.Exit(1)
-			}
-			passphrase1 := strings.TrimSpace(string(bytePassphrase1))
-
-			fmt.Print("\n")
-			fmt.Print("Enter Passphrase again: ")
-			bytePassphrase2, err := term.ReadPassword(syscall.Stdin)
-			if err != nil {
-				fmt.Println("Failed to read passphrase input")
-				os.Exit(1)
-			}
-			passphrase2 := strings.TrimSpace(string(bytePassphrase2))
-
-			fmt.Print("\n")
-			if passphrase1 != passphrase2 {
-				fmt.Println("Mismatch between the two entered passphrases")
-				os.Exit(1)
-			}
-
-			passphrase = passphrase1
+			passphrase = readNewPassphrase()
 		}
 		userId := args[0]
 
@@ -182,6 +184,54 @@ var listInvitedProjectsCmd = &cobra.Command{
 	},
 }
 
+var changePassphraseCmd = &cobra.Command{
+	Use:   "change_passphrase",
+	Short: "Change the passphrase of the own user for all future logins.",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		if len(oldPassphrase) == 0 {
+			oldPassphrase = readPassphrase("Enter old Passphrase: ")
+		}
+		if len(passphrase) == 0 {
+			passphrase = readNewPassphrase()
+		}
+		_, err = ainari_sdk.ChangePassphrase(context, oldPassphrase, passphrase)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("successfully changed passphrase")
+	},
+}
+
+var changePassphraseAdminCmd = &cobra.Command{
+	Use:   "change_passphrase_admin USER_ID",
+	Short: "Set a new passphrase for a specific user without the old passphrase.",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		if len(passphrase) == 0 {
+			passphrase = readNewPassphrase()
+		}
+		userId := args[0]
+		_, err = ainari_sdk.ChangePassphraseAdmin(context, userId, passphrase)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Printf("successfully changed passphrase of user '%v'\n", userId)
+	},
+}
+
 var userCmd = &cobra.Command{
 	Use:   "user",
 	Short: "Manage user.",
@@ -190,11 +240,13 @@ var userCmd = &cobra.Command{
 func Init_User_Commands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(userCmd)
 
-	passphraseFlagText := "Passphrase for the new user. " +
-		"If not given by this flag, the passphrase will be automatically requested after entering the command. " +
+	unsafeFlagText := "If not given by this flag, the passphrase will be automatically requested after entering the command. " +
 		"This flag is quite unsave, because this way the passphrase is visible in the command-line and " +
 		"printed into the history. So this flag should be only used for automated testing, " +
 		"but NEVER in a productive environment."
+	passphraseFlagText := "Passphrase for the new user. " + unsafeFlagText
+	newPassphraseFlagText := "New passphrase of the user. " + unsafeFlagText
+	oldPassphraseFlagText := "Old passphrase of the own user. " + unsafeFlagText
 	userCmd.AddCommand(createUserCmd)
 	createUserCmd.Flags().StringVarP(&userName, "name", "n", "", "User name (mandatory)")
 	createUserCmd.Flags().StringVarP(&passphrase, "passphrase", "p", "", passphraseFlagText)
@@ -210,4 +262,11 @@ func Init_User_Commands(rootCmd *cobra.Command) {
 	userCmd.AddCommand(setProjectRoleCmd)
 
 	userCmd.AddCommand(listInvitedProjectsCmd)
+
+	userCmd.AddCommand(changePassphraseCmd)
+	changePassphraseCmd.Flags().StringVar(&oldPassphrase, "old_passphrase", "", oldPassphraseFlagText)
+	changePassphraseCmd.Flags().StringVarP(&passphrase, "passphrase", "p", "", newPassphraseFlagText)
+
+	userCmd.AddCommand(changePassphraseAdminCmd)
+	changePassphraseAdminCmd.Flags().StringVarP(&passphrase, "passphrase", "p", "", newPassphraseFlagText)
 }

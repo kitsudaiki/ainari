@@ -102,3 +102,39 @@ def list_user_projects(context: AccessContext) -> dict:
                                            context.miko_address,
                                            path,
                                            "")
+
+
+def change_passphrase(context: AccessContext,
+                      old_passphrase: str,
+                      new_passphrase: str):
+    """
+    Changes the passphrase of the user of the access-context for all future logins. Already
+    existing tokens stay valid.
+    """
+    path = "/v1alpha/passphrase"
+    json_body = {
+        "old_passphrase": old_passphrase,
+        "new_passphrase": new_passphrase,
+    }
+    ainari_request.send_put_request(context,
+                                    context.miko_address,
+                                    path,
+                                    json_body)
+
+
+def change_passphrase_admin(context: AccessContext,
+                            user_id: str,
+                            new_passphrase: str):
+    """
+    Sets a new passphrase for any user, without the need of the old passphrase. Already existing
+    tokens of the user stay valid. This can only be done by an admin.
+    """
+    path = "/v1alpha/passphrase/admin"
+    json_body = {
+        "user_id": user_id,
+        "new_passphrase": new_passphrase,
+    }
+    ainari_request.send_put_request(context,
+                                    context.miko_address,
+                                    path,
+                                    json_body)
