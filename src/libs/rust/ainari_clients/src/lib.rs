@@ -21,6 +21,7 @@ pub mod network_crypto;
 pub mod network_filter;
 pub mod network_interface;
 pub mod onsen_file_transfer;
+pub mod project;
 pub mod proxy;
 pub mod public_key;
 pub mod quota;

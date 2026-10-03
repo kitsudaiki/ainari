@@ -47,7 +47,12 @@
                                     >
                                         Show members
                                     </button>
-                                    <button @click="openDeleteModal(project)">
+                                    <!-- the default-project of a user is only deleted
+                                         together with the user -->
+                                    <button
+                                        v-if="!project.id.startsWith('default-')"
+                                        @click="openDeleteModal(project)"
+                                    >
                                         Delete
                                     </button>
                                 </div>

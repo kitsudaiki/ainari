@@ -482,12 +482,11 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // Get the current number of meta_virtual_machines of the whole project from the database
     // This count is used to compare against the project's quota limit
     let current_number_of_meta_virtual_machines =
-        meta_virtual_machine_table::count_meta_virtual_machines_of_project(context).map_err(
-            |e| {
+        meta_virtual_machine_table::count_meta_virtual_machines_of_project(&context.project_id)
+            .map_err(|e| {
                 log::error!("Failed to count meta_virtual_machines in database.: {e}");
                 ErrorResponse::InternalError("Internal Error".to_string())
-            },
-        )?;
+            })?;
 
     // Retrieve the project's quota information from the Miko endpoint
     // The miko_endpoint is configured in the application settings

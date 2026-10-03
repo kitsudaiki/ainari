@@ -18,6 +18,7 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
+use crate::api::http_endpoints::project::*;
 
 /// Builds the `/v1alpha`-scope with all endpoints of the ryokan.
 ///
@@ -66,4 +67,11 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
                 ),
         )
+        .service(scope("/project").service(
+            resource("/{project_id}/resource_count/internal").route(
+                get().to(
+                    get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+                ),
+            ),
+        ))
 }

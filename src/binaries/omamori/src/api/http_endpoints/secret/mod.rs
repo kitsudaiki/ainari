@@ -44,7 +44,7 @@ use ainari_clients::quota::get_quota;
 /// * `Err(ErrorResponse)` - The secrets could not be counted or the quota not be read.
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of secrets of the whole project
-    let current_number_of_secrets = secret_table::count_secrets_of_project(context)
+    let current_number_of_secrets = secret_table::count_secrets_of_project(&context.project_id)
         .inspect_err(|e| {
             log::error!("Failed to count secrets in database.: {e}");
         })

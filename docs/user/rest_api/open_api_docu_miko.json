@@ -505,7 +505,7 @@
           "project"
         ],
         "summary": "Remove user from project",
-        "description": "Remove a user from a project. This can only be done by an admin.",
+        "description": "Remove a user from a project. A user can not be removed from its own default-project. This can only be done by an admin.",
         "parameters": [
           {
             "name": "project_id",
@@ -539,6 +539,9 @@
           },
           "404": {
             "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -606,7 +609,7 @@
           "project"
         ],
         "summary": "Delete project",
-        "description": "Delete a project from the database. This can only be done by an admin.",
+        "description": "Delete a project together with its quota and the assignments of its users. Only projects without any resources and without users with the role admin or member can be deleted, so nobody can create a new resource during the delete. Observers don't block the delete. The default-project of a user can not be deleted here, it is only deleted together with its user. This can only be done by an admin.",
         "parameters": [
           {
             "name": "project_id",
@@ -630,6 +633,9 @@
           },
           "404": {
             "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -815,7 +821,7 @@
           "user"
         ],
         "summary": "Delete user",
-        "description": "Delete a user from the database. This can only be done by an admin.",
+        "description": "Delete a user together with its default-project. The user can only be deleted, if its default-project contains no resources anymore. To prevent the creation of new resources during the delete, all users of the default-project are made observers before. The user is removed from all other projects, but these projects are never deleted. This can only be done by an admin.",
         "parameters": [
           {
             "name": "user_id",
@@ -861,7 +867,7 @@
           "user"
         ],
         "summary": "Set project-role of user",
-        "description": "Set the role of a user within a project. The user must already be assigned to the project. This can only be done by an admin.",
+        "description": "Set the role of a user within a project. The user must already be assigned to the project. In its own default-project, a user can not be made an observer. This can only be done by an admin.",
         "parameters": [
           {
             "name": "user_id",
@@ -902,6 +908,9 @@
           },
           "404": {
             "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"

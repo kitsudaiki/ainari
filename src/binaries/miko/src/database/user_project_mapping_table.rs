@@ -314,7 +314,6 @@ pub fn list_mappings_of_user(
 ///
 /// Returns Ok(()) if the mappings were deleted, also if there were none, or
 /// DbError::InternalError if there was an internal error.
-#[allow(dead_code)]
 pub fn delete_mappings_of_user(mapping_user_id: &String) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::user_project_mapping::dsl::*;
@@ -342,7 +341,6 @@ pub fn delete_mappings_of_user(mapping_user_id: &String) -> Result<(), enums::Db
 ///
 /// Returns Ok(()) if the mappings were deleted, also if there were none, or
 /// DbError::InternalError if there was an internal error.
-#[allow(dead_code)]
 pub fn delete_mappings_of_project(mapping_project_id: &String) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::user_project_mapping::dsl::*;

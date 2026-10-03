@@ -90,13 +90,23 @@ def isolated_floating_ips(ctx):
                      second, entry["floating_ip_uuid"])
 
 
+@suite.test("user can not delete himself")
+def delete_own_user(ctx):
+    own_user_id = ctx.config.user_id
+    expect_error(ainari_exceptions.ConflictException, user.delete_user, ctx.api, own_user_id)
+    check_equal(user.get_user(ctx.api, own_user_id)["id"], own_user_id,
+                "own user still exists after the rejected delete")
+
+
 @suite.test("delete second user", requires=("second_user",))
 def delete_user(ctx):
     user_id = f"lst-{ctx.test_id}"
     user.delete_user(ctx.api, user_id)
     ctx.cleanup.discard(user_id)
     expect_error(ainari_exceptions.NotFoundException, user.get_user, ctx.api, user_id)
-    # an already issued token stays valid until it expires, but a new login has to fail
+    # an already issued token is invalidated immediately and a new login has to fail as well
+    expect_error(ainari_exceptions.UnauthorizedException, network.list_networks,
+                 ctx.state["second_user"])
     rejected = (ainari_exceptions.UnauthorizedException, ainari_exceptions.NotFoundException)
     expect_error(rejected, login.request_context, ctx.config.miko_address, user_id,
                  ctx.state["second_passphrase"], verify_connection=False)

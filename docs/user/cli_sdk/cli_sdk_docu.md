@@ -87,6 +87,19 @@ created, if the user is assigned to the requested project, and contains the role
 within this project. The role is one of `admin`, `member` or `observer`. Observers, which are not
 admins, can only read resources. Creating, changing or deleting them is rejected with `403`.
 
+!!! info "Invalidation of tokens"
+
+    Besides its expiration, a token is checked against the current state of miko with every
+    request. A token is invalidated immediately and rejected with `401`, as soon as
+
+    - its user was deleted or the admin-flag of the user was changed,
+    - the user was removed from the project of the token or the project was deleted,
+    - the role of the user within the project was changed.
+
+    After a change of the role, the token can still be renewed with `token renew` or
+    `login.renew_token` to get a new token with the new role. In all other cases a new login is
+    required.
+
 ## Exceptions
 
 === "Python-SDK"
@@ -853,6 +866,26 @@ Projects are used for logical separation of the resources of users.
     Only admins are allowed to manage projects and their users. Listing the users of the project
     of the current login is allowed for every user of this project.
 
+!!! info "Deleting a project"
+
+    Only projects without any resources can be deleted. Before a project is deleted, it is checked,
+    if there are still virtual machines, networks, floating IPs, images, secrets or public-keys
+    within the project. If there is at least one of them, the delete is rejected with a conflict
+    and the remaining resources are listed in the error-message. They have to be deleted first.
+
+    Additionally, no user with the role `admin` or `member` may be assigned to the project anymore,
+    because these users could create a new resource at the same time as the delete. They have to
+    be removed from the project with `remove_user_from_project` or made observers with
+    `set_project_role` first, otherwise the delete is rejected with a conflict, which names them.
+    Observers can't create resources, so they don't block the delete.
+
+    Together with the project, its quota and the assignments of all of its users are deleted.
+
+    The default-project `default-<USER_ID>` of a user can never be deleted directly, it is only
+    deleted together with its user. So every user always has its default-project. Within its own
+    default-project, a user can also not be removed with `remove_user_from_project` or made an
+    observer with `set_project_role`.
+
 === "CLI"
 
     ```bash
@@ -916,6 +949,25 @@ Projects are used for logical separation of the resources of users.
 !!! info
 
     Only admins are allowed to manage users.
+
+!!! info "Deleting a user"
+
+    A user can not delete himself, this is rejected with a conflict.
+
+    A user can only be deleted, if its default-project `default-<USER_ID>` contains no resources
+    (virtual machines, networks, floating IPs, images, secrets or public-keys) anymore. Otherwise
+    the delete is rejected with a conflict and the remaining resources are named in the
+    error-message. The resources of other projects are not checked.
+
+    To prevent, that a new resource is created in the default-project during the delete, all users
+    with the role `admin` or `member` in the default-project are made observers first, which
+    invalidates their tokens. After a short wait for requests, which were still running, the
+    default-project is checked again. If it contains resources now, the old roles are restored and
+    the delete is rejected as well.
+
+    Then the user is deleted together with its default-project, including its quota and the
+    assignments of all of its users. The user is removed from all other projects, but these
+    projects are never deleted, also if the user was the only user there.
 
 === "CLI"
 

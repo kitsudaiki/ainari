@@ -52,7 +52,12 @@
                                     <button @click="openRoleModal(member)">
                                         Change role
                                     </button>
-                                    <button @click="openUnassignModal(member)">
+                                    <!-- a user can not be removed from its own
+                                         default-project -->
+                                    <button
+                                        v-if="!isOwnDefaultProject(member)"
+                                        @click="openUnassignModal(member)"
+                                    >
                                         Delete from project
                                     </button>
                                 </div>
@@ -144,6 +149,11 @@ async function fetchMembers() {
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load members");
     }
+}
+
+/** Checks, if the project of this view is the default-project of the member. */
+function isOwnDefaultProject(member: ProjectMemberResp): boolean {
+    return props.id === `default-${member.user_id}`;
 }
 
 //=============================================================================

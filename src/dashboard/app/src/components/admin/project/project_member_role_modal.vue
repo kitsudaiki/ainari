@@ -79,7 +79,11 @@ const emit = defineEmits<{
 }>();
 const errorPopupMsg = ref<string>("");
 
-const roles: ProjectRole[] = ["admin", "member", "observer"];
+// in its own default-project, a user can not be made an observer
+const roles: ProjectRole[] =
+    props.project_id === `default-${props.member?.user_id}`
+        ? ["admin", "member"]
+        : ["admin", "member", "observer"];
 
 // the current role of the user is preselected
 const projectRole = ref<ProjectRole>(props.member?.project_role ?? "member");

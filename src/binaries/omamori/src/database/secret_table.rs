@@ -213,25 +213,25 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Counts the number of secrets of the whole project of the context.
+/// Counts the number of secrets of a whole project.
 ///
 /// Unlike `count_secrets`, the secrets of all users of the project are counted, because the quota,
 /// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
 ///
-/// * `context` - The user context, whose project is counted
+/// * `project` - The ID of the project, which is counted
 ///
 /// # Returns
 ///
 /// A QueryResult containing the count of secrets as an i64
-pub fn count_secrets_of_project(context: &UserContext) -> QueryResult<i64> {
+pub fn count_secrets_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
 
     secrets
         .filter(status.eq("ACTIVE"))
-        .filter(project_id.eq(context.project_id.clone()))
+        .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }

@@ -21,6 +21,9 @@ use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config;
+use crate::database::project_table;
+use crate::database::user_project_mapping_table;
+use crate::database::user_table;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::secret::Secret;
@@ -74,6 +77,62 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
             _ => Err("Invalid token".to_string()),
         },
     }
+}
+
+/// Checks, that the content of a valid token still matches the current state of the database.
+///
+/// A token is signed and valid until it expires, so without this check, a token would keep the
+/// user, the project and the role, it was created for, also when they were changed or deleted
+/// in the meantime. With this check, a token is invalidated as soon as
+///
+/// - the user was deleted or its admin-flag was changed,
+/// - the user was removed from the project of the token or the project was deleted,
+/// - the role of the user within the project was changed.
+///
+/// Every component lets miko validate the tokens of its requests, so the invalidation applies to
+/// all of them immediately.
+///
+/// # Arguments
+///
+/// * `context` - The content of the token, which was already validated by `validate_token`
+/// * `check_project` - If false, only the user is checked, but not the project and the role.
+///   This is used for the renewal of a token, which reads the project and the role again from
+///   the database, so a user, whose role was changed, can get a new token without a new login.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the token still matches the database
+/// * `Err(String)` - The reason, why the token is not valid anymore
+pub fn check_token_against_database(
+    context: &UserContext,
+    check_project: bool,
+) -> Result<(), String> {
+    let user = user_table::get_auth_user(&context.user_id)
+        .map_err(|_| "User of the token doesn't exist anymore".to_string())?;
+    if user.is_admin != context.is_admin {
+        return Err("Admin-flag of the user was changed, the token has to be renewed".to_string());
+    }
+
+    if !check_project {
+        return Ok(());
+    }
+
+    let no_access_msg = format!(
+        "User has no access to the project '{}' of the token anymore",
+        context.project_id
+    );
+    project_table::get_auth_project(&context.project_id).map_err(|_| no_access_msg.clone())?;
+    let mapping = user_project_mapping_table::get_mapping(&context.project_id, &context.user_id)
+        .map_err(|_| no_access_msg)?;
+    if mapping.role.as_str() != context.project_role {
+        return Err(format!(
+            "Role of the user within the project '{}' was changed to '{}', the token has to be \
+             renewed",
+            context.project_id, mapping.role
+        ));
+    }
+
+    Ok(())
 }
 
 /// Creates a new JSON Web Token (JWT) for a user.

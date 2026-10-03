@@ -244,25 +244,25 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Counts the number of images of the whole project of the context.
+/// Counts the number of images of a whole project.
 ///
 /// Unlike `count_images`, the images of all users of the project are counted, because the quota,
 /// which is checked with this number, belongs to the project.
 ///
 /// # Arguments
 ///
-/// * `context` - The user context, whose project is counted
+/// * `project` - The ID of the project, which is counted
 ///
 /// # Returns
 ///
 /// A QueryResult containing the count of images as an i64
-pub fn count_images_of_project(context: &UserContext) -> QueryResult<i64> {
+pub fn count_images_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
 
     images
         .filter(status.eq("ACTIVE"))
-        .filter(project_id.eq(context.project_id.clone()))
+        .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }

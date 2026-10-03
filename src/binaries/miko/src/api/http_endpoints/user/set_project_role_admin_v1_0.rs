@@ -17,6 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::database::project_table;
 use crate::database::user_project_mapping_table;
 use crate::database::user_table;
 
@@ -25,14 +26,16 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::user_structs::*;
 use ainari_common::enums::DbError;
+use ainari_common::enums::ProjectRole;
 
 #[api_operation(
     tag = "user",
     summary = "Set project-role of user",
-    description = r###"Set the role of a user within a project. The user must already be assigned to the project. This can only be done by an admin."###,
+    description = r###"Set the role of a user within a project. The user must already be assigned to the project. In its own default-project, a user can not be made an observer. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn set_project_role_admin(
@@ -46,6 +49,15 @@ pub async fn set_project_role_admin(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let project_id = &body.project_id;
+
+    // every user keeps the possibility to create resources in its own default-project
+    if body.project_role == ProjectRole::Observer
+        && *project_id == project_table::default_project_id(&user_id)
+    {
+        return Err(ErrorResponse::Conflict(format!(
+            "User '{user_id}' can not be made an observer in its own default-project."
+        )));
+    }
 
     // check if user exist
     user_table::get_user(&user_id, &context)

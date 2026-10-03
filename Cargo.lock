@@ -2485,6 +2485,7 @@ dependencies = [
  "actix-web",
  "ainari_api",
  "ainari_api_structs",
+ "ainari_clients",
  "ainari_common",
  "apistos",
  "apistos-schemars",

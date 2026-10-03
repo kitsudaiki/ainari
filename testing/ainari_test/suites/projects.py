@@ -18,6 +18,7 @@ assignment of users to further projects, tokens for a specific project and the r
 of observers.
 """
 
+import dataclasses
 import uuid
 
 from ainari_sdk import ainari_exceptions
@@ -63,6 +64,15 @@ def user_projects(context) -> dict:
             for entry in user.list_user_projects(context)["projects"]}
 
 
+def admin_project_members(ctx, project_id: str) -> dict:
+    """
+    Returns the members of any project, listed by the admin of the test, as mapping from the
+    user-id to the role.
+    """
+    return {entry["user_id"]: entry["project_role"]
+            for entry in project.list_users_in_project_admin(ctx.api, project_id)["members"]}
+
+
 def project_members(context) -> dict:
     """
     Returns the members of the project of the context as mapping from the user-id to the role.
@@ -82,11 +92,8 @@ def create_user_and_project(ctx):
     ctx.state["project_user"] = user_id
     ctx.state["project_user_passphrase"] = passphrase
 
-    # the default-project is created together with the user, but not deleted together with it
-    default_project_id = f"default-{user_id}"
-    ctx.cleanup.add("project", default_project_id, default_project_id,
-                    lambda: project.delete_project(ctx.api, default_project_id),
-                    lambda: exists(project.get_project, ctx.api, default_project_id))
+    # the default-project is created and deleted together with the user, so it is not registered
+    # for the cleanup. It can't be deleted directly anyway.
 
     new_project_id = project_id(ctx)
     result = project.create_project(ctx.api, new_project_id, f"local-stack-test {ctx.test_id}")
@@ -138,6 +145,22 @@ def project_quota(ctx):
     check_equal(changed["max_secret"], 3, "changed limit of the quota")
     check_equal(quota.get_quota(ctx.api, default_project_id)["max_secret"], own["max_secret"],
                 "limit of the quota of the default-project after the change of another project")
+
+
+@suite.test("default-project is protected", requires=("project_user",))
+def default_project_protected(ctx):
+    user_id = ctx.state["project_user"]
+    default_project_id = f"default-{user_id}"
+    # the default-project is only deleted together with its user
+    expect_error(ainari_exceptions.ConflictException, project.delete_project, ctx.api,
+                 default_project_id)
+    # the user can't lose its own default-project or the possibility to create resources in it
+    expect_error(ainari_exceptions.ConflictException, project.remove_user_from_project, ctx.api,
+                 default_project_id, user_id)
+    expect_error(ainari_exceptions.ConflictException, user.set_project_role, ctx.api, user_id,
+                 default_project_id, "observer")
+    check_equal(token_context(login_project_user(ctx))["project_role"], "admin",
+                "role in the default-project after the rejected changes")
 
 
 @suite.test("project-ids with the prefix 'default-' are reserved")
@@ -331,3 +354,132 @@ def remove_user_from_project(ctx):
     result = project.add_user_to_project(ctx.api, assigned_project, user_id, "admin")
     check_equal(result["project_role"], "admin", "role of the new assignment")
     project.remove_user_from_project(ctx.api, assigned_project, user_id)
+
+
+@suite.test("project with resources can not be deleted", requires=("project_secret",))
+def delete_project_with_resources(ctx):
+    project_with_secret = ctx.state["project"]
+    expect_error(ainari_exceptions.ConflictException, project.delete_project, ctx.api,
+                 project_with_secret)
+    check_equal(project.get_project(ctx.api, project_with_secret)["id"], project_with_secret,
+                "project still exists after the rejected delete")
+
+
+@suite.test("project with admin or member can not be deleted", requires=("project_user",))
+def delete_project_with_users(ctx):
+    user_id = ctx.state["project_user"]
+    new_project_id = f"lst-project-usr-{ctx.test_id}"
+    project.create_project(ctx.api, new_project_id, f"local-stack-test {ctx.test_id}")
+    ctx.cleanup.add("project", new_project_id, new_project_id,
+                    lambda: project.delete_project(ctx.api, new_project_id),
+                    lambda: exists(project.get_project, ctx.api, new_project_id))
+
+    # a member could create a resource at the same time, so the empty project is still blocked
+    project.add_user_to_project(ctx.api, new_project_id, user_id, "member")
+    expect_error(ainari_exceptions.ConflictException, project.delete_project, ctx.api,
+                 new_project_id)
+    check_equal(project.get_project(ctx.api, new_project_id)["id"], new_project_id,
+                "project still exists after the rejected delete")
+
+    # an observer can't create resources, so it doesn't block the delete and is removed with it
+    user.set_project_role(ctx.api, user_id, new_project_id, "observer")
+    project.delete_project(ctx.api, new_project_id)
+    expect_error(ainari_exceptions.NotFoundException, project.get_project, ctx.api,
+                 new_project_id)
+    check_not_in(new_project_id, user_projects(login_project_user(ctx)),
+                 "deleted project in the invited projects of the observer")
+
+
+@suite.test("user-delete only checks and deletes the default-project", requires=("project_user",))
+def delete_user_with_projects(ctx):
+    user_id = f"lst-prj-del-{ctx.test_id}"
+    passphrase = str(uuid.uuid4())
+    user.create_user(ctx.api, user_id, f"local-stack-test {ctx.test_id}", passphrase, False)
+    ctx.cleanup.add("user", user_id, user_id,
+                    lambda: user.delete_user(ctx.api, user_id),
+                    lambda: exists(user.get_user, ctx.api, user_id))
+    default_project_id = f"default-{user_id}"
+
+    # another member doesn't keep the default-project, it is always deleted together with its user
+    project.add_user_to_project(ctx.api, default_project_id, ctx.state["project_user"], "member")
+
+    # another project, in which the user is the only admin. Its resources don't block the delete
+    # and the project is not deleted together with the user.
+    other_project_id = f"lst-project-del-{ctx.test_id}"
+    project.create_project(ctx.api, other_project_id, f"local-stack-test {ctx.test_id}")
+    ctx.cleanup.add("project", other_project_id, other_project_id,
+                    lambda: project.delete_project(ctx.api, other_project_id),
+                    lambda: exists(project.get_project, ctx.api, other_project_id))
+    project.add_user_to_project(ctx.api, other_project_id, user_id, "admin")
+    other = login.request_context(ctx.config.miko_address, user_id, passphrase,
+                                  verify_connection=False, project_id=other_project_id)
+    other_name = ctx.name("prj-del-other-secret")
+    other_secret_uuid = secret.create_secret(other, other_name, "test-payload")["uuid"]
+    ctx.cleanup.add("secret", other_secret_uuid, other_name,
+                    lambda: secret.delete_secret(ctx.api, other_secret_uuid),
+                    lambda: exists(secret.get_secret, ctx.api, other_secret_uuid))
+
+    # a resource in the default-project blocks the delete
+    own = login.request_context(ctx.config.miko_address, user_id, passphrase,
+                                verify_connection=False)
+    name = ctx.name("prj-del-secret")
+    secret_uuid = secret.create_secret(own, name, "test-payload")["uuid"]
+    ctx.cleanup.add("secret", secret_uuid, name,
+                    lambda: secret.delete_secret(ctx.api, secret_uuid),
+                    lambda: exists(secret.get_secret, ctx.api, secret_uuid))
+    expect_error(ainari_exceptions.ConflictException, user.delete_user, ctx.api, user_id)
+    check_equal(user.get_user(ctx.api, user_id)["id"], user_id,
+                "user still exists after the rejected delete")
+    check_equal(project.get_project(ctx.api, default_project_id)["id"], default_project_id,
+                "default-project still exists after the rejected delete")
+    check_equal(admin_project_members(ctx, default_project_id),
+                {user_id: "admin", ctx.state["project_user"]: "member"},
+                "roles in the default-project are restored after the rejected delete")
+
+    # without resources in the default-project, the user is deleted together with it
+    secret.delete_secret(ctx.api, secret_uuid)
+    user.delete_user(ctx.api, user_id)
+    expect_error(ainari_exceptions.NotFoundException, user.get_user, ctx.api, user_id)
+    expect_error(ainari_exceptions.NotFoundException, project.get_project, ctx.api,
+                 default_project_id)
+    expect_error(ainari_exceptions.NotFoundException, quota.get_quota, ctx.api,
+                 default_project_id)
+
+    # the user is removed from the other project, but the project and its resources stay
+    check_equal(project.get_project(ctx.api, other_project_id)["id"], other_project_id,
+                "other project still exists after the user-delete")
+    check_equal(admin_project_members(ctx, other_project_id), {},
+                "members of the other project after the user-delete")
+    check_equal(secret.get_secret(ctx.api, other_secret_uuid)["uuid"], other_secret_uuid,
+                "resource of the other project still exists after the user-delete")
+
+    # the tokens of the deleted user are not valid anymore
+    expect_error(ainari_exceptions.UnauthorizedException, secret.list_secrets, other)
+
+
+@suite.test("tokens are invalidated by changes of the user or project", requires=("project_user",))
+def token_invalidation(ctx):
+    user_id = ctx.state["project_user"]
+    token_project_id = f"lst-project-tkn-{ctx.test_id}"
+    project.create_project(ctx.api, token_project_id, f"local-stack-test {ctx.test_id}")
+    ctx.cleanup.add("project", token_project_id, token_project_id,
+                    lambda: project.delete_project(ctx.api, token_project_id),
+                    lambda: exists(project.get_project, ctx.api, token_project_id))
+    project.add_user_to_project(ctx.api, token_project_id, user_id, "member")
+    member = login_project_user(ctx, token_project_id)
+    secret.list_secrets(member)
+
+    # a changed role invalidates the token, but it can still be renewed to get the new role
+    user.set_project_role(ctx.api, user_id, token_project_id, "observer")
+    expect_error(ainari_exceptions.UnauthorizedException, secret.list_secrets, member)
+    observer = dataclasses.replace(member, token=login.renew_token(member)["access_token"])
+    check_equal(token_context(observer)["project_role"], "observer", "role in the renewed token")
+    secret.list_secrets(observer)
+
+    # removing the user from the project invalidates the token as well, also for a renewal
+    project.remove_user_from_project(ctx.api, token_project_id, user_id)
+    expect_error(ainari_exceptions.UnauthorizedException, secret.list_secrets, observer)
+    expect_error(ainari_exceptions.UnauthorizedException, login.renew_token, observer)
+
+    # the token of the default-project is not affected by the changes of the other project
+    secret.list_secrets(login_project_user(ctx))

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeMap;
+
 use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -89,4 +91,10 @@ pub struct ProjectAddUserResp {
 pub struct ProjectRemoveUserReq {
     #[validate(length(min = 4, max = 127))]
     pub user_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectResourceCountInternalResp {
+    /// number of the existing resources of the project, by the type of the resource
+    pub resource_counts: BTreeMap<String, i64>,
 }

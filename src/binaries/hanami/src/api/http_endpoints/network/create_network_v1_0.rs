@@ -99,8 +99,8 @@ pub async fn create_network(
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // Get the current number of networks of the whole project from the database
     // This count is used to compare against the project's quota limit
-    let current_number_of_networks =
-        network_table::count_networks_of_project(context).map_err(|e| {
+    let current_number_of_networks = network_table::count_networks_of_project(&context.project_id)
+        .map_err(|e| {
             log::error!("Failed to count networks in database.: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;

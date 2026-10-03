@@ -192,7 +192,7 @@ pub fn add_new_user(
     let pw_hash = sha256_hash(salted_passphrase.reveal());
 
     // each user gets its own default-project, in which the user is admin
-    let default_project_id = format!("default-{user_id}");
+    let default_project_id = project_table::default_project_id(user_id);
     project_table::add_new_project(&default_project_id, &default_project_id, context)?;
 
     let user = UserEntry {

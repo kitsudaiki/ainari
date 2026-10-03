@@ -18,6 +18,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::database::project_table;
 use crate::database::user_project_mapping_table;
 use crate::database::user_table;
 
@@ -30,10 +31,11 @@ use ainari_common::enums::DbError;
 #[api_operation(
     tag = "project",
     summary = "Remove user from project",
-    description = r###"Remove a user from a project. This can only be done by an admin."###,
+    description = r###"Remove a user from a project. A user can not be removed from its own default-project. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn remove_user_from_project_admin(
@@ -47,6 +49,13 @@ pub async fn remove_user_from_project_admin(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let user_id = &body.user_id;
+
+    // every user always keeps the access to its own default-project
+    if *project_id == project_table::default_project_id(user_id) {
+        return Err(ErrorResponse::Conflict(format!(
+            "User '{user_id}' can not be removed from its own default-project."
+        )));
+    }
 
     // check if user exist
     user_table::get_user(user_id, &context)

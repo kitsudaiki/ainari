@@ -67,16 +67,6 @@ def resources_released(ctx):
         check_equal(hosts.host_usage(ctx), baseline, "used host-resources after the deletion")
 
 
-@suite.test("delete users")
-def delete_users(ctx):
-    delete_kind(ctx, "user")
-
-
-@suite.test("delete projects")
-def delete_projects(ctx):
-    delete_kind(ctx, "project")
-
-
 @suite.test("delete secrets")
 def delete_secrets(ctx):
     delete_kind(ctx, "secret")
@@ -95,6 +85,19 @@ def delete_network(ctx):
 @suite.test("delete public key")
 def delete_public_key(ctx):
     delete_kind(ctx, "public_key")
+
+
+# Users and projects come last, because a project can only be deleted without resources and a
+# user only, if the projects, in which the user is admin, have no resources anymore. The
+# default-project of a user is deleted together with the user, so the users come first.
+@suite.test("delete users")
+def delete_users(ctx):
+    delete_kind(ctx, "user")
+
+
+@suite.test("delete projects")
+def delete_projects(ctx):
+    delete_kind(ctx, "project")
 
 
 @suite.test("nothing is left")

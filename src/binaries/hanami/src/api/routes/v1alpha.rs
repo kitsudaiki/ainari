@@ -18,6 +18,7 @@ use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::floating_ip::*;
 use crate::api::http_endpoints::network::*;
+use crate::api::http_endpoints::project::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::sakura_host::*;
 use crate::api::http_endpoints::virtual_machine::*;
@@ -107,4 +108,11 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
                 ),
         )
+        .service(scope("/project").service(
+            resource("/{project_id}/resource_count/internal").route(
+                get().to(
+                    get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+                ),
+            ),
+        ))
 }
