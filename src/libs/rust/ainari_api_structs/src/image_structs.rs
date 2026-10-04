@@ -31,6 +31,13 @@ pub struct ImageInitReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ImageUploadQuery {
+    /// Already existing secret in the omamori, which is used to encrypt the image. Without it, a
+    /// new secret is generated for the image.
+    pub secret_uuid: Option<Uuid>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ImageInternalResp {
     pub uuid: Uuid,
     pub name: String,

@@ -30,11 +30,12 @@ import (
 )
 
 var (
-	inputFilePath string
+	inputFilePath   string
+	imageSecretUuid string
 )
 
 var createDiskImageCmd = &cobra.Command{
-	Use:   "disk -i INPUT_FILE_PATH IMAGE_NAME",
+	Use:   "disk -i INPUT_FILE_PATH [-s SECRET_UUID] IMAGE_NAME",
 	Short: "Upload new disk-image, which is used as boot-disk of a virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -44,7 +45,7 @@ var createDiskImageCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		imageName := args[0]
-		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath)
+		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath, imageSecretUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -151,6 +152,7 @@ func Init_Image_Commands(rootCmd *cobra.Command) {
 	createImageCmd.AddCommand(createDiskImageCmd)
 	createDiskImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to the disk-image-file (mandatory)")
 	createDiskImageCmd.MarkFlagRequired("input")
+	createDiskImageCmd.Flags().StringVarP(&imageSecretUuid, "secret", "s", "", "UUID of an existing secret to encrypt the image with, instead of a new generated secret (optional)")
 
 	imageCmd.AddCommand(getImageCmd)
 

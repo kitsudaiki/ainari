@@ -65,6 +65,9 @@ Go to **Storage > Image**, click **+**, enter a name and select the downloaded f
 
 ![Upload image](img/image_upload.jpg)
 
+The image is stored encrypted. By default a new secret is generated for it. To encrypt it with an
+already existing secret of **Security > Secrets** instead, select it in the **Secret**-dropdown.
+
 The upload takes a while, depending on the size of the image. Afterwards the image is listed:
 
 ![Images](img/image_overview.jpg)
@@ -191,7 +194,8 @@ machine, **Detach** releases it again, so it can be attached to another virtual 
 
 **Security > Secrets** lists the secrets. **+** creates a new secret with a name and a payload,
 **Show payload** shows its content and **Delete** removes it. For every uploaded image a secret
-is created automatically, which is used to encrypt the file of the image.
+is created automatically, which is used to encrypt the file of the image, unless an existing secret
+was selected at the upload.
 
 ![Secrets](img/secret_overview.jpg)
 

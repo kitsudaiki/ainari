@@ -393,7 +393,7 @@
           "image"
         ],
         "summary": "Create new image",
-        "description": "Create new image by uploading files.",
+        "description": "Create new image by uploading files. With the query-parameter `secret_uuid`,\nthe image is encrypted with this already existing secret of the omamori, instead of a new generated\nsecret.",
         "parameters": [
           {
             "name": "type",
@@ -411,6 +411,18 @@
             "schema": {
               "title": "String",
               "type": "string"
+            }
+          },
+          {
+            "name": "secret_uuid",
+            "in": "query",
+            "description": "Already existing secret in the omamori, which is used to encrypt the image. Without it, a new secret is generated for the image.",
+            "required": false,
+            "schema": {
+              "description": "Already existing secret in the omamori, which is used to encrypt the image. Without it, a new secret is generated for the image.",
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
             }
           }
         ],

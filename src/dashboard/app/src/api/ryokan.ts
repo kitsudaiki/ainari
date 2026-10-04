@@ -36,11 +36,14 @@ import type {
  * @param imageType - Type of the image, currently only `disk`
  * @param name - Name of the new image
  * @param files - Files to upload, in the order expected by the type
+ * @param secretUuid - Optional existing secret to encrypt the image with. Without it, a new
+ *                     secret is generated for the image.
  */
 export async function createImage(
     imageType: ImageType,
     name: string,
     files: File[],
+    secretUuid?: string,
 ): Promise<ImageResp> {
     const formData = new FormData();
     files.forEach((file, index) => {
@@ -50,7 +53,10 @@ export async function createImage(
     const resp = await ryokanClient().post(
         `/v1alpha/image/${imageType}/${name}`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        {
+            headers: { "Content-Type": "multipart/form-data" },
+            params: secretUuid ? { secret_uuid: secretUuid } : undefined,
+        },
     );
     return resp.data;
 }

@@ -14,7 +14,7 @@
 
 use actix_multipart::Multipart;
 use actix_web::http::header::ContentDisposition;
-use actix_web::web::Path;
+use actix_web::web::{Path, Query};
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use futures_util::StreamExt;
@@ -36,7 +36,9 @@ use ainari_files::file_encryption::encrypt_file;
 #[api_operation(
     tag = "image",
     summary = "Create new image",
-    description = r###"Create new image by uploading files."###,
+    description = r###"Create new image by uploading files. With the query-parameter `secret_uuid`,
+the image is encrypted with this already existing secret of the omamori, instead of a new generated
+secret."###,
     error_code = 400,
     error_code = 401,
     error_code = 409,
@@ -45,6 +47,7 @@ use ainari_files::file_encryption::encrypt_file;
 pub async fn upload_binary(
     payload: Multipart,
     path: Path<(String, String)>,
+    query: Query<ImageUploadQuery>,
     context: UserContext,
 ) -> Result<CreatedJson<ImageResp>, ErrorResponse> {
     let (image_type, name) = path.into_inner();
@@ -73,7 +76,14 @@ pub async fn upload_binary(
         // is nothing to convert
         let source_path = get_disk_image_path(&temp_file_paths)?;
 
-        let (secret_uuid, secret) = super::super::generate_new_key(&image_uuid, &context).await?;
+        // use the secret provided by the user or generate a new one for the image
+        let (secret_uuid, secret) = match &query.secret_uuid {
+            Some(secret_uuid) => (
+                *secret_uuid,
+                super::super::get_existing_key(secret_uuid, &context).await?,
+            ),
+            None => super::super::generate_new_key(&image_uuid, &context).await?,
+        };
 
         encrypt_file(&source_path, &encrypted_result_path, &secret)
             .await
