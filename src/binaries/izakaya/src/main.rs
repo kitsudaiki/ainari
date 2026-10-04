@@ -42,7 +42,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // rounds and operations, which stall, the grace-period of the rounds and the regular
     // key-rotation only depend on the time, so they are moved on in the background
-    core::coordinator::spawn_ticker(config.mls.key_rotation_interval as i64);
+    core::coordinator::spawn_ticker(
+        config.mls.key_rotation_interval as i64,
+        config.mls.member_timeout as i64,
+    );
 
     api::http_server::run_server()?;
 

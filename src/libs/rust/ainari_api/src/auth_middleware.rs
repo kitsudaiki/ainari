@@ -45,6 +45,10 @@ pub struct ApiValidationConfig {
     /// Port of the internal connection. If set, the internal endpoints are only reachable over
     /// the connection with this port and requests over any other connection are rejected.
     pub internal_endpoints_port: Option<u16>,
+    /// The internal endpoints are authorized by the internal API-key alone, without the token of
+    /// a user. For services, whose internal endpoints are also called by background-jobs of other
+    /// services, which act without a user.
+    pub internal_endpoints_without_token: bool,
 }
 
 impl ApiValidationConfig {
@@ -72,6 +76,7 @@ impl ApiValidationConfig {
             internal_api_key: internal_api_key.clone(),
             skip_tls_verification,
             internal_endpoints_port: None,
+            internal_endpoints_without_token: false,
         }
     }
 
@@ -91,6 +96,20 @@ impl ApiValidationConfig {
     /// The config with the restriction
     pub fn restrict_internal_endpoints(mut self, internal_port: u16) -> Self {
         self.internal_endpoints_port = Some(internal_port);
+        self
+    }
+
+    /// Authorizes the internal endpoints by the internal API-key alone.
+    ///
+    /// They still need the internal API-key, and should be restricted to the internal connection
+    /// with `restrict_internal_endpoints`, but no token of a user anymore. The endpoints get an
+    /// empty user-context then.
+    ///
+    /// # Returns
+    ///
+    /// The config without the token-check for the internal endpoints
+    pub fn authorize_internal_endpoints_by_api_key(mut self) -> Self {
+        self.internal_endpoints_without_token = true;
         self
     }
 }
@@ -178,6 +197,10 @@ pub async fn authorization_middleware(
     // without user-interaction, but this call is saved by the internal-key and registration-key,
     // which are provided by the sakura-hosts and validated in the endpoint
     skip_token_check |= uri == "/v1alpha/host/internal" && *req.method() == Method::POST;
+    // internal endpoints, which are called by background-jobs without a user, are protected by
+    // the internal API-key alone, which is checked below
+    skip_token_check |=
+        api_validation_config.internal_endpoints_without_token && is_internal_endpoint(req.path());
     // options-request used by browsers also need no checks to be done
     skip_token_check |= *req.method() == Method::OPTIONS;
     skip_internal_endpoint_check |= *req.method() == Method::OPTIONS;
@@ -376,10 +399,15 @@ mod tests {
 
     /// Sends a GET-request over a plain TCP-connection and returns the status-code.
     fn get_status(port: u16, path: &str) -> u16 {
+        get_status_with_headers(port, path, "")
+    }
+
+    /// Sends a GET-request with additional header-lines and returns the status-code.
+    fn get_status_with_headers(port: u16, path: &str, headers: &str) -> u16 {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("failed to connect");
         write!(
             stream,
-            "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+            "GET {path} HTTP/1.1\r\nHost: localhost\r\n{headers}Connection: close\r\n\r\n"
         )
         .expect("failed to send request");
         let mut response = String::new();
@@ -406,6 +434,7 @@ mod tests {
             internal_api_key: Secret::from("key"),
             skip_tls_verification: false,
             internal_endpoints_port: None,
+            internal_endpoints_without_token: false,
         }
         .restrict_internal_endpoints(internal_port);
 
@@ -445,5 +474,67 @@ mod tests {
         assert_eq!(results.2, 403);
         assert_eq!(results.3, 403);
         assert_eq!(results.4, 200);
+    }
+
+    #[actix_web::test]
+    async fn test_internal_endpoints_by_api_key_alone() {
+        let internal = TcpListener::bind("127.0.0.1:0").unwrap();
+        let internal_port = internal.local_addr().unwrap().port();
+
+        let config = ApiValidationConfig {
+            miko_address: String::new(),
+            internal_ip: "127.0.0.1".to_string(),
+            internal_api_key: Secret::from("key"),
+            skip_tls_verification: false,
+            internal_endpoints_port: None,
+            internal_endpoints_without_token: false,
+        }
+        .restrict_internal_endpoints(internal_port)
+        .authorize_internal_endpoints_by_api_key();
+
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(config.clone()))
+                .wrap(from_fn(authorization_middleware))
+                .route("/v1alpha/host", web::get().to(HttpResponse::Ok))
+                .route("/v1alpha/host/internal", web::get().to(HttpResponse::Ok))
+        })
+        .workers(1)
+        .listen(internal)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_rt::spawn(server);
+
+        let results = actix_web::rt::task::spawn_blocking(move || {
+            (
+                get_status_with_headers(
+                    internal_port,
+                    "/v1alpha/host/internal",
+                    "X-Internal-API-Key: key\r\n",
+                ),
+                get_status_with_headers(
+                    internal_port,
+                    "/v1alpha/host/internal",
+                    "X-Internal-API-Key: wrong\r\n",
+                ),
+                get_status(internal_port, "/v1alpha/host/internal"),
+                get_status_with_headers(
+                    internal_port,
+                    "/v1alpha/host",
+                    "X-Internal-API-Key: key\r\n",
+                ),
+            )
+        })
+        .await
+        .unwrap();
+        handle.stop(true).await;
+
+        // an internal endpoint needs the internal API-key, but no token
+        assert_eq!(results.0, 200);
+        assert_ne!(results.1, 200);
+        assert_ne!(results.2, 200);
+        // every other endpoint still needs the token of a user
+        assert_ne!(results.3, 200);
     }
 }

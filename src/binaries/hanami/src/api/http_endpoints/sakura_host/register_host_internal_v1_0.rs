@@ -19,6 +19,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
+use crate::core::host_restore;
 use crate::database::host_table;
 use crate::database::host_table::HostResources;
 use crate::database::meta_virtual_machine_table;
@@ -89,6 +90,16 @@ pub async fn register_host_internal(
                 log::error!("Failed to update external address of host with UUID '{host_uuid}'.");
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
+
+            // A host registers itself again with every start of sakura. Its torii may have
+            // started from scratch, in a new pod with a new address and a new MLS-identity, so
+            // the identity, which the next grant finds, is pinned, and the network of the
+            // virtual_machines of the host is programmed again in the background.
+            let previous_client_id = host_table::reset_mls_pin(&host_uuid).map_err(|_| {
+                log::error!("Failed to reset the MLS-identity of host with UUID '{host_uuid}'.");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
+            host_restore::spawn_restore(host_uuid, previous_client_id);
         }
         Err(_) => {
             // add new host to database if address not already exist

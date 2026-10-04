@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::config::CONFIG;
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use uuid::Uuid;
@@ -52,6 +53,12 @@ pub async fn update_route_internal(
     validate_vni(body.vni).map_err(ErrorResponse::BadRequest)?;
 
     let route_uuid = route_uuid.into_inner();
+
+    // like at the creation, an empty target-interface addresses the underlay of this gateway
+    let mut body = body.into_inner();
+    if body.target_iface.is_empty() {
+        body.target_iface = CONFIG.network.underlay_iface.clone();
+    }
 
     // The update is persisted, so it survives a restart of the gateway. The routes, which the
     // gateway derives from its own config at startup, have no entry yet and get one with their

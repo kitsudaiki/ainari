@@ -403,3 +403,15 @@ Usage: {{ include "ainari.mlsGrantPublicKey" . }}
 {{- define "ainari.mlsGrantPublicKey" -}}
 {{ required "secrets.mls_grant_public_key is required, if hanami.network.mls_encryption is enabled!" .Values.secrets.mls_grant_public_key }}
 {{- end }}
+
+{{/*
+Env-variable with the name of the pod, for example to select the directory of the pod on the node
+with 'subPathExpr: $(POD_NAME)'.
+Usage: {{ include "ainari.podNameEnv" . | nindent 8 }}
+*/}}
+{{- define "ainari.podNameEnv" -}}
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
+{{- end }}

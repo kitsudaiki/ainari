@@ -37,6 +37,7 @@ data:
     [mls]
     grant_public_key = "{{ include "ainari.mlsGrantPublicKey" . }}"
     key_rotation_interval = {{ .Values.izakaya.key_rotation_interval }}
+    member_timeout = {{ .Values.izakaya.member_timeout }}
 
 kind: ConfigMap
 {{- end }}

@@ -52,12 +52,17 @@ pub async fn run_server() -> Result<(), impl Error> {
     let internal_port = config::CONFIG.api.internal_port;
     log::info!("HTTP-server listen internally on {internal_ip}:{internal_port}");
 
+    // The internal endpoints are called by hanami, also from its background-jobs, which restore a
+    // restarted sakura-host and have no user. So they are authorized by the internal API-key
+    // alone and are only reachable over the internal port.
     let api_validation_config = ApiValidationConfig::new(
         &config::CONFIG.miko,
         &config::CONFIG.api,
         &config::INTERNAL_API_KEY,
         config::CONFIG.skip_tls_verification,
-    );
+    )
+    .restrict_internal_endpoints(internal_port)
+    .authorize_internal_endpoints_by_api_key();
 
     // test-code to spawn a proxy
     // let source_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12344);

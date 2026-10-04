@@ -220,6 +220,9 @@ fi
 if "${KUBECTL[@]}" get namespace "$NAMESPACE" > /dev/null 2>&1; then
     kubectl --context "$CONTEXT" delete namespace "$NAMESPACE" --wait
 fi
+# the sakura-hosts and their gateways keep their data in a directory of the node (see
+# sakura.host_data_path), which outlives the namespace
+docker exec "$NODE" rm -rf /etc/ainari
 
 "$PROJECT_DIR/scripts/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari kind-setup CA" \
     "permitted;IP:127.0.0.1/255.255.255.255,permitted;DNS:localhost,permitted;DNS:cluster.local"

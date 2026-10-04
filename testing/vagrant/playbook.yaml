@@ -272,6 +272,15 @@
         kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
       changed_when: true
 
+    # the sakura-hosts and their gateways keep their data in a directory of the node (see
+    # sakura.host_data_path), which outlives the namespace
+    - name: Remove the data of the previous deployment on the sakura-hosts
+      ansible.builtin.file:
+        path: /etc/ainari
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['sakura'] }}"
+
     - name: Create the namespace with the CA
       ansible.builtin.shell: |
         kubectl create namespace {{ k8s_namespace }}

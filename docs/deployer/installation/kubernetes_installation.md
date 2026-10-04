@@ -12,8 +12,15 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
 - **Kubernetes** with `kubectl` access
 
     The nodes for sakura need `/dev/kvm`. Sakura and torii run as privileged pods, because they
-    attach eBPF-programs to their interfaces. The volumes use the storage-class `local-path` by
-    default, which can be changed with `global.storage_class`.
+    attach eBPF-programs to their interfaces. The traffic between virtual machines on different
+    sakura-nodes is encrypted with IPsec by default, so the kernel of these nodes needs the
+    IPsec-support (`xfrm`, `esp4` and `aes-gcm`), which the common distribution-kernels have.
+
+    The volumes use the storage-class `local-path` by default, which can be changed with
+    `global.storage_class`. The sakura-hosts and the gateways in front of them keep their
+    databases and the disks of the virtual machines directly on their node instead, in the
+    directory `sakura.host_data_path` (default `/etc/ainari`), with a subdirectory per pod. So it
+    needs enough space for the disks of the virtual machines.
 
     !!! example
 
@@ -92,6 +99,7 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     kubectl label nodes NODE_NAME hanami-node=true
     kubectl label nodes NODE_NAME ryokan-node=true
     kubectl label nodes NODE_NAME omamori-node=true
+    kubectl label nodes NODE_NAME izakaya-node=true
     kubectl label nodes NODE_NAME onsen-node=true
     kubectl label nodes NODE_NAME sakura-node=true
     kubectl label nodes NODE_NAME torii-node=true
@@ -99,12 +107,17 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     kubectl label nodes NODE_NAME mysql-node=true
     ```
 
-    Miko, hanami, ryokan and omamori can run with multiple replicas (`<component>.replica_count`),
-    one on each node with their label, because they keep their state only within their mysql-
-    database. Ryokan only supports this with `global.wireguard.enabled: false`, because its
-    wireguard-tunnel can't be shared by multiple replicas.
+    Miko, hanami, ryokan, omamori and izakaya can run with multiple replicas
+    (`<component>.replica_count`), one on each node with their label, because they keep their state
+    only within their mysql-database. Ryokan only supports this with
+    `global.wireguard.enabled: false`, because its wireguard-tunnel can't be shared by multiple
+    replicas.
 
     On a cluster with only one node set `global.strict_scheduling: false` in step 6 instead.
+
+    A sakura-pod keeps its data in the directory of the node, on which it runs. So every pod of
+    sakura should always come back on the same node, which is the case, if every node with the
+    label `sakura-node` runs exactly one of them.
 
 1. **Values**
 
@@ -116,6 +129,8 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
       internal_api_key: "RANDOM_KEY_1"
       onsen_registration_key: "RANDOM_KEY_2"
       sakura_registration_key: "RANDOM_KEY_3"
+      mls_grant_signing_key: "GRANT_PRIVATE_KEY"
+      mls_grant_public_key: "GRANT_PUBLIC_KEY"
 
     miko:
       user:
@@ -151,6 +166,8 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
           password: "MYSQL_PASSWORD_3"
         omamori:
           password: "MYSQL_PASSWORD_4"
+        izakaya:
+          password: "MYSQL_PASSWORD_5"
     ```
 
     - `USER_ID`, `USER_NAME`, `PASSPHRASE`
@@ -171,12 +188,35 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
         - Keys for the internal communication. The defaults of the chart are public, so always
           replace them.
 
+    - `GRANT_PRIVATE_KEY`, `GRANT_PUBLIC_KEY`
+
+        - **required**, as long as the encryption is enabled
+        - Ed25519 key-pair, with which hanami signs, which gateway may take part in the
+          key-exchange of which network. Izakaya and the gateways check the signatures with the
+          public key. Both are base64-encoded: the private key as its 32 byte seed, the public key
+          as its 32 bytes. The chart has no default on purpose, because a known key would let
+          anyone join the key-exchange. A key-pair is created with:
+
+            ```bash
+            openssl genpkey -algorithm ed25519 -out mls_grant.pem
+            # GRANT_PRIVATE_KEY
+            openssl pkey -in mls_grant.pem -outform DER | tail -c 32 | base64
+            # GRANT_PUBLIC_KEY
+            openssl pkey -in mls_grant.pem -pubout -outform DER | tail -c 32 | base64
+            ```
+
+            Hanami logs the public key, which belongs to its private key, at its start.
+
+        - Without encryption set `hanami.network.mls_encryption: false` instead. Then izakaya is not
+          deployed and both keys are not needed. Single networks can also be created without
+          encryption with the flag `disable_encryption`.
+
     - `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD_*`
 
-        - Miko, hanami, ryokan and omamori always store their data in a mysql-server, each in its
-          own database with its own user. By default the chart deploys the server on the node with
-          the label `mysql-node` and creates the databases and users at its first start. The
-          defaults of the passwords are public, so always replace them.
+        - Miko, hanami, ryokan, omamori and izakaya always store their data in a mysql-server,
+          each in its own database with its own user. By default the chart deploys the server on
+          the node with the label `mysql-node` and creates the databases and users at its first
+          start. The defaults of the passwords are public, so always replace them.
         - To use an existing server instead, set `mysql.deploy: false`, its address as
           `mysql.host` (and `mysql.port`) and the names and passwords of the databases and users,
           which have to exist already, as `mysql.databases.<component>`. The root-password is not
@@ -260,4 +300,12 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
 ```bash
 helm uninstall ainari --namespace ainari
 kubectl delete namespace ainari
+```
+
+The sakura-hosts and their gateways keep their data in the directory `sakura.host_data_path`
+(default `/etc/ainari`) on the sakura-nodes, which is not removed with the namespace. To remove
+the virtual machines and their disks as well, delete it on every sakura-node:
+
+```bash
+sudo rm -rf /etc/ainari
 ```

@@ -143,7 +143,7 @@ pub async fn grant_membership(
             "The torii of host {host_ip} has a wrong MLS-identity"
         )));
     }
-    let signature_key = pinned_signature_key(host, &identity.signature_key)?;
+    let signature_key = pinned_signature_key(host, &identity.signature_key, &identity.client_id)?;
 
     store_grant(endpoints, &add_payload(vni, host_ip, signature_key)).await?;
 
@@ -327,10 +327,14 @@ async fn store_grant(
 ///
 /// # Returns
 /// The pinned key, or `Conflict` if the torii reports another key than the pinned one
-fn pinned_signature_key(host: &HostEntry, signature_key: &str) -> Result<String, ErrorResponse> {
+fn pinned_signature_key(
+    host: &HostEntry,
+    signature_key: &str,
+    client_id: &str,
+) -> Result<String, ErrorResponse> {
     let db_error = |e| map_db_uuid_get_delete_error("sakura-host", &host.uuid, e);
 
-    host_table::pin_mls_signature_key(&host.uuid, signature_key).map_err(db_error)?;
+    host_table::pin_mls_signature_key(&host.uuid, signature_key, client_id).map_err(db_error)?;
     let pinned = host_table::get_mls_signature_key(&host.uuid)
         .map_err(db_error)?
         .unwrap_or_default();
@@ -338,7 +342,7 @@ fn pinned_signature_key(host: &HostEntry, signature_key: &str) -> Result<String,
     if pinned != signature_key {
         log::error!(
             "The torii of host '{}' shows another MLS signature-key than the pinned one. It gets \
-             no grant anymore, until the host is registered again.",
+             no grant anymore, until the host registers itself again.",
             host.uuid
         );
         return Err(ErrorResponse::Conflict(format!(

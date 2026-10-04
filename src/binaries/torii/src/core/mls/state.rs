@@ -21,6 +21,7 @@
 //! identity and the list of its groups.
 
 use std::collections::BTreeMap;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use base64::Engine;
@@ -331,6 +332,28 @@ impl MlsState {
             return state;
         }
 
+        // The identity is the underlay-address of the gateway. A gateway, which came back on
+        // another address, for example in a new pod, whose database was kept, can't use its old
+        // identity anymore: hanami only grants the identity, which matches the address of the
+        // host. So it starts with a new identity and without groups, and joins the groups again
+        // with the grants for its new identity. Its old identity is removed from the groups.
+        let underlay_ip = get_local_ip(&CONFIG.network.underlay_iface);
+        if let Some(previous) = state.client_id()
+            && identity_outdated(previous, underlay_ip)
+        {
+            log::warn!(
+                "The MLS-identity '{previous}' belongs to another underlay address than {}, so \
+                 the gateway starts with a new identity and without groups",
+                underlay_ip.map(|ip| ip.to_string()).unwrap_or_default()
+            );
+            let mut fresh = MlsState::new_in_memory();
+            fresh.persist = true;
+            if let Err(e) = fresh.save() {
+                log::error!("Failed to drop the outdated MLS-state: {e:?}");
+            }
+            return fresh;
+        }
+
         log::info!(
             "Restored MLS-client '{}' with {} group(s)",
             state.client_id().unwrap_or("-"),
@@ -608,6 +631,19 @@ impl MlsState {
     }
 }
 
+/// Checks, if a restored MLS-identity belongs to another underlay-address than the current one.
+///
+/// # Arguments
+/// * `client_id` - The restored identity
+/// * `underlay_ip` - The current address of the underlay, if it has one
+///
+/// # Returns
+/// `true` if the identity has to be replaced. Without an address of the underlay nothing can be
+/// compared, so the identity is kept.
+fn identity_outdated(client_id: &str, underlay_ip: Option<Ipv4Addr>) -> bool {
+    underlay_ip.is_some_and(|ip| client_id != ip.to_string())
+}
+
 /// Builds the identity of the gateway from its signature-key-pair.
 ///
 /// # Arguments
@@ -756,5 +792,14 @@ mod tests {
             keys.bases.keys().copied().collect::<Vec<_>>(),
             vec![first, second]
         );
+    }
+
+    #[test]
+    fn an_identity_of_another_address_is_replaced() {
+        let ip = Ipv4Addr::new(10, 42, 8, 13);
+        assert!(!identity_outdated("10.42.8.13", Some(ip)));
+        assert!(identity_outdated("10.42.8.12", Some(ip)));
+        // without an address there is nothing to compare
+        assert!(!identity_outdated("10.42.8.12", None));
     }
 }

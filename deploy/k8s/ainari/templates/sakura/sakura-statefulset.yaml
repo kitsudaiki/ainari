@@ -35,6 +35,26 @@ spec:
     spec:
       {{- include "ainari.affinity" (list . "sakura" "sakura-node") | nindent 6 }}
       {{- include "ainari.waitForMiko" . | nindent 6 }}
+      # The directories of the pod on the node are created by the kubelet as root, but sakura runs
+      # as a normal user, so they are prepared for it first. The owner is set by name, so it fits
+      # every variant of the image.
+      - name: prepare-host-data
+        image: {{ include "ainari.image" .Values.sakura }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.sakura) }}
+        securityContext:
+          runAsUser: 0
+        command:
+        - /bin/sh
+        - -c
+        - >-
+          mkdir -p /host-data/torii /host-data/sakura/virtual_machines &&
+          chown ainari:ainari /host-data/sakura /host-data/sakura/virtual_machines
+        env:
+        {{- include "ainari.podNameEnv" . | nindent 8 }}
+        volumeMounts:
+        - name: host-data
+          mountPath: /host-data
+          subPathExpr: $(POD_NAME)
       securityContext:
         # sakura runs as a normal user and opens the virtual machines over /dev/kvm
         supplementalGroups:
@@ -57,15 +77,18 @@ spec:
           value: /etc/ainari/templates/torii-vmm.toml
         - name: DEFAULT_GATEWAY_HOST
           value: torii-public.{{ .Release.Namespace }}.svc.cluster.local
+        {{- include "ainari.podNameEnv" . | nindent 8 }}
         - name: INTERNAL_API_KEY
           valueFrom:
             secretKeyRef:
               name: internal-api-key
               key: internal_api_key
         volumeMounts:
-        # the routes and TAP-devices of this gateway are gone with the pod anyway
-        - name: torii-data
+        # The database of the gateway lies in the directory of the pod on the node, so a recreated
+        # pod restores its TAP-devices, routes, packet-filters and MLS-state from it.
+        - name: host-data
           mountPath: /etc/ainari/torii/
+          subPathExpr: $(POD_NAME)/torii
         - name: torii-config
           mountPath: /etc/ainari/templates
           readOnly: true
@@ -130,9 +153,13 @@ spec:
             secretKeyRef:
               name: sakura-registration-key
               key: sakura_retistration_key
+        {{- include "ainari.podNameEnv" . | nindent 8 }}
         volumeMounts:
-        - name: data-volume
+        # the database of sakura and the disks of the virtual machines lie in the directory of the
+        # pod on the node
+        - name: host-data
           mountPath: /etc/ainari/sakura/
+          subPathExpr: $(POD_NAME)/sakura
         - name: sakura-config
           mountPath: /etc/ainari/templates
           readOnly: true
@@ -199,8 +226,10 @@ spec:
         - name: torii-scripts
           configMap:
             name: torii-scripts
-        - name: torii-data
-          emptyDir: {}
+        - name: host-data
+          hostPath:
+            path: {{ .Values.sakura.host_data_path }}
+            type: DirectoryOrCreate
         - name: debugfs
           hostPath:
             path: /sys/kernel/debug
@@ -221,14 +250,3 @@ spec:
           secret:
             secretName: wg-sakura-secret
         {{- end }}
-
-  volumeClaimTemplates:
-  - metadata:
-      name: data-volume
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      storageClassName: {{ include "ainari.storageClass" (list . .Values.sakura) }}
-      resources:
-        requests:
-          storage: {{ .Values.sakura.storage_size }}
