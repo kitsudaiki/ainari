@@ -69,7 +69,7 @@ ARG CARGO_PROFILE=release
 # Components, which are compiled. All of them are compiled by default, so the images of all
 # components share this stage. A build of a single image, like in the CI, where every image is
 # built on its own runner, can restrict it to the component of that image.
-ARG BINARIES="miko omamori ryokan onsen hanami sakura"
+ARG BINARIES="miko omamori izakaya ryokan onsen hanami sakura"
 
 # The registry and the target-directory are cache-mounts, so they survive between builds and only
 # the changed crates are compiled again. The target-directory is not part of the image, so the
@@ -147,6 +147,28 @@ ENV PATH=/usr/local/bin:/usr/bin \
 
 USER ainari
 CMD [ "omamori" ]
+
+# ==========================================
+# izakaya
+# ==========================================
+FROM nix AS izakaya-rootfs
+
+RUN nix build --no-link path:/nix-flake#runtime-izakaya
+
+COPY --from=builder /out/izakaya /rootfs/usr/bin/izakaya
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-izakaya ainari && \
+    mkdir -p /rootfs/etc/ainari && \
+    chown 1000:1000 /rootfs/etc/ainari /rootfs/usr/bin/izakaya && \
+    chmod +x /rootfs/usr/bin/izakaya
+
+FROM scratch AS izakaya
+
+COPY --from=izakaya-rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+USER ainari
+CMD [ "izakaya" ]
 
 # ==========================================
 # hanami

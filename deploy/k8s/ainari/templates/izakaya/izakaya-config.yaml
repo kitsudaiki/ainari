@@ -12,18 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Passwords of the mysql-server. The components read their own password from it, and the deployed
-# server additionally the one of its root-user and the ones of the users, which it creates.
+{{- if .Values.hanami.network.mls_encryption }}
 apiVersion: v1
-kind: Secret
 metadata:
-  name: mysql-credentials
-type: Opaque
+  name: izakaya-config
 data:
-  {{- if .Values.mysql.deploy }}
-  root_password: {{ required "mysql.root_password is required!" .Values.mysql.root_password | b64enc }}
-  {{- end }}
-  {{- range $name := list "miko" "hanami" "ryokan" "omamori" "izakaya" }}
-  {{- $db := include "ainari.mysqlDatabase" (list $ $name) | fromYaml }}
-  {{ $name }}_password: {{ $db.password | toString | b64enc }}
-  {{- end }}
+  izakaya.toml: |+
+    debug = true
+    log_path = ""
+    database_type = "mysql"
+    skip_tls_verification = true
+
+    [api]
+    public_ip = "127.0.0.1"
+    public_port = 11423
+    internal_ip = "127.0.0.1"
+    internal_port = 10423
+
+    {{ include "ainari.mysqlConfig" (list . "izakaya") | indent 4 | trim }}
+
+    [miko]
+    address = "{{ include "ainari.mikoAddress" . }}"
+
+    [mls]
+    grant_public_key = "{{ include "ainari.mlsGrantPublicKey" . }}"
+    key_rotation_interval = {{ .Values.izakaya.key_rotation_interval }}
+
+kind: ConfigMap
+{{- end }}

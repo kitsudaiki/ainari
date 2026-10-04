@@ -17,8 +17,8 @@
 # scripts/setup_vagrant_stack.sh, which builds the images and the CA before.
 #
 # Groups:
-#   management  the control-components of ainari, with one replica of miko, hanami, ryokan and
-#               omamori on each of them. The first one is also the k3s-server.
+#   management  the control-components of ainari, with one replica of miko, hanami, ryokan,
+#               omamori and izakaya on each of them. The first one is also the k3s-server.
 #   mysql       the mysql-server, which the replicas of the control-components share
 #   onsen       onsen, which stores the images of the virtual machines
 #   torii       the gateway at the edge of the network
@@ -111,7 +111,7 @@
   become: true
   vars:
     images_of_group:
-      management: [miko, omamori, ryokan, hanami, dashboard]
+      management: [miko, omamori, izakaya, ryokan, hanami, dashboard]
       onsen: [onsen]
       # the image of the mysql-server is pulled from docker hub
       mysql: []
@@ -206,7 +206,7 @@
         kubectl label node {{ item.0 }} {{ item.1 }}=true --overwrite
       loop: >-
         {{ groups['management'] | product(['miko-node', 'hanami-node', 'ryokan-node', 'omamori-node',
-                                            'ainari-dashboard-node']) | list
+                                            'izakaya-node', 'ainari-dashboard-node']) | list
            + groups['mysql'] | product(['mysql-node']) | list
            + groups['onsen'] | product(['onsen-node']) | list
            + groups['torii'] | product(['torii-node']) | list
@@ -294,6 +294,7 @@
         - statefulset/mysql
         - deployment/miko
         - deployment/omamori
+        - deployment/izakaya
         - deployment/ryokan
         - deployment/hanami
         - deployment/dashboard

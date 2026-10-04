@@ -65,6 +65,7 @@ GATEWAY_IFACE="veth-gw"
 IMAGES=(
     ainari/miko:local
     ainari/omamori:local
+    ainari/izakaya:local
     ainari/ryokan:local
     ainari/onsen:local
     ainari/hanami:local
@@ -294,9 +295,9 @@ fi
 # wait for the components
 # ---------------------------------------------------------------------------------------------
 echo "Waiting for the components to become ready ..."
-for resource in statefulset/mysql deployment/miko deployment/omamori deployment/ryokan \
-                deployment/hanami deployment/torii-public deployment/dashboard statefulset/onsen \
-                statefulset/sakura; do
+for resource in statefulset/mysql deployment/miko deployment/omamori deployment/izakaya \
+                deployment/ryokan deployment/hanami deployment/torii-public deployment/dashboard \
+                statefulset/onsen statefulset/sakura; do
     "${KUBECTL[@]}" rollout status "$resource" --timeout=600s
 done
 

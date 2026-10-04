@@ -17,7 +17,7 @@ flowchart TB
 
     subgraph docker["docker-network ainari-net 172.30.0.0/16, mtu 1600"]
         public["torii-public 172.30.0.10<br/>floating ip-NAT 10.0.0.x to 192.168.100.x<br/>proxy-ports 10042-10053"]
-        control["miko, omamori, ryokan, onsen, hanami"]
+        control["miko, omamori, izakaya, ryokan, onsen, hanami"]
         subgraph host1["network-namespace of torii-vmm 172.30.0.20"]
             vmm1["torii-vmm<br/>TAP-devices"]
             sakura1["sakura<br/>cloud-hypervisor"]

@@ -69,6 +69,8 @@ sequenceDiagram
     participant I as izakaya
 
     H->>TB: register TAP and the local route of the new VM
+    TB->>TB: rule "from VM iif TAP lookup tenant-table",<br/>everything else of the TAP is unreachable
+    TB->>TB: exempt the TAP from the reverse-path filter<br/>(the other interfaces keep theirs)
     H->>TB: GET /network_crypto/mls/identity/internal
     TB->>TB: create the MLS-identity with the first call<br/>(underlay-address + signature-key)
     TB-->>H: client_id 10.0.0.2, signature_key K
@@ -85,6 +87,26 @@ sequenceDiagram
     end
     H->>TB: encrypted routes towards the other hosts of the network
     H->>H: encrypted routes on the other hosts towards the new VM
+```
+
+### A further VM on the same host
+
+The membership belongs to the host and the network, not to a single VM. A further VM of the
+network on a host, whose torii is already member of the group, changes nothing for the group:
+
+```mermaid
+sequenceDiagram
+    participant H as hanami
+    participant I as izakaya
+    participant T as torii (already member)
+
+    H->>I: grant (vni, T, pinned key, add)
+    I->>I: replace the stored grant, no operation is queued
+    H->>T: TAP and routes of the new VM
+    T->>T: derive the SAs of the new connections<br/>from the epochs, which it already has
+    T->>I: subscribe(vni, has_group = true)
+    I-->>T: member
+    Note over H,T: no commit, no new epoch, no rotation round
 ```
 
 ### Refresh of the grants
@@ -302,9 +324,11 @@ flowchart LR
 
 ## Removing a torii
 
-When the last VM of a network is deleted from a host, hanami removes the routes and revokes the
-grant. The torii itself unsubscribes as well, as soon as its routes of the network are gone. Both
-lead to the same removal, which is only queued once.
+A torii only leaves the group, when the last VM of the network is deleted from its host. As long
+as another VM of the network runs there, only the connections of the deleted VM are removed. After
+the last one, hanami removes the routes and revokes the grant. The torii itself unsubscribes as
+well, as soon as its routes of the network are gone. Both lead to the same removal, which is only
+queued once.
 
 ```mermaid
 sequenceDiagram
@@ -314,25 +338,32 @@ sequenceDiagram
     participant TB as torii B (member)
     participant TC as torii C (leaving)
 
-    H->>TC: delete the routes of the network
-    H->>H: sign revocation (vni, C, remove)
-    H->>I: POST /mls_grant/internal
-    I->>I: delete the grant of C, drop queued additions of C,<br/>queue operation remove(C)
+    H->>H: mark the address of the deleted VM as deleted,<br/>read the remaining addresses of the network
+    alt another VM of the network runs on the host of C
+        H->>TC: delete the routes to and from the deleted VM
+        TC->>TC: remove the SAs, policies and rules of its connections
+        Note over H,TC: C stays member, the group doesn't change
+    else it was the last VM of the network on the host of C
+        H->>TC: delete the routes of the network
+        H->>H: sign revocation (vni, C, remove)
+        H->>I: POST /mls_grant/internal
+        I->>I: delete the grant of C, drop queued additions of C,<br/>queue operation remove(C)
 
-    TC->>TC: agent: no route of the network left
-    TC->>I: unsubscribe(vni)
-    I->>I: remove(C) is queued already
-    TC->>TC: delete the group and all keys of the network
+        TC->>TC: agent: no route of the network left
+        TC->>I: unsubscribe(vni)
+        I->>I: remove(C) is queued already
+        TC->>TC: delete the group and all keys of the network
 
-    I->>TA: operation remove(C)
-    TA->>TA: stage remove(C)
-    TA->>I: send commit to B
-    TA->>TA: merge: epoch E+1, record epoch E+1
-    TA->>I: operation done (epoch E+1, members [A, B])
-    I->>TA: round install(E+1)
-    I->>TB: round install(E+1)
-    TB->>TB: process the commit: epoch E+1
-    Note over TA,TB: rotation round of epoch E+1:<br/>after the cleanup, no key known to C is accepted anymore
+        I->>TA: operation remove(C)
+        TA->>TA: stage remove(C)
+        TA->>I: send commit to B
+        TA->>TA: merge: epoch E+1, record epoch E+1
+        TA->>I: operation done (epoch E+1, members [A, B])
+        I->>TA: round install(E+1)
+        I->>TB: round install(E+1)
+        TB->>TB: process the commit: epoch E+1
+        Note over TA,TB: rotation round of epoch E+1:<br/>after the cleanup, no key known to C is accepted anymore
+    end
 ```
 
 If the leaving torii is the committer, another living member becomes committer before the removal
@@ -378,9 +409,31 @@ sequenceDiagram
     T->>T: program the eBPF-datapath
     T->>T: connections = local VMs x encrypted remote VMs of vni 5
     T->>K: add missing incoming SAs of all recorded epochs
+    T->>K: rules "from remote VM to local VM lookup tenant-table"<br/>for every new connection
     T->>K: add missing outgoing SAs of the active epoch, pin the policies to them
-    T->>K: delete SAs and policies of connections, which are gone
+    T->>K: delete SAs, policies and rules of connections, which are gone
     Note over T,K: an encrypted route without keys stays fail-closed:<br/>its block-policies drop the traffic instead of sending it unencrypted
+```
+
+### Path of an encrypted packet
+
+The eBPF-datapath hands the packets of an encrypted route to the kernel, which encrypts, decrypts
+and routes them. The routing rules make sure, that a packet only takes the table of its tenant:
+
+```mermaid
+sequenceDiagram
+    participant VA as VM A
+    participant TA as torii A (eBPF + kernel)
+    participant TB as torii B (kernel + eBPF)
+    participant VB as VM B
+
+    VA->>TA: packet to VM B over its TAP
+    TA->>TA: eBPF: route of VM B is encrypted, pass to the kernel
+    TA->>TA: rule "from VM A iif TAP": tenant-table, next hop torii B<br/>(another source ends at the unreachable-rule)
+    TA->>TB: xfrm out-policy: ESP with the SA of the active epoch
+    TB->>TB: xfrm: decrypt with one of the incoming SAs,<br/>in/fwd-policies demand ESP for this address-pair
+    TB->>TB: rule "from VM A to VM B": tenant-table, route over the TAP<br/>(never the default route of the underlay)
+    TB->>VB: packet over the TAP of VM B
 ```
 
 ## Failures

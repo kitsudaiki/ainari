@@ -43,6 +43,9 @@
 #   sudo ./scripts/setup_local_stack.sh
 #   python3 testing/ainari_test/vm_lifecycle_test.py
 
+# Every component logs with the level of RUST_LOG (info by default), for example
+# 'RUST_LOG=debug docker compose up' for the debug-messages. Without it, only errors are logged.
+
 services:
   miko:
     image: ainari/miko:local
@@ -56,6 +59,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/miko.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       # the same test-login, which the cli and the other tests use
       - AINARI_ADMIN_ID=${AINARI_USER:-asdf}
@@ -82,6 +86,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/omamori.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
     volumes:
       - ./testing/local_stack/configs/omamori.toml:/etc/ainari/omamori.toml:ro
@@ -105,6 +110,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/izakaya.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
     volumes:
       - ./testing/local_stack/configs/izakaya.toml:/etc/ainari/izakaya.toml:ro
@@ -128,6 +134,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/ryokan.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
     volumes:
@@ -153,6 +160,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/onsen.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
     volumes:
@@ -176,6 +184,7 @@ services:
     restart: unless-stopped
     environment:
       - CONFIG_FILE=/etc/ainari/hanami.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
       # signs the membership-grants of the MLS-groups. Its public key is in the configs of
@@ -228,6 +237,7 @@ services:
     privileged: true
     environment:
       - CONFIG_FILE=/etc/ainari/torii.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       # the uplink is injected by scripts/setup_local_stack.sh, so torii waits for it and
       # resolves the address of the host on it, before it programs its routes
@@ -272,6 +282,7 @@ services:
     privileged: true
     environment:
       - CONFIG_FILE=/etc/ainari/torii.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
     devices:
       - "/dev/net/tun:/dev/net/tun"
@@ -313,6 +324,7 @@ services:
     network_mode: "service:torii-vmm-netns"
     environment:
       - CONFIG_FILE=/etc/ainari/sakura.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
     devices:
@@ -353,6 +365,7 @@ services:
     privileged: true
     environment:
       - CONFIG_FILE=/etc/ainari/torii.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
     devices:
       - "/dev/net/tun:/dev/net/tun"
@@ -382,6 +395,7 @@ services:
     network_mode: "service:torii-vmm-2-netns"
     environment:
       - CONFIG_FILE=/etc/ainari/sakura.toml
+      - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
       - SAKURA_REGISTRATION_KEY=${SAKURA_REGISTRATION_KEY:-local-sakura-registration-key}
     devices:

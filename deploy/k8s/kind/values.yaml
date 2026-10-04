@@ -52,6 +52,10 @@ secrets:
   internal_api_key: "local-internal-api-key"
   onsen_registration_key: "local-onsen-registration-key"
   sakura_registration_key: "local-sakura-registration-key"
+  # key-pair of the development-setups, with which hanami signs the membership-grants of the
+  # MLS-groups, the same as the one of the docker-compose setup
+  mls_grant_signing_key: "Veuv2tBnfEjOJwFRdf6rDF9CymxxQwvHvAb3vey8Xoo="
+  mls_grant_public_key: "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo="
 
 
 # miko, hanami, ryokan and omamori store their data in a mysql-server, which runs within the
@@ -75,6 +79,10 @@ mysql:
       database: "omamori"
       user: "omamori"
       password: "local-omamori-password"
+    izakaya:
+      database: "izakaya"
+      user: "izakaya"
+      password: "local-izakaya-password"
 
 
 miko:
@@ -116,6 +124,12 @@ omamori:
     tag: "local"
   api:
     public_address: "https://127.0.0.1:11421"
+
+
+izakaya:
+  docker:
+    repository: "ainari/izakaya"
+    tag: "local"
 
 
 onsen:

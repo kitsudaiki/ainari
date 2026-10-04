@@ -43,7 +43,7 @@ spec:
             secretKeyRef:
               name: mysql-credentials
               key: root_password
-        {{- range $name := list "miko" "hanami" "ryokan" "omamori" }}
+        {{- range $name := list "miko" "hanami" "ryokan" "omamori" "izakaya" }}
         # read by the init-script, which creates the user of {{ $name }}
         - name: {{ upper $name }}_PASSWORD
           valueFrom:

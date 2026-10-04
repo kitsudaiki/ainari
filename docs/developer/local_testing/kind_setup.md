@@ -19,7 +19,7 @@ flowchart TB
     subgraph node["kind-node ainari-control-plane (docker-container, mtu 1600)"]
         subgraph pods["pod-network 10.244.0.0/16"]
             public["pod torii-public<br/>torii + tls-sidecar<br/>floating ip-NAT, proxy-ports"]
-            control["pods miko, omamori, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar<br/>pod mysql-0 with the databases"]
+            control["pods miko, omamori, izakaya, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar<br/>pod mysql-0 with the databases"]
             subgraph s0["pod sakura-0"]
                 vmm0["torii<br/>TAP-devices"]
                 sak0["sakura<br/>cloud-hypervisor"]
@@ -82,9 +82,9 @@ make down kind    # deletes the cluster and removes the veth-pair again
 ```
 
 `make up kind` builds the images, creates the cluster (`deploy/k8s/kind/cluster.yaml`), installs
-cert-manager and the helm-chart and connects the host to the edge-gateway. Miko, hanami, ryokan
-and omamori store their data in the mysql-server `mysql-0`, which the chart deploys into the
-cluster. Every run starts with empty databases.
+cert-manager and the helm-chart and connects the host to the edge-gateway. Miko, hanami, ryokan,
+omamori and izakaya store their data in the mysql-server `mysql-0`, which the chart deploys into
+the cluster. Every run starts with empty databases.
 
 The images are built from the debian-based Dockerfiles of `dockerfiles/debian_based`, which are
 easier to debug than the nix-based images of the CI (see

@@ -12,18 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Passwords of the mysql-server. The components read their own password from it, and the deployed
-# server additionally the one of its root-user and the ones of the users, which it creates.
+{{- if .Values.hanami.network.mls_encryption }}
+# Only the other components talk to izakaya, so there is only the tls-termination of its internal
+# api, which listens on 8443 for izakaya-tls-service.
 apiVersion: v1
-kind: Secret
+kind: ConfigMap
 metadata:
-  name: mysql-credentials
-type: Opaque
+  name: izakaya-nginx-config
 data:
-  {{- if .Values.mysql.deploy }}
-  root_password: {{ required "mysql.root_password is required!" .Values.mysql.root_password | b64enc }}
-  {{- end }}
-  {{- range $name := list "miko" "hanami" "ryokan" "omamori" "izakaya" }}
-  {{- $db := include "ainari.mysqlDatabase" (list $ $name) | fromYaml }}
-  {{ $name }}_password: {{ $db.password | toString | b64enc }}
-  {{- end }}
+  internal.conf: |+
+    {{- include "ainari.nginxConfig" (list 8443 10423) | nindent 4 }}
+{{- end }}

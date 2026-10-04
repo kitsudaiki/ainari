@@ -35,5 +35,8 @@ data:
 
     [network]
     floating_ip_cidr = "{{ .Values.hanami.network.floating_ip_cidr }}"
+    mls_encryption = {{ .Values.hanami.network.mls_encryption }}
+    mls_grant_validity = {{ .Values.hanami.network.mls_grant_validity }}
+    mls_grant_refresh_interval = {{ .Values.hanami.network.mls_grant_refresh_interval }}
 
 kind: ConfigMap
