@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unrelease]
+
+### Added
+
+- enable the encrypted tenant networks:
+    - added new key-exchange based on MLS with OpenMKS library
+    - added new component "Izakaya" as MLS-server to orchestrate the key-exchange
+    - optional flag for network-create to use no network-encryption (per default enabled)
+- new optional secret_uuid field was added for image upload to used custom already uploaded 
+- new optional secret_uuid field was added for snapshot create to used custom already uploaded 
+
 ## v0.21.0
 
 ### BREAKING-CHANGES

@@ -46,6 +46,23 @@
                         Snapshot-Name must be at least 4 characters
                     </p>
                 </div>
+                <div class="field-row">
+                    <label for="secret">Secret: </label>
+                    <select id="secret" v-model="secretUuid" class="select-dropdown">
+                        <option value="">None (generate new secret)</option>
+                        <option
+                            v-for="secret in secrets"
+                            :key="secret.uuid"
+                            :value="secret.uuid"
+                        >
+                            {{ secret.name }}
+                        </option>
+                    </select>
+                </div>
+                <p class="hint-msg">
+                    The snapshot is encrypted with the selected secret. Without a
+                    selection, a new secret is generated for the snapshot.
+                </p>
             </div>
 
             <div class="modal-bottombar">
@@ -67,9 +84,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 
-import { sakura } from "@/api";
+import { omamori, sakura } from "@/api";
+import type { SecretBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -86,6 +104,16 @@ const emit = defineEmits<{
 const errorPopupMsg = ref<string>("");
 const nameError = ref(false);
 const name = ref<string>("");
+const secretUuid = ref<string>("");
+const secrets = ref<SecretBasicResp[]>([]);
+
+async function fetchSecrets() {
+    try {
+        secrets.value = await omamori.listSecrets();
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load secrets");
+    }
+}
 
 async function handleAccept() {
     nameError.value = name.value.length < 4;
@@ -97,7 +125,10 @@ async function handleAccept() {
         await sakura.createSnapshotSaveTask(
             props.torii_port,
             props.virtual_machine_uuid,
-            { name: name.value },
+            {
+                name: name.value,
+                secret_uuid: secretUuid.value || undefined,
+            },
         );
 
         emit("accept");
@@ -112,10 +143,24 @@ async function handleAccept() {
 function cancel() {
     emit("cancel");
 }
+
+onMounted(fetchSecrets);
 </script>
 
 <style scoped>
 .snapshot-save-modal {
     width: 30rem;
+}
+
+.hint-msg {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 6rem 22rem;
+    align-items: center;
+    margin-top: 1rem;
 }
 </style>

@@ -33,34 +33,11 @@ AES-256-GCM encrypted before moving them from the compute host to the storage ba
 
 ### Encrypted tenant networks
 
-**Status: <span style="color:#e6b800">partially implemented</span>**
-
-!!! info
-
-    Implemented in the network stack, but key-exchange not added yet
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Network traffic between virtual machines can be encrypted with IPsec and AES-256-GCM by using XFRM.
 It is planned to use MLS with the [OpenMLS-library](https://github.com/openmls/openmls) for the
 key-exchange.
-
-### Encrypted volumes
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    There are no remote mounted volumes in general, so there is nothing to encrypt here currently
-
-Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
-
-### Encrypted backups
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    There are no backups in generate at the moment.
-
 
 ### Filter for network traffic
 
@@ -85,49 +62,30 @@ sufficient to take over the entire deployment. Without additional tokens of othe
 in the config of the compute host are not enough to steal other information outside of the
 compute-host.
 
-### Project host isolation
+### Reproducable builds
 
-**Status: <span style="color:#e53935">planned</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
-Compute hosts can optionally be allocated for a specific project, so only virtual machines of this
-specific project can be scheduled on this host. That way you know, who else is located on the same
-hardware as you. In this case an attacker, who tries to steal your data by breaking out of the
-virtual machine, has to be in the same project as you, to get the chance to be on the same compute
-host.
+Rust already pins every package in its Cargo.lock to an absolute specific version.
+Additionally the rest of the published docker-images is build with [Nix](https://nixos.org/),
+to ensure, that all the other packages in the docker-images are pinned to specific
+versions too. For easier debugging, the local test-setups can use debian-based images
+instead.
+
+### SBOM
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
+
+An automatic summary of all packages with versions used within the Nix-based docker-images, 
+to keep track of CVEs and which versions are affected by them.
+
 
 ### Bring your own key
 
-**Status: <span style="color:#e6b800">partially implemented</span>**
-
-!!! info
-
-    Currently it is possible to upload a key, but the implementation to use it is still not done.
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Instead of letting the backend generate a key, users can upload their own keys to the key management
 and use them, in case they do not trust the random function of the backend.
-
-### Hold your own key
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Users can hold their keys themselves, instead of using the key management in the backend. In case of
-an action on a virtual machine, like creating and restoring an encrypted snapshot, the user can
-provide the key directly themselves over an end-to-end encrypted path. In case of the dashboard, the
-user gets a popup to enter the keys, whenever required by the backend. The keys are then only stored
-in the memory of the specific compute host and only as long as necessary for the task.
-
-### 2-factor authentication
-
-**Status: <span style="color:#e53935">planned</span>**
-
-To make logins much more secure, a second factor like OTP can be used as second login factor.
-
-### Backend in Rust
-
-**Status: <span style="color:#4caf50">Current state</span>**
-
-The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
-marked code too.
 
 ### Using Cloud-Hypervisor
 
@@ -137,20 +95,12 @@ To manage the virtual machine, the
 [Cloud-Hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor) is used. In contrast to
 qemu it has a minimal code base and is written in Rust.
 
-### Offline deployable
+### Backend in Rust
 
-**Status: <span style="color:#e53935">planned</span>**
+**Status: <span style="color:#4caf50">Current state</span>**
 
-To be able to run in air gapped environments, the whole deploy process will be done by an offline
-mirror.
-
-### Optional four-eyes principle for projects
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Projects can be marked as 4-eyes principle necessary. If this is enabled, every action triggered by
-a user against a virtual machine, must be approved by another user of the same project, in order to
-be started.
+The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
+marked code too.
 
 ### Audit-Log
 
@@ -171,22 +121,46 @@ task log it is visible which action (create, snapshot create, snapshot restore, 
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
 
-### Reproducable builds
+### Project host isolation
 
-**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
+**Status: <span style="color:#e53935">planned</span>**
 
-Rust already pins every package in its Cargo.lock to an absolute specific version.
-Additionally the rest of the published docker-images is build with [Nix](https://nixos.org/),
-to ensure, that all the other packages in the docker-images are pinned to specific
-versions too. For easier debugging, the local test-setups can use debian-based images
-instead.
+Compute hosts can optionally be allocated for a specific project, so only virtual machines of this
+specific project can be scheduled on this host. That way you know, who else is located on the same
+hardware as you. In this case an attacker, who tries to steal your data by breaking out of the
+virtual machine, has to be in the same project as you, to get the chance to be on the same compute
+host.
 
-### SBOM
+### Hold your own key
 
-**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
+**Status: <span style="color:#e53935">planned</span>**
 
-An automatic summary of all packages with versions used within the Nix-based docker-images, 
-to keep track of CVEs and which versions are affected by them.
+Users can hold their keys themselves, instead of using the key management in the backend. In case of
+an action on a virtual machine, like creating and restoring an encrypted snapshot, the user can
+provide the key directly themselves over an end-to-end encrypted path. In case of the dashboard, the
+user gets a popup to enter the keys, whenever required by the backend. The keys are then only stored
+in the memory of the specific compute host and only as long as necessary for the task.
+
+### 2-factor authentication
+
+**Status: <span style="color:#e53935">planned</span>**
+
+To make logins much more secure, a second factor like OTP can be used as second login factor.
+
+### Offline deployable
+
+**Status: <span style="color:#e53935">planned</span>**
+
+To be able to run in air gapped environments, the whole deploy process will be done by an offline
+mirror.
+
+### Optional four-eyes principle for projects
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Projects can be marked as 4-eyes principle necessary. If this is enabled, every action triggered by
+a user against a virtual machine, must be approved by another user of the same project, in order to
+be started.
 
 ### VPN-as-a-Service
 
@@ -197,6 +171,24 @@ So a user can connect over the wireguard tunnel to this VM and access all VMs wi
 tenant network over it. In combination with the tenant network encryption this makes it
 possible to secure the whole traffic even when the wiregard-VM and the target-VM are on 
 different compute-hosts.
+
+### Encrypted volumes
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    There are no remote mounted volumes in general, so there is nothing to encrypt here currently
+
+Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
+
+### Encrypted backups
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    There are no backups in generate at the moment.
 
 ### Yubikey support for key management
 
@@ -237,27 +229,12 @@ or Linux-Bridges. The only Linux network element used are tap-devices, to connec
 machines with the network layer. The network layer is written entirely in Rust, which runs in the
 kernel space with the help of [eBPF](https://ebpf.io/).
 
-### Built-in central error-logging
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Any internal error is sent to a central error-log, with all information around the error with
-user-id and so on, to make problems of users easier to find and debug.
-
 ### Deployable on Kubernetes
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 The whole stack is deployable on Kubernetes by providing helm charts and docker-images. See
 [Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
-
-### Kubernetes Operator
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Besides the helm chart, the complete stack can be deployed by a kubernetes operator on the
-kubernetes deployment. So only the operator has to be deployed by the user and the rest is handled
-by the operator.
 
 ### Easy local development
 
@@ -289,3 +266,18 @@ at one point in time split over 40 repositories. Dependency updates were a total
 A Monorepo makes implementing new features and updating dependecies much easier. It is also easy to 
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
+
+### Built-in central error-logging
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Any internal error is sent to a central error-log, with all information around the error with
+user-id and so on, to make problems of users easier to find and debug.
+
+### Kubernetes Operator
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Besides the helm chart, the complete stack can be deployed by a kubernetes operator on the
+kubernetes deployment. So only the operator has to be deployed by the user and the rest is handled
+by the operator.

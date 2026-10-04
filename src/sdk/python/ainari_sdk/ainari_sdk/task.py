@@ -21,17 +21,23 @@ import time
 def create_snapshot_save_task(context: AccessContext,
                               torii_port: int,
                               virtual_machine_uuid: str,
-                              name: str) -> dict:
+                              name: str,
+                              secret_uuid: str = None) -> dict:
     """
     Saves the root-disk of a virtual machine as new snapshot-image. The virtual machine is only
     paused during the copy, so data, which is still in its memory, is missing in the snapshot.
     Run `sync` inside the virtual machine right before creating the snapshot.
+
+    With `secret_uuid`, the snapshot is encrypted with this already existing secret, instead of a
+    new generated secret.
     """
     address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save"
     json_body = {
         "name": name,
     }
+    if secret_uuid:
+        json_body["secret_uuid"] = secret_uuid
     return ainari_request.send_post_request(context,
                                             address,
                                             path,

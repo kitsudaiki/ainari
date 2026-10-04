@@ -217,6 +217,10 @@ pub struct VirtualMachineCreateTaskReq {
 pub struct TaskSnapshotSaveReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
+    /// Already existing secret in the omamori, which is used to encrypt the snapshot. Without it,
+    /// a new secret is generated for the snapshot.
+    #[serde(default)]
+    pub secret_uuid: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

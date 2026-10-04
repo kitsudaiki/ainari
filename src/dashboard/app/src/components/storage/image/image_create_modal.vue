@@ -35,6 +35,23 @@
                         Image-Name must be at least 4 characters
                     </p>
                 </div>
+                <div class="field-row">
+                    <label for="secret">Secret: </label>
+                    <select id="secret" v-model="form.secretUuid" class="select-dropdown">
+                        <option value="">None (generate new secret)</option>
+                        <option
+                            v-for="secret in secrets"
+                            :key="secret.uuid"
+                            :value="secret.uuid"
+                        >
+                            {{ secret.name }}
+                        </option>
+                    </select>
+                </div>
+                <p class="hint-msg">
+                    The image is encrypted with the selected secret. Without a selection, a
+                    new secret is generated for the image.
+                </p>
                 <div>
                     <div class="tab">
                         <button
@@ -80,10 +97,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
 
-import { ryokan } from "@/api";
-import type { ImageType } from "@/api";
+import { omamori, ryokan } from "@/api";
+import type { ImageType, SecretBasicResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
@@ -98,9 +115,20 @@ const errorPopupMsg = ref<string>("");
 const imageNameError = ref(false);
 const fileError = ref(false);
 
+const secrets = ref<SecretBasicResp[]>([]);
+
 const form = reactive({
     imageName: "",
+    secretUuid: "",
 });
+
+async function fetchSecrets() {
+    try {
+        secrets.value = await omamori.listSecrets();
+    } catch (err) {
+        errorPopupMsg.value = handleAxiosError(err, "Failed to load secrets");
+    }
+}
 const file1 = ref<File | null>(null);
 
 const onFile1Change = (event: Event) => {
@@ -132,7 +160,12 @@ async function handleAccept() {
     }
 
     try {
-        await ryokan.createImage(selectedTab.value, form.imageName, files);
+        await ryokan.createImage(
+            selectedTab.value,
+            form.imageName,
+            files,
+            form.secretUuid || undefined,
+        );
         emit("accept");
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
@@ -161,11 +194,25 @@ function selectTab(tab: ImageType) {
 function isSelected(tab: ImageType) {
     return selectedTab.value === tab;
 }
+
+onMounted(fetchSecrets);
 </script>
 
 <style scoped>
 .image-create-modal {
     width: 30rem;
+}
+
+.hint-msg {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 6rem 22rem;
+    align-items: center;
+    margin-top: 1rem;
 }
 
 .image-tabcontent {

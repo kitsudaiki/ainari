@@ -175,6 +175,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* the uuid has always the same length, so it is not wrapped */
+td:first-child {
+    white-space: nowrap;
+}
+
+/* more space between the uuid and the name */
+th:first-child,
+td:first-child {
+    padding-right: 2rem;
+}
+
 /* Columns 2 through n-1 share remaining space equally */
 th:not(:first-child):not(:last-child),
 td:not(:first-child):not(:last-child) {

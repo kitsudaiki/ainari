@@ -59,12 +59,18 @@ def delete_all_images(context: AccessContext):
 
 def upload_disk_file(context: AccessContext,
                      name: str,
-                     input_file_path: str) -> dict:
+                     input_file_path: str,
+                     secret_uuid: str = None) -> dict:
     """
     Uploads a disk-image, which is used as boot-disk of a virtual machine. The file is stored as
     it is, so it has to be an image, which cloud-hypervisor can boot, like a qcow2-cloud-image.
+
+    With `secret_uuid`, the image is encrypted with this already existing secret, instead of a new
+    generated secret.
     """
     path = f"/v1alpha/image/disk/{name}"
+    if secret_uuid:
+        path += f"?secret_uuid={secret_uuid}"
     files = [input_file_path]
 
     return ainari_request.upload_files(context,

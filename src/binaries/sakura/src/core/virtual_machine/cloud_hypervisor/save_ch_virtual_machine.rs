@@ -35,9 +35,9 @@ use crate::database::virtual_machine_table;
 /// Creates a snapshot of the root-disk of a cloud-hypervisor virtual_machine
 ///
 /// The snapshot must already be registered in ryokan as image, which is marked as snapshot.
-/// Ryokan also generated the secret for it in omamori. The root-disk is copied into a qcow2-image
-/// in the temp-directory, while the virtual_machine is paused, so the disk doesn't change during
-/// the copy. Afterwards the image is encrypted with the secret of the snapshot and uploaded into
+/// Ryokan also generated the secret for it in omamori, if the user didn't provide an existing
+/// one. The root-disk is copied into a qcow2-image in the temp-directory, while the
+/// virtual_machine is paused, so the disk doesn't change during the copy. Afterwards the image is encrypted with the secret of the snapshot and uploaded into
 /// the onsen, which was selected by ryokan.
 ///
 /// The snapshot is only crash-consistent: pausing doesn't flush the page-cache of the guest, so
@@ -49,6 +49,7 @@ use crate::database::virtual_machine_table;
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
 /// * `image_uuid` - Unique identifier of the image, which was registered in ryokan as snapshot
+/// * `secret_uuid` - Unique identifier of the secret, which is used to encrypt the snapshot
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -57,6 +58,7 @@ use crate::database::virtual_machine_table;
 pub async fn save_ch_virtual_machine(
     uuid: &Uuid,
     image_uuid: &Uuid,
+    secret_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), AinariError> {
     let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
@@ -68,7 +70,7 @@ pub async fn save_ch_virtual_machine(
     let endpoints =
         get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
 
-    // get storage-location and secret of the image, which were prepared by ryokan
+    // get storage-location of the image, which was prepared by ryokan
     let image_resp = get_image(
         &endpoints.ryokan,
         &context.token,
@@ -77,7 +79,7 @@ pub async fn save_ch_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await?;
-    let secret = get_secret(&endpoints, &image_resp.secret_uuid, context).await?;
+    let secret = get_secret(&endpoints, secret_uuid, context).await?;
 
     log::info!("Start snapshot-image {image_uuid} of VM {uuid}");
 

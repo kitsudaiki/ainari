@@ -31,7 +31,9 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Initialize a new image.
 
 Prepares the database-entry and the onsen, before the files are uploaded. Sakura uses this to
-store the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`.
+store the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`. With
+`secret_uuid`, the image is encrypted with this already existing secret of the omamori, instead of
+a new generated secret.
 
 This is an internal call, which is protected by the internal api-key."###,
     error_code = 400,
@@ -54,7 +56,19 @@ pub async fn init_image(
 
     super::check_image_quota(&context).await?;
 
-    let (secret_uuid, _) = super::super::generate_new_key(image_uuid, &context).await?;
+    // use the secret provided by the user or generate a new one for the image. The payload of a
+    // provided secret is read, to check that it exists and is accessible for the user.
+    let secret_uuid = match &body.secret_uuid {
+        Some(secret_uuid) => {
+            super::super::get_existing_key(secret_uuid, &context).await?;
+            *secret_uuid
+        }
+        None => {
+            super::super::generate_new_key(image_uuid, &context)
+                .await?
+                .0
+        }
+    };
 
     let selected_onsen = select_onsen(&context)?;
 

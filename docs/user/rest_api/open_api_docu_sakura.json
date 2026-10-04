@@ -436,7 +436,7 @@
           "task"
         ],
         "summary": "Create new snapshot-save-task",
-        "description": "Create a new task, which saves the root-disk of a virtual_machine as new snapshot.\\\n\\\nThe snapshot is registered in ryokan as image, which is marked as snapshot, before the task is\\\nqueued, so the image-quota of the project is checked immediately. The task encrypts the root-disk\\\nand uploads it into the onsen.\\\n\\\nThe virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly\\\nbefore, can still be in the memory of the virtual_machine and is then missing in the snapshot.\\\nRun `sync` inside the virtual_machine right before creating the snapshot.",
+        "description": "Create a new task, which saves the root-disk of a virtual_machine as new snapshot.\\\n\\\nThe snapshot is registered in ryokan as image, which is marked as snapshot, before the task is\\\nqueued, so the image-quota of the project is checked immediately. The task encrypts the root-disk\\\nand uploads it into the onsen. With `secret_uuid`, the snapshot is encrypted with this already\\\nexisting secret of the omamori, instead of a new generated secret.\\\n\\\nThe virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly\\\nbefore, can still be in the memory of the virtual_machine and is then missing in the snapshot.\\\nRun `sync` inside the virtual_machine right before creating the snapshot.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -1251,6 +1251,13 @@
             "type": "string",
             "maxLength": 127,
             "minLength": 4
+          },
+          "secret_uuid": {
+            "description": "Already existing secret in the omamori, which is used to encrypt the snapshot. Without it, a new secret is generated for the snapshot.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
