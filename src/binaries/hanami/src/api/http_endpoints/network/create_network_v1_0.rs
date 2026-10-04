@@ -30,7 +30,12 @@ use ainari_clients::quota::get_quota;
 #[api_operation(
     tag = "network",
     summary = "Create new network",
-    description = r###"Create new network."###,
+    description = r###"Create new network.
+
+The traffic between the virtual machines of the network, which run on different hosts, is
+encrypted with IPsec, whose keys the gateways exchange over a MLS-group of the network. With
+`disable_encryption` set, the network gets neither the encryption nor the MLS-group. The flag can't
+be changed after the creation."###,
     error_code = 400,
     error_code = 401,
     error_code = 409,
@@ -49,14 +54,19 @@ pub async fn create_network(
     let network_uuid = Uuid::new_v4();
 
     // add new network to database
-    network_table::add_new_network(&network_uuid, &body.name, &body.subnet, &context).map_err(
-        |e| {
-            map_db_write_error(
-                &format!("add network with UUID '{network_uuid}' to database"),
-                e,
-            )
-        },
-    )?;
+    network_table::add_new_network(
+        &network_uuid,
+        &body.name,
+        &body.subnet,
+        body.disable_encryption,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_write_error(
+            &format!("add network with UUID '{network_uuid}' to database"),
+            e,
+        )
+    })?;
 
     // get new created network from database to get additional information
     let network = network_table::get_network(&network_uuid, &context)
@@ -66,6 +76,7 @@ pub async fn create_network(
         uuid: network_uuid,
         name: network.name,
         subnet: network.subnet,
+        disable_encryption: network.disable_encryption,
         created_by: network.created_by,
         created_at: network.created_at,
         updated_by: network.updated_by,

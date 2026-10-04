@@ -16,7 +16,7 @@
 #
 # Starts the setup of testing/vagrant: eight virtual machines with nested virtualization and a
 # kubernetes-cluster (k3s), on which ansible deploys the helm-chart of deploy/k8s/ainari. Miko,
-# hanami, ryokan and omamori run with one replica on each of the three management-machines and
+# hanami, ryokan, omamori and izakaya run with one replica on each of the three management-machines and
 # share the mysql-server on the machine ainari-mysql. Onsen runs on its own machine ainari-onsen.
 # The images are built on the host and copied
 # into the virtual machines.
@@ -53,7 +53,7 @@ MGMT_VM_ADDRESS="192.168.56.10"
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
-IMAGES=(miko omamori ryokan onsen hanami sakura torii dashboard)
+IMAGES=(miko omamori izakaya ryokan onsen hanami sakura torii dashboard)
 
 SUDO=""
 if [ "$EUID" -ne 0 ]; then
@@ -143,7 +143,7 @@ echo "All certificates are signed by the CA $CA_CERT"
 echo "It stays the same over all runs, so it only has to be trusted once, see"
 echo "testing/local_stack/Readme.md."
 echo ""
-echo "Miko, hanami, ryokan and omamori run three times, on ainari-mgmt-1 to ainari-mgmt-3, and"
+echo "Miko, hanami, ryokan, omamori and izakaya run three times, on ainari-mgmt-1 to ainari-mgmt-3, and"
 echo "share the mysql-server on ainari-mysql. The api is reachable over every virtual machine."
 echo ""
 echo "The cluster can be inspected with"

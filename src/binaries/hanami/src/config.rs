@@ -18,6 +18,7 @@ use std::env;
 use std::fs;
 use std::process;
 
+use ainari_api_structs::mls_structs::{SigningKey, parse_signing_key};
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
 
@@ -64,14 +65,48 @@ pub struct Network {
     /// network translates to the internal addresses of the virtual machines
     #[serde(default = "default_floating_ip_cidr")]
     pub floating_ip_cidr: String,
+    /// Encrypt the traffic between the virtual machines of a network, which run on different
+    /// hosts, with IPsec. The keys are derived from a MLS-group of the gateways of the network,
+    /// which is shared over the izakaya. The routes from and to the gateway at the edge of the
+    /// network are never encrypted.
+    #[serde(default = "default_mls_encryption")]
+    pub mls_encryption: bool,
+    /// Seconds, for which a membership-grant allows a gateway to join the group of a network.
+    /// hanami grants the membership with every VM, which it places on a host, so the grant only
+    /// has to last until the gateway joined.
+    #[serde(default = "default_mls_grant_validity")]
+    pub mls_grant_validity: u64,
+    /// Seconds between two refreshes of all membership-grants. Every host with a
+    /// virtual_machine of a network gets its grant again, which keeps the grants from expiring
+    /// and brings them back, if izakaya lost them. Has to be shorter than `mls_grant_validity`.
+    #[serde(default = "default_mls_grant_refresh_interval")]
+    pub mls_grant_refresh_interval: u64,
 }
 
 impl Default for Network {
     fn default() -> Self {
         Self {
             floating_ip_cidr: default_floating_ip_cidr(),
+            mls_encryption: default_mls_encryption(),
+            mls_grant_validity: default_mls_grant_validity(),
+            mls_grant_refresh_interval: default_mls_grant_refresh_interval(),
         }
     }
+}
+
+/// Default value for mls_encryption
+fn default_mls_encryption() -> bool {
+    true
+}
+
+/// Default value for mls_grant_validity: one day
+fn default_mls_grant_validity() -> u64 {
+    86400
+}
+
+/// Default value for mls_grant_refresh_interval: five minutes
+fn default_mls_grant_refresh_interval() -> u64 {
+    300
 }
 
 /// Default range of the floating ip-addresses
@@ -136,6 +171,26 @@ pub static INTERNAL_API_KEY: Lazy<Secret> = Lazy::new(|| match env::var("INTERNA
         process::exit(1);
     }
 });
+
+/// Global singleton for the key, which signs the membership-grants of the gateways
+///
+/// The key is read from the "MLS_GRANT_SIGNING_KEY" environment variable as base64-encoded 32 byte
+/// seed of an Ed25519-key. All instances of hanami share it. If it is not set or can't be read,
+/// the program will exit with an error.
+pub static MLS_GRANT_SIGNING_KEY: Lazy<SigningKey> =
+    Lazy::new(|| match env::var("MLS_GRANT_SIGNING_KEY") {
+        Ok(value) => match parse_signing_key(&value) {
+            Ok(key) => key,
+            Err(e) => {
+                log::error!("env-variable 'MLS_GRANT_SIGNING_KEY' is not valid: {e}");
+                process::exit(1);
+            }
+        },
+        Err(_) => {
+            log::error!("env-variable 'MLS_GRANT_SIGNING_KEY' was not set.");
+            process::exit(1);
+        }
+    });
 
 /// Global singleton for the Sakura registration key
 ///

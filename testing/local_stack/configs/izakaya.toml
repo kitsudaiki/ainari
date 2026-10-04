@@ -1,0 +1,24 @@
+# Config of izakaya for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+database_type = "sqlite"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11423
+internal_ip = "0.0.0.0"
+internal_port = 10423
+
+[miko]
+address = "http://miko:11417"
+
+[sqlite]
+file_path = "/etc/ainari/izakaya_db"
+
+[mls]
+# public key of hanami, which signs the membership-grants of the gateways. This is the key of the
+# development-setup, hanami logs the key, which belongs to its MLS_GRANT_SIGNING_KEY, at its start.
+grant_public_key = "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo="
+# seconds between two key-rotations of a group, whose membership didn't change
+key_rotation_interval = 3600

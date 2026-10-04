@@ -54,6 +54,13 @@ secrets:
   internal_api_key: "my-super-secret-api-key"
   onsen_registration_key: "my-super-secret-api-key"
   sakura_registration_key: "my-super-secret-api-key"
+  # Ed25519 key-pair, with which hanami signs the membership-grants of the MLS-groups of the
+  # networks (see hanami.network.mls_encryption). Both are base64-encoded: the private key as its
+  # 32 byte seed, the public key as its 32 bytes. hanami logs the public key, which belongs to
+  # its private key, at its start. They have no default on purpose, a well-known key would let
+  # anyone join the groups. Required, as long as the encryption is enabled.
+  mls_grant_signing_key: ""
+  mls_grant_public_key: ""
 
 
 # Database of miko, hanami, ryokan and omamori. Each of them has its own database and user on the
@@ -94,6 +101,10 @@ mysql:
       database: "omamori"
       user: "omamori"
       password: "my-super-secret-omamori-password"
+    izakaya:
+      database: "izakaya"
+      user: "izakaya"
+      password: "my-super-secret-izakaya-password"
 
 
 miko:
@@ -128,6 +139,14 @@ hanami:
   network:
     # range of the floating ip-addresses, which are served by the torii at the edge
     floating_ip_cidr: "10.0.0.0/24"
+    # Encrypts the traffic between the virtual machines of a network on different hosts with
+    # IPsec, whose keys the gateways exchange over MLS-groups, which izakaya coordinates. Requires
+    # secrets.mls_grant_signing_key and secrets.mls_grant_public_key.
+    mls_encryption: true
+    # seconds, for which a membership-grant allows a gateway to join the group of a network
+    mls_grant_validity: 86400
+    # seconds between two refreshes of all membership-grants
+    mls_grant_refresh_interval: 300
 
 
 sakura:
@@ -171,6 +190,21 @@ omamori:
     domain: local-omamori
     # address, which is handed out to the clients. Derived from the domain, if empty.
     public_address: ""
+
+
+# Shares the MLS key-packages of the gateways, delivers their MLS-messages and coordinates the
+# changes and key-rotations of the groups. It keeps its state in the mysql-server, so it can run
+# with several replicas. Only the other components talk to it, so it has no external api.
+izakaya:
+  replica_count: 1
+  docker:
+    tag: "develop"
+    repository: "kitsudaiki/izakaya"
+    pull_policy: "Always"
+  api:
+    domain: local-izakaya
+  # seconds between two key-rotations of a group, whose membership didn't change
+  key_rotation_interval: 3600
 
 
 onsen:

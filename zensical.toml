@@ -74,6 +74,9 @@ nav = [
         "developer/local_testing/https_ca.md",
       ] },
       "developer/development.md",
+      { "Sequence diagrams" = [
+        "developer/sequence_diagrams/network_crypto_key_exchange.md",
+      ] },
       "developer/test_guide.md",
       "developer/git_workflow.md",
       "developer/build_base_image.md",

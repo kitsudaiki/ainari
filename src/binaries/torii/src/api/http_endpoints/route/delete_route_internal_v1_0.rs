@@ -17,6 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::core::mls::refresh_network_keys;
 use crate::core::routing::remove_route;
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::route_table;
@@ -57,6 +58,10 @@ pub async fn delete_route_internal(
     }
 
     remove_route(&mut st, &route_uuid);
+    drop(st);
+
+    // the connections of the VM behind the route lose their keys
+    refresh_network_keys(route.vni).await;
 
     Ok(NoContent)
 }

@@ -21,6 +21,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::config;
+use crate::core::mls::{grant_membership, is_encrypted, network_encrypted};
 use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host};
 use crate::database::address_table;
 use crate::database::address_table::AddressEntry;
@@ -245,7 +246,9 @@ async fn prepare_selected_host(
 
     // prepare the network of the virtual_machine, so sakura can attach the virtual_machine to the
     // TAP-device, when it creates the virtual_machine later
-    prepare_network(&endpoints, selected_host, &vm_address, context).await?;
+    // a network with disabled encryption gets neither encrypted routes nor a MLS-group
+    let encrypted = network_encrypted(network_data.disable_encryption);
+    prepare_network(&endpoints, selected_host, &vm_address, encrypted, context).await?;
 
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
@@ -314,6 +317,7 @@ async fn prepare_selected_host(
 /// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
 /// * `selected_host` - Sakura-host, which runs the virtual_machine and its torii
 /// * `vm_address` - Reserved address of the virtual_machine with its TAP-device and MAC-address
+/// * `encrypted` - Whether the network is encrypted (see `network_encrypted`)
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -323,6 +327,7 @@ async fn prepare_network(
     endpoints: &Endpoints,
     selected_host: &HostEntry,
     vm_address: &AddressEntry,
+    encrypted: bool,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     let host_torii = torii_of_host(&endpoints.torii, &selected_host.address)?;
@@ -371,10 +376,27 @@ async fn prepare_network(
         // route the traffic for the virtual_machine from the outside to the torii of its host.
         // The target-interface is left empty, so the torii uses the interface of its own
         // underlay.
+        // The route towards the edge of the network is never encrypted.
         create_overlay_route(
             &endpoints.torii,
             vm_address.internal_ip,
             host_ip,
+            vm_address.vni,
+            false,
+            context,
+        )
+        .await?;
+    }
+
+    // the torii of the host may join the MLS-group of the network now. It does so on its own, as
+    // soon as it has an encrypted route of the network, and derives the keys of these routes from
+    // the group.
+    if encrypted && host_ip != external_torii_ip {
+        grant_membership(
+            endpoints,
+            selected_host,
+            host_ip,
+            &host_torii,
             vm_address.vni,
             context,
         )
@@ -383,7 +405,15 @@ async fn prepare_network(
 
     // the virtual_machines of a network reach each other directly, without a detour over the
     // torii at the edge of the network
-    connect_to_virtual_machines_of_network(endpoints, host_ip, vm_address, context).await?;
+    connect_to_virtual_machines_of_network(
+        endpoints,
+        host_ip,
+        external_torii_ip,
+        vm_address,
+        encrypted,
+        context,
+    )
+    .await?;
 
     Ok(())
 }
@@ -397,6 +427,11 @@ async fn prepare_network(
 /// on the same host share the torii of that host, which already routes between their TAP-devices,
 /// so they are skipped here.
 ///
+/// The routes between two hosts are encrypted, as long as the network is encrypted and none of
+/// them is the edge of the network. The torii derive their keys from the MLS-group of the network, which they join on
+/// their own with the grant of hanami. Until the torii of both hosts are in the group and rolled
+/// the keys out, the encrypted routes drop the traffic instead of sending it unprotected.
+///
 /// The address of the sakura-host of a virtual_machine is stored together with its internal
 /// address, so the torii, which owns the TAP-device of an older virtual_machine, can be addressed
 /// here again.
@@ -404,7 +439,9 @@ async fn prepare_network(
 /// # Arguments
 /// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
 /// * `new_host_ip` - Underlay-address of the sakura-host, which runs the new virtual_machine
+/// * `external_torii_ip` - Address of the torii at the edge of the network
 /// * `vm_address` - Reserved address of the new virtual_machine
+/// * `encrypted` - Whether the network is encrypted (see `network_encrypted`)
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -413,7 +450,9 @@ async fn prepare_network(
 async fn connect_to_virtual_machines_of_network(
     endpoints: &Endpoints,
     new_host_ip: Ipv4Addr,
+    external_torii_ip: Ipv4Addr,
     vm_address: &AddressEntry,
+    encrypted: bool,
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     let addresses_of_network = address_table::list_addresses_of_network(&vm_address.network_uuid)
@@ -425,8 +464,8 @@ async fn connect_to_virtual_machines_of_network(
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    let new_torii = torii_of_host(&endpoints.torii, &vm_address.host_address)?;
-
+    // the other virtual_machines of the network together with the underlay-address of their host
+    let mut other_addresses = Vec::new();
     for other_address in addresses_of_network {
         // the address of the new virtual_machine is part of the list too
         if other_address.uuid == vm_address.uuid {
@@ -444,7 +483,12 @@ async fn connect_to_virtual_machines_of_network(
         }
 
         let other_host_ip = resolve_address(&other_address.host_address).await?;
+        other_addresses.push((other_address, other_host_ip));
+    }
 
+    let new_torii = torii_of_host(&endpoints.torii, &vm_address.host_address)?;
+
+    for (other_address, other_host_ip) in other_addresses {
         // both virtual_machines run on the same host, whose torii already routes between their
         // TAP-devices
         if other_host_ip == new_host_ip {
@@ -452,6 +496,8 @@ async fn connect_to_virtual_machines_of_network(
         }
 
         let other_torii = torii_of_host(&endpoints.torii, &other_address.host_address)?;
+        let route_encrypted =
+            is_encrypted(encrypted, new_host_ip, other_host_ip, external_torii_ip);
 
         // from the new virtual_machine to the older one ...
         create_overlay_route(
@@ -459,6 +505,7 @@ async fn connect_to_virtual_machines_of_network(
             other_address.internal_ip,
             other_host_ip,
             other_address.vni,
+            route_encrypted,
             context,
         )
         .await?;
@@ -469,6 +516,7 @@ async fn connect_to_virtual_machines_of_network(
             vm_address.internal_ip,
             new_host_ip,
             vm_address.vni,
+            route_encrypted,
             context,
         )
         .await?;

@@ -48,6 +48,7 @@ export interface EndpointsResp {
     ryokan: EndpointField;
     torii: EndpointField;
     omamori: EndpointField;
+    izakaya: EndpointField;
 }
 
 //=============================================================================
@@ -289,6 +290,8 @@ export interface VmTypeResp extends VmTypeBasicResp {
 export interface NetworkCreateReq {
     name: string;
     subnet: string;
+    /** Don't encrypt the traffic between the virtual machines on different hosts. */
+    disable_encryption?: boolean;
 }
 
 /** Mirror of `network_structs::NetworkBasicResp`. */
@@ -296,6 +299,7 @@ export interface NetworkBasicResp {
     uuid: string;
     name: string;
     subnet: string;
+    disable_encryption: boolean;
 }
 
 /** Mirror of `network_structs::NetworkResp`. */

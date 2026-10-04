@@ -12,44 +12,11 @@ use crate::core::utils::{run_ip, run_ip_with_secrets};
 
 use ainari_common::secret::Secret;
 
-/// Normalises and validates AES-256-GCM key material coming from the API.
+/// Writes the xfrm policies of a connection.
 ///
-/// `rfc4106(gcm(aes))` expects the 32 byte cipher key immediately followed by
-/// the 4 byte salt, so exactly 36 bytes have to be provided. The value is
-/// returned in the `0x...` form expected by iproute2.
-///
-/// # Arguments
-/// * `key` - Hex encoded key material, with or without a `0x` prefix
-///
-/// # Returns
-/// A `Result` with the normalised key, or a message describing the problem
-pub fn normalize_key(key: &Secret) -> Result<Secret, String> {
-    let hex = key
-        .reveal()
-        .trim()
-        .trim_start_matches("0x")
-        .trim_start_matches("0X");
-    if hex.len() != 72 {
-        return Err(format!(
-            "AES-256-GCM needs 36 bytes (32 byte key + 4 byte salt) = 72 hex digits, got {}",
-            hex.len()
-        ));
-    }
-    if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("key must be hex encoded".to_string());
-    }
-    Ok(Secret::from(format!("0x{}", hex)))
-}
-
-/// Writes the xfrm policies of a connection according to its current state.
-///
-/// This is the single place that decides whether a connection is protected. With
-/// the encryption switched on, the policies carry an ESP template: outgoing
-/// packets are encrypted with the currently active key and incoming ones are
-/// only accepted when they arrived through the tunnel (`level required`). With
-/// the encryption switched off the very same policies become plain allow rules
-/// without a template, which is what makes the traffic travel unencrypted even
-/// though the keys are still sitting in the kernel.
+/// The policies carry an ESP template: outgoing packets are encrypted with the
+/// currently active key and incoming ones are only accepted when they arrived
+/// through the tunnel (`level required`).
 ///
 /// Both the `in` and the `fwd` direction are written: `in` covers packets that
 /// are delivered locally, `fwd` the ones that are routed onwards to the TAP of
@@ -70,44 +37,10 @@ pub fn apply_connection_policies(
     let local_sel = format!("{}/32", conn.local_ip);
     let remote_sel = format!("{}/32", conn.remote_ip);
 
-    if !conn.enabled {
-        // No template at all: nothing is applied on the way out and nothing is
-        // demanded on the way in. The keys stay installed and unused.
-        run_ip(&[
-            "xfrm",
-            "policy",
-            "update",
-            "src",
-            &local_sel,
-            "dst",
-            &remote_sel,
-            "dir",
-            "out",
-            "action",
-            "allow",
-        ])?;
-        for dir in ["in", "fwd"] {
-            run_ip(&[
-                "xfrm",
-                "policy",
-                "update",
-                "src",
-                &remote_sel,
-                "dst",
-                &local_sel,
-                "dir",
-                dir,
-                "action",
-                "allow",
-            ])?;
-        }
-        return Ok(());
-    }
-
     // Outbound: pin the policy to the key that is currently active, so that
     // installing another egress key is what switches a connection over.
-    let spi = conn.active_egress_spi.map(|spi| format!("0x{:08x}", spi));
-    let mut out_args: Vec<&str> = vec![
+    let spi = format!("0x{:08x}", conn.active_egress_spi);
+    run_ip(&[
         "xfrm",
         "policy",
         "update",
@@ -124,12 +57,11 @@ pub fn apply_connection_policies(
         &peer_gateway_ip,
         "proto",
         "esp",
-    ];
-    if let Some(spi) = spi.as_deref() {
-        out_args.extend_from_slice(&["spi", spi]);
-    }
-    out_args.extend_from_slice(&["mode", "tunnel"]);
-    run_ip(&out_args)?;
+        "spi",
+        &spi,
+        "mode",
+        "tunnel",
+    ])?;
 
     // Inbound: demand ESP, so unprotected packets of this connection are dropped.
     for dir in ["in", "fwd"] {
@@ -262,4 +194,60 @@ pub fn remove_block_policies(dest_ip: Ipv4Addr) {
     let dest = format!("{}/32", dest_ip);
     let _ = run_ip(&["xfrm", "policy", "delete", "dst", &dest, "dir", "out"]);
     let _ = run_ip(&["xfrm", "policy", "delete", "src", &dest, "dir", "fwd"]);
+}
+
+/// Removes one Security Association from the kernel.
+///
+/// # Arguments
+/// * `src` - Underlay address the ESP packets of the SA originate from
+/// * `dst` - Underlay address the ESP packets of the SA are sent to
+/// * `spi` - Security Parameter Index of the SA
+///
+/// # Returns
+/// `Ok(())` when the kernel removed the SA, otherwise the error of `ip`
+pub fn remove_sa(src: Ipv4Addr, dst: Ipv4Addr, spi: u32) -> Result<(), String> {
+    let (src, dst) = (src.to_string(), dst.to_string());
+    let spi = format!("0x{:08x}", spi);
+    run_ip(&[
+        "xfrm", "state", "delete", "src", &src, "dst", &dst, "proto", "esp", "spi", &spi,
+    ])
+}
+
+/// Removes the xfrm policies of a connection, which `apply_connection_policies` wrote.
+///
+/// Without them the traffic of the VM pair falls back to the fail-closed block policies of its
+/// route, as long as the route exists.
+///
+/// # Arguments
+/// * `conn` - The connection whose policies should be removed
+///
+/// # Returns
+/// None. Errors are ignored: the policies may already be gone.
+pub fn remove_connection_policies(conn: &Connection) {
+    let local_sel = format!("{}/32", conn.local_ip);
+    let remote_sel = format!("{}/32", conn.remote_ip);
+    let _ = run_ip(&[
+        "xfrm",
+        "policy",
+        "delete",
+        "src",
+        &local_sel,
+        "dst",
+        &remote_sel,
+        "dir",
+        "out",
+    ]);
+    for dir in ["in", "fwd"] {
+        let _ = run_ip(&[
+            "xfrm",
+            "policy",
+            "delete",
+            "src",
+            &remote_sel,
+            "dst",
+            &local_sel,
+            "dir",
+            dir,
+        ]);
+    }
 }

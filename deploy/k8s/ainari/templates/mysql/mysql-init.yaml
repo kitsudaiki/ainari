@@ -31,7 +31,7 @@ data:
         echo "${value//\'/\\\'}"
     }
 
-    {{- range $name := list "miko" "hanami" "ryokan" "omamori" }}
+    {{- range $name := list "miko" "hanami" "ryokan" "omamori" "izakaya" }}
     {{- $db := include "ainari.mysqlDatabase" (list $ $name) | fromYaml }}
 
     mysql --protocol=socket -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOSQL

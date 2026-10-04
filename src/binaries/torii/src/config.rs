@@ -19,6 +19,7 @@ use std::fs;
 use std::net::Ipv4Addr;
 use std::process;
 
+use ainari_api_structs::mls_structs::{VerifyingKey, parse_verifying_key};
 use ainari_common::config as ainari_config;
 use ainari_common::secret::Secret;
 
@@ -58,6 +59,18 @@ pub struct Config {
     /// Settings for local development and testing only
     #[serde(default)]
     pub development: Development,
+    /// Key-exchange over the MLS-groups of the networks. Without it, the gateway doesn't take
+    /// part in any group, so its encrypted routes stay without keys.
+    #[serde(default)]
+    pub mls: Option<MlsConf>,
+}
+
+/// Configuration of the key-exchange over the MLS-groups of the networks
+#[derive(Debug, Deserialize)]
+pub struct MlsConf {
+    /// Base64-encoded Ed25519 public key of hanami, which signs the membership-grants. hanami
+    /// logs it at its start.
+    pub grant_public_key: String,
 }
 
 impl Config {
@@ -282,6 +295,21 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 });
 
+/// Global singleton for the public key of hanami, which signs the membership-grants
+///
+/// `None` if the key-exchange is not configured. A configured key, which can't be read, makes the
+/// application exit with an error.
+pub static GRANT_PUBLIC_KEY: Lazy<Option<VerifyingKey>> = Lazy::new(|| {
+    let conf = CONFIG.mls.as_ref()?;
+    match parse_verifying_key(&conf.grant_public_key) {
+        Ok(key) => Some(key),
+        Err(e) => {
+            eprintln!("Invalid 'mls.grant_public_key': {e}");
+            process::exit(1);
+        }
+    }
+});
+
 /// Global singleton for internal API key
 ///
 /// This is a lazy-initialized global secret that reads from the
@@ -314,6 +342,7 @@ mod tests {
     fn the_example_config_runs_without_single_node() {
         let config = load("torii.toml");
         assert!(!config.development.single_node);
+        assert!(parse_verifying_key(&config.mls.as_ref().unwrap().grant_public_key).is_ok());
         assert_eq!(config.network.underlay_iface, "eth0");
         assert!(config.network.uplink().is_none());
         assert!(config.validate().is_ok());
@@ -334,6 +363,8 @@ mod tests {
     fn the_public_example_config_has_an_uplink_without_single_node() {
         let config = load("torii_public.toml");
         assert!(!config.development.single_node);
+        // the gateway at the edge of the network is never part of a group
+        assert!(config.mls.is_none());
         assert_eq!(
             config.network.uplink(),
             Some(("veth-gw", Ipv4Addr::new(10, 0, 0, 1)))

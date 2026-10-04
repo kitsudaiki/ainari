@@ -20,3 +20,11 @@ address = "http://miko:11417"
 # The floating ip-addresses are served by the torii at the edge of the network. The host reaches
 # them over the veth-pair, which scripts/setup_local_stack.sh injects into that container.
 floating_ip_cidr = "10.0.0.0/24"
+# encrypt the traffic between the virtual machines of a network on different hosts with IPsec,
+# whose keys are exchanged by the gateways over MLS-groups and the izakaya
+mls_encryption = true
+# seconds, for which a membership-grant allows a torii to join the group of a network
+mls_grant_validity = 86400
+# seconds between two refreshes of all membership-grants, which also brings them back to izakaya,
+# if it lost its database. Has to be shorter than mls_grant_validity.
+mls_grant_refresh_interval = 300

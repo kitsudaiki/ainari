@@ -1,0 +1,110 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if .Values.hanami.network.mls_encryption }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: izakaya
+  labels:
+    app: izakaya
+spec:
+  replicas: {{ .Values.izakaya.replica_count }}
+  # Every node runs at most one replica of a component (see ainari.affinity), so an update can't
+  # start an additional pod first. One old pod is removed, before its replacement is started.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: izakaya
+  template:
+    metadata:
+      labels:
+        app: izakaya
+    spec:
+      {{- include "ainari.affinity" (list . "izakaya" "izakaya-node") | nindent 6 }}
+      {{- include "ainari.waitForMysql" . | nindent 6 }}
+      containers:
+      - name: izakaya
+        image: {{ include "ainari.image" .Values.izakaya }}
+        imagePullPolicy: {{ include "ainari.pullPolicy" (list . .Values.izakaya) }}
+        env:
+        {{- include "ainari.mysqlPasswordEnv" "izakaya" | nindent 8 }}
+        - name: RUST_LOG
+          value: "debug"
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: internal-api-key
+              key: internal_api_key
+        volumeMounts:
+        - name: izakaya-config
+          mountPath: /etc/ainari/izakaya.toml
+          subPath: izakaya.toml
+          readOnly: true
+        readinessProbe:
+          exec:
+            command:
+            - curl
+            - --fail
+            - localhost:10423/v1alpha/is_ready
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          exec:
+            command:
+            - curl
+            - --fail
+            - localhost:10423/v1alpha/is_ready
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 2
+          failureThreshold: 3
+
+      # tls-termination of the internal api, the only one izakaya has
+      - name: tls-termination
+        image: nginx:latest
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+        - name: izakaya-nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: internal.conf
+        resources:
+          # Without requests, kubernetes reserves the limits for the sidecar, which would block
+          # half a cpu, although the tls-termination needs only a fraction of it.
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+
+      volumes:
+        - name: izakaya-config
+          configMap:
+            name: izakaya-config
+        - name: tls-certs
+          secret:
+            secretName: izakaya-tls-secret
+        - name: izakaya-nginx-config
+          configMap:
+            name: izakaya-nginx-config
+{{- end }}

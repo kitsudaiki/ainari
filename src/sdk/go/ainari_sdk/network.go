@@ -25,11 +25,15 @@ import (
 )
 
 // CreateNetwork creates a new network with the given name for the given subnet in CIDR-notation.
-func CreateNetwork(context AccessContext, name, subnet string) (map[string]interface{}, error) {
+// CreateNetwork creates a new network with the given name for the given subnet in CIDR-notation.
+// The traffic between the virtual machines of the network on different hosts is encrypted, unless
+// disableEncryption is set.
+func CreateNetwork(context AccessContext, name, subnet string, disableEncryption bool) (map[string]interface{}, error) {
 	path := "v1alpha/network"
 	jsonBody := map[string]interface{}{
-		"name":   name,
-		"subnet": subnet,
+		"name":               name,
+		"subnet":             subnet,
+		"disable_encryption": disableEncryption,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

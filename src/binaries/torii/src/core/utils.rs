@@ -326,6 +326,14 @@ const RULE_PRIO_TABLE: &str = "1000";
 /// Priority of the rule, which stops the lookup when the table of the tenant has no answer.
 const RULE_PRIO_GUARD: &str = "1001";
 
+/// Priority of the rule, which sends the decrypted traffic of an encrypted connection into the
+/// table of its tenant.
+const RULE_PRIO_CONNECTION: &str = "1100";
+
+/// Priority of the rule, which stops the lookup of the decrypted traffic of an encrypted
+/// connection, when the table of its tenant has no answer.
+const RULE_PRIO_CONNECTION_GUARD: &str = "1101";
+
 /// Appends `table <id>` to an `ip route` argument-vector, when the tenant has one.
 ///
 /// # Arguments
@@ -340,11 +348,16 @@ pub fn with_table<'a>(args: &mut Vec<&'a str>, table: &'a Option<String>) {
     }
 }
 
-/// Points everything arriving on one interface at the routing-table of its tenant.
+/// Points everything, which the VM of a TAP sends, at the routing-table of its tenant.
 ///
 /// This is the kernel side counterpart of the VNI: a packet, which XDP handed up for IPsec
 /// processing, has lost every trace of its tenant by then, and the only thing left to recognise
 /// it by is the interface it came in on.
+///
+/// The rule only takes packets with the address of the VM as source. The kernel can't check
+/// the source of an unnumbered TAP with its reverse-path filter (see `exempt_from_rp_filter`), so
+/// a packet with any other source - a VM, which pretends to be another one - ends at the guard
+/// instead of being encrypted in the name of another VM.
 ///
 /// Two rules are written, not one. A plain table-rule falls through to the next rule, when its
 /// table has no matching route, and the next rule is eventually `main` - which is the table of
@@ -357,17 +370,25 @@ pub fn with_table<'a>(args: &mut Vec<&'a str>, table: &'a Option<String>) {
 /// # Arguments
 /// * `iface` - The interface the rules select on
 /// * `table` - The table-name returned by `Network::tenant_table`
+/// * `source` - Address of the VM behind the interface
 ///
 /// # Returns
 /// `Ok(())` when both rules are in place, or the error reported by `ip`
-pub fn bind_iface_to_table(iface: &str, table: &Option<String>) -> Result<(), String> {
+pub fn bind_iface_to_table(
+    iface: &str,
+    table: &Option<String>,
+    source: Ipv4Addr,
+) -> Result<(), String> {
     let Some(table) = table.as_deref() else {
         return Ok(());
     };
     unbind_iface_from_table(iface, &Some(table.to_owned()));
+    let source = format!("{source}/32");
     run_ip(&[
         "rule",
         "add",
+        "from",
+        &source,
         "iif",
         iface,
         "table",
@@ -387,6 +408,9 @@ pub fn bind_iface_to_table(iface: &str, table: &Option<String>) -> Result<(), St
 }
 
 /// Drops the policy-routing rules of an interface again.
+///
+/// The kernel only compares the selectors, which a delete names, so this also removes a rule,
+/// which selects on the source as well.
 ///
 /// # Arguments
 /// * `iface` - The interface the rules select on
@@ -418,6 +442,146 @@ pub fn unbind_iface_from_table(iface: &str, table: &Option<String>) {
     }
 }
 
+/// Builds the arguments of the rules, which send the decrypted traffic of an encrypted connection
+/// into the table of its tenant.
+///
+/// # Arguments
+/// * `action` - `add` or `del`
+/// * `local_ip` - The VM behind this gateway
+/// * `remote_ip` - The VM behind the peer gateway
+/// * `table` - The table of the tenant
+///
+/// # Returns
+/// The arguments of the rule, which selects the table, and of the guard behind it
+fn connection_rule_args(
+    action: &str,
+    local_ip: Ipv4Addr,
+    remote_ip: Ipv4Addr,
+    table: &str,
+) -> [Vec<String>; 2] {
+    let selector = |prio: &str, target: &[&str]| {
+        let mut args: Vec<String> = ["rule", action, "from", &format!("{remote_ip}/32")]
+            .iter()
+            .map(|it| it.to_string())
+            .collect();
+        args.extend(["to".to_string(), format!("{local_ip}/32")]);
+        args.extend(target.iter().map(|it| it.to_string()));
+        args.extend(["priority".to_string(), prio.to_string()]);
+        args
+    };
+    [
+        selector(RULE_PRIO_CONNECTION, &["table", table]),
+        selector(RULE_PRIO_CONNECTION_GUARD, &["unreachable"]),
+    ]
+}
+
+/// Points the decrypted traffic of an encrypted connection at the routing-table of its tenant.
+///
+/// A packet, which the kernel decrypted, arrives on the underlay, so it is looked up in `main`,
+/// which doesn't know the VMs of a tenant with a table of its own. Without this rule it would
+/// follow the default route and leave the gateway in clear. The selector is the address-pair of
+/// the connection, which the xfrm-policies of the connection demand ESP for, so a plain packet
+/// with the same addresses is still dropped by these policies. The guard behind the rule ends the
+/// lookup, if the table has no route towards the VM anymore, instead of falling through to the
+/// default route.
+///
+/// The shared tenant needs no rules, `main` is its table.
+///
+/// # Arguments
+/// * `local_ip` - The VM behind this gateway
+/// * `remote_ip` - The VM behind the peer gateway
+/// * `table` - The table-name returned by `Network::tenant_table`
+///
+/// # Returns
+/// `Ok(())` when both rules are in place, or the error reported by `ip`
+pub fn bind_connection_to_table(
+    local_ip: Ipv4Addr,
+    remote_ip: Ipv4Addr,
+    table: &Option<String>,
+) -> Result<(), String> {
+    let Some(table) = table.as_deref() else {
+        return Ok(());
+    };
+    unbind_connection_from_table(local_ip, remote_ip, &Some(table.to_owned()));
+    for args in connection_rule_args("add", local_ip, remote_ip, table) {
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        run_ip(&args)?;
+    }
+    Ok(())
+}
+
+/// Drops the rules of an encrypted connection again.
+///
+/// # Arguments
+/// * `local_ip` - The VM behind this gateway
+/// * `remote_ip` - The VM behind the peer gateway
+/// * `table` - The table-name returned by `Network::tenant_table`
+///
+/// # Returns
+/// None. Errors are ignored: the rules may already be gone.
+pub fn unbind_connection_from_table(
+    local_ip: Ipv4Addr,
+    remote_ip: Ipv4Addr,
+    table: &Option<String>,
+) {
+    if let Some(table) = table.as_deref() {
+        for args in connection_rule_args("del", local_ip, remote_ip, table) {
+            let args: Vec<&str> = args.iter().map(String::as_str).collect();
+            let _ = run_ip(&args);
+        }
+    }
+}
+
+/// Switches the reverse-path filter off for one interface.
+///
+/// The kernel can't check the source of a packet, which arrives on an interface without any
+/// address, like the TAP of a VM: such a packet is dropped by the filter, before it is routed. The
+/// TAPs of a tenant with a table of its own need the kernel for their encrypted traffic, so they
+/// are exempted. Their source is checked by the rule of the TAP instead (see
+/// `bind_iface_to_table`).
+///
+/// The kernel applies the stricter one of the values of `all` and of the interface, so `all` is
+/// lowered as well. Before that, every other interface, and `default` for the interfaces to come,
+/// gets the previous value of `all` as its own value, if it had a weaker one, so none of them
+/// loses its protection.
+///
+/// # Arguments
+/// * `iface` - The interface to exempt
+///
+/// # Returns
+/// `Ok(())` once the interface is exempted, otherwise the error of the file-system
+pub fn exempt_from_rp_filter(iface: &str) -> Result<(), String> {
+    exempt_from_rp_filter_in(std::path::Path::new("/proc/sys/net/ipv4/conf"), iface)
+        .map_err(|e| format!("Failed to exempt '{iface}' from the reverse-path filter: {e}"))
+}
+
+/// Does the work of `exempt_from_rp_filter` below a given configuration-directory.
+fn exempt_from_rp_filter_in(conf: &std::path::Path, iface: &str) -> std::io::Result<()> {
+    let read = |name: &str| -> Option<u8> {
+        std::fs::read_to_string(conf.join(name).join("rp_filter"))
+            .ok()
+            .and_then(|value| value.trim().parse().ok())
+    };
+    let write = |name: &str, value: u8| {
+        std::fs::write(conf.join(name).join("rp_filter"), value.to_string())
+    };
+
+    let all = read("all").unwrap_or(0);
+    if all > 0 {
+        for entry in std::fs::read_dir(conf)? {
+            let name = entry?.file_name().to_string_lossy().into_owned();
+            if name == "all" || name == iface {
+                continue;
+            }
+            if read(&name).is_some_and(|value| value < all) {
+                write(&name, all)?;
+            }
+        }
+        write("all", 0)?;
+    }
+    write(iface, 0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -446,6 +610,69 @@ mod tests {
     fn a_destination_on_the_link_has_no_gateway() {
         let route = "172.30.0.10 dev eth0 src 172.30.0.20 uid 0 \n    cache \n";
         assert_eq!(parse_route_via(route), None);
+    }
+
+    #[test]
+    fn the_rules_of_a_connection_select_its_address_pair() {
+        let [table, guard] = connection_rule_args(
+            "add",
+            Ipv4Addr::new(192, 168, 100, 3),
+            Ipv4Addr::new(192, 168, 100, 2),
+            "101",
+        );
+        assert_eq!(
+            table.join(" "),
+            "rule add from 192.168.100.2/32 to 192.168.100.3/32 table 101 priority 1100"
+        );
+        assert_eq!(
+            guard.join(" "),
+            "rule add from 192.168.100.2/32 to 192.168.100.3/32 unreachable priority 1101"
+        );
+    }
+
+    /// Builds a fake `/proc/sys/net/ipv4/conf` with the given rp_filter-values.
+    fn fake_conf(values: &[(&str, u8)]) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("rp_filter_{}", uuid::Uuid::new_v4()));
+        for (name, value) in values {
+            std::fs::create_dir_all(dir.join(name)).unwrap();
+            std::fs::write(dir.join(name).join("rp_filter"), value.to_string()).unwrap();
+        }
+        dir
+    }
+
+    fn rp_filter(conf: &std::path::Path, name: &str) -> String {
+        std::fs::read_to_string(conf.join(name).join("rp_filter")).unwrap()
+    }
+
+    #[test]
+    fn exempting_a_tap_keeps_the_protection_of_the_other_interfaces() {
+        let conf = fake_conf(&[
+            ("all", 2),
+            ("default", 0),
+            ("eth0", 0),
+            ("lo", 1),
+            ("tap-1", 2),
+        ]);
+        exempt_from_rp_filter_in(&conf, "tap-1").unwrap();
+
+        assert_eq!(rp_filter(&conf, "all"), "0");
+        assert_eq!(rp_filter(&conf, "tap-1"), "0");
+        // the others keep the value, which `all` enforced on them before
+        assert_eq!(rp_filter(&conf, "default"), "2");
+        assert_eq!(rp_filter(&conf, "eth0"), "2");
+        assert_eq!(rp_filter(&conf, "lo"), "2");
+        std::fs::remove_dir_all(conf).unwrap();
+    }
+
+    #[test]
+    fn a_second_tap_only_changes_itself() {
+        let conf = fake_conf(&[("all", 0), ("eth0", 2), ("tap-1", 0), ("tap-2", 2)]);
+        exempt_from_rp_filter_in(&conf, "tap-2").unwrap();
+
+        assert_eq!(rp_filter(&conf, "tap-2"), "0");
+        assert_eq!(rp_filter(&conf, "eth0"), "2");
+        assert_eq!(rp_filter(&conf, "all"), "0");
+        std::fs::remove_dir_all(conf).unwrap();
     }
 
     #[test]

@@ -55,6 +55,14 @@ spec:
             secretKeyRef:
               name: sakura-registration-key
               key: sakura_retistration_key
+        {{- if .Values.hanami.network.mls_encryption }}
+        # signs the membership-grants of the MLS-groups of the networks
+        - name: MLS_GRANT_SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mls-grant-signing-key
+              key: mls_grant_signing_key
+        {{- end }}
         volumeMounts:
         - name: hanami-config
           mountPath: /etc/ainari/hanami.toml

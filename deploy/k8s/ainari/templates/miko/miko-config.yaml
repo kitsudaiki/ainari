@@ -53,5 +53,12 @@ data:
     [endpoints.omamori]
     public_address = "{{ include "ainari.publicAddress" (list . "omamori") }}"
     internal_address = "{{ include "ainari.internalAddress" (list . "omamori") }}"
+    {{- if .Values.hanami.network.mls_encryption }}
+
+    # only the other components talk to izakaya, it has no external api
+    [endpoints.izakaya]
+    public_address = ""
+    internal_address = "{{ include "ainari.internalAddress" (list . "izakaya") }}"
+    {{- end }}
 
 kind: ConfigMap

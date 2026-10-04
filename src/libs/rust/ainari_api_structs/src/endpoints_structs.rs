@@ -16,7 +16,7 @@ use apistos::ApiComponent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema, ApiComponent)]
 pub struct EndpointField {
     pub public_address: String,
     pub internal_address: String,
@@ -28,4 +28,6 @@ pub struct EndpontsResp {
     pub ryokan: EndpointField,
     pub torii: EndpointField,
     pub omamori: EndpointField,
+    #[serde(default)]
+    pub izakaya: EndpointField,
 }

@@ -394,3 +394,12 @@ Usage: {{ include "ainari.tlsSidecars" "miko" | nindent 6 }}
       cpu: "500m"
 {{- end }}
 {{- end }}
+
+{{/*
+Public key of hanami, which signs the membership-grants of the MLS-groups. Izakaya and the
+gateways in front of the sakura-hosts check the grants with it.
+Usage: {{ include "ainari.mlsGrantPublicKey" . }}
+*/}}
+{{- define "ainari.mlsGrantPublicKey" -}}
+{{ required "secrets.mls_grant_public_key is required, if hanami.network.mls_encryption is enabled!" .Values.secrets.mls_grant_public_key }}
+{{- end }}

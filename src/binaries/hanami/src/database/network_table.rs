@@ -38,6 +38,7 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
+        disable_encryption -> Bool,
     }
 }
 
@@ -62,6 +63,9 @@ pub struct NetworkEntry {
     #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
     pub deleted_at: Option<DateTime<Utc>>,
     pub deleted_by: Option<String>,
+    /// The traffic between the hosts of the network is not encrypted and the network has no
+    /// MLS-group
+    pub disable_encryption: bool,
 }
 
 /// Adds a new meta network to the database.
@@ -73,6 +77,7 @@ pub struct NetworkEntry {
 /// * `network_uuid` - The unique identifier for the meta network
 /// * `network_name` - The name of the meta network
 /// * `subnet` - The subnet of the network in CIDR notation
+/// * `network_disable_encryption` - Don't encrypt the traffic between the hosts of the network
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
@@ -81,6 +86,7 @@ pub fn add_new_network(
     network_uuid: &Uuid,
     network_name: &str,
     subnet: &str,
+    network_disable_encryption: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
@@ -101,6 +107,7 @@ pub fn add_new_network(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
+        disable_encryption: network_disable_encryption,
     };
 
     add_network(network)
@@ -309,6 +316,52 @@ pub fn delete_all_network() -> Result<(), enums::DbError> {
     }
 }
 
+/// Checks, if the encryption is disabled for a network.
+///
+/// There is no permission-based filtering, because the gateways of a network don't belong to a
+/// single user.
+///
+/// # Arguments
+/// * `network_uuid` - The UUID of the network
+///
+/// # Returns
+/// `true` if the network has its encryption disabled, `NotFound` if it doesn't exist
+pub fn is_encryption_disabled(network_uuid: &Uuid) -> Result<bool, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    match networks
+        .filter(uuid.eq(network_uuid.to_string()).and(status.eq("ACTIVE")))
+        .select(disable_encryption)
+        .first::<bool>(&mut *conn)
+    {
+        Ok(disabled) => Ok(disabled),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Lists the UUIDs of all active networks, which have their encryption disabled.
+///
+/// # Returns
+/// A QueryResult containing the UUIDs
+pub fn list_networks_without_encryption() -> QueryResult<Vec<Uuid>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    let uuids: Vec<String> = networks
+        .filter(status.eq("ACTIVE").and(disable_encryption.eq(true)))
+        .select(uuid)
+        .load(&mut *conn)?;
+    Ok(uuids
+        .iter()
+        .filter_map(|entry| Uuid::parse_str(entry).ok())
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,6 +405,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         hard_delete_network(&uuid1);
@@ -375,6 +429,49 @@ mod tests {
         };
 
         hard_delete_network(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn the_encryption_of_a_network_can_be_disabled() {
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let encrypted = Uuid::new_v4();
+        let unencrypted = Uuid::new_v4();
+
+        add_new_network(&encrypted, "encrypted", "10.1.0.0/24", false, &context).unwrap();
+        add_new_network(&unencrypted, "unencrypted", "10.2.0.0/24", true, &context).unwrap();
+
+        assert!(
+            !get_network(&encrypted, &context)
+                .ok()
+                .unwrap()
+                .disable_encryption
+        );
+        assert!(
+            get_network(&unencrypted, &context)
+                .ok()
+                .unwrap()
+                .disable_encryption
+        );
+        assert!(matches!(is_encryption_disabled(&encrypted), Ok(false)));
+        assert!(matches!(is_encryption_disabled(&unencrypted), Ok(true)));
+        assert!(matches!(
+            is_encryption_disabled(&Uuid::new_v4()),
+            Err(enums::DbError::NotFound)
+        ));
+
+        let without_encryption = list_networks_without_encryption().unwrap();
+        assert!(without_encryption.contains(&unencrypted));
+        assert!(!without_encryption.contains(&encrypted));
+
+        hard_delete_network(&encrypted);
+        hard_delete_network(&unencrypted);
     }
 
     #[test]
@@ -408,6 +505,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         let network2 = NetworkEntry {
@@ -423,6 +521,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         hard_delete_network(&uuid1);
@@ -466,6 +565,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         hard_delete_network(&uuid1);
@@ -508,6 +608,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         let network2 = NetworkEntry {
@@ -523,6 +624,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         let network3 = NetworkEntry {
@@ -538,6 +640,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         hard_delete_network(&uuid1);
@@ -579,6 +682,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         let network2 = NetworkEntry {
@@ -594,6 +698,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         let network3 = NetworkEntry {
@@ -609,6 +714,7 @@ mod tests {
             updated_by: "admin".to_string(),
             deleted_at: None,
             deleted_by: None,
+            disable_encryption: false,
         };
 
         hard_delete_network(&uuid1);

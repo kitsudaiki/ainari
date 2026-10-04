@@ -35,6 +35,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     database::init_database()?;
 
+    // the key, which signs the membership-grants, is checked at the start. Its public key is
+    // what izakaya and the torii need in their configs.
+    if config.network.mls_encryption {
+        let key = &config::MLS_GRANT_SIGNING_KEY;
+        log::info!(
+            "MLS grant public key: {}",
+            ainari_api_structs::mls_structs::encode_verifying_key(key)
+        );
+
+        // brings the grants back, if izakaya lost them, and keeps them from expiring
+        core::mls::spawn_grant_refresher(config.network.mls_grant_refresh_interval);
+    }
+
     api::http_server::run_server()?;
 
     Ok(())

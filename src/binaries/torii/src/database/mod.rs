@@ -14,6 +14,7 @@
 
 pub mod db_handle;
 pub mod floating_ip_table;
+pub mod mls_storage_table;
 pub mod network_filter_table;
 pub mod network_interface_table;
 pub mod proxy_table;

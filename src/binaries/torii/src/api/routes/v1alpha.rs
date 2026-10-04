@@ -106,26 +106,10 @@ pub fn v1alpha_routes() -> Scope {
                 ),
         )
         .service(
-            scope("/network_crypto")
-                .service(resource("/key"))
-                .service(
-                    resource("/key/internal")
-                        .route(get().to(list_crypto_key_internal_v1_0::list_crypto_key_internal))
-                        .route(
-                            post().to(add_crypto_key_internal_v1_0::register_crypto_key_internal),
-                        ),
-                )
-                .service(resource("/key/{direction}/{spi}/internal").route(
-                    delete().to(delete_crypto_key_internal_v1_0::delete_crypto_key_internal),
-                ))
-                .service(
-                    resource("/toggle/internal")
-                        .route(post().to(toggle_crypto_internal_v1_0::toggle_crypto_internal)),
-                )
-                .service(
-                    resource("/connection/internal")
-                        .route(get().to(list_connection_internal_v1_0::list_connection_internal)),
-                ),
+            scope("/network_crypto").service(
+                resource("/mls/identity/internal")
+                    .route(get().to(get_mls_identity_internal_v1_0::get_mls_identity_internal)),
+            ),
         )
         .service(
             scope("/network_interface")

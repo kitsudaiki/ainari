@@ -32,3 +32,10 @@ overlay_iface = "none"
 underlay_iface = "eth0"
 # underlay-address of the torii at the edge of the network
 default_gateway_ip = "172.30.0.10"
+
+# key-exchange of the IPsec-keys of the encrypted routes over MLS-groups, which izakaya
+# coordinates. The gateway only joins the group of a network with a membership-grant of hanami.
+[mls]
+# public key of hanami, which signs the membership-grants. This is the key of the
+# development-setup, hanami logs the key, which belongs to its MLS_GRANT_SIGNING_KEY, at its start.
+grant_public_key = "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo="

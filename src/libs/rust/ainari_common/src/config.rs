@@ -34,6 +34,10 @@ pub struct Endpoints {
     pub ryokan: Endpoint,
     pub torii: Endpoint,
     pub omamori: Endpoint,
+    /// Server of the MLS key-packages and -messages of the gateways. It is optional, so the
+    /// configs, which were written before izakaya existed, stay valid.
+    #[serde(default)]
+    pub izakaya: Endpoint,
 }
 
 #[derive(Debug, Deserialize)]
