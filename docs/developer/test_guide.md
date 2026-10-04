@@ -154,3 +154,168 @@ Tests, which require two virtual machines, are skipped, if the test runs with on
     decorated with `@suite.test(...)`. With `requires` it names the entries of the shared state,
     which it needs, and with `provides` the ones, which it creates. A new suite is a new file with
     a `suite = Suite(...)`, which is added to the list in `suites/__init__.py`.
+
+## Verify the encryption between two virtual machines
+
+The traffic between two virtual machines of a network, which run on different sakura-hosts, is
+encrypted with IPsec (see
+[Key-exchange of the network-encryption](sequence_diagrams/network_crypto_key_exchange.md)). These
+steps check it in the docker-compose setup (`make up local`) with the two virtual machines of
+`prepare_resources.py`. Below, virtual machine 1 runs behind `torii-vmm` (`172.30.0.20`) and
+virtual machine 2 behind `torii-vmm-2` (`172.30.0.21`). All commands run in the root of the
+repository.
+
+1. Check, that the virtual machines run on different hosts:
+
+    ```bash
+    docker exec torii-vmm   ip -br link | grep tap-
+    docker exec torii-vmm-2 ip -br link | grep tap-
+    ```
+
+    Each gateway has to show one `tap-…`. If both are on the same gateway, nothing is encrypted:
+    run `prepare_resources.py` again, hanami picks the host of every virtual machine anew.
+
+2. Get the internal addresses of the virtual machines:
+
+    ```bash
+    .venv/bin/python - <<'EOF'
+    import sys; sys.path.insert(0, "src/sdk/python/ainari_sdk")
+    from ainari_sdk import login, floating_ip
+    ctx = login.request_context("http://127.0.0.1:11417", "asdf", "asdfasdf", verify_connection=False)
+    for f in floating_ip.list_floating_ips(ctx)["floating_ips"]:
+        print(f["floating_ip"], "->", f["internal_ip"])
+    EOF
+    ```
+
+    The examples below use `10.0.0.2 -> 192.168.100.2` and `10.0.0.3 -> 192.168.100.3`.
+
+3. Define a helper for the ssh-commands into virtual machine 1. A function is used, because zsh
+    doesn't split a command, which is stored in a variable, into its words:
+
+    ```bash
+    vm1() { ssh -i temporary_files/local_stack_test/id_ed25519 -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ubuntu@10.0.0.2 "$@"; }
+    ```
+
+4. Check, that the MLS-group of the network was created:
+
+    ```bash
+    docker logs torii-vmm   2>&1 | grep -E "MLS-group|key-packages"
+    docker logs torii-vmm-2 2>&1 | grep -E "MLS-group|key-packages"
+    docker logs izakaya     2>&1 | grep -E "MLS-group|Rotate the keys"
+    ```
+
+    One gateway logs `Created the MLS-group of tenant <vni>`, the other one
+    `Joined the MLS-group of tenant <vni>` and izakaya `Rotate the keys of tenant <vni>`. The
+    components log with the level of `RUST_LOG` (`info` by default). Step 5 shows the same result
+    in the kernel, if the logs are not available.
+
+5. Check the policies and keys (SAs) on both gateways:
+
+    ```bash
+    for c in torii-vmm torii-vmm-2; do echo "== $c"; docker exec $c ip xfrm policy | grep -E "^src|dir|proto esp"; done
+    for c in torii-vmm torii-vmm-2; do echo "== $c"; docker exec $c ip xfrm state | grep -E "^src|proto esp|aead"; done
+    ```
+
+    Every gateway has a `dir out` policy with `tmpl … proto esp spi 0x8…` (the derived SPIs always
+    have their highest bit set), `dir in` and `dir fwd` policies and `action block` policies as
+    fallback. There are two SAs of the type `aead rfc4106(gcm(aes))` on every gateway, and the SPI,
+    which the one gateway sends with, is the one, which the other one receives with.
+
+    !!! warning
+
+        `ip xfrm state` prints the keys. This is fine in the local setup, but its output must not
+        be shared.
+
+6. Check the routing-rules and the reverse-path filter:
+
+    ```bash
+    for c in torii-vmm torii-vmm-2; do echo "== $c"; docker exec $c sh -c \
+      'ip rule; echo "rp_filter all=$(cat /proc/sys/net/ipv4/conf/all/rp_filter) eth0=$(cat /proc/sys/net/ipv4/conf/eth0/rp_filter) tap=$(cat /proc/sys/net/ipv4/conf/tap-*/rp_filter)"'; done
+    ```
+
+    `torii-vmm` shows the following, `torii-vmm-2` the same with swapped addresses:
+
+    ```text
+    1000: from 192.168.100.2 iif tap-00000001 lookup 101
+    1001: from all iif tap-00000001 unreachable
+    1100: from 192.168.100.3 to 192.168.100.2 lookup 101
+    1101: from 192.168.100.3 to 192.168.100.2 unreachable
+    rp_filter all=0 eth0=2 tap=0
+    ```
+
+    The rules `1000` and `1001` let only the address of the virtual machine into the table of its
+    tenant, the rules `1100` and `1101` deliver the decrypted packets to the virtual machine instead
+    of the default route. Without the rules or with a `tap` other than `0`, the encrypted traffic
+    is dropped or leaves the gateway in clear.
+
+7. Send traffic from virtual machine 1 to virtual machine 2:
+
+    ```bash
+    vm1 "ping -c 10 192.168.100.3"
+    vm1 "timeout 3 bash -c 'head -c 30 </dev/tcp/192.168.100.3/22'"
+    ```
+
+    The ping has `0% packet loss` and the second command prints the banner
+    `SSH-2.0-OpenSSH_…` of virtual machine 2.
+
+8. Check, that the traffic went through the SAs. Run this before and after step 7:
+
+    ```bash
+    for c in torii-vmm torii-vmm-2; do docker exec $c ip -s xfrm state \
+      | awk -v c=$c '/^src/{s=$0} /proto esp/{spi=$4} /packets\)$/&&/bytes/{print c": "s" spi "spi" ->"$0}'; done
+    ```
+
+    The packet-counters increase, and every SPI has the same count on both gateways: sent on the
+    one, received on the other one.
+
+9. Check, that only ESP crosses the underlay. The image of torii has no `tcpdump`, so it runs on
+    the host within the network-namespace of the gateway. Start each capture, while the ping of
+    step 7 runs:
+
+    ```bash
+    PID=$(docker inspect -f '{{.State.Pid}}' torii-vmm-netns)
+    sudo nsenter -t $PID -n tcpdump -ni eth0 'host 172.30.0.21 and esp'            # ESP in both directions
+    sudo nsenter -t $PID -n tcpdump -ni eth0 'host 172.30.0.21 and udp port 5555'  # nothing
+    sudo nsenter -t $PID -n tcpdump -ni eth0 'icmp and net 192.168.100.0/24'        # nothing
+    ```
+
+    Between `172.30.0.20` and `172.30.0.21` there are only ESP-packets with the SPIs of step 5,
+    no unencrypted overlay-traffic (UDP `5555`) and no addresses of the virtual machines in clear.
+
+    !!! info
+
+        The ssh-session itself appears as UDP `5555` from and to `172.30.0.10`. This is expected:
+        the traffic towards the gateway at the edge of the network is never encrypted.
+
+10. Check, that no decrypted packet leaves the receiving gateway in clear:
+
+    ```bash
+    PID2=$(docker inspect -f '{{.State.Pid}}' torii-vmm-2-netns)
+    sudo nsenter -t $PID2 -n tcpdump -ni eth0 -e 'icmp and net 192.168.100.0/24'
+    ```
+
+    The only packets are the ones with the MAC-address of `eth0` of `torii-vmm-2` itself as
+    destination (`docker exec torii-vmm-2 cat /sys/class/net/eth0/address`), which the kernel
+    passes to itself after the decryption. There must be no packet towards the docker-gateway
+    `172.30.0.1`.
+
+11. Optional: check, that a forged source-address is not encrypted:
+
+    ```bash
+    vm1 "sudo ip addr add 192.168.100.99/32 dev ens4; ping -c 3 -W 1 -I 192.168.100.99 192.168.100.3; sudo ip addr del 192.168.100.99/32 dev ens4"
+    ```
+
+    The ping has `100% packet loss` and the counter of the outgoing SA of step 8 doesn't change.
+
+12. Optional: compare with an unencrypted network. Create a network with
+    `ainarictl network create --disable-encryption …` and two virtual machines in it on different
+    hosts, and repeat the steps 5, 7 and 9. The virtual machines have no SAs, and their traffic
+    crosses the underlay as UDP `5555`.
+
+!!! info "Kind-setup"
+
+    In the kind-setup, the gateways are the containers `torii` of the pods `sakura-0` and
+    `sakura-1`, for example `kubectl -n ainari exec sakura-0 -c torii -- ip xfrm state`. Their
+    underlay-addresses are the addresses of the pods. For the captures, the network-namespace of a
+    pod is found with `crictl` within the node-container `ainari-control-plane`.

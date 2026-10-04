@@ -57,6 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     hanami_interaction::register_host()?;
 
+    // the virtual_machines, which were running, ended together with sakura. Hanami restores
+    // their network with the registration above.
+    core::virtual_machine::cloud_hypervisor::restart_after_host_restart::spawn_restart_of_virtual_machines();
+
     api::http_server::run_server()?;
 
     Ok(())

@@ -504,15 +504,20 @@ pub fn build_route_target(
         // The kernel has no VNI, so the destination goes into the routing table of
         // its tenant. Traffic reaches that table through the `ip rule` the TAP of
         // the sending VM installed.
+        //
+        // The remote gateway is not necessarily on the same link - in a kubernetes cluster every
+        // node has a pod-subnet of its own - so the route leads over the router in between, if
+        // there is one, like the frames of an unencrypted tunnel route. The kernel refuses a
+        // gateway, which is not on the link.
         let dest = format!("{}/32", req.dest_ip);
-        let gateway_ip_str = gateway_ip.to_string();
+        let next_hop_str = get_next_hop(gateway_ip, &req.target_iface).to_string();
         let table = CONFIG.network.tenant_table(req.vni);
         let mut args = vec![
             "route",
             "replace",
             dest.as_str(),
             "via",
-            gateway_ip_str.as_str(),
+            next_hop_str.as_str(),
             "dev",
             req.target_iface.as_str(),
         ];
@@ -520,17 +525,15 @@ pub fn build_route_target(
         run_ip(&args)?;
 
         // The ESP packet built by the xfrm stack is addressed to the peer gateway
-        // and needs a route of its own. In the main table the underlay subnet
-        // route already covers it; a tenant table holds nothing but what is put
-        // there, so the peer is stated explicitly.
-        let peer = format!("{}/32", gateway_ip_str);
-        let mut peer_args = vec![
-            "route",
-            "replace",
-            peer.as_str(),
-            "dev",
-            req.target_iface.as_str(),
-        ];
+        // and needs a route of its own. In the main table the underlay routes
+        // already cover it; a tenant table holds nothing but what is put there,
+        // so the peer is stated explicitly, over the same next hop.
+        let peer = format!("{}/32", gateway_ip);
+        let mut peer_args = vec!["route", "replace", peer.as_str()];
+        if next_hop_str != gateway_ip.to_string() {
+            peer_args.extend_from_slice(&["via", next_hop_str.as_str()]);
+        }
+        peer_args.extend_from_slice(&["dev", req.target_iface.as_str()]);
         with_table(&mut peer_args, &table);
         run_ip(&peer_args)?;
 

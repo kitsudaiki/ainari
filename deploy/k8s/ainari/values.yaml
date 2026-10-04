@@ -155,8 +155,6 @@ sakura:
     tag: "develop"
     repository: "kitsudaiki/sakura"
     pull_policy: "Always"
-  storage:
-    storage_class: local-path
   api:
     domain: local-sakura
   processing:
@@ -164,8 +162,11 @@ sakura:
   # Id of the group, which owns /dev/kvm on the nodes. Sakura runs as a normal user and needs it
   # to open the virtual machines.
   kvm_gid: 993
-  # size of the volume, which holds the database and the disks of the virtual machines
-  storage_size: 20Gi
+  # Directory on the node, which holds the data of the sakura-host and of the gateway in front of
+  # it: their databases and the disks of the virtual machines. Every pod gets its own
+  # subdirectory '<pod-name>/sakura' and '<pod-name>/torii', so the data stays on the node and
+  # survives a restart of the pod, also with several pods on one node, like in the kind-setup.
+  host_data_path: /etc/ainari
 
 
 ryokan:
@@ -205,6 +206,9 @@ izakaya:
     domain: local-izakaya
   # seconds between two key-rotations of a group, whose membership didn't change
   key_rotation_interval: 3600
+  # seconds without contact, after which a gateway is removed from its groups, for example the
+  # gateway of a sakura-host, which came back in a new pod with a new address
+  member_timeout: 120
 
 
 onsen:

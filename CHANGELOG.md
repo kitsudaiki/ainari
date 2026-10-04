@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new optional secret_uuid field was added for image upload to used custom already uploaded 
 - new optional secret_uuid field was added for snapshot create to used custom already uploaded 
 
+### Fixed
+
+- updates for the compute hosts to survive a reboot
+
 ## v0.21.0
 
 ### BREAKING-CHANGES

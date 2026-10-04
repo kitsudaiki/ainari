@@ -14,8 +14,8 @@ encrypted, hanami signs no grants for it, so its torii never subscribe to a grou
 
 | Component | Role |
 |---|---|
-| **hanami** | Decides, which torii may be member of which group. It signs a membership-grant for every host, which gets a VM of a network, refreshes all grants every 5 minutes and revokes a grant, when the last VM of the network is gone from the host. |
-| **izakaya** | Shares the key-packages, delivers the MLS-messages and coordinates the groups: one queue of changes per group, one committer per group and the key-rotation rounds. Its state lives in its database, so several instances can run next to each other. |
+| **hanami** | Decides, which torii may be member of which group. It signs a membership-grant for every host, which gets a VM of a network, refreshes all grants every 5 minutes and revokes a grant, when the last VM of the network is gone from the host. When a host registers itself again after a restart, it pins the new identity of its torii and changes the routes of the other gateways to the new address of the host. |
+| **izakaya** | Shares the key-packages, delivers the MLS-messages and coordinates the groups: one queue of changes per group, one committer per group and the key-rotation rounds. It removes members, which stay silent. Its state lives in its database, so several instances can run next to each other. |
 | **torii** (VM-host) | MLS-client with its underlay-address as identity. A background-loop (the *agent*) subscribes to the groups, makes the changes as committer, processes the messages and installs the derived keys in the kernel. |
 | **torii** (edge) | Never member of a group, the routes from and to it are never encrypted. |
 
@@ -39,6 +39,11 @@ flowchart LR
     toriiB -.-|unencrypted| edge
 ```
 
+All instances of izakaya compare times, which another instance wrote, like the last contact of a
+torii or the start of a round. So they don't use their own clocks, but the clock of the
+database-server, which they share. Their own clocks may differ, for example after a virtual
+machine was paused.
+
 ### Trust
 
 hanami is the only one, who decides about the membership. Its public key is part of the configs of
@@ -54,6 +59,14 @@ signature-key, which hanami pins with the first grant of a host:
 
 So neither a compromised izakaya nor a compromised torii can bring a torii into a group, which
 hanami didn't allow.
+
+The pinned identity is only replaced, when the sakura-host registers itself again, which needs the
+registration-key, which already decides, which hosts take part at all (see
+[Restart of a sakura-host](#restart-of-a-sakura-host)).
+
+The internal endpoints of torii are authorized by the internal API-key alone, without the token of
+a user, because hanami calls them also from its background-jobs, like the restore of a host. They
+are only reachable over the internal port of torii.
 
 ## Placing a VM: identity-pinning and grant
 
@@ -440,7 +453,10 @@ sequenceDiagram
 
 ### Restart of a torii
 
-The MLS-state of a torii is persisted in its database, so a restart changes nothing for the group.
+The MLS-state of a torii is persisted in its database, so a restart of the torii alone, which keeps
+its database and its address, changes nothing for the group. A restart of the whole sakura-host,
+which gives the torii a new address, is described in
+[Restart of a sakura-host](#restart-of-a-sakura-host).
 
 ```mermaid
 sequenceDiagram
@@ -456,11 +472,12 @@ sequenceDiagram
 
 ### Torii lost its MLS-state
 
-The MLS-identity of a torii is part of its MLS-state. A torii, which lost its database, comes back
-with the same address, but with a new signature-key. hanami pinned the old key, and the grant at
-izakaya still names it, so the committer finds no key-package with the granted key and refuses the
-addition. The encrypted routes of the torii stay fail-closed, until its host is registered again,
-which lets hanami pin the new key and grant it with the next VM.
+The MLS-identity of a torii is part of its MLS-state. A torii, which lost its database, while its
+sakura-host keeps running, comes back with the same address, but with a new signature-key. hanami
+pinned the old key, and the grant at izakaya still names it, so the committer finds no key-package
+with the granted key and refuses the addition. The encrypted routes of the torii stay fail-closed,
+until sakura registers its host again, for example with its next restart, which lets hanami pin
+the new key.
 
 ```mermaid
 sequenceDiagram
@@ -482,8 +499,115 @@ sequenceDiagram
         C->>I: claim a key-package of T with key K1
         I-->>C: 404, T has only key-packages with K2
         C->>I: operation done (refused: no key-package of T)
-        Note over T: stays out of the group, its encrypted routes drop the traffic,<br/>until its host is registered again and hanami grants K2
+        Note over T: stays out of the group, its encrypted routes drop the traffic,<br/>until sakura registers the host again and hanami pins K2
     end
+```
+
+### Restart of a sakura-host
+
+In kubernetes, sakura and the torii in front of it keep their databases and the disks of the VMs
+in a directory of the node (`sakura.host_data_path`, `<pod-name>/sakura` and `<pod-name>/torii`),
+which outlives the pod. A sakura-host, whose pod is recreated, still loses:
+
+- the cloud-hypervisor processes of its VMs, which end together with sakura.
+- the address of the torii in front of it. The torii restores its TAP-devices, routes and
+  packet-filters from its database, but its MLS-identity is its address, so it drops its old
+  MLS-state and starts with a new identity and without groups. The torii of the other hosts and
+  the torii at the edge still route the VMs of the host to its old address, and the groups still
+  contain its old identity.
+
+Sakura registers its host with every start again. hanami takes this as the sign, that the torii
+may have a new address: it forgets the pinned identity and, in the background, pins the new one
+and changes the routes of the torii at the edge and of the other hosts to the new address. Sakura
+boots the VMs again, which were running. Every step only changes, what differs, so a host, which
+kept its address, for example because only sakura restarted, is left as it is.
+
+```mermaid
+sequenceDiagram
+    participant S as sakura (restarted)
+    participant TN as torii of the host (new address)
+    participant H as hanami
+    participant E as torii (edge)
+    participant TO as torii of another host
+    participant I as izakaya
+
+    TN->>TN: restore TAPs, routes and packet-filters from its database
+    TN->>TN: MLS-identity 10.42.8.12 doesn't match the address 10.42.8.13:<br/>drop the MLS-state, new identity 10.42.8.13
+    S->>H: POST /host/internal (registration-key)
+    H->>H: forget the pinned identity of the host,<br/>remember the old one (10.42.8.12)
+    H-->>S: 201
+    H->>H: start the restore of the host in the background
+
+    S->>S: remove the API-sockets without process
+    S->>S: boot every VM again, which was running<br/>(cloud-hypervisor opens or creates its TAP)
+
+    loop until the torii answers
+        H->>TN: list routes
+    end
+    H->>H: resolve the new address of the host (10.42.8.13)
+    loop every VM of the host
+        H->>E: route to the VM over 10.42.8.13 (updated in place)
+    end
+    loop every encrypted network of the host
+        H->>TN: GET /network_crypto/mls/identity/internal
+        H->>H: pin the new identity 10.42.8.13 with its key
+        H->>I: grant (vni, 10.42.8.13, key, add)
+        H->>I: revocation (vni, 10.42.8.12, remove)
+    end
+    loop every VM of the same networks on other hosts
+        H->>TN: route to the other VM over its host
+        H->>TO: route back to the VM of the host over 10.42.8.13 (updated in place)
+    end
+    Note over H: a run with a failed step is repeated after 30 seconds,<br/>up to 5 times
+
+    TN->>I: subscribe(vni, has_group = false)
+    alt another member is alive
+        I-->>TN: joining, the committer adds the new torii
+    else no other member is alive
+        I->>I: start the group from scratch
+        I-->>TN: create
+    end
+    Note over TN,TO: rotation round: the VMs reach each other encrypted again
+```
+
+Addresses without a VM, for example of a reservation, which failed halfway, are left out.
+
+### Silent members
+
+Every torii polls the izakaya every second. A member, which didn't for 120 seconds
+(`member_timeout`), is gone, for example because its host came back in a new pod with a new
+identity, and is removed from its groups. As long as it is member, every round waits for it, until
+it stalls, so the group would never rotate its keys again. A torii, which was only cut off, isn't
+lost: it subscribes again with its grant and is added again.
+
+If no other member of a group is alive anymore, nobody can add a torii, which subscribes. The
+group is started from scratch with that torii then. A member, which only was cut off, joins the new
+group again, which replaces its old one without losing a packet (see
+[Restart of izakaya](#restart-of-izakaya)).
+
+Both only happen, once the izakaya itself runs longer than the timeout, because before that, a
+torii, which didn't contact it yet, can't be told apart from a gone one.
+
+```mermaid
+sequenceDiagram
+    participant I as izakaya
+    participant TA as torii A (committer)
+    participant TB as torii B (gone)
+    participant TC as torii C (new)
+
+    loop tick every second
+        I->>I: member without contact for 120 seconds?
+    end
+    I->>I: B is silent: queue operation remove(B)
+    I->>TA: operation remove(B)
+    TA->>I: operation done (members [A])
+    Note over TA: the rounds don't wait for B anymore
+
+    Note over TA: later A is gone as well
+    TC->>I: subscribe(vni, has_group = false)
+    I->>I: no other member alive for 45 seconds
+    I->>I: start the group from scratch
+    I-->>TC: create
 ```
 
 ### Dead committer

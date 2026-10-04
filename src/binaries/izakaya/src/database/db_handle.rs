@@ -15,7 +15,11 @@
 use diesel_migrations::{EmbeddedMigrations, embed_migrations};
 
 use ainari_common::config::DatabaseConfig;
-use ainari_common::database::{DbHandle, DbMigrations};
+use ainari_common::database::{DbConnection, DbHandle, DbMigrations};
+use diesel::QueryResult;
+use diesel::RunQueryDsl;
+use diesel::dsl::sql;
+use diesel::sql_types::BigInt;
 
 use crate::config;
 
@@ -57,4 +61,25 @@ fn establish_connection() -> DbHandle {
     )
     .and_then(|database_config| DbHandle::new(database_config, migrations))
     .unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// Returns the current unix-time in seconds of the database-server.
+///
+/// Several instances of izakaya share their state in the database and compare times, which
+/// another instance wrote, like the last contact of a gateway or the start of a round. Their own
+/// clocks may differ, so the database-server is the one clock, which all of them use.
+///
+/// # Returns
+///
+/// The unix-time in seconds of the database-server
+pub fn database_time() -> QueryResult<i64> {
+    let mut conn = DB_CONN.lock().expect("mutex poisoned");
+    match &mut *conn {
+        DbConnection::Sqlite(conn) => {
+            diesel::select(sql::<BigInt>("CAST(strftime('%s', 'now') AS INTEGER)")).get_result(conn)
+        }
+        DbConnection::Mysql(conn) => {
+            diesel::select(sql::<BigInt>("CAST(UNIX_TIMESTAMP() AS SIGNED)")).get_result(conn)
+        }
+    }
 }

@@ -1,6 +1,7 @@
 pub mod create_ch_virtual_machine;
 pub mod delete_ch_virtual_machine;
 pub mod reboot_ch_virtual_machine;
+pub mod restart_after_host_restart;
 pub mod restore_ch_virtual_machine;
 pub mod save_ch_virtual_machine;
 mod shutdown;

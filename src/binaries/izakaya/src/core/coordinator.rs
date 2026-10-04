@@ -39,7 +39,7 @@ use std::sync::{Mutex, PoisonError};
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::database::db_handle::DB_CONN;
+use crate::database::db_handle::{self, DB_CONN};
 use crate::database::mls_grant_table::{self, MlsGrantEntry};
 use crate::database::mls_group_table::{self, MlsGroupEntry};
 use crate::database::mls_message_table;
@@ -189,7 +189,15 @@ fn internal_error(action: &str, e: impl std::fmt::Display) -> ErrorResponse {
 
 /// Current unix-time in seconds
 fn now_secs() -> i64 {
-    Utc::now().timestamp()
+    // all instances of izakaya compare the times, which the others wrote, so they use the clock
+    // of the database-server, which they share
+    match db_handle::database_time() {
+        Ok(now) => now,
+        Err(e) => {
+            log::warn!("Failed to read the time of the database-server, use the own one: {e}");
+            Utc::now().timestamp()
+        }
+    }
 }
 
 /// Runs a change of the coordination-state exclusively, within this process and across all
@@ -238,6 +246,27 @@ fn is_alive(client_id: &str, now: i64) -> Result<bool, ErrorResponse> {
     let last_seen = mls_client_table::last_seen_of(client_id)
         .map_err(|e| internal_error("read the last contact of a gateway", e))?;
     Ok(last_seen.is_some_and(|last_seen| now - last_seen < LIVENESS_TIMEOUT))
+}
+
+/// Unix-time in seconds, since which the izakaya runs. Before the liveness-timeout passed, a
+/// gateway, which didn't contact the izakaya yet, can't be told apart from a gone one.
+static RUNNING_SINCE: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
+
+/// Checks, if another member of a group than the given gateway is alive.
+///
+/// Without the start of the izakaya, for example in the tests, the izakaya counts as running for
+/// long.
+fn others_alive(group: &Group, client_id: &str, now: i64) -> Result<bool, ErrorResponse> {
+    let running_since = RUNNING_SINCE.get().copied().unwrap_or(0);
+    if now - running_since < LIVENESS_TIMEOUT {
+        return Ok(true);
+    }
+    for member in &group.members {
+        if member != client_id && is_alive(member, now)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Records a contact of a gateway, which keeps it alive.
@@ -690,6 +719,18 @@ pub fn subscribe(
                 reset_group(vni, client_id, now)?;
                 MlsSubscribeAction::Create
             }
+            // Nobody, who could add the gateway, is left: all other members are gone, for
+            // example because their hosts were restarted in new pods with new identities. The
+            // group starts from scratch with the gateway. A member, which only was cut off for a
+            // while, joins the new group again with its grant, which replaces its old group.
+            Some(group) if !others_alive(&group, client_id, now)? => {
+                log::warn!(
+                    "No other member of the MLS-group of tenant {vni} is alive, '{client_id}' \
+                     starts it again"
+                );
+                reset_group(vni, client_id, now)?;
+                MlsSubscribeAction::Create
+            }
             Some(_) => {
                 if grant.expires_at < now {
                     return Err(ErrorResponse::Forbidden(format!(
@@ -877,16 +918,84 @@ pub fn tick(now: i64, rotation_interval: i64) -> Result<(), ErrorResponse> {
     })
 }
 
-/// Starts the background-thread, which calls `tick` every second.
+/// Removes the members of all groups, which didn't contact the izakaya for a while.
+///
+/// Every gateway polls its messages every second, so a gateway, which stays silent, is gone, for
+/// example because its host was restarted in a new pod with a new address and a new identity.
+/// As long as it is member, every round waits for it until it stalls, so the group never rotates
+/// its keys again. A gateway, which was only cut off for a while, is not lost: it is added again,
+/// as soon as it subscribes with its grant again.
+///
+/// Nothing is removed, as long as the izakaya itself doesn't run longer than the timeout, because
+/// the gateways couldn't contact it before, and from groups without any living member, which
+/// couldn't make the removal anyway.
+///
+/// # Arguments
+/// * `now` - Current unix-time in seconds
+/// * `member_timeout` - Seconds without contact, after which a member is removed
+/// * `running_since` - Unix-time in seconds, since which this izakaya runs
+///
+/// # Returns
+/// `Ok(())` once the removals are queued
+pub fn remove_dead_members(
+    now: i64,
+    member_timeout: i64,
+    running_since: i64,
+) -> Result<(), ErrorResponse> {
+    if now - running_since < member_timeout {
+        return Ok(());
+    }
+    exclusively(|| {
+        let vnis = mls_group_table::list_group_vnis()
+            .map_err(|e| internal_error("list the MLS-groups", e))?;
+        for vni in vnis {
+            let Some(group) = load_group(vni)? else {
+                continue;
+            };
+            let mut dead = Vec::new();
+            let mut any_alive = false;
+            for member in &group.members {
+                let last_seen = mls_client_table::last_seen_of(member)
+                    .map_err(|e| internal_error("read the last contact of a gateway", e))?;
+                match last_seen {
+                    Some(last_seen) if now - last_seen >= member_timeout => {
+                        dead.push((member.clone(), now - last_seen))
+                    }
+                    Some(_) => any_alive = true,
+                    None => {}
+                }
+            }
+            if !any_alive {
+                continue;
+            }
+            for (member, silent_for) in dead {
+                log::warn!(
+                    "'{member}' was silent for {silent_for} seconds, remove it from the \
+                     MLS-group of tenant {vni}"
+                );
+                remove_member(vni, &member, now)?;
+            }
+        }
+        Ok(())
+    })
+}
+
+/// Starts the background-thread, which calls `tick` and `remove_dead_members` every second.
 ///
 /// # Arguments
 /// * `rotation_interval` - Seconds between two key-rotations of a group
-pub fn spawn_ticker(rotation_interval: i64) {
+/// * `member_timeout` - Seconds without contact, after which a member is removed
+pub fn spawn_ticker(rotation_interval: i64, member_timeout: i64) {
+    let running_since = *RUNNING_SINCE.get_or_init(now_secs);
     std::thread::spawn(move || {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(1));
-            if let Err(e) = tick(now_secs(), rotation_interval) {
+            let now = now_secs();
+            if let Err(e) = tick(now, rotation_interval) {
                 log::error!("Failed to move the MLS-groups on: {e:?}");
+            }
+            if let Err(e) = remove_dead_members(now, member_timeout, running_since) {
+                log::error!("Failed to remove the silent members of the MLS-groups: {e:?}");
             }
         }
     });
@@ -1233,5 +1342,122 @@ mod tests {
 
         // the next gateway starts with a new group
         assert_eq!(subscribe_as(vni, &a, true, now), MlsSubscribeAction::Create);
+    }
+
+    #[test]
+    #[serial]
+    fn a_silent_member_is_removed() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b) = (client("a"), client("b"));
+        allow(vni, &a, now);
+        allow(vni, &b, now);
+        subscribe_as(vni, &a, false, now);
+        subscribe_as(vni, &b, false, now);
+        let ops = take_operations(&a);
+        done(vni, &ops[0], &a, 1, &[&a, &b], now);
+        take_operations(&a);
+
+        // b stays silent, a keeps polling
+        let later = now + 200;
+        touch(&a, later).unwrap();
+
+        // an izakaya, which only runs since a moment, can't tell, who is silent
+        remove_dead_members(later, 120, later - 10).unwrap();
+        assert!(
+            !take_operations(&a)
+                .iter()
+                .any(|op| op.kind == MlsOperationKind::Remove)
+        );
+
+        remove_dead_members(later, 120, now).unwrap();
+        tick(later + STALL_TIMEOUT + 1, 3600).unwrap();
+        let ops = take_operations(&a);
+        let removal = ops
+            .iter()
+            .find(|op| op.kind == MlsOperationKind::Remove)
+            .expect("b is removed");
+        assert_eq!(removal.client_id.as_deref(), Some(b.as_str()));
+    }
+
+    #[test]
+    #[serial]
+    fn a_group_without_living_member_is_left_alone() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b) = (client("a"), client("b"));
+        allow(vni, &a, now);
+        allow(vni, &b, now);
+        subscribe_as(vni, &a, false, now);
+        subscribe_as(vni, &b, false, now);
+        let ops = take_operations(&a);
+        done(vni, &ops[0], &a, 1, &[&a, &b], now);
+
+        remove_dead_members(now + 200, 120, now - 200).unwrap();
+        let group = load_group(vni).unwrap().unwrap();
+        assert_eq!(group.members.len(), 2);
+        assert!(
+            !open_operations(vni)
+                .unwrap()
+                .iter()
+                .any(|op| op.kind == MlsOperationKind::Remove.to_string())
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn a_group_without_living_members_starts_again() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        allow(vni, &a, now);
+        allow(vni, &b, now);
+        allow(vni, &c, now);
+        subscribe_as(vni, &a, false, now);
+        subscribe_as(vni, &b, false, now);
+        let ops = take_operations(&a);
+        done(vni, &ops[0], &a, 1, &[&a, &b], now);
+
+        // a and b are gone, while c comes along
+        let later = now + LIVENESS_TIMEOUT + 10;
+        assert_eq!(
+            subscribe_as(vni, &c, false, later),
+            MlsSubscribeAction::Create
+        );
+        let group = load_group(vni).unwrap().unwrap();
+        assert_eq!(group.members, vec![c.clone()]);
+        assert_eq!(group.committer, c);
+        assert!(open_operations(vni).unwrap().is_empty());
+    }
+
+    #[test]
+    #[serial]
+    fn a_gateway_joins_while_a_member_is_alive() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        allow(vni, &a, now);
+        allow(vni, &b, now);
+        allow(vni, &c, now);
+        subscribe_as(vni, &a, false, now);
+        subscribe_as(vni, &b, false, now);
+        let ops = take_operations(&a);
+        done(vni, &ops[0], &a, 1, &[&a, &b], now);
+
+        // b is gone, but a still polls
+        let later = now + LIVENESS_TIMEOUT + 10;
+        touch(&a, later).unwrap();
+        assert_eq!(
+            subscribe_as(vni, &c, false, later),
+            MlsSubscribeAction::Joining
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn the_time_comes_from_the_database() {
+        let database = db_handle::database_time().unwrap();
+        assert!((database - Utc::now().timestamp()).abs() <= 2);
+        assert!((now_secs() - database).abs() <= 2);
     }
 }

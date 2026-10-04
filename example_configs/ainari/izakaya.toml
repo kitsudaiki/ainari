@@ -31,3 +31,5 @@ file_path = "/etc/ainari/izakaya_db"
 grant_public_key = "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo="
 # seconds between two key-rotations of a group, whose membership didn't change
 key_rotation_interval = 3600
+# seconds without contact, after which a gateway is removed from its groups
+member_timeout = 120

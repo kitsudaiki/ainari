@@ -44,6 +44,7 @@ table! {
         deleted_by -> Nullable<Varchar>,
         external_address -> Nullable<Varchar>,
         mls_signature_key -> Nullable<Varchar>,
+        mls_client_id -> Nullable<Varchar>,
     }
 }
 
@@ -284,7 +285,7 @@ pub fn get_mls_signature_key(host_uuid: &Uuid) -> Result<Option<String>, enums::
     }
 }
 
-/// Pins the MLS signature-key of the torii of a host, if none is pinned yet.
+/// Pins the MLS signature-key and the MLS-identity of the torii of a host, if none is pinned yet.
 ///
 /// The key is only set, if the host has none yet, so two parallel requests can't pin different
 /// keys. The caller reads the pinned key afterwards to see, which one won.
@@ -292,10 +293,15 @@ pub fn get_mls_signature_key(host_uuid: &Uuid) -> Result<Option<String>, enums::
 /// # Arguments
 /// * `host_uuid` - UUID of the host
 /// * `key` - Base64-encoded signature-key
+/// * `client_id` - MLS-identity of the torii, which is its underlay-address
 ///
 /// # Returns
 /// `Ok(())`, also if another key was pinned before
-pub fn pin_mls_signature_key(host_uuid: &Uuid, key: &str) -> Result<(), enums::DbError> {
+pub fn pin_mls_signature_key(
+    host_uuid: &Uuid,
+    key: &str,
+    client_id: &str,
+) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
@@ -306,10 +312,54 @@ pub fn pin_mls_signature_key(host_uuid: &Uuid, key: &str) -> Result<(), enums::D
                 .and(mls_signature_key.is_null()),
         ),
     )
-    .set(mls_signature_key.eq(key))
+    .set((mls_signature_key.eq(key), mls_client_id.eq(client_id)))
     .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Forgets the pinned MLS signature-key of the torii of a host.
+///
+/// A sakura-host registers itself again with every start. Its torii may have started from scratch
+/// as well, with a new signature-key and on another address, for example in a new pod. The next
+/// membership-grant pins the key, which the torii shows then. The registration is protected by
+/// the registration-key, which already decides, which hosts take part at all.
+///
+/// # Arguments
+/// * `host_uuid` - UUID of the host
+///
+/// # Returns
+/// The MLS-identity, which was pinned before, or `None` if nothing was pinned
+pub fn reset_mls_pin(host_uuid: &Uuid) -> Result<Option<String>, enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let filter = || hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")));
+    let previous = match filter()
+        .select(mls_client_id)
+        .first::<Option<String>>(&mut *conn)
+    {
+        Ok(previous) => previous,
+        Err(diesel::result::Error::NotFound) => return Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            return Err(enums::DbError::InternalError);
+        }
+    };
+
+    match diesel::update(filter())
+        .set((
+            mls_signature_key.eq(None::<String>),
+            mls_client_id.eq(None::<String>),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(previous),
         Err(e) => {
             log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)

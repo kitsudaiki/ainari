@@ -68,11 +68,20 @@ pub struct MlsConf {
     /// Seconds between two key-rotations of a group, whose membership didn't change
     #[serde(default = "default_key_rotation_interval")]
     pub key_rotation_interval: u64,
+    /// Seconds without contact, after which a gateway is removed from its groups. The gateways
+    /// poll every second, so a silent one is gone, for example with a restarted pod.
+    #[serde(default = "default_member_timeout")]
+    pub member_timeout: u64,
 }
 
 /// Default value for key_rotation_interval: one hour
 fn default_key_rotation_interval() -> u64 {
     3600
+}
+
+/// Default value for member_timeout: two minutes
+fn default_member_timeout() -> u64 {
+    120
 }
 
 /// Default value for TLS verification setting.
@@ -159,5 +168,6 @@ mod tests {
         assert_eq!(config.api.internal_port, 10423);
         assert!(parse_verifying_key(&config.mls.grant_public_key).is_ok());
         assert_eq!(config.mls.key_rotation_interval, 3600);
+        assert_eq!(config.mls.member_timeout, 120);
     }
 }
