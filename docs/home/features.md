@@ -53,6 +53,15 @@ key-exchange.
 
 Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
 
+### Encrypted backups
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    There are no backups in generate at the moment.
+
+
 ### Filter for network traffic
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
@@ -112,26 +121,6 @@ in the memory of the specific compute host and only as long as necessary for the
 **Status: <span style="color:#e53935">planned</span>**
 
 To make logins much more secure, a second factor like OTP can be used as second login factor.
-
-### Yubikey support for key management
-
-**Status: <span style="color:#e53935">planned</span>**
-
-As minimal HSM solution, [YubiKey](https://www.yubico.com/der-yubikey/?lang=de) can be used for
-hardware encryption for the key management of the stack.
-
-### AMD SEV SNP support
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    Even though the current cloud hypervisor already supports it, it cannot be tested currently
-    without the necessary hardware :(
-
-To encrypt the memory of the virtual machine itself, AMD SEV SNP can be enabled for virtual
-machines. That way, even a snapshot of the memory of the compute host contains only encrypted user
-information. Besides this, it provides attestation features.
 
 ### Backend in Rust
 
@@ -198,6 +187,36 @@ instead.
 
 An automatic summary of all packages with versions used within the Nix-based docker-images, 
 to keep track of CVEs and which versions are affected by them.
+
+### VPN-as-a-Service
+
+**Status: <span style="color:#e53935">planned</span>**
+
+A prepared mini-VM is deployed within the tenant network with a wireguard endpoint. 
+So a user can connect over the wireguard tunnel to this VM and access all VMs within the
+tenant network over it. In combination with the tenant network encryption this makes it
+possible to secure the whole traffic even when the wiregard-VM and the target-VM are on 
+different compute-hosts.
+
+### Yubikey support for key management
+
+**Status: <span style="color:#e53935">planned</span>**
+
+As minimal HSM solution, [YubiKey](https://www.yubico.com/der-yubikey/?lang=de) can be used for
+hardware encryption for the key management of the stack.
+
+### AMD SEV SNP support
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    Even though the current cloud hypervisor already supports it, it cannot be tested currently
+    without the necessary hardware :(
+
+To encrypt the memory of the virtual machine itself, AMD SEV SNP can be enabled for virtual
+machines. That way, even a snapshot of the memory of the compute host contains only encrypted user
+information. Besides this, it provides attestation features.
 
 ## Other
 

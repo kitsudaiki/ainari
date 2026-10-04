@@ -3,7 +3,7 @@ from setuptools import setup
 # from subprocess import check_call
 import os
 
-version = os.getenv('PYTHON_PACKAGE_VERSION', '0.20.0')
+version = os.getenv('PYTHON_PACKAGE_VERSION', '0.21.0')
 
 
 # NOTE (kitsudaiki): leftover of old implementation, but left disabled
