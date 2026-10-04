@@ -142,6 +142,10 @@ The menu in the column **Actions** provides:
     in its memory, is missing in the snapshot. Run `sync` inside the virtual machine before, or
     stop it.
 
+Like an uploaded image, a snapshot is stored encrypted. By default a new secret is generated for
+it. To encrypt it with an already existing secret of **Security > Secrets** instead, select it in
+the **Secret**-dropdown of **Save snapshot**.
+
 ### Tasks
 
 **Show tasks** in the menu of a virtual machine opens the tasks of its host, like the creation,
@@ -195,7 +199,7 @@ machine, **Detach** releases it again, so it can be attached to another virtual 
 **Security > Secrets** lists the secrets. **+** creates a new secret with a name and a payload,
 **Show payload** shows its content and **Delete** removes it. For every uploaded image a secret
 is created automatically, which is used to encrypt the file of the image, unless an existing secret
-was selected at the upload.
+was selected at the upload or at the creation of the snapshot.
 
 ![Secrets](img/secret_overview.jpg)
 

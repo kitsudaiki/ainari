@@ -65,6 +65,9 @@ pub struct CloudHypervisorVirtualMachineSnapshotInfo {
     pub vm_uuid: Uuid,
     /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
     pub image_uuid: Uuid,
+    /// Secret to encrypt the snapshot with, which was either provided by the user or generated
+    /// for the snapshot by ryokan
+    pub secret_uuid: Uuid,
     #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
@@ -271,6 +274,7 @@ async fn handle_vm_snapshot(
     let result = save_ch_virtual_machine(
         virtual_machine_uuid,
         &task_info.image_uuid,
+        &task_info.secret_uuid,
         &task_info.context,
     )
     .await;

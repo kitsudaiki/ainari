@@ -39,7 +39,8 @@ use ainari_clients::image::init_image_in_ryokan;
 
 The snapshot is registered in ryokan as image, which is marked as snapshot, before the task is
 queued, so the image-quota of the project is checked immediately. The task encrypts the root-disk
-and uploads it into the onsen.
+and uploads it into the onsen. With `secret_uuid`, the snapshot is encrypted with this already
+existing secret of the omamori, instead of a new generated secret.
 
 The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly
 before, can still be in the memory of the virtual_machine and is then missing in the snapshot.
@@ -73,15 +74,16 @@ pub async fn snapshot_save_task(
         .map_err(map_ainari_error_to_api_response)?;
 
     // register the snapshot in ryokan as image, which also generates the secret for its
-    // encryption
+    // encryption, if no secret was provided
     let image_uuid = Uuid::new_v4();
-    init_image_in_ryokan(
+    let image_resp = init_image_in_ryokan(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
         &image_uuid,
         &body.name,
         true,
+        body.secret_uuid.as_ref(),
         config::CONFIG.skip_tls_verification,
     )
     .await
@@ -95,6 +97,7 @@ pub async fn snapshot_save_task(
     let info = CloudHypervisorVirtualMachineSnapshotInfo {
         vm_uuid: virtual_machine_data.uuid,
         image_uuid,
+        secret_uuid: image_resp.secret_uuid,
         description: task_description.clone(),
         context: context.clone(),
     };

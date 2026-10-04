@@ -912,10 +912,17 @@ be restored into a virtual machine later on.
     memory, is missing in the snapshot. Run `sync` inside the virtual machine right before creating
     the snapshot, or stop the virtual machine before.
 
+!!! info
+
+    Like an uploaded image, a snapshot is stored encrypted with a new generated secret. Alternatively
+    an already existing [secret](#secrets) can be provided at the creation of the snapshot
+    (`-s <SECRET_UUID>` in the CLI, `secret_uuid` in the SDK), which is used to encrypt the snapshot
+    instead. Like a generated secret, it is deleted together with the snapshot.
+
 === "CLI"
 
     ```bash
-    ainarictl task create snapshot_create <VIRTUAL_MACHINE_UUID> <SNAPSHOT_NAME>
+    ainarictl task create snapshot_create [-s <SECRET_UUID>] <VIRTUAL_MACHINE_UUID> <SNAPSHOT_NAME>
     ainarictl task create snapshot_restore -i <SNAPSHOT_IMAGE_UUID> <VIRTUAL_MACHINE_UUID>
     ```
 
@@ -943,6 +950,9 @@ be restored into a virtual machine later on.
     from ainari_sdk import task
 
     task.create_snapshot_save_task(context, torii_port, virtual_machine_uuid, "my-snapshot")
+    # encrypt the snapshot with an already existing secret instead of a new generated one
+    task.create_snapshot_save_task(context, torii_port, virtual_machine_uuid, "my-snapshot",
+                                   secret_uuid=secret_uuid)
     task.create_snapshot_restore_task(context, torii_port, virtual_machine_uuid, snapshot_image_uuid)
     ```
 

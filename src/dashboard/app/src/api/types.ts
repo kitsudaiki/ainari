@@ -527,6 +527,8 @@ export interface VirtualMachineCreateTaskReq {
 /** Mirror of `task_structs::TaskSnapshotSaveReq`. */
 export interface TaskSnapshotSaveReq {
     name: string;
+    /** Existing secret to encrypt the snapshot with. Without it, a new secret is generated. */
+    secret_uuid?: string;
 }
 
 /** Mirror of `task_structs::TaskSnapshotRestoreReq`. */

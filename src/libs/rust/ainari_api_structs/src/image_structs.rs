@@ -28,6 +28,10 @@ pub struct ImageInitReq {
     /// True, if the image is a snapshot of the root-disk of a virtual_machine
     #[serde(default)]
     pub is_snapshot: bool,
+    /// Already existing secret in the omamori, which is used to encrypt the image. Without it, a
+    /// new secret is generated for the image.
+    #[serde(default)]
+    pub secret_uuid: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

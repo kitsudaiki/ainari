@@ -30,7 +30,8 @@ import (
 )
 
 var (
-	snapshotImageUuid string
+	snapshotImageUuid  string
+	snapshotSecretUuid string
 )
 
 func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
@@ -57,13 +58,16 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 }
 
 var createSnapshotSaveTaskCmd = &cobra.Command{
-	Use:   "snapshot_create VIRTUAL_MACHINE_UUID SNAPSHOT_NAME",
+	Use:   "snapshot_create [-s SECRET_UUID] VIRTUAL_MACHINE_UUID SNAPSHOT_NAME",
 	Short: "Create a new task to save the root-disk of a virtual_machine as new snapshot-image.",
 	Long: `Create a new task to save the root-disk of a virtual_machine as new snapshot-image.
 
 The virtual_machine is only paused, while its root-disk is copied. Data, which was written shortly
 before, can still be in the memory of the virtual_machine and is then missing in the snapshot.
-Run 'sync' inside the virtual_machine right before creating the snapshot.`,
+Run 'sync' inside the virtual_machine right before creating the snapshot.
+
+With '-s SECRET_UUID', the snapshot is encrypted with this already existing secret, instead of a
+new generated secret.`,
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
@@ -74,7 +78,7 @@ Run 'sync' inside the virtual_machine right before creating the snapshot.`,
 		virtual_machineUuid := args[0]
 		toriiPort := getToriiPort(context, virtual_machineUuid)
 		snapshotName := args[1]
-		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, snapshotName, virtual_machineUuid)
+		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, snapshotName, virtual_machineUuid, snapshotSecretUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -200,6 +204,7 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 	taskCmd.AddCommand(createTaskCmd)
 
 	createTaskCmd.AddCommand(createSnapshotSaveTaskCmd)
+	createSnapshotSaveTaskCmd.Flags().StringVarP(&snapshotSecretUuid, "secret", "s", "", "UUID of an existing secret to encrypt the snapshot with, instead of a new generated secret (optional)")
 
 	createTaskCmd.AddCommand(createSnapshotRestoreTaskCmd)
 	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotImageUuid, "image_uuid", "i", "", "UUID of the image, which must be a snapshot (mandatory)")
