@@ -24,10 +24,10 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::get_image;
 use ainari_clients::onsen_file_transfer::upload_file;
+use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
 use ainari_files::file_encryption::encrypt_file;
 
-use super::create_ch_virtual_machine::{get_secret, run_command};
 use super::{snapshot_temp_directory, vm_socket_path};
 use crate::config;
 use crate::database::virtual_machine_table;
@@ -79,7 +79,14 @@ pub async fn save_ch_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await?;
-    let secret = get_secret(&endpoints, secret_uuid, context).await?;
+
+    let secret = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        secret_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await?;
 
     log::info!("Start snapshot-image {image_uuid} of VM {uuid}");
 
@@ -164,7 +171,7 @@ async fn copy_root_disk(
         "driver=raw,file.driver=file,file.filename={},file.locking=off",
         root_disk_path.replace(',', ",,")
     );
-    let convert_result = run_command(
+    let convert_result = super::run_command(
         "qemu-img",
         &[
             "convert",

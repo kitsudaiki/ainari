@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::objects::*;
 use base64::{Engine as _, engine::general_purpose};
 use sha2::{Digest, Sha256};
 use std::fs;

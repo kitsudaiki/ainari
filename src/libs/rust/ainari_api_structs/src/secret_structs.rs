@@ -30,15 +30,32 @@ pub struct SecretCreateReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct SecretCloneInternalReq {
+    pub secret_uuid: Uuid,
+    pub owned_by: String,
+    pub resource_uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct SecretGenerateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct SecretGenerateInternalReq {
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+    pub owned_by: String,
+    pub resource_uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct SecretResp {
     pub uuid: Uuid,
     pub name: String,
+    pub owned_by: String,
+    pub resource_uuid: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -54,6 +71,7 @@ pub struct SecretWithPayloadResp {
 pub struct SecretBasicResp {
     pub uuid: Uuid,
     pub name: String,
+    pub owned_by: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

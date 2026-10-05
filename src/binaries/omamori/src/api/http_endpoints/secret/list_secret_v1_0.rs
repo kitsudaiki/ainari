@@ -42,6 +42,7 @@ pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, E
         let obj = SecretBasicResp {
             uuid,
             name: secret.name.clone(),
+            owned_by: secret.owned_by,
         };
 
         resp.secrets.push(obj);

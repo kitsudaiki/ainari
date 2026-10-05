@@ -78,11 +78,12 @@ pub async fn upload_binary(
 
         // use the secret provided by the user or generate a new one for the image
         let (secret_uuid, secret) = match &query.secret_uuid {
-            Some(secret_uuid) => (
-                *secret_uuid,
-                super::super::get_existing_key(secret_uuid, &context).await?,
-            ),
-            None => super::super::generate_new_key(&image_uuid, &context).await?,
+            Some(secret_uuid) => {
+                super::super::get_existing_key(secret_uuid, "image", &image_uuid, &context).await?
+            }
+            None => {
+                super::super::generate_new_key(&image_uuid, "image", &image_uuid, &context).await?
+            }
         };
 
         encrypt_file(&source_path, &encrypted_result_path, &secret)

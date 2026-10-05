@@ -20,9 +20,22 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::secret::{generate_secret, get_secret_payload};
+use ainari_clients::secret::{clone_secret, generate_secret, get_secret_payload};
 use ainari_common::config::Endpoint;
 use ainari_common::secret::Secret;
+
+pub mod image;
+pub mod onsen_host;
+pub mod project;
+
+/// Returns the endpoint of the omamori, requested from the miko.
+async fn get_omamori_endpoint() -> Result<Endpoint, ErrorResponse> {
+    let miko_endpoint = &config::CONFIG.miko;
+    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
+        .await
+        .map_err(map_ainari_error_to_api_response)?;
+    Ok(endpoints.omamori)
+}
 
 /// Creates a new secret in the omamori, which is used to encrypt the files of an image.
 ///
@@ -41,6 +54,8 @@ use ainari_common::secret::Secret;
 /// * `Err(ErrorResponse)` - The endpoints, the omamori or the payload were not reachable.
 async fn generate_new_key(
     image_uuid: &Uuid,
+    owned_by: &str,
+    resource_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(Uuid, Secret), ErrorResponse> {
     let omamori_endpoint = get_omamori_endpoint().await?;
@@ -49,65 +64,72 @@ async fn generate_new_key(
     let secret_meta = generate_secret(
         &omamori_endpoint,
         &context.token,
+        &config::INTERNAL_API_KEY,
         &secret_name,
+        owned_by,
+        resource_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    let secret = read_key(&omamori_endpoint, &secret_meta.uuid, context).await?;
+    let secret = get_secret_payload(
+        &omamori_endpoint,
+        &context.token,
+        &secret_meta.uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
 
     Ok((secret_meta.uuid, secret))
 }
 
-/// Reads the payload of an already existing secret from the omamori, which was provided by the
-/// user to encrypt the files of an image.
+/// Clones an already existing secret, which was provided by the user to encrypt the files of an
+/// image, and reads the payload of the clone from the omamori.
+///
+/// The clone is owned by the resource, so it can be deleted together with the resource, while the
+/// secret of the user stays untouched.
 ///
 /// # Arguments
 ///
 /// * `secret_uuid` - Uuid of the existing secret
+/// * `owned_by` - Kind of the resource, which owns the clone
+/// * `resource_uuid` - Uuid of the resource, which owns the clone
 /// * `context` - User-context of the request
 ///
 /// # Returns
 ///
-/// * `Ok(Secret)` - Payload of the secret.
+/// * `Ok((Uuid, Secret))` - Uuid of the cloned secret and its payload.
 /// * `Err(ErrorResponse)` - The endpoints or the omamori were not reachable, or the secret doesn't
 ///   exist or is not accessible for the user.
 async fn get_existing_key(
     secret_uuid: &Uuid,
+    owned_by: &str,
+    resource_uuid: &Uuid,
     context: &UserContext,
-) -> Result<Secret, ErrorResponse> {
+) -> Result<(Uuid, Secret), ErrorResponse> {
     let omamori_endpoint = get_omamori_endpoint().await?;
-    read_key(&omamori_endpoint, secret_uuid, context).await
-}
-
-/// Returns the endpoint of the omamori, requested from the miko.
-async fn get_omamori_endpoint() -> Result<Endpoint, ErrorResponse> {
-    let miko_endpoint = &config::CONFIG.miko;
-    let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
-        .await
-        .map_err(map_ainari_error_to_api_response)?;
-    Ok(endpoints.omamori)
-}
-
-/// Reads the payload of a secret from the omamori.
-async fn read_key(
-    omamori_endpoint: &Endpoint,
-    secret_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<Secret, ErrorResponse> {
-    let secret_payload = get_secret_payload(
-        omamori_endpoint,
+    let cloned_secret = clone_secret(
+        &omamori_endpoint,
         &context.token,
+        &config::INTERNAL_API_KEY,
         secret_uuid,
+        owned_by,
+        resource_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    Ok(Secret::from(secret_payload.secret_payload))
-}
+    let secret_payload = get_secret_payload(
+        &omamori_endpoint,
+        &context.token,
+        &cloned_secret.uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(map_ainari_error_to_api_response)?;
 
-pub mod image;
-pub mod onsen_host;
-pub mod project;
+    Ok((cloned_secret.uuid, secret_payload))
+}

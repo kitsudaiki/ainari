@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod create_generated_secret_v1_0;
-pub mod create_secret_v1_0;
+pub mod clone_secret_internal_v1_0;
+pub mod delete_secret_internal_v1_0;
 pub mod delete_secret_v1_0;
+pub mod generate_secret_internal_v1_0;
+pub mod generate_secret_v1_0;
 pub mod get_secret_count_v1_0;
 pub mod get_secret_payload_v1_0;
 pub mod get_secret_v1_0;
 pub mod list_secret_v1_0;
+pub mod upload_secret_v1_0;
 
 use crate::config;
 use crate::database::secret_table;

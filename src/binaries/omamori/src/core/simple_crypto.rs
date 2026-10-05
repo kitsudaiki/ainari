@@ -220,6 +220,36 @@ impl CryptoModule for SimpleCrypto {
         self.decrypt(&secret_data.encrypted_secret, key_b64)
     }
 
+    /// Copies the encrypted secret of an existing secret to a new secret.
+    ///
+    /// The encrypted value is copied without decrypting it, so the payload is never revealed.
+    ///
+    /// # Arguments
+    /// * `source_uuid` - The UUID of the secret to copy
+    /// * `new_uuid` - The UUID of the new secret
+    ///
+    /// # Returns
+    /// Result indicating success or failure of the operation.
+    ///
+    /// # Errors
+    /// * AinariError::InvalidInput - If the source secret UUID is not found
+    /// * AinariError::InternalError - If database operation fails
+    fn clone_payload(&self, source_uuid: &Uuid, new_uuid: &Uuid) -> Result<(), AinariError> {
+        match simple_crypto_table::clone_simple_crypto_data(source_uuid, new_uuid) {
+            Ok(_) => Ok(()),
+            Err(enums::DbError::InternalError) => Err(AinariError::InternalError(format!(
+                "Failed to clone simple-crypto-secret with UUID '{source_uuid}' to '{new_uuid}'."
+            ))),
+            Err(enums::DbError::NotFound) => {
+                let msg = format!("Secret with UUID '{source_uuid}' not found.");
+                Err(AinariError::InvalidInput(msg))
+            }
+            Err(enums::DbError::PermissionDenied) => {
+                Err(AinariError::Forbidden("Permission denied.".to_string()))
+            }
+        }
+    }
+
     /// Deletes a secret from the database.
     ///
     /// # Arguments

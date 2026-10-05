@@ -113,6 +113,31 @@ pub fn get_secret(uuid: &Uuid) -> Result<SimpleCryptoEntry, enums::DbError> {
     }
 }
 
+/// Copies the encrypted secret of an existing entry into a new entry with another UUID
+///
+/// The encrypted value is copied as it is, so the new entry holds the same payload without the
+/// need to decrypt it.
+///
+/// # Arguments
+///
+/// * `source_uuid` - A reference to the UUID of the secret, which should be copied
+/// * `new_uuid` - A reference to the UUID for the new entry
+///
+/// # Returns
+///
+/// A Result indicating success or failure. Returns DbError::NotFound if the source doesn't exist.
+pub fn clone_simple_crypto_data(source_uuid: &Uuid, new_uuid: &Uuid) -> Result<(), enums::DbError> {
+    let source = get_secret(source_uuid)?;
+
+    match add_new_simple_crypto_data(new_uuid, &source.encrypted_secret) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Lists all entries in the simple_crypto table
 ///
 /// # Returns
@@ -231,5 +256,46 @@ mod tests {
         let _ = delete_secret(&uuid1);
         let result = get_secret(&uuid1);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_clone_simple_crypto_data() {
+        let uuid1 = Uuid::new_v4();
+        let uuid2 = Uuid::new_v4();
+        let encrypted_secret = "just a dummy-secret".to_string();
+
+        let secret = SimpleCryptoEntry {
+            secret_uuid: uuid1,
+            encrypted_secret: encrypted_secret.clone(),
+        };
+
+        let _ = delete_secret(&uuid1);
+        let _ = delete_secret(&uuid2);
+
+        add_secret(secret).unwrap();
+        assert!(clone_simple_crypto_data(&uuid1, &uuid2).is_ok());
+
+        let Ok(cloned) = get_secret(&uuid2) else {
+            panic!("cloned entry not found");
+        };
+        assert_eq!(cloned.secret_uuid, uuid2);
+        assert_eq!(cloned.encrypted_secret, encrypted_secret);
+
+        // the source must stay untouched
+        let Ok(source) = get_secret(&uuid1) else {
+            panic!("source entry not found");
+        };
+        assert_eq!(source.encrypted_secret, encrypted_secret);
+
+        // cloning a not existing entry has to fail
+        let uuid3 = Uuid::new_v4();
+        assert!(matches!(
+            clone_simple_crypto_data(&uuid3, &Uuid::new_v4()),
+            Err(enums::DbError::NotFound)
+        ));
+
+        let _ = delete_secret(&uuid1);
+        let _ = delete_secret(&uuid2);
     }
 }
