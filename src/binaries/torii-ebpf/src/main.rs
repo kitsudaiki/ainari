@@ -11,10 +11,14 @@ mod maps;
 mod nat;
 mod utils;
 
-use aya_ebpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
+use aya_ebpf::{
+    bindings::{TC_ACT_OK, TC_ACT_SHOT, xdp_action},
+    macros::{classifier, xdp},
+    programs::{TcContext, XdpContext},
+};
 use network_types::eth::{EthHdr, EtherType};
 
-use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL};
+use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL};
 
 use arp::handle_arp_request;
 use decap::{is_tunnel_packet, process_tunnel_packet};
@@ -175,6 +179,62 @@ pub fn underlay_ingress(ctx: XdpContext) -> u32 {
 
     // Otherwise, let standard host networking handle it
     xdp_action::XDP_PASS
+}
+
+/// Number of bytes at the start of a packet, which `tap_egress` needs in the linear part of the
+/// socket buffer: the Ethernet header, an IPv4 header with the maximum of options and the ports
+/// of the transport header.
+const TAP_EGRESS_PULL_LEN: u32 = 14 + 60 + 4;
+
+/// Applies the ingress packet filter to the packets the kernel sends into a TAP device.
+///
+/// This TC program attaches to the egress of every TAP device. Most packets towards a VM are
+/// redirected into its TAP device by the XDP programs, which already applied the filter and
+/// don't pass the TC layer at all. Decrypted IPsec traffic is different: the kernel decrypts it
+/// and routes it into the TAP device itself, so no XDP program ever sees it. Without this program
+/// the ingress filter of a VM would be bypassed by everything, which arrives encrypted.
+///
+/// The packet is matched against the route of the tenant of the TAP device, the same way the XDP
+/// programs do it. Only a route, which leads into this very TAP device, is considered, so the
+/// filter of another VM is never applied here.
+///
+/// # Arguments
+/// * `ctx` - The eBPF TC Context containing the socket buffer of the packet
+///
+/// # Returns
+/// `TC_ACT_SHOT` if the filter rejects the packet, otherwise `TC_ACT_OK`
+#[classifier]
+pub fn tap_egress(ctx: TcContext) -> i32 {
+    // On egress the interface of the socket buffer is the device the packet is sent on.
+    let ifindex = unsafe { (*ctx.skb.skb).ifindex };
+
+    // The headers may lie outside of the linear part of the buffer, where the program can't
+    // read them. A packet shorter than the requested length is pulled completely.
+    let pull_len = core::cmp::min(ctx.len(), TAP_EGRESS_PULL_LEN);
+    if ctx.pull_data(pull_len).is_err() {
+        return TC_ACT_SHOT as i32;
+    }
+
+    let ethhdr = match ptr_at::<EthHdr>(&ctx, 0) {
+        Ok(hdr) => hdr,
+        Err(_) => return TC_ACT_OK as i32,
+    };
+    let eth_type = match unsafe { core::ptr::read_unaligned(ethhdr).ether_type() } {
+        Ok(eth_type) => eth_type,
+        Err(_) => return TC_ACT_OK as i32,
+    };
+
+    let iface = lookup_iface(ifindex);
+    if let Some(dest_ip) = destination_ip(&ctx, eth_type)
+        && let Some((route_key, target)) = lookup_route(iface.vni, dest_ip)
+        && target.action == ROUTE_ACTION_LOCAL
+        && target.ifindex == ifindex
+        && !filter_allows(&ctx, eth_type, route_key)
+    {
+        return TC_ACT_SHOT as i32;
+    }
+
+    TC_ACT_OK as i32
 }
 
 /// Fallback handler invoked when the eBPF program encounters an unrecoverable error.

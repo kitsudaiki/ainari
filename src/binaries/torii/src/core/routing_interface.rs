@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use aya::maps::{Array, HashMap as AyaHashMap};
-use aya::programs::{Xdp, XdpMode};
+use aya::programs::{SchedClassifier, Xdp, XdpMode};
 use aya::{Ebpf, include_bytes_aligned};
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
@@ -135,11 +135,18 @@ pub fn init_routing() -> GatewayState {
         println!("Warning: Underlay interface {} not found.", underlay_iface);
     }
 
+    // The filter program for the egress of the TAP devices is only loaded here. It is attached
+    // to every TAP device on its registration.
+    let tap_egress: &mut SchedClassifier =
+        bpf.program_mut("tap_egress").unwrap().try_into().unwrap();
+    tap_egress.load().unwrap();
+
     let mut state = GatewayState {
         routes: HashMap::new(),
         floating_ips: HashMap::new(),
         taps: HashMap::new(),
         tap_xdp_links: HashMap::new(),
+        tap_tc_links: HashMap::new(),
         crypto_keys: HashMap::new(),
         connections: HashMap::new(),
         filters: HashMap::new(),

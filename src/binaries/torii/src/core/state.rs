@@ -19,6 +19,7 @@ use std::net::Ipv4Addr;
 
 use aya::Ebpf;
 use aya::maps::{HashMap as AyaHashMap, MapData};
+use aya::programs::tc::SchedClassifierLinkId;
 use aya::programs::xdp::XdpLinkId;
 use uuid::Uuid;
 
@@ -41,6 +42,7 @@ pub struct GatewayState {
     pub floating_ips: HashMap<Ipv4Addr, FloatingIp>,
     pub taps: HashMap<String, TapInfo>, // TAP devices and the VMs behind them
     pub tap_xdp_links: HashMap<String, XdpLinkId>, // overlay programs attached to TAP devices
+    pub tap_tc_links: HashMap<String, SchedClassifierLinkId>, // filter programs on the egress of TAP devices
     pub crypto_keys: HashMap<(CryptoDirection, u32), CryptoKey>, // installed IPsec keys, by direction and spi
     pub connections: HashMap<String, Connection>, // VM-to-VM connections, by "vni:local->remote"
     pub filters: HashMap<FilterKey, RouteFilterRules>, // packet filters, by address and direction

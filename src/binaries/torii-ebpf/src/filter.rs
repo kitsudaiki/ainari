@@ -1,11 +1,10 @@
-use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::ip::IpProto;
 use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, RouteFilter, RouteKey};
 
 use crate::headers::{Ipv4Hdr, TcpHdr, UdpHdr};
 use crate::maps::{lookup_egress_filter, lookup_filter};
-use crate::utils::ptr_at;
+use crate::utils::{PacketContext, ptr_at};
 
 /// Checks whether an address is named by the IP include-list.
 ///
@@ -77,7 +76,7 @@ fn port_allowed(filter: &RouteFilter, src_port: u16, dst_port: u16) -> bool {
 /// Reads the port pair of a packet, if the protocol carries one.
 ///
 /// # Arguments
-/// * `ctx` - The XDP context of the packet
+/// * `ctx` - The XDP or TC context of the packet
 /// * `protocol` - The IP protocol number taken from the IPv4 header
 /// * `frag_off` - The fragment field of the IPv4 header, in network byte order
 /// * `l4_offset` - Offset of the transport header inside the frame
@@ -89,7 +88,7 @@ fn port_allowed(filter: &RouteFilter, src_port: u16, dst_port: u16) -> bool {
 /// header would be, and for truncated packets
 #[inline(always)]
 fn read_ports(
-    ctx: &XdpContext,
+    ctx: &impl PacketContext,
     protocol: u8,
     frag_off: u16,
     l4_offset: usize,
@@ -121,14 +120,14 @@ fn read_ports(
 /// route until the control plane attaches one, carry everything.
 ///
 /// # Arguments
-/// * `ctx` - The XDP context of the packet
+/// * `ctx` - The XDP or TC context of the packet
 /// * `eth_type` - The already parsed EtherType of the frame
 /// * `route_key` - The `(vni, destination)` key the route was matched under
 ///
 /// # Returns
 /// `true` when the packet may be forwarded, `false` when it has to be dropped
 #[inline(always)]
-pub fn filter_allows(ctx: &XdpContext, eth_type: EtherType, route_key: RouteKey) -> bool {
+pub fn filter_allows(ctx: &impl PacketContext, eth_type: EtherType, route_key: RouteKey) -> bool {
     match lookup_filter(route_key) {
         Some(filter) => packet_allowed(ctx, eth_type, filter, false),
         None => true,
@@ -143,14 +142,14 @@ pub fn filter_allows(ctx: &XdpContext, eth_type: EtherType, route_key: RouteKey)
 /// packet. A TAP device without a filter carries everything.
 ///
 /// # Arguments
-/// * `ctx` - The XDP context of the packet
+/// * `ctx` - The XDP or TC context of the packet
 /// * `eth_type` - The already parsed EtherType of the frame
 /// * `ifindex` - The interface the packet arrived on
 ///
 /// # Returns
 /// `true` when the packet may be forwarded, `false` when it has to be dropped
 #[inline(always)]
-pub fn egress_filter_allows(ctx: &XdpContext, eth_type: EtherType, ifindex: u32) -> bool {
+pub fn egress_filter_allows(ctx: &impl PacketContext, eth_type: EtherType, ifindex: u32) -> bool {
     match lookup_egress_filter(ifindex) {
         Some(filter) => packet_allowed(ctx, eth_type, filter, true),
         None => true,
@@ -170,7 +169,7 @@ pub fn egress_filter_allows(ctx: &XdpContext, eth_type: EtherType, ifindex: u32)
 /// cannot be evaluated must not turn into a hole.
 ///
 /// # Arguments
-/// * `ctx` - The XDP context of the packet
+/// * `ctx` - The XDP or TC context of the packet
 /// * `eth_type` - The already parsed EtherType of the frame
 /// * `filter` - The filter the packet is checked against
 /// * `match_destination` - `true` to match the IP list against the destination
@@ -180,7 +179,7 @@ pub fn egress_filter_allows(ctx: &XdpContext, eth_type: EtherType, ifindex: u32)
 /// `true` when the packet may be forwarded, `false` when it has to be dropped
 #[inline(always)]
 fn packet_allowed(
-    ctx: &XdpContext,
+    ctx: &impl PacketContext,
     eth_type: EtherType,
     filter: &RouteFilter,
     match_destination: bool,

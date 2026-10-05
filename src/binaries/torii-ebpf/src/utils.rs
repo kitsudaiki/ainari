@@ -1,6 +1,41 @@
 use crate::headers::Ipv4Hdr;
-use aya_ebpf::programs::XdpContext;
+use aya_ebpf::programs::{TcContext, XdpContext};
 use core::mem;
+
+/// Access to the packet data of the context of an eBPF program.
+///
+/// The packet filter runs in the XDP programs as well as in the TC program of the TAP devices,
+/// so the packet parsing is written against this trait instead of a concrete context.
+pub trait PacketContext {
+    /// Start of the packet data
+    fn data(&self) -> usize;
+    /// End of the packet data, which every access has to be checked against
+    fn data_end(&self) -> usize;
+}
+
+impl PacketContext for XdpContext {
+    #[inline(always)]
+    fn data(&self) -> usize {
+        XdpContext::data(self)
+    }
+
+    #[inline(always)]
+    fn data_end(&self) -> usize {
+        XdpContext::data_end(self)
+    }
+}
+
+impl PacketContext for TcContext {
+    #[inline(always)]
+    fn data(&self) -> usize {
+        TcContext::data(self)
+    }
+
+    #[inline(always)]
+    fn data_end(&self) -> usize {
+        TcContext::data_end(self)
+    }
+}
 
 /// Retrieves a validated, read-only pointer to a struct within the packet data buffer.
 ///
@@ -8,13 +43,13 @@ use core::mem;
 /// by the kernel. Without these checks, the eBPF verifier will reject the program.
 ///
 /// # Arguments
-/// * `ctx` - The current XDP context containing packet data
+/// * `ctx` - The current XDP or TC context containing packet data
 /// * `offset` - The byte offset from the start of the packet where the struct begins
 ///
 /// # Returns
 /// A `Result` containing a safe `*const T` pointer, or an `Err(())` if out-of-bounds
 #[inline(always)]
-pub fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
+pub fn ptr_at<T>(ctx: &impl PacketContext, offset: usize) -> Result<*const T, ()> {
     let start = ctx.data();
     let end = ctx.data_end();
     let len = mem::size_of::<T>();

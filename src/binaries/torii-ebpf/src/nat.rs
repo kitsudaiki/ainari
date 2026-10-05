@@ -1,6 +1,6 @@
 use crate::headers::{ArpHdr, Ipv4Hdr, TcpHdr, UdpHdr};
 use crate::maps::{FIP_DNAT_MAP, FIP_SNAT_MAP};
-use crate::utils::{csum_replace4, ipv4_checksum, ptr_at, ptr_at_mut};
+use crate::utils::{PacketContext, csum_replace4, ipv4_checksum, ptr_at, ptr_at_mut};
 use aya_ebpf::programs::XdpContext;
 use network_types::eth::{EthHdr, EtherType};
 use network_types::icmp::Icmpv4Hdr;
@@ -255,13 +255,13 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32
 /// their destination, ARP packets the address they ask for.
 ///
 /// # Arguments
-/// * `ctx` - The XDP packet context
+/// * `ctx` - The XDP or TC packet context
 /// * `eth_type` - The parsed protocol type of the packet
 ///
 /// # Returns
 /// An `Option<u32>` containing the destination IP, or None if there is none
 #[inline(always)]
-pub fn destination_ip(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
+pub fn destination_ip(ctx: &impl PacketContext, eth_type: EtherType) -> Option<u32> {
     if eth_type == EtherType::Ipv4 {
         let ipv4 = ptr_at::<Ipv4Hdr>(ctx, EthHdr::LEN).ok()?;
         return Some(u32::from_be(
