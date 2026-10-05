@@ -24,11 +24,11 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::get_image;
 use ainari_clients::onsen_file_transfer::download_file;
+use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 
-use super::create_ch_virtual_machine::{get_secret, run_command};
 use super::{connect_to_vmm, mark_error_on_failure, set_vm_state, snapshot_temp_directory};
 use crate::config;
 use crate::database::virtual_machine_table;
@@ -83,7 +83,14 @@ pub async fn restore_ch_virtual_machine(
             "Image {image_uuid} is not a snapshot and can not be restored."
         )));
     }
-    let secret = get_secret(&endpoints, &image_resp.secret_uuid, context).await?;
+
+    let secret = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        &image_resp.secret_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await?;
 
     log::info!("Start restore of snapshot-image {image_uuid} into VM {uuid}");
 
@@ -163,7 +170,7 @@ async fn replace_root_disk(
             AinariError::InternalError(format!("Failed to download snapshot-file from onsen: {e}"))
         })?;
         decrypt_file(&local_encrypted_file_path, &local_file_path, secret).await?;
-        run_command(
+        super::run_command(
             "qemu-img",
             &[
                 "convert",

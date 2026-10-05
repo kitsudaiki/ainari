@@ -43,6 +43,8 @@ pub async fn get_secret(
     let resp = SecretResp {
         uuid: *secret_uuid,
         name: secret.name,
+        owned_by: secret.owned_by,
+        resource_uuid: secret.resource_uuid,
         created_by: secret.created_by,
         created_at: secret.created_at,
         updated_by: secret.updated_by,

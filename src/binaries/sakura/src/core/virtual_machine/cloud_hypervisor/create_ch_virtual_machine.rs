@@ -36,13 +36,8 @@ use ainari_clients::public_key::get_public_key;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::config::Endpoints;
 use ainari_common::error::AinariError;
-use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 
-use super::{
-    mark_error_on_failure, set_vm_state, vm_directory, vm_serial_log_path, vm_socket_path,
-    vm_temp_directory,
-};
 use crate::config;
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachineState};
@@ -77,7 +72,7 @@ pub async fn create_ch_virtual_machine(
     context: &UserContext,
 ) -> Result<VmHandle, AinariError> {
     let result = create_and_boot_vm(uuid, context).await;
-    mark_error_on_failure(uuid, context, result)
+    super::mark_error_on_failure(uuid, context, result)
 }
 
 /// Prepares all files of the virtual_machine and boots it in a new cloud-hypervisor process
@@ -146,13 +141,13 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
         context,
     )
     .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
-    set_vm_state(uuid, VirtualMachineState::Running, context)?;
+    super::set_vm_state(uuid, VirtualMachineState::Running, context)?;
 
     log::info!("New VM {uuid} started");
 
     Ok(VmHandle {
         tap_name: virtual_machine_data.tap_name,
-        socket_path: vm_socket_path(uuid),
+        socket_path: super::vm_socket_path(uuid),
         pid: vm_pid,
     })
 }
@@ -184,7 +179,7 @@ pub(super) async fn spawn_vmm_with_vm(
     seed_path: &str,
 ) -> Result<(SocketBasedApiClient, u32), AinariError> {
     // start cloud-hypervisor process, which is controlled via its API-socket
-    let socket_path = vm_socket_path(uuid);
+    let socket_path = super::vm_socket_path(uuid);
     let _ = fs::remove_file(&socket_path);
     let mut child = Command::new(&config::CONFIG.hypervisor.binary_path)
         .arg("--api-socket")
@@ -263,7 +258,7 @@ fn build_vm_config(
         }),
         serial: Some(SerialConfig {
             mode: ConsoleMode::File,
-            file: Some(vm_serial_log_path(uuid)),
+            file: Some(super::vm_serial_log_path(uuid)),
             ..Default::default()
         }),
         // No checksum offloading: the gateways rewrite addresses with
@@ -306,10 +301,10 @@ fn build_vm_config(
 /// * `Ok((String, String))` with the paths of the vm-directory and the temp-directory on success
 /// * `Err(AinariError)` with an appropriate error on failure
 async fn prepare_directories(vm_uuid: &Uuid) -> Result<(String, String), AinariError> {
-    let vm_dir = vm_directory(vm_uuid);
+    let vm_dir = super::vm_directory(vm_uuid);
     create_directory(&vm_dir).await?;
 
-    let temp_dir = vm_temp_directory(vm_uuid);
+    let temp_dir = super::vm_temp_directory(vm_uuid);
     create_directory(&temp_dir).await?;
 
     Ok((vm_dir, temp_dir))
@@ -378,7 +373,7 @@ ssh_authorized_keys:
     })?;
 
     // combine network-config and user-data into the seed-image
-    if let Err(e) = run_command(
+    if let Err(e) = super::run_command(
         "cloud-localds",
         &["-N", &network_config_path, &seed_path, &user_data_path],
     ) {
@@ -387,32 +382,6 @@ ssh_authorized_keys:
     }
 
     Ok(seed_path)
-}
-
-/// Gets the secret of an image, which is required to decrypt the image-file
-///
-/// # Arguments
-/// * `endpoints` - Endpoints of the other components
-/// * `secret_uuid` - Unique identifier of the secret
-/// * `context` - User context containing authentication information
-///
-/// # Returns
-/// * `Ok(Secret)` with the secret on success
-/// * `Err(AinariError)` with an appropriate error on failure
-pub(super) async fn get_secret(
-    endpoints: &Endpoints,
-    secret_uuid: &Uuid,
-    context: &UserContext,
-) -> Result<Secret, AinariError> {
-    let secret_payload = get_secret_payload(
-        &endpoints.omamori,
-        &context.token,
-        secret_uuid,
-        config::CONFIG.skip_tls_verification,
-    )
-    .await?;
-
-    Ok(Secret::from(secret_payload.secret_payload))
 }
 
 /// Downloads an image from onsen, decrypts it and converts it into a raw boot-disk
@@ -464,7 +433,14 @@ async fn download_and_convert_image(
     })?;
 
     // decrypt image
-    let decrypt_result = match get_secret(endpoints, &image_resp.secret_uuid, context).await {
+    let decrypt_result = match get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        &image_resp.secret_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    {
         Ok(secret) => decrypt_file(&local_encrypted_file_path, &local_file_path, &secret).await,
         Err(e) => Err(e),
     };
@@ -498,7 +474,7 @@ async fn download_and_convert_image(
 /// * `Ok(())` on success
 /// * `Err(AinariError)` with an appropriate error on failure
 fn convert_image(input_path: &str, output_path: &str, disk_size: i64) -> Result<(), AinariError> {
-    run_command(
+    super::run_command(
         "qemu-img",
         &[
             "convert",
@@ -510,31 +486,8 @@ fn convert_image(input_path: &str, output_path: &str, disk_size: i64) -> Result<
             output_path,
         ],
     )?;
-    run_command(
+    super::run_command(
         "qemu-img",
         &["resize", output_path, &format!("+{disk_size}G")],
     )
-}
-
-/// Runs an external command and waits until it is finished
-///
-/// # Arguments
-/// * `program` - Name or path of the program to run
-/// * `args` - Arguments for the program
-///
-/// # Returns
-/// * `Ok(())` if the command was successful
-/// * `Err(AinariError)` if the command could not be started or failed
-pub(super) fn run_command(program: &str, args: &[&str]) -> Result<(), AinariError> {
-    let status = Command::new(program).args(args).status().map_err(|e| {
-        AinariError::InternalError(format!("Failed to execute {program} process: {e}"))
-    })?;
-
-    if status.success() {
-        Ok(())
-    } else {
-        Err(AinariError::InternalError(format!(
-            "{program} failed with exit status: {status}"
-        )))
-    }
 }

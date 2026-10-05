@@ -294,7 +294,7 @@ pub fn map_db_uuid_get_delete_error(
 ) -> ErrorResponse {
     match err {
         enums::DbError::InternalError => {
-            log::error!("Error while deleting {obj_type} with UUID '{uuid}' from DB");
+            log::error!("Error while searching {obj_type} with UUID '{uuid}' in DB");
             ErrorResponse::InternalError("Internal Error".to_string())
         }
         enums::DbError::NotFound => {
@@ -326,7 +326,7 @@ pub fn map_db_uuid_get_delete_ainari_error(
 ) -> AinariError {
     match err {
         enums::DbError::InternalError => {
-            log::error!("Error while deleting {obj_type} with UUID '{uuid}' from DB");
+            log::error!("Error while searching {obj_type} with UUID '{uuid}' in DB");
             AinariError::InternalError("Internal Error".to_string())
         }
         enums::DbError::NotFound => {

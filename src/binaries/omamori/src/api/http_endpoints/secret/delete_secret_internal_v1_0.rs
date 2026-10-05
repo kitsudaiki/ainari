@@ -27,25 +27,24 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "secret",
-    summary = "Delete secret",
+    summary = "Delete secret (internal)",
     description = r###"Delete a secret from the database and its payload from the crypto-module."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_secret(
+pub async fn delete_secret_internal(
     secret_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // only user owned secrets can be deleted over the public endpoint
-    // resouces owned are created over the internal api and so they can only be deleted there again
+    // only resouce owned secrets can be deleted over the internal endpoint
+    // user owned are created over the public api and so they can only be deleted there again
     let secret = secret_table::get_secret(&secret_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
-    if secret.owned_by != "user" {
+    if secret.owned_by == "user" {
         return Err(ErrorResponse::Unauthorized(
-            "Secret is owned by a resource and can not be deleted over public endpoints"
-                .to_string(),
+            "Secret is owned by a user and can not be deleted over internal endpoints".to_string(),
         ));
     }
 

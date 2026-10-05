@@ -31,6 +31,9 @@ pub trait CryptoModule {
     /// Reads the payload of a secret again and decrypts it.
     fn retrieve(&self, secret_uuid: &Uuid) -> Result<Secret, AinariError>;
 
+    /// Copies the payload of an existing secret to a new secret, without exposing the payload.
+    fn clone_payload(&self, source_uuid: &Uuid, new_uuid: &Uuid) -> Result<(), AinariError>;
+
     /// Removes the payload of a secret from the backend.
     fn delete(&self, secret_uuid: &Uuid) -> Result<(), AinariError>;
 

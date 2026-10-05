@@ -28,6 +28,8 @@ table! {
     secrets (uuid) {
         uuid -> Varchar,
         name -> Varchar,
+        owned_by -> Varchar,
+        resource_uuid -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
         status -> Varchar,
@@ -50,6 +52,9 @@ pub struct SecretEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
     pub name: String,
+    pub owned_by: String,
+    #[diesel(serialize_as = DbOptUuid, deserialize_as = DbOptUuid)]
+    pub resource_uuid: Option<Uuid>,
     pub owner_id: String,
     pub project_id: String,
     pub status: String,
@@ -73,12 +78,20 @@ pub struct SecretEntry {
 ///
 /// * `secret_uuid` - The unique identifier for the new secret
 /// * `name` - The human-readable name for the secret
+/// * `owned_by` - The kind of owner of the secret, for example `user`
+/// * `resource_uuid` - The UUID of the resource, which owns the secret, if there is one
 /// * `context` - The user context containing information about the current user
 ///
 /// # Returns
 ///
 /// A QueryResult indicating the number of rows affected by the insert operation
-pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> QueryResult<usize> {
+pub fn add_new_secret(
+    secret_uuid: &Uuid,
+    name: &str,
+    owned_by: &str,
+    resource_uuid: Option<Uuid>,
+    context: &UserContext,
+) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
         return Err(enums::permission_denied_error());
@@ -87,6 +100,8 @@ pub fn add_new_secret(secret_uuid: &Uuid, name: &str, context: &UserContext) -> 
     let secret = SecretEntry {
         uuid: *secret_uuid,
         name: name.to_owned(),
+        owned_by: owned_by.to_owned(),
+        resource_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
         status: "ACTIVE".to_string(),
@@ -338,6 +353,8 @@ mod tests {
         let secret = SecretEntry {
             uuid: uuid1,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -356,6 +373,8 @@ mod tests {
             Ok(retrieved_secret) => {
                 assert_eq!(retrieved_secret.uuid, secret.uuid);
                 assert_eq!(retrieved_secret.name, secret.name);
+                assert_eq!(retrieved_secret.owned_by, secret.owned_by);
+                assert_eq!(retrieved_secret.resource_uuid, secret.resource_uuid);
                 assert_eq!(retrieved_secret.owner_id, secret.owner_id);
                 assert_eq!(retrieved_secret.project_id, secret.project_id);
                 assert_eq!(retrieved_secret.status, secret.status);
@@ -392,6 +411,8 @@ mod tests {
         let secret1 = SecretEntry {
             uuid: uuid1,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -406,6 +427,8 @@ mod tests {
         let secret2 = SecretEntry {
             uuid: uuid2,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "DELETED".to_string(),
@@ -447,6 +470,8 @@ mod tests {
         let secret = SecretEntry {
             uuid: uuid1,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -487,6 +512,8 @@ mod tests {
         let secret1 = SecretEntry {
             uuid: uuid1,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -501,6 +528,8 @@ mod tests {
         let secret2 = SecretEntry {
             uuid: uuid2,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -515,6 +544,8 @@ mod tests {
         let secret3 = SecretEntry {
             uuid: uuid3,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
             status: "ACTIVE".to_string(),
@@ -553,6 +584,8 @@ mod tests {
         let secret1 = SecretEntry {
             uuid: uuid1,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -567,6 +600,8 @@ mod tests {
         let secret2 = SecretEntry {
             uuid: uuid2,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
             status: "ACTIVE".to_string(),
@@ -581,6 +616,8 @@ mod tests {
         let secret3 = SecretEntry {
             uuid: uuid3,
             name: name.clone(),
+            owned_by: "user".to_string(),
+            resource_uuid: None,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
             status: "ACTIVE".to_string(),

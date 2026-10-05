@@ -37,21 +37,34 @@ pub fn v1alpha_routes() -> Scope {
         .service(
             scope("/secret")
                 .service(
-                    resource("/generate")
-                        .route(post().to(create_generated_secret_v1_0::create_secret)),
+                    resource("/generate").route(post().to(generate_secret_v1_0::generate_secret)),
                 )
                 .service(
                     resource("")
-                        .route(post().to(create_secret_v1_0::create_secret))
+                        .route(post().to(upload_secret_v1_0::upload_secret))
                         .route(get().to(list_secret_v1_0::list_secret)),
                 )
                 .service(
                     resource("/count").route(get().to(get_secret_count_v1_0::get_secret_count)),
                 )
+                // the internal endpoints with fixed paths have to be registered before the
+                // ones with `{secret_uuid}`, because else `internal` would be parsed as UUID
+                .service(
+                    resource("/clone/internal")
+                        .route(post().to(clone_secret_internal_v1_0::clone_secret_internal)),
+                )
+                .service(
+                    resource("/generate/internal")
+                        .route(post().to(generate_secret_internal_v1_0::generate_secret_internal)),
+                )
                 .service(
                     resource("/{secret_uuid}")
                         .route(get().to(get_secret_v1_0::get_secret))
                         .route(delete().to(delete_secret_v1_0::delete_secret)),
+                )
+                .service(
+                    resource("/{secret_uuid}/internal")
+                        .route(delete().to(delete_secret_internal_v1_0::delete_secret_internal)),
                 )
                 .service(
                     resource("/{secret_uuid}/payload")

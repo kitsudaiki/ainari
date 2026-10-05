@@ -33,7 +33,7 @@ use ainari_common::secret::Secret;
 
 #[api_operation(
     tag = "secret",
-    summary = "Create new generated secret",
+    summary = "Create new generated secret (internal)",
     description = r###"Create a new secret with a randomly generated 256-bit key as payload,
 
 so the payload never has to be transferred to the server."###,
@@ -42,8 +42,8 @@ so the payload never has to be transferred to the server."###,
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_secret(
-    body: Json<SecretGenerateReq>,
+pub async fn generate_secret_internal(
+    body: Json<SecretGenerateInternalReq>,
     context: UserContext,
 ) -> Result<CreatedJson<SecretResp>, ErrorResponse> {
     // validate incoming json
@@ -64,7 +64,14 @@ pub async fn create_secret(
         .map_err(map_ainari_error_to_api_response)?;
 
     // add new secret to database
-    secret_table::add_new_secret(&secret_uuid, &body.name, &context).map_err(|e| {
+    secret_table::add_new_secret(
+        &secret_uuid,
+        &body.name,
+        &body.owned_by,
+        Some(body.resource_uuid),
+        &context,
+    )
+    .map_err(|e| {
         map_db_write_error(
             &format!("add secret with UUID '{secret_uuid}' to database"),
             e,
@@ -78,6 +85,8 @@ pub async fn create_secret(
     let resp = SecretResp {
         uuid: secret_uuid,
         name: secret.name,
+        owned_by: secret.owned_by,
+        resource_uuid: secret.resource_uuid,
         created_by: secret.created_by,
         created_at: secret.created_at,
         updated_by: secret.updated_by,

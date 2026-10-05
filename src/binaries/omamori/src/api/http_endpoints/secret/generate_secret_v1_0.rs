@@ -15,8 +15,11 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use rand::TryRng;
 use uuid::Uuid;
-use validator::Validate;
+use validator::Validate; // needed to use .encode() and .decode()
 
 use crate::core::crypto_trait::CryptoModule;
 use crate::core::simple_crypto::SimpleCrypto;
@@ -26,18 +29,21 @@ use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::secret::Secret;
 
 #[api_operation(
     tag = "secret",
-    summary = "Create new secret",
-    description = r###"Create a new secret from the payload, which is provided by the request."###,
+    summary = "Create new generated secret",
+    description = r###"Create a new secret with a randomly generated 256-bit key as payload,
+
+so the payload never has to be transferred to the server."###,
     error_code = 400,
     error_code = 401,
     error_code = 409,
     error_code = 500
 )]
-pub async fn create_secret(
-    body: Json<SecretCreateReq>,
+pub async fn generate_secret(
+    body: Json<SecretGenerateReq>,
     context: UserContext,
 ) -> Result<CreatedJson<SecretResp>, ErrorResponse> {
     // validate incoming json
@@ -48,19 +54,26 @@ pub async fn create_secret(
 
     let secret_uuid = Uuid::new_v4();
 
+    // generate key
+    let b64 = generate_256bit_key_base64();
+
     // encrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
-        .store(&secret_uuid, &body.secret_payload)
+        .store(&secret_uuid, &b64)
         .map_err(map_ainari_error_to_api_response)?;
 
+    let owned_by = "user"; // all uploaded or generated over the public endpoint counts as owned by user
+
     // add new secret to database
-    secret_table::add_new_secret(&secret_uuid, &body.name, &context).map_err(|e| {
-        map_db_write_error(
-            &format!("add secret with UUID '{secret_uuid}' to database"),
-            e,
-        )
-    })?;
+    secret_table::add_new_secret(&secret_uuid, &body.name, owned_by, None, &context).map_err(
+        |e| {
+            map_db_write_error(
+                &format!("add secret with UUID '{secret_uuid}' to database"),
+                e,
+            )
+        },
+    )?;
 
     // get new created secret from database to get additional information
     let secret = secret_table::get_secret(&secret_uuid, &context)
@@ -69,6 +82,8 @@ pub async fn create_secret(
     let resp = SecretResp {
         uuid: secret_uuid,
         name: secret.name,
+        owned_by: secret.owned_by,
+        resource_uuid: secret.resource_uuid,
         created_by: secret.created_by,
         created_at: secret.created_at,
         updated_by: secret.updated_by,
@@ -76,4 +91,18 @@ pub async fn create_secret(
     };
 
     Ok(CreatedJson(resp))
+}
+
+/// Generates a random 256-bit key and encodes it as base64.
+///
+/// The key is generated on the server, so the payload of the secret never has to be sent over the
+/// network by the user.
+///
+/// # Returns
+///
+/// The base64-encoded key as secret.
+fn generate_256bit_key_base64() -> Secret {
+    let mut key = [0u8; 32];
+    let _ = rand::rng().try_fill_bytes(&mut key);
+    Secret::from(STANDARD.encode(key))
 }

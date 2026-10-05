@@ -58,6 +58,7 @@ pub async fn delete_image(
     delete_secret(
         &endpoints.omamori,
         &context.token,
+        &config::INTERNAL_API_KEY,
         &secret_uuid,
         config::CONFIG.skip_tls_verification,
     )
