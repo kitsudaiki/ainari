@@ -16,12 +16,14 @@
 //!
 //! Used by the network-interface endpoints and by the restore of the persisted state at startup.
 
-use aya::programs::{Xdp, XdpMode};
+use aya::programs::tc::{TcAttachType, qdisc_add_clsact};
+use aya::programs::{SchedClassifier, Xdp, XdpMode};
 use std::net::Ipv4Addr;
 
 use crate::config::CONFIG;
 use crate::core::models::{ArpProxyPod, IfaceConfigPod, TapInfo};
 use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::core::state::GatewayState;
 use crate::core::utils::{
     bind_iface_to_table, enable_forwarding, exempt_from_rp_filter, get_ifindex, get_mac_address,
     is_iface_up, parse_mac, run_ip, unbind_iface_from_table, with_table,
@@ -339,6 +341,18 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         if let Some(link_id) = link_id {
             st.tap_xdp_links.insert(name.to_string(), link_id);
         }
+
+        // Decrypted IPsec traffic is routed into the TAP device by the kernel and never passes
+        // the XDP programs, so the ingress filter of the VM is applied to it on the egress of
+        // the device. A registered device already has the program, and a second one would only
+        // check every packet twice.
+        if !st.tap_tc_links.contains_key(name.as_str()) {
+            let link_id = attach_tap_egress(&mut st, name).map_err(|e| {
+                log::error!("Failed to attach tap_egress to '{name}': {e}");
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
+            st.tap_tc_links.insert(name.to_string(), link_id);
+        }
     }
 
     Ok(())
@@ -385,9 +399,53 @@ pub async fn unregister_tap(req: &TapReq, delete_device: bool) {
         }
     }
 
+    {
+        let mut st = GATEWAY_STATE_HANDLE.lock().await;
+        if let Some(link_id) = st.tap_tc_links.remove(name.as_str())
+            && let Some(program) = st.bpf.program_mut("tap_egress")
+        {
+            let tap_egress: Result<&mut SchedClassifier, _> = program.try_into();
+            if let Ok(tap_egress) = tap_egress
+                && let Err(e) = tap_egress.detach(link_id)
+            {
+                log::error!("Failed to detach tap_egress from '{name}': {e}");
+            }
+        }
+    }
+
     if delete_device {
         let _ = run_ip(&["link", "del", name]);
     }
+}
+
+/// Attaches the filter program `tap_egress` to the egress of a TAP device.
+///
+/// Kernels before 6.6 attach TC programs over a `clsact` qdisc, which is added first. Newer
+/// kernels don't need it, and a device, which already has one, keeps it, so a failure to add it
+/// is ignored. The attach itself reports, if the program can't be attached at all.
+///
+/// # Arguments
+/// * `st` - The locked gateway state, which holds the loaded program
+/// * `name` - Name of the TAP device
+///
+/// # Returns
+/// The id of the new link, or a message describing why the program couldn't be attached
+fn attach_tap_egress(
+    st: &mut GatewayState,
+    name: &str,
+) -> Result<aya::programs::tc::SchedClassifierLinkId, String> {
+    let _ = qdisc_add_clsact(name);
+
+    let program = st
+        .bpf
+        .program_mut("tap_egress")
+        .ok_or_else(|| "program tap_egress not found".to_string())?;
+    let tap_egress: &mut SchedClassifier = program
+        .try_into()
+        .map_err(|e| format!("tap_egress is no TC program: {e}"))?;
+    tap_egress
+        .attach(name, TcAttachType::Egress)
+        .map_err(|e| e.to_string())
 }
 
 /// Reverts a TAP registration, which could not be completed or persisted.
