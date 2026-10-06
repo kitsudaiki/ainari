@@ -14,12 +14,12 @@
 
 # Starts and stops the local setups, which run the whole stack on this machine.
 #
-#   make up local      docker-compose setup (scripts/setup_local_stack.sh, runs with sudo)
+#   make up local      docker-compose setup (testing/local_stack/setup_local_stack.sh, runs with sudo)
 #   make down local
-#   make up kind       the same setup on a kind-cluster (scripts/setup_kind_stack.sh)
+#   make up kind       the same setup on a kind-cluster (testing/kind/setup_kind_stack.sh)
 #   make down kind
 #   make up vagrant    the same setup on a k3s-cluster of eight virtual machines
-#   make down vagrant  (scripts/setup_vagrant_stack.sh)
+#   make down vagrant  (testing/vagrant/setup_vagrant_stack.sh)
 #
 #   make lint-docs     checks the markdown of the documentation (.markdownlint-cli2.yaml),
 #                      with FIX=1 the fixable findings are fixed automatically
@@ -55,9 +55,9 @@ help:
 
 up down: $(if $(filter kind,$(STACK)),$(KIND)) $(if $(filter vagrant,$(STACK)),$(ANSIBLE_PLAYBOOK))
 	@case "$(STACK)" in \
-		local) sudo ./scripts/setup_local_stack.sh $(if $(filter down,$@),--down) ;; \
-		kind) KIND="$(abspath $(KIND))" ./scripts/setup_kind_stack.sh $(if $(filter down,$@),--down) ;; \
-		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./scripts/setup_vagrant_stack.sh $(if $(filter down,$@),--down) ;; \
+		local) sudo ./testing/local_stack/setup_local_stack.sh $(if $(filter down,$@),--down) ;; \
+		kind) KIND="$(abspath $(KIND))" ./testing/kind/setup_kind_stack.sh $(if $(filter down,$@),--down) ;; \
+		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./testing/vagrant/setup_vagrant_stack.sh $(if $(filter down,$@),--down) ;; \
 		*) echo "Usage: make $@ local|kind|vagrant"; exit 1 ;; \
 	esac
 

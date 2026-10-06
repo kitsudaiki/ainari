@@ -54,7 +54,7 @@ admin-user `asdf` / `asdfasdf`) are set as env-variables in `launch.json` and `t
    has to be `10.0.0.0/24`.
 3. the floating ip-addresses are served on `uplink0` and are only reachable from the network
    namespace `torii-outside` on the other side of it, not from the host itself
-   (see `scripts/setup_single_node_uplink.sh`):
+   (see `testing/local_stack/setup_single_node_uplink.sh`):
     ```bash
     sudo ip netns exec torii-outside ssh -i ~/.ssh/ainari_local ubuntu@FLOATING_IP
     ```
@@ -67,7 +67,7 @@ so they only have to be removed, when the setup is not needed anymore. First sto
 terminating its task, then run the task `remove single-node uplink` or directly:
 
 ```bash
-sudo ./scripts/setup_single_node_uplink.sh down
+sudo ./testing/local_stack/setup_single_node_uplink.sh down
 ```
 
 This deletes `uplink0` together with its peer `outside0` and the namespace `torii-outside`, so the

@@ -162,6 +162,7 @@ for this, because it would put the dropdown-menu below the following rows. */
     font-family: Dejavu Sans Mono;
     font-size: 0.85rem;
     width: 25rem;
+    white-space: nowrap;
 }
 
 .overview-table tbody td:nth-child(1) {

@@ -18,8 +18,8 @@ use uuid::Uuid;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
-use super::shutdown::{shutdown_gracefully, vmm_exited};
 use super::{connect_to_vmm, set_vm_state};
+use super::{shutdown_gracefully, vmm_exited};
 use crate::database::virtual_machine_table::VirtualMachineState;
 
 /// Shuts down a cloud-hypervisor virtual_machine

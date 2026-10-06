@@ -21,7 +21,7 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
 use super::create_ch_virtual_machine::spawn_vmm_with_vm;
-use super::shutdown::vmm_exited;
+use super::vmm_exited;
 use super::{connect_to_vmm, mark_error_on_failure, set_vm_state};
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::VirtualMachineState;

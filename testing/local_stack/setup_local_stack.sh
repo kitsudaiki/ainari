@@ -19,8 +19,8 @@
 # the host has to forward and masquerade the traffic of the virtual machines.
 #
 # Usage:
-#   sudo ./scripts/setup_local_stack.sh          start the stack and connect the host to it
-#   sudo ./scripts/setup_local_stack.sh --down   stop the stack and remove the veth-pair again
+#   sudo ./testing/local_stack/setup_local_stack.sh          start the stack and connect the host to it
+#   sudo ./testing/local_stack/setup_local_stack.sh --down   stop the stack and remove the veth-pair again
 
 set -e
 
@@ -36,10 +36,10 @@ GATEWAY_ADDRESS="10.0.0.254/24"
 # gateway.
 GATEWAY_CONTAINER="torii-public-netns"
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root (e.g. sudo ./scripts/setup_local_stack.sh)"
+    echo "Please run as root (e.g. sudo ./testing/local_stack/setup_local_stack.sh)"
     exit 1
 fi
 
@@ -88,7 +88,7 @@ export KVM_GID
 # ---------------------------------------------------------------------------------------------
 # Another interface in the same subnet steals the traffic of the floating ip-addresses and, if it
 # carries the address of the gateway, the host even ignores the arp-requests of the gateway.
-# 'uplink0' of scripts/setup_single_node_uplink.sh is such an interface.
+# 'uplink0' of testing/local_stack/setup_single_node_uplink.sh is such an interface.
 FIP_PREFIX="$(echo "$FLOATING_IP_CIDR" | cut -d. -f1-3)."
 CONFLICTS="$(ip -o -4 addr show | awk '{print $2, $4}' | grep " ${FIP_PREFIX}" | awk '{print $1}' | sort -u)"
 

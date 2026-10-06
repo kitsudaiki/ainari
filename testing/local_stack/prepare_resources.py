@@ -35,7 +35,7 @@ the same host or on different ones, which differs from run to run.
 
 The stack has to run before this script is started:
 
-    sudo ./scripts/setup_local_stack.sh
+    sudo ./testing/local_stack/setup_local_stack.sh
 """
 
 import os

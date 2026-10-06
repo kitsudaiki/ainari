@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod http_endpoints;
-pub mod http_server;
-pub mod miko_auth_middleware;
-pub mod routes;
+pub mod project_handling;
+pub mod token_handling;

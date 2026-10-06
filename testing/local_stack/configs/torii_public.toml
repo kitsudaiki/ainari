@@ -1,7 +1,7 @@
 # Config of the torii at the edge of the network for the local docker-compose setup.
 #
 # This gateway serves the floating ip-addresses and is the only one, which the host can reach
-# directly. Its uplink 'veth-gw' is injected into the container by scripts/setup_local_stack.sh.
+# directly. Its uplink 'veth-gw' is injected into the container by testing/local_stack/setup_local_stack.sh.
 debug = true
 log_path = "/var/log"
 skip_tls_verification = true

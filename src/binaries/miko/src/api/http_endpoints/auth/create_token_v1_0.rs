@@ -16,8 +16,8 @@ use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::token_handling;
 use crate::config;
+use crate::core::token_handling;
 use crate::database::project_table;
 use crate::database::user_table;
 

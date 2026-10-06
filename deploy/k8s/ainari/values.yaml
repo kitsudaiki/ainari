@@ -248,7 +248,7 @@ torii:
       # address of the next hop behind the uplink
       uplink_next_hop: "10.0.0.1"
     # Name of an interface, which is moved into the pod from the outside (for example by
-    # scripts/setup_kind_stack.sh). The gateway waits for it, before it starts. Empty, if the
+    # testing/kind/setup_kind_stack.sh). The gateway waits for it, before it starts. Empty, if the
     # uplink is already there.
     wait_for_iface: ""
 

@@ -116,7 +116,7 @@ the host needs no eBPF-support, because the gateways run within the virtual mach
 ## Usage
 
 ```bash
-make up vagrant      # runs scripts/setup_vagrant_stack.sh, asks for sudo for the route
+make up vagrant      # runs testing/vagrant/setup_vagrant_stack.sh, asks for sudo for the route
 make down vagrant    # destroys the virtual machines and removes the route again
 ```
 

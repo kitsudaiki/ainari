@@ -7,7 +7,7 @@
 # two sakura-hosts, so a virtual machine can land on either of them and the traffic between the
 # hosts really crosses the edge-gateway.
 #
-#      [ host ]  10.0.0.1 on veth-host, injected by scripts/setup_local_stack.sh
+#      [ host ]  10.0.0.1 on veth-host, injected by testing/local_stack/setup_local_stack.sh
 #                                   |
 #                                   v  veth-gw (uplink)
 #   =====================================================================
@@ -40,7 +40,7 @@
 # every address to the torii of the host, which really runs that virtual machine.
 #
 # Usage:
-#   sudo ./scripts/setup_local_stack.sh
+#   sudo ./testing/local_stack/setup_local_stack.sh
 #   python3 testing/ainari_test/vm_lifecycle_test.py
 
 # Every component logs with the level of RUST_LOG (info by default), for example
@@ -203,7 +203,7 @@ services:
         ipv4_address: 172.30.0.6
 
   # owner of the network-namespace of torii-public. It only sleeps, so it never has to be
-  # restarted, and the veth-pair injected by scripts/setup_local_stack.sh survives a restart of
+  # restarted, and the veth-pair injected by testing/local_stack/setup_local_stack.sh survives a restart of
   # the gateway.
   torii-public-netns:
     # the image is built once by torii-public
@@ -239,7 +239,7 @@ services:
       - CONFIG_FILE=/etc/ainari/torii.toml
       - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
-      # the uplink is injected by scripts/setup_local_stack.sh, so torii waits for it and
+      # the uplink is injected by testing/local_stack/setup_local_stack.sh, so torii waits for it and
       # resolves the address of the host on it, before it programs its routes
       - WAIT_FOR_IFACE=veth-gw
       - UPLINK_NEXT_HOP=10.0.0.1
@@ -309,7 +309,7 @@ services:
       target: sakura
       args:
         CARGO_PROFILE: local
-        # id of the group, which owns /dev/kvm on the host. scripts/setup_local_stack.sh reads it
+        # id of the group, which owns /dev/kvm on the host. testing/local_stack/setup_local_stack.sh reads it
         # from the device itself.
         KVM_GID: ${KVM_GID:-993}
     container_name: sakura
@@ -419,6 +419,6 @@ networks:
       config:
         - subnet: 172.30.0.0/16
 
-# The setup keeps no state on purpose: every run of scripts/setup_local_stack.sh starts with
+# The setup keeps no state on purpose: every run of testing/local_stack/setup_local_stack.sh starts with
 # empty databases, so a test never sees the virtual machines of a previous run. The databases and
 # the boot-disks live in the containers and are gone with them.

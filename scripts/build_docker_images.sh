@@ -18,18 +18,18 @@
 # temporary_files/ainari_docker_files.tar.
 #
 # Usage:
-#   ./scripts/build_docker_images.sh [debian|nix]
+#   ./scripts/build_docker_images.sh <debian|nix>
 #
-# The argument selects the Dockerfiles of dockerfiles/debian_based or dockerfiles/nix_based and
-# defaults to 'nix', like the images of the CI.
+# The argument selects the Dockerfiles of dockerfiles/debian_based or dockerfiles/nix_based. The
+# nix-based ones are the same as the ones of the CI.
 
 # stop at the first failed build, so the tar-file never contains an older image with the same tag
 set -e
 
-BASE="${1:-nix}"
+BASE="$1"
 case "$BASE" in
     debian|nix) ;;
-    *) echo "Usage: $0 [debian|nix]"; exit 1 ;;
+    *) echo "Usage: $0 <debian|nix>"; exit 1 ;;
 esac
 DOCKERFILES="dockerfiles/${BASE}_based"
 
@@ -52,4 +52,5 @@ docker save -o temporary_files/ainari_docker_files.tar \
     kitsudaiki/ryokan:local_test \
     kitsudaiki/sakura:local_test \
     kitsudaiki/torii:local_test \
+    kitsudaiki/izakaya:local_test \
     kitsudaiki/ainari_dashboard:local_test

@@ -19,7 +19,7 @@
 # compose.
 #
 # Usage:
-#   ./scripts/build_local_images.sh <debian|nix>
+#   ./testing/vagrant/build_local_images.sh <debian|nix>
 #
 # The argument selects the Dockerfiles: 'debian' builds the ones of dockerfiles/debian_based, which
 # are easier to debug, and 'nix' the ones of dockerfiles/nix_based, which are the same as the ones
@@ -31,7 +31,7 @@
 
 set -e
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_DIR"
 
 BASE="$1"

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Values of the kind-setup, which is started by scripts/setup_kind_stack.sh. They turn the chart
+# Values of the kind-setup, which is started by testing/kind/setup_kind_stack.sh. They turn the chart
 # into the same setup as the local docker-compose one: the images of the local build, two
 # sakura-hosts and the api of every component on the same port of the host. Unlike the
 # docker-compose setup, the api is served over https with certificates of a local CA, which the
@@ -24,7 +24,7 @@ global:
   # see external_services
   ingress:
     enabled: false
-  # The CA is created once by scripts/setup_kind_stack.sh in temporary_files/kind and stays the
+  # The CA is created once by testing/kind/setup_kind_stack.sh in temporary_files/kind and stays the
   # same over all runs, so it only has to be trusted once. The api is reached over 127.0.0.1 from
   # the host.
   certificates:
@@ -145,7 +145,7 @@ sakura:
   docker:
     repository: "ainari/sakura"
     tag: "local"
-  # set by scripts/setup_kind_stack.sh to the group of /dev/kvm within the node
+  # set by testing/kind/setup_kind_stack.sh to the group of /dev/kvm within the node
   kvm_gid: 103
 
 
@@ -168,7 +168,7 @@ torii:
       overlay_iface: "veth-gw"
       uplink_iface: "veth-gw"
       uplink_next_hop: "10.0.0.1"
-    # the veth-pair towards the host is moved into the pod by scripts/setup_kind_stack.sh
+    # the veth-pair towards the host is moved into the pod by testing/kind/setup_kind_stack.sh
     wait_for_iface: "veth-gw"
 
 

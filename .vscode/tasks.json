@@ -147,13 +147,13 @@
       {
         "label": "setup single-node uplink",
         "type": "shell",
-        "command": "sudo ${workspaceFolder}/scripts/setup_single_node_uplink.sh",
+        "command": "sudo ${workspaceFolder}/testing/local_stack/setup_single_node_uplink.sh",
         "problemMatcher": []
       },
       {
         "label": "remove single-node uplink",
         "type": "shell",
-        "command": "sudo ${workspaceFolder}/scripts/setup_single_node_uplink.sh down",
+        "command": "sudo ${workspaceFolder}/testing/local_stack/setup_single_node_uplink.sh down",
         "problemMatcher": []
       },
       {
@@ -161,7 +161,7 @@
         "type": "shell",
         "dependsOn": "build ebpf payload",
         // uplink setup and torii share one sudo, so the password is asked only once
-        "command": "cargo build --package torii && sudo -E RUST_BACKTRACE=full RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/scripts/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/debug/torii'",
+        "command": "cargo build --package torii && sudo -E RUST_BACKTRACE=full RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/testing/local_stack/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/debug/torii'",
         // torii keeps running, so the task is marked as ready, once its api listens. This allows
         // to use it as preLaunchTask of the compounds in launch.json.
         "isBackground": true,
@@ -182,7 +182,7 @@
         "label": "Run Torii (single-node, release)",
         "type": "shell",
         // uplink setup and torii share one sudo, so the password is asked only once
-        "command": "cargo build --release --package torii && sudo -E RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/scripts/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/release/torii'",
+        "command": "cargo build --release --package torii && sudo -E RUST_LOG=debug INTERNAL_API_KEY=test-internal-api-key CONFIG_FILE=${workspaceFolder}/example_configs/ainari/torii_single_node.toml bash -c '${workspaceFolder}/testing/local_stack/setup_single_node_uplink.sh && exec ${workspaceFolder}/target/release/torii'",
         "isBackground": true,
         "problemMatcher": {
             "base": "$rustc",

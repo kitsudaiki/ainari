@@ -35,7 +35,7 @@ It runs the suites of ./suites against a running stack:
 
 The stack has to run before this script is started:
 
-    sudo ./scripts/setup_local_stack.sh
+    sudo ./testing/local_stack/setup_local_stack.sh
     python3 testing/ainari_test/vm_lifecycle_test.py
 
 Examples:

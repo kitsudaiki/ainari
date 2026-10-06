@@ -33,7 +33,7 @@ test restarts the gateways one after another and checks, that nothing got lost:
 
 The stack has to run and the virtual machines have to exist before this script is started:
 
-    sudo ./scripts/setup_local_stack.sh
+    sudo ./testing/local_stack/setup_local_stack.sh
     python3 testing/local_stack/prepare_resources.py
     python3 testing/local_stack/restart_torii_test.py [gateway ...]
 

@@ -21,7 +21,7 @@ all required tools, for a test without installing them on the host.
 |                                     | Docker-compose setup                  | Kind setup                                      | Vagrant setup                                           |
 | ----------------------------------- | ------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
 | Start / stop                        | `make up local` / `make down local`   | `make up kind` / `make down kind`               | `make up vagrant` / `make down vagrant`                 |
-| Setup-script                        | `scripts/setup_local_stack.sh`        | `scripts/setup_kind_stack.sh`                   | `scripts/setup_vagrant_stack.sh`                        |
+| Setup-script                        | `testing/local_stack/setup_local_stack.sh`        | `testing/kind/setup_kind_stack.sh`                   | `testing/vagrant/setup_vagrant_stack.sh`                        |
 | Deployment                          | `docker-compose.yml`                  | helm-chart `deploy/k8s/ainari`                  | helm-chart `deploy/k8s/ainari`                          |
 | Docker-images                       | debian-based (`dockerfiles/debian_based`) | debian-based (`dockerfiles/debian_based`)   | nix-based (`dockerfiles/nix_based`), like the CI        |
 | Configuration                       | `testing/local_stack/configs`          | `deploy/k8s/kind/values.yaml`                   | `testing/vagrant/values.yaml`                           |

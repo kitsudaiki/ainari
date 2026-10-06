@@ -77,7 +77,7 @@ COPY <<'EOF' /app/start.sh
 #!/bin/bash
 
 # The uplink of the gateway at the edge is a veth-pair, which is injected into this container by
-# scripts/setup_local_stack.sh. Without it the eBPF-programs have nothing to attach to, so the
+# testing/local_stack/setup_local_stack.sh. Without it the eBPF-programs have nothing to attach to, so the
 # gateway waits until the interface is there and carries its address.
 if [ -n "$WAIT_FOR_IFACE" ]; then
     echo "Waiting for the host to inject $WAIT_FOR_IFACE ..."

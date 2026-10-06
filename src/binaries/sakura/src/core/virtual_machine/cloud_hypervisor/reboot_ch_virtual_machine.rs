@@ -18,7 +18,7 @@ use uuid::Uuid;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 
-use super::shutdown::shutdown_gracefully;
+use super::shutdown_gracefully;
 use super::start_ch_virtual_machine::start_vm;
 use super::{connect_to_vmm, mark_error_on_failure};
 
