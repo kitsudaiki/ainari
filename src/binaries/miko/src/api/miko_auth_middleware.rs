@@ -20,7 +20,7 @@ use actix_web::{
     web,
 };
 
-use crate::api::token_handling;
+use crate::core::token_handling;
 
 use ainari_api::auth_middleware::{
     ApiValidationConfig, check_internal_endpoint_access, check_internal_request,

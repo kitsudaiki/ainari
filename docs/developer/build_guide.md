@@ -160,10 +160,10 @@ docker build -f dockerfiles/<VARIANT>/Dockerfile_dashboard -t dashboard:test .
 
 !!! info
 
-    `scripts/build_docker_images.sh [debian|nix]` builds all images with the tag `local_test` and
+    `scripts/build_docker_images.sh <debian|nix>` builds all images with the tag `local_test` and
     saves them in `temporary_files/ainari_docker_files.tar`.
-    `scripts/build_local_images.sh <debian|nix>` builds the images for the local test-environments
-    with the tag `local`.
+    `testing/kind/build_local_images.sh` and `testing/vagrant/build_local_images.sh` build the
+    images for the local test-environments with the tag `local`.
 
 ## Build CLI-client
 

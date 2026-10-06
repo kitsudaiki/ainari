@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Cluster of the kind-setup, which is started by scripts/setup_kind_stack.sh.
+# Cluster of the kind-setup, which is started by testing/kind/setup_kind_stack.sh.
 #
 # It has only one node, like the local docker-compose setup has only one host. The api of the
 # components and the proxy-ports of torii are published as node-ports (port + 20000, see

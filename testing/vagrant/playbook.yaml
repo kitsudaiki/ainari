@@ -14,7 +14,7 @@
 
 # Installs k3s on the virtual machines of testing/vagrant/Vagrantfile and deploys the helm-chart of
 # deploy/k8s/ainari on it. It is run by vagrant once for all virtual machines, see
-# scripts/setup_vagrant_stack.sh, which builds the images and the CA before.
+# testing/vagrant/setup_vagrant_stack.sh, which builds the images and the CA before.
 #
 # Groups:
 #   management  the control-components of ainari, with one replica of miko, hanami, ryokan,

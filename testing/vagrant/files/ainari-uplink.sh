@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 # Connects the virtual machine ainari-torii to the gateway at the edge of the network, which runs
-# in the pod of torii-public. It is the same, which scripts/setup_local_stack.sh and
-# scripts/setup_kind_stack.sh do on the host, but runs as the service ainari-uplink within the
+# in the pod of torii-public. It is the same, which testing/local_stack/setup_local_stack.sh and
+# testing/kind/setup_kind_stack.sh do on the host, but runs as the service ainari-uplink within the
 # virtual machine: a new pod of torii-public has a new network-namespace, so the service moves a
 # new veth-pair into it, whenever the one of the previous pod is gone.
 #

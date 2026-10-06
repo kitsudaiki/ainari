@@ -4,17 +4,17 @@ pub mod reboot_ch_virtual_machine;
 pub mod restart_after_host_restart;
 pub mod restore_ch_virtual_machine;
 pub mod save_ch_virtual_machine;
-mod shutdown;
 pub mod start_ch_virtual_machine;
 pub mod stop_ch_virtual_machine;
 
 use std::path::Path;
 use std::process::Command;
+use std::time::{Duration, Instant};
+use uuid::Uuid;
 
 use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::VmState;
 use cloud_hypervisor_client::{SocketBasedApiClient, socket_based_api_client};
-use uuid::Uuid;
 
 use ainari_api::common_functions::*;
 use ainari_api_structs::user_context::UserContext;
@@ -23,6 +23,13 @@ use ainari_common::error::AinariError;
 use crate::config;
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::VirtualMachineState;
+
+/// Time, which the guest gets to shut itself down after the power-button was pressed, before it
+/// is powered off hard
+const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// Interval, in which the state of the virtual_machine is checked while it shuts down
+const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Runs an external command and waits until it is finished
 ///
@@ -191,4 +198,102 @@ pub fn mark_error_on_failure<T>(
         }
     }
     result
+}
+
+/// Shuts a booted virtual_machine down like a normal shutdown of a real machine
+///
+/// The power-button is pressed, so the guest shuts itself down and writes all its data to the
+/// disk. Only if the guest doesn't power itself off within `GRACEFUL_SHUTDOWN_TIMEOUT`, it is
+/// powered off hard, which can lose data, that the guest didn't write to its disk yet.
+///
+/// cloud-hypervisor exits, when the guest powers itself off, so the virtual_machine has to be
+/// created in a new process to be started again. After the hard power-off the process keeps
+/// running with the shut down virtual_machine instead.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `client` - Client of the API-socket of the cloud-hypervisor process
+/// * `state` - Current state of the virtual_machine
+///
+/// # Returns
+/// * `Ok(())` if the virtual_machine is shut down
+/// * `Err(AinariError)` if it could not even be powered off hard
+pub(super) async fn shutdown_gracefully(
+    uuid: &Uuid,
+    client: &SocketBasedApiClient,
+    state: VmState,
+) -> Result<(), AinariError> {
+    // a paused guest can not react on the power-button
+    if state == VmState::Paused {
+        if let Err(e) = client.resume_vm().await {
+            log::warn!("Resume of paused VM {uuid} before its shutdown failed: {e:?}");
+        }
+    }
+
+    log::info!("Press power-button of VM {uuid}");
+    match client.power_button_vm().await {
+        Ok(()) => {
+            if wait_for_shutdown(uuid, client, GRACEFUL_SHUTDOWN_TIMEOUT).await {
+                log::info!("VM {uuid} shut itself down");
+                return Ok(());
+            }
+            log::warn!(
+                "VM {uuid} didn't shut itself down within {}s after the power-button, so it is \
+                 powered off hard",
+                GRACEFUL_SHUTDOWN_TIMEOUT.as_secs()
+            );
+        }
+        Err(e) => {
+            log::warn!("Power-button of VM {uuid} failed: {e:?}, so it is powered off hard");
+        }
+    }
+
+    match client.shutdown_vm().await {
+        Ok(()) => Ok(()),
+        // the guest could have powered itself off in the meantime
+        Err(_) if vmm_exited(uuid) => Ok(()),
+        Err(e) => Err(AinariError::InternalError(format!(
+            "Shutdown VM {uuid} failed: {e:?}"
+        ))),
+    }
+}
+
+/// Waits until the virtual_machine is shut down
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `client` - Client of the API-socket of the cloud-hypervisor process
+/// * `timeout` - Maximum time to wait
+///
+/// # Returns
+/// True, if the virtual_machine is shut down or its cloud-hypervisor process exited in time
+async fn wait_for_shutdown(uuid: &Uuid, client: &SocketBasedApiClient, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if vmm_exited(uuid) {
+            return true;
+        }
+        if let Ok(vm_info) = client.vm_info_get().await {
+            if vm_info.state == VmState::Shutdown {
+                return true;
+            }
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(SHUTDOWN_POLL_INTERVAL).await;
+    }
+}
+
+/// Checks if the cloud-hypervisor process of a virtual_machine exited
+///
+/// The process removes its API-socket, when it exits.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+///
+/// # Returns
+/// True, if the process exited
+pub(super) fn vmm_exited(uuid: &Uuid) -> bool {
+    !Path::new(&vm_socket_path(uuid)).exists()
 }

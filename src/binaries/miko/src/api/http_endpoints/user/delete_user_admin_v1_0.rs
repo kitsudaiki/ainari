@@ -18,7 +18,7 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
-use crate::api::project_handling;
+use crate::core::project_handling;
 use crate::database::project_table;
 use crate::database::user_project_mapping_table;
 use crate::database::user_table;

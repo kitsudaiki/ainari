@@ -227,7 +227,7 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
         - Uplink of the gateway `torii-public`, on which the floating IPs out of
           `FLOATING_IP_CIDR` are served, and the router behind it. The interface has to exist
           within the pod of `torii-public`. If it is moved into the pod after its start, set its
-          name additionally as `torii.public.wait_for_iface`. `scripts/setup_kind_stack.sh`
+          name additionally as `torii.public.wait_for_iface`. `testing/kind/setup_kind_stack.sh`
           shows an example, which injects a veth-pair into the pod.
 
     - Docker-images

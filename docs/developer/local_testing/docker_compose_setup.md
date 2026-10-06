@@ -76,7 +76,7 @@ two virtual machines on different hosts reach each other over it.
    uplink and the host has no route to a virtual machine without it.
 
     ```bash
-    make up local    # runs: sudo ./scripts/setup_local_stack.sh
+    make up local    # runs: sudo ./testing/local_stack/setup_local_stack.sh
     ```
 
 2. build the cli. The binary is placed beside its sources.
@@ -122,7 +122,7 @@ two virtual machines on different hosts reach each other over it.
 6. stop the stack again. This also removes the veth-pair and throws all data away.
 
     ```bash
-    make down local    # runs: sudo ./scripts/setup_local_stack.sh --down
+    make down local    # runs: sudo ./testing/local_stack/setup_local_stack.sh --down
     ```
 
 The api is reachable on the host at:

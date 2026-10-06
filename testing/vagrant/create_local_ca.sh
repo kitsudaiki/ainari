@@ -20,7 +20,7 @@
 # the names of the setup, so it can't be misused for any other host, even if its key leaks.
 #
 # Usage:
-#   ./scripts/create_local_ca.sh <cert-file> <key-file> <common-name> <permitted-names>
+#   ./testing/vagrant/create_local_ca.sh <cert-file> <key-file> <common-name> <permitted-names>
 #
 #   <permitted-names> are the name-constraints, for example
 #   "permitted;IP:127.0.0.1/255.255.255.255,permitted;DNS:localhost,permitted;DNS:cluster.local"

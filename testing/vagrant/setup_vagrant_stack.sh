@@ -25,8 +25,8 @@
 # for it with sudo.
 #
 # Usage:
-#   ./scripts/setup_vagrant_stack.sh          start the virtual machines and deploy ainari
-#   ./scripts/setup_vagrant_stack.sh --down   destroy the virtual machines and remove the route
+#   ./testing/vagrant/setup_vagrant_stack.sh          start the virtual machines and deploy ainari
+#   ./testing/vagrant/setup_vagrant_stack.sh --down   destroy the virtual machines and remove the route
 
 set -e
 
@@ -35,7 +35,7 @@ set -e
 # make it continue at a random position of the new content.
 {
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VAGRANT_DIR="$PROJECT_DIR/testing/vagrant"
 WORK_DIR="$PROJECT_DIR/temporary_files/vagrant"
 IMAGE_DIR="$WORK_DIR/images"
@@ -49,7 +49,7 @@ FLOATING_IP_CIDR="10.0.0.0/24"
 TORII_VM_ADDRESS="192.168.56.11"
 MGMT_VM_ADDRESS="192.168.56.10"
 
-# CA, which signs the certificates of all components, see scripts/create_local_ca.sh
+# CA, which signs the certificates of all components, see testing/vagrant/create_local_ca.sh
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
@@ -104,7 +104,7 @@ fi
 # ---------------------------------------------------------------------------------------------
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree. The nix-based images are used, which are the same as the ones of the CI.
-"$PROJECT_DIR/scripts/build_local_images.sh" nix
+"$PROJECT_DIR/testing/vagrant/build_local_images.sh" nix
 
 echo "Saving the images for the virtual machines ..."
 mkdir -p "$IMAGE_DIR"
@@ -112,7 +112,7 @@ for image in "${IMAGES[@]}"; do
     docker save -o "$IMAGE_DIR/$image.tar" "ainari/$image:local"
 done
 
-"$PROJECT_DIR/scripts/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari vagrant-setup CA" \
+"$PROJECT_DIR/testing/vagrant/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari vagrant-setup CA" \
     "permitted;IP:192.168.56.0/255.255.255.0,permitted;DNS:cluster.local"
 
 # ---------------------------------------------------------------------------------------------

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Values of the vagrant-setup, which is started by scripts/setup_vagrant_stack.sh. The chart runs
+# Values of the vagrant-setup, which is started by testing/vagrant/setup_vagrant_stack.sh. The chart runs
 # on a k3s-cluster of eight virtual machines, so, unlike in the kind-setup, every component runs on
 # the nodes with its label (strict_scheduling). Miko, hanami, ryokan, omamori, izakaya and the dashboard run
 # with three replicas, one on each of the three management-nodes, which all share the mysql-server on its
@@ -36,7 +36,7 @@ global:
     pull_policy: IfNotPresent
   wireguard:
     enabled: false
-  # The CA is created once by scripts/setup_vagrant_stack.sh in temporary_files/vagrant and stays
+  # The CA is created once by testing/vagrant/setup_vagrant_stack.sh in temporary_files/vagrant and stays
   # the same over all runs. The api is reached over the addresses of the virtual machines.
   certificates:
     ca_secret: ainari-vagrant-ca

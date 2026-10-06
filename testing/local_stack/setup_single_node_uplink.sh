@@ -31,8 +31,8 @@
 # On a real host no such namespace is needed: set uplink_iface to the physical
 # NIC and uplink_next_hop to the router behind it instead.
 #
-#   sudo ./scripts/setup_single_node_uplink.sh        create (replaces an existing one)
-#   sudo ./scripts/setup_single_node_uplink.sh down   remove it again
+#   sudo ./testing/local_stack/setup_single_node_uplink.sh        create (replaces an existing one)
+#   sudo ./testing/local_stack/setup_single_node_uplink.sh down   remove it again
 
 set -e
 

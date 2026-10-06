@@ -77,7 +77,7 @@ Docker compose is not required.
 ## Usage
 
 ```bash
-make up kind      # runs scripts/setup_kind_stack.sh, asks for sudo for the network-setup
+make up kind      # runs testing/kind/setup_kind_stack.sh, asks for sudo for the network-setup
 make down kind    # deletes the cluster and removes the veth-pair again
 ```
 

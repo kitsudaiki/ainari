@@ -17,8 +17,8 @@ use apistos::actix::CreatedJson;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::api::token_handling;
 use crate::config;
+use crate::core::token_handling;
 use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;

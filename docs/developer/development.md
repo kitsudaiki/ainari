@@ -93,7 +93,7 @@ local test environments, so stop them first, for example with `make down local`.
     `remove single-node uplink` or directly:
 
     ```bash
-    sudo ./scripts/setup_single_node_uplink.sh down
+    sudo ./testing/local_stack/setup_single_node_uplink.sh down
     ```
 
 ## Use the stack

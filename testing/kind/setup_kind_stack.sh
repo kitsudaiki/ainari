@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Starts the same setup as scripts/setup_local_stack.sh, but on a kind-cluster (kubernetes in
+# Starts the same setup as testing/local_stack/setup_local_stack.sh, but on a kind-cluster (kubernetes in
 # docker) with the helm-chart of deploy/k8s/ainari, and connects the host to it. The images are
 # built with docker and loaded into the cluster.
 #
@@ -23,8 +23,8 @@
 # and masquerade the traffic of the virtual machines.
 #
 # Usage:
-#   ./scripts/setup_kind_stack.sh          start the cluster and connect the host to it
-#   ./scripts/setup_kind_stack.sh --down   delete the cluster and remove the veth-pair again
+#   ./testing/kind/setup_kind_stack.sh          start the cluster and connect the host to it
+#   ./testing/kind/setup_kind_stack.sh --down   delete the cluster and remove the veth-pair again
 #
 # The binary of kind can be given with the environment-variable KIND.
 
@@ -74,7 +74,7 @@ IMAGES=(
     ainari/dashboard:local
 )
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHART_DIR="$PROJECT_DIR/deploy/k8s/ainari"
 KIND_DIR="$PROJECT_DIR/deploy/k8s/kind"
 
@@ -152,7 +152,7 @@ export KVM_GID
 # check that nothing else on the host owns the floating ip-addresses
 # ---------------------------------------------------------------------------------------------
 # Another interface in the same subnet steals the traffic of the floating ip-addresses. This is
-# also the case, while the docker-compose setup of scripts/setup_local_stack.sh is running.
+# also the case, while the docker-compose setup of testing/local_stack/setup_local_stack.sh is running.
 FIP_PREFIX="$(echo "$FLOATING_IP_CIDR" | cut -d. -f1-3)."
 CONFLICTS="$(ip -o -4 addr show | awk '{print $2, $4}' | grep " ${FIP_PREFIX}" | awk '{print $1}' | sort -u)"
 
@@ -172,7 +172,7 @@ fi
 # ---------------------------------------------------------------------------------------------
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree. The debian-based images are used, because they are easier to debug.
-KVM_GID="$KVM_GID" "$PROJECT_DIR/scripts/build_local_images.sh" debian
+KVM_GID="$KVM_GID" "$PROJECT_DIR/testing/kind/build_local_images.sh" debian
 
 # ---------------------------------------------------------------------------------------------
 # create the cluster
@@ -224,7 +224,7 @@ fi
 # sakura.host_data_path), which outlives the namespace
 docker exec "$NODE" rm -rf /etc/ainari
 
-"$PROJECT_DIR/scripts/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari kind-setup CA" \
+"$PROJECT_DIR/testing/kind/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari kind-setup CA" \
     "permitted;IP:127.0.0.1/255.255.255.255,permitted;DNS:localhost,permitted;DNS:cluster.local"
 
 "${KUBECTL[@]}" create namespace "$NAMESPACE" > /dev/null
