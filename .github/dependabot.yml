@@ -33,6 +33,13 @@ updates:
     labels:
       - "L: Go"
       - "Env: Dependencies"
+    groups:
+      go-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     commit-message:
       prefix: "chore(deps)"
     open-pull-requests-limit: 10
@@ -48,6 +55,32 @@ updates:
     labels:
       - "L: Rust"
       - "Env: Dependencies"
+    groups:
+      rust-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    assignees:
+      - "kitsudaiki"
+
+  - package-ecosystem: "nix"
+    directory: "/dockerfiles/nix_based/nix/"
+    schedule:
+      interval: weekly
+      time: "12:00"
+    labels:
+      - "L: Nix"
+      - "Env: Dependencies"
+    groups:
+      nix-inputs:
+        patterns:
+          - "*"
     commit-message:
       prefix: "chore(deps)"
     open-pull-requests-limit: 10
