@@ -17,13 +17,14 @@ All suites of the local setup in the order, in which they run. A new suite is a 
 `suite = Suite(...)`, which is added to this list.
 """
 
-from . import (auth, cleanup, floating_ips, hosts, network_filters, networking, power, projects,
-               proxies, resources, snapshots, ssh, tasks, users, virtual_machines)
+from . import (auth, cleanup, floating_ips, host_isolation, hosts, network_filters, networking,
+               power, projects, proxies, resources, snapshots, ssh, tasks, users, virtual_machines)
 
 ALL_SUITES = [
     auth.suite,
     hosts.suite,
     resources.suite,
+    host_isolation.suite,
     virtual_machines.suite,
     proxies.suite,
     floating_ips.suite,

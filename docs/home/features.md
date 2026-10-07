@@ -79,6 +79,15 @@ instead.
 An automatic summary of all packages with versions used within the Nix-based docker-images, 
 to keep track of CVEs and which versions are affected by them.
 
+### Project host isolation
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+Compute hosts can optionally be allocated for a specific project, so only virtual machines of this
+specific project can be scheduled on this host. That way you know, who else is located on the same
+hardware as you. In this case an attacker, who tries to steal your data by breaking out of the
+virtual machine, has to be in the same project as you, to get the chance to be on the same compute
+host.
 
 ### Bring your own key
 
@@ -120,16 +129,6 @@ log is stored on the compute host and can be checked by any user of the virtual 
 task log it is visible which action (create, snapshot create, snapshot restore, ...) is done by
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
-
-### Project host isolation
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Compute hosts can optionally be allocated for a specific project, so only virtual machines of this
-specific project can be scheduled on this host. That way you know, who else is located on the same
-hardware as you. In this case an attacker, who tries to steal your data by breaking out of the
-virtual machine, has to be in the same project as you, to get the chance to be on the same compute
-host.
 
 ### Hold your own key
 

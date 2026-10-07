@@ -31,6 +31,9 @@ pub struct VirtualMachineCreateReq {
     #[validate(range(min = 1))]
     pub disk_size: i64,
     pub network_uuid: Uuid,
+    /// Place the virtual_machine on a host, which is isolated for the project of the user
+    #[serde(default)]
+    pub isolated_host: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

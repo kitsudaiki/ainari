@@ -24,6 +24,7 @@ import (
 	"fmt"
 	ainarictl_common "ainarictl/common"
 	"os"
+	"strconv"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
 	"github.com/spf13/cobra"
@@ -83,6 +84,37 @@ var deleteHostCmd = &cobra.Command{
 		_, err = ainari_sdk.DeleteHost(context, hostUuid)
 		if err == nil {
 			fmt.Printf("successfully deleted host '%v'\n", hostUuid)
+		} else {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+var setHostIsolationCmd = &cobra.Command{
+	Use:   "set_isolation HOST_UUID true|false",
+	Short: "Set, if a specific host is isolated for the virtual machines of a single project.",
+	Long: `Set, if a specific host is isolated for the virtual machines of a single project.
+
+An isolated host is bound to the project of the first virtual machine on it and is released
+again, when its last virtual machine is deleted. The isolation can only be changed, while no
+virtual machine runs on the host.`,
+	Args: cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		hostUuid := args[0]
+		isHostIsolated, err := strconv.ParseBool(args[1])
+		if err != nil {
+			fmt.Printf("invalid value '%v' for the isolation, expected true or false\n", args[1])
+			os.Exit(1)
+		}
+		content, err := ainari_sdk.SetHostIsolation(context, hostUuid, isHostIsolated)
+		if err == nil {
+			ainarictl_common.PrintSingle(content)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
@@ -169,6 +201,8 @@ func Init_Host_Commands(rootCmd *cobra.Command) {
 	hostCmd.AddCommand(listHostCmd)
 
 	hostCmd.AddCommand(deleteHostCmd)
+
+	hostCmd.AddCommand(setHostIsolationCmd)
 
 	rootCmd.AddCommand(onsenHostCmd)
 

@@ -78,6 +78,12 @@ def resources_released(ctx):
         check_equal(hosts.host_usage(ctx), baseline, "used host-resources after the deletion")
 
 
+# after the virtual machines, because a host can only be released, while it runs none of them
+@suite.test("reset host isolation")
+def reset_host_isolation(ctx):
+    delete_kind(ctx, "host_isolation")
+
+
 @suite.test("delete secrets")
 def delete_secrets(ctx):
     delete_kind(ctx, "secret")

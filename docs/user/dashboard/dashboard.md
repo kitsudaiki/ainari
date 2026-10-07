@@ -89,6 +89,9 @@ select the network, the image and the public key of the previous steps:
 
 ![Create virtual machine](img/virtual_machine_create.jpg)
 
+With **Isolated host** the virtual machine is only placed on a host, which an admin isolated for
+single projects (see [Admin](#admin)). Otherwise it is only placed on hosts, which are not isolated.
+
 The virtual machine is created in the background. Its state is shown in the column **State** and
 changes to `RUNNING`, as soon as it is booted:
 
@@ -237,4 +240,12 @@ These pages are only available for admins.
 - **Host** lists the hosts with their usage in the tab **SAKURA**, which run the virtual machines,
     and the hosts in the tab **ONSEN**, which store the images. **Delete** removes a host.
 
+    The column **Isolated** shows, if a sakura-host is isolated. An isolated host is only used by
+    the virtual machines of a single project, which are created with **Isolated host**. It is
+    bound to the project of its first virtual machine and released again, when its last virtual
+    machine is deleted. **Set host isolation** changes the flag, which is only possible, while no
+    virtual machine runs on the host.
+
     ![Hosts](img/admin_host.jpg)
+
+    ![Set host isolation](img/admin_host_isolation.jpg)

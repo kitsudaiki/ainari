@@ -197,11 +197,19 @@ register themselves at startup.
 
     Only admins are allowed to manage hosts.
 
+A sakura-host can be isolated, so it is only used by the virtual machines of a single project. An
+isolated host is bound to the project of the first virtual machine, which is created with
+`isolated_host` on it, and is released again, when its last virtual machine is deleted. Virtual
+machines without `isolated_host` are never placed on isolated hosts and virtual machines with it
+only on isolated hosts. The isolation can only be changed, while no virtual machine runs on the
+host.
+
 === "CLI"
 
     ```bash
     ainarictl host list
     ainarictl host get <HOST_UUID>
+    ainarictl host set_isolation <HOST_UUID> <true|false>
     ainarictl host delete <HOST_UUID>
 
     ainarictl onsen_host list
@@ -214,12 +222,12 @@ register themselves at startup.
     ```bash
     ainarictl host list
 
-    ┌───────────────────────────┬───────────────────────┬────────────┬───────────────────────┬─────────────┬──────────────┬─────────────────┬──────────────────────┬──────────────────────────────────────┐
-    │ AMOUNT OF USED DISK SPACE │ AMOUNT OF USED MEMORY │ DISK SPACE │     HOST ADDRESS      │ MEMORY SIZE │     NAME     │ NUMBER OF CORES │ USED NUMBER OF CORES │                 UUID                 │
-    ├───────────────────────────┼───────────────────────┼────────────┼───────────────────────┼─────────────┼──────────────┼─────────────────┼──────────────────────┼──────────────────────────────────────┤
-    │ 10                        │ 2048                  │ 211        │ http://sakura-2:11420 │ 64209       │ c248af01c8a1 │ 16              │ 2                    │ 5251f5ab-587b-41a6-a12c-f847d6931e68 │
-    │ 10                        │ 2048                  │ 211        │ http://sakura:11420   │ 64209       │ 25310b148a34 │ 16              │ 2                    │ f882fe4e-bab3-4ac7-b464-687ea3ef3571 │
-    └───────────────────────────┴───────────────────────┴────────────┴───────────────────────┴─────────────┴──────────────┴─────────────────┴──────────────────────┴──────────────────────────────────────┘
+    ┌───────────────────────────┬───────────────────────┬────────────┬───────────────────────┬──────────────────┬─────────────┬──────────────┬─────────────────┬──────────────────────┬──────────────────────────────────────┐
+    │ AMOUNT OF USED DISK SPACE │ AMOUNT OF USED MEMORY │ DISK SPACE │     HOST ADDRESS      │ IS HOST ISOLATED │ MEMORY SIZE │     NAME     │ NUMBER OF CORES │ USED NUMBER OF CORES │                 UUID                 │
+    ├───────────────────────────┼───────────────────────┼────────────┼───────────────────────┼──────────────────┼─────────────┼──────────────┼─────────────────┼──────────────────────┼──────────────────────────────────────┤
+    │ 10                        │ 2048                  │ 211        │ http://sakura-2:11420 │ true             │ 64209       │ c248af01c8a1 │ 16              │ 2                    │ 5251f5ab-587b-41a6-a12c-f847d6931e68 │
+    │ 10                        │ 2048                  │ 211        │ http://sakura:11420   │ false            │ 64209       │ 25310b148a34 │ 16              │ 2                    │ f882fe4e-bab3-4ac7-b464-687ea3ef3571 │
+    └───────────────────────────┴───────────────────────┴────────────┴───────────────────────┴──────────────────┴─────────────┴──────────────┴─────────────────┴──────────────────────┴──────────────────────────────────────┘
     ```
 
     Memory is given in MiB, disk-space in GiB.
@@ -231,6 +239,7 @@ register themselves at startup.
 
     host.list_hosts(context)
     host.get_host(context, host_uuid)
+    host.set_host_isolation(context, host_uuid, True)
     host.delete_host(context, host_uuid)
 
     host.list_onsen_hosts(context)
@@ -250,7 +259,8 @@ register themselves at startup.
     #             "memory_size": 64209,
     #             "amount_of_used_memory": 2048,
     #             "disk_space": 211,
-    #             "amount_of_used_disk_space": 10
+    #             "amount_of_used_disk_space": 10,
+    #             "is_host_isolated": true
     #         },
     #         ...
     #     ]
@@ -496,8 +506,11 @@ The state of the virtual machine is shown in `vm_state`:
 
     ```bash
     ainarictl vm create -t <VM_TYPE_UUID> -d <DISK_SIZE> \
-        -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> <NAME>
+        -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> [--isolated_host] <NAME>
     ```
+
+    With `--isolated_host` the virtual machine is only placed on a host, which is
+    [isolated](#hosts) for the project.
 
     example:
 
@@ -539,7 +552,8 @@ The state of the virtual machine is shown in `vm_state`:
                                                        "my-vm",
                                                        vm_type_uuid,
                                                        5,        # disk in GiB
-                                                       network_uuid)
+                                                       network_uuid,
+                                                       isolated_host=False)
 
     # 2. install image and public key and boot it
     task = virtual_machine.create_virtual_machine(context,

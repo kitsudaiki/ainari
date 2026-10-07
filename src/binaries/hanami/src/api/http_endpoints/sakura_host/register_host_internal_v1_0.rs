@@ -43,7 +43,7 @@ no token, but is protected by the internal api-key and the registration-key."###
 pub async fn register_host_internal(
     body: Json<SakuraHostCreateReq>,
     context: UserContext,
-) -> Result<CreatedJson<HostResp>, ErrorResponse> {
+) -> Result<CreatedJson<SakuraHostResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -57,6 +57,7 @@ pub async fn register_host_internal(
         number_of_cores: to_db_value("number_of_cores", body.number_of_cores)?,
         memory_size: to_db_value("memory_size", body.memory_size)?,
         disk_space: to_db_value("disk_space", body.disk_space)?,
+        project_id: None,
     };
 
     let mut host_uuid = Uuid::new_v4();
@@ -129,10 +130,12 @@ pub async fn register_host_internal(
     let host_data = host_table::get_host(&host_uuid, &context)
         .map_err(|e| map_db_uuid_get_after_add_error("host", &host_uuid, e))?;
 
-    let resp = HostResp {
+    let resp = SakuraHostResp {
         uuid: host_uuid,
         name: host_data.name,
         host_address: host_data.address,
+        is_host_isolated: false,
+        project_id: None,
         created_by: host_data.created_by,
         created_at: host_data.created_at,
         updated_by: host_data.updated_by,

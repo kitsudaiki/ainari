@@ -20,13 +20,15 @@ def reserve_virtual_machine(context: AccessContext,
                             name: str,
                             vm_type_uuid: str,
                             disk_size: int,
-                            network_uuid: str) -> dict:
+                            network_uuid: str,
+                            isolated_host: bool = False) -> dict:
     """
     Reserves a new virtual machine on one of the sakura-hosts. The image and the public-key are
     not deployed here, but by the task of create_virtual_machine.
 
     The number of cores and the memory are taken from the given vm-type. The disk_size is given
-    in GiB.
+    in GiB. With isolated_host, the virtual machine is only placed on a host, which is isolated
+    for the project of the user.
     """
     path = "/v1alpha/virtual_machine"
     json_body = {
@@ -34,6 +36,7 @@ def reserve_virtual_machine(context: AccessContext,
         "vm_type_uuid": vm_type_uuid,
         "disk_size": disk_size,
         "network_uuid": network_uuid,
+        "isolated_host": isolated_host,
     }
     return ainari_request.send_post_request(context,
                                             context.hanami_address,

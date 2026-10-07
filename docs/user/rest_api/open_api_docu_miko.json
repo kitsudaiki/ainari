@@ -1246,6 +1246,17 @@
           "hanami": {
             "$ref": "#/components/schemas/EndpointField"
           },
+          "izakaya": {
+            "default": {
+              "internal_address": "",
+              "public_address": ""
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EndpointField"
+              }
+            ]
+          },
           "omamori": {
             "$ref": "#/components/schemas/EndpointField"
           },

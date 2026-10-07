@@ -23,7 +23,7 @@ import type {
     FloatingIpBasicResp,
     FloatingIpCreateReq,
     FloatingIpResp,
-    HostResp,
+    HostIsolationUpdateReq,
     NetworkBasicResp,
     NetworkFilterResp,
     NetworkCreateReq,
@@ -31,6 +31,7 @@ import type {
     ProxyBasicResp,
     ProxyResp,
     SakuraHostBasicResp,
+    SakuraHostResp,
     VirtualMachineBasicResp,
     VirtualMachineCreateReq,
     VirtualMachineResp,
@@ -305,8 +306,24 @@ export async function listSakuraHosts(): Promise<SakuraHostBasicResp[]> {
 }
 
 /** `GET /v1alpha/host/{host_uuid}/admin` */
-export async function getSakuraHost(uuid: string): Promise<HostResp> {
+export async function getSakuraHost(uuid: string): Promise<SakuraHostResp> {
     const resp = await hanamiClient().get(`/v1alpha/host/${uuid}/admin`);
+    return resp.data;
+}
+
+/**
+ * `PUT /v1alpha/host/{host_uuid}/isolation/admin`
+ *
+ * Only possible, while no virtual-machine runs on the host.
+ */
+export async function setSakuraHostIsolation(
+    uuid: string,
+    body: HostIsolationUpdateReq,
+): Promise<SakuraHostResp> {
+    const resp = await hanamiClient().put(
+        `/v1alpha/host/${uuid}/isolation/admin`,
+        body,
+    );
     return resp.data;
 }
 

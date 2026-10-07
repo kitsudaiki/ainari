@@ -55,6 +55,7 @@ pub async fn list_host_admin(
             amount_of_used_memory: host.amount_of_used_memory.max(0) as u64,
             disk_space: host.disk_space.max(0) as u64,
             amount_of_used_disk_space: host.amount_of_used_disk_space.max(0) as u64,
+            is_host_isolated: host.is_host_isolated,
         };
 
         resp.hosts.push(obj);

@@ -50,6 +50,7 @@
                             <th class="resource-column">Cores</th>
                             <th class="resource-column">Memory</th>
                             <th class="resource-column">Disk</th>
+                            <th>Isolated</th>
                         </template>
                         <th>Actions</th>
                     </tr>
@@ -80,6 +81,7 @@
                                     unit="GiB"
                                 />
                             </td>
+                            <td>{{ host.is_host_isolated ? "yes" : "no" }}</td>
                         </template>
                         <td>
                             <!-- Dropdown menu -->
@@ -92,6 +94,12 @@
                                     v-if="openDropdown === host.uuid"
                                     class="table-dropdown-menu"
                                 >
+                                    <button
+                                        v-if="isSakuraHost(host)"
+                                        @click="openIsolationModal(host)"
+                                    >
+                                        Set host isolation
+                                    </button>
                                     <button @click="openDeleteModal(host)">
                                         Delete
                                     </button>
@@ -113,6 +121,14 @@
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
         />
+
+        <HostIsolationModal
+            v-if="showIsolationModal"
+            :host="hostToIsolate"
+            :icons="icons"
+            @accept="acceptIsolationModal"
+            @cancel="cancelIsolationModal"
+        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -126,6 +142,7 @@ import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 import { hanami, ryokan } from "@/api";
 import type { HostBasicResp, SakuraHostBasicResp } from "@/api";
 import HostDeleteModal from "./host_delete_modal.vue";
+import HostIsolationModal from "./host_isolation_modal.vue";
 import UsageBar from "@/components/usage_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
@@ -139,6 +156,8 @@ const hosts = ref<(HostBasicResp | SakuraHostBasicResp)[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const hostToDelete = ref<HostBasicResp | null>(null);
+const showIsolationModal = ref(false);
+const hostToIsolate = ref<SakuraHostBasicResp | null>(null);
 const selectedTab = ref<HostKind>("sakura");
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
@@ -215,6 +234,24 @@ function cancelDeleteModal() {
 async function acceptDeleteModal() {
     await fetchHosts();
     cancelDeleteModal();
+}
+
+//=============================================================================
+// Isolation modal
+//=============================================================================
+function openIsolationModal(host: SakuraHostBasicResp) {
+    hostToIsolate.value = host;
+    showIsolationModal.value = true;
+    openDropdown.value = null;
+}
+function cancelIsolationModal() {
+    showIsolationModal.value = false;
+    hostToIsolate.value = null;
+    openDropdown.value = null; // close any open action dropdown
+}
+async function acceptIsolationModal() {
+    await fetchHosts();
+    cancelIsolationModal();
 }
 
 //=============================================================================

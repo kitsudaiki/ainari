@@ -103,6 +103,7 @@ pub async fn reserve_virtual_machine(
         vm_type.number_of_cores,
         vm_type.amount_of_memory,
         body.disk_size,
+        body.isolated_host,
         &context,
     )?;
 
@@ -152,13 +153,15 @@ pub async fn reserve_virtual_machine(
 /// the new virtual_machine on it
 ///
 /// Only hosts, which have enough free cores, memory and disk-space for the new virtual_machine,
-/// are considered and a random one of them is selected. The check and the allocation happen
+/// are considered and a random one of them is selected. With `isolated_host` only hosts, which
+/// are isolated for the project of the context, are considered, otherwise only not isolated ones. The check and the allocation happen
 /// atomically within the database, so parallel requests can not over-allocate a host.
 ///
 /// # Arguments
 /// * `number_of_cores` - Requested number of cores of the new virtual_machine
 /// * `memory_size` - Requested memory of the new virtual_machine in MiB
 /// * `disk_size` - Requested disk-size of the new virtual_machine in GiB
+/// * `isolated_host` - Use only hosts, which are isolated for the project of the context
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
@@ -169,27 +172,43 @@ fn select_host(
     number_of_cores: i32,
     memory_size: i64,
     disk_size: i64,
+    isolated_host: bool,
     context: &UserContext,
 ) -> Result<(HostEntry, HostResources), ErrorResponse> {
+    // an isolated host is requested for the project of the context
+    let project_id = isolated_host.then(|| context.project_id.clone());
+
     let requested = HostResources {
         number_of_cores: i64::from(number_of_cores),
         memory_size,
         disk_space: disk_size,
+        project_id,
     };
 
     match host_table::allocate_host_resources(&requested, context) {
         Ok(host) => Ok((host, requested)),
         Err(DbError::NotFound) => {
+            // with project only isolated hosts are considered, which are not bound to another
+            // project, so the reason of the error is different
+            let host_kind = match &requested.project_id {
+                Some(project_id) => format!("isolated host for project '{project_id}'"),
+                None => "host".to_string(),
+            };
             log::error!(
-                "No host with enough free resources for new virtual_machine: \
+                "No {host_kind} with enough free resources for new virtual_machine: \
                  cores: {}, memory: {} MiB, disk: {} GiB.",
                 requested.number_of_cores,
                 requested.memory_size,
                 requested.disk_space
             );
-            Err(ErrorResponse::Conflict(
-                "No host with enough free resources for the virtual_machine.".to_string(),
-            ))
+            let msg = match requested.project_id {
+                Some(_) => {
+                    "No isolated host with enough free resources is available for the project \
+                     of the virtual_machine."
+                }
+                None => "No host with enough free resources for the virtual_machine.",
+            };
+            Err(ErrorResponse::Conflict(msg.to_string()))
         }
         Err(DbError::PermissionDenied) => Err(permission_denied_response()),
         Err(DbError::InternalError) => {

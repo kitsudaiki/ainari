@@ -139,6 +139,10 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{host_uuid}/admin")
                         .route(get().to(get_host_admin_v1_0::get_host_admin))
                         .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
+                )
+                .service(
+                    resource("/{host_uuid}/isolation/admin")
+                        .route(put().to(set_host_isolation_admin_v1_0::set_host_isolation_admin)),
                 ),
         )
         .service(
