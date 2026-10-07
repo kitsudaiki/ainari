@@ -45,6 +45,23 @@ def delete_host(context: AccessContext,
                                        "")
 
 
+def set_host_isolation(context: AccessContext,
+                       host_uuid: str,
+                       is_host_isolated: bool) -> dict:
+    """
+    Sets, if a sakura-host is isolated, so it is only used by the virtual machines of a single
+    project. This is only possible, while no virtual machine runs on the host.
+    """
+    path = f"/v1alpha/host/{host_uuid}/isolation/admin"
+    json_body = {
+        "is_host_isolated": is_host_isolated,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.hanami_address,
+                                           path,
+                                           json_body)
+
+
 def delete_all_hosts(context: AccessContext):
     body = list_hosts(context)["hosts"]
     for entry in body:

@@ -450,7 +450,7 @@
           "network"
         ],
         "summary": "Create new network",
-        "description": "Create new network.",
+        "description": "Create new network.\\\n\\\nThe traffic between the virtual machines of the network, which run on different hosts, is\\\nencrypted with IPsec, whose keys the gateways exchange over a MLS-group of the network. With\\\n`disable_encryption` set, the network gets neither the encryption nor the MLS-group. The flag can't\\\nbe changed after the creation.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -472,6 +472,7 @@
                   "required": [
                     "created_at",
                     "created_by",
+                    "disable_encryption",
                     "name",
                     "subnet",
                     "updated_at",
@@ -485,6 +486,9 @@
                     },
                     "created_by": {
                       "type": "string"
+                    },
+                    "disable_encryption": {
+                      "type": "boolean"
                     },
                     "name": {
                       "type": "string"
@@ -1432,12 +1436,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "HostResp",
+                  "title": "SakuraHostResp",
                   "type": "object",
                   "required": [
                     "created_at",
                     "created_by",
                     "host_address",
+                    "is_host_isolated",
                     "name",
                     "updated_at",
                     "updated_by",
@@ -1454,8 +1459,17 @@
                     "host_address": {
                       "type": "string"
                     },
+                    "is_host_isolated": {
+                      "description": "true, if the host is only used by the virtual-machines of a single project",
+                      "type": "boolean"
+                    },
                     "name": {
                       "type": "string"
+                    },
+                    "project_id": {
+                      "description": "project, which the isolated host is bound to. None, if it is not isolated or is not used by any project yet",
+                      "type": "string",
+                      "nullable": true
                     },
                     "updated_at": {
                       "type": "string",
@@ -1549,7 +1563,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HostResp"
+                  "$ref": "#/components/schemas/SakuraHostResp"
                 }
               }
             }
@@ -1604,6 +1618,70 @@
           },
           "404": {
             "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/host/{host_uuid}/isolation/admin": {
+      "put": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Set host isolation",
+        "description": "Set, if a host is isolated for a single project.\\\n\\\nAn isolated host is only used by the virtual_machines of one project, which is bound to the host\\\nwith its first virtual_machine on it. The isolation can only be changed, while no resources are\\\nallocated on the host and the host is not bound to a project yet. This can only be done by an\\\nadmin.",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostIsolationUpdateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SakuraHostResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -2137,53 +2215,31 @@
           }
         }
       },
-      "HostResp": {
-        "title": "HostResp",
+      "HostIsolationUpdateReq": {
+        "title": "HostIsolationUpdateReq",
         "type": "object",
         "required": [
-          "created_at",
-          "created_by",
-          "host_address",
-          "name",
-          "updated_at",
-          "updated_by",
-          "uuid"
+          "is_host_isolated"
         ],
         "properties": {
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "host_address": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_by": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
+          "is_host_isolated": {
+            "description": "isolate the host, so it is only used by the virtual-machines of a single project",
+            "type": "boolean"
           }
         }
       },
       "NetworkBasicResp": {
         "type": "object",
         "required": [
+          "disable_encryption",
           "name",
           "subnet",
           "uuid"
         ],
         "properties": {
+          "disable_encryption": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -2204,6 +2260,11 @@
           "subnet"
         ],
         "properties": {
+          "disable_encryption": {
+            "description": "Don't encrypt the traffic between the virtual machines of the network, which run on different hosts. The network gets neither IPsec-encryption nor a MLS-group then.",
+            "default": false,
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -2305,6 +2366,7 @@
         "required": [
           "created_at",
           "created_by",
+          "disable_encryption",
           "name",
           "subnet",
           "updated_at",
@@ -2318,6 +2380,9 @@
           },
           "created_by": {
             "type": "string"
+          },
+          "disable_encryption": {
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -2462,6 +2527,7 @@
           "amount_of_used_memory",
           "disk_space",
           "host_address",
+          "is_host_isolated",
           "memory_size",
           "name",
           "number_of_cores",
@@ -2489,6 +2555,10 @@
           },
           "host_address": {
             "type": "string"
+          },
+          "is_host_isolated": {
+            "description": "true, if the host is only used by the virtual-machines of a single project",
+            "type": "boolean"
           },
           "memory_size": {
             "description": "total memory of the host in MiB",
@@ -2597,6 +2667,55 @@
           }
         }
       },
+      "SakuraHostResp": {
+        "title": "SakuraHostResp",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "host_address",
+          "is_host_isolated",
+          "name",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "host_address": {
+            "type": "string"
+          },
+          "is_host_isolated": {
+            "description": "true, if the host is only used by the virtual-machines of a single project",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_id": {
+            "description": "project, which the isolated host is bound to. None, if it is not isolated or is not used by any project yet",
+            "type": "string",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "Secret": {
         "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
         "type": "string"
@@ -2690,6 +2809,11 @@
             "type": "integer",
             "format": "int64",
             "minimum": 1.0
+          },
+          "isolated_host": {
+            "description": "Place the virtual_machine on a host, which is isolated for the project of the user",
+            "default": false,
+            "type": "boolean"
           },
           "name": {
             "type": "string",

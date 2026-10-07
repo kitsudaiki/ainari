@@ -37,10 +37,11 @@ var (
 	virtual_machinePublicKeyUuid string
 	snapshotName               string
 	virtual_machineMode          string
+	virtual_machineIsolatedHost  bool
 )
 
 var createVirtualMachineCmd = &cobra.Command{
-	Use:   "create -t VM_TYPE_UUID -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID NAME",
+	Use:   "create -t VM_TYPE_UUID -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID [--isolated_host] NAME",
 	Short: "Create a new virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -56,7 +57,8 @@ var createVirtualMachineCmd = &cobra.Command{
 			virtual_machineName,
 			virtual_machineVmTypeUuid,
 			virtual_machineDiskSize,
-			virtual_machineNetworkUuid)
+			virtual_machineNetworkUuid,
+			virtual_machineIsolatedHost)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -251,6 +253,7 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineNetworkUuid, "network", "u", "", "UUID of the network of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineImageUuid, "image", "i", "", "UUID of the image of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machinePublicKeyUuid, "public_key", "k", "", "UUID of the public-key, which is deployed in the virtual machine (mandatory)")
+	createVirtualMachineCmd.Flags().BoolVar(&virtual_machineIsolatedHost, "isolated_host", false, "Place the virtual machine only on a host, which is isolated for the project")
 	createVirtualMachineCmd.MarkFlagRequired("vm_type")
 	createVirtualMachineCmd.MarkFlagRequired("disk")
 	createVirtualMachineCmd.MarkFlagRequired("network")

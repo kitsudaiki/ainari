@@ -105,6 +105,7 @@
                     "created_at",
                     "created_by",
                     "name",
+                    "owned_by",
                     "updated_at",
                     "updated_by",
                     "uuid"
@@ -119,6 +120,14 @@
                     },
                     "name": {
                       "type": "string"
+                    },
+                    "owned_by": {
+                      "type": "string"
+                    },
+                    "resource_uuid": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
                     },
                     "updated_at": {
                       "type": "string",
@@ -186,6 +195,7 @@
                     "created_at",
                     "created_by",
                     "name",
+                    "owned_by",
                     "updated_at",
                     "updated_by",
                     "uuid"
@@ -200,6 +210,14 @@
                     },
                     "name": {
                       "type": "string"
+                    },
+                    "owned_by": {
+                      "type": "string"
+                    },
+                    "resource_uuid": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
                     },
                     "updated_at": {
                       "type": "string",
@@ -302,6 +320,189 @@
         ]
       }
     },
+    "/v1alpha/secret/clone/internal": {
+      "post": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Clone secret (internal)",
+        "description": "Create a new secret as copy of an existing secret with the same payload,\\\n\\\nwhich is owned by the given resource.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretCloneInternalReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "SecretResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "owned_by",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "owned_by": {
+                      "type": "string"
+                    },
+                    "resource_uuid": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/secret/generate/internal": {
+      "post": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Create new generated secret (internal)",
+        "description": "Create a new secret with a randomly generated 256-bit key as payload,\\\n\\\nso the payload never has to be transferred to the server.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretGenerateInternalReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "SecretResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "name",
+                    "owned_by",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "owned_by": {
+                      "type": "string"
+                    },
+                    "resource_uuid": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/secret/{secret_uuid}": {
       "get": {
         "tags": [
@@ -357,6 +558,50 @@
           "secret"
         ],
         "summary": "Delete secret",
+        "description": "Delete a secret from the database and its payload from the crypto-module.",
+        "parameters": [
+          {
+            "name": "secret_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/secret/{secret_uuid}/internal": {
+      "delete": {
+        "tags": [
+          "secret"
+        ],
+        "summary": "Delete secret (internal)",
         "description": "Delete a secret from the database and its payload from the crypto-module.",
         "parameters": [
           {
@@ -942,13 +1187,39 @@
         "type": "object",
         "required": [
           "name",
+          "owned_by",
           "uuid"
         ],
         "properties": {
           "name": {
             "type": "string"
           },
+          "owned_by": {
+            "type": "string"
+          },
           "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SecretCloneInternalReq": {
+        "title": "SecretCloneInternalReq",
+        "type": "object",
+        "required": [
+          "owned_by",
+          "resource_uuid",
+          "secret_uuid"
+        ],
+        "properties": {
+          "owned_by": {
+            "type": "string"
+          },
+          "resource_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "secret_uuid": {
             "type": "string",
             "format": "uuid"
           }
@@ -977,6 +1248,29 @@
             "minLength": 8,
             "maxItems": 4096,
             "minItems": 8
+          }
+        }
+      },
+      "SecretGenerateInternalReq": {
+        "title": "SecretGenerateInternalReq",
+        "type": "object",
+        "required": [
+          "name",
+          "owned_by",
+          "resource_uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "owned_by": {
+            "type": "string"
+          },
+          "resource_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -1016,6 +1310,7 @@
           "created_at",
           "created_by",
           "name",
+          "owned_by",
           "updated_at",
           "updated_by",
           "uuid"
@@ -1030,6 +1325,14 @@
           },
           "name": {
             "type": "string"
+          },
+          "owned_by": {
+            "type": "string"
+          },
+          "resource_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "updated_at": {
             "type": "string",

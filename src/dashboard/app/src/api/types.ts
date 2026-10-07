@@ -207,6 +207,8 @@ export interface VirtualMachineCreateReq {
     /** disk-size in GiB */
     disk_size: number;
     network_uuid: string;
+    /** place the virtual machine on a host, which is isolated for the project */
+    isolated_host?: boolean;
 }
 
 /** Mirror of `virtual_machine_structs::VirtualMachineBasicResp`. */
@@ -467,6 +469,8 @@ export interface SakuraHostBasicResp extends HostBasicResp {
     amount_of_used_memory: number;
     disk_space: number;
     amount_of_used_disk_space: number;
+    /** host is only used by the virtual machines of a single project */
+    is_host_isolated: boolean;
 }
 
 /** Mirror of `host_structs::HostResp`. */
@@ -475,6 +479,20 @@ export interface HostResp extends HostBasicResp {
     created_by: string;
     updated_at: string;
     updated_by: string;
+}
+
+/** Mirror of `host_structs::HostIsolationUpdateReq`. */
+export interface HostIsolationUpdateReq {
+    /** host is only used by the virtual machines of a single project */
+    is_host_isolated: boolean;
+}
+
+/** Mirror of `host_structs::SakuraHostResp`. */
+export interface SakuraHostResp extends HostResp {
+    /** host is only used by the virtual machines of a single project */
+    is_host_isolated: boolean;
+    /** project, which the isolated host is bound to */
+    project_id: string | null;
 }
 
 //=============================================================================

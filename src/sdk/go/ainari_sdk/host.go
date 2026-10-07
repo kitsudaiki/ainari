@@ -43,6 +43,16 @@ func DeleteHost(context AccessContext, hostId string) (map[string]interface{}, e
 }
 
 // GetOnsenHost returns information of a specific onsen-host, which stores images and snapshots.
+// SetHostIsolation sets, if a sakura-host is isolated, so it is only used by the virtual machines
+// of a single project. This is only possible, while no virtual machine runs on the host.
+func SetHostIsolation(context AccessContext, hostId string, isHostIsolated bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/host/%s/isolation/admin", hostId)
+	jsonBody := map[string]interface{}{
+		"is_host_isolated": isHostIsolated,
+	}
+	return SendPut(context, context.HanamiAddress, path, jsonBody)
+}
+
 func GetOnsenHost(context AccessContext, hostId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/host/%s/admin", hostId)
 	vars := map[string]interface{}{}

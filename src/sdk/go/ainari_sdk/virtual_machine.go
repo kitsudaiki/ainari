@@ -26,14 +26,17 @@ import (
 
 // ReserveVirtualMachine reserves a new virtual machine on one of the sakura-hosts. The image and
 // the public-key are not deployed here, but by the task of CreateVirtualMachine. The number of
-// cores and the memory are taken from the vm-type and the diskSize is given in GiB.
-func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string, diskSize int64, networkUuid string) (map[string]interface{}, error) {
+// cores and the memory are taken from the vm-type and the diskSize is given in GiB. With
+// isolatedHost, the virtual machine is only placed on a host, which is isolated for the project
+// of the user.
+func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string, diskSize int64, networkUuid string, isolatedHost bool) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
-		"vm_type_uuid": vmTypeUuid,
-		"disk_size":    diskSize,
-		"name":         name,
-		"network_uuid": networkUuid,
+		"vm_type_uuid":  vmTypeUuid,
+		"disk_size":     diskSize,
+		"name":          name,
+		"network_uuid":  networkUuid,
+		"isolated_host": isolatedHost,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

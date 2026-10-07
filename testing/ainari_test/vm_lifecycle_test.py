@@ -20,6 +20,7 @@ It runs the suites of ./suites against a running stack:
     auth              login, tokens, endpoints, versions and quota
     hosts             registration and resources of the sakura- and onsen-hosts
     resources         public key, cloud-image, network and secrets
+    host_isolation    isolated sakura-hosts, which are only used by a single project
     virtual_machines  reserve and create the virtual machines on their sakura-hosts
     proxies           proxies of the torii towards the sakura-hosts
     floating_ips      create, attach, detach, get and list floating ip-addresses

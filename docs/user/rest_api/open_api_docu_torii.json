@@ -1128,237 +1128,20 @@
         ]
       }
     },
-    "/v1alpha/network_crypto/key/internal": {
+    "/v1alpha/network_crypto/mls/identity/internal": {
       "get": {
         "tags": [
           "network_crypto"
         ],
-        "summary": "List crypto-keys",
-        "description": "List the IPsec keys this gateway currently holds.\\\n\\\nThe key material is never part of the answer - it is written straight into the\\\nkernel and not kept in the application state.",
+        "summary": "Get MLS-identity",
+        "description": "Get the identity of this gateway within the MLS-groups of the networks.\\\n\\\nThe identity is the underlay-address of the gateway together with its public MLS signature-key.\\\nhanami pins the key, when it places the first VM on the host of the gateway, and names it in every\\\nmembership-grant of the gateway, so no other gateway can join a group in its name. The identity is\\\ncreated with the first call.",
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CryptoKeyListResp"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "network_crypto"
-        ],
-        "summary": "Register new crypto-key",
-        "description": "Install one AES-256-GCM key for one direction of a VM-to-VM connection.\\\n\\\nA key is programmed as an xfrm Security Association in tunnel mode between the\\\ntwo gateways, with a selector that pins it to exactly one VM pair. That is what\\\ngives every connection its own key material even though several VMs may share\\\nthe same remote gateway.\\\n\\\n`egress` creates the outbound SA and points the outbound policy of the VM pair at\\\nits SPI, which makes it the key used for new packets, so a rotation never has a\\\ngap in which traffic would leave unprotected. `ingress` creates an inbound SA and\\\nthe matching in/fwd policies; any number of inbound keys can be held for the same\\\nconnection at the same time - the SPI in the ESP header of an incoming packet\\\ndecides which one is used.\\\n\\\n`vni` names the tenant of the two VM-addresses. The kernel's xfrm selectors know\\\nnothing about tenants, so a second tenant that wants to protect the very same\\\naddress-pair is refused instead of silently overwriting the first one.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CryptoKeyReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "title": "CryptoKeyResp",
-                  "type": "object",
-                  "required": [
-                    "direction",
-                    "local_ip",
-                    "peer_gateway_ip",
-                    "remote_ip",
-                    "spi",
-                    "vni"
-                  ],
-                  "properties": {
-                    "direction": {
-                      "$ref": "#/components/schemas/CryptoDirection"
-                    },
-                    "local_ip": {
-                      "type": "string",
-                      "format": "ipv4"
-                    },
-                    "peer_gateway_ip": {
-                      "type": "string",
-                      "format": "ipv4"
-                    },
-                    "remote_ip": {
-                      "type": "string",
-                      "format": "ipv4"
-                    },
-                    "spi": {
-                      "type": "integer",
-                      "format": "uint32",
-                      "minimum": 0.0
-                    },
-                    "vni": {
-                      "type": "integer",
-                      "format": "uint32",
-                      "minimum": 0.0
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "409": {
-            "description": "Conflict with existing resources"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/network_crypto/key/{direction}/{spi}/internal": {
-      "delete": {
-        "tags": [
-          "network_crypto"
-        ],
-        "summary": "Delete crypto-key",
-        "description": "Remove one IPsec key again, which is the second half of a key rotation.\\\n\\\nOnly the Security Association is dropped; the policies of the connection stay in\\\nplace. Deleting the key a policy currently points at therefore does not open a\\\nhole - the traffic is discarded until another key is installed.",
-        "parameters": [
-          {
-            "name": "direction",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/CryptoDirection"
-            }
-          },
-          {
-            "name": "spi",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Requested object not found"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/network_crypto/toggle/internal": {
-      "post": {
-        "tags": [
-          "network_crypto"
-        ],
-        "summary": "Toggle crypto",
-        "description": "Switch the encryption of a single VM-to-VM connection on or off.\\\n\\\nThis makes the protection optional per connection without losing anything: the\\\nkeys of the connection stay installed in the kernel, only the policies are\\\nrewritten. A disabled connection sends and accepts plain traffic even though a\\\nkey is set for it, and enabling it again immediately puts the keys back to use.\\\n\\\nBoth gateways of a connection have to be switched, otherwise the side that still\\\ndemands ESP drops the now unprotected packets of the other one.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CryptoToggleReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CryptoToggleResp"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Requested object not found"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/network_crypto/connection/internal": {
-      "get": {
-        "tags": [
-          "network_crypto"
-        ],
-        "summary": "List connections",
-        "description": "List the VM-to-VM connections this gateway knows about.\\\n\\\nShows for every connection whether its encryption is currently switched on and\\\nwhich outbound key is in use, which is the quickest way to tell a protected\\\nconnection from a deliberately unprotected one.",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectionListResp"
+                  "$ref": "#/components/schemas/MlsIdentityResp"
                 }
               }
             }
@@ -1499,246 +1282,6 @@
   },
   "components": {
     "schemas": {
-      "ConnectionListResp": {
-        "title": "ConnectionListResp",
-        "type": "object",
-        "required": [
-          "connections"
-        ],
-        "properties": {
-          "connections": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ConnectionResp"
-            }
-          }
-        }
-      },
-      "ConnectionResp": {
-        "type": "object",
-        "required": [
-          "enabled",
-          "local_ip",
-          "peer_gateway_ip",
-          "remote_ip",
-          "vni"
-        ],
-        "properties": {
-          "active_egress_spi": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0,
-            "nullable": true
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "local_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "peer_gateway_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "remote_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "vni": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          }
-        }
-      },
-      "CryptoDirection": {
-        "description": "The direction a crypto-key protects, which is what separates an outbound Security Association from an inbound one.\n\nA key is only ever one of the two, so the direction is part of the type instead of a string that every handler would have to re-validate.",
-        "oneOf": [
-          {
-            "title": "egress",
-            "description": "Protects the traffic leaving this gateway",
-            "type": "string",
-            "enum": [
-              "egress"
-            ]
-          },
-          {
-            "title": "ingress",
-            "description": "Protects the traffic arriving at this gateway",
-            "type": "string",
-            "enum": [
-              "ingress"
-            ]
-          }
-        ]
-      },
-      "CryptoKeyListResp": {
-        "title": "CryptoKeyListResp",
-        "type": "object",
-        "required": [
-          "keys"
-        ],
-        "properties": {
-          "keys": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CryptoKeyResp"
-            }
-          }
-        }
-      },
-      "CryptoKeyReq": {
-        "title": "CryptoKeyReq",
-        "type": "object",
-        "required": [
-          "direction",
-          "key",
-          "local_ip",
-          "peer_gateway_ip",
-          "remote_ip",
-          "spi"
-        ],
-        "properties": {
-          "direction": {
-            "$ref": "#/components/schemas/CryptoDirection"
-          },
-          "key": {
-            "$ref": "#/components/schemas/Secret"
-          },
-          "local_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "peer_gateway_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "remote_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "spi": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          },
-          "vni": {
-            "description": "Tenant the two VM-addresses are valid in. The kernel's xfrm selectors know nothing about tenants, so a second tenant that wants to protect the very same address-pair is refused instead of silently overwriting the first one.",
-            "default": 0,
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          }
-        }
-      },
-      "CryptoKeyResp": {
-        "title": "CryptoKeyResp",
-        "type": "object",
-        "required": [
-          "direction",
-          "local_ip",
-          "peer_gateway_ip",
-          "remote_ip",
-          "spi",
-          "vni"
-        ],
-        "properties": {
-          "direction": {
-            "$ref": "#/components/schemas/CryptoDirection"
-          },
-          "local_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "peer_gateway_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "remote_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "spi": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          },
-          "vni": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          }
-        }
-      },
-      "CryptoToggleReq": {
-        "title": "CryptoToggleReq",
-        "type": "object",
-        "required": [
-          "enabled",
-          "local_ip",
-          "remote_ip"
-        ],
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "local_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "peer_gateway_ip": {
-            "default": null,
-            "type": "string",
-            "format": "ipv4",
-            "nullable": true
-          },
-          "remote_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "vni": {
-            "default": 0,
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          }
-        }
-      },
-      "CryptoToggleResp": {
-        "title": "CryptoToggleResp",
-        "type": "object",
-        "required": [
-          "enabled",
-          "local_ip",
-          "remote_ip",
-          "vni"
-        ],
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "local_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "peer_gateway_ip": {
-            "default": null,
-            "type": "string",
-            "format": "ipv4",
-            "nullable": true
-          },
-          "remote_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "vni": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
-          }
-        }
-      },
       "FilterDirection": {
         "description": "Direction of the traffic of a virtual_machine, which a packet filter applies to.\n\nA virtual_machine has exactly one filter per direction, so the direction is part of what identifies a filter.",
         "oneOf": [
@@ -1987,6 +1530,25 @@
             "format": "ipv4"
           },
           "spec": {
+            "type": "string"
+          }
+        }
+      },
+      "MlsIdentityResp": {
+        "title": "MlsIdentityResp",
+        "description": "Identity of a gateway within the MLS-groups of the networks",
+        "type": "object",
+        "required": [
+          "client_id",
+          "signature_key"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the gateway, which is its underlay-address",
+            "type": "string"
+          },
+          "signature_key": {
+            "description": "Base64-encoded public MLS signature-key of the gateway. hanami pins it and names it in every membership-grant of the gateway.",
             "type": "string"
           }
         }
@@ -2260,10 +1822,6 @@
             "minimum": 0.0
           }
         }
-      },
-      "Secret": {
-        "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
-        "type": "string"
       },
       "TapReq": {
         "title": "TapReq",

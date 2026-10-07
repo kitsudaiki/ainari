@@ -102,6 +102,7 @@ pub async fn delete_virtual_machine(
         number_of_cores: i64::from(virtual_machine.number_of_cores),
         memory_size: virtual_machine.memory_size / (1024 * 1024),
         disk_space: virtual_machine.disk_size,
+        project_id: None,
     };
 
     // sakura deletes the virtual_machine within a task in the background, so the resources are

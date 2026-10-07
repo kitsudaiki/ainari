@@ -54,6 +54,12 @@ pub struct SakuraHostCreateReq {
     pub disk_space: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct HostIsolationUpdateReq {
+    /// isolate the host, so it is only used by the virtual-machines of a single project
+    pub is_host_isolated: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Default)]
 pub struct UuidList {
     pub list: Vec<Uuid>,
@@ -64,6 +70,22 @@ pub struct HostResp {
     pub uuid: Uuid,
     pub name: String,
     pub host_address: String,
+    pub created_at: DateTime<Utc>,
+    pub created_by: String,
+    pub updated_at: DateTime<Utc>,
+    pub updated_by: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct SakuraHostResp {
+    pub uuid: Uuid,
+    pub name: String,
+    pub host_address: String,
+    /// true, if the host is only used by the virtual-machines of a single project
+    pub is_host_isolated: bool,
+    /// project, which the isolated host is bound to. None, if it is not isolated or is not used
+    /// by any project yet
+    pub project_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -99,6 +121,8 @@ pub struct SakuraHostBasicResp {
     pub disk_space: u64,
     /// disk-space in GiB, which is allocated by virtual-machines
     pub amount_of_used_disk_space: u64,
+    /// true, if the host is only used by the virtual-machines of a single project
+    pub is_host_isolated: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

@@ -105,6 +105,18 @@
                     <template v-else>A network must be selected</template>
                 </p>
                 <br />
+                <div>
+                    <!-- only hosts, which are isolated for the project, are used then -->
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            v-model="form.isolated_host"
+                            :disabled="reservedVirtualMachine !== null"
+                        />
+                        Isolated host
+                    </label>
+                </div>
+                <br />
                 <div class="field-row">
                     <label for="image">Image: </label>
                     <select
@@ -220,6 +232,8 @@ const form = reactive({
     // in GiB
     disk_size: 10,
     network_uuid: "",
+    // place the virtual machine only on a host, which is isolated for the project
+    isolated_host: false,
 });
 
 // Set as soon as the reserve-call was successful. If the following create-call fails,
@@ -282,6 +296,7 @@ async function handleAccept() {
                 vm_type_uuid: form.vm_type_uuid,
                 disk_size: form.disk_size,
                 network_uuid: form.network_uuid,
+                isolated_host: form.isolated_host,
             });
             emit("reserved");
         } catch (err) {

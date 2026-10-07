@@ -26,19 +26,38 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "host",
-    summary = "Get host",
-    description = r###"Get information of a host from the database."###,
+    summary = "Set host isolation",
+    description = r###"Set, if a host is isolated for a single project.
+
+An isolated host is only used by the virtual_machines of one project, which is bound to the host
+with its first virtual_machine on it. The isolation can only be changed, while no resources are
+allocated on the host and the host is not bound to a project yet. This can only be done by an
+admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
-pub async fn get_host_admin(
+pub async fn set_host_isolation_admin(
     host_uuid: Path<Uuid>,
+    body: Json<HostIsolationUpdateReq>,
     context: UserContext,
 ) -> Result<Json<SakuraHostResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
+    // update isolation in database
+    let changed = host_table::set_host_isolation(&host_uuid, body.is_host_isolated, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e))?;
+    if !changed {
+        return Err(ErrorResponse::Conflict(format!(
+            "Isolation of host with UUID '{}' can not be changed, because resources are \
+             allocated on it or it is already bound to a project.",
+            *host_uuid
+        )));
+    }
+
+    // get updated host from database
     let host_data = host_table::get_host(&host_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e))?;
 

@@ -29,12 +29,17 @@ table! {
         uuid -> Varchar,
         name -> Varchar,
         address -> Varchar,
+        external_address -> Nullable<Varchar>,
+        mls_signature_key -> Nullable<Varchar>,
+        mls_client_id -> Nullable<Varchar>,
         number_of_cores -> BigInt,
         used_number_of_cores -> BigInt,
         memory_size -> BigInt,
         amount_of_used_memory -> BigInt,
         disk_space -> BigInt,
         amount_of_used_disk_space -> BigInt,
+        is_host_isolated -> Bool,
+        project_id -> Nullable<Varchar>,
         status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
@@ -42,9 +47,6 @@ table! {
         updated_by -> Varchar,
         deleted_at -> Nullable<Varchar>,
         deleted_by -> Nullable<Varchar>,
-        external_address -> Nullable<Varchar>,
-        mls_signature_key -> Nullable<Varchar>,
-        mls_client_id -> Nullable<Varchar>,
     }
 }
 
@@ -62,6 +64,9 @@ pub struct HostEntry {
     pub name: String,
     /// Network address of the host
     pub address: String,
+    /// Address of the external api of the host, which is the target of its proxies on the torii
+    /// at the edge. None for hosts, which only have one address, so `address` is used instead.
+    pub external_address: Option<String>,
     /// Number of cpu-threads of the host
     pub number_of_cores: i64,
     /// Number of cpu-threads, which are already in use
@@ -74,6 +79,10 @@ pub struct HostEntry {
     pub disk_space: i64,
     /// Amount of disk-space in GiB, which is already in use
     pub amount_of_used_disk_space: i64,
+    /// True, if the host is isolated and only used by the virtual-machines of a single project
+    pub is_host_isolated: bool,
+    /// ID of the project, which the host is isolated for. None, if the host is not isolated
+    pub project_id: Option<String>,
     /// Current status of the host (ACTIVE, DELETED, etc.)
     pub status: String,
     /// Timestamp when the host was created
@@ -91,9 +100,6 @@ pub struct HostEntry {
     pub deleted_at: Option<DateTime<Utc>>,
     /// User ID who deleted the host (if applicable)
     pub deleted_by: Option<String>,
-    /// Address of the external api of the host, which is the target of its proxies on the torii
-    /// at the edge. None for hosts, which only have one address, so `address` is used instead.
-    pub external_address: Option<String>,
 }
 
 impl HostEntry {
@@ -115,6 +121,9 @@ pub struct HostResources {
     pub memory_size: i64,
     /// Total size of the disk for the virtual-machines in GiB
     pub disk_space: i64,
+    /// Project, which requests the resources. Only hosts isolated for this project, or isolated
+    /// hosts without project yet, are used for it. None to use only not isolated hosts
+    pub project_id: Option<String>,
 }
 
 /// Adds a new host to the database with default values.
@@ -150,12 +159,15 @@ pub fn add_new_host(
         uuid: *host_uuid,
         name: host_name.to_owned(),
         address: host_address.to_owned(),
+        external_address: host_external_address.map(str::to_owned),
         number_of_cores: resources.number_of_cores,
         used_number_of_cores: 0,
         memory_size: resources.memory_size,
         amount_of_used_memory: 0,
         disk_space: resources.disk_space,
         amount_of_used_disk_space: 0,
+        is_host_isolated: false,
+        project_id: None,
         status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
@@ -163,7 +175,6 @@ pub fn add_new_host(
         updated_by: context.user_id.clone(),
         deleted_at: None,
         deleted_by: None,
-        external_address: host_external_address.map(str::to_owned),
     };
 
     add_host(host.clone())
@@ -250,6 +261,75 @@ pub fn update_host_external_address(
     {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Sets, if an existing host is isolated for a single project.
+///
+/// The change is only allowed, if no resources are allocated on the host and the host is not
+/// bound to a project yet. Both is checked within the update, so a parallel allocation can not
+/// slip in between.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host to update
+/// * `host_is_isolated` - True to isolate the host, false to use it for all projects
+/// * `context` - User context containing information about the user performing the action
+///
+/// # Returns
+/// * Ok(true) if the host was successfully updated
+/// * Ok(false) if the change is not allowed, because resources are allocated on the host or the
+///   host is already bound to a project
+/// * DbError::NotFound if the host doesn't exist or is not active
+/// * DbError::InternalError if there was an error executing the query
+pub fn set_host_isolation(
+    host_uuid: &Uuid,
+    host_is_isolated: bool,
+    context: &UserContext,
+) -> Result<bool, enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let host_uuid = host_uuid.to_string();
+
+    let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        let is_active_host = uuid.eq(&host_uuid).and(status.eq("ACTIVE"));
+        let is_unused = used_number_of_cores
+            .eq(0)
+            .and(amount_of_used_memory.eq(0))
+            .and(amount_of_used_disk_space.eq(0))
+            .and(project_id.is_null());
+
+        let updated = diesel::update(hosts.filter(is_active_host.and(is_unused)))
+            .set((
+                is_host_isolated.eq(host_is_isolated),
+                updated_at.eq(Utc::now().to_rfc3339()),
+                updated_by.eq(context.user_id.clone()),
+            ))
+            .execute(conn)?;
+        if updated == 1 {
+            return Ok(true);
+        }
+
+        // nothing was updated, because the host doesn't exist or the change is not allowed
+        hosts
+            .filter(is_active_host)
+            .select(uuid)
+            .first::<String>(conn)
+            .map(|_| false)
+    });
+
+    match result {
+        Ok(changed) => Ok(changed),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
             log::error!("Database-error: {e:?}");
             Err(enums::DbError::InternalError)
@@ -520,8 +600,12 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
 /// and allocates the requested resources on this host.
 ///
 /// A host is suitable, if for cores, memory and disk the total value minus the used value
-/// is greater or equal to the requested value. The used values of the selected host are
+/// is greater or equal to the requested value and its isolation matches the project of the
+/// request (see `HostResources::project_id`). The used values of the selected host are
 /// increased by the requested values.
+///
+/// With project, the isolated hosts already bound to this project are tried first. Only if none
+/// of them fits, an isolated host without project is selected and bound to the project.
 ///
 /// The free resources are checked again within the update, which allocates them, so the
 /// allocation is atomic within the database. If another request, for example of another
@@ -543,29 +627,54 @@ pub fn allocate_host_resources(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
+    let requested_project = requested.project_id.as_deref();
+
     let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        // Without project only not isolated hosts are used. With project only isolated hosts,
+        // which are not bound to a project yet or bound to the requested project, are used.
+        // Both cases are one expression, so the filter has the same type for both.
+        let matches_isolation = is_host_isolated.eq(requested_project.is_some()).and(
+            is_host_isolated
+                .eq(false)
+                .or(project_id.is_null())
+                .or(project_id.eq(requested_project.unwrap_or_default())),
+        );
+
         let has_free_resources = status
             .eq("ACTIVE")
+            .and(matches_isolation)
             .and((number_of_cores - used_number_of_cores).ge(requested.number_of_cores))
             .and((memory_size - amount_of_used_memory).ge(requested.memory_size))
             .and((disk_space - amount_of_used_disk_space).ge(requested.disk_space));
 
         let mut suitable_hosts = hosts
             .filter(has_free_resources)
-            .select(uuid)
-            .load::<String>(conn)?;
+            .select((uuid, project_id))
+            .load::<(String, Option<String>)>(conn)?;
         suitable_hosts.shuffle(&mut rand::rng());
+        // Hosts, which are already bound to the requested project, are tried first and only
+        // afterwards the isolated hosts without project. The sort is stable, so both groups
+        // stay shuffled.
+        suitable_hosts.sort_by_key(|(_, host_project)| host_project.is_none());
 
-        for selected_uuid in suitable_hosts {
-            let allocated =
-                diesel::update(hosts.filter(uuid.eq(&selected_uuid).and(has_free_resources)))
-                    .set((
-                        used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
-                        amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
-                        amount_of_used_disk_space
-                            .eq(amount_of_used_disk_space + requested.disk_space),
-                    ))
-                    .execute(conn)?;
+        for (selected_uuid, _) in suitable_hosts {
+            let used_resources = (
+                used_number_of_cores.eq(used_number_of_cores + requested.number_of_cores),
+                amount_of_used_memory.eq(amount_of_used_memory + requested.memory_size),
+                amount_of_used_disk_space.eq(amount_of_used_disk_space + requested.disk_space),
+            );
+            let update =
+                diesel::update(hosts.filter(uuid.eq(&selected_uuid).and(has_free_resources)));
+
+            // An isolated host is bound to the project, which allocates resources on it at first.
+            // If another project bound the host in between, the filter of the update doesn't
+            // match anymore and the next host is tried.
+            let allocated = match requested_project {
+                Some(project) => update
+                    .set((used_resources, project_id.eq(project)))
+                    .execute(conn)?,
+                None => update.set(used_resources).execute(conn)?,
+            };
 
             if allocated == 1 {
                 return hosts
@@ -590,7 +699,8 @@ pub fn allocate_host_resources(
 
 /// Releases resources, which were allocated on a host by `allocate_host_resources`.
 ///
-/// The used values of the host are decreased by the given values, but never below 0.
+/// The used values of the host are decreased by the given values, but never below 0. If the host
+/// is isolated and all its used values are 0 afterwards, it is unbound from its project.
 ///
 /// # Arguments
 /// * `host_uuid` - Unique identifier of the host
@@ -620,15 +730,36 @@ pub fn release_host_resources(
             .sql(" ELSE 0 END")
     };
 
-    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
-        .set((
-            used_number_of_cores.eq(decrease("used_number_of_cores", released.number_of_cores)),
-            amount_of_used_memory.eq(decrease("amount_of_used_memory", released.memory_size)),
-            amount_of_used_disk_space
-                .eq(decrease("amount_of_used_disk_space", released.disk_space)),
-        ))
-        .execute(&mut *conn)
-    {
+    let host_uuid = host_uuid.to_string();
+
+    let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        let released_rows = diesel::update(hosts.filter(uuid.eq(&host_uuid)))
+            .set((
+                used_number_of_cores.eq(decrease("used_number_of_cores", released.number_of_cores)),
+                amount_of_used_memory.eq(decrease("amount_of_used_memory", released.memory_size)),
+                amount_of_used_disk_space
+                    .eq(decrease("amount_of_used_disk_space", released.disk_space)),
+            ))
+            .execute(conn)?;
+
+        // an isolated host, which runs nothing anymore, is unbound from its project, so it can
+        // be used by another project again
+        diesel::update(
+            hosts.filter(
+                uuid.eq(&host_uuid)
+                    .and(is_host_isolated.eq(true))
+                    .and(used_number_of_cores.eq(0))
+                    .and(amount_of_used_memory.eq(0))
+                    .and(amount_of_used_disk_space.eq(0)),
+            ),
+        )
+        .set(project_id.eq(None::<String>))
+        .execute(conn)?;
+
+        Ok(released_rows)
+    });
+
+    match result {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
         Err(e) => {
@@ -706,6 +837,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -762,6 +895,7 @@ mod tests {
             number_of_cores: 8,
             memory_size: 16384,
             disk_space: 512,
+            project_id: None,
         };
         add_new_host(
             &uuid1,
@@ -787,6 +921,7 @@ mod tests {
             number_of_cores: 32,
             memory_size: 65536,
             disk_space: 2048,
+            project_id: None,
         };
         assert!(update_host_resources(&uuid1, &new_resources, &context).is_ok());
 
@@ -802,6 +937,7 @@ mod tests {
             number_of_cores: -1,
             memory_size: 0,
             disk_space: 0,
+            project_id: None,
         };
         assert!(update_host_resources(&uuid1, &invalid_resources, &context).is_err());
 
@@ -829,6 +965,7 @@ mod tests {
             number_of_cores: 1_000_000,
             memory_size: 1_000_000_000,
             disk_space: 1_000_000_000,
+            project_id: None,
         };
         add_new_host(
             &uuid1,
@@ -844,6 +981,7 @@ mod tests {
             number_of_cores: 600_000,
             memory_size: 600_000_000,
             disk_space: 600_000_000,
+            project_id: None,
         };
 
         // first allocation fits
@@ -866,6 +1004,7 @@ mod tests {
             number_of_cores: 1,
             memory_size: 1,
             disk_space: 400_000_001,
+            project_id: None,
         };
         assert!(allocate_host_resources(&only_disk, &context).is_err());
 
@@ -874,6 +1013,7 @@ mod tests {
             number_of_cores: 400_000,
             memory_size: 400_000_000,
             disk_space: 400_000_000,
+            project_id: None,
         };
         let Ok(host) = allocate_host_resources(&remaining, &context) else {
             panic!("no host selected");
@@ -929,6 +1069,7 @@ mod tests {
             number_of_cores: 2_000_000,
             memory_size: 2_000_000_000,
             disk_space: 2_000_000_000,
+            project_id: None,
         };
         add_new_host(
             &uuid1,
@@ -944,6 +1085,7 @@ mod tests {
             number_of_cores: 200_000,
             memory_size: 200_000_000,
             disk_space: 200_000_000,
+            project_id: None,
         };
 
         // 32 parallel requests, where only 10 are allowed to succeed
@@ -967,6 +1109,201 @@ mod tests {
         assert_eq!(host.used_number_of_cores, 2_000_000);
         assert_eq!(host.amount_of_used_memory, 2_000_000_000);
         assert_eq!(host.amount_of_used_disk_space, 2_000_000_000);
+
+        hard_delete_host(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_allocate_host_resources_isolation() {
+        let shared_uuid = Uuid::new_v4();
+        let free_isolated_uuid = Uuid::new_v4();
+        let bound_isolated_uuid = Uuid::new_v4();
+        let project1 = "project1".to_string();
+        let project2 = "project2".to_string();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        // the values are that large, that no other host of the test-database can be selected
+        let resources = HostResources {
+            number_of_cores: 10_000_000,
+            memory_size: 10_000_000_000,
+            disk_space: 10_000_000_000,
+            project_id: None,
+        };
+        for host_uuid in [&shared_uuid, &free_isolated_uuid, &bound_isolated_uuid] {
+            hard_delete_host(host_uuid);
+            add_new_host(
+                host_uuid,
+                "Alice",
+                "http://127.0.0.1:11420",
+                None,
+                &resources,
+                &context,
+            )
+            .unwrap();
+        }
+
+        // isolate two of the hosts, one of them is bound to project1
+        let set_isolation = |host_uuid: &Uuid, project: Option<&str>| {
+            use self::hosts::dsl::*;
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
+                .set((is_host_isolated.eq(true), project_id.eq(project)))
+                .execute(&mut *conn)
+                .unwrap();
+        };
+        set_isolation(&free_isolated_uuid, None);
+        set_isolation(&bound_isolated_uuid, Some(&project1));
+
+        let request = |project: Option<&String>| HostResources {
+            number_of_cores: 6_000_000,
+            memory_size: 6_000_000_000,
+            disk_space: 6_000_000_000,
+            project_id: project.cloned(),
+        };
+
+        // without project only the not isolated host is used, also if the isolated hosts are
+        // still empty
+        let Ok(host) = allocate_host_resources(&request(None), &context) else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.uuid, shared_uuid);
+        assert!(allocate_host_resources(&request(None), &context).is_err());
+
+        // free the not isolated host again, so the requests with project below could use it,
+        // if the isolation would be ignored
+        assert!(release_host_resources(&shared_uuid, &request(None)).is_ok());
+
+        // project1 prefers the host bound to it over the isolated host without project
+        let Ok(host) = allocate_host_resources(&request(Some(&project1)), &context) else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.uuid, bound_isolated_uuid);
+        assert_eq!(host.project_id.as_ref(), Some(&project1));
+
+        // project2 gets the isolated host without project, which is bound to it afterwards
+        let Ok(host) = allocate_host_resources(&request(Some(&project2)), &context) else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.uuid, free_isolated_uuid);
+        assert_eq!(host.project_id.as_ref(), Some(&project2));
+
+        // the host bound to project1 is full and the other one is bound to project2 now. The not
+        // isolated host has enough free resources, but is never used for a project
+        assert!(allocate_host_resources(&request(Some(&project1)), &context).is_err());
+        assert!(allocate_host_resources(&request(Some(&project2)), &context).is_err());
+        assert!(get_host(&shared_uuid, &context).is_ok_and(|h| h.used_number_of_cores == 0));
+
+        for host_uuid in [&shared_uuid, &free_isolated_uuid, &bound_isolated_uuid] {
+            hard_delete_host(host_uuid);
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_host_isolation() {
+        let uuid1 = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_host(&uuid1);
+
+        // the values are that large, that no other host of the test-database can be selected
+        let resources = HostResources {
+            number_of_cores: 10_000_000,
+            memory_size: 10_000_000_000,
+            disk_space: 10_000_000_000,
+            project_id: None,
+        };
+        add_new_host(
+            &uuid1,
+            "Alice",
+            "http://127.0.0.1:11420",
+            None,
+            &resources,
+            &context,
+        )
+        .unwrap();
+
+        // an unused host can be isolated and released again
+        assert!(matches!(
+            set_host_isolation(&uuid1, true, &context),
+            Ok(true)
+        ));
+        assert!(get_host(&uuid1, &context).is_ok_and(|h| h.is_host_isolated));
+        assert!(matches!(
+            set_host_isolation(&uuid1, false, &context),
+            Ok(true)
+        ));
+        assert!(get_host(&uuid1, &context).is_ok_and(|h| !h.is_host_isolated));
+
+        // not allowed, while resources are allocated on the host
+        let requested = HostResources {
+            number_of_cores: 1,
+            memory_size: 1,
+            disk_space: 1,
+            project_id: None,
+        };
+        let Ok(host) = allocate_host_resources(&requested, &context) else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.uuid, uuid1);
+        assert!(matches!(
+            set_host_isolation(&uuid1, true, &context),
+            Ok(false)
+        ));
+        assert!(get_host(&uuid1, &context).is_ok_and(|h| !h.is_host_isolated));
+        assert!(release_host_resources(&uuid1, &requested).is_ok());
+
+        // not allowed, while the host is bound to a project
+        assert!(matches!(
+            set_host_isolation(&uuid1, true, &context),
+            Ok(true)
+        ));
+        let requested = HostResources {
+            project_id: Some("project1".to_string()),
+            ..requested
+        };
+        assert!(allocate_host_resources(&requested, &context).is_ok());
+        assert!(allocate_host_resources(&requested, &context).is_ok());
+        assert!(matches!(
+            set_host_isolation(&uuid1, false, &context),
+            Ok(false)
+        ));
+        assert!(get_host(&uuid1, &context).is_ok_and(|h| h.is_host_isolated));
+
+        // the host stays bound to the project, as long as resources are allocated on it
+        assert!(release_host_resources(&uuid1, &requested).is_ok());
+        assert!(
+            get_host(&uuid1, &context).is_ok_and(|h| h.project_id.as_deref() == Some("project1"))
+        );
+
+        // releasing the last resources unbinds the host from the project, so it can be changed
+        assert!(release_host_resources(&uuid1, &requested).is_ok());
+        assert!(get_host(&uuid1, &context).is_ok_and(|h| h.project_id.is_none()));
+        assert!(matches!(
+            set_host_isolation(&uuid1, false, &context),
+            Ok(true)
+        ));
+
+        // unknown host
+        assert!(matches!(
+            set_host_isolation(&Uuid::new_v4(), true, &context),
+            Err(enums::DbError::NotFound)
+        ));
 
         hard_delete_host(&uuid1);
     }
@@ -997,6 +1334,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -1017,6 +1356,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -1063,6 +1404,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -1098,6 +1441,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -1118,6 +1463,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -1138,6 +1485,8 @@ mod tests {
             amount_of_used_memory: 0,
             disk_space: 1024,
             amount_of_used_disk_space: 0,
+            is_host_isolated: false,
+            project_id: None,
             status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
