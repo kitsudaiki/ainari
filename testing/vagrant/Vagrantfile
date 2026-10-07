@@ -92,6 +92,8 @@ Vagrant.configure("2") do |config|
           ansible.extra_vars = {
             ansible_python_interpreter: "/usr/bin/python3",
             repo_dir: File.expand_path("../..", __dir__),
+            # set by setup_vagrant_stack.sh --zarf, see deploy_with_zarf in group_vars/all.yml
+            deploy_with_zarf: ENV["AINARI_VAGRANT_ZARF"] == "1",
           }
         end
       end

@@ -24,6 +24,9 @@
 #   torii       the gateway at the edge of the network
 #   sakura      the sakura-hosts, each with the torii in front of it
 #
+# With deploy_with_zarf, the images, cert-manager and the chart are not copied and installed one
+# by one, but deployed with the offline-package of zarf, see testing/vagrant/create_zarf_package.sh.
+#
 # Only modules of ansible-core are used, so no collections have to be installed.
 
 ---
@@ -106,6 +109,7 @@
         creates: /usr/local/bin/k3s-agent-uninstall.sh
 
 
+# with zarf, the images are part of the package and pulled from the registry of zarf in the cluster
 - name: Import the locally built images
   hosts: all
   become: true
@@ -120,12 +124,14 @@
     images: "{{ group_names | map('extract', images_of_group) | flatten | unique }}"
   tasks:
     - name: Create the directory for the images
+      when: not deploy_with_zarf
       ansible.builtin.file:
         path: /opt/ainari/images
         state: directory
         mode: "0755"
 
     - name: Copy the images, which run on this node
+      when: not deploy_with_zarf
       ansible.builtin.copy:
         src: "{{ repo_dir }}/temporary_files/vagrant/images/{{ item }}.tar"
         dest: "/opt/ainari/images/{{ item }}.tar"
@@ -133,6 +139,7 @@
       loop: "{{ images }}"
 
     - name: Import the images into the containerd of k3s
+      when: not deploy_with_zarf
       ansible.builtin.command: k3s ctr --namespace k8s.io images import "/opt/ainari/images/{{ item }}.tar"
       loop: "{{ images }}"
       changed_when: true
@@ -214,6 +221,7 @@
       changed_when: true
 
     - name: Install helm
+      when: not deploy_with_zarf
       ansible.builtin.unarchive:
         src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
         dest: /usr/local/bin
@@ -222,6 +230,7 @@
         creates: /usr/local/bin/helm
 
     - name: Install cert-manager
+      when: not deploy_with_zarf
       ansible.builtin.command: >
         kubectl apply -f
         https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml
@@ -229,16 +238,19 @@
       changed_when: "'created' in cert_manager.stdout or 'configured' in cert_manager.stdout"
 
     - name: Wait for cert-manager
+      when: not deploy_with_zarf
       ansible.builtin.command: >
         kubectl --namespace cert-manager wait deployment --all --for=condition=Available --timeout=300s
       changed_when: false
 
     - name: Remove the helm-chart of a previous run
+      when: not deploy_with_zarf
       ansible.builtin.file:
         path: /opt/ainari/ainari
         state: absent
 
     - name: Copy the helm-chart and its values
+      when: not deploy_with_zarf
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
@@ -265,7 +277,39 @@
 
     # The setup keeps no state on purpose, like the other local setups: every run starts with empty
     # databases and the new images, so a test never sees the virtual machines of a previous run.
+    # The package of zarf, its init-package and the binary of zarf. The package contains
+    # cert-manager, the chart with its values and all images, so nothing has to be downloaded.
+    - name: Copy the offline-package of zarf
+      when: deploy_with_zarf
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/temporary_files/vagrant/zarf/"
+        dest: /opt/ainari/zarf/
+        mode: preserve
+
+    # The init-package installs the registry, which the nodes pull the images of the package from,
+    # and the agent, which rewrites the images of the pods towards this registry. It stays over all
+    # runs, like cert-manager.
+    - name: Initialize the cluster for zarf
+      when: deploy_with_zarf
+      ansible.builtin.shell: |
+        kubectl --namespace zarf get secret zarf-state > /dev/null 2>&1 && exit 0
+        cd /opt/ainari/zarf
+        ./zarf init zarf-init-amd64-*.tar.zst --confirm --no-color
+        echo "initialized"
+      register: zarf_init
+      changed_when: "'initialized' in zarf_init.stdout"
+
     - name: Remove the previous deployment
+      when: deploy_with_zarf
+      ansible.builtin.shell: |
+        kubectl --namespace zarf get secret zarf-package-ainari-vagrant > /dev/null 2>&1 \
+          && /opt/ainari/zarf/zarf package remove ainari-vagrant --components ainari,ainari-ca \
+               --confirm --no-color
+        kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
+      changed_when: true
+
+    - name: Remove the previous deployment
+      when: not deploy_with_zarf
       ansible.builtin.shell: |
         helm status --namespace {{ k8s_namespace }} {{ release }} > /dev/null 2>&1 \
           && helm uninstall --namespace {{ k8s_namespace }} {{ release }} --wait
@@ -282,6 +326,7 @@
       loop: "{{ groups['sakura'] }}"
 
     - name: Create the namespace with the CA
+      when: not deploy_with_zarf
       ansible.builtin.shell: |
         kubectl create namespace {{ k8s_namespace }}
         kubectl --namespace {{ k8s_namespace }} create secret tls ainari-vagrant-ca \
@@ -289,11 +334,24 @@
       changed_when: true
 
     - name: Install the helm-chart
+      when: not deploy_with_zarf
       ansible.builtin.command: >
         helm install {{ release }} /opt/ainari/ainari
         --namespace {{ k8s_namespace }}
         --values /opt/ainari/values.yaml
         --set sakura.kvm_gid={{ kvm_gid.stdout }}
+      changed_when: true
+
+    # The CA is not part of the package, so it stays the same over all packages. A cluster, which
+    # was set up without zarf before, already has cert-manager, which zarf takes over.
+    - name: Deploy the offline-package of zarf
+      when: deploy_with_zarf
+      ansible.builtin.shell: |
+        cd /opt/ainari/zarf
+        ./zarf package deploy zarf-package-ainari-vagrant-*.tar.zst --confirm --no-color --take-ownership \
+          --set-variables KVM_GID={{ kvm_gid.stdout }} \
+          --set-variables CA_CRT="$(base64 -w0 /opt/ainari/ainari-vagrant-ca.crt)" \
+          --set-variables CA_KEY="$(base64 -w0 /opt/ainari/ainari-vagrant-ca.key)"
       changed_when: true
 
     - name: Wait for the components

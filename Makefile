@@ -20,6 +20,7 @@
 #   make down kind
 #   make up vagrant    the same setup on a k3s-cluster of eight virtual machines
 #   make down vagrant  (testing/vagrant/setup_vagrant_stack.sh)
+#                      with ZARF=1 the vagrant-setup deploys ainari with the offline-package of zarf
 #
 #   make lint-docs     checks the markdown of the documentation (.markdownlint-cli2.yaml),
 #                      with FIX=1 the fixable findings are fixed automatically
@@ -49,7 +50,8 @@ help:
 	@echo "    make down local    stop the docker-compose setup"
 	@echo "    make up kind       start the setup on a kind-cluster (asks for sudo)"
 	@echo "    make down kind     delete the kind-cluster"
-	@echo "    make up vagrant    start the setup on eight virtual machines (asks for sudo)"
+	@echo "    make up vagrant    start the setup on eight virtual machines (asks for sudo),"
+	@echo "                       with ZARF=1 deployed with the offline-package of zarf"
 	@echo "    make down vagrant  destroy the virtual machines"
 	@echo "    make lint-docs     check the markdown of the documentation"
 
@@ -57,7 +59,7 @@ up down: $(if $(filter kind,$(STACK)),$(KIND)) $(if $(filter vagrant,$(STACK)),$
 	@case "$(STACK)" in \
 		local) sudo ./testing/local_stack/setup_local_stack.sh $(if $(filter down,$@),--down) ;; \
 		kind) KIND="$(abspath $(KIND))" ./testing/kind/setup_kind_stack.sh $(if $(filter down,$@),--down) ;; \
-		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./testing/vagrant/setup_vagrant_stack.sh $(if $(filter down,$@),--down) ;; \
+		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./testing/vagrant/setup_vagrant_stack.sh $(if $(filter down,$@),--down,$(if $(ZARF),--zarf)) ;; \
 		*) echo "Usage: make $@ local|kind|vagrant"; exit 1 ;; \
 	esac
 

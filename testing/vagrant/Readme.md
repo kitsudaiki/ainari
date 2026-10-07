@@ -17,8 +17,9 @@ setup.
 ### Usage
 
 ```bash
-make up vagrant      # or ./testing/vagrant/setup_vagrant_stack.sh
-make down vagrant    # or ./testing/vagrant/setup_vagrant_stack.sh --down
+make up vagrant          # or ./testing/vagrant/setup_vagrant_stack.sh
+make up vagrant ZARF=1   # or ./testing/vagrant/setup_vagrant_stack.sh --zarf, see create_zarf_package.sh
+make down vagrant        # or ./testing/vagrant/setup_vagrant_stack.sh --down
 ```
 
 `make up vagrant` installs ansible into a virtual environment in `temporary_files`, if it is not
@@ -38,6 +39,38 @@ installed.
   into all of them.
 - `--down` destroys the virtual machines, but keeps the saved images and the CA in
   `temporary_files/vagrant`.
+
+## create_zarf_package.sh
+
+### Purpose
+
+Creates the offline-package of the vagrant-setup with [zarf](https://zarf.dev) from
+[zarf/zarf.yaml](zarf/zarf.yaml): cert-manager, the helm-chart of `deploy/k8s/ainari` with the
+values of [values.yaml](values.yaml) and all images, which they need. It is written to
+`temporary_files/vagrant/zarf`, together with the binary of zarf and its init-package, so this
+directory contains everything to deploy ainari without access to the internet.
+[setup_vagrant_stack.sh](setup_vagrant_stack.sh) calls this script with `--zarf`, so it only has to
+be called directly to create the package without starting the setup.
+
+### Usage
+
+```bash
+./testing/vagrant/create_zarf_package.sh              # build the images and create the package
+./testing/vagrant/create_zarf_package.sh --no-build   # create the package of the existing images
+make up vagrant ZARF=1                                # start the setup with the package
+```
+
+### Limitations
+
+- Zarf is downloaded into `temporary_files/bin`, if it is not installed. Another binary can be
+  given with `ZARF`, but it must have the version of the script, because of the init-package.
+- The images `ainari/<component>:local` are taken from the local docker-daemon. Zarf tries to pull
+  them from docker hub first and prints a warning for each of them, which can be ignored.
+- The CA is not part of the package. It is given on the deployment with the variables `CA_CRT`
+  and `CA_KEY`, so it stays the same over all packages.
+- Only k3s itself is still downloaded by the playbook, so the virtual machines need access to the
+  internet anyway.
+- The package is about 600 MiB and the init-package about 400 MiB.
 
 ## create_local_ca.sh
 

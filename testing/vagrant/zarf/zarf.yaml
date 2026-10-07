@@ -1,0 +1,101 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Zarf-package of the vagrant-setup: cert-manager, the helm-chart of deploy/k8s/ainari with the
+# values of testing/vagrant/values.yaml and all images, which they need. So the package can be
+# deployed on a cluster without access to the internet, after it was initialized with the
+# init-package of zarf. It is built by testing/vagrant/create_zarf_package.sh and deployed by
+# testing/vagrant/playbook.yaml, if the setup is started with --zarf.
+
+kind: ZarfPackageConfig
+metadata:
+  name: ainari-vagrant
+  description: ainari with cert-manager for the vagrant-setup
+  version: 0.21.0
+  architecture: amd64
+
+variables:
+  - name: KVM_GID
+    description: id of the group of /dev/kvm on the sakura-hosts
+    default: "992"
+  # The CA is created once on the host by testing/vagrant/create_local_ca.sh and is not part of
+  # the package, so it stays the same over all packages and only has to be trusted once.
+  - name: CA_CRT
+    description: certificate of the CA of the setup, encoded with base64
+    sensitive: true
+  - name: CA_KEY
+    description: key of the CA of the setup, encoded with base64
+    sensitive: true
+
+components:
+  - name: cert-manager
+    required: true
+    manifests:
+      - name: cert-manager
+        # the same version as cert_manager_version in testing/vagrant/group_vars/all.yml
+        files:
+          - https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+    images:
+      - quay.io/jetstack/cert-manager-cainjector:v1.18.2
+      - quay.io/jetstack/cert-manager-controller:v1.18.2
+      - quay.io/jetstack/cert-manager-webhook:v1.18.2
+    actions:
+      onDeploy:
+        after:
+          - wait:
+              cluster:
+                kind: Deployment
+                name: cert-manager-webhook
+                namespace: cert-manager
+                condition: Available
+
+  # The secret has to exist before the chart is installed, which refers to it with
+  # global.certificates.ca_secret. Zarf installs the charts of a component before its manifests,
+  # so it needs its own component.
+  - name: ainari-ca
+    required: true
+    manifests:
+      - name: ainari-ca
+        namespace: ainari
+        files:
+          - ainari-ca-secret.yaml
+
+  - name: ainari
+    required: true
+    charts:
+      - name: ainari
+        releaseName: ainari
+        namespace: ainari
+        version: 0.21.0
+        localPath: ../../../deploy/k8s/ainari
+        valuesFiles:
+          - ../values.yaml
+        variables:
+          - name: KVM_GID
+            description: id of the group of /dev/kvm on the sakura-hosts
+            path: sakura.kvm_gid
+    images:
+      # built by testing/vagrant/build_local_images.sh and taken from the local docker-daemon
+      - ainari/miko:local
+      - ainari/omamori:local
+      - ainari/izakaya:local
+      - ainari/ryokan:local
+      - ainari/onsen:local
+      - ainari/hanami:local
+      - ainari/sakura:local
+      - ainari/torii:local
+      - ainari/dashboard:local
+      - mysql:8.4
+      # the tls-sidecars and the init-container, which waits for miko
+      - nginx:latest

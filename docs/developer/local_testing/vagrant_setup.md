@@ -178,6 +178,38 @@ kubectl --kubeconfig temporary_files/vagrant/kubeconfig --namespace ainari get p
 cd testing/vagrant && vagrant ssh ainari-mgmt-1    # kubectl and helm work there as well
 ```
 
+## Offline-package with zarf
+
+With `ZARF=1`, ainari is not deployed with helm, but with an offline-package of
+[zarf](https://zarf.dev), which contains cert-manager, the helm-chart with the values of
+`testing/vagrant/values.yaml` and all images, which they need:
+
+```bash
+make up vagrant ZARF=1    # or ./testing/vagrant/setup_vagrant_stack.sh --zarf
+```
+
+`testing/vagrant/create_zarf_package.sh` builds the package of `testing/vagrant/zarf/zarf.yaml`
+into `temporary_files/vagrant/zarf`, together with the binary of zarf and its init-package. The
+playbook copies this directory to `ainari-mgmt-1`, initializes the cluster with the init-package
+once (the registry of zarf and its agent, which rewrites the images of the pods towards this
+registry) and deploys the package. So the deployment of ainari needs no access to the internet;
+only the installation of k3s still downloads it.
+
+The package can also be created without starting the setup and deployed on any other cluster:
+
+```bash
+./testing/vagrant/create_zarf_package.sh          # or with --no-build for the existing images
+cd temporary_files/vagrant/zarf
+./zarf init zarf-init-amd64-v0.87.0.tar.zst --confirm
+./zarf package deploy zarf-package-ainari-vagrant-amd64-0.21.0.tar.zst --confirm \
+    --set-variables KVM_GID=<group of /dev/kvm on the sakura-hosts> \
+    --set-variables CA_CRT="$(base64 -w0 ../ainari-vagrant-ca.crt)" \
+    --set-variables CA_KEY="$(base64 -w0 ../ainari-vagrant-ca.key)"
+```
+
+The nodes have to carry the labels of the components, which the playbook sets, because the values
+of the vagrant-setup enable `global.strict_scheduling`.
+
 ## End-to-end test
 
 `testing/ainari_test/vm_lifecycle_test.py` walks through the whole life-cycle with the python-sdk,

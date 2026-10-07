@@ -26,6 +26,8 @@
 #
 # Usage:
 #   ./testing/vagrant/setup_vagrant_stack.sh          start the virtual machines and deploy ainari
+#   ./testing/vagrant/setup_vagrant_stack.sh --zarf   the same, but deploy ainari with the offline-package
+#                                                     of zarf, see create_zarf_package.sh
 #   ./testing/vagrant/setup_vagrant_stack.sh --down   destroy the virtual machines and remove the route
 
 set -e
@@ -106,11 +108,17 @@ fi
 # in this working tree. The nix-based images are used, which are the same as the ones of the CI.
 "$PROJECT_DIR/testing/vagrant/build_local_images.sh" nix
 
-echo "Saving the images for the virtual machines ..."
-mkdir -p "$IMAGE_DIR"
-for image in "${IMAGES[@]}"; do
-    docker save -o "$IMAGE_DIR/$image.tar" "ainari/$image:local"
-done
+if [ "$1" == "--zarf" ]; then
+    # the package contains the images, so they don't have to be saved one by one
+    "$PROJECT_DIR/testing/vagrant/create_zarf_package.sh" --no-build
+    export AINARI_VAGRANT_ZARF=1
+else
+    echo "Saving the images for the virtual machines ..."
+    mkdir -p "$IMAGE_DIR"
+    for image in "${IMAGES[@]}"; do
+        docker save -o "$IMAGE_DIR/$image.tar" "ainari/$image:local"
+    done
+fi
 
 "$PROJECT_DIR/testing/vagrant/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari vagrant-setup CA" \
     "permitted;IP:192.168.56.0/255.255.255.0,permitted;DNS:cluster.local"
