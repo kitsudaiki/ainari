@@ -1,14 +1,11 @@
 # ainari-operator
 
-Kubernetes-operator, which deploys the complete ainari-stack, which is otherwise deployed by the
-helm-chart in `deploy/k8s/ainari`. The whole stack is described by a single custom-resource of the
-kind `Ainari`. The operator deploys all components into the namespace of the resource, so there
+Kubernetes-operator, which deploys the complete ainari-stack. The whole stack is described by a
+single custom-resource of the kind `Ainari`. The operator deploys all components into the namespace of the resource, so there
 can only be one `Ainari` per namespace. A second one is marked with the reason `Conflict` and
 ignored.
 
 ## Requirements
-
-Like for the helm-chart:
 
 - [cert-manager](https://cert-manager.io), which issues the certificates of all components
 - [ingress-nginx](https://kubernetes.github.io/ingress-nginx/) with ssl-passthrough, if the
@@ -31,8 +28,8 @@ kubectl get ainari -n ainari
 ```
 
 `config/samples/ainari_v1alpha1_ainari.yaml` is a minimal stack with the defaults of all
-components, `config/samples/ainari_v1alpha1_ainari_kind.yaml` is the same setup as
-`deploy/k8s/kind/values.yaml`. All fields and their defaults are shown by
+components, `config/samples/ainari_v1alpha1_ainari_kind.yaml` is the one of the kind-setup of
+`testing/kind/setup_kind_stack.sh`. All fields and their defaults are shown by
 `kubectl explain ainari.spec --recursive` or can be found in `api/v1alpha1/ainari_types.go`.
 
 ## Secrets
@@ -62,7 +59,7 @@ These secrets are never overwritten, so no key or password, which data depends o
   `wireguard-keys` gets new keys for new pods, but never changes the existing ones.
 - They have no owner, so they stay, when the `Ainari` is deleted, and a new one takes them over
   again, together with the volumes of mysql. They are labeled with
-  `ainari.kitsunemimi.moe/generated=true` and have to be deleted by hand to remove a stack
+  `ainari.cloud/generated=true` and have to be deleted by hand to remove a stack
   completely. A deleted secret is generated again with a new value, which makes the data, that
   depends on the old one, unreadable.
 
@@ -79,7 +76,7 @@ kubectl get secret -n ainari miko-admin -o jsonpath='{.data.passphrase}' | base6
 ## Wireguard
 
 The connections of ryokan and sakura to onsen run through wireguard, if `global.wireguard` is
-enabled. The operator creates the keys and configs, so `deploy/k8s/wg_gen.py` is not needed.
+enabled. The operator creates the keys and configs itself.
 
 - every pod of onsen, ryokan and sakura has its own key and address within `10.10.0.0/16`
 - every onsen is a peer of every ryokan and every sakura, so all of them reach every onsen and
@@ -89,18 +86,6 @@ enabled. The operator creates the keys and configs, so `deploy/k8s/wg_gen.py` is
 - every pod has the sidecar `wireguard-sync`, which keeps the peers of its interface in sync with
   the secret `wg-<component>-secret`, so a change of the number of replicas reaches the running
   pods without a restart
-
-## Differences to the helm-chart
-
-- all keys and passwords are generated into secrets, which are never changed, instead of being
-  part of the values
-- the config of omamori is a secret, because it contains the key, with which omamori encrypts the
-  stored secrets, which was a fixed value in the helm-chart
-- the passphrase of the admin is read from the secret `miko-admin` instead of a plain env-variable
-- ryokan is a statefulset and every onsen-pod has its own volume, so both can have several
-  replicas together with wireguard
-- the unused persistent-volumes `onsen-pv` and `torii-pv` are not created
-- objects of disabled components, like the dashboard or izakaya, are removed again
 
 ## Development
 

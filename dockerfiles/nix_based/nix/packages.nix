@@ -160,8 +160,8 @@ let
 
   # Shell and basic tools, which every image has for the start-scripts and for debugging. These
   # are the tools, which the images of Debian and Ubuntu brought before, because the scripts of
-  # the helm-chart and the docker-compose-setup use them (like getent and awk in start_torii.sh of
-  # deploy/k8s/ainari/templates/torii/torii-config.yaml).
+  # the operator and the docker-compose-setup use them (like getent and awk in start_torii.sh of
+  # deploy/operator/internal/render/templates/start_torii.sh).
   basePackages = with pkgs; [
     bashInteractive
     coreutils

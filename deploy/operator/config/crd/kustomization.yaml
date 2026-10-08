@@ -13,4 +13,4 @@
 # limitations under the License.
 
 resources:
-  - bases/ainari.kitsunemimi.moe_ainaris.yaml
+  - bases/ainari.cloud_ainaris.yaml

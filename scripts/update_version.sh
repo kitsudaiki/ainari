@@ -16,7 +16,6 @@
 #
 # Sets the version of all components in the repository to the same value:
 #   - the rust-workspace (Cargo.toml, which all crates inherit, and Cargo.lock)
-#   - the helm-chart (version and appVersion)
 #   - the python-sdk (setup.py and __init__.py)
 #   - the cli (ainarictl)
 #   - the dashboard (package.json)
@@ -64,10 +63,6 @@ if command -v cargo > /dev/null; then
 else
     echo "cargo not found, Cargo.lock is updated with the next build" >&2
 fi
-
-# helm-chart
-replace deploy/k8s/ainari/Chart.yaml '^version: .*' "version: ${VERSION}"
-replace deploy/k8s/ainari/Chart.yaml '^appVersion: .*' "appVersion: \"${VERSION}\""
 
 # python-sdk. The version in setup.py is only the default, the ci overwrites it with the tag.
 replace src/sdk/python/ainari_sdk/setup.py \

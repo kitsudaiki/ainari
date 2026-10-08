@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unrelease]
 
+### BREAKING-CHANGES
+
+- the helm-chart of `deploy/k8s/ainari` was removed. The whole stack is deployed on kubernetes by
+  the new operator instead.
+
 ### Added
 
 - enable the encrypted tenant networks:
@@ -22,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - optional flag for virtual-machine-create to use only isolated hosts (per default disabled)
     - an isolated host is bound to the project of its first virtual machine and released again,
       when its last virtual machine is deleted
+- kubernetes-operator in `deploy/operator`, which deploys the whole stack from a single
+  custom-resource of the kind `Ainari`:
+    - generates all keys and passwords once into secrets, which are never changed afterwards
+    - creates the wireguard-configs itself and connects every onsen with every ryokan and every
+      sakura, so onsen and ryokan can run with multiple replicas
+    - the kind- and the vagrant-setup deploy the stack with the operator
 
 ### Fixed
 

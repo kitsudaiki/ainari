@@ -66,7 +66,7 @@ func main() {
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         leaderElection,
-		LeaderElectionID:       "ainari-operator.ainari.kitsunemimi.moe",
+		LeaderElectionID:       "ainari-operator.ainari.cloud",
 		Cache: cache.Options{
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Secret{}:    {Label: managed},

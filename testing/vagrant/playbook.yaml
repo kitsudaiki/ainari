@@ -250,7 +250,7 @@
         kubectl kustomize /opt/ainari/operator/default \
           | sed "s|kitsudaiki/ainari_operator:develop|{{ operator_image }}|" \
           | kubectl apply --server-side --force-conflicts -f -
-        kubectl wait crd/ainaris.ainari.kitsunemimi.moe --for=condition=Established --timeout=60s
+        kubectl wait crd/ainaris.ainari.cloud --for=condition=Established --timeout=60s
         kubectl --namespace {{ operator_namespace }} rollout restart deployment/ainari-operator
         kubectl --namespace {{ operator_namespace }} rollout status deployment/ainari-operator --timeout=300s
       args:

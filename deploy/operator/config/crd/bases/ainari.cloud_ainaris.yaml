@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
-  name: ainaris.ainari.kitsunemimi.moe
+  name: ainaris.ainari.cloud
 spec:
-  group: ainari.kitsunemimi.moe
+  group: ainari.cloud
   names:
     kind: Ainari
     listKind: AinariList

@@ -24,8 +24,8 @@ type Ref struct {
 	Key    string
 }
 
-// The secrets, which the operator generates. The names are the same as the ones of the
-// helm-chart, so an existing deployment can be taken over with its keys and passwords.
+// The secrets, which the operator generates. Most names are the same as the ones of the former
+// helm-chart, so the secrets of such a deployment are taken over with its keys and passwords.
 var (
 	// key, with which the components authenticate each other
 	InternalAPIKey = Ref{Secret: "internal-api-key", Key: "internal_api_key"}

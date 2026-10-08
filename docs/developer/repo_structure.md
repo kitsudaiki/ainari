@@ -9,7 +9,8 @@ easier for a new person to understand the code.
 .
 ├── .github                     # ci-pipeline, issue-templates
 ├── deploy
-│   └── k8s                     # helm-chart and kind-setup
+│   ├── k8s                     # service of an ingress-nginx-controller
+│   └── operator                # kubernetes-operator, which deploys the whole stack
 ├── dockerfiles
 │   ├── debian_based            # debian-based images for local debugging
 │   ├── files                   # start-scripts, shared by both variants
@@ -60,18 +61,16 @@ easier for a new person to understand the code.
 
 - **deploy**
 
-    - **k8s/ainari**
+    - **k8s/ingress-nginx-controller.yaml**
 
-        The helm-chart to deploy the whole stack on kubernetes. See
-        [Kubernetes-installation](../../deployer/installation/kubernetes_installation.md).
+        Service of the type `LoadBalancer` for an ingress-nginx-controller.
 
-    - **k8s/kind**
+    - **operator**
 
-        Cluster-config and values for the kind-setup of the local testing.
-
-    - **k8s/wg_gen.py**
-
-        Generates the wireguard-configs between onsen, ryokan and sakura as kubernetes-secrets.
+        The kubernetes-operator, which deploys the whole stack from a single custom-resource of the
+        kind `Ainari`, including the wireguard-configs between onsen, ryokan and sakura and all keys
+        and passwords. See [Kubernetes-installation](../../deployer/installation/kubernetes_installation.md)
+        and `deploy/operator/README.md`.
 
 - **dockerfiles**
 
@@ -177,5 +176,5 @@ easier for a new person to understand the code.
 
     - **vagrant**
 
-        Vagrant- and ansible-files for the test-environment with the helm-chart on a kubernetes of
+        Vagrant- and ansible-files for the test-environment with the operator on a kubernetes of
         multiple virtual machines.

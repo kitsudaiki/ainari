@@ -63,8 +63,8 @@ type AinariReconciler struct {
 	Applier   *apply.Applier
 }
 
-// +kubebuilder:rbac:groups=ainari.kitsunemimi.moe,resources=ainaris,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=ainari.kitsunemimi.moe,resources=ainaris/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ainari.cloud,resources=ainaris,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=ainari.cloud,resources=ainaris/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps;secrets;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete

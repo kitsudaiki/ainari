@@ -83,7 +83,7 @@ make down kind    # deletes the cluster and removes the veth-pair again
 ```
 
 `make up kind` builds the images of the components and of the operator, creates the cluster
-(`deploy/k8s/kind/cluster.yaml`), installs cert-manager and the operator into the namespace
+(`testing/kind/cluster.yaml`), installs cert-manager and the operator into the namespace
 `ainari-system` and creates the `Ainari`-resource, from which the operator deploys the stack.
 Then it connects the host to the edge-gateway and waits until the resource reports `Ready`. Miko,
 hanami, ryokan, omamori and izakaya store their data in the mysql-server `mysql-0`, which the
@@ -221,7 +221,7 @@ new container, started with the same command.
   `10.0.0.0/24`.
 - **Ports:** the api and the proxy-ports are published as node-ports (port + 20000, see
   `global.externalServices` in the `Ainari`-resource) and mapped back to their original ports on
-  `127.0.0.1` by the `extraPortMappings` of `deploy/k8s/kind/cluster.yaml`.
+  `127.0.0.1` by the `extraPortMappings` of `testing/kind/cluster.yaml`.
 - **kvm:** the kind-node creates its own `/dev/kvm`, so sakura gets the kvm-group of the node, not
   the one of the host. The setup-script reads it from the node.
 - **grpc:** the connection between ryokan, sakura and onsen is still plain grpc, because the

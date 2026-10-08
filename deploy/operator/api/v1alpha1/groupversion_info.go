@@ -14,7 +14,7 @@
 
 // Package v1alpha1 contains the API of the ainari-operator.
 // +kubebuilder:object:generate=true
-// +groupName=ainari.kitsunemimi.moe
+// +groupName=ainari.cloud
 package v1alpha1
 
 import (
@@ -24,7 +24,7 @@ import (
 
 var (
 	// GroupVersion is the group and version of the API.
-	GroupVersion = schema.GroupVersion{Group: "ainari.kitsunemimi.moe", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "ainari.cloud", Version: "v1alpha1"}
 
 	// SchemeBuilder registers the types of the API.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

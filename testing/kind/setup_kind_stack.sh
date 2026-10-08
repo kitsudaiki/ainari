@@ -84,7 +84,7 @@ IMAGES=(
 )
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-KIND_DIR="$PROJECT_DIR/deploy/k8s/kind"
+CLUSTER_CONFIG="$PROJECT_DIR/testing/kind/cluster.yaml"
 
 # The operator runs in a namespace of its own and deploys the stack of the Ainari-resource.
 OPERATOR_DIR="$PROJECT_DIR/deploy/operator"
@@ -203,7 +203,7 @@ fi
 if ! cluster_exists; then
     echo "Creating the kind-cluster $CLUSTER_NAME ..."
     KIND_EXPERIMENTAL_DOCKER_NETWORK="$DOCKER_NETWORK" \
-        "$KIND" create cluster --config "$KIND_DIR/cluster.yaml" --wait 120s
+        "$KIND" create cluster --config "$CLUSTER_CONFIG" --wait 120s
 fi
 
 # The node creates its own /dev/kvm, which belongs to the kvm-group of the node and not to the
@@ -248,7 +248,7 @@ echo "Deploying the operator ..."
 kubectl --context "$CONTEXT" kustomize "$OPERATOR_DIR/config/default" \
     | sed "s|kitsudaiki/ainari_operator:develop|$OPERATOR_IMAGE|" \
     | kubectl --context "$CONTEXT" apply --server-side --force-conflicts -f - > /dev/null
-kubectl --context "$CONTEXT" wait crd/ainaris.ainari.kitsunemimi.moe \
+kubectl --context "$CONTEXT" wait crd/ainaris.ainari.cloud \
     --for=condition=Established --timeout=60s > /dev/null
 # The image always has the same tag, so a running operator is restarted to get the new one.
 kubectl --context "$CONTEXT" --namespace "$OPERATOR_NAMESPACE" \

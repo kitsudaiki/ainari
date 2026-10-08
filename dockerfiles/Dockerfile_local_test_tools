@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Image with all tools, which the three local test environments of testing/local_stack/Readme.md
-# need (docker compose, kind, kubectl, helm, vagrant with vagrant-libvirt, ansible, go, the
+# need (docker compose, kind, kubectl, vagrant with vagrant-libvirt, ansible, go, the
 # python-sdk, ...), so they can be started without installing these tools on the host.
 #
 # The container runs in the network- and pid-namespace of the host and uses the docker and libvirt
@@ -31,7 +31,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 # versions of the tools, the same as the ones of the Makefile and the setup-scripts
 ARG KIND_VERSION=v0.30.0
 ARG KUBECTL_VERSION=v1.34.12
-ARG HELM_VERSION=v3.17.3
 ARG GO_VERSION=1.26.8
 ARG ANSIBLE_CORE_VERSION=2.20.9
 ARG VAGRANT_LIBVIRT_VERSION=0.12.2
@@ -68,12 +67,10 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /etc/ap
     && vagrant plugin install vagrant-libvirt --plugin-version "$VAGRANT_LIBVIRT_VERSION" \
     && rm -rf /var/lib/apt/lists/*
 
-# kind, kubectl and helm
+# kind and kubectl
 RUN curl -fsSLo /usr/local/bin/kind "https://kind.sigs.k8s.io/dl/$KIND_VERSION/kind-linux-amd64" \
     && curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl" \
-    && chmod +x /usr/local/bin/kind /usr/local/bin/kubectl \
-    && curl -fsSL "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz" \
-        | tar -xz -C /usr/local/bin --strip-components=1 linux-amd64/helm
+    && chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
 
 # go, to build the cli
 RUN curl -fsSL "https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz" | tar -xz -C /usr/local

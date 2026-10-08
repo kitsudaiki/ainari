@@ -2,7 +2,7 @@
 
 The dashboard loads its config at startup from `/config.json` of its own web-server. In the
 docker-compose setup of `src/dashboard/` the file `/etc/ainari/dashboard_config.json` is mounted
-there, in the kubernetes deployment it is created by the helm-chart.
+there, in the kubernetes deployment it is created by the operator.
 
 ## Options
 

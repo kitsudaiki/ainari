@@ -27,7 +27,7 @@ import (
 
 // LabelGenerated marks the secrets, which the operator generated. They don't belong to the
 // Ainari-resource, so they stay, when it is deleted, and can be found with this label.
-const LabelGenerated = "ainari.kitsunemimi.moe/generated"
+const LabelGenerated = "ainari.cloud/generated"
 
 // generatedSecret describes a secret, which the operator generates once.
 type generatedSecret struct {
@@ -49,9 +49,9 @@ type generatedKey struct {
 // Store creates the generated secrets and reads their values.
 //
 // A secret is only ever created, but never replaced: an existing secret is used as it is, also
-// one, which was created by someone else, like the helm-chart or a test-setup, and only missing
-// keys are added. So no restart of the operator and no change of the spec ever changes a key,
-// with which data was already encrypted, or a password, which a database already has. The
+// one, which was created by someone else, like a test-setup, and only missing keys are added. So
+// no restart of the operator and no change of the spec ever changes a key, with which data was
+// already encrypted, or a password, which a database already has. The
 // secrets are created immutable, so also nobody else can change them by accident. They have no
 // owner, so they outlive the Ainari-resource and a new one takes them over again.
 type Store struct {
@@ -107,7 +107,7 @@ func (s *Store) create(ctx context.Context, namespace string, spec generatedSecr
 			Namespace: namespace,
 			Labels:    labels,
 			Annotations: map[string]string{
-				"ainari.kitsunemimi.moe/note": "generated once by the ainari-operator and never changed, " +
+				"ainari.cloud/note": "generated once by the ainari-operator and never changed, " +
 					"deleting it loses the access to the data, which depends on it",
 			},
 		},

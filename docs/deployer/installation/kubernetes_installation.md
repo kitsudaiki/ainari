@@ -110,7 +110,7 @@ tags in the following steps.
     kubectl -n ainari-system rollout status deployment/ainari-operator
     ```
 
-    This installs the custom-resource-definition `ainaris.ainari.kitsunemimi.moe`, the operator
+    This installs the custom-resource-definition `ainaris.ainari.cloud`, the operator
     and its permissions. One operator serves all `Ainari`-resources of the cluster.
 
 1. **Ainari-resource**
@@ -120,7 +120,7 @@ tags in the following steps.
     `deploy/operator/api/v1alpha1/ainari_types.go`.
 
     ```yaml
-    apiVersion: ainari.kitsunemimi.moe/v1alpha1
+    apiVersion: ainari.cloud/v1alpha1
     kind: Ainari
     metadata:
       name: ainari

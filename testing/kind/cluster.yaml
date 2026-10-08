@@ -16,7 +16,8 @@
 #
 # It has only one node, like the local docker-compose setup has only one host. The api of the
 # components and the proxy-ports of torii are published as node-ports (port + 20000, see
-# global.external_services in values.yaml) and mapped back to their original ports on the host, so the
+# global.externalServices in deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml) and
+# mapped back to their original ports on the host, so the
 # cli, the sdk and the tests reach the kind-setup at the same addresses as the docker-compose one.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
