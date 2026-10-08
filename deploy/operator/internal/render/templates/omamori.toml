@@ -1,0 +1,14 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+{{ api "omamori" }}
+
+{{ mysql "omamori" }}
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[simple_crypto]
+key_b64 = {{ quote .Secrets.OmamoriEncryptionKey }}

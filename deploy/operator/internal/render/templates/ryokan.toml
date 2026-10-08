@@ -1,0 +1,14 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+[storage]
+tempfile_location = "/tmp/ryokan"
+
+{{ api "ryokan" }}
+
+{{ mysql "ryokan" }}
+
+[miko]
+address = {{ quote mikoAddress }}

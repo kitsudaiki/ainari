@@ -1,0 +1,23 @@
+debug = true
+log_path = ""
+skip_tls_verification = true
+
+{{ api "torii" }}
+
+[database]
+file_path = "/etc/ainari/torii/torii_db"
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[ports]
+min_port = {{ .Spec.Torii.PortRange.Start }}
+max_port = {{ .Spec.Torii.PortRange.End }}
+# the api is only reachable over the tls-termination, the proxies from the outside
+listen_ip = "0.0.0.0"
+
+[network]
+overlay_iface = {{ quote .Spec.Torii.Public.OverlayIface }}
+underlay_iface = "eth0"
+uplink_iface = {{ quote .Spec.Torii.Public.UplinkIface }}
+uplink_next_hop = {{ quote .Spec.Torii.Public.UplinkNextHop }}

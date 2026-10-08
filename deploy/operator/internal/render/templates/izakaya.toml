@@ -1,0 +1,16 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+{{ api "izakaya" }}
+
+{{ mysql "izakaya" }}
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[mls]
+grant_public_key = {{ quote .Secrets.MLSGrantPublicKey }}
+key_rotation_interval = {{ .Spec.Izakaya.KeyRotationInterval }}
+member_timeout = {{ .Spec.Izakaya.MemberTimeout }}

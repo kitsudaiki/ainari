@@ -1,0 +1,39 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+[auth]
+token_key_path = "/etc/ainari/token_key"
+token_expire_time = {{ .Spec.Miko.Token.ExpireTime }}
+
+{{ api "miko" }}
+
+{{ mysql "miko" }}
+
+[endpoints.hanami]
+public_address = {{ quote (publicAddress "hanami") }}
+internal_address = {{ quote (internalAddress "hanami") }}
+
+[endpoints.ryokan]
+public_address = {{ quote (publicAddress "ryokan") }}
+internal_address = {{ quote (internalAddress "ryokan") }}
+
+# Hanami derives the torii of every sakura-host from this address, by replacing the host with
+# the one of the sakura-host and keeping the port, and compares the resolved addresses. So it
+# points to the headless service of the gateway at the edge, which resolves to the address of
+# the pod itself, and to port 8444, where the tls-termination of every torii listens.
+[endpoints.torii]
+public_address = {{ quote (publicAddress "torii") }}
+internal_address = {{ quote (printf "https://torii-public.%s.svc.cluster.local:8444" .Namespace) }}
+
+[endpoints.omamori]
+public_address = {{ quote (publicAddress "omamori") }}
+internal_address = {{ quote (internalAddress "omamori") }}
+{{- if .Spec.Hanami.Network.MLSEncryption }}
+
+# only the other components talk to izakaya, it has no external api
+[endpoints.izakaya]
+public_address = ""
+internal_address = {{ quote (internalAddress "izakaya") }}
+{{- end }}

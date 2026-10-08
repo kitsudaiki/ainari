@@ -1,0 +1,17 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+{{ api "hanami" }}
+
+{{ mysql "hanami" }}
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[network]
+floating_ip_cidr = {{ quote .Spec.Hanami.Network.FloatingIPCIDR }}
+mls_encryption = {{ .Spec.Hanami.Network.MLSEncryption }}
+mls_grant_validity = {{ .Spec.Hanami.Network.MLSGrantValidity }}
+mls_grant_refresh_interval = {{ .Spec.Hanami.Network.MLSGrantRefreshInterval }}
