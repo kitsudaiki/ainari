@@ -6,10 +6,10 @@ read without the others:
 
 1. [Docker-compose setup](docker_compose_setup.md) (`make up local`): all components as
    docker-containers on the host, plain http
-2. [Kind setup](kind_setup.md) (`make up kind`): the helm-chart on a kubernetes-cluster of one
+2. [Kind setup](kind_setup.md) (`make up kind`): the operator on a kubernetes-cluster of one
    node in docker, https
-3. [Vagrant setup](vagrant_setup.md) (`make up vagrant`): the helm-chart on a kubernetes-cluster
-   of eight virtual machines with three replicas of the control-components, https
+3. [Vagrant setup](vagrant_setup.md) (`make up vagrant`): the operator on a kubernetes-cluster
+   of nine virtual machines with three replicas of the control-components, https
 4. [The CA of the kind- and the vagrant-setup](https_ca.md):
 
 All of them use the same floating ip-addresses (`10.0.0.0/24`), so only one of them can run at a
@@ -22,11 +22,11 @@ all required tools, for a test without installing them on the host.
 | ----------------------------------- | ------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
 | Start / stop                        | `make up local` / `make down local`   | `make up kind` / `make down kind`               | `make up vagrant` / `make down vagrant`                 |
 | Setup-script                        | `testing/local_stack/setup_local_stack.sh`        | `testing/kind/setup_kind_stack.sh`                   | `testing/vagrant/setup_vagrant_stack.sh`                        |
-| Deployment                          | `docker-compose.yml`                  | helm-chart `deploy/k8s/ainari`                  | helm-chart `deploy/k8s/ainari`                          |
+| Deployment                          | `docker-compose.yml`                  | operator `deploy/operator`                      | operator `deploy/operator`                              |
 | Docker-images                       | debian-based (`dockerfiles/debian_based`) | debian-based (`dockerfiles/debian_based`)   | nix-based (`dockerfiles/nix_based`), like the CI        |
-| Configuration                       | `testing/local_stack/configs`          | `deploy/k8s/kind/values.yaml`                   | `testing/vagrant/values.yaml`                           |
-| Runs on                             | docker-containers on the host         | one kubernetes-node in docker (kind)            | eight virtual machines with k3s (vagrant, libvirt)      |
-| Nodes                               | none                                  | 1                                               | 8 (3 management, mysql, onsen, gateway, 2 sakura-hosts) |
+| Configuration                       | `testing/local_stack/configs`          | `deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml` | `testing/vagrant/ainari.yaml`         |
+| Runs on                             | docker-containers on the host         | one kubernetes-node in docker (kind)            | nine virtual machines with k3s (vagrant, libvirt)       |
+| Nodes                               | none                                  | 1                                               | 9 (3 management, mysql, 2 onsen, gateway, 2 sakura)     |
 | Database of the control-components  | sqlite-files in the containers        | mysql-server within the cluster                 | mysql-server on its own virtual machine                 |
 | Replicas of the control-components  | 1                                     | 1                                               | 3, one on each management-machine                       |
 | Placement of the components         | all on the host                       | all on the one node                             | on the virtual machines with their label                |
@@ -40,9 +40,9 @@ all required tools, for a test without installing them on the host.
 | NAT of the virtual machines         | on the host                           | on the host                                     | on the virtual machine `ainari-torii`                   |
 | Virtualization of the sakura-hosts  | kvm of the host                       | kvm of the host                                 | nested kvm within the virtual machines                  |
 | Needs sudo for                      | the whole setup-script                | the veth-pair and the NAT-rules                 | only the route on the host                              |
-| Tools on the host                   | docker compose                        | kind, kubectl, helm, openssl                    | vagrant-libvirt, ansible, openssl                       |
+| Tools on the host                   | docker compose                        | kind, kubectl, openssl                          | vagrant-libvirt, ansible, openssl                       |
 | Host-sockets for the tools-container | docker                               | docker                                          | docker, libvirt                                         |
 | eBPF-support of the host-kernel     | required                              | required                                        | not required                                            |
-| Resources                           | smallest                              | small                                           | about 32 GiB memory, 40 GiB disk                        |
+| Resources                           | smallest                              | small                                           | about 34 GiB memory, 40 GiB disk                        |
 | Time to start                       | fast                                  | a few minutes                                   | longest (virtual machines, k3s)                         |
-| Suited for                          | fast development of the components    | testing the helm-chart                          | testing a real multi-node deployment                    |
+| Suited for                          | fast development of the components    | testing the operator                            | testing a real multi-node deployment                    |
