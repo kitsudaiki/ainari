@@ -12,6 +12,12 @@ ainari_env
 .claude
 deploy
 testing
+# only the sources of the operator, which dockerfiles/nix_based/Dockerfile_operator builds
+!deploy/operator/go.mod
+!deploy/operator/go.sum
+!deploy/operator/cmd
+!deploy/operator/api
+!deploy/operator/internal
 **/__pycache__
 **/*.egg-info
 

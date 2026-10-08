@@ -63,8 +63,8 @@ run: generate fmt vet ## Run the operator against the cluster of the current kub
 	go run ./cmd
 
 .PHONY: docker-build
-docker-build: ## Build the image of the operator.
-	docker build -t $(IMG) .
+docker-build: ## Build the image of the operator with dockerfiles/nix_based/Dockerfile_operator.
+	docker build -f ../../dockerfiles/nix_based/Dockerfile_operator -t $(IMG) ../..
 
 .PHONY: docker-push
 docker-push: ## Push the image of the operator.

@@ -1,0 +1,97 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Image of the kubernetes-operator of deploy/operator, which deploys the whole stack of an
+# Ainari-resource.
+#
+# The go-toolchain and all packages of the image come from the flake of dockerfiles/nix_based/nix,
+# which pins them in its flake.lock, and the go-modules are pinned by deploy/operator/go.sum. The
+# image is built 'FROM scratch' and contains nothing else than the packages of 'runtime-operator'
+# of dockerfiles/nix_based/nix/packages.nix and the operator. The list of these packages is in
+# /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
+#
+# build: docker build -f dockerfiles/nix_based/Dockerfile_operator -t ainari/operator:local .
+
+ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
+
+# ==========================================
+# nix with the flake of this repository
+# ==========================================
+FROM ${NIX_IMAGE} AS nix
+
+# The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
+# another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is
+# already disabled within the container, so the filter doesn't protect anything here.
+RUN printf '%s\n' "experimental-features = nix-command flakes" "filter-syscalls = false" \
+        >> /etc/nix/nix.conf
+COPY dockerfiles/nix_based/nix /nix-flake
+
+# ==========================================
+# STAGE 1: Builder
+# ==========================================
+FROM nix AS builder
+
+RUN nix develop path:/nix-flake#operator --command true
+
+WORKDIR /build
+
+# Only the toolchain of the flake is used, never one, which go would download for a newer
+# go-directive of go.mod, and go.sum is never changed by the build.
+ENV GOTOOLCHAIN=local \
+    GOFLAGS=-mod=readonly
+
+# the modules are downloaded before the code is copied, so a change of the code doesn't download
+# them again
+COPY deploy/operator/go.mod deploy/operator/go.sum ./
+RUN --mount=type=cache,target=/root/go/pkg/mod,sharing=locked \
+    nix develop path:/nix-flake#operator --command go mod download
+
+COPY deploy/operator/cmd cmd
+COPY deploy/operator/api api
+COPY deploy/operator/internal internal
+
+# The operator is linked statically, so it references no library of the nix-store. -trimpath
+# removes the paths of the toolchain and of the build out of the binary.
+RUN --mount=type=cache,target=/root/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,id=ainari-operator-build,sharing=locked \
+    mkdir -p /out && \
+    nix develop path:/nix-flake#operator --command \
+        env CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/operator ./cmd
+
+# ==========================================
+# STAGE 2: Root-filesystem of the runtime
+# ==========================================
+FROM nix AS rootfs
+
+# the packages are downloaded before the binary is copied, so a change of the source-code doesn't
+# download them again
+RUN nix build --no-link path:/nix-flake#runtime-operator
+
+COPY --from=builder /out/operator /rootfs/app/operator
+RUN /nix-flake/make_rootfs.sh /rootfs runtime-operator ainari
+
+# ==========================================
+# STAGE 3: Minimal Runtime
+# ==========================================
+FROM scratch
+
+COPY --from=rootfs /rootfs /
+ENV PATH=/usr/local/bin:/usr/bin \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+# The user is given by its id, because kubernetes can only check a numeric user against
+# 'runAsNonRoot' of the deployment of the operator.
+USER 1000:1000
+
+ENTRYPOINT ["/app/operator"]

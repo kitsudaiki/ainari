@@ -187,7 +187,7 @@ fi
 # in this working tree. The debian-based images are used, because they are easier to debug.
 KVM_GID="$KVM_GID" "$PROJECT_DIR/testing/kind/build_local_images.sh" debian
 echo "Building the image of the operator ..."
-docker build -t "$OPERATOR_IMAGE" "$OPERATOR_DIR"
+docker build -f "$PROJECT_DIR/dockerfiles/nix_based/Dockerfile_operator" -t "$OPERATOR_IMAGE" "$PROJECT_DIR"
 
 # ---------------------------------------------------------------------------------------------
 # create the cluster

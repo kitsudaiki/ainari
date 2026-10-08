@@ -457,9 +457,8 @@ jobs:
           - { component: "onsen",       file: "Dockerfile_services", target: "onsen", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/onsen"              }
           - { component: "dashboard",   file: "Dockerfile_dashboard", target: "", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_dashboard"   }
           - { component: "dashboard",   file: "Dockerfile_dashboard", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_dashboard"   }
-          # the operator is a go-module of its own, which has its Dockerfile next to its code
-          - { component: "operator",    dockerfile: "./ainari/deploy/operator/Dockerfile", context: "./ainari/deploy/operator", target: "", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_operator" }
-          - { component: "operator",    dockerfile: "./ainari/deploy/operator/Dockerfile", context: "./ainari/deploy/operator", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_operator" }
+          - { component: "operator",    file: "Dockerfile_operator", target: "", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/ainari_operator"    }
+          - { component: "operator",    file: "Dockerfile_operator", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/ainari_operator"    }
     runs-on: ${{ matrix.builds.runner }}
     steps:
       -
@@ -506,8 +505,8 @@ jobs:
         id: build
         uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
         with:
-          context: ${{ matrix.builds.context || './ainari' }}
-          file: ${{ matrix.builds.dockerfile || format('./ainari/dockerfiles/nix_based/{0}', matrix.builds.file) }}
+          context: ./ainari
+          file: ./ainari/dockerfiles/nix_based/${{ matrix.builds.file }}
           # the rust-components share one Dockerfile, which has a target for every component.
           # Every image is built on its own runner, so only its own component is compiled.
           target: ${{ matrix.builds.target }}

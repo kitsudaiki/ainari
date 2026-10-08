@@ -15,7 +15,7 @@ ignored.
 ## Installation
 
 ```bash
-# build and push the image
+# build the image with dockerfiles/nix_based/Dockerfile_operator and push it
 make docker-build docker-push IMG=<registry>/ainari_operator:<tag>
 
 # install the CRD and the operator into the namespace 'ainari-system'

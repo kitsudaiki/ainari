@@ -107,7 +107,7 @@ fi
 # in this working tree. The nix-based images are used, which are the same as the ones of the CI.
 "$PROJECT_DIR/testing/vagrant/build_local_images.sh" nix
 echo "Building the image of the operator ..."
-docker build -t ainari/operator:local "$PROJECT_DIR/deploy/operator"
+docker build -f "$PROJECT_DIR/dockerfiles/nix_based/Dockerfile_operator" -t ainari/operator:local "$PROJECT_DIR"
 
 echo "Saving the images for the virtual machines ..."
 mkdir -p "$IMAGE_DIR"
