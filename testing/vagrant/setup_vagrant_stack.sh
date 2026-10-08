@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Starts the setup of testing/vagrant: eight virtual machines with nested virtualization and a
-# kubernetes-cluster (k3s), on which ansible deploys the helm-chart of deploy/k8s/ainari. Miko,
+# Starts the setup of testing/vagrant: nine virtual machines with nested virtualization and a
+# kubernetes-cluster (k3s), on which ansible installs the operator of deploy/operator, which deploys
+# the stack of the Ainari-resource of testing/vagrant/ainari.yaml. Miko,
 # hanami, ryokan, omamori and izakaya run with one replica on each of the three management-machines and
-# share the mysql-server on the machine ainari-mysql. Onsen runs on its own machine ainari-onsen.
+# share the mysql-server on the machine ainari-mysql. Onsen runs twice, on its own machines ainari-onsen and ainari-onsen-2.
 # The images are built on the host and copied
 # into the virtual machines.
 #
@@ -53,7 +54,7 @@ MGMT_VM_ADDRESS="192.168.56.10"
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
-IMAGES=(miko omamori izakaya ryokan onsen hanami sakura torii dashboard)
+IMAGES=(miko omamori izakaya ryokan onsen hanami sakura torii dashboard operator)
 
 SUDO=""
 if [ "$EUID" -ne 0 ]; then
@@ -105,6 +106,8 @@ fi
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree. The nix-based images are used, which are the same as the ones of the CI.
 "$PROJECT_DIR/testing/vagrant/build_local_images.sh" nix
+echo "Building the image of the operator ..."
+docker build -t ainari/operator:local "$PROJECT_DIR/deploy/operator"
 
 echo "Saving the images for the virtual machines ..."
 mkdir -p "$IMAGE_DIR"
@@ -148,6 +151,7 @@ echo "share the mysql-server on ainari-mysql. The api is reachable over every vi
 echo ""
 echo "The cluster can be inspected with"
 echo "    kubectl --kubeconfig $WORK_DIR/kubeconfig --namespace ainari get pods -o wide"
+echo "    kubectl --kubeconfig $WORK_DIR/kubeconfig --namespace ainari get ainari ainari -o yaml"
 echo "and the virtual machines with 'vagrant ssh <name>' in $VAGRANT_DIR."
 echo ""
 echo "Now the test can be started as a normal user:"

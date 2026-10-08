@@ -26,8 +26,8 @@
 # of the CI. The kind-setup uses 'debian' and the vagrant-setup 'nix'.
 #
 # The id of the group of /dev/kvm, which sakura is built with, can be given with KVM_GID. It
-# defaults to the one of the host. The pods get the id of their node anyway, see sakura.kvm_gid
-# in the values of the helm-chart.
+# defaults to the one of the host. The pods get the id of their node anyway, see sakura.kvmGid
+# in the Ainari-resource.
 
 set -e
 

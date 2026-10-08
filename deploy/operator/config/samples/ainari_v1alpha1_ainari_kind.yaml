@@ -56,7 +56,10 @@ spec:
   izakaya:
     image: ainari/izakaya:local
 
+  # two onsen, each with its own volume, which register themselves at ryokan with their own
+  # address, so the images are spread over both
   onsen:
+    replicas: 2
     image: ainari/onsen:local
 
   # two sakura-hosts, so a virtual machine can land on either of them and the traffic between

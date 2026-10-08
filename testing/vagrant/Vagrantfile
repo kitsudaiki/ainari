@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Eight virtual machines with a kubernetes-cluster (k3s), on which the helm-chart of
-# deploy/k8s/ainari deploys the whole stack. It is started by testing/vagrant/setup_vagrant_stack.sh
+# Nine virtual machines with a kubernetes-cluster (k3s), on which the operator of deploy/operator
+# deploys the whole stack. It is started by testing/vagrant/setup_vagrant_stack.sh
 # ('make up vagrant'), which builds the images and the CA before.
 #
 #   ainari-mgmt-1    192.168.56.10   k3s-server and one replica of miko, hanami, ryokan, omamori
 #   ainari-mgmt-2    192.168.56.14   one replica of miko, hanami, ryokan, omamori
 #   ainari-mgmt-3    192.168.56.15   one replica of miko, hanami, ryokan, omamori
 #   ainari-mysql     192.168.56.16   the mysql-server, which all replicas share
-#   ainari-onsen     192.168.56.17   onsen, which stores the images of the virtual machines
+#   ainari-onsen     192.168.56.17   one onsen, which stores the images of the virtual machines
+#   ainari-onsen-2   192.168.56.18   the other onsen
 #   ainari-torii     192.168.56.11   the gateway at the edge of the network (torii-public)
 #   ainari-sakura-1  192.168.56.12   the first sakura-host with the torii in front of it
 #   ainari-sakura-2  192.168.56.13   the second sakura-host with the torii in front of it
@@ -48,6 +49,7 @@ NODES = [
   { name: "ainari-mgmt-3",   ip: "192.168.56.15", cpus: 2, memory: 4096, group: "management" },
   { name: "ainari-mysql",    ip: "192.168.56.16", cpus: 2, memory: 2048, group: "mysql" },
   { name: "ainari-onsen",    ip: "192.168.56.17", cpus: 2, memory: 2048, group: "onsen" },
+  { name: "ainari-onsen-2",  ip: "192.168.56.18", cpus: 2, memory: 2048, group: "onsen" },
   { name: "ainari-torii",    ip: "192.168.56.11", cpus: 2, memory: 2048, group: "torii" },
   { name: "ainari-sakura-1", ip: "192.168.56.12", cpus: 4, memory: 6144, group: "sakura" },
   { name: "ainari-sakura-2", ip: "192.168.56.13", cpus: 4, memory: 6144, group: "sakura" },

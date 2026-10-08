@@ -26,7 +26,8 @@
 
 set -u
 
-# the host-side of the veth-pair is the next hop of the gateway (torii.public.network in the values)
+# the host-side of the veth-pair is the next hop of the gateway (torii.public.uplinkNextHop in
+# testing/vagrant/ainari.yaml)
 HOST_IFACE="veth-uplink"
 HOST_ADDRESS="10.0.0.1/24"
 GATEWAY_IFACE="veth-gw"

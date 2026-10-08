@@ -5,9 +5,11 @@
 ### Purpose
 
 Starts the same setup as [setup_local_stack.sh](../local_stack/setup_local_stack.sh), but on a
-kind-cluster (kubernetes in docker) with the helm-chart of `deploy/k8s/ainari`, and connects the
-host to it. The debian-based images are built with [build_local_images.sh](build_local_images.sh)
-and loaded into the cluster.
+kind-cluster (kubernetes in docker), and connects the host to it. The stack is deployed by the
+operator of `deploy/operator` from the `Ainari`-resource
+`deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml`. The debian-based images and the
+image of the operator are built with [build_local_images.sh](build_local_images.sh) and docker and
+loaded into the cluster.
 The components talk https to each other with certificates of cert-manager, which are signed by the
 CA of [create_local_ca.sh](create_local_ca.sh). See
 [Kind setup](../../docs/developer/local_testing/kind_setup.md) for the details of the setup.
@@ -24,8 +26,8 @@ The binary of kind can be given with `KIND`. `make up kind` downloads kind into
 
 ### Limitations
 
-- `docker`, `kind`, `kubectl`, `helm` and `openssl` have to be installed and the host needs
-  `/dev/kvm` and a kernel with eBPF/XDP-support.
+- `docker`, `kind`, `kubectl` and `openssl` have to be installed and the host needs `/dev/kvm`
+  and a kernel with eBPF/XDP-support.
 - The network-setup needs root, so the script asks for the password of sudo.
 - Every start deletes the previous deployment with its databases, so no state is kept between two
   runs.

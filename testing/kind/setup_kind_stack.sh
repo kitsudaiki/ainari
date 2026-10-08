@@ -15,8 +15,9 @@
 # limitations under the License.
 #
 # Starts the same setup as testing/local_stack/setup_local_stack.sh, but on a kind-cluster (kubernetes in
-# docker) with the helm-chart of deploy/k8s/ainari, and connects the host to it. The images are
-# built with docker and loaded into the cluster.
+# docker), and connects the host to it. The stack is deployed by the operator of deploy/operator
+# from the Ainari-resource deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml. The
+# images of the components and of the operator are built with docker and loaded into the cluster.
 #
 # The network-setup needs root, so the script asks for it with sudo: the veth-pair towards the
 # gateway at the edge is moved into the network-namespace of its pod and the host has to forward
@@ -35,11 +36,18 @@ set -e
 # make it continue at a random position of the new content.
 {
 
+DOWN=false
+for arg in "$@"; do
+    case "$arg" in
+        --down) DOWN=true ;;
+        *) echo "Usage: $0 [--down]"; exit 1 ;;
+    esac
+done
+
 CLUSTER_NAME="ainari"
 NODE="${CLUSTER_NAME}-control-plane"
 CONTEXT="kind-${CLUSTER_NAME}"
 NAMESPACE="ainari"
-RELEASE="ainari"
 # the components talk https to each other with self-signed certificates of cert-manager
 CERT_MANAGER_VERSION="v1.18.2"
 KIND="${KIND:-kind}"
@@ -72,11 +80,17 @@ IMAGES=(
     ainari/sakura:local
     ainari/torii:local
     ainari/dashboard:local
+    ainari/operator:local
 )
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CHART_DIR="$PROJECT_DIR/deploy/k8s/ainari"
 KIND_DIR="$PROJECT_DIR/deploy/k8s/kind"
+
+# The operator runs in a namespace of its own and deploys the stack of the Ainari-resource.
+OPERATOR_DIR="$PROJECT_DIR/deploy/operator"
+OPERATOR_IMAGE="ainari/operator:local"
+OPERATOR_NAMESPACE="ainari-system"
+AINARI_RESOURCE="$OPERATOR_DIR/config/samples/ainari_v1alpha1_ainari_kind.yaml"
 
 # CA, which signs the certificates of all components. It is created once and kept over all runs,
 # so it only has to be added to the trust-store of the host once. Its name-constraints limit it
@@ -92,9 +106,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 KUBECTL=(kubectl --context "$CONTEXT" --namespace "$NAMESPACE")
-HELM=(helm --kube-context "$CONTEXT" --namespace "$NAMESPACE")
 
-for tool in docker "$KIND" kubectl helm openssl; do
+for tool in docker "$KIND" kubectl openssl; do
     if ! command -v "$tool" > /dev/null 2>&1; then
         echo "'$tool' not found, but it is required for the kind-setup."
         exit 1
@@ -127,7 +140,7 @@ DEFAULT_IF=$(ip route show default | awk '/default/ {print $5}' | head -n 1)
 echo "Cleaning up a previous setup ..."
 $SUDO ip link delete "$HOST_IFACE" > /dev/null 2>&1 || true
 
-if [ "$1" == "--down" ]; then
+if [ "$DOWN" == true ]; then
     if [ -n "$DEFAULT_IF" ]; then
         remove_nat_rules "$DEFAULT_IF"
     fi
@@ -173,6 +186,8 @@ fi
 # Always rebuild first: starting with stale images silently runs a different version than the one
 # in this working tree. The debian-based images are used, because they are easier to debug.
 KVM_GID="$KVM_GID" "$PROJECT_DIR/testing/kind/build_local_images.sh" debian
+echo "Building the image of the operator ..."
+docker build -t "$OPERATOR_IMAGE" "$OPERATOR_DIR"
 
 # ---------------------------------------------------------------------------------------------
 # create the cluster
@@ -209,19 +224,18 @@ echo "Loading the images into the cluster ..."
 "$KIND" load docker-image --name "$CLUSTER_NAME" "${IMAGES[@]}"
 
 # ---------------------------------------------------------------------------------------------
-# deploy the helm-chart
+# deploy the stack
 # ---------------------------------------------------------------------------------------------
 # The setup keeps no state on purpose, like the docker-compose one: every run starts with empty
 # databases and the new images, so a test never sees the virtual machines of a previous run.
-if "${HELM[@]}" status "$RELEASE" > /dev/null 2>&1; then
-    echo "Removing the previous deployment ..."
-    "${HELM[@]}" uninstall "$RELEASE" --wait
-fi
+# Deleting the namespace removes the Ainari-resource with all components and the secrets, which
+# the operator generated.
 if "${KUBECTL[@]}" get namespace "$NAMESPACE" > /dev/null 2>&1; then
+    echo "Removing the previous namespace $NAMESPACE ..."
     kubectl --context "$CONTEXT" delete namespace "$NAMESPACE" --wait
 fi
 # the sakura-hosts and their gateways keep their data in a directory of the node (see
-# sakura.host_data_path), which outlives the namespace
+# sakura.hostDataPath), which outlives the namespace
 docker exec "$NODE" rm -rf /etc/ainari
 
 "$PROJECT_DIR/testing/kind/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari kind-setup CA" \
@@ -230,10 +244,25 @@ docker exec "$NODE" rm -rf /etc/ainari
 "${KUBECTL[@]}" create namespace "$NAMESPACE" > /dev/null
 "${KUBECTL[@]}" create secret tls "$CA_SECRET" --cert "$CA_CERT" --key "$CA_KEY" > /dev/null
 
-echo "Deploying the helm-chart ..."
-"${HELM[@]}" install "$RELEASE" "$CHART_DIR" \
-    --values "$KIND_DIR/values.yaml" \
-    --set "sakura.kvm_gid=$NODE_KVM_GID"
+echo "Deploying the operator ..."
+kubectl --context "$CONTEXT" kustomize "$OPERATOR_DIR/config/default" \
+    | sed "s|kitsudaiki/ainari_operator:develop|$OPERATOR_IMAGE|" \
+    | kubectl --context "$CONTEXT" apply --server-side --force-conflicts -f - > /dev/null
+kubectl --context "$CONTEXT" wait crd/ainaris.ainari.kitsunemimi.moe \
+    --for=condition=Established --timeout=60s > /dev/null
+# The image always has the same tag, so a running operator is restarted to get the new one.
+kubectl --context "$CONTEXT" --namespace "$OPERATOR_NAMESPACE" \
+    rollout restart deployment/ainari-operator > /dev/null
+kubectl --context "$CONTEXT" --namespace "$OPERATOR_NAMESPACE" \
+    rollout status deployment/ainari-operator --timeout=120s
+
+# The operator generates all keys and passwords, but takes over a secret, which already exists,
+# and never replaces it. So the passphrase of the test-user, which the cli and the tests use, is
+# created before.
+"${KUBECTL[@]}" create secret generic miko-admin --from-literal=passphrase=asdfasdf > /dev/null
+
+echo "Creating the Ainari-resource ..."
+sed "s/^\( *kvmGid:\).*/\1 $NODE_KVM_GID/" "$AINARI_RESOURCE" | "${KUBECTL[@]}" apply -f - > /dev/null
 
 # ---------------------------------------------------------------------------------------------
 # connect the host to the gateway at the edge of the network
@@ -298,11 +327,11 @@ fi
 # wait for the components
 # ---------------------------------------------------------------------------------------------
 echo "Waiting for the components to become ready ..."
-for resource in statefulset/mysql deployment/miko deployment/omamori deployment/izakaya \
-                deployment/ryokan deployment/hanami deployment/torii-public deployment/dashboard \
-                statefulset/onsen statefulset/sakura; do
-    "${KUBECTL[@]}" rollout status "$resource" --timeout=600s
-done
+# the operator reports the readiness of all components in the status of the resource
+if ! "${KUBECTL[@]}" wait ainari/ainari --for=condition=Ready --timeout=900s; then
+    "${KUBECTL[@]}" get ainari/ainari -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}{"\n"}'
+    exit 1
+fi
 
 echo ""
 echo "The stack is up. The api is reachable over https at:"
@@ -320,6 +349,8 @@ echo "for every port and the clients have to skip their verification."
 echo ""
 echo "The cluster can be inspected with"
 echo "    kubectl --context $CONTEXT --namespace $NAMESPACE get pods"
+echo "    kubectl --context $CONTEXT --namespace $NAMESPACE get ainari ainari -o yaml"
+echo "    kubectl --context $CONTEXT --namespace $OPERATOR_NAMESPACE logs deployment/ainari-operator"
 echo ""
 echo "The two sakura-hosts (the pods sakura-0 and sakura-1, each with its own torii) register"
 echo "themselves in hanami, as soon as it is up."

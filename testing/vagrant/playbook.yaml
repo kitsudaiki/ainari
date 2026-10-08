@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Installs k3s on the virtual machines of testing/vagrant/Vagrantfile and deploys the helm-chart of
-# deploy/k8s/ainari on it. It is run by vagrant once for all virtual machines, see
+# Installs k3s on the virtual machines of testing/vagrant/Vagrantfile, installs the operator of
+# deploy/operator on it and creates the Ainari-resource of testing/vagrant/ainari.yaml, from which
+# the operator deploys the stack. It is run by vagrant once for all virtual machines, see
 # testing/vagrant/setup_vagrant_stack.sh, which builds the images and the CA before.
 #
 # Groups:
@@ -117,7 +118,8 @@
       mysql: []
       torii: [torii]
       sakura: [sakura, torii]
-    images: "{{ group_names | map('extract', images_of_group) | flatten | unique }}"
+    # the operator can be scheduled on every node, so every node gets its image
+    images: "{{ (group_names | map('extract', images_of_group) | flatten + ['operator']) | unique }}"
   tasks:
     - name: Create the directory for the images
       ansible.builtin.file:
@@ -183,7 +185,8 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   vars:
     k8s_namespace: ainari
-    release: ainari
+    operator_namespace: ainari-system
+    operator_image: ainari/operator:local
     kvm_gid_host: "{{ groups['sakura'][0] }}"
   tasks:
     - name: Wait until all nodes are registered and ready
@@ -198,7 +201,7 @@
       until: ready_nodes.stdout | int == groups['all'] | length
       changed_when: false
 
-    # Every component runs only on the nodes with its label (global.strict_scheduling) and never
+    # Every component runs only on the nodes with its label (global.strictScheduling) and never
     # twice on the same node, so the three replicas of the control-components are spread over the
     # three management-nodes.
     - name: Label the nodes
@@ -213,14 +216,6 @@
            + groups['sakura'] | product(['sakura-node']) | list }}
       changed_when: true
 
-    - name: Install helm
-      ansible.builtin.unarchive:
-        src: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
-        dest: /usr/local/bin
-        remote_src: true
-        extra_opts: [--strip-components=1, linux-amd64/helm]
-        creates: /usr/local/bin/helm
-
     - name: Install cert-manager
       ansible.builtin.command: >
         kubectl apply -f
@@ -233,20 +228,34 @@
         kubectl --namespace cert-manager wait deployment --all --for=condition=Available --timeout=300s
       changed_when: false
 
-    - name: Remove the helm-chart of a previous run
+    - name: Remove the manifests of the operator of a previous run
       ansible.builtin.file:
-        path: /opt/ainari/ainari
+        path: /opt/ainari/operator
         state: absent
 
-    - name: Copy the helm-chart and its values
+    - name: Copy the manifests of the operator and the Ainari-resource
       ansible.builtin.copy:
         src: "{{ item.src }}"
         dest: "{{ item.dest }}"
         mode: "0644"
         directory_mode: "0755"
       loop:
-        - { src: "{{ repo_dir }}/deploy/k8s/ainari", dest: /opt/ainari/ }
-        - { src: values.yaml, dest: /opt/ainari/values.yaml }
+        - { src: "{{ repo_dir }}/deploy/operator/config/", dest: /opt/ainari/operator/ }
+        - { src: ainari.yaml, dest: /opt/ainari/ainari.yaml }
+
+    # The image always has the same tag, so a running operator is restarted to get the new one.
+    - name: Install the operator
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl kustomize /opt/ainari/operator/default \
+          | sed "s|kitsudaiki/ainari_operator:develop|{{ operator_image }}|" \
+          | kubectl apply --server-side --force-conflicts -f -
+        kubectl wait crd/ainaris.ainari.kitsunemimi.moe --for=condition=Established --timeout=60s
+        kubectl --namespace {{ operator_namespace }} rollout restart deployment/ainari-operator
+        kubectl --namespace {{ operator_namespace }} rollout status deployment/ainari-operator --timeout=300s
+      args:
+        executable: /bin/bash
+      changed_when: true
 
     - name: Copy the CA
       ansible.builtin.copy:
@@ -265,15 +274,14 @@
 
     # The setup keeps no state on purpose, like the other local setups: every run starts with empty
     # databases and the new images, so a test never sees the virtual machines of a previous run.
+    # Deleting the namespace removes the Ainari-resource with all components and the secrets, which
+    # the operator generated.
     - name: Remove the previous deployment
-      ansible.builtin.shell: |
-        helm status --namespace {{ k8s_namespace }} {{ release }} > /dev/null 2>&1 \
-          && helm uninstall --namespace {{ k8s_namespace }} {{ release }} --wait
-        kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
+      ansible.builtin.command: kubectl delete namespace {{ k8s_namespace }} --ignore-not-found --wait
       changed_when: true
 
     # the sakura-hosts and their gateways keep their data in a directory of the node (see
-    # sakura.host_data_path), which outlives the namespace
+    # sakura.hostDataPath), which outlives the namespace
     - name: Remove the data of the previous deployment on the sakura-hosts
       ansible.builtin.file:
         path: /etc/ainari
@@ -288,28 +296,28 @@
           --cert /opt/ainari/ainari-vagrant-ca.crt --key /opt/ainari/ainari-vagrant-ca.key
       changed_when: true
 
-    - name: Install the helm-chart
+    # The operator generates all keys and passwords, but takes over a secret, which already
+    # exists, and never replaces it. So the passphrase of the test-user, which the cli and the tests
+    # use, is created before.
+    - name: Create the passphrase of the test-user
       ansible.builtin.command: >
-        helm install {{ release }} /opt/ainari/ainari
-        --namespace {{ k8s_namespace }}
-        --values /opt/ainari/values.yaml
-        --set sakura.kvm_gid={{ kvm_gid.stdout }}
+        kubectl --namespace {{ k8s_namespace }} create secret generic miko-admin
+        --from-literal=passphrase=asdfasdf
       changed_when: true
 
+    - name: Create the Ainari-resource
+      ansible.builtin.shell: |
+        set -o pipefail
+        sed "s/^\( *kvmGid:\).*/\1 {{ kvm_gid.stdout }}/" /opt/ainari/ainari.yaml \
+          | kubectl --namespace {{ k8s_namespace }} apply -f -
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    # the operator reports the readiness of all components in the status of the resource
     - name: Wait for the components
       ansible.builtin.command: >
-        kubectl --namespace {{ k8s_namespace }} rollout status {{ item }} --timeout=600s
-      loop:
-        - statefulset/mysql
-        - deployment/miko
-        - deployment/omamori
-        - deployment/izakaya
-        - deployment/ryokan
-        - deployment/hanami
-        - deployment/dashboard
-        - deployment/torii-public
-        - statefulset/onsen
-        - statefulset/sakura
+        kubectl --namespace {{ k8s_namespace }} wait ainari/ainari --for=condition=Ready --timeout=900s
       changed_when: false
 
     - name: Provide the kubeconfig for the host
