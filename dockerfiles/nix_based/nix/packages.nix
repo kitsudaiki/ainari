@@ -110,6 +110,17 @@ let
     }
   );
 
+  # toolchain of the kubernetes-operator, nixos-26.05 has only 1.26.8, but 1.26.9 fixes the
+  # vulnerabilities GO-2026-6603, GO-2026-6610, GO-2026-6611, GO-2026-6612 and GO-2026-6617 of the
+  # standard-library. deploy/operator/go.mod requires 1.26.9 and the build doesn't download it.
+  go = pkgs.go_1_26.overrideAttrs (finalAttrs: _: {
+    version = "1.26.9";
+    src = pkgs.fetchurl {
+      url = "https://go.dev/dl/go${finalAttrs.version}.src.tar.gz";
+      hash = "sha256-lzXX3Ntls10/pXfwQGRzfAO4nPGitx5uaf4vPG+f1Mo=";
+    };
+  });
+
   # firmware, which boots the virtual machines of cloud-hypervisor
   cloudHypervisorFirmware = "${pkgs.OVMF-cloud-hypervisor.fd}/FV/${
     if pkgs.stdenv.hostPlatform.isAarch64 then "CLOUDHV_EFI.fd" else "CLOUDHV.fd"
@@ -362,7 +373,7 @@ in
 
     # toolchain of the kubernetes-operator (dockerfiles/nix_based/Dockerfile_operator)
     operator = pkgs.mkShell {
-      packages = [ pkgs.go ];
+      packages = [ go ];
     };
 
     # builds the documentation (dockerfiles/nix_based/Dockerfile_docs)
