@@ -428,13 +428,32 @@ jobs:
             CONFIG_FILE="${RUNNER_TEMP}/${component}_mysql.toml" \
               cargo test -p "${component}" -- --test-threads=1
           done
-    
+
+  operator_tests:
+    name: "Go Test Operator"
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: deploy/operator/go.mod
+          cache-dependency-path: deploy/operator/go.sum
+
+      - name: Run tests
+        run: |
+          cd deploy/operator
+          # downloads the binaries of the api-server for the controller-tests via setup-envtest
+          make test
+
     
 
   docker_build:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build"
-    needs: [ cargo_tests, build_ainari_debug, build_ainarictl, build_python_package ]
+    needs: [ cargo_tests, operator_tests, build_ainari_debug, build_ainarictl, build_python_package ]
     strategy:
       fail-fast: false
       matrix:        
