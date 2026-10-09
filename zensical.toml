@@ -35,6 +35,7 @@ nav = [
       "user/rest_api/rest_api_docu_ryokan.md",
       "user/rest_api/rest_api_docu_torii.md",
       "user/rest_api/rest_api_docu_omamori.md",
+      "user/rest_api/rest_api_docu_izakaya.md",
     ] },
   ] },
   { "Deployer/Admin-Docu" = [

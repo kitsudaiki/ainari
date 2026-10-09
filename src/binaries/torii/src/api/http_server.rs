@@ -26,6 +26,7 @@ use std::error::Error;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
+use ainari_api::endpoints::get_version_v1_0::GIT_VERSION;
 
 use crate::config;
 
@@ -83,7 +84,7 @@ pub async fn run_server() -> Result<(), impl Error> {
                     url: Some("http://www.apache.org/licenses/LICENSE-2.0.html".to_string()),
                     ..Default::default()
                 }),
-                version: "0.9.0".to_string(),
+                version: GIT_VERSION.clone(),
                 ..Default::default()
             },
             external_docs: Some(ExternalDocumentation {

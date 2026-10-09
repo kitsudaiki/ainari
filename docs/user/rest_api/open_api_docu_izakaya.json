@@ -1,0 +1,1193 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Izakaya-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "unknown"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/key_package/internal": {
+      "post": {
+        "tags": [
+          "key_package"
+        ],
+        "summary": "Upload key-packages",
+        "description": "Upload MLS key-packages of a gateway, so other gateways can invite it into their groups.\\\n\\\nEvery key-package is validated before it is stored: it has to be correctly signed, must not be\\\nexpired and the identity of its credential has to be the `client_id` of the request. If one of\\\nthem is invalid, none of them is stored.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyPackageUploadReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "KeyPackageUploadResp",
+                  "type": "object",
+                  "required": [
+                    "client_id",
+                    "uuids"
+                  ],
+                  "properties": {
+                    "client_id": {
+                      "type": "string"
+                    },
+                    "uuids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/key_package/{client_id}/claim/internal": {
+      "post": {
+        "tags": [
+          "key_package"
+        ],
+        "summary": "Claim key-package",
+        "description": "Claim one MLS key-package of a gateway to invite it into a group.\\\n\\\nA key-package can only be used for one invitation, so it is removed with the claim. The newest\\\nkey-package of the gateway is handed out first. If a signature-key is given, only a key-package\\\nwith exactly this key is handed out.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyPackageClaimReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyPackageResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/key_package/{client_id}/count/internal": {
+      "get": {
+        "tags": [
+          "key_package"
+        ],
+        "summary": "Count key-packages",
+        "description": "Count the MLS key-packages of a gateway, which can still be claimed.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyPackageCountResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_grant/internal": {
+      "post": {
+        "tags": [
+          "mls_grant"
+        ],
+        "summary": "Store membership-grant",
+        "description": "Store a membership-grant of hanami for a gateway and the group of a network.\\\n\\\nOnly a grant with a valid signature of hanami is accepted. A grant, which adds the gateway, allows\\\nit to subscribe to the group. A grant, which removes it, drops its grant and removes it from the\\\ngroup, which rotates the keys of the remaining members.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsGrantReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_group/{vni}/subscribe/internal": {
+      "post": {
+        "tags": [
+          "mls_group"
+        ],
+        "summary": "Subscribe to MLS-group",
+        "description": "Subscribe a gateway to the MLS-group of a network, because it serves a VM of it.\\\n\\\nThe gateway needs a membership-grant of hanami. If the network has no group yet, the gateway\\\ncreates it and becomes its committer. Otherwise the committer adds it and the gateway gets a\\\nwelcome. A gateway, which is member already, but lost the group, is added again.",
+        "parameters": [
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsSubscribeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlsSubscribeResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_group/{vni}/unsubscribe/internal": {
+      "post": {
+        "tags": [
+          "mls_group"
+        ],
+        "summary": "Unsubscribe from MLS-group",
+        "description": "Unsubscribe a gateway from the MLS-group of a network, because it serves no VM of it anymore.\\\n\\\nThe gateway is removed from the group by the committer, which rotates the keys of the remaining\\\nmembers. The last member takes the group with it.",
+        "parameters": [
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsUnsubscribeReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_group/{vni}/operation/internal": {
+      "post": {
+        "tags": [
+          "mls_group"
+        ],
+        "summary": "Finish MLS-operation",
+        "description": "Report the result of a change of a MLS-group, which the committer made.\\\n\\\nA successful change moves the group into its new epoch and starts the key-rotation of that epoch.\\\nA refused change, for example because the grant of the gateway, which should be added, is not\\\nvalid, is dropped.",
+        "parameters": [
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsOperationDoneReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_group/{vni}/round/internal": {
+      "post": {
+        "tags": [
+          "mls_group"
+        ],
+        "summary": "Acknowledge MLS-round",
+        "description": "Acknowledge, that a gateway finished a phase of the key-rotation of a MLS-group.\\\n\\\nThe next phase only starts, once every member acknowledged the current one, so both ends of every\\\nconnection always hold the keys, which the other end sends with. An acknowledgement, which is not\\\nneeded anymore, is ignored.",
+        "parameters": [
+          {
+            "name": "vni",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsRoundAckReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_message/internal": {
+      "post": {
+        "tags": [
+          "mls_message"
+        ],
+        "summary": "Send MLS-message",
+        "description": "Hand a MLS-message over for delivery to its recipients.\\\n\\\nThe message is stored once for every recipient, so each of them can fetch and acknowledge it on\\\nits own. The izakaya doesn't read the message: a welcome is encrypted for the invited gateway and\\\na commit is signed by the member of the group, which created it, so the recipients verify it\\\nthemselves.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlsMessageReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "MlsMessageCreateResp",
+                  "type": "object",
+                  "required": [
+                    "uuids"
+                  ],
+                  "properties": {
+                    "uuids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_message/{client_id}/internal": {
+      "get": {
+        "tags": [
+          "mls_message"
+        ],
+        "summary": "List MLS-messages",
+        "description": "List the MLS-messages, which wait for a gateway.\\\n\\\nThe messages are ordered by their group and their epoch, which is the order, in which the gateway\\\nhas to process them. They stay until the gateway acknowledges them by deleting them.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlsMessageListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/mls_message/{client_id}/{message_uuid}/internal": {
+      "delete": {
+        "tags": [
+          "mls_message"
+        ],
+        "summary": "Acknowledge MLS-message",
+        "description": "Acknowledge a MLS-message, after the gateway has processed it, which removes it from\\\nits pending messages.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "KeyPackageClaimReq": {
+        "title": "KeyPackageClaimReq",
+        "type": "object",
+        "properties": {
+          "signature_key": {
+            "description": "Base64-encoded MLS signature-key, which the key-package has to have. The committer passes the key, which hanami granted, so a key-package, which someone else uploaded in the name of the gateway, is never handed out.",
+            "default": null,
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "KeyPackageCountResp": {
+        "title": "KeyPackageCountResp",
+        "type": "object",
+        "required": [
+          "client_id",
+          "count"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "KeyPackageResp": {
+        "title": "KeyPackageResp",
+        "type": "object",
+        "required": [
+          "client_id",
+          "created_at",
+          "key_package",
+          "uuid"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "key_package": {
+            "description": "Base64-encoded TLS-serialized key-package",
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "KeyPackageUploadReq": {
+        "title": "KeyPackageUploadReq",
+        "type": "object",
+        "required": [
+          "client_id",
+          "key_packages"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the MLS-client, which owns the key-packages. It has to match the identity in the credential of each key-package.",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "key_packages": {
+            "description": "Base64-encoded TLS-serialized key-packages, at most 100 with one request",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1
+          }
+        }
+      },
+      "KeyPackageUploadResp": {
+        "title": "KeyPackageUploadResp",
+        "type": "object",
+        "required": [
+          "client_id",
+          "uuids"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "uuids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "MlsGrant": {
+        "description": "Membership-grant, signed by hanami.\n\nThe signature covers the exact bytes of the payload, which travel base64-encoded, so the grant can't be changed on its way without breaking the signature.",
+        "type": "object",
+        "required": [
+          "payload",
+          "signature"
+        ],
+        "properties": {
+          "payload": {
+            "description": "Base64-encoded JSON of the `MlsGrantPayload`",
+            "type": "string"
+          },
+          "signature": {
+            "description": "Base64-encoded Ed25519-signature of the decoded payload",
+            "type": "string"
+          }
+        }
+      },
+      "MlsGrantReq": {
+        "title": "MlsGrantReq",
+        "type": "object",
+        "required": [
+          "grant"
+        ],
+        "properties": {
+          "grant": {
+            "$ref": "#/components/schemas/MlsGrant"
+          }
+        }
+      },
+      "MlsMessageCreateResp": {
+        "title": "MlsMessageCreateResp",
+        "type": "object",
+        "required": [
+          "uuids"
+        ],
+        "properties": {
+          "uuids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "MlsMessageListResp": {
+        "title": "MlsMessageListResp",
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsMessageResp"
+            }
+          }
+        }
+      },
+      "MlsMessageReq": {
+        "title": "MlsMessageReq",
+        "type": "object",
+        "required": [
+          "epoch",
+          "group_id",
+          "message_type",
+          "payload",
+          "recipients",
+          "sender"
+        ],
+        "properties": {
+          "epoch": {
+            "description": "Epoch of the group, which the message leads into. The messages of a group are delivered in the order of their epochs.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "grants": {
+            "description": "Grants of all gateways, which a commit adds to the group, so every member can check, that hanami allowed them",
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsGrant"
+            }
+          },
+          "group_id": {
+            "description": "Group, which the message belongs to",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "message_type": {
+            "$ref": "#/components/schemas/MlsMessageType"
+          },
+          "payload": {
+            "description": "Base64-encoded TLS-serialized MLS-message",
+            "type": "string",
+            "minLength": 1
+          },
+          "recipients": {
+            "description": "Identities of the MLS-clients, which have to receive the message",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "sender": {
+            "description": "Identity of the MLS-client, which sent the message",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        }
+      },
+      "MlsMessageResp": {
+        "type": "object",
+        "required": [
+          "created_at",
+          "epoch",
+          "group_id",
+          "message_type",
+          "payload",
+          "recipient",
+          "sender",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "epoch": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "grants": {
+            "description": "Grants of all gateways, which a commit adds to the group",
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsGrant"
+            }
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "message_type": {
+            "$ref": "#/components/schemas/MlsMessageType"
+          },
+          "payload": {
+            "description": "Base64-encoded TLS-serialized MLS-message, or the JSON-encoded operation or round-step",
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MlsMessageType": {
+        "description": "Type of a MLS-message, which is delivered by the izakaya",
+        "oneOf": [
+          {
+            "title": "welcome",
+            "description": "Invitation of a new member into a group",
+            "type": "string",
+            "enum": [
+              "welcome"
+            ]
+          },
+          {
+            "title": "commit",
+            "description": "Change of the group, which moves all existing members into the next epoch",
+            "type": "string",
+            "enum": [
+              "commit"
+            ]
+          },
+          {
+            "title": "operation",
+            "description": "Change of the group, which the committer of the group has to make, as JSON-encoded `MlsOperation`. Only izakaya sends it.",
+            "type": "string",
+            "enum": [
+              "operation"
+            ]
+          },
+          {
+            "title": "round",
+            "description": "Step of the key-rotation of a group, as JSON-encoded `MlsRoundMessage`. Only izakaya sends it.",
+            "type": "string",
+            "enum": [
+              "round"
+            ]
+          }
+        ]
+      },
+      "MlsOperationDoneReq": {
+        "title": "MlsOperationDoneReq",
+        "type": "object",
+        "required": [
+          "client_id",
+          "epoch",
+          "members",
+          "op_uuid",
+          "success"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the committer",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "epoch": {
+            "description": "Epoch of the group after the change",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "members": {
+            "description": "Identities of all members after the change",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "op_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "default": null,
+            "type": "string",
+            "nullable": true
+          },
+          "success": {
+            "description": "Whether the change was made. A refused change, for example because of an invalid grant, is dropped.",
+            "type": "boolean"
+          }
+        }
+      },
+      "MlsRoundAckReq": {
+        "title": "MlsRoundAckReq",
+        "type": "object",
+        "required": [
+          "client_id",
+          "epoch",
+          "phase"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the gateway",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "epoch": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "phase": {
+            "$ref": "#/components/schemas/MlsRoundPhase"
+          }
+        }
+      },
+      "MlsRoundPhase": {
+        "description": "Step of a key-rotation",
+        "oneOf": [
+          {
+            "title": "install",
+            "description": "Install the incoming keys of the new epoch next to the old ones",
+            "type": "string",
+            "enum": [
+              "install"
+            ]
+          },
+          {
+            "title": "switch",
+            "description": "Switch the outgoing traffic to the keys of the new epoch",
+            "type": "string",
+            "enum": [
+              "switch"
+            ]
+          },
+          {
+            "title": "cleanup",
+            "description": "Remove the incoming keys of the old epochs",
+            "type": "string",
+            "enum": [
+              "cleanup"
+            ]
+          }
+        ]
+      },
+      "MlsSubscribeAction": {
+        "description": "What a gateway has to do after it subscribed to the group of a network",
+        "oneOf": [
+          {
+            "title": "create",
+            "description": "There is no group yet, the gateway creates it and becomes its committer",
+            "type": "string",
+            "enum": [
+              "create"
+            ]
+          },
+          {
+            "title": "member",
+            "description": "The gateway is member of the group already",
+            "type": "string",
+            "enum": [
+              "member"
+            ]
+          },
+          {
+            "title": "joining",
+            "description": "The gateway is added by the committer, it gets a welcome",
+            "type": "string",
+            "enum": [
+              "joining"
+            ]
+          }
+        ]
+      },
+      "MlsSubscribeReq": {
+        "title": "MlsSubscribeReq",
+        "type": "object",
+        "required": [
+          "client_id",
+          "has_group"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the gateway",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "has_group": {
+            "description": "Whether the gateway still holds the group of the network, for example after a restart",
+            "type": "boolean"
+          }
+        }
+      },
+      "MlsSubscribeResp": {
+        "title": "MlsSubscribeResp",
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MlsSubscribeAction"
+          }
+        }
+      },
+      "MlsUnsubscribeReq": {
+        "title": "MlsUnsubscribeReq",
+        "type": "object",
+        "required": [
+          "client_id"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the gateway",
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}
