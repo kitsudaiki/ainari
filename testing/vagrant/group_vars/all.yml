@@ -14,6 +14,5 @@
 
 # versions of the software, which the playbook installs
 k3s_version: "v1.36.4+k3s1"
-helm_version: "v3.17.3"
 # the same version as in testing/kind/setup_kind_stack.sh
 cert_manager_version: "v1.18.2"

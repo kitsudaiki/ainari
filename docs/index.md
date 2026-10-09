@@ -62,7 +62,7 @@ See more in the [About-section](/home/about/) of the documentation.
 
     [:octicons-arrow-right-24: Docker-images](https://hub.docker.com/u/kitsudaiki)
 
-    [:octicons-arrow-right-24: client, SDK and helm-chart](https://files.ainari.cloud/)
+    [:octicons-arrow-right-24: client and SDK](https://files.ainari.cloud/)
 
 </div>
 

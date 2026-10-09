@@ -186,7 +186,6 @@ docker volume rm ainari-sbom-nix
 Sets the version of all components in the repository to the same value:
 
 - the rust-workspace (`Cargo.toml`, which all crates inherit, and `Cargo.lock`)
-- the helm-chart (`version` and `appVersion` of `deploy/k8s/ainari/Chart.yaml`)
 - the python-sdk (`setup.py` and `__init__.py`)
 - the cli (`ainarictl`)
 - the dashboard (`package.json`)

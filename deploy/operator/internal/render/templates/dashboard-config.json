@@ -1,0 +1,3 @@
+{
+    "apiUrl": {{ json (publicAddress "miko") }}
+}

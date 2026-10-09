@@ -68,7 +68,7 @@ on `develop`-branch and for each tag.
 
 - [Docker-images](https://hub.docker.com/u/kitsudaiki)
 
-- [client, SDK and helm-chart](https://files.ainari.cloud/)
+- [client and SDK](https://files.ainari.cloud/)
 
 ## Author
 

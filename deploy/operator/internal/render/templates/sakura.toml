@@ -1,0 +1,27 @@
+debug = true
+log_path = ""
+skip_tls_verification = true
+address = "https://@HOSTNAME@.sakura.{{ .Namespace }}.svc.cluster.local:8443"
+# external api, which the proxy-port of the torii at the edge forwards the clients to. The
+# internal endpoints are not reachable over it.
+external_address = "https://@HOSTNAME@.sakura.{{ .Namespace }}.svc.cluster.local:9443"
+
+[processing]
+max_number_of_threads = {{ .Spec.Sakura.MaxNumberOfThreads }}
+
+[storage]
+local_vm_storage_path = "/etc/ainari/sakura/virtual_machines"
+tempfile_location = "/tmp/sakura"
+
+{{ api "sakura" }}
+
+[database]
+file_path = "/etc/ainari/sakura/sakura_db"
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[host]
+reserved_cores = 0
+reserved_memory = 0
+reserved_disk = 0

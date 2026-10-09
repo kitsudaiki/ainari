@@ -5,7 +5,14 @@
     The installation process is still only for testing, because many important parts are not
     implemented yet.
 
-The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an existing kubernetes.
+The whole stack is installed on an existing kubernetes by the operator in `deploy/operator`. It
+deploys the stack of a single custom-resource of the kind `Ainari`, generates all keys and
+passwords itself and keeps the stack in the state of the resource. All components run with the
+pre-built images of [docker-hub](https://hub.docker.com/u/kitsudaiki).
+
+Every image has the tag `develop` for the latest state of the develop-branch and the version of
+every release without the leading `v`, for example `0.21.0`. `VERSION` stands for one of these
+tags in the following steps.
 
 ## Requirements
 
@@ -16,11 +23,10 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     sakura-nodes is encrypted with IPsec by default, so the kernel of these nodes needs the
     IPsec-support (`xfrm`, `esp4` and `aes-gcm`), which the common distribution-kernels have.
 
-    The volumes use the storage-class `local-path` by default, which can be changed with
-    `global.storage_class`. The sakura-hosts and the gateways in front of them keep their
-    databases and the disks of the virtual machines directly on their node instead, in the
-    directory `sakura.host_data_path` (default `/etc/ainari`), with a subdirectory per pod. So it
-    needs enough space for the disks of the virtual machines.
+    The volumes use the storage-class `local-path` by default. The sakura-hosts and the gateways
+    in front of them keep their databases and the disks of the virtual machines directly on their
+    node instead, in a directory with a subdirectory per pod (default `/etc/ainari`). So it needs
+    enough space for the disks of the virtual machines.
 
     !!! example
 
@@ -32,34 +38,21 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
         ```
 
-- **Helm**
-
-    [official Installation-Guide](https://helm.sh/docs/intro/install/)
-
-- **wireguard-tools** and **python3** with `jinja2` on the host, to create the wireguard-configs
-
-    ```bash
-    sudo apt-get install wireguard-tools
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip3 install jinja2
-    ```
+- **git**, to get the manifests of the operator
 
 ## Installation
 
-1. **Get the helm-chart**
+1. **Get the repository**
 
     ```bash
     git clone https://github.com/kitsudaiki/ainari.git
-    cd ainari/deploy/k8s
+    cd ainari
     ```
-
-    Alternatively the pre-built chart `ainari-x.y.z.tgz` can be downloaded from the
-    [file-share](https://files.ainari.cloud/) and used instead of `./ainari` in step 7.
 
 1. **Ingress-nginx-controller** (if not already exist in your kubernetes)
 
-    The ingresses of the chart use the ingress-class `nginx`.
+    The ingresses use the ingress-class `nginx`. It can be installed for example with its
+    helm-chart:
 
     ```bash
     helm upgrade --install ingress-nginx ingress-nginx \
@@ -67,8 +60,8 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
         --namespace ingress-nginx --create-namespace
     ```
 
-    Without an ingress-controller set `global.ingress.enabled: false` and
-    `global.external_services.enabled: true` in step 6, to publish the apis over node-ports.
+    Without an ingress-controller the ingresses have to be disabled and the apis published over
+    node-ports instead, see *Without ingress-controller* in the step *Ainari-resource*.
 
 1. **Cert-Manager** (if not already exist in your kubernetes)
 
@@ -78,16 +71,6 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     ```bash
     kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
     kubectl -n cert-manager wait deployment --all --for=condition=Available --timeout=300s
-    ```
-
-1. **Namespace and wireguard-configs**
-
-    The connection of ryokan and sakura to onsen runs through wireguard. The configs are created and
-    uploaded as secrets into the namespace of the installation:
-
-    ```bash
-    kubectl create namespace ainari
-    python3 wg_gen.py --namespace ainari
     ```
 
 1. **Node labels**
@@ -107,149 +90,195 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
     kubectl label nodes NODE_NAME mysql-node=true
     ```
 
-    Miko, hanami, ryokan, omamori and izakaya can run with multiple replicas
-    (`<component>.replica_count`), one on each node with their label, because they keep their state
-    only within their mysql-database. Ryokan only supports this with
-    `global.wireguard.enabled: false`, because its wireguard-tunnel can't be shared by multiple
-    replicas.
-
-    On a cluster with only one node set `global.strict_scheduling: false` in step 6 instead.
+    On a cluster with only one node, the labels are not needed, if the strict scheduling is
+    disabled instead with `global.strictScheduling: false` in the step *Ainari-resource*.
 
     A sakura-pod keeps its data in the directory of the node, on which it runs. So every pod of
     sakura should always come back on the same node, which is the case, if every node with the
     label `sakura-node` runs exactly one of them.
 
-1. **Values**
+1. **Install the operator**
 
-    Create a file `my_values.yaml` with at least the following content. All other values and their
-    defaults are described in `deploy/k8s/ainari/values.yaml`.
+    The operator runs in the namespace `ainari-system` with the image
+    `kitsudaiki/ainari_operator`. Its manifests use the tag `develop`, which is replaced by the
+    version to install:
 
-    ```yaml
-    secrets:
-      internal_api_key: "RANDOM_KEY_1"
-      onsen_registration_key: "RANDOM_KEY_2"
-      sakura_registration_key: "RANDOM_KEY_3"
-      mls_grant_signing_key: "GRANT_PRIVATE_KEY"
-      mls_grant_public_key: "GRANT_PUBLIC_KEY"
-
-    miko:
-      user:
-        id: "USER_ID"
-        name: "USER_NAME"
-        passphrase: "PASSPHRASE"
-      token:
-        data: "TOKEN_KEY"
-
-    sakura:
-      # output of 'stat -c %g /dev/kvm' on the sakura-nodes
-      kvm_gid: KVM_GID
-
-    torii:
-      public:
-        network:
-          overlay_iface: "UPLINK_IFACE"
-          uplink_iface: "UPLINK_IFACE"
-          uplink_next_hop: "UPLINK_NEXT_HOP"
-
-    hanami:
-      network:
-        floating_ip_cidr: "FLOATING_IP_CIDR"
-
-    mysql:
-      root_password: "MYSQL_ROOT_PASSWORD"
-      databases:
-        miko:
-          password: "MYSQL_PASSWORD_1"
-        hanami:
-          password: "MYSQL_PASSWORD_2"
-        ryokan:
-          password: "MYSQL_PASSWORD_3"
-        omamori:
-          password: "MYSQL_PASSWORD_4"
-        izakaya:
-          password: "MYSQL_PASSWORD_5"
+    ```bash
+    kubectl kustomize deploy/operator/config/default \
+        | sed 's|kitsudaiki/ainari_operator:develop|kitsudaiki/ainari_operator:VERSION|' \
+        | kubectl apply --server-side -f -
+    kubectl -n ainari-system rollout status deployment/ainari-operator
     ```
 
-    - `USER_ID`, `USER_NAME`, `PASSPHRASE`
+    This installs the custom-resource-definition `ainaris.ainari.cloud`, the operator
+    and its permissions. One operator serves all `Ainari`-resources of the cluster.
+
+1. **Ainari-resource**
+
+    Create a file `my_ainari.yaml` with at least the following content. All other fields and their
+    defaults are shown by `kubectl explain ainari.spec --recursive` and described in
+    `deploy/operator/api/v1alpha1/ainari_types.go`.
+
+    ```yaml
+    apiVersion: ainari.cloud/v1alpha1
+    kind: Ainari
+    metadata:
+      name: ainari
+    spec:
+      miko:
+        image: kitsudaiki/miko:VERSION
+        admin:
+          id: "USER_ID"
+          name: "USER_NAME"
+      hanami:
+        image: kitsudaiki/hanami:VERSION
+        network:
+          floatingIpCidr: "FLOATING_IP_CIDR"
+      ryokan:
+        image: kitsudaiki/ryokan:VERSION
+      omamori:
+        image: kitsudaiki/omamori:VERSION
+      izakaya:
+        image: kitsudaiki/izakaya:VERSION
+      onsen:
+        image: kitsudaiki/onsen:VERSION
+      sakura:
+        image: kitsudaiki/sakura:VERSION
+        # output of 'stat -c %g /dev/kvm' on the sakura-nodes
+        kvmGid: KVM_GID
+      torii:
+        image: kitsudaiki/torii:VERSION
+        public:
+          overlayIface: "UPLINK_IFACE"
+          uplinkIface: "UPLINK_IFACE"
+          uplinkNextHop: "UPLINK_NEXT_HOP"
+      dashboard:
+        image: kitsudaiki/ainari_dashboard:VERSION
+    ```
+
+    - `VERSION`
+
+        - Tag of the images on docker-hub, the same as the one of the operator. Without the field
+          `image` a component uses the tag `develop`.
+
+    - `USER_ID`, `USER_NAME`
 
         - **required**
-        - Login of the initial admin-user.
-        - `USER_ID` MUST match the regex `[a-zA-Z][a-zA-Z_0-9@]*`, `USER_NAME` the regex
-            `[a-zA-Z][a-zA-Z_0-9 ]*`, both with between `4` and `256` characters length.
-            `PASSPHRASE` MUST have between `8` and `4096` characters.
-
-    - `TOKEN_KEY`
-
-        - **required**
-        - Key to sign the tokens of the users. See [Token-Key](../config/token_key.md).
-
-    - `RANDOM_KEY_*`
-
-        - Keys for the internal communication. The defaults of the chart are public, so always
-          replace them.
-
-    - `GRANT_PRIVATE_KEY`, `GRANT_PUBLIC_KEY`
-
-        - **required**, as long as the encryption is enabled
-        - Ed25519 key-pair, with which hanami signs, which gateway may take part in the
-          key-exchange of which network. Izakaya and the gateways check the signatures with the
-          public key. Both are base64-encoded: the private key as its 32 byte seed, the public key
-          as its 32 bytes. The chart has no default on purpose, because a known key would let
-          anyone join the key-exchange. A key-pair is created with:
-
-            ```bash
-            openssl genpkey -algorithm ed25519 -out mls_grant.pem
-            # GRANT_PRIVATE_KEY
-            openssl pkey -in mls_grant.pem -outform DER | tail -c 32 | base64
-            # GRANT_PUBLIC_KEY
-            openssl pkey -in mls_grant.pem -pubout -outform DER | tail -c 32 | base64
-            ```
-
-            Hanami logs the public key, which belongs to its private key, at its start.
-
-        - Without encryption set `hanami.network.mls_encryption: false` instead. Then izakaya is not
-          deployed and both keys are not needed. Single networks can also be created without
-          encryption with the flag `disable_encryption`.
-
-    - `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD_*`
-
-        - Miko, hanami, ryokan, omamori and izakaya always store their data in a mysql-server,
-          each in its own database with its own user. By default the chart deploys the server on
-          the node with the label `mysql-node` and creates the databases and users at its first
-          start. The defaults of the passwords are public, so always replace them.
-        - To use an existing server instead, set `mysql.deploy: false`, its address as
-          `mysql.host` (and `mysql.port`) and the names and passwords of the databases and users,
-          which have to exist already, as `mysql.databases.<component>`. The root-password is not
-          needed then. The components create their tables themselves.
+        - Login of the initial admin-user. `USER_ID` MUST match the regex
+          `[a-zA-Z][a-zA-Z_0-9@]*`, `USER_NAME` the regex `[a-zA-Z][a-zA-Z_0-9 ]*`, both with
+          between `4` and `256` characters length.
+        - The passphrase is generated by the operator, see [Secrets](#secrets).
 
     - `UPLINK_IFACE`, `UPLINK_NEXT_HOP`, `FLOATING_IP_CIDR`
 
         - Uplink of the gateway `torii-public`, on which the floating IPs out of
           `FLOATING_IP_CIDR` are served, and the router behind it. The interface has to exist
           within the pod of `torii-public`. If it is moved into the pod after its start, set its
-          name additionally as `torii.public.wait_for_iface`. `testing/kind/setup_kind_stack.sh`
+          name additionally as `torii.public.waitForIface`. `testing/kind/setup_kind_stack.sh`
           shows an example, which injects a veth-pair into the pod.
 
-    - Docker-images
+    - Encryption
 
-        - Every component uses the tag `develop` of
-          [docker-hub](https://hub.docker.com/u/kitsudaiki) by default. Another version is set
-          per component with `<component>.docker.tag`, for example `miko.docker.tag`.
+        - The traffic between the virtual machines of a network is encrypted by default. Without
+          encryption set `hanami.network.mlsEncryption: false`. Then izakaya is not deployed.
+          Single networks can also be created without encryption with the flag
+          `disable_encryption`.
+
+    - Mysql
+
+        - Miko, hanami, ryokan, omamori and izakaya always store their data in a mysql-server,
+          each in its own database with its own user. By default the operator deploys the server
+          on the node with the label `mysql-node` and creates the databases and users at its
+          first start.
+        - To use an existing server instead, set `mysql.deploy: false`, its address as
+          `mysql.host` (and `mysql.port`) and the name of a secret in the namespace of the
+          installation as `mysql.credentialsSecret`. This secret needs the passwords of the
+          users, which have to exist already, under the keys `miko_password`, `hanami_password`,
+          `ryokan_password`, `omamori_password` and `izakaya_password`. The names of the
+          databases and users are the names of the components by default and can be changed with
+          `mysql.databases.<component>`. The components create their tables themselves.
+
+    - Replicas
+
+        - Every component has the field `replicas`. Miko, hanami, ryokan, omamori and izakaya can
+          run with multiple replicas, one on each node with their label, because they keep their
+          state only within their mysql-database. Onsen can run with multiple replicas as well,
+          every one with its own volume.
+
+    - Wireguard
+
+        - The connections of ryokan and sakura to onsen run through wireguard. The operator
+          creates the keys and configs of all pods itself, also for multiple replicas of onsen,
+          ryokan and sakura, and updates the running pods, when the number of replicas changes.
+
+    - Without ingress-controller
+
+        - Set `global.ingress.enabled: false` and `global.externalServices.enabled: true`. Then
+          the apis are published on node-ports, which are the ports of the components plus
+          `global.externalServices.nodePortOffset` (default `20000`), for example `31417` for
+          miko.
 
     - Domains
 
-        - Every component is reachable over the domain `<component>.api.domain`, by default
-          `local-miko`, `local-hanami`, `local-ryokan`, `local-omamori`, `local-torii` and
-          `local-ainari` for the dashboard.
+        - Every component is reachable over the domain in the field `domain` of the component, by
+          default `local-miko`, `local-hanami`, `local-ryokan`, `local-omamori`, `local-torii`
+          and `local-ainari` for the dashboard.
 
-1. **Install**
+1. **Install the stack**
 
     ```bash
-    helm install ainari ./ainari --namespace ainari --values my_values.yaml
+    kubectl create namespace ainari
+    kubectl -n ainari apply -f my_ainari.yaml
+    kubectl -n ainari wait ainari/ainari --for=condition=Ready --timeout=15m
     ```
 
-    After a successful installation the `USER_ID` and `PASSPHRASE` have to be used for login to
-    the system.
+    The operator deploys all components into the namespace of the resource, so there can only be
+    one `Ainari` per namespace. Its state is shown with:
+
+    ```bash
+    kubectl -n ainari get ainari
+    kubectl -n ainari get ainari ainari -o jsonpath='{.status.components}'
+    ```
+
+## Secrets
+
+The `Ainari`-resource contains no secrets. The operator generates all keys and passwords once
+and stores them in secrets of the namespace, which it never changes afterwards, also not after a
+restart of the operator or a change of the resource. They have no owner, so they stay, when the
+`Ainari` is deleted, and a new one takes them over again.
+
+| Secret                    | Content                                                         |
+| ------------------------- | --------------------------------------------------------------- |
+| `miko-admin`              | passphrase of the admin-user                                    |
+| `token-key`               | key, with which miko signs the tokens of the users              |
+| `internal-api-key`        | key, with which the components authenticate each other         |
+| `onsen-registration-key`  | key, with which onsen registers at ryokan                       |
+| `sakura-registration-key` | key, with which sakura registers at hanami                      |
+| `mls-grant-signing-key`   | key, with which hanami signs, which gateway may take part in the key-exchange of which network |
+| `omamori-encryption-key`  | key, with which omamori encrypts the stored secrets             |
+| `mysql-credentials`       | passwords of the deployed mysql-server                          |
+| `wireguard-keys`          | private keys of the pods of the wireguard-tunnel                |
+
+The passphrase of the admin-user is read with:
+
+```bash
+kubectl -n ainari get secret miko-admin -o jsonpath='{.data.passphrase}' | base64 -d
+```
+
+An existing secret is always taken over as it is. So an own passphrase can be given by creating
+the secret before the `Ainari`-resource:
+
+```bash
+kubectl -n ainari create secret generic miko-admin --from-literal=passphrase=PASSPHRASE
+```
+
+`PASSPHRASE` MUST have between `8` and `4096` characters.
+
+!!! warning
+
+    A deleted secret is generated again with a new value. Everything, which depends on the old
+    one, can't be read anymore, for example the secrets stored in omamori or the databases of an
+    existing mysql-server. So back up these secrets together with the rest of the installation.
 
 ## Using
 
@@ -278,8 +307,8 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
         192.168.178.87  local-ainari
         ```
 
-- trust the CA, which signed all certificates. If `global.certificates.ca_secret` is not set,
-    cert-manager creates it in the secret `ainari-ca`:
+- trust the CA, which signed all certificates. Without an own CA in
+    `global.certificates.caSecret`, cert-manager creates it in the secret `ainari-ca`:
 
     ```bash
     kubectl -n ainari get secret ainari-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > ainari-ca.crt
@@ -298,11 +327,21 @@ The whole stack is installed with the helm-chart in `deploy/k8s/ainari` on an ex
 ## Uninstall
 
 ```bash
-helm uninstall ainari --namespace ainari
+kubectl -n ainari delete ainari ainari
 kubectl delete namespace ainari
 ```
 
-The sakura-hosts and their gateways keep their data in the directory `sakura.host_data_path`
+Deleting the `Ainari` removes all components, but keeps the generated secrets (see
+[Secrets](#secrets)), so a new `Ainari` in the same namespace takes them over. They are removed
+with the namespace. The operator itself and its custom-resource-definition are removed with:
+
+```bash
+kubectl delete -k deploy/operator/config/default
+```
+
+This deletes all `Ainari`-resources of the cluster as well.
+
+The sakura-hosts and their gateways keep their data in the directory `sakura.hostDataPath`
 (default `/etc/ainari`) on the sakura-nodes, which is not removed with the namespace. To remove
 the virtual machines and their disks as well, delete it on every sakura-node:
 

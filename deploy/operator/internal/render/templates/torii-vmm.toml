@@ -1,0 +1,30 @@
+debug = true
+log_path = ""
+skip_tls_verification = true
+
+{{ api "torii" }}
+
+[database]
+file_path = "/etc/ainari/torii/torii_db"
+
+[miko]
+address = {{ quote mikoAddress }}
+
+[ports]
+min_port = {{ .Spec.Torii.PortRange.Start }}
+max_port = {{ .Spec.Torii.PortRange.End }}
+# the api is only reachable over the tls-termination, the proxies from the outside
+listen_ip = "0.0.0.0"
+
+[network]
+# there is no overlay-interface here, the TAP-devices are attached when they are created
+overlay_iface = "none"
+underlay_iface = "eth0"
+default_gateway_ip = "@DEFAULT_GATEWAY_IP@"
+{{- if .Spec.Hanami.Network.MLSEncryption }}
+
+# key-exchange of the IPsec-keys of the encrypted routes over MLS-groups, which izakaya
+# coordinates. The gateway only joins the group of a network with a grant of hanami.
+[mls]
+grant_public_key = {{ quote .Secrets.MLSGrantPublicKey }}
+{{- end }}

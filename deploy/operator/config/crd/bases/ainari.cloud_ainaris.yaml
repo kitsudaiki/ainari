@@ -1,0 +1,811 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: ainaris.ainari.cloud
+spec:
+  group: ainari.cloud
+  names:
+    kind: Ainari
+    listKind: AinariList
+    plural: ainaris
+    singular: ainari
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].reason
+      name: Reason
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Ainari is a complete ainari-stack.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              AinariSpec describes a complete ainari-stack. The operator deploys all components of it into
+              the namespace of the resource, so there can only be one of them per namespace. The spec
+              contains no secrets: the operator generates all keys and passwords once and stores them in
+              secrets of the namespace, which it never changes afterwards.
+            properties:
+              dashboard:
+                default: {}
+                description: DashboardSpec configures the web-dashboard.
+                properties:
+                  domain:
+                    default: local-ainari
+                    description: domain of the ingress
+                    type: string
+                  enabled:
+                    default: true
+                    type: boolean
+                  image:
+                    default: kitsudaiki/ainari_dashboard:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              global:
+                default: {}
+                description: settings, which apply to all components
+                properties:
+                  certificates:
+                    default: {}
+                    description: All certificates are signed by one CA, so a client
+                      only has to trust this CA.
+                    properties:
+                      caSecret:
+                        description: |-
+                          Name of a secret of the type kubernetes.io/tls with the certificate and key of an own CA.
+                          If empty, cert-manager creates a CA in the secret 'ainari-ca'.
+                        type: string
+                      extraDnsNames:
+                        description: additional names, which every certificate is
+                          valid for
+                        items:
+                          type: string
+                        type: array
+                      extraIpAddresses:
+                        description: additional addresses, which every certificate
+                          is valid for
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  externalServices:
+                    default: {}
+                    description: |-
+                      Publishes the api of every component and the dashboard outside of the cluster, beside the
+                      ingresses.
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      nodePortOffset:
+                        default: 20000
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      type:
+                        default: NodePort
+                        description: |-
+                          NodePort publishes the api on the node-port, which is the port of the component plus
+                          nodePortOffset, for example 11417 + 20000 = 31417 for miko. LoadBalancer publishes it on
+                          the port of the component itself, for example on the nodes with the servicelb of k3s.
+                        enum:
+                        - NodePort
+                        - LoadBalancer
+                        type: string
+                    type: object
+                  imagePullPolicy:
+                    description: overwrites the pull-policy of all components, if
+                      set
+                    type: string
+                  ingress:
+                    default: {}
+                    description: |-
+                      Every component is reachable over an ingress of ingress-nginx. The components always talk
+                      https to each other over a nginx-sidecar with a certificate of cert-manager, so
+                      cert-manager is always required.
+                    properties:
+                      className:
+                        default: nginx
+                        description: ingress-class of ingress-nginx, which has to
+                          support ssl-passthrough
+                        type: string
+                      enabled:
+                        default: true
+                        type: boolean
+                    type: object
+                  nginxImage:
+                    default: nginx:latest
+                    description: image of the nginx-sidecars, which terminate tls
+                      in front of the components
+                    type: string
+                  storageClass:
+                    description: overwrites the storage-class of all components, if
+                      set
+                    type: string
+                  strictScheduling:
+                    default: true
+                    description: |-
+                      Every component runs only on the nodes with its label (for example 'hanami-node=true') and
+                      never twice on the same node. A cluster with only one node needs this to be disabled.
+                    type: boolean
+                  wireguard:
+                    default: {}
+                    description: |-
+                      The connections of ryokan and sakura to onsen run through wireguard. Every pod of onsen,
+                      ryokan and sakura gets its own key and address within 10.10.0.0/16 and every onsen is
+                      connected with every ryokan and every sakura. The operator creates the keys and configs and
+                      updates the peers of the running pods, when the number of replicas changes.
+                    properties:
+                      enabled:
+                        default: true
+                        type: boolean
+                    type: object
+                type: object
+              hanami:
+                default: {}
+                description: HanamiSpec configures hanami, which handles the virtual
+                  machines and their networks.
+                properties:
+                  domain:
+                    default: local-hanami
+                    description: domain of the ingress
+                    type: string
+                  image:
+                    default: kitsudaiki/hanami:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  network:
+                    default: {}
+                    description: HanamiNetworkSpec configures the networks of the
+                      virtual machines.
+                    properties:
+                      floatingIpCidr:
+                        default: 10.0.0.0/24
+                        description: range of the floating ip-addresses, which are
+                          served by the torii at the edge
+                        type: string
+                      mlsEncryption:
+                        default: true
+                        description: |-
+                          Encrypts the traffic between the virtual machines of a network on different hosts with
+                          IPsec, whose keys the gateways exchange over MLS-groups, which izakaya coordinates.
+                        type: boolean
+                      mlsGrantRefreshInterval:
+                        default: 300
+                        description: seconds between two refreshes of all membership-grants
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      mlsGrantValidity:
+                        default: 86400
+                        description: seconds, for which a membership-grant allows
+                          a gateway to join the group of a network
+                        format: int64
+                        minimum: 1
+                        type: integer
+                    type: object
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              izakaya:
+                default: {}
+                description: |-
+                  Shares the MLS key-packages of the gateways, delivers their MLS-messages and coordinates the
+                  changes and key-rotations of the groups. It is only deployed, if
+                  hanami.network.mlsEncryption is enabled.
+                properties:
+                  domain:
+                    default: local-izakaya
+                    description: domain, which the certificate of izakaya is valid
+                      for, if the ingresses are enabled
+                    type: string
+                  image:
+                    default: kitsudaiki/izakaya:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  keyRotationInterval:
+                    default: 3600
+                    description: seconds between two key-rotations of a group, whose
+                      membership didn't change
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  memberTimeout:
+                    default: 120
+                    description: |-
+                      seconds without contact, after which a gateway is removed from its groups, for example the
+                      gateway of a sakura-host, which came back in a new pod with a new address
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              miko:
+                description: |-
+                  MikoSpec configures miko, which handles the users, their tokens and the endpoints of the other
+                  components.
+                properties:
+                  admin:
+                    description: admin-user, which miko creates at its first start
+                    properties:
+                      id:
+                        minLength: 1
+                        type: string
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - id
+                    - name
+                    type: object
+                  domain:
+                    default: local-miko
+                    description: domain of the ingress
+                    type: string
+                  image:
+                    default: kitsudaiki/miko:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  token:
+                    default: {}
+                    description: MikoTokenSpec configures the tokens, which miko hands
+                      out.
+                    properties:
+                      expireTime:
+                        default: 3600
+                        description: seconds, until a token expires
+                        format: int64
+                        minimum: 1
+                        type: integer
+                    type: object
+                required:
+                - admin
+                type: object
+              mysql:
+                default: {}
+                description: |-
+                  Database of miko, hanami, ryokan, omamori and izakaya. Each of them has its own database and
+                  user on the same mysql-server, so all their replicas share their state.
+                properties:
+                  credentialsSecret:
+                    description: |-
+                      Name of an existing secret with the passwords of the external server, only used if
+                      'deploy' is disabled. It needs the keys 'miko_password', 'hanami_password',
+                      'ryokan_password', 'omamori_password' and 'izakaya_password'. The passwords of a deployed
+                      server are generated by the operator.
+                    type: string
+                  databases:
+                    default: {}
+                    description: database and user of every component
+                    properties:
+                      hanami:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                      izakaya:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                      miko:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                      omamori:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                      ryokan:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                    type: object
+                  deploy:
+                    default: true
+                    description: |-
+                      Deploys a mysql-server into the cluster, which runs on the node with the label
+                      'mysql-node=true' (see global.strictScheduling). If disabled, an already existing server
+                      is used, which is reached at 'host' and already has the databases and users below.
+                    type: boolean
+                  host:
+                    description: address of the external server, only used if 'deploy'
+                      is disabled
+                    type: string
+                  image:
+                    default: mysql:8.4
+                    type: string
+                  imagePullPolicy:
+                    default: IfNotPresent
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  port:
+                    default: 3306
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                  storageClass:
+                    default: local-path
+                    description: storage-class of the volume, overwritten by global.storageClass
+                    type: string
+                  storageSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 5Gi
+                    description: size of the volume
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
+              omamori:
+                default: {}
+                description: OmamoriSpec configures omamori, which stores the secrets
+                  of the users.
+                properties:
+                  domain:
+                    default: local-omamori
+                    description: domain of the ingress
+                    type: string
+                  image:
+                    default: kitsudaiki/omamori:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              onsen:
+                default: {}
+                description: OnsenSpec configures onsen, which stores the images of
+                  ryokan.
+                properties:
+                  image:
+                    default: kitsudaiki/onsen:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  storageClass:
+                    default: local-path
+                    description: storage-class of the volume, overwritten by global.storageClass
+                    type: string
+                  storageSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 1Gi
+                    description: size of the volume
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
+              ryokan:
+                default: {}
+                description: RyokanSpec configures ryokan, which handles the images
+                  of the virtual machines.
+                properties:
+                  domain:
+                    default: local-ryokan
+                    description: domain of the ingress
+                    type: string
+                  image:
+                    default: kitsudaiki/ryokan:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              sakura:
+                default: {}
+                description: SakuraSpec configures the sakura-hosts, which run the
+                  virtual machines.
+                properties:
+                  domain:
+                    default: local-sakura
+                    description: domain, which the certificate of sakura is valid
+                      for, if the ingresses are enabled
+                    type: string
+                  hostDataPath:
+                    default: /etc/ainari
+                    description: |-
+                      Directory on the node, which holds the data of the sakura-host and of the gateway in front
+                      of it: their databases and the disks of the virtual machines. Every pod gets its own
+                      subdirectory '<pod-name>/sakura' and '<pod-name>/torii', so the data stays on the node and
+                      survives a restart of the pod.
+                    type: string
+                  image:
+                    default: kitsudaiki/sakura:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  kvmGid:
+                    default: 993
+                    description: |-
+                      Id of the group, which owns /dev/kvm on the nodes. Sakura runs as a normal user and needs
+                      it to open the virtual machines.
+                    format: int64
+                    type: integer
+                  maxNumberOfThreads:
+                    default: 0
+                    description: maximum number of threads of the processing, 0 for
+                      no limit
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  replicas:
+                    default: 1
+                    format: int32
+                    minimum: 0
+                    type: integer
+                type: object
+              torii:
+                default: {}
+                description: |-
+                  ToriiSpec configures the gateway at the edge of the network and the gateways in front of the
+                  sakura-hosts.
+                properties:
+                  domain:
+                    default: local-torii
+                    description: domain of the ingress
+                    type: string
+                  image:
+                    default: kitsudaiki/torii:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  portRange:
+                    default:
+                      end: 10050
+                      start: 10040
+                    description: proxy-ports of the gateway at the edge
+                    properties:
+                      end:
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                      start:
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                    required:
+                    - end
+                    - start
+                    type: object
+                    x-kubernetes-validations:
+                    - message: the start of the port-range has to be lower or equal
+                        to its end
+                      rule: self.start <= self.end
+                  public:
+                    default: {}
+                    description: |-
+                      ToriiPublicSpec configures the gateway at the edge of the network, which serves the floating
+                      ip-addresses on its uplink.
+                    properties:
+                      overlayIface:
+                        default: veth-gw
+                        type: string
+                      uplinkIface:
+                        default: veth-gw
+                        type: string
+                      uplinkNextHop:
+                        default: 10.0.0.1
+                        description: address of the next hop behind the uplink
+                        type: string
+                      waitForIface:
+                        description: |-
+                          Name of an interface, which is moved into the pod from the outside (for example by
+                          testing/kind/setup_kind_stack.sh). The gateway waits for it, before it starts. Empty, if
+                          the uplink is already there.
+                        type: string
+                    type: object
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    description: replicas of the gateway at the edge
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  serviceType:
+                    default: LoadBalancer
+                    description: type of the service, which publishes the proxy-ports
+                      of the gateway at the edge
+                    enum:
+                    - ClusterIP
+                    - NodePort
+                    - LoadBalancer
+                    type: string
+                  storageClass:
+                    default: local-path
+                    description: storage-class of the volume, overwritten by global.storageClass
+                    type: string
+                  storageSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    default: 100Mi
+                    description: size of the volume
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
+            required:
+            - miko
+            type: object
+            x-kubernetes-validations:
+            - message: mysql.host is required, if mysql.deploy is disabled
+              rule: self.mysql.deploy || (has(self.mysql.host) && size(self.mysql.host)
+                > 0)
+            - message: mysql.credentialsSecret is required, if mysql.deploy is disabled
+              rule: self.mysql.deploy || (has(self.mysql.credentialsSecret) && size(self.mysql.credentialsSecret)
+                > 0)
+          status:
+            description: AinariStatus is the observed state of an ainari-stack.
+            properties:
+              components:
+                items:
+                  description: ComponentStatus is the state of the workload of a component.
+                  properties:
+                    name:
+                      type: string
+                    readyReplicas:
+                      description: replicas, which are ready
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: replicas, which should run
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  - readyReplicas
+                  - replicas
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              mlsGrantPublicKey:
+                description: |-
+                  base64-encoded public key, which belongs to the key in the secret
+                  'mls-grant-signing-key', with which hanami signs the membership-grants of the MLS-groups
+                type: string
+              observedGeneration:
+                description: generation of the spec, which was deployed last
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

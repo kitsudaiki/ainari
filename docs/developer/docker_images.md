@@ -29,7 +29,8 @@ The rest of this page describes the nix-based variant.
 - `dockerfiles/nix_based/nix/flake.nix` and `dockerfiles/nix_based/nix/packages.nix` define the
   packages of the images. Every image has a runtime-environment `runtime-<IMAGE>` with all
   packages, which are installed in the image, and the images, which compile something, have a
-  development-shell with their toolchain (`services`, `torii`, `dashboard` and `docs`).
+  development-shell with their toolchain (`services`, `torii`, `dashboard`, `docs` and
+  `operator`).
 - `dockerfiles/nix_based/nix/flake.lock` pins the revisions of
   [nixpkgs](https://github.com/NixOS/nixpkgs) and
   [rust-overlay](https://github.com/oxalica/rust-overlay) with their hashes. So the versions of all
@@ -47,8 +48,12 @@ The rest of this page describes the nix-based variant.
     docker run --rm --entrypoint cat kitsudaiki/miko:develop /etc/nix-packages.txt
     ```
 
-- The dependencies of the rust-components are pinned by `Cargo.lock` and the ones of the dashboard
-  by `src/dashboard/app/package-lock.json`, which is installed with `npm ci`.
+- The dependencies of the rust-components are pinned by `Cargo.lock`, the ones of the dashboard
+  by `src/dashboard/app/package-lock.json`, which is installed with `npm ci`, and the go-modules of
+  the kubernetes-operator by `deploy/operator/go.sum`.
+- The kubernetes-operator (`dockerfiles/nix_based/Dockerfile_operator`) only exists as nix-based
+  image. It is also used by `make up kind`, which builds the other images with the debian-based
+  Dockerfiles.
 
 Packages, which are not taken as they are from nixpkgs, are defined at the beginning of
 `dockerfiles/nix_based/nix/packages.nix` together with the reason, for example the
@@ -70,8 +75,9 @@ and nix doesn't have to be installed on the host:
 
 The result is written to `temporary_files/sbom/<PLATFORM>/`: `<IMAGE>.cdx.json` (CycloneDX),
 `<IMAGE>.spdx.json` (SPDX), `<IMAGE>.csv` and `versions.csv` with the packages and versions of all
-images. The compiled rust-crates and the npm-packages of the dashboard are not part of these
-SBOMs, they are pinned by `Cargo.lock` and `package-lock.json`.
+images. The compiled rust-crates, the npm-packages of the dashboard and the go-modules of the
+operator are not part of these SBOMs, they are pinned by `Cargo.lock`, `package-lock.json` and
+`deploy/operator/go.sum`.
 
 ## Update the packages
 

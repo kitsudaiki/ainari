@@ -4,8 +4,9 @@
 
 ### Purpose
 
-Starts the setup of `testing/vagrant`: eight virtual machines with nested virtualization and a
-kubernetes-cluster (k3s), on which ansible deploys the helm-chart of `deploy/k8s/ainari`. Miko,
+Starts the setup of `testing/vagrant`: nine virtual machines with nested virtualization and a
+kubernetes-cluster (k3s), on which ansible installs the operator of `deploy/operator`, which deploys
+the stack of the `Ainari`-resource [ainari.yaml](ainari.yaml). Miko,
 hanami, ryokan and omamori run with one replica on each of the three management-machines and share
 the mysql-server on the machine `ainari-mysql`. The nix-based images, the same as the ones of the
 CI, are built with [build_local_images.sh](build_local_images.sh) on the host and copied into the
@@ -28,7 +29,7 @@ installed.
 
 - `docker`, `vagrant` with the plugin `vagrant-libvirt`, libvirt, `ansible-playbook` and `openssl`
   have to be installed and the host needs nested virtualization.
-- The eight virtual machines need about 32 GiB free memory and 40 GiB free disk on the host, see
+- The nine virtual machines need about 34 GiB free memory and 40 GiB free disk on the host, see
   [Vagrant setup](../../docs/developer/local_testing/vagrant_setup.md).
 - Adding the route needs root, so the script asks for the password of sudo.
 - The floating ip-addresses `10.0.0.0/24` and the private network `192.168.56.0/24` of vagrant must

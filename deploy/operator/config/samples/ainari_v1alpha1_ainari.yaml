@@ -1,0 +1,12 @@
+# Minimal ainari-stack with the defaults of all components. All keys and passwords are generated
+# by the operator into secrets of the namespace, for example the passphrase of the admin into the
+# secret 'miko-admin'.
+apiVersion: ainari.cloud/v1alpha1
+kind: Ainari
+metadata:
+  name: ainari
+spec:
+  miko:
+    admin:
+      id: admin
+      name: admin

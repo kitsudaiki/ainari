@@ -1,0 +1,3 @@
+# tools and binaries of the Makefile
+bin/
+cover.out

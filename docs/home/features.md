@@ -232,7 +232,8 @@ kernel space with the help of [eBPF](https://ebpf.io/).
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
-The whole stack is deployable on Kubernetes by providing helm charts and docker-images. See
+The whole stack is deployable on Kubernetes by providing a kubernetes-operator and docker-images.
+See
 [Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
 
 ### Easy local development
@@ -275,8 +276,8 @@ user-id and so on, to make problems of users easier to find and debug.
 
 ### Kubernetes Operator
 
-**Status: <span style="color:#e53935">planned</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
-Besides the helm chart, the complete stack can be deployed by a kubernetes operator on the
-kubernetes deployment. So only the operator has to be deployed by the user and the rest is handled
-by the operator.
+The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
+`Ainari`. So only the operator has to be deployed by the user and the rest, including all keys and
+passwords, is handled by the operator.

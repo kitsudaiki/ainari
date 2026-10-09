@@ -42,8 +42,9 @@ a wireguard-tunnel.
 
 !!! info
 
-    In the kubernetes-installation only one Onsen-host is currently supported, because of the
-    wireguard-config. Will be fixed in the future.
+    In the kubernetes-installation Onsen can run with multiple instances. Every one has its own
+    volume and registers itself at Ryokan, and the operator connects every Onsen with every Ryokan
+    and every Sakura-host over the wireguard-tunnel.
 
 ### Ryokan
 

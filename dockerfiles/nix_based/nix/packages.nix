@@ -160,8 +160,8 @@ let
 
   # Shell and basic tools, which every image has for the start-scripts and for debugging. These
   # are the tools, which the images of Debian and Ubuntu brought before, because the scripts of
-  # the helm-chart and the docker-compose-setup use them (like getent and awk in start_torii.sh of
-  # deploy/k8s/ainari/templates/torii/torii-config.yaml).
+  # the operator and the docker-compose-setup use them (like getent and awk in start_torii.sh of
+  # deploy/operator/internal/render/templates/start_torii.sh).
   basePackages = with pkgs; [
     bashInteractive
     coreutils
@@ -308,6 +308,13 @@ in
       dashboardNginxConfig
     ];
     runtime-docs = mkRuntime "docs" [ pkgs.python3 ];
+    # The operator is a static go-binary, which needs no library. The go of nixpkgs reads the
+    # time-zones and the mime-types out of the paths of tzdata and mailcap within the store, which
+    # are compiled into the binary, so both are part of the image.
+    runtime-operator = mkRuntime "operator" [
+      pkgs.tzdata
+      pkgs.mailcap
+    ];
   };
 
   devShells = {
@@ -351,6 +358,11 @@ in
     # builds the dashboard (dockerfiles/nix_based/Dockerfile_dashboard)
     dashboard = pkgs.mkShell {
       packages = [ pkgs.nodejs_24 ];
+    };
+
+    # toolchain of the kubernetes-operator (dockerfiles/nix_based/Dockerfile_operator)
+    operator = pkgs.mkShell {
+      packages = [ pkgs.go ];
     };
 
     # builds the documentation (dockerfiles/nix_based/Dockerfile_docs)
