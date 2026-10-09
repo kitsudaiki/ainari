@@ -30,6 +30,7 @@ use crate::core::processing::tasks::{
 };
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
+use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachineState};
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -49,6 +50,27 @@ fn remove_all(target_dir_path: &String) {
     let _ = std::fs::remove_dir_all(target_dir_path).map_err(|e| {
         log::error!("Failed to delete temp-dir {target_dir_path} from disk with error {e}.");
     });
+}
+
+/// Rejects a request for a virtual_machine, which is migrated right now, before a task is
+/// created for it
+///
+/// The task checks it again, when it runs, because a migration could have been queued before.
+///
+/// # Arguments
+/// * `virtual_machine_data` - The virtual_machine of the request
+///
+/// # Returns
+/// * `Ok(())` if the virtual_machine is not migrated
+/// * `Err(ErrorResponse::Conflict)` if it is migrated
+fn reject_migrating(virtual_machine_data: &VirtualMachineEntry) -> Result<(), ErrorResponse> {
+    if virtual_machine_data.vm_state == VirtualMachineState::Migrating.as_str() {
+        return Err(ErrorResponse::Conflict(format!(
+            "Virtual_machine '{}' is migrated to another host right now.",
+            virtual_machine_data.uuid
+        )));
+    }
+    Ok(())
 }
 
 /// Creates a new task, which changes the power-state of a virtual_machine
@@ -78,6 +100,7 @@ fn add_power_task(
         virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context).map_err(|e| {
             map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e)
         })?;
+    reject_migrating(&virtual_machine_data)?;
 
     let task_uuid = Uuid::new_v4();
 

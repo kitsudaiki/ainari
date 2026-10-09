@@ -18,6 +18,7 @@ use futures::lock::Mutex;
 use uuid::Uuid;
 
 use crate::config;
+use crate::core::migration::is_migrating;
 use crate::core::routing::torii_of_host;
 use crate::database::address_table;
 use crate::database::meta_virtual_machine_table;
@@ -78,6 +79,15 @@ pub async fn resolve_filter_target(
     // check, that the virtual_machine exists and the user is allowed to access it
     meta_virtual_machine_table::get_meta_virtual_machine(virtual_machine_uuid, context)
         .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e))?;
+
+    // the packet-filters are copied to the torii of the new host during a migration, so a
+    // change in between could get lost
+    if is_migrating(virtual_machine_uuid) {
+        return Err(ErrorResponse::Conflict(format!(
+            "Virtual_machine '{virtual_machine_uuid}' is migrated right now, so its \
+             packet-filters can not be changed."
+        )));
+    }
 
     let address =
         address_table::get_address_of_virtual_machine(virtual_machine_uuid).map_err(|e| {

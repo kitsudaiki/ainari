@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod migration;
 pub mod task;
 pub mod virtual_machine;

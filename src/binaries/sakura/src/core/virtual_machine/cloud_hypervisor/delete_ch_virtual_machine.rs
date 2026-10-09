@@ -65,6 +65,28 @@ pub async fn delete_ch_virtual_machine(
 
     log::info!("Start deletion of VM {uuid}");
 
+    remove_vm_from_host(uuid).await?;
+
+    virtual_machine_table::delete_virtual_machine(uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
+
+    log::info!("VM {uuid} deleted");
+
+    Ok(())
+}
+
+/// Stops the cloud-hypervisor process of a virtual_machine and removes all of its files from
+/// this host, like the boot-disk, the cloud-init seed-image, the API-socket and the serial-log
+///
+/// The database-entry of the virtual_machine is not changed.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+///
+/// # Returns
+/// * `Ok(())` if the process is stopped and all files are removed or didn't exist
+/// * `Err(AinariError)` if the process could not be stopped or a file not be removed
+pub(super) async fn remove_vm_from_host(uuid: &Uuid) -> Result<(), AinariError> {
     // a reserved virtual_machine, which was never created, has no running process
     let socket_path = vm_socket_path(uuid);
     if Path::new(&socket_path).exists() {
@@ -74,14 +96,7 @@ pub async fn delete_ch_virtual_machine(
     remove_file(&socket_path)?;
     remove_file(&vm_serial_log_path(uuid))?;
     remove_directory(&vm_directory(uuid))?;
-    remove_directory(&vm_temp_directory(uuid))?;
-
-    virtual_machine_table::delete_virtual_machine(uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
-
-    log::info!("VM {uuid} deleted");
-
-    Ok(())
+    remove_directory(&vm_temp_directory(uuid))
 }
 
 /// Stops a virtual_machine and the cloud-hypervisor process, which runs it
@@ -96,7 +111,7 @@ pub async fn delete_ch_virtual_machine(
 /// # Returns
 /// * `Ok(())` if the cloud-hypervisor process is stopped
 /// * `Err(AinariError)` if the process could not be killed
-async fn stop_vmm(uuid: &Uuid, socket_path: &str) -> Result<(), AinariError> {
+pub(super) async fn stop_vmm(uuid: &Uuid, socket_path: &str) -> Result<(), AinariError> {
     let client = socket_based_api_client(socket_path);
 
     // a failed shutdown of the virtual_machine is not critical, because the shutdown of the

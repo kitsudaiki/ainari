@@ -269,6 +269,46 @@ pub fn count_meta_virtual_machines_of_project(project: &str) -> QueryResult<i64>
         .first::<i64>(&mut *conn)
 }
 
+/// Moves a meta virtual_machine to another sakura-host, after it was migrated there.
+///
+/// There is no permission-based filtering, because only an admin migrates virtual_machines.
+///
+/// # Arguments
+/// * `meta_virtual_machine_uuid` - The UUID of the meta virtual_machine
+/// * `new_sakura_host_uuid` - The UUID of the sakura-host, which runs the virtual_machine now
+/// * `context` - The user context of the admin, who migrated the virtual_machine
+///
+/// # Returns
+/// A Result indicating success or an error
+pub fn set_host_of_meta_virtual_machine(
+    meta_virtual_machine_uuid: &Uuid,
+    new_sakura_host_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+    match diesel::update(
+        meta_virtual_machines.filter(
+            uuid.eq(meta_virtual_machine_uuid.to_string())
+                .and(status.eq("ACTIVE")),
+        ),
+    )
+    .set((
+        sakura_host_uuid.eq(new_sakura_host_uuid.to_string()),
+        updated_at.eq(Utc::now().to_rfc3339()),
+        updated_by.eq(context.user_id.clone()),
+    ))
+    .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Force deletes a meta virtual_machine from the database.
 ///
 /// This function marks a meta virtual_machine as deleted without checking permissions.
@@ -550,6 +590,60 @@ mod tests {
         assert_eq!(meta_virtual_machines.len(), 1);
         hard_delete_meta_virtual_machine(&uuid1);
         hard_delete_meta_virtual_machine(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_host_of_meta_virtual_machine() {
+        let uuid1 = Uuid::new_v4();
+        let old_host_uuid = Uuid::new_v4();
+        let new_host_uuid = Uuid::new_v4();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "admin".to_string(),
+            project_id: "admin-project".to_string(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
+        };
+
+        hard_delete_meta_virtual_machine(&uuid1);
+        add_meta_virtual_machine(MetaVirtualMachineEntry {
+            uuid: uuid1,
+            name: "test-virtual_machine".to_string(),
+            sakura_host_uuid: old_host_uuid,
+            proxy_uuid: Uuid::new_v4(),
+            owner_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "test-user".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
+        })
+        .unwrap();
+
+        assert!(set_host_of_meta_virtual_machine(&uuid1, &new_host_uuid, &context).is_ok());
+        let Ok(retrieved) = get_meta_virtual_machine(&uuid1, &context) else {
+            panic!("meta virtual_machine not found");
+        };
+        assert_eq!(retrieved.sakura_host_uuid, new_host_uuid);
+        // the owner stays the same, only the admin is noted as the last one, who changed it
+        assert_eq!(retrieved.owner_id, "test-user");
+        assert_eq!(retrieved.updated_by, "admin");
+
+        // a deleted virtual_machine is not moved anymore
+        assert!(force_delete_meta_virtual_machine(&uuid1).is_ok());
+        assert!(matches!(
+            set_host_of_meta_virtual_machine(&uuid1, &old_host_uuid, &context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        hard_delete_meta_virtual_machine(&uuid1);
     }
 
     #[test]

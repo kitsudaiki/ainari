@@ -635,6 +635,41 @@ pub fn set_virtual_machine_of_address(
     }
 }
 
+/// Moves an address to another sakura-host, after its virtual_machine was migrated there.
+///
+/// The address of the host is what the routes towards the virtual_machine are created with, so
+/// it has to follow the virtual_machine.
+///
+/// # Arguments
+/// * `address_uuid` - The UUID of the address
+/// * `new_host_address` - Address of the sakura-host, which runs the virtual_machine now
+///
+/// # Returns
+/// A Result indicating success or an error
+pub fn set_host_of_address(
+    address_uuid: &Uuid,
+    new_host_address: &str,
+) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+    match diesel::update(
+        addresses.filter(uuid.eq(address_uuid.to_string()).and(status.eq("ACTIVE"))),
+    )
+    .set((
+        host_address.eq(new_host_address),
+        updated_at.eq(Utc::now().to_rfc3339()),
+    ))
+    .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Retrieves the address of a virtual_machine by the UUID of the virtual_machine.
 ///
 /// Only active addresses are returned. There is no permission-based filtering, so the caller
@@ -2221,6 +2256,43 @@ mod tests {
         // a deleted address doesn't belong to a virtual_machine any more
         assert!(delete_address(&uuid1, &context).is_ok());
         assert_not_found(get_address_of_virtual_machine(&virtual_machine_uuid1));
+
+        hard_delete_address(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_host_of_address() {
+        let uuid1 = Uuid::new_v4();
+        let network_uuid1 = Uuid::new_v4();
+        let context = new_context("test-user", "test-project", false, ProjectRole::Member);
+
+        let entry = new_entry(
+            &uuid1,
+            MAC_1,
+            &network_uuid1,
+            "test-user",
+            "test-project",
+            "ACTIVE",
+        );
+
+        hard_delete_mac_address(MAC_1);
+        add_address(entry).unwrap();
+
+        assert!(set_host_of_address(&uuid1, "http://10.0.0.7:11420").is_ok());
+        let retrieved = expect_entry(get_address(&uuid1));
+        assert_eq!(retrieved.host_address, "http://10.0.0.7:11420");
+
+        // a deleted address is not moved anymore
+        assert!(delete_address(&uuid1, &context).is_ok());
+        assert!(matches!(
+            set_host_of_address(&uuid1, "http://10.0.0.8:11420"),
+            Err(enums::DbError::NotFound)
+        ));
+        assert!(matches!(
+            set_host_of_address(&Uuid::new_v4(), "http://10.0.0.8:11420"),
+            Err(enums::DbError::NotFound)
+        ));
 
         hard_delete_address(&uuid1);
     }

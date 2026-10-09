@@ -248,6 +248,49 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     query.select(ProxyEntry::as_select()).load(&mut *conn)
 }
 
+/// Changes the target address of a proxy.
+///
+/// # Arguments
+/// * `proxy_uuid` - UUID of the proxy
+/// * `new_target_address` - The new address, which the proxy forwards to
+/// * `context` - User context for permission checking and audit
+///
+/// # Returns
+/// * `Ok(ProxyEntry)` with the updated proxy
+/// * `Err(DbError)` if the proxy doesn't exist, the user is not allowed to change it or the
+///   database failed
+pub fn update_proxy_target(
+    proxy_uuid: &Uuid,
+    new_target_address: &str,
+    context: &UserContext,
+) -> Result<ProxyEntry, enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    // Verify the proxy exists and the user has permission to change it
+    get_proxy(proxy_uuid, context)?;
+
+    {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::proxys::dsl::*;
+        if let Err(e) = diesel::update(proxys.filter(uuid.eq(proxy_uuid.to_string())))
+            .set((
+                target_address.eq(new_target_address),
+                updated_at.eq(Utc::now().to_rfc3339()),
+                updated_by.eq(context.user_id.clone()),
+            ))
+            .execute(&mut *conn)
+        {
+            log::error!("Database-error: {e:?}");
+            return Err(enums::DbError::InternalError);
+        }
+    }
+
+    get_proxy(proxy_uuid, context)
+}
+
 /// Marks a proxy as deleted in the database.
 ///
 /// # Arguments
@@ -353,6 +396,53 @@ mod tests {
         };
 
         hard_delete_proxy(&proxy_uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_update_proxy_target() {
+        let proxy_uuid = Uuid::new_v4();
+        let member = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let observer = UserContext {
+            project_role: ProjectRole::Observer.to_string(),
+            ..member.clone()
+        };
+        let other_project = UserContext {
+            project_id: "other-project".to_string(),
+            ..member.clone()
+        };
+
+        hard_delete_proxy(&proxy_uuid);
+        add_new_proxy(&proxy_uuid, 42, "10.0.0.1:443", &Uuid::new_v4(), &member).unwrap();
+
+        // the port stays, only the target changes
+        let updated = update_proxy_target(&proxy_uuid, "10.0.0.2:443", &member)
+            .unwrap_or_else(|_| panic!("update of proxy failed"));
+        assert_eq!(updated.target_address, "10.0.0.2:443");
+        assert_eq!(updated.port, 42);
+
+        assert!(matches!(
+            update_proxy_target(&proxy_uuid, "10.0.0.3:443", &observer),
+            Err(enums::DbError::PermissionDenied)
+        ));
+        assert!(matches!(
+            update_proxy_target(&proxy_uuid, "10.0.0.3:443", &other_project),
+            Err(enums::DbError::NotFound)
+        ));
+        assert!(matches!(
+            update_proxy_target(&Uuid::new_v4(), "10.0.0.3:443", &member),
+            Err(enums::DbError::NotFound)
+        ));
+        let stored = get_proxy(&proxy_uuid, &member).unwrap_or_else(|_| panic!("proxy is gone"));
+        assert_eq!(stored.target_address, "10.0.0.2:443");
+
+        hard_delete_proxy(&proxy_uuid);
     }
 
     #[test]

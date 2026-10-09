@@ -16,6 +16,7 @@ use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::migration::*;
 use crate::api::http_endpoints::task::*;
 use crate::api::http_endpoints::virtual_machine::*;
 
@@ -45,6 +46,29 @@ pub fn v1alpha_routes() -> Scope {
                                 list_virtual_machine_internal_v1_0::list_virtual_machine_internal,
                             ),
                         ),
+                )
+                // registered before the resources with the uuid of a virtual_machine, so
+                // `migration` is not taken for such a uuid
+                .service(resource("/migration/internal").route(
+                    post().to(import_virtual_machine_internal_v1_0::import_virtual_machine_internal),
+                ))
+                .service(
+                    resource("/{virtual_machine_uuid}/migration/internal")
+                        .route(get().to(get_migration_internal_v1_0::get_migration_internal))
+                        .route(delete().to(
+                            remove_migrated_virtual_machine_internal_v1_0::remove_migrated_virtual_machine_internal,
+                        )),
+                )
+                .service(resource("/{virtual_machine_uuid}/migration/export/internal").route(
+                    post().to(export_virtual_machine_internal_v1_0::export_virtual_machine_internal),
+                ))
+                .service(resource("/{virtual_machine_uuid}/migration/cancel/internal").route(
+                    post().to(cancel_migration_internal_v1_0::cancel_migration_internal),
+                ))
+                .service(
+                    resource("/{virtual_machine_uuid}/migration/file/{file}/internal").route(
+                        get().to(get_migration_file_internal_v1_0::get_migration_file_internal),
+                    ),
                 )
                 .service(
                     resource("/{virtual_machine_uuid}/internal")

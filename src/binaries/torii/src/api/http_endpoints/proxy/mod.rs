@@ -16,3 +16,4 @@ pub mod delete_proxy_internal_v1_0;
 pub mod get_proxy_v1_0;
 pub mod list_proxy_v1_0;
 pub mod set_proxy_internal_v1_0;
+pub mod update_proxy_internal_v1_0;
