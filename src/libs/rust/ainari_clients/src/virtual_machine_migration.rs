@@ -139,8 +139,9 @@ pub async fn remove_migrated_virtual_machine(
     insecure_client: bool,
 ) -> Result<TaskResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url =
-        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/internal");
+    let url = format!(
+        "{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/internal"
+    );
 
     let response = client
         .delete(url)
@@ -173,8 +174,9 @@ pub async fn get_migration_description(
     insecure_client: bool,
 ) -> Result<MigrationDescriptionResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url =
-        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/internal");
+    let url = format!(
+        "{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/internal"
+    );
 
     let response = client
         .get(url)

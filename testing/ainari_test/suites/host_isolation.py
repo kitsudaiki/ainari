@@ -139,6 +139,18 @@ def normal_vm_avoids_isolated_host(ctx):
         delete(ctx, result["uuid"])
 
 
+@suite.test("normal virtual machine can not be forced onto the isolated host",
+            requires=("isolated_host", "network", "vm_type"))
+def normal_vm_forced_on_isolated_host(ctx):
+    # the host has enough free resources, but its isolation doesn't match the request
+    error = expect_error(ainari_exceptions.ConflictException,
+                         virtual_machine.reserve_virtual_machine, ctx.api,
+                         ctx.name("forced-shared"), ctx.state["vm_type"], ctx.config.disk_size,
+                         ctx.state["network"], host_uuid=ctx.state["isolated_host"])
+    ctx.log(f"rejected: {error}")
+    check(is_unused(isolated_host(ctx)), "rejected virtual machine allocated resources")
+
+
 @suite.test("isolated virtual machine binds the isolated host to the project",
             requires=("isolated_host", "network", "vm_type"), provides=("isolated_vm",))
 def isolated_vm_binds_host(ctx):
