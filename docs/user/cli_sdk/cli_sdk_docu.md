@@ -204,6 +204,10 @@ machines without `isolated_host` are never placed on isolated hosts and virtual 
 only on isolated hosts. The isolation can only be changed, while no virtual machine runs on the
 host.
 
+An admin can also place a new virtual machine on a specific host (see
+[Create virtual machine](#create-virtual-machine)) and move an existing one to another host (see
+[Migrate virtual machine](#migrate-virtual-machine)).
+
 === "CLI"
 
     ```bash
@@ -495,6 +499,7 @@ The state of the virtual machine is shown in `vm_state`:
 | `RUNNING`   | booted                                               |
 | `STOPPED`   | powered off                                          |
 | `RESTORING` | the root-disk is reset to a snapshot                 |
+| `MIGRATING` | the virtual machine is moved to another host         |
 | `ERROR`     | something blocks the start of the virtual machine    |
 
 ### Create virtual machine
@@ -506,11 +511,16 @@ The state of the virtual machine is shown in `vm_state`:
 
     ```bash
     ainarictl vm create -t <VM_TYPE_UUID> -d <DISK_SIZE> \
-        -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> [--isolated_host] <NAME>
+        -u <NETWORK_UUID> -i <IMAGE_UUID> -k <PUBLIC_KEY_UUID> [--isolated_host] \
+        [--host <HOST_UUID>] <NAME>
     ```
 
     With `--isolated_host` the virtual machine is only placed on a host, which is
     [isolated](#hosts) for the project.
+
+    With `--host` an admin places the virtual machine on this specific [sakura-host](#hosts)
+    instead of a randomly selected one. The creation fails, if the host has not enough free
+    resources or its isolation doesn't match `--isolated_host`.
 
     example:
 
@@ -553,7 +563,8 @@ The state of the virtual machine is shown in `vm_state`:
                                                        vm_type_uuid,
                                                        5,        # disk in GiB
                                                        network_uuid,
-                                                       isolated_host=False)
+                                                       isolated_host=False,
+                                                       host_uuid=None)   # admin only
 
     # 2. install image and public key and boot it
     task = virtual_machine.create_virtual_machine(context,
@@ -567,7 +578,9 @@ The state of the virtual machine is shown in `vm_state`:
         time.sleep(2.0)
     ```
 
-    If the second step fails, the virtual machine stays reserved and has to be deleted.
+    If the second step fails, the virtual machine stays reserved and has to be deleted. With
+    `host_uuid` an admin places the virtual machine on this specific sakura-host, which fails with
+    a `ConflictException`, if the host has not enough free resources.
 
 ### Get, list and delete virtual machines
 
@@ -675,6 +688,67 @@ virtual machine keeps all of its resources.
     task = virtual_machine.start_virtual_machine(context, torii_port, virtual_machine_uuid)
     task = virtual_machine.reboot_virtual_machine(context, torii_port, virtual_machine_uuid)
     ```
+
+### Migrate virtual machine
+
+!!! info
+
+    Only admins are allowed to migrate virtual machines.
+
+A virtual machine can be moved to another sakura-host, for example to empty a host for its
+maintenance. It is a cold migration: the virtual machine is shut down gracefully, its disk is
+transferred directly to the new host and it is booted there again, if it was running before. It
+keeps its UUID, its internal IP, its `torii_port`, its floating IP and its
+[network filters](#network-filters).
+
+The migration runs in the background. While the virtual machine is moved, its `vm_state` is
+`MIGRATING` and it can not be started, stopped, rebooted, snapshotted or deleted and its network
+filters can not be changed. The new host has to have enough free resources for the virtual machine
+and the same kind of isolation as its current host. If the migration fails, the virtual machine is
+started on its current host again.
+
+=== "CLI"
+
+    ```bash
+    ainarictl vm migrate -t <TARGET_HOST_UUID> <VIRTUAL_MACHINE_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl vm migrate -t 8f5be498-a942-4b6a-9542-f43e9a53c3e2 943e56bb-c6e4-4716-a26c-f1fd46a45618
+
+    ┌──────────────────────┬──────────────────────────────────────┐
+    │ SOURCE HOST UUID     │ edbb59ce-2714-4d97-9d4b-3ab532c961d3 │
+    │ TARGET HOST UUID     │ 8f5be498-a942-4b6a-9542-f43e9a53c3e2 │
+    │ VIRTUAL MACHINE UUID │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    └──────────────────────┴──────────────────────────────────────┘
+    ```
+
+    Repeat `ainarictl vm get <VIRTUAL_MACHINE_UUID>`, until `VM STATE` is not `MIGRATING`
+    anymore. The used resources of the old host in `ainarictl host list` are released at the very
+    end of the migration.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import virtual_machine
+
+    result = virtual_machine.migrate_virtual_machine(context,
+                                                     virtual_machine_uuid,
+                                                     target_host_uuid)
+
+    # example-content of result:
+    #
+    # {
+    #     "virtual_machine_uuid": "943e56bb-c6e4-4716-a26c-f1fd46a45618",
+    #     "source_host_uuid": "edbb59ce-2714-4d97-9d4b-3ab532c961d3",
+    #     "target_host_uuid": "8f5be498-a942-4b6a-9542-f43e9a53c3e2"
+    # }
+    ```
+
+    A second migration of the same virtual machine, while the first one runs, fails with a
+    `ConflictException`, like a target host without enough free resources.
 
 ## Floating IPs
 
@@ -866,7 +940,10 @@ together with the virtual machine.
 ## Tasks
 
 Actions, which take longer, run as tasks in the background on the sakura-host of a virtual machine:
-the creation, start, stop and reboot of virtual machines and the snapshots. The `STATE` of a task
+the creation, start, stop and reboot of virtual machines and the snapshots. The steps of a
+[migration](#migrate-virtual-machine) on the old and the new host are tasks as well
+(`MigrationPrepare`, `MigrationImport`, `MigrationRemove` and `MigrationCancel`), which are started
+by hanami. The `STATE` of a task
 is one of `Created`, `Queued`, `Active`, `Finished`, `Aborted` or `Error`. In case of an error,
 the reason is listed in `MESSAGES`.
 

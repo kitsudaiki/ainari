@@ -163,6 +163,14 @@
                                         Restore from snapshot
                                     </button>
                                     <button
+                                        v-if="isAdmin"
+                                        @click="
+                                            openMigrateModal(virtualMachine)
+                                        "
+                                    >
+                                        Migrate
+                                    </button>
+                                    <button
                                         @click="openDeleteModal(virtualMachine)"
                                     >
                                         Delete
@@ -198,6 +206,14 @@
             :icons="icons"
             @accept="acceptDeleteModal"
             @cancel="cancelDeleteModal"
+        />
+
+        <VirtualMachineMigrateModal
+            v-if="showMigrateModal"
+            :virtual_machine="virtualMachineToMigrate"
+            :icons="icons"
+            @accept="acceptMigrateModal"
+            @cancel="cancelMigrateModal"
         />
 
         <SnapshotSaveModal
@@ -237,6 +253,7 @@ import type {
 import VirtualMachineCreateModal from "./virtual_machine_create_modal.vue";
 import VirtualMachineInfoModal from "./virtual_machine_info_modal.vue";
 import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
+import VirtualMachineMigrateModal from "./virtual_machine_migrate_modal.vue";
 import SnapshotSaveModal from "./snapshot_save_modal.vue";
 import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
@@ -251,6 +268,11 @@ const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const virtualMachineToShow = ref<VirtualMachineBasicResp | null>(null);
 const virtualMachineToDelete = ref<VirtualMachineBasicResp | null>(null);
+const showMigrateModal = ref(false);
+const virtualMachineToMigrate = ref<VirtualMachineBasicResp | null>(null);
+// only admins can migrate virtual machines. The view is created again with a
+// switch of the project, which brings a new token.
+const isAdmin = getAuthContext().is_admin === "true";
 const showSnapshotSaveModal = ref(false);
 const showSnapshotRestoreModal = ref(false);
 const snapshotVirtualMachineUuid = ref<string | null>(null);
@@ -268,6 +290,7 @@ const stateLabels: Record<VmState, string> = {
     running: "Running",
     stopped: "Stopped",
     restoring: "Restoring snapshot",
+    migrating: "Migrating to another host",
     error: "Error",
 };
 // states, which change without an action of the user, so they are polled
@@ -277,6 +300,7 @@ const transitionalStates: VmState[] = [
     "reserved",
     "created",
     "restoring",
+    "migrating",
 ];
 const vmStates = ref<Record<string, VmState>>({});
 // last known `vm_state` of each virtual machine, which is printed next to the
@@ -286,6 +310,12 @@ const vmStateValues = ref<Record<string, VirtualMachineState>>({});
 // is followed until it is finished
 const pendingPowerTasks: Record<string, { toriiPort: number; taskUuid: string }> =
     {};
+// migrations, which were started here. A virtual machine is only frozen in the
+// state MIGRATING, after the migration started on its host, so it is shown as
+// pending until then. A migration, which failed before, is followed at most
+// for `migrationStartTimeoutMs`.
+const pendingMigrations: Record<string, { since: number; seen: boolean }> = {};
+const migrationStartTimeoutMs = 60_000;
 let statePollTimer: ReturnType<typeof setInterval> | null = null;
 let statePollRunning = false;
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
@@ -378,12 +408,39 @@ async function fetchVirtualMachineState(uuid: string): Promise<VmState> {
         if (uuid in vmStates.value) {
             vmStateValues.value[uuid] = virtualMachine.vm_state;
         }
+        if (isWaitingForMigration(uuid, virtualMachine.vm_state)) {
+            return "pending";
+        }
         return virtualMachine.vm_state.toLowerCase() as VmState;
     } catch {
         // the state is unknown, so an old value must not be shown anymore
         delete vmStateValues.value[uuid];
         return "error";
     }
+}
+
+/**
+ * Checks, if a migration, which was started here, didn't freeze the virtual
+ * machine yet, so it is still shown as pending.
+ */
+function isWaitingForMigration(
+    uuid: string,
+    state: VirtualMachineState,
+): boolean {
+    const migration = pendingMigrations[uuid];
+    if (!migration) return false;
+    if (state === "MIGRATING") {
+        migration.seen = true;
+        return false;
+    }
+    if (
+        migration.seen ||
+        Date.now() - migration.since > migrationStartTimeoutMs
+    ) {
+        delete pendingMigrations[uuid];
+        return false;
+    }
+    return true;
 }
 
 async function updateVirtualMachineState(uuid: string) {
@@ -474,6 +531,26 @@ function cancelDeleteModal() {
 async function acceptDeleteModal() {
     await fetchVirtualMachines();
     cancelDeleteModal();
+}
+
+//=============================================================================
+// Migrate modal, which moves a virtual machine to another host (admin only)
+//=============================================================================
+function openMigrateModal(virtualMachine: VirtualMachineBasicResp) {
+    virtualMachineToMigrate.value = virtualMachine;
+    showMigrateModal.value = true;
+    openDropdown.value = null;
+}
+function cancelMigrateModal() {
+    showMigrateModal.value = false;
+    virtualMachineToMigrate.value = null;
+    openDropdown.value = null;
+}
+function acceptMigrateModal(virtualMachineUuid: string) {
+    // the migration runs in the background and is followed by the state-polling
+    pendingMigrations[virtualMachineUuid] = { since: Date.now(), seen: false };
+    vmStates.value[virtualMachineUuid] = "pending";
+    cancelMigrateModal();
 }
 
 //=============================================================================
@@ -639,6 +716,7 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
 .state-reserved,
 .state-created,
 .state-restoring,
+.state-migrating,
 .state-pending {
     background-color: #ffca28;
     box-shadow: 0 0 0.4rem #ffca28;

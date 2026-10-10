@@ -133,6 +133,7 @@ The menu in the column **Actions** provides:
 | Start, Stop, Reboot   | change the power-state of the virtual machine                         |
 | Save snapshot         | save the root-disk of the virtual machine as new image                |
 | Restore from snapshot | reset the root-disk of the virtual machine to a snapshot              |
+| Migrate               | move the virtual machine to another host, only visible for admins     |
 | Delete                | delete the virtual machine                                            |
 
 ![Actions of a virtual machine](img/virtual_machine_actions.jpg)
@@ -148,6 +149,13 @@ The menu in the column **Actions** provides:
 Like an uploaded image, a snapshot is stored encrypted. By default a new secret is generated for
 it. To encrypt it with an already existing secret of **Security > Secrets** instead, select it in
 the **Secret**-dropdown of **Save snapshot**.
+
+**Migrate** opens a dialog, which lists the sakura-hosts with their free cores, memory and disk.
+Hosts without enough free resources for the virtual machine can't be selected. After the target
+host is selected, the virtual machine is shut down, moved to the new host and booted there again,
+if it was running before. It keeps its address, its proxy-port and its network filter. The
+migration runs in the background, while the state of the virtual machine is `MIGRATING`. Afterwards
+**Show tasks** shows the tasks of the new host.
 
 ### Tasks
 

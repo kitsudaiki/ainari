@@ -42,9 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       again on the new host, if it was running before
     - the token of the admin is renewed during the migration, so it can take longer than the
       lifetime of a token
+    - new cli-command `ainarictl vm migrate` and functions in the python- and go-sdk
 - proxies of the torii can be pointed to another target, while they keep their port
 - optional field `host_uuid` for virtual-machine-create, with which an admin places the virtual
-  machine on a specific sakura-host. It fails, if the host has not enough free resources.
+  machine on a specific sakura-host. It fails, if the host has not enough free resources. It is
+  available as `--host` in `ainarictl vm create` and in the python- and go-sdk.
 
 ### Fixed
 

@@ -34,6 +34,8 @@ import type {
     SakuraHostResp,
     VirtualMachineBasicResp,
     VirtualMachineCreateReq,
+    VirtualMachineMigrateReq,
+    VirtualMachineMigrateResp,
     VirtualMachineResp,
     VmTypeBasicResp,
     VmTypeCreateReq,
@@ -56,6 +58,24 @@ export async function reserveVirtualMachine(
     body: VirtualMachineCreateReq,
 ): Promise<VirtualMachineResp> {
     const resp = await hanamiClient().post("/v1alpha/virtual_machine", body);
+    return resp.data;
+}
+
+/**
+ * `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/migrate/admin`
+ *
+ * Moves a virtual-machine to another sakura-host, which only admins are allowed to
+ * do. The migration runs in the background, while the virtual-machine is in the
+ * state `MIGRATING`.
+ */
+export async function migrateVirtualMachine(
+    uuid: string,
+    body: VirtualMachineMigrateReq,
+): Promise<VirtualMachineMigrateResp> {
+    const resp = await hanamiClient().post(
+        `/v1alpha/virtual_machine/${uuid}/migrate/admin`,
+        body,
+    );
     return resp.data;
 }
 

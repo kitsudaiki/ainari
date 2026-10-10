@@ -230,6 +230,7 @@ export type VirtualMachineState =
     | "RUNNING"
     | "STOPPED"
     | "RESTORING"
+    | "MIGRATING"
     | "ERROR";
 
 /** Mirror of `virtual_machine_structs::VirtualMachineResp`. */
@@ -250,6 +251,19 @@ export interface VirtualMachineResp {
     created_by: string;
     updated_at: string;
     updated_by: string;
+}
+
+/** Mirror of `migration_structs::VirtualMachineMigrateReq`. */
+export interface VirtualMachineMigrateReq {
+    /** sakura-host, which runs the virtual machine after the migration */
+    target_host_uuid: string;
+}
+
+/** Mirror of `migration_structs::VirtualMachineMigrateResp`. */
+export interface VirtualMachineMigrateResp {
+    virtual_machine_uuid: string;
+    source_host_uuid: string;
+    target_host_uuid: string;
 }
 
 //=============================================================================
