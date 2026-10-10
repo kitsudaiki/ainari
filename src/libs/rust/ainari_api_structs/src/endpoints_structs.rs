@@ -30,4 +30,6 @@ pub struct EndpontsResp {
     pub omamori: EndpointField,
     #[serde(default)]
     pub izakaya: EndpointField,
+    #[serde(default)]
+    pub omikuji: EndpointField,
 }

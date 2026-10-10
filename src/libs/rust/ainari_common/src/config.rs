@@ -38,6 +38,10 @@ pub struct Endpoints {
     /// configs, which were written before izakaya existed, stay valid.
     #[serde(default)]
     pub izakaya: Endpoint,
+    /// Central error- and audit-log. It is optional, so the configs, which were written before
+    /// omikuji existed, stay valid.
+    #[serde(default)]
+    pub omikuji: Endpoint,
 }
 
 #[derive(Debug, Deserialize)]

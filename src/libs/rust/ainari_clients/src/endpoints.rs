@@ -87,6 +87,10 @@ pub async fn get_endpoints(
                             public_address: deserialized.izakaya.public_address,
                             internal_address: deserialized.izakaya.internal_address,
                         },
+                        omikuji: ainari_config::Endpoint {
+                            public_address: deserialized.omikuji.public_address,
+                            internal_address: deserialized.omikuji.internal_address,
+                        },
                     };
 
                     Ok(endpoints)

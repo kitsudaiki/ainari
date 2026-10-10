@@ -3687,6 +3687,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "omikuji"
+version = "0.21.0"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "ainari_api",
+ "ainari_api_structs",
+ "ainari_common",
+ "apistos",
+ "apistos-schemars",
+ "chrono",
+ "diesel",
+ "diesel_migrations",
+ "lazy_static",
+ "log",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "toml 1.1.6+spec-1.1.0",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
